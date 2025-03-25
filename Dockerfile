@@ -20,6 +20,9 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 COPY --from=builder /app/main .
 
+# Copy the admin directory into the image
+COPY admin/ admin/
+
 # Expose the port your application listens on
 EXPOSE 8080
 

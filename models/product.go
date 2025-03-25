@@ -12,5 +12,4 @@ type Product struct {
 	Price      float64            `bson:"price" json:"price"`
 	CategoryID string             `bson:"categoryId" json:"categoryId"`
 	CreatedAt  time.Time          `bson:"createdAt" json:"createdAt"`
-	// Add other fields as needed, e.g., Description, Stock, etc.
 }
