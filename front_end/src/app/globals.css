@@ -1,0 +1,613 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  padding: 0;
+  margin: 0;
+  font-family: "IranSansX", sans-serif;
+}
+
+@font-face {
+  font-family: "IranSansX";
+  font-weight: 400;
+  src: url("/fonts/iransansx-regular.woff") format("woff");
+}
+
+@font-face {
+  font-family: "IranSansX";
+  font-weight: 300;
+  src: url("/fonts/iransansx-light.woff") format("woff");
+}
+
+@font-face {
+  font-family: "IranSansX";
+  font-weight: 700;
+  src: url("/fonts/iransansx-bold.woff") format("woff");
+}
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+}
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
+
+    /* رنگ‌های اضافی برای فروشگاه */
+    --success: 142.1 76.2% 36.3%;
+    --success-foreground: 355.7 100% 97.3%;
+
+    --warning: 47.9 95.8% 53.1%;
+    --warning-foreground: 26 83.3% 14.1%;
+
+    --info: 221.2 83.2% 53.3%;
+    --info-foreground: 210 40% 98%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+
+    /* رنگ‌های اضافی برای حالت تاریک */
+    --success: 142.1 70.6% 45.3%;
+    --success-foreground: 144.9 80.4% 10%;
+
+    --warning: 47.9 95.8% 53.1%;
+    --warning-foreground: 26 83.3% 14.1%;
+
+    --info: 217.2 91.2% 59.8%;
+    --info-foreground: 222.2 47.4% 11.2%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* فونت‌ها و استایل‌های پایه */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-bold;
+  }
+
+  h1 {
+    @apply text-3xl md:text-4xl;
+  }
+
+  h2 {
+    @apply text-2xl md:text-3xl;
+  }
+
+  h3 {
+    @apply text-xl md:text-2xl;
+  }
+
+  h4 {
+    @apply text-lg md:text-xl;
+  }
+
+  /* تنظیمات RTL */
+  html[dir="rtl"] {
+    text-align: right;
+  }
+}
+
+/* Custom Styles */
+.container {
+  @apply px-4 mx-auto max-w-7xl;
+}
+
+/* انیمیشن‌ها */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@layer utilities {
+  .animate-fadeIn {
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  .animate-slideUp {
+    animation: slideUp 0.5s ease-out;
+  }
+
+  .animate-slideDown {
+    animation: slideDown 0.5s ease-out;
+  }
+
+  .animate-slideInRight {
+    animation: slideInRight 0.5s ease-out;
+  }
+
+  .animate-slideInLeft {
+    animation: slideInLeft 0.5s ease-out;
+  }
+
+  .animate-pulse-once {
+    animation: pulse 0.5s ease-in-out;
+  }
+
+  .animate-fadeOut {
+    animation: fadeOut 2s forwards;
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.2) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+
+  .animate-bounce {
+    animation: bounce 1s ease infinite;
+  }
+
+  /* استایل‌های مورد استفاده صفحه جزئیات محصول */
+  .product-zoom {
+    @apply cursor-zoom-in overflow-hidden relative;
+  }
+
+  .product-zoom-active {
+    @apply cursor-zoom-out;
+  }
+
+  .product-tag {
+    @apply inline-block text-xs px-2 py-1 rounded-full font-medium;
+  }
+
+  .scrollbar-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* نوار پیشرفت به سبک رنگین کمان */
+  .rainbow-progress {
+    background: linear-gradient(
+      to right,
+      #ff5f6d,
+      #ffc371,
+      #2cccff,
+      #20e3b2,
+      #ffcc70
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  /* افکت‌های هاور پیشرفته */
+  .hover-lift {
+    @apply transition-all duration-300;
+  }
+
+  .hover-lift:hover {
+    @apply transform -translate-y-1 shadow-md;
+  }
+
+  .hover-scale {
+    @apply transition-transform duration-300;
+  }
+
+  .hover-scale:hover {
+    @apply transform scale-105;
+  }
+
+  .hover-bright {
+    @apply transition-all duration-300;
+  }
+
+  .hover-bright:hover {
+    @apply brightness-110;
+  }
+
+  /* نمایش اسکلتون لودینگ */
+  .skeleton {
+    @apply bg-gray-200 animate-pulse rounded;
+  }
+
+  /* استایل‌های مربوط به مقایسه محصولات */
+  .compare-highlight {
+    @apply bg-yellow-50 -mx-4 px-4 py-2 border-l-4 border-yellow-500;
+  }
+
+  .compare-diff {
+    @apply text-primary font-bold;
+  }
+
+  .compare-same {
+    @apply text-muted-foreground;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-4 py-2;
+  }
+
+  .btn-outline {
+    @apply border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2;
+  }
+
+  .btn-success {
+    @apply bg-green-600 text-white hover:bg-green-700 h-10 px-4 py-2;
+  }
+
+  .btn-danger {
+    @apply bg-red-600 text-white hover:bg-red-700 h-10 px-4 py-2;
+  }
+
+  .btn-warning {
+    @apply bg-amber-500 text-white hover:bg-amber-600 h-10 px-4 py-2;
+  }
+
+  .btn-info {
+    @apply bg-blue-500 text-white hover:bg-blue-600 h-10 px-4 py-2;
+  }
+
+  .btn-ghost {
+    @apply text-foreground hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2;
+  }
+
+  .btn-link {
+    @apply text-primary underline-offset-4 hover:underline p-0 h-auto;
+  }
+
+  .input {
+    @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* کارت محصول */
+  .product-card {
+    @apply relative bg-card rounded-lg border overflow-hidden transition-all duration-300 hover:shadow-md;
+  }
+
+  .product-card-image {
+    @apply aspect-square relative overflow-hidden bg-gray-100;
+  }
+
+  .product-card-content {
+    @apply p-4;
+  }
+
+  .product-card-title {
+    @apply font-medium line-clamp-2 h-12 mb-1;
+  }
+
+  .product-card-price {
+    @apply text-lg font-bold mt-2;
+  }
+
+  .product-card-discount {
+    @apply text-sm text-muted-foreground line-through ml-2;
+  }
+
+  .product-card-badge {
+    @apply absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded;
+  }
+
+  /* نوار پیمایش سفارشی */
+  .custom-scrollbar {
+    @apply scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent hover:scrollbar-thumb-gray-400;
+  }
+
+  /* بج‌ها */
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .badge-primary {
+    @apply bg-primary/10 text-primary;
+  }
+
+  .badge-secondary {
+    @apply bg-secondary text-secondary-foreground;
+  }
+
+  .badge-success {
+    @apply bg-green-100 text-green-800;
+  }
+
+  .badge-danger {
+    @apply bg-red-100 text-red-800;
+  }
+
+  .badge-warning {
+    @apply bg-amber-100 text-amber-800;
+  }
+
+  .badge-info {
+    @apply bg-blue-100 text-blue-800;
+  }
+
+  /* ستاره های امتیازدهی */
+  .stars-container {
+    @apply flex items-center;
+  }
+
+  .star-filled {
+    @apply text-yellow-400 fill-yellow-400;
+  }
+
+  .star-empty {
+    @apply text-gray-300;
+  }
+
+  /* فیلدهای فرم‌های اختصاصی */
+  .form-group {
+    @apply mb-4;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium mb-1;
+  }
+
+  .form-error {
+    @apply text-xs text-destructive mt-1;
+  }
+
+  .form-hint {
+    @apply text-xs text-muted-foreground mt-1;
+  }
+
+  /* مودال‌های اختصاصی */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4 animate-fadeIn;
+  }
+
+  .modal-content {
+    @apply bg-white rounded-lg max-w-md w-full p-6 relative animate-slideUp shadow-xl;
+  }
+
+  .modal-title {
+    @apply text-lg font-bold mb-4;
+  }
+
+  .modal-close {
+    @apply absolute top-4 right-4 text-gray-400 hover:text-gray-600;
+  }
+
+  /* اعلان‌های سیستمی */
+  .notification {
+    @apply fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg animate-slideInRight max-w-md;
+  }
+
+  .notification-success {
+    @apply bg-green-600 text-white;
+  }
+
+  .notification-error {
+    @apply bg-red-600 text-white;
+  }
+
+  .notification-warning {
+    @apply bg-amber-500 text-white;
+  }
+
+  .notification-info {
+    @apply bg-blue-500 text-white;
+  }
+
+  /* لودر */
+  .loader {
+    @apply w-6 h-6 border-2 border-t-transparent rounded-full animate-spin;
+  }
+
+  .loader-primary {
+    @apply border-primary border-t-transparent;
+  }
+
+  /* تب‌ها */
+  .tabs {
+    @apply flex border-b mb-4;
+  }
+
+  .tab {
+    @apply px-4 py-2 border-b-2 border-transparent text-muted-foreground font-medium;
+  }
+
+  .tab-active {
+    @apply border-primary text-primary;
+  }
+
+  /* افکت اسکیمر (برای لودینگ) */
+  .skeleton-loader {
+    @apply rounded bg-gray-200 relative overflow-hidden;
+  }
+
+  .skeleton-loader::after {
+    content: "";
+    @apply absolute inset-0 -translate-x-full animate-shimmer;
+    background-image: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0,
+      rgba(255, 255, 255, 0.2) 20%,
+      rgba(255, 255, 255, 0.5) 60%,
+      rgba(255, 255, 255, 0)
+    );
+  }
+}
+
+
