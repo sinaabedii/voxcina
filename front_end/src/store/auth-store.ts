@@ -7,6 +7,7 @@ import {
   AuthState,
 } from "@/types/user";
 import { delay, generateId } from "@/lib/utils";
+import { useCartStore } from "./cart-store";
 
 interface AuthStore extends AuthState {
   login: (credentials: LoginCredentials) => Promise<User>;
@@ -14,30 +15,6 @@ interface AuthStore extends AuthState {
   logout: () => void;
   updateUser: (userData: Partial<User>) => Promise<User>;
 }
-
-const mockUser: User = {
-  id: "1",
-  name: "کاربر تست",
-  email: "user@example.com",
-  avatar: "/images/avatars/user.jpg",
-  role: "user",
-  addresses: [
-    {
-      id: "1",
-      title: "خانه",
-      firstName: "علی",
-      lastName: "محمدی",
-      phoneNumber: "09123456789",
-      province: "تهران",
-      city: "تهران",
-      address: "خیابان ولیعصر، بالاتر از میدان ونک، پلاک 123",
-      postalCode: "1234567890",
-      isDefault: true,
-    },
-  ],
-  createdAt: "2023-01-01T00:00:00Z",
-  updatedAt: "2023-01-01T00:00:00Z",
-};
 
 export const useAuthStore = create<AuthStore>()(
   persist(
@@ -51,29 +28,42 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
 
         try {
-          await delay(1000);
+          const response = await fetch("/api/users/login", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(credentials),
+          });
 
-          if (
-            credentials.email === "user@example.com" &&
-            credentials.password === "password"
-          ) {
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || "Login failed");
+          }
+
+          const data = await response.json();
+
+          if (data.token && data.user) {
+            localStorage.setItem("authToken", data.token);
+
             set({
-              user: mockUser,
+              user: data.user,
               isAuthenticated: true,
               isLoading: false,
               error: null,
             });
-            return mockUser;
+            return data.user;
+          } else {
+            throw new Error("Invalid response format from server");
           }
-
-          throw new Error("ایمیل یا رمز عبور اشتباه است");
         } catch (error) {
           set({
             isLoading: false,
-            error: error instanceof Error ? error.message : "خطای ناشناخته",
+            error: error instanceof Error ? error.message : "خطای ناشناخته در ورود",
             user: null,
             isAuthenticated: false,
           });
+          localStorage.removeItem("authToken");
           throw error;
         }
       },
@@ -82,29 +72,43 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
 
         try {
-          await delay(1000);
-
           if (data.password !== data.confirmPassword) {
             throw new Error("رمز عبور و تکرار آن مطابقت ندارند");
           }
 
-          const newUser: User = {
-            id: generateId(),
-            name: data.name,
-            email: data.email,
-            role: "user",
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-
-          set({
-            user: newUser,
-            isAuthenticated: true,
-            isLoading: false,
-            error: null,
+          const response = await fetch("/api/users/register", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              name: data.name,
+              email: data.email,
+              password: data.password,
+            }),
           });
 
-          return newUser;
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || "Registration failed");
+          }
+
+          const responseData = await response.json();
+
+          if (responseData.token && responseData.user) {
+            localStorage.setItem("authToken", responseData.token);
+
+            set({
+              user: responseData.user,
+              isAuthenticated: true,
+              isLoading: false,
+              error: null,
+            });
+
+            return responseData.user;
+          } else {
+            throw new Error("Invalid response format from server");
+          }
         } catch (error) {
           set({
             isLoading: false,
@@ -117,11 +121,13 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       logout: () => {
+        localStorage.removeItem("authToken");
         set({
           user: null,
           isAuthenticated: false,
           error: null,
         });
+        useCartStore.getState().clearCart();
       },
 
       updateUser: async (userData) => {

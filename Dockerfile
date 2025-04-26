@@ -23,7 +23,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o main .
 
 
 # ┌────────────────────────── RUNTIME STAGE ──────────────────────────┐
-FROM alpine:3.21
+FROM docker.arvancloud.ir/alpine:3.21
 
 # Fresh index + TLS certs (and tzdata if you need it)
 RUN apk update && \

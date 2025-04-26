@@ -7,6 +7,7 @@ import (
 
 	"backEnd/config"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -25,5 +26,19 @@ func Connect(cfg *config.Config) *mongo.Database {
 	}
 	Client = client
 	Database = client.Database(cfg.DBName)
+
+	// Ensure unique index for email in users collection upon connection
+	usersCollection := Database.Collection("users")
+	indexModel := mongo.IndexModel{
+		Keys:    bson.D{{Key: "email", Value: 1}}, // 1 for ascending order
+		Options: options.Index().SetUnique(true),
+	}
+	_, err = usersCollection.Indexes().CreateOne(context.Background(), indexModel)
+	if err != nil {
+		log.Printf("Warning: Could not ensure unique index for users email: %v", err)
+		// If index creation failure is critical, consider log.Fatal(err)
+	}
+
+	log.Println("Database connected and indexes ensured.")
 	return Database
 }

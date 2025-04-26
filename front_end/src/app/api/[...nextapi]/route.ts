@@ -1,140 +1,109 @@
 import { NextRequest, NextResponse } from "next/server";
-import { products } from "@/data/products";
-import { categories } from "@/data/categories";
 
-export async function GET(
+// Define the base URL of your Go backend
+const GO_BACKEND_URL = process.env.GO_BACKEND_URL || "http://localhost:8080";
+
+async function handler(
   req: NextRequest,
   { params }: { params: { nextapi: string[] } }
 ) {
-  const path = params.nextapi.join("/");
-  const url = new URL(req.url);
-  const searchParams = url.searchParams;
-
-  if (path === "products") {
-    return NextResponse.json({ products });
-  } else if (path.startsWith("products/")) {
-    const productId = path.split("/")[1];
-    const product = products.find((p) => p.id === productId);
-
-    if (!product) {
-      return NextResponse.json({ error: "محصول یافت نشد" }, { status: 404 });
-    }
-
-    return NextResponse.json({ product });
-  } else if (path === "categories") {
-    return NextResponse.json({ categories });
-  } else if (path.startsWith("categories/")) {
-    const categoryId = path.split("/")[1];
-    let category = categories.find(
-      (c) => c.id === categoryId || c.slug === categoryId
-    );
-
-    if (!category) {
-      for (const mainCategory of categories) {
-        if (mainCategory.children) {
-          const childCategory = mainCategory.children.find(
-            (c) => c.id === categoryId || c.slug === categoryId
-          );
-          if (childCategory) {
-            category = childCategory;
-            break;
-          }
-        }
-      }
-    }
-
-    if (!category) {
-      return NextResponse.json(
-        { error: "دسته‌بندی یافت نشد" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ category });
-  } else if (path === "search") {
-    const query = searchParams.get("q");
-
-    if (!query) {
-      return NextResponse.json({ products: [] });
-    }
-
-    const searchResults = products.filter(
-      (product) =>
-        product.name.toLowerCase().includes(query.toLowerCase()) ||
-        product.description.toLowerCase().includes(query.toLowerCase()) ||
-        product.brand.toLowerCase().includes(query.toLowerCase()) ||
-        product.category.toLowerCase().includes(query.toLowerCase())
-    );
-
-    return NextResponse.json({ products: searchResults });
-  }
-
-  return NextResponse.json({ error: "مسیر نامعتبر" }, { status: 404 });
-}
-
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { nextapi: string[] } }
-) {
-  const path = params.nextapi.join("/");
-
   try {
-    const body = await req.json();
+    // 1. Extract request details
+    const method = req.method;
+    const pathSegments = params.nextapi || [];
+    const originalPath = pathSegments.join("/");
+    const searchParams = req.nextUrl.search; // Keep the original search string
 
-    if (path === "cart/add") {
-      return NextResponse.json({
-        success: true,
-        message: "محصول به سبد خرید اضافه شد",
-      });
-    } else if (path === "auth/login") {
-      const { email, password } = body;
-
-      if (email === "user@example.com" && password === "password") {
-        return NextResponse.json({
-          success: true,
-          user: {
-            id: "1",
-            name: "کاربر تست",
-            email: "user@example.com",
-            role: "user",
-          },
-        });
-      } else {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "ایمیل یا رمز عبور اشتباه است",
-          },
-          { status: 401 }
-        );
-      }
-    } else if (path === "auth/register") {
-      const { name, email, password } = body;
-
-      return NextResponse.json({
-        success: true,
-        user: {
-          id: "2",
-          name,
-          email,
-          role: "user",
-        },
-      });
-    } else if (path === "order/create") {
-      return NextResponse.json({
-        success: true,
-        orderId: `ORD-${Date.now()}`,
-        message: "سفارش با موفقیت ثبت شد",
-      });
+    // 2. Map Next.js path to Go backend path
+    let backendPath = originalPath;
+    if (originalPath.startsWith("auth/")) {
+      backendPath = `users/${originalPath.substring(5)}`; // auth/login -> users/login
+    } else if (originalPath === "cart/add") {
+      backendPath = "cart"; // cart/add -> cart (assuming POST implies add)
+    } else if (originalPath === "order/create") {
+      backendPath = "checkout"; // order/create -> checkout
+    } else if (method === "GET" && originalPath === "search") {
+        // Special case for GET /search?q=... -> GET /products/search?q=...
+        backendPath = "products/search";
     }
+    // Add more specific mappings if needed
 
-    return NextResponse.json({ error: "مسیر نامعتبر" }, { status: 404 });
+    const targetUrl = `${GO_BACKEND_URL}/api/${backendPath}${searchParams}`;
+
+    // 3. Prepare headers for forwarding
+    //    - Filter out host/Next.js specific headers
+    //    - Copy relevant headers (e.g., Content-Type, Authorization)
+    const headersToForward = new Headers();
+    req.headers.forEach((value, key) => {
+      const lowerKey = key.toLowerCase();
+      if (
+        !lowerKey.startsWith("x-") && // Filter Next.js internal headers
+        lowerKey !== "host" &&
+        lowerKey !== "connection" &&
+        lowerKey !== "keep-alive" &&
+        lowerKey !== "transfer-encoding"
+        // Add other headers to filter if necessary
+      ) {
+        headersToForward.append(key, value);
+      }
+    });
+    // Add origin if needed for CORS on the backend
+    headersToForward.set('Origin', req.nextUrl.origin);
+
+
+    // 4. Forward the request
+    const fetchOptions: RequestInit = {
+      method: method,
+      headers: headersToForward,
+      // Pass body only for relevant methods
+      body: (method !== "GET" && method !== "HEAD") ? req.body : undefined,
+      // IMPORTANT: Duplex required for streaming request bodies
+      // @ts-ignore - duplex is required but node types might lag
+      duplex: 'half',
+      // Keepalive might be useful depending on setup
+      // keepalive: true,
+    };
+
+    const backendResponse = await fetch(targetUrl, fetchOptions);
+
+    // 5. Prepare response headers for the client
+    const responseHeaders = new Headers();
+    backendResponse.headers.forEach((value, key) => {
+        // Filter backend-specific headers if necessary
+        responseHeaders.append(key, value);
+    });
+
+    // Allow CORS from the frontend origin
+    responseHeaders.set('Access-Control-Allow-Origin', req.nextUrl.origin);
+    responseHeaders.set('Access-Control-Allow-Credentials', 'true'); // If using cookies/auth headers
+
+    // 6. Return the response from the backend
+    return new NextResponse(backendResponse.body, {
+      status: backendResponse.status,
+      statusText: backendResponse.statusText,
+      headers: responseHeaders,
+    });
+
   } catch (error) {
+    console.error(`[API Proxy Error] ${req.method} ${req.url}:`, error);
+    // Determine if it's a fetch error (network issue) or other error
+    const isFetchError = error instanceof TypeError && error.message.includes('fetch failed');
+    const status = isFetchError ? 502 : 500; // Bad Gateway for network errors, Internal Server Error otherwise
+    const message = isFetchError ? "Backend service unavailable" : "Proxy error";
+
     return NextResponse.json(
-      {
-        error: "خطا در پردازش درخواست",
-      },
-      { status: 400 }
+      { error: message, details: error instanceof Error ? error.message : String(error) },
+      { status: status }
     );
   }
 }
+
+// Export the single handler for all relevant HTTP methods
+export { handler as GET, handler as POST, handler as PUT, handler as DELETE, handler as PATCH };
+
+// // Old code below (commented out or removed)
+// // import { products } from "@/data/products";
+// // import { categories } from "@/data/categories";
+// //
+// // export async function GET(...) { ... }
+// // export async function POST(...) { ... }
