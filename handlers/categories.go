@@ -34,11 +34,21 @@ func GetCategories(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var categories []Category
+	// Use a slice of bson.M to match the exact structure from TypeScript
+	var categories []bson.M
 	if err := cursor.All(ctx, &categories); err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding categories")
 		return
 	}
+	
+	// Convert BSON ObjectIDs to string IDs for frontend compatibility
+	for i := range categories {
+		if objID, ok := categories[i]["_id"].(primitive.ObjectID); ok {
+			categories[i]["id"] = objID.Hex()
+			delete(categories[i], "_id")
+		}
+	}
+	
 	utils.JSONResponse(w, http.StatusOK, categories)
 }
 
@@ -48,30 +58,42 @@ func GetCategoryProducts(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	categoryIDStr := vars["id"]
 
-	// Assuming category IDs are stored as hex strings.
-	categoryID, err := primitive.ObjectIDFromHex(categoryIDStr)
-	if err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid category ID")
-		return
+	// In case the ID is an ObjectID in the URL
+	var filter bson.M
+	categoryObjectID, err := primitive.ObjectIDFromHex(categoryIDStr)
+	if err == nil {
+		// First try finding by ObjectID
+		filter = bson.M{"categoryId": categoryObjectID.Hex()}
+	} else {
+		// If not a valid ObjectID, try as a string
+		filter = bson.M{"categoryId": categoryIDStr}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	collection := db.Database.Collection("products")
-	// Here we assume that products have a "categoryId" field stored as a string.
-	cursor, err := collection.Find(ctx, bson.M{"categoryId": categoryID.Hex()})
+	cursor, err := collection.Find(ctx, filter)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching products for category")
 		return
 	}
 
-	// For simplicity, we decode the products into a slice of interface{}.
-	var products []interface{}
+	// Use a slice of bson.M to match the exact structure from TypeScript
+	var products []bson.M
 	if err := cursor.All(ctx, &products); err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding products")
 		return
 	}
+	
+	// Convert BSON ObjectIDs to string IDs for frontend compatibility
+	for i := range products {
+		if objID, ok := products[i]["_id"].(primitive.ObjectID); ok {
+			products[i]["id"] = objID.Hex()
+			delete(products[i], "_id")
+		}
+	}
+	
 	utils.JSONResponse(w, http.StatusOK, products)
 }
 
@@ -88,12 +110,21 @@ func GetBrands(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decode brands into a generic slice; you could define a Brand struct.
-	var brands []interface{}
+	// Use a slice of bson.M to match the exact structure from TypeScript
+	var brands []bson.M
 	if err := cursor.All(ctx, &brands); err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding brands")
 		return
 	}
+	
+	// Convert BSON ObjectIDs to string IDs for frontend compatibility
+	for i := range brands {
+		if objID, ok := brands[i]["_id"].(primitive.ObjectID); ok {
+			brands[i]["id"] = objID.Hex()
+			delete(brands[i], "_id")
+		}
+	}
+	
 	utils.JSONResponse(w, http.StatusOK, brands)
 }
 
@@ -104,12 +135,40 @@ func GetHomepageCategories(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	collection := db.Database.Collection("homepage")
-	var data interface{}
+	var data bson.M
 	err := collection.FindOne(ctx, bson.M{}).Decode(&data)
 	if err != nil {
 		// Fallback to a static response if no homepage data is available.
 		utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Homepage categories and banners"})
 		return
 	}
+	
+	// Convert any ObjectIDs in the data to string IDs
+	convertObjectIDsToString(data)
+	
 	utils.JSONResponse(w, http.StatusOK, data)
+}
+
+// Helper function to recursively convert ObjectIDs to strings in nested maps and slices
+func convertObjectIDsToString(data interface{}) {
+	switch v := data.(type) {
+	case bson.M:
+		// Process map fields
+		for key, value := range v {
+			if key == "_id" {
+				if objID, ok := value.(primitive.ObjectID); ok {
+					v["id"] = objID.Hex()
+					delete(v, "_id")
+				}
+			} else {
+				// Recursive call for nested objects
+				convertObjectIDsToString(value)
+			}
+		}
+	case []interface{}:
+		// Process slice elements
+		for _, item := range v {
+			convertObjectIDsToString(item)
+		}
+	}
 }

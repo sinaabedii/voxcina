@@ -6,13 +6,14 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
+
 	"backEnd/db"
 	"backEnd/models"
 	"backEnd/utils"
-
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // AddProduct handles POST /api/admin/products
@@ -23,9 +24,15 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create new ObjectID and set the CreatedAt timestamp.
+	// Create new ObjectID and set timestamps
 	product.ID = primitive.NewObjectID()
 	product.CreatedAt = time.Now()
+	product.UpdatedAt = time.Now()
+
+	// Default to active product if not specified
+	if !product.IsActive {
+		product.IsActive = true
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -36,7 +43,15 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error adding product")
 		return
 	}
-	utils.JSONResponse(w, http.StatusCreated, map[string]string{"message": "Product added successfully"})
+
+	utils.JSONResponse(
+		w,
+		http.StatusCreated,
+		map[string]interface{}{
+			"message": "Product added successfully",
+			"product": product,
+		},
+	)
 }
 
 // ListProducts handles GET /api/products
@@ -45,26 +60,40 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	collection := db.Database.Collection("products")
-	cursor, err := collection.Find(ctx, bson.M{})
+
+	// Only fetch active products
+	filter := bson.M{"is_active": true}
+	cursor, err := collection.Find(ctx, filter)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching products")
 		return
 	}
+
 	var products []models.Product
 	if err := cursor.All(ctx, &products); err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding products")
 		return
 	}
+
 	utils.JSONResponse(w, http.StatusOK, products)
 }
 
-// GetProduct handles GET /api/products?id=<productId>
+// GetProduct handles GET /api/products/{id}
 func GetProduct(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
-	if id == "" {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Product ID not provided")
-		return
+	// Get ID from URL parameters or query string
+	var id string
+	if idParam := r.URL.Query().Get("id"); idParam != "" {
+		id = idParam
+	} else {
+		// Try to extract from URL path variable using mux
+		vars := mux.Vars(r)
+		id = vars["id"]
+		if id == "" {
+			utils.ErrorResponse(w, http.StatusBadRequest, "Product ID not provided")
+			return
+		}
 	}
+
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid product ID")
@@ -75,12 +104,15 @@ func GetProduct(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	collection := db.Database.Collection("products")
+
 	var product models.Product
-	err = collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&product)
+	err = collection.FindOne(ctx, bson.M{"_id": objID, "is_active": true}).
+		Decode(&product)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusNotFound, "Product not found")
 		return
 	}
+
 	utils.JSONResponse(w, http.StatusOK, product)
 }
 
@@ -89,18 +121,24 @@ func SearchProducts(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
 	collection := db.Database.Collection("products")
-	filter := bson.M{"name": bson.M{"$regex": query, "$options": "i"}}
+	filter := bson.M{
+		"name":      bson.M{"$regex": query, "$options": "i"},
+		"is_active": true,
+	}
 	cursor, err := collection.Find(ctx, filter)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error searching products")
 		return
 	}
+
 	var products []models.Product
 	if err := cursor.All(ctx, &products); err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding products")
 		return
 	}
+
 	utils.JSONResponse(w, http.StatusOK, products)
 }
 
@@ -108,17 +146,25 @@ func SearchProducts(w http.ResponseWriter, r *http.Request) {
 func ProductRecommendations(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
 	collection := db.Database.Collection("products")
+	filter := bson.M{"is_active": true}
 	opts := options.Find().SetSort(bson.M{"price": 1}).SetLimit(5)
-	cursor, err := collection.Find(ctx, bson.M{}, opts)
+	cursor, err := collection.Find(ctx, filter, opts)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching recommendations")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error fetching recommendations",
+		)
 		return
 	}
+
 	var products []models.Product
 	if err := cursor.All(ctx, &products); err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding products")
 		return
 	}
+
 	utils.JSONResponse(w, http.StatusOK, products)
 }

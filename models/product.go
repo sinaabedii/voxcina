@@ -6,10 +6,32 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// ProductVariant represents a size/color variant of a product
+type ProductVariant struct {
+	Size     string   `bson:"size" json:"size"`         // e.g., "S", "M", "L"
+	Color    string   `bson:"color" json:"color"`       // e.g., "Red", "Blue"
+	SKU      string   `bson:"sku" json:"sku"`           // Unique per variant (e.g., "TSHIRT-RED-M")
+	Quantity int      `bson:"quantity" json:"quantity"` // Available stock
+	Images   []string `bson:"images" json:"images"`     // Optional variant-specific images
+}
+
+// ProductAttribute represents product-wide metadata (non-variant)
+type ProductAttribute struct {
+	Name  string `bson:"name" json:"name"`   // e.g., "Material", "Care Instructions"
+	Value string `bson:"value" json:"value"` // e.g., "Cotton", "Machine Washable"
+}
+
+// Product represents a product in the shop
 type Product struct {
-	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	Name       string             `bson:"name" json:"name"`
-	Price      float64            `bson:"price" json:"price"`
-	CategoryID string             `bson:"categoryId" json:"categoryId"`
-	CreatedAt  time.Time          `bson:"createdAt" json:"createdAt"`
+	ID          primitive.ObjectID   `bson:"_id,omitempty" json:"id,omitempty"`
+	Name        string               `bson:"name" json:"name"`
+	Description string               `bson:"description" json:"description"`
+	Price       float64              `bson:"price" json:"price"`                 // Base price
+	CategoryIDs []primitive.ObjectID `bson:"category_ids" json:"category_ids"`   // References to `categories`
+	BrandID     primitive.ObjectID   `bson:"brand_id" json:"brand_id"`           // Reference to `brands`
+	Variants    []ProductVariant     `bson:"variants" json:"variants"`           // Size/color-specific data
+	Attributes  []ProductAttribute   `bson:"attributes" json:"attributes"`       // Product-wide metadata
+	IsActive    bool                 `bson:"is_active" json:"is_active"`         // Soft delete flag
+	CreatedAt   time.Time            `bson:"created_at" json:"created_at"`
+	UpdatedAt   time.Time            `bson:"updated_at" json:"updated_at"`
 }

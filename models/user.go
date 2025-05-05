@@ -6,31 +6,25 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// Address defines the structure for a user's address.
-// Note: Frontend expects Address.id as string, using ObjectID here for DB consistency.
-// Ensure conversion logic if necessary when sending data to the frontend.
+// Address represents a shipping or billing address for a user
 type Address struct {
-	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	Title       string             `bson:"title" json:"title"`
-	FirstName   string             `bson:"first_name" json:"firstName"`
-	LastName    string             `bson:"last_name" json:"lastName"`
-	PhoneNumber string             `bson:"phone_number" json:"phoneNumber"`
-	Province    string             `bson:"province" json:"province"`
-	City        string             `bson:"city" json:"city"`
-	Address     string             `bson:"address" json:"address"`
-	PostalCode  string             `bson:"postal_code" json:"postalCode"`
-	IsDefault   bool               `bson:"is_default" json:"isDefault"`
+	Street      string `bson:"street" json:"street"`
+	City        string `bson:"city" json:"city"`
+	State       string `bson:"state" json:"state"`
+	PostalCode  string `bson:"postal_code" json:"postal_code"`
+	Country     string `bson:"country" json:"country"`
+	IsDefault   bool   `bson:"is_default" json:"is_default"`
 }
 
-// User defines the structure for user data.
+// User represents a registered user
 type User struct {
-	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	Name      string             `bson:"name" json:"name"`
-	Email     string             `bson:"email" json:"email"`
-	Password  string             `bson:"password" json:"password"` // Allow password in requests, but clear before response
-	Avatar    string             `bson:"avatar,omitempty" json:"avatar,omitempty"`
-	Role      string             `bson:"role" json:"role"` // Consider using constants or enums for roles
-	Addresses []Address          `bson:"addresses,omitempty" json:"addresses,omitempty"`
-	CreatedAt time.Time          `bson:"created_at" json:"createdAt"`
-	UpdatedAt time.Time          `bson:"updated_at" json:"updatedAt"`
+	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Name         string             `bson:"name" json:"name"`
+	Email        string             `bson:"email" json:"email"`           // Unique
+	PasswordHash string             `bson:"password_hash" json:"-"`       // Don't include in JSON responses
+	Phone        string             `bson:"phone,omitempty" json:"phone,omitempty"` // Optional
+	Addresses    []Address          `bson:"addresses,omitempty" json:"addresses,omitempty"`
+	Role         string             `bson:"role" json:"role"`             // Values: "customer", "admin"
+	CreatedAt    time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt    time.Time          `bson:"updated_at" json:"updated_at"`
 }
