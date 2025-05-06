@@ -22,7 +22,7 @@ interface ProductState {
   fetchProductById: (id: string) => Promise<void>;
   fetchCategories: () => Promise<void>;
   fetchCategoryById: (id: string) => Promise<void>;
-  fetchFeaturedProducts: () => Promise<void>;
+  fetchFlashSaleProducts: () => Promise<void>;
   fetchNewProducts: () => Promise<void>;
   setFilter: (filter: Partial<ProductFilter>) => void;
   clearFilters: () => void;
@@ -131,15 +131,18 @@ export const useProductStore = create<ProductState>()(
         }
       },
 
-      fetchFeaturedProducts: async () => {
+      fetchFlashSaleProducts: async () => {
         set({ isLoading: true, error: null });
         try {
-          await delay(300);
-          const featured = mockProducts.filter((p) => p.isFeatured);
-          set({ featuredProducts: featured, isLoading: false });
+          const response = await fetch("/api/products?is_flash_sale=true");
+          if (!response.ok) {
+            throw new Error("Failed to fetch flash sale products");
+          }
+          const data = await response.json();
+          set({ featuredProducts: data, isLoading: false });
         } catch (error) {
           set({
-            error: "خطا در دریافت محصولات ویژه. لطفا دوباره تلاش کنید.",
+            error: error instanceof Error ? error.message : "خطا در دریافت محصولات ویژه. لطفا دوباره تلاش کنید.",
             isLoading: false,
           });
         }
@@ -148,12 +151,15 @@ export const useProductStore = create<ProductState>()(
       fetchNewProducts: async () => {
         set({ isLoading: true, error: null });
         try {
-          await delay(300);
-          const newProds = mockProducts.filter((p) => p.isNew);
-          set({ newProducts: newProds, isLoading: false });
+          const response = await fetch("/api/products?is_new=true");
+          if (!response.ok) {
+            throw new Error("Failed to fetch new products");
+          }
+          const data = await response.json();
+          set({ newProducts: data, isLoading: false });
         } catch (error) {
           set({
-            error: "خطا در دریافت محصولات جدید. لطفا دوباره تلاش کنید.",
+            error: error instanceof Error ? error.message : "خطا در دریافت محصولات جدید. لطفا دوباره تلاش کنید.",
             isLoading: false,
           });
         }

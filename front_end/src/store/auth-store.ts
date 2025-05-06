@@ -6,14 +6,13 @@ import {
   RegistrationData,
   AuthState,
 } from "@/types/user";
-import { delay, generateId } from "@/lib/utils";
-import { useCartStore } from "./cart-store";
 
-interface AuthStore extends AuthState {
+export interface AuthStore extends AuthState {
   login: (credentials: LoginCredentials) => Promise<User>;
   register: (data: RegistrationData) => Promise<User>;
-  logout: () => void;
+  logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<User>;
+  getProfile: () => Promise<User>;
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -120,34 +119,53 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      logout: () => {
-        localStorage.removeItem("authToken");
-        set({
-          user: null,
-          isAuthenticated: false,
-          error: null,
-        });
-        useCartStore.getState().clearCart();
+      logout: async () => {
+        try {
+          const token = localStorage.getItem("authToken");
+          if (token) {
+            await fetch("/api/users/logout", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${token}`,
+              },
+            });
+          }
+        } catch (error) {
+          console.error("Logout error:", error);
+        } finally {
+          localStorage.removeItem("authToken");
+          set({
+            user: null,
+            isAuthenticated: false,
+            error: null,
+          });
+        }
       },
 
       updateUser: async (userData) => {
         set({ isLoading: true, error: null });
 
         try {
-          await delay(800);
-
-          const currentUser = useAuthStore.getState().user;
-
-          if (!currentUser) {
+          const token = localStorage.getItem("authToken");
+          if (!token) {
             throw new Error("کاربر وارد نشده است");
           }
 
-          const updatedUser: User = {
-            ...currentUser,
-            ...userData,
-            updatedAt: new Date().toISOString(),
-          };
+          const response = await fetch("/api/users/profile", {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify(userData),
+          });
 
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || "Failed to update profile");
+          }
+
+          const updatedUser = await response.json();
           set({
             user: updatedUser,
             isLoading: false,
@@ -162,9 +180,51 @@ export const useAuthStore = create<AuthStore>()(
           throw error;
         }
       },
+
+      getProfile: async () => {
+        set({ isLoading: true, error: null });
+
+        try {
+          const token = localStorage.getItem("authToken");
+          if (!token) {
+            throw new Error("کاربر وارد نشده است");
+          }
+
+          const response = await fetch("/api/users/profile", {
+            headers: {
+              "Authorization": `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || "Failed to fetch profile");
+          }
+
+          const userData = await response.json();
+          set({
+            user: userData,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+
+          return userData;
+        } catch (error) {
+          set({
+            isLoading: false,
+            error: error instanceof Error ? error.message : "خطای ناشناخته",
+            user: null,
+            isAuthenticated: false,
+          });
+          throw error;
+        }
+      },
     }),
     {
       name: "digi-style-auth",
+      partialize: (state) => (Object.fromEntries(
+        Object.entries(state).filter(([key]) => ['user', 'isAuthenticated'].includes(key))
+      ) as { user: User | null; isAuthenticated: boolean }),
     }
   )
 );

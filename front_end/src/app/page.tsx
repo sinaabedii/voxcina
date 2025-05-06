@@ -12,7 +12,7 @@ export default function HomePage() {
   const {
     featuredProducts,
     newProducts,
-    fetchFeaturedProducts,
+    fetchFlashSaleProducts,
     fetchNewProducts,
     isLoading,
   } = useProductStore();
@@ -29,7 +29,7 @@ export default function HomePage() {
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 150]);
 
   useEffect(() => {
-    fetchFeaturedProducts();
+    fetchFlashSaleProducts();
     fetchNewProducts();
     setIsVisible(true);
 
@@ -38,7 +38,7 @@ export default function HomePage() {
     return () => {
       document.documentElement.style.scrollBehavior = "";
     };
-  }, [fetchFeaturedProducts, fetchNewProducts]);
+  }, [fetchFlashSaleProducts, fetchNewProducts]);
 
   const mainCategories = categories.slice(0, 5);
 
