@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { Product, Category, ProductFilter } from "@/types/product";
+import { Product, ProductFilter } from "@/types/product";
 import { products as mockProducts } from "@/data/products";
 import { categories as mockCategories } from "@/data/categories";
 import { delay } from "@/lib/utils";
@@ -9,19 +9,15 @@ interface ProductState {
   products: Product[];
   featuredProducts: Product[];
   newProducts: Product[];
-  categories: Category[];
   isLoading: boolean;
   error: string | null;
   activeProduct: Product | null;
-  activeCategory: Category | null;
   filter: ProductFilter;
   recentlyViewed: Product[];
   comparedProducts: Product[];
 
   fetchProducts: () => Promise<void>;
   fetchProductById: (id: string) => Promise<void>;
-  fetchCategories: () => Promise<void>;
-  fetchCategoryById: (id: string) => Promise<void>;
   fetchFlashSaleProducts: () => Promise<void>;
   fetchNewProducts: () => Promise<void>;
   setFilter: (filter: Partial<ProductFilter>) => void;
@@ -41,11 +37,9 @@ export const useProductStore = create<ProductState>()(
       products: [],
       featuredProducts: [],
       newProducts: [],
-      categories: [],
       isLoading: false,
       error: null,
       activeProduct: null,
-      activeCategory: null,
       filter: {},
       recentlyViewed: [],
       comparedProducts: [],
@@ -76,53 +70,6 @@ export const useProductStore = create<ProductState>()(
           set({ activeProduct: product, isLoading: false });
 
           get().addRecentlyViewed(product);
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : "خطای ناشناخته",
-            isLoading: false,
-          });
-        }
-      },
-
-      fetchCategories: async () => {
-        set({ isLoading: true, error: null });
-        try {
-          await delay(300);
-          set({ categories: mockCategories, isLoading: false });
-        } catch (error) {
-          set({
-            error: "خطا در دریافت دسته‌بندی‌ها. لطفا دوباره تلاش کنید.",
-            isLoading: false,
-          });
-        }
-      },
-
-      fetchCategoryById: async (id: string) => {
-        set({ isLoading: true, error: null, activeCategory: null });
-        try {
-          await delay(200);
-
-          let category = mockCategories.find((c) => c.id === id);
-
-          if (!category) {
-            for (const mainCategory of mockCategories) {
-              if (mainCategory.children) {
-                const childCategory = mainCategory.children.find(
-                  (c) => c.id === id
-                );
-                if (childCategory) {
-                  category = childCategory;
-                  break;
-                }
-              }
-            }
-          }
-
-          if (!category) {
-            throw new Error("دسته‌بندی یافت نشد");
-          }
-
-          set({ activeCategory: category, isLoading: false });
         } catch (error) {
           set({
             error: error instanceof Error ? error.message : "خطای ناشناخته",

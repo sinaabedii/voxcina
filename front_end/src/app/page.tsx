@@ -3,9 +3,9 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useProductStore } from "@/store/product-store";
+import { useCategoryStore } from "@/store/category-store";
 import ProductGrid from "@/components/product/ProductGrid";
 import { DEMO_BANNERS } from "@/lib/constants";
-import { categories } from "@/data/categories";
 import { motion, useScroll, useTransform } from "framer-motion";
 
 export default function HomePage() {
@@ -14,8 +14,16 @@ export default function HomePage() {
     newProducts,
     fetchFlashSaleProducts,
     fetchNewProducts,
-    isLoading,
+    isLoading: isProductLoading,
+    error: productError,
   } = useProductStore();
+
+  const {
+    categories,
+    fetchCategories,
+    isLoading: isLoadingCategories,
+    error: categoriesError,
+  } = useCategoryStore();
 
   const [isVisible, setIsVisible] = useState(false);
   const heroRef = useRef<HTMLElement | null>(null);
@@ -31,6 +39,7 @@ export default function HomePage() {
   useEffect(() => {
     fetchFlashSaleProducts();
     fetchNewProducts();
+    fetchCategories();
     setIsVisible(true);
 
     document.documentElement.style.scrollBehavior = "smooth";
@@ -38,7 +47,7 @@ export default function HomePage() {
     return () => {
       document.documentElement.style.scrollBehavior = "";
     };
-  }, [fetchFlashSaleProducts, fetchNewProducts]);
+  }, [fetchFlashSaleProducts, fetchNewProducts, fetchCategories]);
 
   const mainCategories = categories.slice(0, 5);
 
@@ -211,54 +220,62 @@ export default function HomePage() {
           </span>
         </motion.h2>
 
-        <motion.div
-          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6"
-          variants={staggerContainer}
-        >
-          {mainCategories.map((category, index) => (
-            <motion.div key={category.id} variants={itemVariant}>
-              <Link
-                href={`/categories/${category.slug}`}
-                className="group block"
-              >
-                <div className="relative h-60 md:h-72 rounded-2xl overflow-hidden bg-gray-200 shadow-md transition-all duration-500 group-hover:shadow-2xl">
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 group-hover:via-black/20 transition-colors duration-500">
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                      <motion.div
-                        className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md"
-                        whileHover={{ scale: 1.1 }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 400,
-                          damping: 10,
-                        }}
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-7 w-7 text-white"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
+        {isLoadingCategories && <div className="text-center py-8">درحال بارگذاری دسته‌بندی‌ها...</div>}
+        {categoriesError && <div className="text-center py-8 text-red-500">خطا در بارگذاری دسته‌بندی‌ها: {categoriesError}</div>}
+        {!isLoadingCategories && !categoriesError && categories.length === 0 && (
+          <div className="text-center py-8">هیچ دسته‌بندی برای نمایش وجود ندارد.</div>
+        )}
+
+        {!isLoadingCategories && !categoriesError && categories.length > 0 && (
+          <motion.div
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6"
+            variants={staggerContainer}
+          >
+            {mainCategories.map((category, index) => (
+              <motion.div key={category.id || index} variants={itemVariant}>
+                <Link
+                  href={`/categories/${category.slug}`}
+                  className="group block"
+                >
+                  <div className="relative h-60 md:h-72 rounded-2xl overflow-hidden bg-gray-200 shadow-md transition-all duration-500 group-hover:shadow-2xl">
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 group-hover:via-black/20 transition-colors duration-500">
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                        <motion.div
+                          className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md"
+                          whileHover={{ scale: 1.1 }}
+                          transition={{
+                            type: "spring",
+                            stiffness: 400,
+                            damping: 10,
+                          }}
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M14 5l7 7m0 0l-7 7m7-7H3"
-                          />
-                        </svg>
-                      </motion.div>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-7 w-7 text-white"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M14 5l7 7m0 0l-7 7m7-7H3"
+                            />
+                          </svg>
+                        </motion.div>
+                      </div>
+                    </div>
+                    <div className="absolute inset-x-0 bottom-0 p-5 text-white transform transition-transform duration-500 group-hover:translate-y-0">
+                      <h3 className="text-xl font-bold">{category.name}</h3>
+                      <div className="h-0.5 w-0 bg-white transition-all duration-500 group-hover:w-24 mt-3"></div>
                     </div>
                   </div>
-                  <div className="absolute inset-x-0 bottom-0 p-5 text-white transform transition-transform duration-500 group-hover:translate-y-0">
-                    <h3 className="text-xl font-bold">{category.name}</h3>
-                    <div className="h-0.5 w-0 bg-white transition-all duration-500 group-hover:w-24 mt-3"></div>
-                  </div>
-                </div>
-              </Link>
-            </motion.div>
-          ))}
-        </motion.div>
+                </Link>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
       </motion.section>
 
       <motion.section
@@ -380,7 +397,7 @@ export default function HomePage() {
           </motion.div>
         </div>
 
-        {isLoading ? (
+        {isProductLoading ? (
           <div className="h-64 flex items-center justify-center">
             <div className="relative w-16 h-16">
               <div className="absolute inset-0 border-4 border-gray-200 rounded-full"></div>
@@ -600,7 +617,7 @@ export default function HomePage() {
           </motion.div>
         </div>
 
-        {isLoading ? (
+        {isProductLoading ? (
           <div className="h-64 flex items-center justify-center">
             <div className="relative w-16 h-16">
               <div className="absolute inset-0 border-4 border-gray-200 rounded-full"></div>
