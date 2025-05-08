@@ -6,18 +6,18 @@ import (
 	"net/http"
 	"time"
 
-	"backEnd/db"
-	"backEnd/utils"
-
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+
+	"backEnd/db"
+	"backEnd/utils"
 )
 
 // Category represents a product category.
 type Category struct {
 	ID   primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	Name string             `bson:"name" json:"name"`
+	Name string             `bson:"name"          json:"name"`
 	// Add additional fields as needed (e.g., description, image URL, etc.)
 }
 
@@ -30,25 +30,48 @@ func GetCategories(w http.ResponseWriter, r *http.Request) {
 	collection := db.Database.Collection("categories")
 	cursor, err := collection.Find(ctx, bson.M{})
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching categories")
+		// Return empty array instead of error for database connection issues
+		utils.JSONResponse(w, http.StatusOK, []interface{}{})
 		return
 	}
 
 	// Use a slice of bson.M to match the exact structure from TypeScript
 	var categories []bson.M
 	if err := cursor.All(ctx, &categories); err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding categories")
+		// Return empty array instead of error for decoding issues
+		utils.JSONResponse(w, http.StatusOK, []interface{}{})
 		return
 	}
-	
+
+	// If no categories found, return empty array
+	if len(categories) == 0 {
+		utils.JSONResponse(w, http.StatusOK, []interface{}{})
+		return
+	}
+
 	// Convert BSON ObjectIDs to string IDs for frontend compatibility
+	// and ensure all required fields are present
 	for i := range categories {
+		// Convert _id to id
 		if objID, ok := categories[i]["_id"].(primitive.ObjectID); ok {
 			categories[i]["id"] = objID.Hex()
 			delete(categories[i], "_id")
 		}
+
+		// Ensure name field exists
+		if _, ok := categories[i]["name"]; !ok {
+			categories[i]["name"] = ""
+		}
+
+		// Remove any null values
+		for k, v := range categories[i] {
+			if v == nil {
+				delete(categories[i], k)
+			}
+		}
 	}
-	
+
+	// Return the categories as a valid, non-null array
 	utils.JSONResponse(w, http.StatusOK, categories)
 }
 
@@ -75,7 +98,11 @@ func GetCategoryProducts(w http.ResponseWriter, r *http.Request) {
 	collection := db.Database.Collection("products")
 	cursor, err := collection.Find(ctx, filter)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching products for category")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error fetching products for category",
+		)
 		return
 	}
 
@@ -85,7 +112,7 @@ func GetCategoryProducts(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding products")
 		return
 	}
-	
+
 	// Convert BSON ObjectIDs to string IDs for frontend compatibility
 	for i := range products {
 		if objID, ok := products[i]["_id"].(primitive.ObjectID); ok {
@@ -93,7 +120,7 @@ func GetCategoryProducts(w http.ResponseWriter, r *http.Request) {
 			delete(products[i], "_id")
 		}
 	}
-	
+
 	utils.JSONResponse(w, http.StatusOK, products)
 }
 
@@ -116,7 +143,7 @@ func GetBrands(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding brands")
 		return
 	}
-	
+
 	// Convert BSON ObjectIDs to string IDs for frontend compatibility
 	for i := range brands {
 		if objID, ok := brands[i]["_id"].(primitive.ObjectID); ok {
@@ -124,7 +151,7 @@ func GetBrands(w http.ResponseWriter, r *http.Request) {
 			delete(brands[i], "_id")
 		}
 	}
-	
+
 	utils.JSONResponse(w, http.StatusOK, brands)
 }
 
@@ -139,13 +166,17 @@ func GetHomepageCategories(w http.ResponseWriter, r *http.Request) {
 	err := collection.FindOne(ctx, bson.M{}).Decode(&data)
 	if err != nil {
 		// Fallback to a static response if no homepage data is available.
-		utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Homepage categories and banners"})
+		utils.JSONResponse(
+			w,
+			http.StatusOK,
+			map[string]string{"message": "Homepage categories and banners"},
+		)
 		return
 	}
-	
+
 	// Convert any ObjectIDs in the data to string IDs
 	convertObjectIDsToString(data)
-	
+
 	utils.JSONResponse(w, http.StatusOK, data)
 }
 

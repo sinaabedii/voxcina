@@ -20,24 +20,20 @@ import (
 // Register handles user registration by inserting a new user document into MongoDB.
 // It now also generates and returns a JWT token upon successful registration.
 func Register(w http.ResponseWriter, r *http.Request) {
-	var user models.User
-	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+	// Define a struct to capture registration data
+	var registrationData struct {
+		Name     string `json:"name"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&registrationData); err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
-	// --- Password Hashing Placeholder ---
-	// IMPORTANT: Implement password hashing here in production!
-	// hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
-	// if err != nil {
-	// 	utils.ErrorResponse(w, http.StatusInternalServerError, "Error hashing password")
-	// 	return
-	// }
-	// user.Password = string(hashedPassword)
-	// -----------------------------------
-
-	// Validate required fields (add more checks as needed)
-	if user.Email == "" || user.Password == "" || user.Name == "" {
+	// Validate required fields
+	if registrationData.Email == "" || registrationData.Password == "" || registrationData.Name == "" {
 		utils.ErrorResponse(
 			w,
 			http.StatusBadRequest,
@@ -46,18 +42,19 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user.ID = primitive.NewObjectID()
-	user.CreatedAt = time.Now()
-	user.UpdatedAt = time.Now()
-	user.Role = "user" // Default role
-	if user.Addresses == nil {
-		user.Addresses = []models.Address{}
+	// Create user object
+	user := models.User{
+		ID:           primitive.NewObjectID(),
+		Name:         registrationData.Name,
+		Email:        registrationData.Email,
+		PasswordHash: registrationData.Password, // Temporary: Replace with proper hashing in production
+		Role:         "user",                    // Default role
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		Addresses:    []models.Address{},
 	}
 
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		10*time.Second,
-	) // Increased timeout slightly
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	// Check if user already exists
@@ -65,32 +62,29 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	var existingUser models.User
 	err := collection.FindOne(ctx, bson.M{"email": user.Email}).Decode(&existingUser)
 	if err == nil {
-		// User found, email already exists
 		utils.ErrorResponse(w, http.StatusConflict, "Email already registered")
 		return
 	} else if err.Error() != "mongo: no documents in result" {
-		// An actual error occurred during the find operation
 		log.Println("Error checking existing user:", err)
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error checking user existence")
 		return
 	}
-	// No user found with that email, proceed with registration
 
+	// Insert the new user
 	_, err = collection.InsertOne(ctx, user)
 	if err != nil {
 		log.Println("InsertOne error:", err)
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error inserting user")
 		return
 	}
-	log.Printf("User registered successfully: ID %s, Email %s", user.ID.Hex(), user.Email)
 
-	// --- Generate JWT Token ---
+	// Generate JWT token
 	claims := jwt.MapClaims{
 		"email":   user.Email,
 		"user_id": user.ID.Hex(),
-		"role":    user.Role,                             // Include role in claims if useful
-		"exp":     time.Now().Add(72 * time.Hour).Unix(), // Token expiration
-		"iat":     time.Now().Unix(),                     // Issued at
+		"role":    user.Role,
+		"exp":     time.Now().Add(72 * time.Hour).Unix(),
+		"iat":     time.Now().Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -98,39 +92,22 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		secret = "137888" // Use a strong, environment-variable-based secret in production!
-		log.Println(
-			"Warning: Using default JWT secret. Set JWT_SECRET environment variable.",
-		)
+		log.Println("Warning: Using default JWT secret. Set JWT_SECRET environment variable.")
 	}
 
 	signedToken, err := token.SignedString([]byte(secret))
 	if err != nil {
 		log.Println("Error signing token after registration:", err)
-		// Consider what to do here. Maybe log the user in manually?
-		// For now, we'll return an error, as token generation failed.
-		utils.ErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"Error generating token after registration",
-		)
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error generating token after registration")
 		return
 	}
-	// --------------------------
 
-	// --- Return Response Expected by Frontend ---
-	user.Password = "" // Clear password before sending response
+	// Clear sensitive data before sending response
+	user.PasswordHash = ""
 	utils.JSONResponse(w, http.StatusCreated, map[string]interface{}{
-		// "message": "User registered successfully", // Optional: Keep if frontend uses it
 		"token": signedToken,
 		"user":  user,
 	})
-	// ------------------------------------------
-
-	// // Old response format (removed)
-	// // utils.JSONResponse(w, http.StatusCreated, map[string]string{
-	// // 	"message": "User registered",
-	// // 	"user_id": user.ID.Hex(),
-	// // })
 }
 
 // Login authenticates the user and returns a JWT token.
@@ -167,9 +144,9 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	log.Printf(
 		"Comparing passwords - Request: '%s', DB: '%s'",
 		credentials.Password,
-		user.Password,
+		user.PasswordHash,
 	)
-	if user.Password != credentials.Password {
+	if user.PasswordHash != credentials.Password {
 		log.Printf("Password mismatch for user %s (ID: %s)", user.Email, user.ID.Hex())
 		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid email or password")
 		return
@@ -206,7 +183,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return the signed JWT token and user details (excluding password).
-	user.Password = "" // Clear password before sending response
+	user.PasswordHash = "" // Clear password before sending response
 	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
 		"message": "User logged in", // Keep message for clarity, or remove if frontend doesn't need it
 		"token":   signedToken,
@@ -255,13 +232,19 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, http.StatusBadRequest, "User ID not provided")
 		return
 	}
+
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
 
-	var updateData models.User
+	var updateData struct {
+		Name      string           `json:"name,omitempty"`
+		Phone     string           `json:"phone,omitempty"`
+		Addresses []models.Address `json:"addresses,omitempty"`
+	}
+
 	if err := json.NewDecoder(r.Body).Decode(&updateData); err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload")
 		return
@@ -271,43 +254,29 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	collection := db.Database.Collection("users")
-
-	// Prepare update fields based on the new User model
-	updateFields := bson.M{}
-	if updateData.Name != "" {
-		updateFields["name"] = updateData.Name
-	}
-	if updateData.Email != "" {
-		updateFields["email"] = updateData.Email
-	}
-	// Password update should likely be handled separately with hashing
-	// if updateData.Password != "" {
-	// 	updateFields["password"] = hashedPassword // Ensure password is hashed
-	// }
-	if updateData.Avatar != "" {
-		updateFields["avatar"] = updateData.Avatar
-	}
-	if updateData.Role != "" {
-		updateFields["role"] = updateData.Role
-	}
-	if updateData.Addresses != nil {
-		// If you allow updating addresses here, ensure address IDs are handled correctly
-		updateFields["addresses"] = updateData.Addresses
+	update := bson.M{
+		"$set": bson.M{
+			"name":       updateData.Name,
+			"phone":      updateData.Phone,
+			"addresses":  updateData.Addresses,
+			"updated_at": time.Now(),
+		},
 	}
 
-	// Always update the UpdatedAt timestamp
-	updateFields["updated_at"] = time.Now()
-
-	update := bson.M{"$set": updateFields}
-
-	_, err = collection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+	result, err := collection.UpdateOne(
+		ctx,
+		bson.M{"_id": objID},
+		update,
+	)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error updating user")
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error updating profile")
 		return
 	}
-	utils.JSONResponse(
-		w,
-		http.StatusOK,
-		map[string]string{"message": "User profile updated"},
-	)
+
+	if result.MatchedCount == 0 {
+		utils.ErrorResponse(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Profile updated successfully"})
 }
