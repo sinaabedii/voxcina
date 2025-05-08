@@ -4,23 +4,31 @@ import { useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useProductStore } from "@/store/product-store";
+import { useCategoryStore } from "@/store/category-store";
 import ProductGrid from "@/components/product/ProductGrid";
 import { DEMO_BANNERS } from "@/lib/constants";
-import { categories } from "@/data/categories";
 
 export default function HomePage() {
   const {
     featuredProducts,
     newProducts,
-    fetchFeaturedProducts,
+    fetchFlashSaleProducts,
     fetchNewProducts,
-    isLoading,
+    isLoading: isLoadingProducts,
   } = useProductStore();
 
+  const {
+    categories,
+    fetchCategories,
+    isLoading: isLoadingCategories,
+    error: categoriesError,
+  } = useCategoryStore();
+
   useEffect(() => {
-    fetchFeaturedProducts();
+    fetchFlashSaleProducts();
     fetchNewProducts();
-  }, [fetchFeaturedProducts, fetchNewProducts]);
+    fetchCategories();
+  }, [fetchFlashSaleProducts, fetchNewProducts, fetchCategories]);
 
   const mainCategories = categories.slice(0, 5);
 
@@ -58,29 +66,46 @@ export default function HomePage() {
 
       <section className="container mb-16">
         <h2 className="text-2xl font-bold mb-8">دسته‌بندی‌های محبوب</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {mainCategories.map((category) => (
-            <Link
-              key={category.id}
-              href={`/categories/${category.slug}`}
-              className="group"
-            >
-              <div className="relative h-40 rounded-lg overflow-hidden">
-                <Image
-                  src={category.image || "/images/placeholder.jpg"}
-                  alt={category.name}
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/40 transition-colors">
-                  <h3 className="text-white text-lg font-medium">
-                    {category.name}
-                  </h3>
+        {isLoadingCategories && (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">درحال بارگذاری دسته‌بندی‌ها...</p>
+          </div>
+        )}
+        {categoriesError && (
+          <div className="text-center py-8 text-red-500">
+            <p>خطا در بارگذاری دسته‌بندی‌ها: {categoriesError}</p>
+          </div>
+        )}
+        {!isLoadingCategories && !categoriesError && categories.length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">هیچ دسته‌بندی برای نمایش وجود ندارد.</p>
+          </div>
+        )}
+        {!isLoadingCategories && !categoriesError && categories.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {mainCategories.map((category) => (
+              <Link
+                key={category.id}
+                href={`/categories/${category.slug}`}
+                className="group"
+              >
+                <div className="relative h-40 rounded-lg overflow-hidden">
+                  <Image
+                    src={category.image || "/images/placeholder.jpg"}
+                    alt={category.name}
+                    fill
+                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/40 transition-colors">
+                    <h3 className="text-white text-lg font-medium">
+                      {category.name}
+                    </h3>
+                  </div>
                 </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="container mb-16">
@@ -94,7 +119,7 @@ export default function HomePage() {
           </Link>
         </div>
 
-        {isLoading ? (
+        {isLoadingProducts ? (
           <div className="h-64 flex items-center justify-center">
             <p className="text-muted-foreground">در حال بارگذاری محصولات...</p>
           </div>
@@ -141,7 +166,7 @@ export default function HomePage() {
           </Link>
         </div>
 
-        {isLoading ? (
+        {isLoadingProducts ? (
           <div className="h-64 flex items-center justify-center">
             <p className="text-muted-foreground">در حال بارگذاری محصولات...</p>
           </div>

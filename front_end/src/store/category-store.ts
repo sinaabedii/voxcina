@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import { Category } from "@/types/product"; // Assuming Category is in product types, or adjust path
+// import { Category } from "@/types/product"; // Assuming Category is in product types, or adjust path
 // If Category type is in a different file, e.g., @/types/category, change the import accordingly.
-// import { Category } from "@/types/category";
+import { Category } from "@/types/category"; // Corrected import path
 
 // import { categories as mockCategories } from "@/data/categories"; // If you still need mock data for initial dev
 import { delay } from "@/lib/utils";
