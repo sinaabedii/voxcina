@@ -65,13 +65,21 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 	filter := bson.M{"is_active": true}
 	cursor, err := collection.Find(ctx, filter)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching products")
+		// Return empty array instead of error for database connection issues
+		utils.JSONResponse(w, http.StatusOK, []models.Product{})
 		return
 	}
 
 	var products []models.Product
 	if err := cursor.All(ctx, &products); err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding products")
+		// Return empty array instead of error for decoding issues
+		utils.JSONResponse(w, http.StatusOK, []models.Product{})
+		return
+	}
+
+	// If no products found, return empty array
+	if len(products) == 0 {
+		utils.JSONResponse(w, http.StatusOK, []models.Product{})
 		return
 	}
 
@@ -129,13 +137,21 @@ func SearchProducts(w http.ResponseWriter, r *http.Request) {
 	}
 	cursor, err := collection.Find(ctx, filter)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error searching products")
+		// Return empty array instead of error for database connection issues
+		utils.JSONResponse(w, http.StatusOK, []models.Product{})
 		return
 	}
 
 	var products []models.Product
 	if err := cursor.All(ctx, &products); err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding products")
+		// Return empty array instead of error for decoding issues
+		utils.JSONResponse(w, http.StatusOK, []models.Product{})
+		return
+	}
+
+	// If no products found, return empty array
+	if len(products) == 0 {
+		utils.JSONResponse(w, http.StatusOK, []models.Product{})
 		return
 	}
 
@@ -152,17 +168,21 @@ func ProductRecommendations(w http.ResponseWriter, r *http.Request) {
 	opts := options.Find().SetSort(bson.M{"price": 1}).SetLimit(5)
 	cursor, err := collection.Find(ctx, filter, opts)
 	if err != nil {
-		utils.ErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"Error fetching recommendations",
-		)
+		// Return empty array instead of error for database connection issues
+		utils.JSONResponse(w, http.StatusOK, []models.Product{})
 		return
 	}
 
 	var products []models.Product
 	if err := cursor.All(ctx, &products); err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding products")
+		// Return empty array instead of error for decoding issues
+		utils.JSONResponse(w, http.StatusOK, []models.Product{})
+		return
+	}
+
+	// If no products found, return empty array
+	if len(products) == 0 {
+		utils.JSONResponse(w, http.StatusOK, []models.Product{})
 		return
 	}
 
