@@ -47,9 +47,20 @@ export const useProductStore = create<ProductState>()(
         set({ isLoading: true, error: null });
         try {
           await delay(500);
-          set({ products: mockProducts, isLoading: false });
+          const response = await fetch("/api/products");
+          if (!response.ok) {
+            throw new Error("Failed to fetch products");
+          }
+          const data = await response.json();
+          
+          if (Array.isArray(data)) {
+            set({ products: data, isLoading: false });
+          } else {
+            set({ products: [], isLoading: false });
+          }
         } catch (error) {
           set({
+            products: [],
             error: "خطا در دریافت محصولات. لطفا دوباره تلاش کنید.",
             isLoading: false,
           });
@@ -60,15 +71,21 @@ export const useProductStore = create<ProductState>()(
         set({ isLoading: true, error: null, activeProduct: null });
         try {
           await delay(300);
-          const product = mockProducts.find((p) => p.id === id);
-
+          const response = await fetch(`/api/products/${id}`);
+          if (!response.ok) {
+            throw new Error("Failed to fetch product");
+          }
+          const product = await response.json();
+          
           if (!product) {
             throw new Error("محصول یافت نشد");
           }
 
           set({ activeProduct: product, isLoading: false });
 
-          get().addRecentlyViewed(product);
+          if (product) {
+            get().addRecentlyViewed(product);
+          }
         } catch (error) {
           set({
             error: error instanceof Error ? error.message : "خطای ناشناخته",
@@ -85,9 +102,15 @@ export const useProductStore = create<ProductState>()(
             throw new Error("Failed to fetch flash sale products");
           }
           const data = await response.json();
-          set({ featuredProducts: data, isLoading: false });
+          
+          if (Array.isArray(data)) {
+            set({ featuredProducts: data, isLoading: false });
+          } else {
+            set({ featuredProducts: [], isLoading: false });
+          }
         } catch (error) {
           set({
+            featuredProducts: [],
             error: error instanceof Error ? error.message : "خطا در دریافت محصولات ویژه. لطفا دوباره تلاش کنید.",
             isLoading: false,
           });
@@ -102,9 +125,15 @@ export const useProductStore = create<ProductState>()(
             throw new Error("Failed to fetch new products");
           }
           const data = await response.json();
-          set({ newProducts: data, isLoading: false });
+          
+          if (Array.isArray(data)) {
+            set({ newProducts: data, isLoading: false });
+          } else {
+            set({ newProducts: [], isLoading: false });
+          }
         } catch (error) {
           set({
+            newProducts: [],
             error: error instanceof Error ? error.message : "خطا در دریافت محصولات جدید. لطفا دوباره تلاش کنید.",
             isLoading: false,
           });

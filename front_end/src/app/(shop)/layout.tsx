@@ -4,13 +4,15 @@ import { useEffect } from 'react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { useProductStore } from '@/store/product-store';
+import { useCategoryStore } from '@/store/category-store';
 
 export default function ShopLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { fetchProducts, fetchCategories } = useProductStore();
+  const { fetchProducts } = useProductStore();
+  const { fetchCategories } = useCategoryStore();
 
   useEffect(() => {
     fetchProducts();

@@ -4,7 +4,7 @@ import { Product } from "@/types/product";
 import { motion } from "framer-motion";
 
 interface ProductGridProps {
-  products: Product[];
+  products: Product[] | null | undefined;
   columns?: 2 | 3 | 4 | 5;
   className?: string;
   glassEffect?: boolean;
@@ -18,6 +18,9 @@ const ProductGrid: React.FC<ProductGridProps> = ({
   glassEffect = false,
   ribbonLabel,
 }) => {
+  // Ensure products is always an array
+  const safeProducts = Array.isArray(products) ? products : [];
+  
   const gridCols = {
     2: "grid-cols-1 sm:grid-cols-2",
     3: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
@@ -54,7 +57,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({
       initial="hidden"
       animate="visible"
     >
-      {products.map((product) => (
+      {safeProducts.map((product) => (
         <motion.div
           key={product.id}
           variants={itemVariant}

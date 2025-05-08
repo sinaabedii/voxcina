@@ -38,6 +38,7 @@ interface CartStore {
   promoCode: PromoCode | null;
   isLoading: boolean;
   error: string | null;
+  syncRetryCount: number;
 
   syncCartWithBackend: () => Promise<void>;
   addItem: (
@@ -52,6 +53,7 @@ interface CartStore {
   applyPromoCode: (code: string) => void;
   removePromoCode: () => void;
   calculateSummary: () => void;
+  cleanupSubscriptions: () => void;
 }
 
 export const useCartStore = create<CartStore>()(
@@ -74,10 +76,20 @@ export const useCartStore = create<CartStore>()(
       promoCode: null,
       isLoading: false,
       error: null,
+      syncRetryCount: 0,
 
       syncCartWithBackend: async () => {
         const { cart } = get();
         const { user, isAuthenticated } = useAuthStore.getState();
+
+        if (isAuthenticated && user) {
+          set({
+            cart: {
+              ...cart,
+              userId: user.id
+            }
+          });
+        }
 
         if (!isAuthenticated || !user) {
           return; // No need to sync if user is not authenticated
@@ -93,6 +105,11 @@ export const useCartStore = create<CartStore>()(
           
           if (response.ok) {
             const data = await response.json();
+            
+            if (!data || typeof data !== 'object' || !data.cart || !Array.isArray(data.cart.items)) {
+              throw new Error('Invalid cart data structure from API');
+            }
+
             if (data.cart && data.cart.items && data.cart.items.length > 0) {
               const backendItems = data.cart.items;
               const localItems = cart.items;
@@ -118,6 +135,7 @@ export const useCartStore = create<CartStore>()(
                 },
                 summary: data.summary,
                 isLoading: false,
+                syncRetryCount: 0,
               });
             } else {
               // If backend cart is empty or data is incomplete, post local cart.
@@ -143,7 +161,16 @@ export const useCartStore = create<CartStore>()(
           }
         } catch (error) {
           console.error('Error syncing cart:', error);
-          set({ error: 'Failed to sync cart with backend', isLoading: false });
+          
+          set({ 
+            error: 'Failed to sync cart with backend', 
+            isLoading: false,
+            syncRetryCount: (get().syncRetryCount || 0) + 1
+          });
+          
+          if ((get().syncRetryCount || 0) < 3) {
+            setTimeout(() => get().syncCartWithBackend(), 2000);
+          }
         } finally {
           set({ isLoading: false });
           get().calculateSummary();
@@ -467,6 +494,10 @@ export const useCartStore = create<CartStore>()(
           },
         });
       },
+
+      cleanupSubscriptions: () => {
+        // Implementation of cleanupSubscriptions method
+      },
     }),
     {
       name: "digi-style-cart",
@@ -474,34 +505,60 @@ export const useCartStore = create<CartStore>()(
   )
 );
 
-// Subscribe to auth state changes, ensuring it runs after initial module loading.
-if (typeof window !== 'undefined') { // Ensure this only runs in the browser environment
-  setTimeout(() => {
-    // Get the initial isAuthenticated state to compare against future changes
-    let previousIsAuthenticated: boolean = useAuthStore.getState().isAuthenticated;
+// Store the unsubscribe function
+let unsubscribeFromAuth: (() => void) | null = null;
 
-    useAuthStore.subscribe(async (state: AuthStore) => { // Subscribing to the whole state
-      const currentIsAuthenticated = state.isAuthenticated;
+// Export an unsubscribe function that can be called when needed
+export const unsubscribeFromAuthChanges = () => {
+  if (typeof window !== 'undefined' && unsubscribeFromAuth) {
+    unsubscribeFromAuth();
+    unsubscribeFromAuth = null;
+  }
+};
 
-      if (currentIsAuthenticated && !previousIsAuthenticated) {
-        // User just logged in
-        console.log("Auth Store: User logged in, cart store will sync.");
-        try {
-          await useCartStore.getState().syncCartWithBackend();
-        } catch (error) {
-          console.error("Error syncing cart after login:", error);
-        }
-      } else if (!currentIsAuthenticated && previousIsAuthenticated) {
-        // User just logged out
-        console.log("Auth Store: User logged out, cart store will clear.");
-        try {
-          await useCartStore.getState().clearCart();
-        } catch (error) {
-          console.error("Error clearing cart after logout:", error);
-        }
+// Initialize auth subscription
+if (typeof window !== 'undefined') {
+  let previousIsAuthenticated: boolean = useAuthStore.getState().isAuthenticated;
+
+  unsubscribeFromAuth = useAuthStore.subscribe(async (state: AuthStore) => {
+    const currentIsAuthenticated = state.isAuthenticated;
+    
+    if (currentIsAuthenticated && !previousIsAuthenticated) {
+      // User just logged in
+      console.log("Auth Store: User logged in, cart store will sync.");
+      try {
+        await useCartStore.getState().syncCartWithBackend();
+      } catch (error) {
+        console.error("Error syncing cart after login:", error);
       }
-      // Update previousIsAuthenticated for the next comparison
-      previousIsAuthenticated = currentIsAuthenticated;
-    });
-  }, 0);
+    } else if (!currentIsAuthenticated && previousIsAuthenticated) {
+      // User just logged out
+      console.log("Auth Store: User logged out, cart store will clear.");
+      try {
+        const cartState = useCartStore.getState();
+        await cartState.clearCart();
+        
+        // Explicitly reset cart with null userId
+        useCartStore.setState({
+          cart: {
+            ...cartState.cart,
+            userId: null,
+            items: []
+          },
+          syncRetryCount: 0
+        });
+      } catch (error) {
+        console.error("Error clearing cart after logout:", error);
+      }
+    }
+    // Update previousIsAuthenticated for the next comparison
+    previousIsAuthenticated = currentIsAuthenticated;
+  });
 }
+
+// Update the cleanupSubscriptions implementation
+useCartStore.setState({
+  cleanupSubscriptions: () => {
+    unsubscribeFromAuthChanges();
+  }
+});

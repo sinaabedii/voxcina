@@ -30,7 +30,7 @@ export default function HomePage() {
     fetchCategories();
   }, [fetchFlashSaleProducts, fetchNewProducts, fetchCategories]);
 
-  const mainCategories = categories.slice(0, 5);
+  const mainCategories = Array.isArray(categories) ? categories.slice(0, 5) : [];
 
   return (
     <div className="pb-16">

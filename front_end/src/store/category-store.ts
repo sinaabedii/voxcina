@@ -16,7 +16,7 @@ interface CategoryState {
 }
 
 export const useCategoryStore = create<CategoryState>()((set, get) => ({
-  categories: [],
+  categories: [], // Default to an empty array
   activeCategory: null,
   isLoading: false,
   error: null,
@@ -31,9 +31,17 @@ export const useCategoryStore = create<CategoryState>()((set, get) => ({
         throw new Error("Failed to fetch categories");
       }
       const data = await response.json();
-      set({ categories: data, isLoading: false });
+      
+      // Check if data is an array
+      if (Array.isArray(data)) {
+        set({ categories: data, isLoading: false });
+      } else {
+        // In case the data is not an array, fall back to an empty array
+        set({ categories: [], isLoading: false });
+      }
     } catch (error) {
       set({
+        categories: [], // Ensure categories is always an array
         error: "خطا در دریافت دسته‌بندی‌ها. لطفا دوباره تلاش کنید.",
         isLoading: false,
       });
