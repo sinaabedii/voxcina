@@ -2,8 +2,12 @@ package handlers
 
 import (
 	"context"
-	// "encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -11,6 +15,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"backEnd/db"
+	"backEnd/models"
 	"backEnd/utils"
 )
 
@@ -24,54 +29,28 @@ type Category struct {
 // GetCategories returns a list of all categories.
 // GET /api/categories
 func GetCategories(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	collection := db.Database.Collection("categories")
 	cursor, err := collection.Find(ctx, bson.M{})
 	if err != nil {
-		// Return empty array instead of error for database connection issues
-		utils.JSONResponse(w, http.StatusOK, []interface{}{})
+		// It's often better to return an empty list on error for GET /plural resources
+		// than a server error, unless it's a critical failure.
+		utils.JSONResponse(w, http.StatusOK, []models.Category{}) 
 		return
 	}
 
-	// Use a slice of bson.M to match the exact structure from TypeScript
-	var categories []bson.M
-	if err := cursor.All(ctx, &categories); err != nil {
-		// Return empty array instead of error for decoding issues
-		utils.JSONResponse(w, http.StatusOK, []interface{}{})
+	var categories []models.Category
+	if err = cursor.All(ctx, &categories); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding categories: "+err.Error())
 		return
 	}
 
-	// If no categories found, return empty array
-	if len(categories) == 0 {
-		utils.JSONResponse(w, http.StatusOK, []interface{}{})
-		return
+	if categories == nil { // Ensure we always return an array, not null
+		categories = []models.Category{}
 	}
 
-	// Convert BSON ObjectIDs to string IDs for frontend compatibility
-	// and ensure all required fields are present
-	for i := range categories {
-		// Convert _id to id
-		if objID, ok := categories[i]["_id"].(primitive.ObjectID); ok {
-			categories[i]["id"] = objID.Hex()
-			delete(categories[i], "_id")
-		}
-
-		// Ensure name field exists
-		if _, ok := categories[i]["name"]; !ok {
-			categories[i]["name"] = ""
-		}
-
-		// Remove any null values
-		for k, v := range categories[i] {
-			if v == nil {
-				delete(categories[i], k)
-			}
-		}
-	}
-
-	// Return the categories as a valid, non-null array
 	utils.JSONResponse(w, http.StatusOK, categories)
 }
 
@@ -124,37 +103,6 @@ func GetCategoryProducts(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, http.StatusOK, products)
 }
 
-// GetBrands returns a list of all brands.
-// GET /api/brands
-func GetBrands(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	collection := db.Database.Collection("brands")
-	cursor, err := collection.Find(ctx, bson.M{})
-	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching brands")
-		return
-	}
-
-	// Use a slice of bson.M to match the exact structure from TypeScript
-	var brands []bson.M
-	if err := cursor.All(ctx, &brands); err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding brands")
-		return
-	}
-
-	// Convert BSON ObjectIDs to string IDs for frontend compatibility
-	for i := range brands {
-		if objID, ok := brands[i]["_id"].(primitive.ObjectID); ok {
-			brands[i]["id"] = objID.Hex()
-			delete(brands[i], "_id")
-		}
-	}
-
-	utils.JSONResponse(w, http.StatusOK, brands)
-}
-
 // GetHomepageCategories returns homepage categories and banners.
 // GET /api/categories/homepage
 func GetHomepageCategories(w http.ResponseWriter, r *http.Request) {
@@ -202,4 +150,327 @@ func convertObjectIDsToString(data interface{}) {
 			convertObjectIDsToString(item)
 		}
 	}
+}
+
+// CreateCategory adds a new category, handling image upload.
+// POST /api/categories
+func CreateCategory(w http.ResponseWriter, r *http.Request) {
+	// Max file size for image: 5MB
+	if err := r.ParseMultipartForm(5 << 20); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Error parsing multipart form: "+err.Error())
+		return
+	}
+
+	name := r.FormValue("name")
+	slug := r.FormValue("slug") 
+	description := r.FormValue("description")
+	parentIDStr := r.FormValue("parentId") // Optional
+
+	if name == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Category name is required")
+		return
+	}
+	// Auto-generate slug if not provided and name is present
+	if slug == "" && name != "" {
+		slug = strings.ToLower(strings.ReplaceAll(strings.TrimSpace(name), " ", "-"))
+		// Add more robust slug generation if needed (e.g., handling special chars, ensuring uniqueness)
+	}
+
+	var parentID primitive.ObjectID
+	var err error
+	if parentIDStr != "" && parentIDStr != "0" && parentIDStr != "null" { // Handle common ways of saying no parent
+		parentID, err = primitive.ObjectIDFromHex(parentIDStr)
+		if err != nil {
+			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid parentId format: "+err.Error())
+			return
+		}
+	}
+
+	// Handle image upload
+	file, handler, err := r.FormFile("image")
+	var imagePath string
+
+	if err != nil && err != http.ErrMissingFile {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Error retrieving image file: "+err.Error())
+		return
+	}
+
+	if file != nil {
+		defer file.Close()
+		uploadDir := "./uploads/categories"
+		if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error creating uploads directory: "+err.Error())
+			return
+		}
+		ext := filepath.Ext(handler.Filename)
+		filename := fmt.Sprintf("%s-%d%s", slug, time.Now().UnixNano(), ext)
+		filePath := filepath.Join(uploadDir, filename)
+
+		dst, err := os.Create(filePath)
+		if err != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error creating image file: "+err.Error())
+			return
+		}
+		defer dst.Close()
+
+		if _, err := io.Copy(dst, file); err != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error saving image file: "+err.Error())
+			return
+		}
+		imagePath = "/uploads/categories/" + filename
+	}
+
+	now := time.Now()
+	category := models.Category{
+		ID:          primitive.NewObjectID(),
+		Name:        name,
+		Slug:        slug,
+		Description: description,
+		Image:       imagePath, 
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	if !parentID.IsZero() {
+		category.ParentID = parentID
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	collection := db.Database.Collection("categories")
+	_, err = collection.InsertOne(ctx, category)
+	if err != nil {
+		// Handle potential duplicate slug error (requires unique index on slug)
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error creating category: "+err.Error())
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusCreated, category)
+}
+
+// GetCategoryByID returns a single category by its ID.
+// GET /api/categories/{id}
+func GetCategoryByID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr, ok := vars["id"]
+	if !ok {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Category ID not provided in path")
+		return
+	}
+
+	objID, err := primitive.ObjectIDFromHex(idStr)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid Category ID format")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	collection := db.Database.Collection("categories")
+	var category models.Category
+
+	if err := collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&category); err != nil {
+		if err.Error() == "mongo: no documents in result" { // Replace with errors.Is(err, mongo.ErrNoDocuments)
+			utils.ErrorResponse(w, http.StatusNotFound, "Category not found")
+		} else {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching category: "+err.Error())
+		}
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, category)
+}
+
+// UpdateCategory updates an existing category, handling optional image upload.
+// PUT /api/categories/{id}
+func UpdateCategory(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr, ok := vars["id"]
+	if !ok {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Category ID not provided in path")
+		return
+	}
+
+	objID, err := primitive.ObjectIDFromHex(idStr)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid Category ID format")
+		return
+	}
+
+	if err := r.ParseMultipartForm(5 << 20); err != nil { // 5MB max file size
+		utils.ErrorResponse(w, http.StatusBadRequest, "Error parsing multipart form: "+err.Error())
+		return
+	}
+
+	name := r.FormValue("name")
+	slug := r.FormValue("slug")
+	description := r.FormValue("description")
+	parentIDStr := r.FormValue("parentId")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	collection := db.Database.Collection("categories")
+	var existingCategory models.Category
+	if err := collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&existingCategory); err != nil {
+		if err.Error() == "mongo: no documents in result" {
+			utils.ErrorResponse(w, http.StatusNotFound, "Category not found")
+		} else {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching category for update: "+err.Error())
+		}
+		return
+	}
+
+	update := bson.M{}
+	if name != "" {
+		update["name"] = name
+		existingCategory.Name = name
+	}
+	if slug != "" {
+		update["slug"] = slug
+		existingCategory.Slug = slug
+	} else if name != "" { // Auto-generate slug if name changes and slug is not explicitly provided
+		newSlug := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(name), " ", "-"))
+		update["slug"] = newSlug
+		existingCategory.Slug = newSlug
+	}
+
+	if description != "" {
+		update["description"] = description
+		existingCategory.Description = description
+	}
+
+	if parentIDStr != "" {
+		if parentIDStr == "0" || parentIDStr == "null" || parentIDStr == primitive.NilObjectID.Hex() {
+			update["parent_id"] = primitive.NilObjectID // Or use $unset if you want to remove the field
+			existingCategory.ParentID = primitive.NilObjectID
+		} else {
+			parentID, err := primitive.ObjectIDFromHex(parentIDStr)
+			if err != nil {
+				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid parentId format: "+err.Error())
+				return
+			}
+			update["parent_id"] = parentID
+			existingCategory.ParentID = parentID
+		}
+	}
+
+	file, handler, err := r.FormFile("image")
+	if err != nil && err != http.ErrMissingFile {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Error retrieving image file: "+err.Error())
+		return
+	}
+
+	if file != nil {
+		defer file.Close()
+		// Delete old image if it exists
+		if existingCategory.Image != "" {
+			oldImageServerPath := "." + existingCategory.Image 
+			if err := os.Remove(oldImageServerPath); err != nil {
+				// Log error but don't fail the update
+				fmt.Printf("Warning: could not delete old category image %s: %v\n", oldImageServerPath, err)
+			}
+		}
+
+		uploadDir := "./uploads/categories"
+		_ = os.MkdirAll(uploadDir, os.ModePerm) // Ignore error for MkdirAll here, os.Create will fail if problematic
+		ext := filepath.Ext(handler.Filename)
+		// Use existing slug or new slug for filename base
+		filenameSlug := existingCategory.Slug
+		if us, ok := update["slug"].(string); ok {
+		    filenameSlug = us
+		}
+		filename := fmt.Sprintf("%s-%d%s", filenameSlug, time.Now().UnixNano(), ext)
+		filePath := filepath.Join(uploadDir, filename)
+
+		dst, err := os.Create(filePath)
+		if err != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error creating new image file: "+err.Error())
+			return
+		}
+		defer dst.Close()
+
+		if _, err := io.Copy(dst, file); err != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error saving new image file: "+err.Error())
+			return
+		}
+		update["image"] = "/uploads/categories/" + filename
+		existingCategory.Image = "/uploads/categories/" + filename
+	}
+
+	if len(update) == 0 {
+		utils.JSONResponse(w, http.StatusOK, existingCategory) // No changes
+		return
+	}
+
+	now := time.Now()
+	update["updated_at"] = now
+	existingCategory.UpdatedAt = now
+
+	_, err = collection.UpdateOne(ctx, bson.M{"_id": objID}, bson.M{"$set": update})
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error updating category: "+err.Error())
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, existingCategory)
+}
+
+// DeleteCategory deletes a category and its image.
+// DELETE /api/categories/{id}
+func DeleteCategory(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr, ok := vars["id"]
+	if !ok {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Category ID not provided in path")
+		return
+	}
+
+	objID, err := primitive.ObjectIDFromHex(idStr)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid Category ID format")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	collection := db.Database.Collection("categories")
+	var categoryToDelete models.Category
+	if err := collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&categoryToDelete); err != nil {
+		if err.Error() == "mongo: no documents in result" {
+			utils.ErrorResponse(w, http.StatusNotFound, "Category not found")
+		} else {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error finding category to delete: "+err.Error())
+		}
+		return
+	}
+
+	// TODO: Consider implications of deleting a category with children or products.
+	// For now, we just delete the category itself.
+	// Option 1: Prevent deletion if it has children or products.
+	// Option 2: Set child categories ParentID to null, or re-parent them.
+	// Option 3: Delete/un-categorize associated products.
+
+	result, err := collection.DeleteOne(ctx, bson.M{"_id": objID})
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error deleting category: "+err.Error())
+		return
+	}
+
+	if result.DeletedCount == 0 {
+		utils.ErrorResponse(w, http.StatusNotFound, "Category not found, nothing deleted")
+		return
+	}
+
+	if categoryToDelete.Image != "" {
+		imageServerPath := "." + categoryToDelete.Image
+		if err := os.Remove(imageServerPath); err != nil {
+			utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Category deleted successfully, but failed to delete image file: " + err.Error()})
+			return
+		}
+	}
+
+	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Category deleted successfully"})
 }

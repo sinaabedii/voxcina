@@ -2,7 +2,9 @@ package utils
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"time"
 )
 
 func JSONResponse(w http.ResponseWriter, status int, data interface{}) {
@@ -13,4 +15,11 @@ func JSONResponse(w http.ResponseWriter, status int, data interface{}) {
 
 func ErrorResponse(w http.ResponseWriter, status int, message string) {
 	JSONResponse(w, status, map[string]string{"error": message})
+}
+
+// LogAction logs an action with a timestamp and related information
+// This can be expanded later to log to files or external monitoring systems
+func LogAction(action string, details string) {
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	fmt.Printf("[%s] %s: %s\n", timestamp, action, details)
 }

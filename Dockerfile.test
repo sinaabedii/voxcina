@@ -1,0 +1,45 @@
+FROM docker.arvancloud.ir/golang:1.24-alpine AS builder
+
+# Install git and build tools
+RUN apk update && \
+    apk --no-cache add git build-base curl
+
+WORKDIR /app
+
+# Copy everything into the container
+COPY . .
+
+# Install test dependencies
+RUN go get github.com/stretchr/testify/assert
+
+# Create test script
+RUN echo '#!/bin/sh\n\
+echo "Waiting for API server to start..."\n\
+timeout=60\n\
+while ! curl -s http://server:8080/api/health > /dev/null; do\n\
+  timeout=$((timeout - 1))\n\
+  if [ "$timeout" -le 0 ]; then\n\
+    echo "Timed out waiting for API server"\n\
+    exit 1\n\
+  fi\n\
+  echo "API server not ready yet, waiting..."\n\
+  sleep 1\n\
+done\n\
+\n\
+echo "Running tests..."\n\
+cd /app/test && go test -v ./...\n\
+exit_code=$?\n\
+\n\
+echo "Tests completed with exit code: $exit_code"\n\
+exit $exit_code' > /app/run_tests.sh && chmod +x /app/run_tests.sh
+
+# Use a small image for runtime
+FROM docker.arvancloud.ir/golang:1.24-alpine
+
+WORKDIR /app
+
+# Copy the app and built binary
+COPY --from=builder /app .
+
+# Entry point script
+CMD ["/bin/sh", "-c", "if [ \"$RUN_TESTS\" = \"true\" ]; then /app/run_tests.sh; else echo 'Test mode not enabled'; fi"] 

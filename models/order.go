@@ -43,6 +43,8 @@ type Order struct {
 	StatusText      string             `bson:"status_text"      json:"status_text"`      // Localized status description (e.g., Persian)
 	TrackingCode    *string            `bson:"tracking_code"    json:"tracking_code"`    // Shipping tracking number (nullable)
 	PaymentStatus   string             `bson:"payment_status"   json:"payment_status"`   // Values: "pending", "paid", "failed"
+	TrackingNumber  string             `bson:"tracking_number,omitempty" json:"tracking_number,omitempty"`
+	IsActive        bool               `bson:"is_active" json:"is_active"`         // Soft delete flag
 	CreatedAt       time.Time          `bson:"created_at"       json:"created_at"`
 	UpdatedAt       time.Time          `bson:"updated_at"       json:"updated_at"`
 }

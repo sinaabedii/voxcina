@@ -1,41 +1,53 @@
 # ┌────────────────────────── BUILD STAGE ────────────────────────────┐
 FROM docker.arvancloud.ir/golang:1.24-alpine AS builder
 
-# 1) Use a stable Go proxy mirror first, then fall back to direct fetch
-ENV GOPROXY=https://goproxy.cn,direct
-# 2) Disable the public checksum DB
-ENV GOSUMDB=off
-
-# 3) Install git so `go mod download` can clone repos
+# Install git and build tools
 RUN apk update && \
-    apk --no-cache add git
+    apk --no-cache add git build-base
 
-WORKDIR /app
+WORKDIR /build
 
-# 4) Fetch modules
-COPY go.mod go.sum ./
+# Copy everything into the container
+COPY . .
+
+# Recreate the go.mod file and fetch all dependencies correctly
+RUN rm -f go.mod go.sum && \
+    go mod init backEnd && \
+    # Add required dependencies explicitly
+    go get go.mongodb.org/mongo-driver/mongo && \
+    go get go.mongodb.org/mongo-driver/bson && \
+    go get go.mongodb.org/mongo-driver/bson/primitive && \
+    go get go.mongodb.org/mongo-driver/mongo/options && \
+    go get github.com/golang-jwt/jwt/v5 && \
+    go get github.com/gorilla/mux && \
+    go get golang.org/x/crypto/bcrypt && \
+    # Tidy up to ensure all dependencies are in go.sum
+    go mod tidy
+
+# Verify all dependencies are present before building
 RUN go mod download
 
-# 5) Copy source and build
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o main .
-
-
+# Build the application - build the whole project, not just main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o /build/main .
 
 # ┌────────────────────────── RUNTIME STAGE ──────────────────────────┐
 FROM docker.arvancloud.ir/alpine:3.21
 
-# Fresh index + TLS certs (and tzdata if you need it)
 RUN apk update && \
     apk --no-cache add \
       ca-certificates \
       tzdata
 
-WORKDIR /root/
+WORKDIR /app
 
-# Bring in the compiled binary + admin assets
-COPY --from=builder /app/main .
-COPY admin/ admin/
+# Copy the binary from the builder stage
+COPY --from=builder /build/main .
+
+# Create necessary directories
+RUN mkdir -p admin uploads
+
+# If you have admin files, copy them in a separate step
+# COPY admin/ admin/
 
 EXPOSE 8080
 CMD ["./main"]

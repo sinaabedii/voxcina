@@ -24,6 +24,8 @@ type Discount struct {
 	MaxUses        int                  `bson:"max_uses,omitempty" json:"max_uses,omitempty"` // Optional: Max redemptions
 	UsedCount      int                  `bson:"used_count" json:"used_count"`                 // Track redemptions
 	ApplicableTo   DiscountApplicability `bson:"applicable_to,omitempty" json:"applicable_to,omitempty"` // Optional: Restrict to products/categories
+	CreatedAt      time.Time            `bson:"created_at,omitempty" json:"created_at,omitempty"`
+	UpdatedAt      time.Time            `bson:"updated_at,omitempty" json:"updated_at,omitempty"`
 }
 
 // Note: This model requires the following indexes:

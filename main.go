@@ -45,6 +45,10 @@ func main() {
 	adminFS := http.FileServer(http.Dir("./admin"))
 	mainMux.Handle("/admin/", http.StripPrefix("/admin/", adminFS))
 
+	// Serve static files from the "uploads" directory at /uploads/
+	uploadsFS := http.FileServer(http.Dir("./uploads"))
+	mainMux.Handle("/uploads/", http.StripPrefix("/uploads/", uploadsFS))
+
 	log.Println("Server is running on port", cfg.Port)
 	if err := http.ListenAndServe(":"+cfg.Port, mainMux); err != nil {
 		log.Fatal(err)

@@ -27,6 +27,7 @@ type Product struct {
 	Name        string               `bson:"name"          json:"name"`
 	Description string               `bson:"description"   json:"description"`
 	Price       float64              `bson:"price"         json:"price"`         // Base price
+	Images      []string             `bson:"images"        json:"images"`        // Main product images (URLs)
 	CategoryIDs []primitive.ObjectID `bson:"category_ids"  json:"category_ids"`  // References to `categories`
 	BrandID     primitive.ObjectID   `bson:"brand_id"      json:"brand_id"`      // Reference to `brands`
 	Variants    []ProductVariant     `bson:"variants"      json:"variants"`      // Size/color-specific data

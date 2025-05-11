@@ -14,6 +14,7 @@ type Review struct {
 	Rating    int                `bson:"rating" json:"rating"`         // 1-5
 	Comment   string             `bson:"comment" json:"comment"`
 	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt time.Time          `bson:"updated_at,omitempty" json:"updated_at,omitempty"` // Omit if not set
 }
 
 // Note: This model requires the following indexes:
