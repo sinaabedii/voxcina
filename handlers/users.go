@@ -9,24 +9,27 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"golang.org/x/crypto/bcrypt"
+
 	"backEnd/db"
 	"backEnd/models"
 	"backEnd/utils"
-
-	"github.com/golang-jwt/jwt/v5"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"golang.org/x/crypto/bcrypt"
-	"go.mongodb.org/mongo-driver/mongo"
-	"github.com/gorilla/mux"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var jwtKey = []byte("my_secret_key") // TODO: Use a strong, configurable secret key from env variables
+var jwtKey = []byte(
+	"my_secret_key",
+) // TODO: Use a strong, configurable secret key from env variables
 
-const ( 
-    RoleCustomer = "customer"
-    RoleAdmin    = "admin"
+const (
+	RoleCustomer = "customer"
+	RoleAdmin    = "admin"
+	RoleSeller   = "seller"
 )
 
 // Password validation regex: at least 8 characters, one uppercase, one lowercase, one digit, one special character
@@ -34,7 +37,6 @@ var passwordRegex = regexp.MustCompile(`^(.{0,7}|[^0-9]*|[^A-Z]*|[^a-z]*|[a-zA-Z
 
 // Email validation regex
 var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-
 
 // Register handles POST /api/users/register
 func Register(w http.ResponseWriter, r *http.Request) {
@@ -46,13 +48,21 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Invalid request payload: "+err.Error(),
+		)
 		return
 	}
 
 	// --- Input Validation ---
 	if creds.Name == "" || creds.Email == "" || creds.Password == "" {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Name, Email, and Password are required")
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Name, Email, and Password are required",
+		)
 		return
 	}
 
@@ -63,7 +73,11 @@ func Register(w http.ResponseWriter, r *http.Request) {
 
 	// Basic password strength check (example)
 	if len(creds.Password) < 8 || passwordRegex.MatchString(creds.Password) {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Password must be at least 8 characters long and include uppercase, lowercase, digit, and special character.")
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Password must be at least 8 characters long and include uppercase, lowercase, digit, and special character.",
+		)
 		return
 	}
 
@@ -76,7 +90,11 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	// --- Check if email already exists ---
 	count, err := userCollection.CountDocuments(ctx, bson.M{"email": creds.Email})
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error checking email existence: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error checking email existence: "+err.Error(),
+		)
 		return
 	}
 	if count > 0 {
@@ -85,9 +103,16 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// --- Hash the password ---
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(creds.Password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword(
+		[]byte(creds.Password),
+		bcrypt.DefaultCost,
+	)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error hashing password: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error hashing password: "+err.Error(),
+		)
 		return
 	}
 
@@ -98,15 +123,19 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		PasswordHash: string(hashedPassword),
 		Phone:        creds.Phone,
 		Addresses:    []models.Address{}, // Initialize with empty slice
-		Role:         RoleCustomer,      // Default role
-		IsActive:     true,              // Default to active
+		Role:         RoleCustomer,       // Default role
+		IsActive:     true,               // Default to active
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
 
 	_, err = userCollection.InsertOne(ctx, user)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error creating user: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error creating user: "+err.Error(),
+		)
 		return
 	}
 
@@ -123,12 +152,16 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString(jwtKey)
 	if err != nil {
-		// Log error, but user registration was successful. 
+		// Log error, but user registration was successful.
 		// Client might need to log in separately.
 		// For simplicity, we'll return success without token if this fails.
 		// A better approach might be to ensure token generation is robust.
-		utils.ErrorResponse(w, http.StatusInternalServerError, "User created, but error generating token: "+err.Error()) 
-        return
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"User created, but error generating token: "+err.Error(),
+		)
+		return
 	}
 
 	// Return user info (excluding password) and token
@@ -140,7 +173,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		Token: tokenString,
 	}
 	// Manually ensure PasswordHash is not part of the response structure if User struct didn't handle it
-    // For `userResponse.User.PasswordHash = ""` if needed, but `json:"-"` should suffice.
+	// For `userResponse.User.PasswordHash = ""` if needed, but `json:"-"` should suffice.
 
 	utils.JSONResponse(w, http.StatusCreated, userResponse)
 }
@@ -161,7 +194,11 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Invalid request payload: "+err.Error(),
+		)
 		return
 	}
 
@@ -204,7 +241,11 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString(jwtKey)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error generating token: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error generating token: "+err.Error(),
+		)
 		return
 	}
 
@@ -226,12 +267,20 @@ func GetProfile(w http.ResponseWriter, r *http.Request) {
 	// --- Get UserID from context (set by AuthMiddleware) ---
 	userIDCtx := r.Context().Value("userID")
 	if userIDCtx == nil {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "User not authenticated or userID not found in context")
+		utils.ErrorResponse(
+			w,
+			http.StatusUnauthorized,
+			"User not authenticated or userID not found in context",
+		)
 		return
 	}
 	userID, ok := userIDCtx.(primitive.ObjectID)
 	if !ok {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Invalid userID format in context")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Invalid userID format in context",
+		)
 		return
 	}
 
@@ -259,12 +308,20 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	// --- Get UserID from context (set by AuthMiddleware) ---
 	userIDCtx := r.Context().Value("userID")
 	if userIDCtx == nil {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "User not authenticated or userID not found in context")
+		utils.ErrorResponse(
+			w,
+			http.StatusUnauthorized,
+			"User not authenticated or userID not found in context",
+		)
 		return
 	}
 	userID, ok := userIDCtx.(primitive.ObjectID)
 	if !ok {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Invalid userID format in context")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Invalid userID format in context",
+		)
 		return
 	}
 
@@ -274,18 +331,30 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Invalid request payload: "+err.Error(),
+		)
 		return
 	}
 
 	// --- Basic Validation ---
 	if payload.Name != nil && *payload.Name == "" {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Name cannot be empty if provided for update")
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Name cannot be empty if provided for update",
+		)
 		return
 	}
 
 	if payload.Name == nil && payload.Phone == nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "No fields to update. Provide name and/or phone.")
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"No fields to update. Provide name and/or phone.",
+		)
 		return
 	}
 
@@ -303,15 +372,19 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(updateFields) == 0 { // Should be caught by earlier check, but as safeguard
-        // If somehow we reach here, just return current profile without DB write
-        var currentUser models.User
-        if errDB := userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&currentUser); errDB != nil {
-             utils.ErrorResponse(w, http.StatusNotFound, "User not found") // Or internal error
-             return
-        }
-        utils.JSONResponse(w, http.StatusOK, currentUser)
-        return
-    }
+		// If somehow we reach here, just return current profile without DB write
+		var currentUser models.User
+		if errDB := userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&currentUser); errDB != nil {
+			utils.ErrorResponse(
+				w,
+				http.StatusNotFound,
+				"User not found",
+			) // Or internal error
+			return
+		}
+		utils.JSONResponse(w, http.StatusOK, currentUser)
+		return
+	}
 
 	updateFields["updated_at"] = time.Now()
 	updateDoc := bson.M{"$set": updateFields}
@@ -319,7 +392,11 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	// --- Perform the update ---
 	result, err := userCollection.UpdateOne(ctx, bson.M{"_id": userID}, updateDoc)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error updating user profile: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error updating user profile: "+err.Error(),
+		)
 		return
 	}
 
@@ -332,7 +409,11 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	// --- Fetch and return the updated user profile ---
 	var updatedUser models.User
 	if err := userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&updatedUser); err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching updated user profile: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error fetching updated user profile: "+err.Error(),
+		)
 		return
 	}
 
@@ -359,7 +440,13 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 	// 1. Extract the token from the Authorization header.
 	// 2. Add the token ID (e.g., JTI claim) or the full token to the blacklist (e.g., in Redis) until its original expiry.
 
-	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Logout successful. Please clear your token on the client-side."}) 
+	utils.JSONResponse(
+		w,
+		http.StatusOK,
+		map[string]string{
+			"message": "Logout successful. Please clear your token on the client-side.",
+		},
+	)
 }
 
 // AddUserAddress handles POST /api/users/addresses
@@ -373,19 +460,32 @@ func AddUserAddress(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, ok := userIDCtx.(primitive.ObjectID)
 	if !ok {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Invalid userID format in context")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Invalid userID format in context",
+		)
 		return
 	}
 
 	var newAddress models.Address
 	if err := json.NewDecoder(r.Body).Decode(&newAddress); err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid address payload: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Invalid address payload: "+err.Error(),
+		)
 		return
 	}
 
 	// --- Basic Validation for Address fields ---
-	if newAddress.Street == "" || newAddress.City == "" || newAddress.PostalCode == "" || newAddress.Country == "" {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Street, City, PostalCode, and Country are required for an address")
+	if newAddress.Street == "" || newAddress.City == "" || newAddress.PostalCode == "" ||
+		newAddress.Country == "" {
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Street, City, PostalCode, and Country are required for an address",
+		)
 		return
 	}
 
@@ -410,9 +510,8 @@ func AddUserAddress(w http.ResponseWriter, r *http.Request) {
 	}
 	// Ensure at least one address is default if this is the first address
 	if len(currentUser.Addresses) == 0 && !newAddress.IsDefault {
-	    newAddress.IsDefault = true
+		newAddress.IsDefault = true
 	}
-
 
 	// --- Update user document with the new address ---
 	// We can use $push to add the new address and $set to update the entire addresses array if defaults were changed.
@@ -423,23 +522,31 @@ func AddUserAddress(w http.ResponseWriter, r *http.Request) {
 
 	update := bson.M{
 		"$set": bson.M{
-			"addresses":   finalAddresses,
+			"addresses":  finalAddresses,
 			"updated_at": time.Now(),
 		},
 	}
 
 	_, err := userCollection.UpdateOne(ctx, bson.M{"_id": userID}, update)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error adding address: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error adding address: "+err.Error(),
+		)
 		return
 	}
 
 	// Fetch the updated user to return the new state of addresses
 	var updatedUser models.User
 	if err := userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&updatedUser); err != nil {
-	    // This is unlikely if the update succeeded but handle defensively
-	    utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching updated user profile after adding address: "+err.Error())
-	    return
+		// This is unlikely if the update succeeded but handle defensively
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error fetching updated user profile after adding address: "+err.Error(),
+		)
+		return
 	}
 
 	utils.JSONResponse(w, http.StatusOK, updatedUser.Addresses)
@@ -456,7 +563,11 @@ func UpdateUserAddress(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, ok := userIDCtx.(primitive.ObjectID)
 	if !ok {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Invalid userID format in context")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Invalid userID format in context",
+		)
 		return
 	}
 
@@ -464,25 +575,41 @@ func UpdateUserAddress(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	addressIndexStr, pathOk := vars["addressIndex"]
 	if !pathOk {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Address index not provided in path")
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Address index not provided in path",
+		)
 		return
 	}
 	addressIndex, err := strconv.Atoi(addressIndexStr)
 	if err != nil || addressIndex < 0 {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid address index format or value")
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Invalid address index format or value",
+		)
 		return
 	}
 
 	var addressUpdatePayload models.Address // Expect a full address object for update
 	if err := json.NewDecoder(r.Body).Decode(&addressUpdatePayload); err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid address update payload: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Invalid address update payload: "+err.Error(),
+		)
 		return
 	}
 
 	// --- Basic Validation for Address fields in payload ---
-	if addressUpdatePayload.Street == "" || addressUpdatePayload.City == "" || 
-	   addressUpdatePayload.PostalCode == "" || addressUpdatePayload.Country == "" {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Street, City, PostalCode, and Country are required for an address update")
+	if addressUpdatePayload.Street == "" || addressUpdatePayload.City == "" ||
+		addressUpdatePayload.PostalCode == "" || addressUpdatePayload.Country == "" {
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Street, City, PostalCode, and Country are required for an address update",
+		)
 		return
 	}
 
@@ -499,7 +626,11 @@ func UpdateUserAddress(w http.ResponseWriter, r *http.Request) {
 
 	// --- Validate addressIndex ---
 	if addressIndex >= len(currentUser.Addresses) {
-		utils.ErrorResponse(w, http.StatusNotFound, "Address not found at the specified index")
+		utils.ErrorResponse(
+			w,
+			http.StatusNotFound,
+			"Address not found at the specified index",
+		)
 		return
 	}
 
@@ -512,71 +643,78 @@ func UpdateUserAddress(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else {
-	    // If the updated address is being UNSET from default, check if it was the ONLY default address.
-	    // If so, and there are other addresses, make the first other address default.
-	    // Or, if it was the only address, it must remain default.
-	    isThisTheOnlyDefault := true
-	    if currentUser.Addresses[addressIndex].IsDefault { // Only proceed if it was default
-	        for i := range currentUser.Addresses {
-	            if i != addressIndex && currentUser.Addresses[i].IsDefault {
-	                isThisTheOnlyDefault = false
-	                break
-	            }
-	        }
-	        if isThisTheOnlyDefault && len(currentUser.Addresses) > 1 {
-	            // Cannot unset the only default address if multiple addresses exist without making another one default.
-	            // The client should explicitly set another as default first, or update this one to non-default AND another to default.
-	            // For simplicity, we can enforce that at least one address must be default.
-	            // This means if they try to unset the only default, we must make another default or prevent it.
-                // Let's make the first one (0-indexed) default if it's not the one being updated.
-                if addressIndex != 0 { 
-                    currentUser.Addresses[0].IsDefault = true 
-                } else if len(currentUser.Addresses) > 1 { // if addressIndex is 0 and there's another one
-                    currentUser.Addresses[1].IsDefault = true
-                }
-                // If it's the only address, it remains default (covered by payload.IsDefault being false)
-	        } else if isThisTheOnlyDefault && len(currentUser.Addresses) == 1{
-                addressUpdatePayload.IsDefault = true // Force it back to default if it's the only one
-            }
-	    }
+		// If the updated address is being UNSET from default, check if it was the ONLY default address.
+		// If so, and there are other addresses, make the first other address default.
+		// Or, if it was the only address, it must remain default.
+		isThisTheOnlyDefault := true
+		if currentUser.Addresses[addressIndex].IsDefault { // Only proceed if it was default
+			for i := range currentUser.Addresses {
+				if i != addressIndex && currentUser.Addresses[i].IsDefault {
+					isThisTheOnlyDefault = false
+					break
+				}
+			}
+			if isThisTheOnlyDefault && len(currentUser.Addresses) > 1 {
+				// Cannot unset the only default address if multiple addresses exist without making another one default.
+				// The client should explicitly set another as default first, or update this one to non-default AND another to default.
+				// For simplicity, we can enforce that at least one address must be default.
+				// This means if they try to unset the only default, we must make another default or prevent it.
+				// Let's make the first one (0-indexed) default if it's not the one being updated.
+				if addressIndex != 0 {
+					currentUser.Addresses[0].IsDefault = true
+				} else if len(currentUser.Addresses) > 1 { // if addressIndex is 0 and there's another one
+					currentUser.Addresses[1].IsDefault = true
+				}
+				// If it's the only address, it remains default (covered by payload.IsDefault being false)
+			} else if isThisTheOnlyDefault && len(currentUser.Addresses) == 1 {
+				addressUpdatePayload.IsDefault = true // Force it back to default if it's the only one
+			}
+		}
 	}
-    
-    // After all IsDefault adjustments, apply the payload to the specific address
-    currentUser.Addresses[addressIndex] = addressUpdatePayload
 
-    // Final check: ensure at least one default address exists if there are any addresses
-    hasDefault := false
-    if len(currentUser.Addresses) > 0 {
-        for _, addr := range currentUser.Addresses {
-            if addr.IsDefault {
-                hasDefault = true
-                break
-            }
-        }
-        if !hasDefault {
-            currentUser.Addresses[0].IsDefault = true // Make the first one default
-        }
-    }
+	// After all IsDefault adjustments, apply the payload to the specific address
+	currentUser.Addresses[addressIndex] = addressUpdatePayload
 
+	// Final check: ensure at least one default address exists if there are any addresses
+	hasDefault := false
+	if len(currentUser.Addresses) > 0 {
+		for _, addr := range currentUser.Addresses {
+			if addr.IsDefault {
+				hasDefault = true
+				break
+			}
+		}
+		if !hasDefault {
+			currentUser.Addresses[0].IsDefault = true // Make the first one default
+		}
+	}
 
 	// --- Update the user document ---
 	update := bson.M{
 		"$set": bson.M{
-			"addresses":   currentUser.Addresses, // Set the modified addresses array
+			"addresses":  currentUser.Addresses, // Set the modified addresses array
 			"updated_at": time.Now(),
 		},
 	}
 
 	_, err = userCollection.UpdateOne(ctx, bson.M{"_id": userID}, update)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error updating address: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error updating address: "+err.Error(),
+		)
 		return
 	}
 
 	var updatedUser models.User
 	if err := userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&updatedUser); err != nil {
-	    utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching updated user profile after updating address: "+err.Error())
-	    return
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error fetching updated user profile after updating address: "+err.Error(),
+		)
+		return
 	}
 	utils.JSONResponse(w, http.StatusOK, updatedUser.Addresses)
 }
@@ -592,7 +730,11 @@ func DeleteUserAddress(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, ok := userIDCtx.(primitive.ObjectID)
 	if !ok {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Invalid userID format in context")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Invalid userID format in context",
+		)
 		return
 	}
 
@@ -600,12 +742,20 @@ func DeleteUserAddress(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	addressIndexStr, pathOk := vars["addressIndex"]
 	if !pathOk {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Address index not provided in path")
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Address index not provided in path",
+		)
 		return
 	}
 	addressIndex, err := strconv.Atoi(addressIndexStr)
 	if err != nil || addressIndex < 0 {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid address index format or value")
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Invalid address index format or value",
+		)
 		return
 	}
 
@@ -622,14 +772,20 @@ func DeleteUserAddress(w http.ResponseWriter, r *http.Request) {
 
 	// --- Validate addressIndex ---
 	if addressIndex >= len(currentUser.Addresses) {
-		utils.ErrorResponse(w, http.StatusNotFound, "Address not found at the specified index")
+		utils.ErrorResponse(
+			w,
+			http.StatusNotFound,
+			"Address not found at the specified index",
+		)
 		return
 	}
 
 	// --- Remove the address ---
 	addressToDelete := currentUser.Addresses[addressIndex]
 	// Slice trick to remove element at index: a = append(a[:i], a[i+1:]...)
-	currentUser.Addresses = append(currentUser.Addresses[:addressIndex], currentUser.Addresses[addressIndex+1:]...)
+	currentUser.Addresses = append(
+		currentUser.Addresses[:addressIndex],
+		currentUser.Addresses[addressIndex+1:]...)
 
 	// --- Handle IsDefault logic after removal ---
 	wasDefaultDeleted := addressToDelete.IsDefault
@@ -642,41 +798,49 @@ func DeleteUserAddress(w http.ResponseWriter, r *http.Request) {
 	} else if newAddressesCount == 0 {
 		// No addresses left, nothing to be default.
 	} else {
-        // If a non-default was deleted, or if the default was deleted but it was the only one (now list is empty),
-        // we still need to ensure one is default if addresses remain.
-        // This also covers the case where the list previously had a default, and it wasn't the one deleted.
-        hasDefault := false
-        for _, addr := range currentUser.Addresses {
-            if addr.IsDefault {
-                hasDefault = true
-                break
-            }
-        }
-        if !hasDefault && newAddressesCount > 0 {
-            currentUser.Addresses[0].IsDefault = true
-        }
-    }
+		// If a non-default was deleted, or if the default was deleted but it was the only one (now list is empty),
+		// we still need to ensure one is default if addresses remain.
+		// This also covers the case where the list previously had a default, and it wasn't the one deleted.
+		hasDefault := false
+		for _, addr := range currentUser.Addresses {
+			if addr.IsDefault {
+				hasDefault = true
+				break
+			}
+		}
+		if !hasDefault && newAddressesCount > 0 {
+			currentUser.Addresses[0].IsDefault = true
+		}
+	}
 
 	// --- Update the user document ---
 	update := bson.M{
 		"$set": bson.M{
-			"addresses":   currentUser.Addresses, // Set the modified addresses array
+			"addresses":  currentUser.Addresses, // Set the modified addresses array
 			"updated_at": time.Now(),
 		},
 	}
 
 	_, err = userCollection.UpdateOne(ctx, bson.M{"_id": userID}, update)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error deleting address: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error deleting address: "+err.Error(),
+		)
 		return
 	}
-	
+
 	// Return the updated list of addresses, or a success message
 	// For consistency, let's return the updated list of addresses.
 	var updatedUser models.User
 	if err := userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&updatedUser); err != nil {
-	    utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching updated user profile after deleting address: "+err.Error())
-	    return
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error fetching updated user profile after deleting address: "+err.Error(),
+		)
+		return
 	}
 	utils.JSONResponse(w, http.StatusOK, updatedUser.Addresses)
 }
@@ -686,19 +850,19 @@ func DeleteUserAddress(w http.ResponseWriter, r *http.Request) {
 // ListUsers handles GET /api/admin/users
 // Requires admin authentication
 func ListUsers(w http.ResponseWriter, r *http.Request) {
-	// Admin authentication should be handled by middleware. 
+	// Admin authentication should be handled by middleware.
 	// We can double-check the role from context if needed, but middleware is primary.
-	/* 
-	userRoleCtx := r.Context().Value("role") // Assuming role is set by AuthMiddleware
-	if userRoleCtx == nil {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "Role not found in context")
-		return
-	}
-	userRole, ok := userRoleCtx.(string)
-	if !ok || userRole != RoleAdmin {
-		utils.ErrorResponse(w, http.StatusForbidden, "Admin access required")
-		return
-	}
+	/*
+		userRoleCtx := r.Context().Value("role") // Assuming role is set by AuthMiddleware
+		if userRoleCtx == nil {
+			utils.ErrorResponse(w, http.StatusUnauthorized, "Role not found in context")
+			return
+		}
+		userRole, ok := userRoleCtx.(string)
+		if !ok || userRole != RoleAdmin {
+			utils.ErrorResponse(w, http.StatusForbidden, "Admin access required")
+			return
+		}
 	*/
 
 	// Pagination parameters (optional, but good for production)
@@ -732,14 +896,22 @@ func ListUsers(w http.ResponseWriter, r *http.Request) {
 
 	cursor, err := userCollection.Find(ctx, filter, findOptions)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching users: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error fetching users: "+err.Error(),
+		)
 		return
 	}
 	defer cursor.Close(ctx)
 
 	var users []models.User
 	if err = cursor.All(ctx, &users); err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding users: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error decoding users: "+err.Error(),
+		)
 		return
 	}
 
@@ -750,7 +922,11 @@ func ListUsers(w http.ResponseWriter, r *http.Request) {
 	// Get total count for pagination metadata, matching the filter
 	totalUsers, err := userCollection.CountDocuments(ctx, filter)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching user count: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error fetching user count: "+err.Error(),
+		)
 		return
 	}
 
@@ -828,14 +1004,22 @@ func UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 		Role string `json:"role"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Invalid request payload: "+err.Error(),
+		)
 		return
 	}
 
 	// --- Validate Role ---
 	newRole := strings.ToLower(payload.Role)
-	if newRole != RoleCustomer && newRole != RoleAdmin {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid role specified. Must be 'customer' or 'admin'.")
+	if newRole != RoleCustomer && newRole != RoleAdmin && newRole != RoleSeller {
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Invalid role specified. Must be 'customer' or 'admin' or seller.",
+		)
 		return
 	}
 
@@ -854,23 +1038,34 @@ func UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-    
-    // Prevent admin from accidentally demoting the last admin or self-demotion if it's the only admin
-    // This logic might need to be more sophisticated based on requirements.
-    if existingUser.Role == RoleAdmin && newRole == RoleCustomer {
-        // Check if this is the only admin user
-        adminCount, countErr := userCollection.CountDocuments(ctx, bson.M{"role": RoleAdmin})
-        if countErr != nil {
-            utils.ErrorResponse(w, http.StatusInternalServerError, "Error checking admin count: "+countErr.Error())
-            return
-        }
-        if adminCount <= 1 {
-            // Potentially check if the current admin performing the action is this user.
-            // For simplicity, prevent demoting the last admin.
-            utils.ErrorResponse(w, http.StatusForbidden, "Cannot demote the last admin user.")
-            return
-        }
-    }
+
+	// Prevent admin from accidentally demoting the last admin or self-demotion if it's the only admin
+	// This logic might need to be more sophisticated based on requirements.
+	if existingUser.Role == RoleAdmin && newRole == RoleCustomer {
+		// Check if this is the only admin user
+		adminCount, countErr := userCollection.CountDocuments(
+			ctx,
+			bson.M{"role": RoleAdmin},
+		)
+		if countErr != nil {
+			utils.ErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"Error checking admin count: "+countErr.Error(),
+			)
+			return
+		}
+		if adminCount <= 1 {
+			// Potentially check if the current admin performing the action is this user.
+			// For simplicity, prevent demoting the last admin.
+			utils.ErrorResponse(
+				w,
+				http.StatusForbidden,
+				"Cannot demote the last admin user.",
+			)
+			return
+		}
+	}
 
 	updateFields := bson.M{
 		"role":       newRole,
@@ -880,7 +1075,11 @@ func UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 
 	result, err := userCollection.UpdateOne(ctx, bson.M{"_id": userID}, updateDoc)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error updating user role: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error updating user role: "+err.Error(),
+		)
 		return
 	}
 
@@ -893,7 +1092,11 @@ func UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 	// Fetch and return the updated user
 	var updatedUser models.User
 	if err := userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&updatedUser); err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching updated user: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error fetching updated user: "+err.Error(),
+		)
 		return
 	}
 
@@ -907,24 +1110,42 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userIDStrToDeactivate, ok := vars["userId"]
 	if !ok {
-		utils.ErrorResponse(w, http.StatusBadRequest, "User ID to deactivate not provided in path")
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"User ID to deactivate not provided in path",
+		)
 		return
 	}
 	userIDToDeactivate, err := primitive.ObjectIDFromHex(userIDStrToDeactivate)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid User ID format for deactivation")
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Invalid User ID format for deactivation",
+		)
 		return
 	}
 
 	// Get current admin's ID from context to prevent self-deactivation if last admin
-	currentAdminIDCtx := r.Context().Value("userID") // Assuming userID of the admin performing action
+	currentAdminIDCtx := r.Context().
+		Value("userID")
+		// Assuming userID of the admin performing action
 	if currentAdminIDCtx == nil {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "Admin user ID not found in context")
+		utils.ErrorResponse(
+			w,
+			http.StatusUnauthorized,
+			"Admin user ID not found in context",
+		)
 		return
 	}
 	currentAdminID, ok := currentAdminIDCtx.(primitive.ObjectID)
 	if !ok {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Invalid admin userID format in context")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Invalid admin userID format in context",
+		)
 		return
 	}
 
@@ -944,7 +1165,11 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !userToDeactivate.IsActive {
-		utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "User is already inactive"})
+		utils.JSONResponse(
+			w,
+			http.StatusOK,
+			map[string]string{"message": "User is already inactive"},
+		)
 		return
 	}
 
@@ -953,16 +1178,24 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 		filter := bson.M{"role": RoleAdmin, "is_active": true}
 		activeAdminCount, countErr := userCollection.CountDocuments(ctx, filter)
 		if countErr != nil {
-			utils.ErrorResponse(w, http.StatusInternalServerError, "Error checking active admin count: "+countErr.Error())
+			utils.ErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"Error checking active admin count: "+countErr.Error(),
+			)
 			return
 		}
 		if activeAdminCount <= 1 && userToDeactivate.ID == currentAdminID {
-			utils.ErrorResponse(w, http.StatusForbidden, "Cannot deactivate yourself as the last active admin user.")
+			utils.ErrorResponse(
+				w,
+				http.StatusForbidden,
+				"Cannot deactivate yourself as the last active admin user.",
+			)
 			return
-		} else if activeAdminCount <=1 {
-            utils.ErrorResponse(w, http.StatusForbidden, "Cannot deactivate the last active admin user.")
-            return
-        }
+		} else if activeAdminCount <= 1 {
+			utils.ErrorResponse(w, http.StatusForbidden, "Cannot deactivate the last active admin user.")
+			return
+		}
 	}
 
 	// --- Perform soft delete ---
@@ -972,17 +1205,33 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 	updateDoc := bson.M{"$set": updateFields}
 
-	result, err := userCollection.UpdateOne(ctx, bson.M{"_id": userIDToDeactivate}, updateDoc)
+	result, err := userCollection.UpdateOne(
+		ctx,
+		bson.M{"_id": userIDToDeactivate},
+		updateDoc,
+	)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error deactivating user: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error deactivating user: "+err.Error(),
+		)
 		return
 	}
 
 	if result.MatchedCount == 0 {
 		// Should be caught by FindOne, but as a safeguard
-		utils.ErrorResponse(w, http.StatusNotFound, "User not found for deactivation (race condition?)")
+		utils.ErrorResponse(
+			w,
+			http.StatusNotFound,
+			"User not found for deactivation (race condition?)",
+		)
 		return
 	}
 
-	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "User deactivated successfully"})
+	utils.JSONResponse(
+		w,
+		http.StatusOK,
+		map[string]string{"message": "User deactivated successfully"},
+	)
 }

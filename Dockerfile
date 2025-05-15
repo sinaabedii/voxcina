@@ -5,10 +5,16 @@ FROM docker.arvancloud.ir/golang:1.24-alpine AS builder
 RUN apk update && \
     apk --no-cache add git build-base
 
+# Set GOPROXY to use a proxy that works in Iran
+ENV GOPROXY=https://goproxy.io,direct
+
 WORKDIR /build
 
 # Copy everything into the container
 COPY . .
+
+# Remove vendor directory to avoid inconsistent vendoring issues
+RUN rm -rf vendor/
 
 # Recreate the go.mod file and fetch all dependencies correctly
 RUN rm -f go.mod go.sum && \
@@ -27,8 +33,8 @@ RUN rm -f go.mod go.sum && \
 # Verify all dependencies are present before building
 RUN go mod download
 
-# Build the application - build the whole project, not just main.go
-RUN CGO_ENABLED=0 GOOS=linux go build -o /build/main .
+# Build the application with -mod=mod to ignore vendor directory
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=mod -o /build/main .
 
 # ┌────────────────────────── RUNTIME STAGE ──────────────────────────┐
 FROM docker.arvancloud.ir/alpine:3.21

@@ -20,7 +20,7 @@ func TestMain(m *testing.M) {
 
 	// Setup test user
 	testEmail := "test@example.com"
-	testPassword := "test123"
+	testPassword := "Test123!@#"
 	testName := "Test User"
 	
 	if err := api.SetupTestUser(testEmail, testPassword, testName); err != nil {

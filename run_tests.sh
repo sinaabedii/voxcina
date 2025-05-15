@@ -1,5 +1,7 @@
 #!/bin/sh
 
+export GOPROXY=https://goproxy.io,direct
+
 echo "Waiting for API server to be ready..."
 max_attempts=60
 attempt=0
@@ -25,7 +27,7 @@ if [ $attempt -eq $max_attempts ]; then
 fi
 
 echo "Starting API tests..."
-cd /app && go test -v ./test/...
+cd /app && go test -v ./test/... ./test/api/...
 test_result=$?
 
 echo "Tests completed with exit code: $test_result"

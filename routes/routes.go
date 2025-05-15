@@ -1,8 +1,9 @@
 package routes
 
 import (
-	"github.com/gorilla/mux"
 	"net/http"
+
+	"github.com/gorilla/mux"
 
 	"backEnd/handlers"
 	"backEnd/middlewares"
@@ -28,15 +29,19 @@ func NewRouter() *mux.Router {
 	userAuthRouter.HandleFunc("/profile", handlers.GetProfile).Methods(http.MethodGet)
 	userAuthRouter.HandleFunc("/profile", handlers.UpdateProfile).Methods(http.MethodPut)
 	// Address Management for authenticated user
-	userAuthRouter.HandleFunc("/addresses", handlers.AddUserAddress).Methods(http.MethodPost)
-	userAuthRouter.HandleFunc("/addresses/{addressIndex}", handlers.UpdateUserAddress).Methods(http.MethodPut)
-	userAuthRouter.HandleFunc("/addresses/{addressIndex}", handlers.DeleteUserAddress).Methods(http.MethodDelete)
+	userAuthRouter.HandleFunc("/addresses", handlers.AddUserAddress).
+		Methods(http.MethodPost)
+	userAuthRouter.HandleFunc("/addresses/{addressIndex}", handlers.UpdateUserAddress).
+		Methods(http.MethodPut)
+	userAuthRouter.HandleFunc("/addresses/{addressIndex}", handlers.DeleteUserAddress).
+		Methods(http.MethodDelete)
 
 	// Product Catalog endpoints
 	api.HandleFunc("/products", handlers.ListProducts).Methods(http.MethodGet)
 	api.HandleFunc("/products/{id}", handlers.GetProduct).Methods(http.MethodGet)
 	api.HandleFunc("/products/search", handlers.SearchProducts).Methods(http.MethodGet)
-	api.HandleFunc("/products/recommendations", handlers.ProductRecommendations).Methods(http.MethodGet)
+	api.HandleFunc("/products/recommendations", handlers.ProductRecommendations).
+		Methods(http.MethodGet)
 
 	// **Admin Product Management**
 	adminRouter := api.PathPrefix("/admin").Subrouter()
@@ -58,13 +63,19 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/users", handlers.ListUsers).Methods("GET")
 	adminRouter.HandleFunc("/users/{userId}", handlers.GetUserByID).Methods("GET")
 	adminRouter.HandleFunc("/users/{userId}/role", handlers.UpdateUserRole).Methods("PUT")
-	adminRouter.HandleFunc("/users/{userId}", handlers.DeleteUser).Methods("DELETE") // Soft delete
+	adminRouter.HandleFunc("/users/{userId}", handlers.DeleteUser).
+		Methods("DELETE")
+		// Soft delete
 
 	// Admin Order Management
-	adminRouter.HandleFunc("/orders/{orderId}", handlers.DeleteOrder).Methods("DELETE") // Soft delete
+	adminRouter.HandleFunc("/orders/{orderId}", handlers.DeleteOrder).
+		Methods("DELETE")
+		// Soft delete
 
 	// Admin Cart Management
-	adminRouter.HandleFunc("/carts/{cartId}", handlers.DeleteCart).Methods("DELETE") // Soft delete
+	adminRouter.HandleFunc("/carts/{cartId}", handlers.DeleteCart).
+		Methods("DELETE")
+		// Soft delete
 
 	// Public Product Routes
 	api.HandleFunc("/products", handlers.ListProducts).Methods("GET")
@@ -75,32 +86,46 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/categories/{id}", handlers.GetCategoryByID).Methods(http.MethodGet)
 	api.HandleFunc("/categories/{id}", handlers.UpdateCategory).Methods(http.MethodPut)
 	api.HandleFunc("/categories/{id}", handlers.DeleteCategory).Methods(http.MethodDelete)
-	api.HandleFunc("/categories/{id}/products", handlers.GetCategoryProducts).Methods(http.MethodGet)
+	api.HandleFunc("/categories/{id}/products", handlers.GetCategoryProducts).
+		Methods(http.MethodGet)
 	api.HandleFunc("/brands", handlers.GetBrands).Methods(http.MethodGet)
 	api.HandleFunc("/brands", handlers.CreateBrand).Methods(http.MethodPost)
 	api.HandleFunc("/brands/{id}", handlers.GetBrandByID).Methods(http.MethodGet)
 	api.HandleFunc("/brands/{id}", handlers.UpdateBrand).Methods(http.MethodPut)
 	api.HandleFunc("/brands/{id}", handlers.DeleteBrand).Methods(http.MethodDelete)
-	api.HandleFunc("/categories/homepage", handlers.GetHomepageCategories).Methods(http.MethodGet)
+	api.HandleFunc("/categories/homepage", handlers.GetHomepageCategories).
+		Methods(http.MethodGet)
 
 	// Promotions & Banners
 	api.HandleFunc("/promotions/home", handlers.GetHomePromotions).Methods(http.MethodGet)
-	api.HandleFunc("/promotions/{campaignId}", handlers.GetPromotionByID).Methods(http.MethodGet)
+	api.HandleFunc("/promotions/{campaignId}", handlers.GetPromotionByID).
+		Methods(http.MethodGet)
 
 	// --- Authenticated Cart Routes ---
 	cartRouter := api.PathPrefix("/cart").Subrouter()
 	cartRouter.Use(middlewares.AuthMiddleware)
-	cartRouter.HandleFunc("", handlers.GetCart).Methods(http.MethodGet)      // GET /api/cart
-	cartRouter.HandleFunc("", handlers.AddToCart).Methods(http.MethodPost)    // POST /api/cart
-	cartRouter.HandleFunc("/item", handlers.RemoveFromCart).Methods(http.MethodDelete) // DELETE /api/cart/item
-	cartRouter.HandleFunc("/item", handlers.UpdateCart).Methods(http.MethodPut)       // PUT /api/cart/item
+	cartRouter.HandleFunc("", handlers.GetCart).
+		Methods(http.MethodGet)
+		// GET /api/cart
+	cartRouter.HandleFunc("", handlers.AddToCart).
+		Methods(http.MethodPost)
+		// POST /api/cart
+	cartRouter.HandleFunc("/item", handlers.RemoveFromCart).
+		Methods(http.MethodDelete)
+		// DELETE /api/cart/item
+	cartRouter.HandleFunc("/item", handlers.UpdateCart).
+		Methods(http.MethodPut)
+		// PUT /api/cart/item
 
 	// Checkout & Orders (Authenticated)
 	// TODO: GetOrder needs fine-grained auth (user owns order or is admin)
-	api.Handle("/checkout", middlewares.AuthMiddleware(http.HandlerFunc(handlers.Checkout))).Methods(http.MethodPost)
+	api.Handle("/checkout", middlewares.AuthMiddleware(http.HandlerFunc(handlers.Checkout))).
+		Methods(http.MethodPost)
 
 	// User's own orders - uses AuthMiddleware from userOrderRouter
-	userOrderRouter := api.PathPrefix("/user").Subrouter() // New subrouter for user-specific order routes
+	userOrderRouter := api.PathPrefix("/user").
+		Subrouter()
+		// New subrouter for user-specific order routes
 	userOrderRouter.Use(middlewares.AuthMiddleware)
 	userOrderRouter.HandleFunc("/orders", handlers.GetUserOrders).Methods(http.MethodGet)
 
@@ -114,15 +139,18 @@ func NewRouter() *mux.Router {
 	// Wishlist
 	api.HandleFunc("/wishlist", handlers.GetWishlist).Methods(http.MethodGet)
 	api.HandleFunc("/wishlist", handlers.AddToWishlist).Methods(http.MethodPost)
-	api.HandleFunc("/wishlist/{itemId}", handlers.RemoveFromWishlist).Methods(http.MethodDelete)
+	api.HandleFunc("/wishlist/{itemId}", handlers.RemoveFromWishlist).
+		Methods(http.MethodDelete)
 
 	// Search & Autocomplete
-	api.HandleFunc("/search/suggestions", handlers.SearchSuggestions).Methods(http.MethodGet)
+	api.HandleFunc("/search/suggestions", handlers.SearchSuggestions).
+		Methods(http.MethodGet)
 	api.HandleFunc("/search/history", handlers.SearchHistory).Methods(http.MethodGet)
 
 	// --- Reviews & Ratings ---
 	// Publicly get reviews for a product
-	api.HandleFunc("/products/{productId}/reviews", handlers.GetReviews).Methods(http.MethodGet)
+	api.HandleFunc("/products/{productId}/reviews", handlers.GetReviews).
+		Methods(http.MethodGet)
 
 	// Add a review - Requires Authentication
 	// Note: Path is /products/{productId}/reviews, but reviewId is not part of this path for creation
@@ -132,15 +160,19 @@ func NewRouter() *mux.Router {
 
 	// Authenticated routes for updating/deleting specific reviews by their ID
 	reviewRouter := api.PathPrefix("/reviews").Subrouter()
-	reviewRouter.Use(middlewares.AuthMiddleware) // General authentication for these review actions
+	reviewRouter.Use(
+		middlewares.AuthMiddleware,
+	) // General authentication for these review actions
 
 	// Update a specific review by its ID (user must be owner or admin)
 	reviewRouter.HandleFunc("/{reviewId}", handlers.UpdateReview).Methods(http.MethodPut)
 	// Delete a specific review by its ID (user must be owner or admin)
-	reviewRouter.HandleFunc("/{reviewId}", handlers.DeleteReview).Methods(http.MethodDelete)
+	reviewRouter.HandleFunc("/{reviewId}", handlers.DeleteReview).
+		Methods(http.MethodDelete)
 
 	// Newsletter & Analytics
-	api.HandleFunc("/newsletter/subscribe", handlers.SubscribeNewsletter).Methods(http.MethodPost)
+	api.HandleFunc("/newsletter/subscribe", handlers.SubscribeNewsletter).
+		Methods(http.MethodPost)
 	api.HandleFunc("/analytics/track", handlers.TrackAnalytics).Methods(http.MethodPost)
 
 	// Pages & Footer
@@ -151,7 +183,8 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/discounts", handlers.CreateDiscount).Methods(http.MethodPost)
 	api.HandleFunc("/discounts", handlers.GetAllDiscounts).Methods(http.MethodGet)
 	api.HandleFunc("/discounts/{id}", handlers.GetDiscountByID).Methods(http.MethodGet)
-	api.HandleFunc("/discounts/code/{code}", handlers.GetDiscountByCode).Methods(http.MethodGet)
+	api.HandleFunc("/discounts/code/{code}", handlers.GetDiscountByCode).
+		Methods(http.MethodGet)
 	api.HandleFunc("/discounts/{id}", handlers.UpdateDiscount).Methods(http.MethodPut)
 	api.HandleFunc("/discounts/{id}", handlers.DeleteDiscount).Methods(http.MethodDelete)
 

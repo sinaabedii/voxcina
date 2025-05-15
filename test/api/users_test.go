@@ -4,19 +4,20 @@ import (
 	"net/http"
 	"testing"
 
+	"backEnd/test"
+
 	"github.com/stretchr/testify/assert"
-	"voxcina/test"
 )
 
 func TestGetProfile(t *testing.T) {
 	api := test.NewTestAPI()
 	
 	// Login to get token
-	token, err := api.Login("test@example.com", "test123")
+	token, err := api.Login("test@example.com", "Test123!@#")
 	assert.NoError(t, err)
 	
 	// Test get profile
-	resp, body, err := api.Request(http.MethodGet, "/users/profile", nil, token)
+	resp, _, err := api.Request(http.MethodGet, "/users/profile", nil, token)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
@@ -25,7 +26,7 @@ func TestUpdateProfile(t *testing.T) {
 	api := test.NewTestAPI()
 	
 	// Login to get token
-	token, err := api.Login("test@example.com", "test123")
+	token, err := api.Login("test@example.com", "Test123!@#")
 	assert.NoError(t, err)
 	
 	// Test update profile
@@ -37,7 +38,7 @@ func TestUpdateProfile(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	
 	// Verify profile was updated
-	resp, body, err := api.Request(http.MethodGet, "/users/profile", nil, token)
+	resp, _, err = api.Request(http.MethodGet, "/users/profile", nil, token)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
@@ -46,7 +47,7 @@ func TestAddAddress(t *testing.T) {
 	api := test.NewTestAPI()
 	
 	// Login to get token
-	token, err := api.Login("test@example.com", "test123")
+	token, err := api.Login("test@example.com", "Test123!@#")
 	assert.NoError(t, err)
 	
 	// Test add address
@@ -58,7 +59,7 @@ func TestAddAddress(t *testing.T) {
 		"zipCode": "12345",
 		"isDefault": true,
 	}
-	resp, body, err := api.Request(http.MethodPost, "/users/addresses", addressBody, token)
+	resp, _, err := api.Request(http.MethodPost, "/users/addresses", addressBody, token)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
 	
@@ -77,7 +78,7 @@ func TestUpdateAddress(t *testing.T) {
 	api := test.NewTestAPI()
 	
 	// Login to get token
-	token, err := api.Login("test@example.com", "test123")
+	token, err := api.Login("test@example.com", "Test123!@#")
 	assert.NoError(t, err)
 	
 	// First add an address
@@ -121,7 +122,7 @@ func TestDeleteAddress(t *testing.T) {
 	api := test.NewTestAPI()
 	
 	// Login to get token
-	token, err := api.Login("test@example.com", "test123")
+	token, err := api.Login("test@example.com", "Test123!@#")
 	assert.NoError(t, err)
 	
 	// First add an address

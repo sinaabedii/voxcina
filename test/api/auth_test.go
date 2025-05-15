@@ -4,8 +4,9 @@ import (
 	"net/http"
 	"testing"
 
+	"backEnd/test"
+
 	"github.com/stretchr/testify/assert"
-	"voxcina/test"
 )
 
 func TestRegister(t *testing.T) {
@@ -13,7 +14,7 @@ func TestRegister(t *testing.T) {
 	
 	// Test successful registration
 	email := "newuser@example.com"
-	password := "password123"
+	password := "Password123!@#"
 	name := "New User"
 	
 	reqBody := map[string]interface{}{
@@ -22,7 +23,7 @@ func TestRegister(t *testing.T) {
 		"name":     name,
 	}
 	
-	resp, body, err := api.Request(http.MethodPost, "/users/register", reqBody, "")
+	resp, _, err := api.Request(http.MethodPost, "/users/register", reqBody, "")
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
 	
@@ -51,10 +52,10 @@ func TestLogin(t *testing.T) {
 	// Test successful login
 	reqBody := map[string]interface{}{
 		"email":    "test@example.com",
-		"password": "test123",
+		"password": "Test123!@#",
 	}
 	
-	resp, body, err := api.Request(http.MethodPost, "/users/login", reqBody, "")
+	resp, _, err := api.Request(http.MethodPost, "/users/login", reqBody, "")
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	
@@ -66,7 +67,7 @@ func TestLogin(t *testing.T) {
 	
 	// Test non-existent user
 	reqBody["email"] = "nonexistent@example.com"
-	reqBody["password"] = "test123"
+	reqBody["password"] = "Test123!@#"
 	resp, _, err = api.Request(http.MethodPost, "/users/login", reqBody, "")
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
@@ -76,7 +77,7 @@ func TestLogout(t *testing.T) {
 	api := test.NewTestAPI()
 	
 	// Login first to get a token
-	token, err := api.Login("test@example.com", "test123")
+	token, err := api.Login("test@example.com", "Test123!@#")
 	assert.NoError(t, err)
 	
 	// Test successful logout
@@ -99,7 +100,7 @@ func TestAuthMiddleware(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	
 	// Test with valid token
-	token, err := api.Login("test@example.com", "test123")
+	token, err := api.Login("test@example.com", "Test123!@#")
 	assert.NoError(t, err)
 	
 	resp, _, err = api.Request(http.MethodGet, "/users/profile", nil, token)

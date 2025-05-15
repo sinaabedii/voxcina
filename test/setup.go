@@ -2,12 +2,18 @@ package test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // TestAPI encapsulates the API testing functionality
@@ -36,7 +42,11 @@ func NewTestAPI() *TestAPI {
 }
 
 // Request makes a request to the API
-func (t *TestAPI) Request(method, path string, body interface{}, token string) (*http.Response, []byte, error) {
+func (t *TestAPI) Request(
+	method, path string,
+	body interface{},
+	token string,
+) (*http.Response, []byte, error) {
 	var reqBody io.Reader
 	if body != nil {
 		jsonBody, err := json.Marshal(body)
@@ -80,7 +90,7 @@ func (t *TestAPI) UnmarshalJSON(data []byte, target interface{}) error {
 
 // Register registers a new user
 func (t *TestAPI) Register(email, password, name string) (string, string, error) {
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"email":    email,
 		"password": password,
 		"name":     name,
@@ -92,10 +102,14 @@ func (t *TestAPI) Register(email, password, name string) (string, string, error)
 	}
 
 	if resp.StatusCode != http.StatusCreated {
-		return "", "", fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, body)
+		return "", "", fmt.Errorf(
+			"unexpected status code: %d, body: %s",
+			resp.StatusCode,
+			body,
+		)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.Unmarshal(body, &result); err != nil {
 		return "", "", fmt.Errorf("failed to unmarshal response: %w", err)
 	}
@@ -107,7 +121,7 @@ func (t *TestAPI) Register(email, password, name string) (string, string, error)
 
 // Login logs in a user
 func (t *TestAPI) Login(email, password string) (string, error) {
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"email":    email,
 		"password": password,
 	}
@@ -118,10 +132,14 @@ func (t *TestAPI) Login(email, password string) (string, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, body)
+		return "", fmt.Errorf(
+			"unexpected status code: %d, body: %s",
+			resp.StatusCode,
+			body,
+		)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.Unmarshal(body, &result); err != nil {
 		return "", fmt.Errorf("failed to unmarshal response: %w", err)
 	}
@@ -146,4 +164,47 @@ func (t *TestAPI) SetupTestUser(email, password, name string) error {
 func (t *TestAPI) CleanupAfterTests() {
 	// Could implement deletion of test resources here if needed
 	// For example, deleting test users, products, etc.
-} 
+}
+
+// UpdateUserRole updates a user's role directly in the database
+func (t *TestAPI) UpdateUserRole(userID, role string) error {
+	// Get MongoDB connection details from environment variables
+	dbURI := os.Getenv("MONGODB_URI")
+	if dbURI == "" {
+		dbURI = "mongodb://localhost:27017" // Default for local testing
+	}
+
+	dbName := os.Getenv("MONGODB_NAME")
+	if dbName == "" {
+		dbName = "ecommerce" // Default DB name
+	}
+
+	// Connect to MongoDB
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(dbURI))
+	if err != nil {
+		return fmt.Errorf("failed to connect to MongoDB: %w", err)
+	}
+	defer client.Disconnect(ctx)
+
+	// Update the user's role
+	collection := client.Database(dbName).Collection("users")
+
+	// Convert the string ID to ObjectID
+	objectID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return fmt.Errorf("invalid user ID format: %w", err)
+	}
+
+	filter := bson.M{"_id": objectID}
+	update := bson.M{"$set": bson.M{"role": role}}
+
+	_, err = collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("failed to update user role: %w", err)
+	}
+
+	return nil
+}
