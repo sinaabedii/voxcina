@@ -6,17 +6,17 @@ import (
 	"net/http"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
 	"backEnd/db"
 	"backEnd/utils"
-
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // AnalyticsEvent represents an analytics event
 type AnalyticsEvent struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	EventName string             `bson:"eventName" json:"eventName"`
-	Timestamp time.Time          `bson:"timestamp" json:"timestamp"`
+	EventName string             `bson:"eventName"     json:"eventName"`
+	Timestamp time.Time          `bson:"timestamp"     json:"timestamp"`
 }
 
 // POST /api/analytics/track
@@ -36,5 +36,9 @@ func TrackAnalytics(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error tracking analytics")
 		return
 	}
-	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Analytics event tracked"})
+	utils.JSONResponse(
+		w,
+		http.StatusOK,
+		map[string]string{"message": "Analytics event tracked"},
+	)
 }

@@ -13,5 +13,9 @@ func GetHomePromotions(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/promotions/{campaignId}
 func GetPromotionByID(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Promotion details"})
+	utils.JSONResponse(
+		w,
+		http.StatusOK,
+		map[string]string{"message": "Promotion details"},
+	)
 }

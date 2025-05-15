@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
+
 	"backEnd/db"
 	"backEnd/utils"
-
-	"go.mongodb.org/mongo-driver/bson"
 )
 
 // GET /api/search/suggestions?q=<query>
@@ -21,14 +21,22 @@ func SearchSuggestions(w http.ResponseWriter, r *http.Request) {
 	filter := bson.M{"name": bson.M{"$regex": query, "$options": "i"}}
 	cursor, err := collection.Find(ctx, filter)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching suggestions")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error fetching suggestions",
+		)
 		return
 	}
 	var suggestions []struct {
 		Name string `json:"name" bson:"name"`
 	}
 	if err := cursor.All(ctx, &suggestions); err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding suggestions")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error decoding suggestions",
+		)
 		return
 	}
 	utils.JSONResponse(w, http.StatusOK, suggestions)

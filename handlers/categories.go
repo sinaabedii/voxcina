@@ -37,13 +37,17 @@ func GetCategories(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// It's often better to return an empty list on error for GET /plural resources
 		// than a server error, unless it's a critical failure.
-		utils.JSONResponse(w, http.StatusOK, []models.Category{}) 
+		utils.JSONResponse(w, http.StatusOK, []models.Category{})
 		return
 	}
 
 	var categories []models.Category
 	if err = cursor.All(ctx, &categories); err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding categories: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error decoding categories: "+err.Error(),
+		)
 		return
 	}
 
@@ -157,12 +161,16 @@ func convertObjectIDsToString(data interface{}) {
 func CreateCategory(w http.ResponseWriter, r *http.Request) {
 	// Max file size for image: 5MB
 	if err := r.ParseMultipartForm(5 << 20); err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Error parsing multipart form: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Error parsing multipart form: "+err.Error(),
+		)
 		return
 	}
 
 	name := r.FormValue("name")
-	slug := r.FormValue("slug") 
+	slug := r.FormValue("slug")
 	description := r.FormValue("description")
 	parentIDStr := r.FormValue("parentId") // Optional
 
@@ -178,10 +186,15 @@ func CreateCategory(w http.ResponseWriter, r *http.Request) {
 
 	var parentID primitive.ObjectID
 	var err error
-	if parentIDStr != "" && parentIDStr != "0" && parentIDStr != "null" { // Handle common ways of saying no parent
+	if parentIDStr != "" && parentIDStr != "0" &&
+		parentIDStr != "null" { // Handle common ways of saying no parent
 		parentID, err = primitive.ObjectIDFromHex(parentIDStr)
 		if err != nil {
-			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid parentId format: "+err.Error())
+			utils.ErrorResponse(
+				w,
+				http.StatusBadRequest,
+				"Invalid parentId format: "+err.Error(),
+			)
 			return
 		}
 	}
@@ -191,7 +204,11 @@ func CreateCategory(w http.ResponseWriter, r *http.Request) {
 	var imagePath string
 
 	if err != nil && err != http.ErrMissingFile {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Error retrieving image file: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Error retrieving image file: "+err.Error(),
+		)
 		return
 	}
 
@@ -199,7 +216,11 @@ func CreateCategory(w http.ResponseWriter, r *http.Request) {
 		defer file.Close()
 		uploadDir := "./uploads/categories"
 		if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
-			utils.ErrorResponse(w, http.StatusInternalServerError, "Error creating uploads directory: "+err.Error())
+			utils.ErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"Error creating uploads directory: "+err.Error(),
+			)
 			return
 		}
 		ext := filepath.Ext(handler.Filename)
@@ -208,13 +229,21 @@ func CreateCategory(w http.ResponseWriter, r *http.Request) {
 
 		dst, err := os.Create(filePath)
 		if err != nil {
-			utils.ErrorResponse(w, http.StatusInternalServerError, "Error creating image file: "+err.Error())
+			utils.ErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"Error creating image file: "+err.Error(),
+			)
 			return
 		}
 		defer dst.Close()
 
 		if _, err := io.Copy(dst, file); err != nil {
-			utils.ErrorResponse(w, http.StatusInternalServerError, "Error saving image file: "+err.Error())
+			utils.ErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"Error saving image file: "+err.Error(),
+			)
 			return
 		}
 		imagePath = "/uploads/categories/" + filename
@@ -226,7 +255,7 @@ func CreateCategory(w http.ResponseWriter, r *http.Request) {
 		Name:        name,
 		Slug:        slug,
 		Description: description,
-		Image:       imagePath, 
+		Image:       imagePath,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
@@ -241,7 +270,11 @@ func CreateCategory(w http.ResponseWriter, r *http.Request) {
 	_, err = collection.InsertOne(ctx, category)
 	if err != nil {
 		// Handle potential duplicate slug error (requires unique index on slug)
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error creating category: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error creating category: "+err.Error(),
+		)
 		return
 	}
 
@@ -299,7 +332,11 @@ func UpdateCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := r.ParseMultipartForm(5 << 20); err != nil { // 5MB max file size
-		utils.ErrorResponse(w, http.StatusBadRequest, "Error parsing multipart form: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Error parsing multipart form: "+err.Error(),
+		)
 		return
 	}
 
@@ -342,7 +379,8 @@ func UpdateCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if parentIDStr != "" {
-		if parentIDStr == "0" || parentIDStr == "null" || parentIDStr == primitive.NilObjectID.Hex() {
+		if parentIDStr == "0" || parentIDStr == "null" ||
+			parentIDStr == primitive.NilObjectID.Hex() {
 			update["parent_id"] = primitive.NilObjectID // Or use $unset if you want to remove the field
 			existingCategory.ParentID = primitive.NilObjectID
 		} else {
@@ -358,7 +396,11 @@ func UpdateCategory(w http.ResponseWriter, r *http.Request) {
 
 	file, handler, err := r.FormFile("image")
 	if err != nil && err != http.ErrMissingFile {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Error retrieving image file: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Error retrieving image file: "+err.Error(),
+		)
 		return
 	}
 
@@ -366,33 +408,48 @@ func UpdateCategory(w http.ResponseWriter, r *http.Request) {
 		defer file.Close()
 		// Delete old image if it exists
 		if existingCategory.Image != "" {
-			oldImageServerPath := "." + existingCategory.Image 
+			oldImageServerPath := "." + existingCategory.Image
 			if err := os.Remove(oldImageServerPath); err != nil {
 				// Log error but don't fail the update
-				fmt.Printf("Warning: could not delete old category image %s: %v\n", oldImageServerPath, err)
+				fmt.Printf(
+					"Warning: could not delete old category image %s: %v\n",
+					oldImageServerPath,
+					err,
+				)
 			}
 		}
 
 		uploadDir := "./uploads/categories"
-		_ = os.MkdirAll(uploadDir, os.ModePerm) // Ignore error for MkdirAll here, os.Create will fail if problematic
+		_ = os.MkdirAll(
+			uploadDir,
+			os.ModePerm,
+		) // Ignore error for MkdirAll here, os.Create will fail if problematic
 		ext := filepath.Ext(handler.Filename)
 		// Use existing slug or new slug for filename base
 		filenameSlug := existingCategory.Slug
 		if us, ok := update["slug"].(string); ok {
-		    filenameSlug = us
+			filenameSlug = us
 		}
 		filename := fmt.Sprintf("%s-%d%s", filenameSlug, time.Now().UnixNano(), ext)
 		filePath := filepath.Join(uploadDir, filename)
 
 		dst, err := os.Create(filePath)
 		if err != nil {
-			utils.ErrorResponse(w, http.StatusInternalServerError, "Error creating new image file: "+err.Error())
+			utils.ErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"Error creating new image file: "+err.Error(),
+			)
 			return
 		}
 		defer dst.Close()
 
 		if _, err := io.Copy(dst, file); err != nil {
-			utils.ErrorResponse(w, http.StatusInternalServerError, "Error saving new image file: "+err.Error())
+			utils.ErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"Error saving new image file: "+err.Error(),
+			)
 			return
 		}
 		update["image"] = "/uploads/categories/" + filename
@@ -410,7 +467,11 @@ func UpdateCategory(w http.ResponseWriter, r *http.Request) {
 
 	_, err = collection.UpdateOne(ctx, bson.M{"_id": objID}, bson.M{"$set": update})
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error updating category: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error updating category: "+err.Error(),
+		)
 		return
 	}
 
@@ -455,7 +516,11 @@ func DeleteCategory(w http.ResponseWriter, r *http.Request) {
 
 	result, err := collection.DeleteOne(ctx, bson.M{"_id": objID})
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error deleting category: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error deleting category: "+err.Error(),
+		)
 		return
 	}
 
@@ -467,10 +532,20 @@ func DeleteCategory(w http.ResponseWriter, r *http.Request) {
 	if categoryToDelete.Image != "" {
 		imageServerPath := "." + categoryToDelete.Image
 		if err := os.Remove(imageServerPath); err != nil {
-			utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Category deleted successfully, but failed to delete image file: " + err.Error()})
+			utils.JSONResponse(
+				w,
+				http.StatusOK,
+				map[string]string{
+					"message": "Category deleted successfully, but failed to delete image file: " + err.Error(),
+				},
+			)
 			return
 		}
 	}
 
-	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Category deleted successfully"})
+	utils.JSONResponse(
+		w,
+		http.StatusOK,
+		map[string]string{"message": "Category deleted successfully"},
+	)
 }

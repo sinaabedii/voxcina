@@ -5,11 +5,11 @@ import (
 	"log"
 	"time"
 
-	"backEnd/config"
-
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"backEnd/config"
 )
 
 var Client *mongo.Client

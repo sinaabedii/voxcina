@@ -6,13 +6,14 @@ import (
 	"net/http"
 	"time"
 
-	"backEnd/db"
-	"backEnd/models"
-	"backEnd/utils"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+
+	"backEnd/db"
+	"backEnd/models"
+	"backEnd/utils"
 )
 
 // CreateDiscount creates a new discount code
@@ -20,17 +21,29 @@ import (
 func CreateDiscount(w http.ResponseWriter, r *http.Request) {
 	var discount models.Discount
 	if err := json.NewDecoder(r.Body).Decode(&discount); err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Invalid request payload: "+err.Error(),
+		)
 		return
 	}
 
 	// Basic validation
 	if discount.Code == "" || discount.Type == "" || discount.Value == 0 {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Code, Type, and Value are required")
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Code, Type, and Value are required",
+		)
 		return
 	}
 	if discount.Type != "percentage" && discount.Type != "fixed" {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid discount type. Must be 'percentage' or 'fixed'.")
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Invalid discount type. Must be 'percentage' or 'fixed'.",
+		)
 		return
 	}
 
@@ -50,7 +63,11 @@ func CreateDiscount(w http.ResponseWriter, r *http.Request) {
 			utils.ErrorResponse(w, http.StatusConflict, "Discount code already exists")
 			return
 		}
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error creating discount: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error creating discount: "+err.Error(),
+		)
 		return
 	}
 
@@ -66,13 +83,21 @@ func GetAllDiscounts(w http.ResponseWriter, r *http.Request) {
 	collection := db.Database.Collection("discounts")
 	cursor, err := collection.Find(ctx, bson.M{})
 	if err != nil {
-		utils.JSONResponse(w, http.StatusOK, []models.Discount{}) // Return empty list on error
+		utils.JSONResponse(
+			w,
+			http.StatusOK,
+			[]models.Discount{},
+		) // Return empty list on error
 		return
 	}
 
 	var discounts []models.Discount
 	if err = cursor.All(ctx, &discounts); err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding discounts: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error decoding discounts: "+err.Error(),
+		)
 		return
 	}
 
@@ -171,7 +196,11 @@ func UpdateDiscount(w http.ResponseWriter, r *http.Request) {
 
 	var updates models.Discount // Use models.Discount to get all possible fields
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Invalid request payload: "+err.Error(),
+		)
 		return
 	}
 
@@ -183,7 +212,11 @@ func UpdateDiscount(w http.ResponseWriter, r *http.Request) {
 	}
 	if updates.Type != "" {
 		if updates.Type != "percentage" && updates.Type != "fixed" {
-			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid discount type. Must be 'percentage' or 'fixed'.")
+			utils.ErrorResponse(
+				w,
+				http.StatusBadRequest,
+				"Invalid discount type. Must be 'percentage' or 'fixed'.",
+			)
 			return
 		}
 		updateDoc["type"] = updates.Type
@@ -206,12 +239,12 @@ func UpdateDiscount(w http.ResponseWriter, r *http.Request) {
 		// This check is tricky for nested structs / optional int fields if they are not pointers.
 		// A more robust way is to use map[string]interface{} for the JSON body and check field existence.
 		// For now, assume if it's in updates (non-zero for int), it's intended.
-		if productIDs := updates.ApplicableTo.ProductIDs; len(productIDs) > 0 { 
+		if productIDs := updates.ApplicableTo.ProductIDs; len(productIDs) > 0 {
 			updateDoc["applicable_to"] = updates.ApplicableTo
 		} else if categoryIDs := updates.ApplicableTo.CategoryIDs; len(categoryIDs) > 0 {
 			updateDoc["applicable_to"] = updates.ApplicableTo
 		}
-		
+
 		if updates.MaxUses != 0 { // If MaxUses is being explicitly set (even to 0 if that means 'no limit')
 			updateDoc["max_uses"] = updates.MaxUses
 		}
@@ -228,13 +261,25 @@ func UpdateDiscount(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	collection := db.Database.Collection("discounts")
 
-	result, err := collection.UpdateOne(ctx, bson.M{"_id": objID}, bson.M{"$set": updateDoc})
+	result, err := collection.UpdateOne(
+		ctx,
+		bson.M{"_id": objID},
+		bson.M{"$set": updateDoc},
+	)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
-			utils.ErrorResponse(w, http.StatusConflict, "Discount code already exists (from update)")
+			utils.ErrorResponse(
+				w,
+				http.StatusConflict,
+				"Discount code already exists (from update)",
+			)
 			return
 		}
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error updating discount: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error updating discount: "+err.Error(),
+		)
 		return
 	}
 
@@ -246,7 +291,11 @@ func UpdateDiscount(w http.ResponseWriter, r *http.Request) {
 	// Fetch and return the updated document
 	var updatedDiscount models.Discount
 	if err := collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&updatedDiscount); err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching updated discount: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error fetching updated discount: "+err.Error(),
+		)
 		return
 	}
 	utils.JSONResponse(w, http.StatusOK, updatedDiscount)
@@ -273,7 +322,11 @@ func DeleteDiscount(w http.ResponseWriter, r *http.Request) {
 	collection := db.Database.Collection("discounts")
 	result, err := collection.DeleteOne(ctx, bson.M{"_id": objID})
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error deleting discount: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error deleting discount: "+err.Error(),
+		)
 		return
 	}
 
@@ -282,5 +335,9 @@ func DeleteDiscount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Discount deleted successfully"})
-} 
+	utils.JSONResponse(
+		w,
+		http.StatusOK,
+		map[string]string{"message": "Discount deleted successfully"},
+	)
+}

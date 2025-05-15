@@ -6,15 +6,15 @@ import (
 	"net/http"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
+
 	"backEnd/db"
 	"backEnd/utils"
-
-	"go.mongodb.org/mongo-driver/bson"
 )
 
 // Page represents a static page document
 type Page struct {
-	Slug    string `bson:"slug" json:"slug"`
+	Slug    string `bson:"slug"    json:"slug"`
 	Content string `bson:"content" json:"content"`
 }
 

@@ -22,34 +22,38 @@ func TestMain(m *testing.M) {
 	testEmail := "test@example.com"
 	testPassword := "Test123!@#"
 	testName := "Test User"
-	
+
 	if err := api.SetupTestUser(testEmail, testPassword, testName); err != nil {
 		log.Fatalf("Failed to setup test user: %v", err)
 	}
-	
+
 	log.Println("Running API tests...")
 	exitCode := m.Run()
-	
+
 	// Cleanup after tests
 	api.CleanupAfterTests()
-	
+
 	os.Exit(exitCode)
 }
 
 // waitForAPI waits for the API server to be ready
 func waitForAPI(maxWaitSeconds int) error {
 	log.Printf("Waiting for API server at %s to be ready...", api.BaseURL)
-	
+
 	for i := 0; i < maxWaitSeconds; i++ {
 		resp, _, err := api.Request(http.MethodGet, "/health", nil, "")
 		if err == nil && resp.StatusCode == http.StatusOK {
 			log.Println("API server is ready!")
 			return nil
 		}
-		
-		log.Printf("API server not ready yet, waiting %d/%d seconds...", i+1, maxWaitSeconds)
+
+		log.Printf(
+			"API server not ready yet, waiting %d/%d seconds...",
+			i+1,
+			maxWaitSeconds,
+		)
 		time.Sleep(1 * time.Second)
 	}
-	
+
 	return fmt.Errorf("API server not ready after %d seconds", maxWaitSeconds)
-} 
+}

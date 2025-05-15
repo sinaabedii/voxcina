@@ -13,10 +13,18 @@ func GetWishlist(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/wishlist
 func AddToWishlist(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, http.StatusCreated, map[string]string{"message": "Item added to wishlist"})
+	utils.JSONResponse(
+		w,
+		http.StatusCreated,
+		map[string]string{"message": "Item added to wishlist"},
+	)
 }
 
 // DELETE /api/wishlist/{itemId}
 func RemoveFromWishlist(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Item removed from wishlist"})
+	utils.JSONResponse(
+		w,
+		http.StatusOK,
+		map[string]string{"message": "Item removed from wishlist"},
+	)
 }

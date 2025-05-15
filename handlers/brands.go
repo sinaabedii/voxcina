@@ -9,18 +9,18 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	// "encoding/json" //	 Will be needed for POST/PUT
+	// "os" // Will be needed for file operations
+	// "path/filepath" // Will be needed for file operations
 
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	// "github.com/gorilla/mux" // Will be needed for path parameters
 
 	"backEnd/db"
 	"backEnd/models"
 	"backEnd/utils"
-	// "encoding/json" //	 Will be needed for POST/PUT
-	// "os" // Will be needed for file operations
-	// "path/filepath" // Will be needed for file operations
-	// "github.com/gorilla/mux" // Will be needed for path parameters
 )
 
 // GetBrands returns a list of all brands.
@@ -61,7 +61,11 @@ func GetBrands(w http.ResponseWriter, r *http.Request) {
 func CreateBrand(w http.ResponseWriter, r *http.Request) {
 	// Max file size: 5MB
 	if err := r.ParseMultipartForm(5 << 20); err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Error parsing multipart form: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Error parsing multipart form: "+err.Error(),
+		)
 		return
 	}
 
@@ -79,7 +83,11 @@ func CreateBrand(w http.ResponseWriter, r *http.Request) {
 	var logoPath string
 
 	if err != nil && err != http.ErrMissingFile {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Error retrieving logo file: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Error retrieving logo file: "+err.Error(),
+		)
 		return
 	}
 
@@ -89,7 +97,11 @@ func CreateBrand(w http.ResponseWriter, r *http.Request) {
 		// Create uploads directory if it doesn't exist
 		uploadDir := "./uploads/brands"
 		if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
-			utils.ErrorResponse(w, http.StatusInternalServerError, "Error creating uploads directory: "+err.Error())
+			utils.ErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"Error creating uploads directory: "+err.Error(),
+			)
 			return
 		}
 
@@ -105,13 +117,21 @@ func CreateBrand(w http.ResponseWriter, r *http.Request) {
 
 		dst, err := os.Create(filePath)
 		if err != nil {
-			utils.ErrorResponse(w, http.StatusInternalServerError, "Error creating logo file: "+err.Error())
+			utils.ErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"Error creating logo file: "+err.Error(),
+			)
 			return
 		}
 		defer dst.Close()
 
 		if _, err := io.Copy(dst, file); err != nil {
-			utils.ErrorResponse(w, http.StatusInternalServerError, "Error saving logo file: "+err.Error())
+			utils.ErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"Error saving logo file: "+err.Error(),
+			)
 			return
 		}
 		logoPath = "/uploads/brands/" + filename // Store the web-accessible path
@@ -134,7 +154,11 @@ func CreateBrand(w http.ResponseWriter, r *http.Request) {
 	_, err = collection.InsertOne(ctx, brand)
 	if err != nil {
 		// Consider MongoDB duplicate key error for name/slug if they are unique indexes
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error creating brand: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error creating brand: "+err.Error(),
+		)
 		return
 	}
 
@@ -194,7 +218,11 @@ func UpdateBrand(w http.ResponseWriter, r *http.Request) {
 
 	// Max file size: 5MB
 	if err := r.ParseMultipartForm(5 << 20); err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Error parsing multipart form: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Error parsing multipart form: "+err.Error(),
+		)
 		return
 	}
 
@@ -203,7 +231,10 @@ func UpdateBrand(w http.ResponseWriter, r *http.Request) {
 	description := r.FormValue("description")
 
 	// Fetch existing brand to get old logo path for deletion and to update
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Increased timeout for DB fetch + update
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		10*time.Second,
+	) // Increased timeout for DB fetch + update
 	defer cancel()
 
 	collection := db.Database.Collection("brands")
@@ -236,7 +267,11 @@ func UpdateBrand(w http.ResponseWriter, r *http.Request) {
 	var newLogoPath string
 
 	if err != nil && err != http.ErrMissingFile {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Error retrieving new logo file: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Error retrieving new logo file: "+err.Error(),
+		)
 		return
 	}
 
@@ -254,7 +289,11 @@ func UpdateBrand(w http.ResponseWriter, r *http.Request) {
 
 		uploadDir := "./uploads/brands"
 		if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
-			utils.ErrorResponse(w, http.StatusInternalServerError, "Error creating uploads directory: "+err.Error())
+			utils.ErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"Error creating uploads directory: "+err.Error(),
+			)
 			return
 		}
 
@@ -263,10 +302,12 @@ func UpdateBrand(w http.ResponseWriter, r *http.Request) {
 		if baseFilename == "" {
 			baseFilename = strings.ToLower(strings.ReplaceAll(name, " ", "-"))
 			if baseFilename == "" { // Fallback to existing slug or name if new ones are empty
-			    baseFilename = existingBrand.Slug
-			    if baseFilename == "" {
-			        baseFilename = strings.ToLower(strings.ReplaceAll(existingBrand.Name, " ", "-"))
-			    }
+				baseFilename = existingBrand.Slug
+				if baseFilename == "" {
+					baseFilename = strings.ToLower(
+						strings.ReplaceAll(existingBrand.Name, " ", "-"),
+					)
+				}
 			}
 		}
 		filename := fmt.Sprintf("%s-%d%s", baseFilename, time.Now().UnixNano(), ext)
@@ -274,13 +315,21 @@ func UpdateBrand(w http.ResponseWriter, r *http.Request) {
 
 		dst, err := os.Create(filePath)
 		if err != nil {
-			utils.ErrorResponse(w, http.StatusInternalServerError, "Error creating new logo file: "+err.Error())
+			utils.ErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"Error creating new logo file: "+err.Error(),
+			)
 			return
 		}
 		defer dst.Close()
 
 		if _, err := io.Copy(dst, file); err != nil {
-			utils.ErrorResponse(w, http.StatusInternalServerError, "Error saving new logo file: "+err.Error())
+			utils.ErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"Error saving new logo file: "+err.Error(),
+			)
 			return
 		}
 		newLogoPath = "/uploads/brands/" + filename
@@ -289,7 +338,11 @@ func UpdateBrand(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(update) == 0 {
-		utils.JSONResponse(w, http.StatusOK, existingBrand) // Nothing to update, return existing
+		utils.JSONResponse(
+			w,
+			http.StatusOK,
+			existingBrand,
+		) // Nothing to update, return existing
 		return
 	}
 
@@ -297,14 +350,18 @@ func UpdateBrand(w http.ResponseWriter, r *http.Request) {
 
 	_, err = collection.UpdateOne(ctx, bson.M{"_id": objID}, bson.M{"$set": update})
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error updating brand: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error updating brand: "+err.Error(),
+		)
 		return
 	}
 
 	// Update existingBrand with the timestamp from the update map for the response
-    if updatedAt, ok := update["updatedAt"].(time.Time); ok {
-        existingBrand.UpdatedAt = updatedAt
-    }
+	if updatedAt, ok := update["updatedAt"].(time.Time); ok {
+		existingBrand.UpdatedAt = updatedAt
+	}
 
 	utils.JSONResponse(w, http.StatusOK, existingBrand) // Return the updated brand object
 }
@@ -333,7 +390,7 @@ func DeleteBrand(w http.ResponseWriter, r *http.Request) {
 	// First, find the brand to get its logo path
 	var brandToDelete models.Brand
 	if err := collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&brandToDelete); err != nil {
-		if err.Error() == "mongo: no documents in result" { 
+		if err.Error() == "mongo: no documents in result" {
 			utils.ErrorResponse(w, http.StatusNotFound, "Brand not found")
 		} else {
 			utils.ErrorResponse(w, http.StatusInternalServerError, "Error finding brand to delete: "+err.Error())
@@ -344,7 +401,11 @@ func DeleteBrand(w http.ResponseWriter, r *http.Request) {
 	// Delete the brand document from MongoDB
 	result, err := collection.DeleteOne(ctx, bson.M{"_id": objID})
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error deleting brand: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error deleting brand: "+err.Error(),
+		)
 		return
 	}
 
@@ -360,10 +421,20 @@ func DeleteBrand(w http.ResponseWriter, r *http.Request) {
 		if err := os.Remove(logoServerPath); err != nil {
 			// Log the error but still return success for the DB deletion part
 			// log.Printf("Warning: could not delete logo file %s: %v", logoServerPath, err)
-			utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Brand deleted successfully, but failed to delete logo file: " + err.Error()})
+			utils.JSONResponse(
+				w,
+				http.StatusOK,
+				map[string]string{
+					"message": "Brand deleted successfully, but failed to delete logo file: " + err.Error(),
+				},
+			)
 			return
 		}
 	}
 
-	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Brand deleted successfully"})
-} 
+	utils.JSONResponse(
+		w,
+		http.StatusOK,
+		map[string]string{"message": "Brand deleted successfully"},
+	)
+}

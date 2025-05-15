@@ -31,9 +31,9 @@ type ProductResponse struct {
 
 // CartItemResponse represents an item in a user's cart for API responses.
 type CartItemResponse struct {
-	Product   ProductResponse    `json:"product"`
-	Variant   models.CartVariant `json:"variant"`
-	Quantity  int                `json:"quantity"`
+	Product  ProductResponse    `json:"product"`
+	Variant  models.CartVariant `json:"variant"`
+	Quantity int                `json:"quantity"`
 	// Price     float64            `json:"price"` // This would be product.Price * quantity
 }
 
@@ -110,18 +110,33 @@ func prepareCartResponse(ctx context.Context, cart models.Cart) (CartResponse, e
 	for _, item := range cart.Items {
 		var product models.Product
 		// Make sure ctx is passed to FindOne
-		err := productsCollection.FindOne(ctx, bson.M{"_id": item.ProductID}).Decode(&product)
+		err := productsCollection.FindOne(ctx, bson.M{"_id": item.ProductID}).
+			Decode(&product)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
 				// Product not found, this is a data integrity issue or product was deleted
 				// Log and decide whether to skip or return an error for the whole cart
-				utils.LogAction("error", fmt.Sprintf("Product with ID %s in cart %s not found in products collection", item.ProductID.Hex(), cart.ID.Hex()))
+				utils.LogAction(
+					"error",
+					fmt.Sprintf(
+						"Product with ID %s in cart %s not found in products collection",
+						item.ProductID.Hex(),
+						cart.ID.Hex(),
+					),
+				)
 				// Optionally, skip this item:
 				// continue
 				// Or, return an error to indicate inconsistent cart data:
-				return CartResponse{}, fmt.Errorf("product %s not found, cart data inconsistent", item.ProductID.Hex())
-			} 
-			return CartResponse{}, fmt.Errorf("error fetching product %s: %w", item.ProductID.Hex(), err)
+				return CartResponse{}, fmt.Errorf(
+					"product %s not found, cart data inconsistent",
+					item.ProductID.Hex(),
+				)
+			}
+			return CartResponse{}, fmt.Errorf(
+				"error fetching product %s: %w",
+				item.ProductID.Hex(),
+				err,
+			)
 		}
 
 		productImage := "" // Default image path
@@ -134,7 +149,7 @@ func prepareCartResponse(ctx context.Context, cart models.Cart) (CartResponse, e
 				ID:          product.ID,
 				Name:        product.Name,
 				Description: product.Description,
-				Price:       product.Price, 
+				Price:       product.Price,
 				Image:       productImage,
 			},
 			Variant:  item.Variant,
@@ -159,30 +174,50 @@ func prepareCartResponse(ctx context.Context, cart models.Cart) (CartResponse, e
 
 // GetCart returns the complete cart for a given user
 func GetCart(w http.ResponseWriter, r *http.Request) {
-	userIDCtx := r.Context().Value("userID") // Assume AuthMiddleware sets "userID" as primitive.ObjectID
+	userIDCtx := r.Context().
+		Value("userID")
+		// Assume AuthMiddleware sets "userID" as primitive.ObjectID
 	if userIDCtx == nil {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "User ID not found in context (authentication error)")
+		utils.ErrorResponse(
+			w,
+			http.StatusUnauthorized,
+			"User ID not found in context (authentication error)",
+		)
 		return
 	}
 
 	userID, ok := userIDCtx.(primitive.ObjectID)
 	if !ok {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "User ID in context is of incorrect type")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"User ID in context is of incorrect type",
+		)
 		return
 	}
 
 	if userID == primitive.NilObjectID {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid User ID in context (NilObjectID)")
+		utils.ErrorResponse(
+			w,
+			http.StatusUnauthorized,
+			"Invalid User ID in context (NilObjectID)",
+		)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Increased timeout
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		10*time.Second,
+	) // Increased timeout
 	defer cancel()
 
-	cartCollection := db.Database.Collection("carts") // Assuming collection name is "carts"
+	cartCollection := db.Database.Collection(
+		"carts",
+	) // Assuming collection name is "carts"
 	var cart models.Cart
 	// Try to find an existing active cart for the user
-	err := cartCollection.FindOne(ctx, bson.M{"user_id": userID, "is_active": true}).Decode(&cart)
+	err := cartCollection.FindOne(ctx, bson.M{"user_id": userID, "is_active": true}).
+		Decode(&cart)
 
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -197,7 +232,11 @@ func GetCart(w http.ResponseWriter, r *http.Request) {
 			}
 			_, insertErr := cartCollection.InsertOne(ctx, cart)
 			if insertErr != nil {
-				utils.ErrorResponse(w, http.StatusInternalServerError, "Error creating new cart: "+insertErr.Error())
+				utils.ErrorResponse(
+					w,
+					http.StatusInternalServerError,
+					"Error creating new cart: "+insertErr.Error(),
+				)
 				return
 			}
 		} else {
@@ -208,7 +247,11 @@ func GetCart(w http.ResponseWriter, r *http.Request) {
 
 	cartResponse, err := prepareCartResponse(ctx, cart)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error preparing cart response: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error preparing cart response: "+err.Error(),
+		)
 		return
 	}
 
@@ -217,18 +260,32 @@ func GetCart(w http.ResponseWriter, r *http.Request) {
 
 // AddToCart adds or updates an item in the user's cart
 func AddToCart(w http.ResponseWriter, r *http.Request) {
-	userIDCtx := r.Context().Value("userID") // Assume AuthMiddleware sets "userID" as primitive.ObjectID
+	userIDCtx := r.Context().
+		Value("userID")
+		// Assume AuthMiddleware sets "userID" as primitive.ObjectID
 	if userIDCtx == nil {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "User ID not found in context (authentication error)")
+		utils.ErrorResponse(
+			w,
+			http.StatusUnauthorized,
+			"User ID not found in context (authentication error)",
+		)
 		return
 	}
 	userID, ok := userIDCtx.(primitive.ObjectID)
 	if !ok {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "User ID in context is of incorrect type")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"User ID in context is of incorrect type",
+		)
 		return
 	}
 	if userID == primitive.NilObjectID {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid User ID in context (NilObjectID)")
+		utils.ErrorResponse(
+			w,
+			http.StatusUnauthorized,
+			"Invalid User ID in context (NilObjectID)",
+		)
 		return
 	}
 
@@ -239,7 +296,11 @@ func AddToCart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Invalid request payload: "+err.Error(),
+		)
 		return
 	}
 
@@ -254,7 +315,10 @@ func AddToCart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Increased timeout
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		10*time.Second,
+	) // Increased timeout
 	defer cancel()
 
 	// Fetch product to ensure it exists (optional, but good for validation)
@@ -269,22 +333,26 @@ func AddToCart(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	
+
 	// Check stock if applicable (models.Product needs a Stock field)
 	// if product.Stock < requestData.Quantity {
 	//    utils.ErrorResponse(w, http.StatusBadRequest, "Not enough stock")
 	//    return
 	// }
 
-
 	cartCollection := db.Database.Collection("carts")
 	var cart models.Cart
 	// Fetch the user's active cart
-	err = cartCollection.FindOne(ctx, bson.M{"user_id": userID, "is_active": true}).Decode(&cart)
+	err = cartCollection.FindOne(ctx, bson.M{"user_id": userID, "is_active": true}).
+		Decode(&cart)
 
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			utils.ErrorResponse(w, http.StatusNotFound, "Active cart not found for user. Please initialize cart first via GET /api/cart.")
+			utils.ErrorResponse(
+				w,
+				http.StatusNotFound,
+				"Active cart not found for user. Please initialize cart first via GET /api/cart.",
+			)
 		} else {
 			utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching active cart: "+err.Error())
 		}
@@ -294,7 +362,8 @@ func AddToCart(w http.ResponseWriter, r *http.Request) {
 	// Check if item (product + variant) already exists in cart
 	itemIndex := -1
 	for i, item := range cart.Items {
-		if item.ProductID == productID && item.Variant.Size == requestData.Variant.Size && item.Variant.Color == requestData.Variant.Color {
+		if item.ProductID == productID && item.Variant.Size == requestData.Variant.Size &&
+			item.Variant.Color == requestData.Variant.Color {
 			itemIndex = i
 			break
 		}
@@ -316,18 +385,29 @@ func AddToCart(w http.ResponseWriter, r *http.Request) {
 	// No upsert logic needed here, as we require an existing active cart.
 	// Update the existing cart.
 	update := bson.M{"$set": bson.M{"items": cart.Items, "updated_at": cart.UpdatedAt}}
-	_, err = cartCollection.UpdateOne(ctx, bson.M{"_id": cart.ID, "is_active": true}, update)
-
+	_, err = cartCollection.UpdateOne(
+		ctx,
+		bson.M{"_id": cart.ID, "is_active": true},
+		update,
+	)
 
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error updating cart: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error updating cart: "+err.Error(),
+		)
 		return
 	}
 
 	// Return the fully populated and updated cart
 	finalCartResponse, err := prepareCartResponse(ctx, cart)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error preparing updated cart response: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error preparing updated cart response: "+err.Error(),
+		)
 		return
 	}
 	utils.JSONResponse(w, http.StatusOK, finalCartResponse)
@@ -335,18 +415,32 @@ func AddToCart(w http.ResponseWriter, r *http.Request) {
 
 // UpdateCart updates an item's quantity in the cart
 func UpdateCart(w http.ResponseWriter, r *http.Request) {
-	userIDCtx := r.Context().Value("userID") // Assume AuthMiddleware sets "userID" as primitive.ObjectID
+	userIDCtx := r.Context().
+		Value("userID")
+		// Assume AuthMiddleware sets "userID" as primitive.ObjectID
 	if userIDCtx == nil {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "User ID not found in context (authentication error)")
+		utils.ErrorResponse(
+			w,
+			http.StatusUnauthorized,
+			"User ID not found in context (authentication error)",
+		)
 		return
 	}
 	userID, ok := userIDCtx.(primitive.ObjectID)
 	if !ok {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "User ID in context is of incorrect type")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"User ID in context is of incorrect type",
+		)
 		return
 	}
 	if userID == primitive.NilObjectID {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid User ID in context (NilObjectID)")
+		utils.ErrorResponse(
+			w,
+			http.StatusUnauthorized,
+			"Invalid User ID in context (NilObjectID)",
+		)
 		return
 	}
 
@@ -357,7 +451,11 @@ func UpdateCart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Invalid request payload: "+err.Error(),
+		)
 		return
 	}
 
@@ -380,7 +478,11 @@ func UpdateCart(w http.ResponseWriter, r *http.Request) {
 	// Fetch the user's active cart
 	if err := cartCollection.FindOne(ctx, bson.M{"user_id": userID, "is_active": true}).Decode(&cart); err != nil {
 		if err == mongo.ErrNoDocuments {
-			utils.ErrorResponse(w, http.StatusNotFound, "Active cart not found for user. Please initialize cart first.")
+			utils.ErrorResponse(
+				w,
+				http.StatusNotFound,
+				"Active cart not found for user. Please initialize cart first.",
+			)
 		} else {
 			utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching active cart: "+err.Error())
 		}
@@ -389,7 +491,8 @@ func UpdateCart(w http.ResponseWriter, r *http.Request) {
 
 	itemIndex := -1
 	for i, item := range cart.Items {
-		if item.ProductID == productID && item.Variant.Size == requestData.Variant.Size && item.Variant.Color == requestData.Variant.Color {
+		if item.ProductID == productID && item.Variant.Size == requestData.Variant.Size &&
+			item.Variant.Color == requestData.Variant.Color {
 			itemIndex = i
 			break
 		}
@@ -410,24 +513,36 @@ func UpdateCart(w http.ResponseWriter, r *http.Request) {
 	cart.UpdatedAt = time.Now()
 
 	updateFields := bson.M{
-		"items": cart.Items,
+		"items":      cart.Items,
 		"updated_at": cart.UpdatedAt,
 	}
 	// If items slice becomes empty, MongoDB might store it as null instead of an empty array depending on driver/library behavior or BSON tags like omitempty on the struct.
 	// Ensure it's always at least an empty array if that's desired.
 	if len(cart.Items) == 0 {
-	    updateFields["items"] = []models.CartItem{}
+		updateFields["items"] = []models.CartItem{}
 	}
 
-	_, err = cartCollection.UpdateOne(ctx, bson.M{"_id": cart.ID, "is_active": true}, bson.M{"$set": updateFields})
+	_, err = cartCollection.UpdateOne(
+		ctx,
+		bson.M{"_id": cart.ID, "is_active": true},
+		bson.M{"$set": updateFields},
+	)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error updating cart: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error updating cart: "+err.Error(),
+		)
 		return
 	}
 
 	finalCartResponse, err := prepareCartResponse(ctx, cart)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error preparing updated cart response: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error preparing updated cart response: "+err.Error(),
+		)
 		return
 	}
 	utils.JSONResponse(w, http.StatusOK, finalCartResponse)
@@ -436,18 +551,32 @@ func UpdateCart(w http.ResponseWriter, r *http.Request) {
 // RemoveFromCart removes an item from the user's cart based on ProductID and Variant from query params.
 // Expected query params: productId, variantSize, variantColor
 func RemoveFromCart(w http.ResponseWriter, r *http.Request) {
-	userIDCtx := r.Context().Value("userID") // Assume AuthMiddleware sets "userID" as primitive.ObjectID
+	userIDCtx := r.Context().
+		Value("userID")
+		// Assume AuthMiddleware sets "userID" as primitive.ObjectID
 	if userIDCtx == nil {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "User ID not found in context (authentication error)")
+		utils.ErrorResponse(
+			w,
+			http.StatusUnauthorized,
+			"User ID not found in context (authentication error)",
+		)
 		return
 	}
 	userID, ok := userIDCtx.(primitive.ObjectID)
 	if !ok {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "User ID in context is of incorrect type")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"User ID in context is of incorrect type",
+		)
 		return
 	}
 	if userID == primitive.NilObjectID {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid User ID in context (NilObjectID)")
+		utils.ErrorResponse(
+			w,
+			http.StatusUnauthorized,
+			"Invalid User ID in context (NilObjectID)",
+		)
 		return
 	}
 
@@ -457,7 +586,11 @@ func RemoveFromCart(w http.ResponseWriter, r *http.Request) {
 	variantColor := queryParams.Get("variantColor")
 
 	if productIDStr == "" {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Missing query parameter: productId")
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Missing query parameter: productId",
+		)
 		return
 	}
 	// Variant fields (size, color) can be optional if a product doesn't have variants,
@@ -466,7 +599,11 @@ func RemoveFromCart(w http.ResponseWriter, r *http.Request) {
 
 	productID, err := primitive.ObjectIDFromHex(productIDStr)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid product ID format in query parameter")
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Invalid product ID format in query parameter",
+		)
 		return
 	}
 
@@ -478,7 +615,11 @@ func RemoveFromCart(w http.ResponseWriter, r *http.Request) {
 	// Fetch the user's active cart
 	if err := cartCollection.FindOne(ctx, bson.M{"user_id": userID, "is_active": true}).Decode(&cart); err != nil {
 		if err == mongo.ErrNoDocuments {
-			utils.ErrorResponse(w, http.StatusNotFound, "Active cart not found for user. Please initialize cart first.")
+			utils.ErrorResponse(
+				w,
+				http.StatusNotFound,
+				"Active cart not found for user. Please initialize cart first.",
+			)
 		} else {
 			utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching active cart: "+err.Error())
 		}
@@ -488,7 +629,8 @@ func RemoveFromCart(w http.ResponseWriter, r *http.Request) {
 	itemFoundAndRemoved := false
 	newItems := []models.CartItem{}
 	for _, item := range cart.Items {
-		if item.ProductID == productID && item.Variant.Size == variantSize && item.Variant.Color == variantColor {
+		if item.ProductID == productID && item.Variant.Size == variantSize &&
+			item.Variant.Color == variantColor {
 			itemFoundAndRemoved = true
 			// Skip this item to remove it
 		} else {
@@ -497,30 +639,46 @@ func RemoveFromCart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !itemFoundAndRemoved {
-		utils.ErrorResponse(w, http.StatusNotFound, "Item with specified product ID and variant not found in cart")
+		utils.ErrorResponse(
+			w,
+			http.StatusNotFound,
+			"Item with specified product ID and variant not found in cart",
+		)
 		return
 	}
 
 	cart.Items = newItems
 	cart.UpdatedAt = time.Now()
-	
+
 	updateFields := bson.M{
-		"items": cart.Items,
+		"items":      cart.Items,
 		"updated_at": cart.UpdatedAt,
 	}
 	if len(cart.Items) == 0 {
-	    updateFields["items"] = []models.CartItem{}
+		updateFields["items"] = []models.CartItem{}
 	}
 
-	_, err = cartCollection.UpdateOne(ctx, bson.M{"_id": cart.ID, "is_active": true}, bson.M{"$set": updateFields})
+	_, err = cartCollection.UpdateOne(
+		ctx,
+		bson.M{"_id": cart.ID, "is_active": true},
+		bson.M{"$set": updateFields},
+	)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error updating cart after removal: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error updating cart after removal: "+err.Error(),
+		)
 		return
 	}
 
 	finalCartResponse, err := prepareCartResponse(ctx, cart)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error preparing updated cart response: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error preparing updated cart response: "+err.Error(),
+		)
 		return
 	}
 	utils.JSONResponse(w, http.StatusOK, finalCartResponse)
@@ -530,22 +688,22 @@ func RemoveFromCart(w http.ResponseWriter, r *http.Request) {
 func calculateCartSummaryInternal(items []CartItemResponse) CartSummary {
 	var subtotal float64
 	for _, item := range items {
-		subtotal += item.Product.Price * float64(item.Quantity) 
+		subtotal += item.Product.Price * float64(item.Quantity)
 	}
 
-	tax := subtotal * 0.09 
+	tax := subtotal * 0.09
 	shipping := 0.0
 	if len(items) > 0 {
-		shipping = 150000 
+		shipping = 150000
 	}
 
-	discount := 0.0 
+	discount := 0.0
 
 	return CartSummary{
 		Subtotal: subtotal,
 		Shipping: shipping,
 		Tax:      tax,
-		Discount: discount, 
+		Discount: discount,
 		Total:    subtotal + tax + shipping - discount,
 	}
 }
@@ -584,7 +742,11 @@ func DeleteCart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !cartToDeactivate.IsActive {
-		utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Cart is already inactive"})
+		utils.JSONResponse(
+			w,
+			http.StatusOK,
+			map[string]string{"message": "Cart is already inactive"},
+		)
 		return
 	}
 
@@ -597,14 +759,26 @@ func DeleteCart(w http.ResponseWriter, r *http.Request) {
 
 	result, err := cartsCollection.UpdateOne(ctx, bson.M{"_id": cartID}, updateDoc)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error deactivating cart: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error deactivating cart: "+err.Error(),
+		)
 		return
 	}
 
 	if result.MatchedCount == 0 {
-		utils.ErrorResponse(w, http.StatusNotFound, "Cart not found for deactivation (race condition?)")
+		utils.ErrorResponse(
+			w,
+			http.StatusNotFound,
+			"Cart not found for deactivation (race condition?)",
+		)
 		return
 	}
 
-	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Cart deactivated successfully"})
+	utils.JSONResponse(
+		w,
+		http.StatusOK,
+		map[string]string{"message": "Cart deactivated successfully"},
+	)
 }

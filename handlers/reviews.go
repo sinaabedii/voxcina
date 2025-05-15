@@ -6,15 +6,15 @@ import (
 	"net/http"
 	"time"
 
-	"backEnd/db"
-	"backEnd/models"
-	"backEnd/utils"
-
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"backEnd/db"
+	"backEnd/models"
+	"backEnd/utils"
 )
 
 // GET /api/products/{id}/reviews
@@ -36,14 +36,26 @@ func GetReviews(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	collection := db.Database.Collection("reviews")
-	cursor, err := collection.Find(ctx, bson.M{"product_id": productID}, options.Find().SetSort(bson.M{"created_at": -1}))
+	cursor, err := collection.Find(
+		ctx,
+		bson.M{"product_id": productID},
+		options.Find().SetSort(bson.M{"created_at": -1}),
+	)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching reviews: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error fetching reviews: "+err.Error(),
+		)
 		return
 	}
 	var reviews []models.Review
 	if err := cursor.All(ctx, &reviews); err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding reviews: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error decoding reviews: "+err.Error(),
+		)
 		return
 	}
 
@@ -71,14 +83,20 @@ func AddReview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// --- Get UserID from context (set by AuthMiddleware) ---
-	userIDCtx := r.Context().Value("userID") // Assuming "userID" is the key used by your middleware
+	userIDCtx := r.Context().
+		Value("userID")
+		// Assuming "userID" is the key used by your middleware
 	if userIDCtx == nil {
 		utils.ErrorResponse(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 	userID, ok := userIDCtx.(primitive.ObjectID)
 	if !ok {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Invalid userID format in context")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Invalid userID format in context",
+		)
 		return
 	}
 
@@ -88,7 +106,11 @@ func AddReview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid review payload: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Invalid review payload: "+err.Error(),
+		)
 		return
 	}
 
@@ -107,19 +129,34 @@ func AddReview(w http.ResponseWriter, r *http.Request) {
 	filter := bson.M{"user_id": userID, "product_id": productID}
 	count, err := collection.CountDocuments(ctx, filter)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error checking for existing review: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error checking for existing review: "+err.Error(),
+		)
 		return
 	}
 	if count > 0 {
-		utils.ErrorResponse(w, http.StatusConflict, "You have already reviewed this product")
+		utils.ErrorResponse(
+			w,
+			http.StatusConflict,
+			"You have already reviewed this product",
+		)
 		return
 	}
 
 	// --- Check if Product actually exists (optional but good practice) ---
 	productCollection := db.Database.Collection("products")
-	productCount, err := productCollection.CountDocuments(ctx, bson.M{"_id": productID, "is_active": true})
+	productCount, err := productCollection.CountDocuments(
+		ctx,
+		bson.M{"_id": productID, "is_active": true},
+	)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error checking product existence: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error checking product existence: "+err.Error(),
+		)
 		return
 	}
 	if productCount == 0 {
@@ -138,7 +175,11 @@ func AddReview(w http.ResponseWriter, r *http.Request) {
 
 	_, err = collection.InsertOne(ctx, review)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error adding review: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error adding review: "+err.Error(),
+		)
 		return
 	}
 
@@ -169,30 +210,46 @@ func UpdateReview(w http.ResponseWriter, r *http.Request) {
 	}
 	currentUserID, ok := userIDCtx.(primitive.ObjectID)
 	if !ok {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Invalid userID format in context")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Invalid userID format in context",
+		)
 		return
 	}
 
 	var payload struct {
-		Rating  *int   `json:"rating,omitempty"` // Pointer to distinguish between 0 and not provided
-		Comment *string `json:"comment,omitempty"`// Pointer to distinguish between "" and not provided
+		Rating  *int    `json:"rating,omitempty"`  // Pointer to distinguish between 0 and not provided
+		Comment *string `json:"comment,omitempty"` // Pointer to distinguish between "" and not provided
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid review update payload: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Invalid review update payload: "+err.Error(),
+		)
 		return
 	}
 
 	// --- Validate Rating if provided ---
 	if payload.Rating != nil {
 		if *payload.Rating < 1 || *payload.Rating > 5 {
-			utils.ErrorResponse(w, http.StatusBadRequest, "Rating must be between 1 and 5")
+			utils.ErrorResponse(
+				w,
+				http.StatusBadRequest,
+				"Rating must be between 1 and 5",
+			)
 			return
 		}
 	}
 
 	if payload.Rating == nil && payload.Comment == nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "No fields to update. Provide rating and/or comment.")
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"No fields to update. Provide rating and/or comment.",
+		)
 		return
 	}
 
@@ -215,7 +272,9 @@ func UpdateReview(w http.ResponseWriter, r *http.Request) {
 
 	// --- Check ownership or admin privileges ---
 	currentUserRole := ""
-	roleCtx := r.Context().Value("role") // Assuming role is set as string by AuthMiddleware
+	roleCtx := r.Context().
+		Value("role")
+		// Assuming role is set as string by AuthMiddleware
 	if roleCtx != nil {
 		if roleStr, ok := roleCtx.(string); ok {
 			currentUserRole = roleStr
@@ -223,7 +282,11 @@ func UpdateReview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if existingReview.UserID != currentUserID && currentUserRole != "admin" {
-		utils.ErrorResponse(w, http.StatusForbidden, "You are not authorized to update this review")
+		utils.ErrorResponse(
+			w,
+			http.StatusForbidden,
+			"You are not authorized to update this review",
+		)
 		return
 	}
 
@@ -237,9 +300,9 @@ func UpdateReview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(updateFields) == 0 { // Should be caught by earlier check, but as a safeguard
-        utils.JSONResponse(w, http.StatusOK, existingReview) // Nothing to update
-        return
-    }
+		utils.JSONResponse(w, http.StatusOK, existingReview) // Nothing to update
+		return
+	}
 
 	updateFields["updated_at"] = time.Now()
 	updateDoc := bson.M{"$set": updateFields}
@@ -247,7 +310,11 @@ func UpdateReview(w http.ResponseWriter, r *http.Request) {
 	// --- Perform the update ---
 	_, err = collection.UpdateOne(ctx, filter, updateDoc)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error updating review: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error updating review: "+err.Error(),
+		)
 		return
 	}
 
@@ -256,7 +323,11 @@ func UpdateReview(w http.ResponseWriter, r *http.Request) {
 	err = collection.FindOne(ctx, bson.M{"_id": reviewID}).Decode(&updatedReview)
 	if err != nil {
 		// This is unlikely if the update succeeded, but handle defensively
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching updated review: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error fetching updated review: "+err.Error(),
+		)
 		return
 	}
 
@@ -287,7 +358,11 @@ func DeleteReview(w http.ResponseWriter, r *http.Request) {
 	}
 	currentUserID, ok := userIDCtx.(primitive.ObjectID)
 	if !ok {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Invalid userID format in context")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Invalid userID format in context",
+		)
 		return
 	}
 
@@ -310,7 +385,9 @@ func DeleteReview(w http.ResponseWriter, r *http.Request) {
 
 	// --- Check ownership or admin privileges ---
 	currentUserRole := ""
-	roleCtx := r.Context().Value("role") // Assuming role is set as string by AuthMiddleware
+	roleCtx := r.Context().
+		Value("role")
+		// Assuming role is set as string by AuthMiddleware
 	if roleCtx != nil {
 		if roleStr, ok := roleCtx.(string); ok {
 			currentUserRole = roleStr
@@ -318,14 +395,25 @@ func DeleteReview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if existingReview.UserID != currentUserID && currentUserRole != "admin" {
-		utils.ErrorResponse(w, http.StatusForbidden, "You are not authorized to delete this review")
+		utils.ErrorResponse(
+			w,
+			http.StatusForbidden,
+			"You are not authorized to delete this review",
+		)
 		return
 	}
 
 	// --- Perform the delete operation ---
-	result, err := collection.DeleteOne(ctx, filter) // filter is still bson.M{"_id": reviewID}
+	result, err := collection.DeleteOne(
+		ctx,
+		filter,
+	) // filter is still bson.M{"_id": reviewID}
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error deleting review: "+err.Error())
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error deleting review: "+err.Error(),
+		)
 		return
 	}
 
@@ -335,5 +423,9 @@ func DeleteReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Review deleted successfully"})
+	utils.JSONResponse(
+		w,
+		http.StatusOK,
+		map[string]string{"message": "Review deleted successfully"},
+	)
 }

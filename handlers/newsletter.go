@@ -6,16 +6,16 @@ import (
 	"net/http"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
 	"backEnd/db"
 	"backEnd/utils"
-
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // NewsletterSubscription represents a newsletter subscription
 type NewsletterSubscription struct {
 	ID    primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	Email string             `bson:"email" json:"email"`
+	Email string             `bson:"email"         json:"email"`
 }
 
 // POST /api/newsletter/subscribe
@@ -31,8 +31,16 @@ func SubscribeNewsletter(w http.ResponseWriter, r *http.Request) {
 	collection := db.Database.Collection("newsletter")
 	_, err := collection.InsertOne(ctx, sub)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error subscribing to newsletter")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error subscribing to newsletter",
+		)
 		return
 	}
-	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Subscribed to newsletter"})
+	utils.JSONResponse(
+		w,
+		http.StatusOK,
+		map[string]string{"message": "Subscribed to newsletter"},
+	)
 }
