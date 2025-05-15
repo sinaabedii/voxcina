@@ -95,7 +95,7 @@ func TestAdminEndpoints(t *testing.T) {
 
 		// Change it back to regular user
 		updateRoleBody = map[string]any{
-			"role": "user",
+			"role": "customer",
 		}
 		resp, _, err = api.Request(
 			http.MethodPut,

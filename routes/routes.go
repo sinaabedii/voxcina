@@ -77,12 +77,16 @@ func NewRouter() *mux.Router {
 		Methods("DELETE")
 		// Soft delete
 
+	// Categories Management (Admin)
+	adminRouter.HandleFunc("/categories", handlers.CreateCategory).
+		Methods(http.MethodPost)
+		// Moved to admin router
+
 	// Public Product Routes
 	api.HandleFunc("/products", handlers.ListProducts).Methods("GET")
 
-	// Categories & Navigation
+	// Categories & Navigation (Public Read-Only Access)
 	api.HandleFunc("/categories", handlers.GetCategories).Methods(http.MethodGet)
-	api.HandleFunc("/categories", handlers.CreateCategory).Methods(http.MethodPost)
 	api.HandleFunc("/categories/{id}", handlers.GetCategoryByID).Methods(http.MethodGet)
 	api.HandleFunc("/categories/{id}", handlers.UpdateCategory).Methods(http.MethodPut)
 	api.HandleFunc("/categories/{id}", handlers.DeleteCategory).Methods(http.MethodDelete)
