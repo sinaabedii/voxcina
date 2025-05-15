@@ -1,7 +1,14 @@
 package api
 
 import (
+	"bytes"
+	"fmt"
+	"io"
+	"math/rand"
+	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -108,42 +115,183 @@ func TestAdminEndpoints(t *testing.T) {
 	}
 
 	// Test create product category (admin only)
-	categoryBody := map[string]any{
-		"name": "Test Category " + time.Now().Format(time.RFC3339),
+	// Using multipart form instead of JSON because the handler expects multipart
+	categoryName := "Test Category " + time.Now().Format(time.RFC3339)
+	var requestBody bytes.Buffer
+	writer := multipart.NewWriter(&requestBody)
+
+	// Add category name field (required)
+	_ = writer.WriteField("name", categoryName)
+	_ = writer.WriteField("description", "Test category description")
+
+	// Try to add test image if it exists
+	imagePath := "./test_files/test_category.png"
+	if imageFile, err := os.Open(imagePath); err == nil {
+		defer imageFile.Close()
+		part, err := writer.CreateFormFile("image", filepath.Base(imagePath))
+		if err == nil {
+			io.Copy(part, imageFile)
+		}
 	}
-	resp, body, err = api.Request(
+
+	writer.Close()
+
+	// Create custom request with multipart form
+	req, err := http.NewRequest(
 		http.MethodPost,
-		"/admin/categories",
-		categoryBody,
-		api.AdminToken,
+		api.BaseURL+"/admin/categories",
+		&requestBody,
 	)
+	assert.NoError(t, err)
+
+	// Set content type for multipart form
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Authorization", "Bearer "+api.AdminToken)
+
+	// Send the request
+	client := &http.Client{}
+	resp, err = client.Do(req)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err = io.ReadAll(resp.Body)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
 
 	var categoryResult map[string]any
 	err = api.UnmarshalJSON(body, &categoryResult)
+	fmt.Println(categoryResult)
 	assert.NoError(t, err)
 
-	categoryData, ok := categoryResult["data"].(map[string]any)
+	categoryID, ok := categoryResult["id"].(string)
 	assert.True(t, ok)
-	categoryID, ok := categoryData["id"].(string)
-	assert.True(t, ok)
+	assert.Equal(t, categoryName, categoryResult["name"])
+
+	// Verify image path if an image was uploaded
+	if _, err := os.Stat(imagePath); err == nil {
+		assert.Contains(t, categoryResult["image"].(string), "/uploads/categories/")
+	}
 
 	// Test create product (admin only)
-	productBody := map[string]any{
-		"name":        "Test Product " + time.Now().Format(time.RFC3339),
-		"description": "Test product description",
-		"price":       99.99,
-		"inventory":   100,
-		"categoryId":  categoryID,
-		"imageUrl":    "https://example.com/test-image.jpg",
+	// First, fetch brands to get a valid brandId
+	resp, brandsBody, err := api.Request(http.MethodGet, "/api/brands", nil, "")
+	assert.NoError(t, err)
+
+	// Default fallback brandId in case we can't get a real one
+	brandID := "507f1f77bcf86cd799439011" // Dummy MongoDB ObjectID
+
+	// Try to parse the brands response and get a real brandId
+	if resp.StatusCode == http.StatusOK {
+		var brandsResult map[string]any
+		err = api.UnmarshalJSON(brandsBody, &brandsResult)
+		if err == nil {
+			brandsData, ok := brandsResult["data"].([]any)
+			if ok && len(brandsData) > 0 {
+				// Randomly select a brand from the list
+				randomIndex := rand.Intn(len(brandsData))
+				brand, ok := brandsData[randomIndex].(map[string]any)
+				if ok {
+					if id, ok := brand["id"].(string); ok && id != "" {
+						brandID = id
+					}
+				}
+			}
+		}
 	}
-	resp, body, err = api.Request(
+
+	productName := "Test Product " + time.Now().Format(time.RFC3339)
+	productDescription := "Test product description"
+	productPrice := "99.99"
+
+	// Build category IDs JSON array with the category we just created
+	categoryIDsJSON := fmt.Sprintf("[\"%s\"]", categoryID)
+
+	// Create variants JSON
+	variantsJSON := `[
+		{
+			"size": "M",
+			"color": "Red",
+			"sku": "TEST-RED-M",
+			"quantity": 50
+		},
+		{
+			"size": "L",
+			"color": "Blue",
+			"sku": "TEST-BLUE-L",
+			"quantity": 30
+		}
+	]`
+
+	// Create attributes JSON
+	attributesJSON := `[
+		{
+			"name": "Material",
+			"value": "Cotton"
+		},
+		{
+			"name": "Care",
+			"value": "Machine wash cold"
+		}
+	]`
+
+	// Create multipart form data - using productFormBody instead of requestBody
+	var productFormBody bytes.Buffer
+	productWriter := multipart.NewWriter(&productFormBody)
+
+	// Add form fields
+	_ = productWriter.WriteField("name", productName)
+	_ = productWriter.WriteField("description", productDescription)
+	_ = productWriter.WriteField("price", productPrice)
+	_ = productWriter.WriteField("categoryIds", categoryIDsJSON)
+	_ = productWriter.WriteField("brandId", brandID)
+	_ = productWriter.WriteField("variants", variantsJSON)
+	_ = productWriter.WriteField("attributes", attributesJSON)
+	_ = productWriter.WriteField("isFlashSale", "false")
+	_ = productWriter.WriteField("isActive", "true")
+
+	// Add test product images
+	imagePaths := []string{
+		"./test_files/test_product1.jpg",
+		"./test_files/test_product2.jpg",
+	}
+
+	for _, imagePath := range imagePaths {
+		// Try to open the image file, skip if not found
+		if imageFile, err := os.Open(imagePath); err == nil {
+			defer imageFile.Close()
+			part, err := productWriter.CreateFormFile(
+				"mainImages",
+				filepath.Base(imagePath),
+			)
+			if err == nil {
+				io.Copy(part, imageFile)
+			}
+		}
+	}
+
+	productWriter.Close()
+
+	// Create custom request with multipart form
+	productReq, err := http.NewRequest(
 		http.MethodPost,
-		"/admin/products",
-		productBody,
-		api.AdminToken,
+		api.BaseURL+"/admin/products",
+		&productFormBody,
 	)
+	assert.NoError(t, err)
+
+	// Set content type for multipart form
+	productReq.Header.Set("Content-Type", productWriter.FormDataContentType())
+	productReq.Header.Set("Authorization", "Bearer "+api.AdminToken)
+
+	// Send the request
+	client = &http.Client{}
+	resp, err = client.Do(productReq)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err = io.ReadAll(resp.Body)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
 
@@ -155,6 +303,31 @@ func TestAdminEndpoints(t *testing.T) {
 	assert.True(t, ok)
 	productID, ok := productData["id"].(string)
 	assert.True(t, ok)
+
+	// Verify product details
+	assert.Equal(t, productName, productData["name"])
+	assert.Equal(t, productDescription, productData["description"])
+
+	// Check if images were uploaded
+	images, ok := productData["images"].([]any)
+	if len(imagePaths) > 0 && ok {
+		assert.NotEmpty(t, images)
+		for _, img := range images {
+			imgPath, ok := img.(string)
+			assert.True(t, ok)
+			assert.Contains(t, imgPath, "/uploads/products/main/")
+		}
+	}
+
+	// Verify variants
+	variants, ok := productData["variants"].([]any)
+	assert.True(t, ok)
+	assert.Equal(t, 2, len(variants))
+
+	// Verify attributes
+	attributes, ok := productData["attributes"].([]any)
+	assert.True(t, ok)
+	assert.Equal(t, 2, len(attributes))
 
 	// Test update product (admin only)
 	updateProductBody := map[string]any{

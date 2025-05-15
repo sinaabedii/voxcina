@@ -10,31 +10,17 @@ ENV GOPROXY=https://goproxy.io,direct
 
 WORKDIR /build
 
-# Copy everything into the container
-COPY . .
+# Copy go.mod and go.sum first to leverage caching
+COPY go.mod go.sum ./
 
-# Remove vendor directory to avoid inconsistent vendoring issues
-RUN rm -rf vendor/
-
-# Recreate the go.mod file and fetch all dependencies correctly
-RUN rm -f go.mod go.sum && \
-    go mod init backEnd && \
-    # Add required dependencies explicitly
-    go get go.mongodb.org/mongo-driver/mongo && \
-    go get go.mongodb.org/mongo-driver/bson && \
-    go get go.mongodb.org/mongo-driver/bson/primitive && \
-    go get go.mongodb.org/mongo-driver/mongo/options && \
-    go get github.com/golang-jwt/jwt/v5 && \
-    go get github.com/gorilla/mux && \
-    go get golang.org/x/crypto/bcrypt && \
-    # Tidy up to ensure all dependencies are in go.sum
-    go mod tidy
-
-# Verify all dependencies are present before building
+# Download dependencies (cached unless go.mod or go.sum changes)
 RUN go mod download
 
-# Build the application with -mod=mod to ignore vendor directory
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=mod -o /build/main .
+# Copy the rest of the application code
+COPY . .
+
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux go build -o /build/main .
 
 # ┌────────────────────────── RUNTIME STAGE ──────────────────────────┐
 FROM docker.arvancloud.ir/alpine:3.21
