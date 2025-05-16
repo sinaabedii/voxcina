@@ -1,15 +1,49 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useProductStore } from '@/store/product-store';
 
+// Define a local interface for the category
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+}
+
 export default function CategoriesPage() {
-  const { categories, fetchCategories, isLoading } = useProductStore();
+  // Remove properties that don't exist in ProductState
+  const { isLoading, products, fetchProducts } = useProductStore();
+  
+  // Create a local state for categories
+  const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
+    // Instead of fetchCategories, use fetchProducts which exists in your store
+    fetchProducts();
+  }, [fetchProducts]);
+
+  // Extract unique categories from products when products change
+  useEffect(() => {
+    if (!products.length) return;
+
+    // Extract unique categories from products
+    const uniqueCategories = products.reduce<Record<string, Category>>((acc, product) => {
+      if (!acc[product.categoryId]) {
+        acc[product.categoryId] = {
+          id: product.categoryId,
+          name: product.category,
+          slug: product.categoryId, // Using categoryId as slug, adjust if needed
+          description: '' // Add description if available in your data
+        };
+      }
+      return acc;
+    }, {});
+
+    // Convert to array
+    setCategories(Object.values(uniqueCategories));
+  }, [products]);
 
   if (isLoading) {
     return (

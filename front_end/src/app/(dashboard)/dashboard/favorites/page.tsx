@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 
 export default function FavoritesPage() {
   const { products, isLoading } = useProductStore();
-  const { favorites, removeFavorite } = useDashboardStore();
+  const { favorites, removeFromFavorites } = useDashboardStore();
   const [favoriteProducts, setFavoriteProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('newest');
@@ -58,7 +58,7 @@ export default function FavoritesPage() {
   const handleRemoveFavorite = (productId: string) => {
     setIsRemoving(productId);
     setTimeout(() => {
-      removeFavorite(productId);
+      removeFromFavorites(productId);
       setIsRemoving(null);
     }, 300);
   };

@@ -32,13 +32,13 @@ export default function SettingsPage() {
   const [formData, setFormData] = useState({
     name: user?.name || "",
     email: user?.email || "",
-    phone: user?.phone || "",
+    // phone: user?.phone || "",
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
-    receiveEmails: user?.preferences?.receiveEmails || false,
-    receiveNotifications: user?.preferences?.receiveNotifications || true,
-    twoFactorAuth: user?.preferences?.twoFactorAuth || false,
+    // receiveEmails: user?.preferences?.receiveEmails || false,
+    // receiveNotifications: user?.preferences?.receiveNotifications || true,
+    // twoFactorAuth: user?.preferences?.twoFactorAuth || false,
   });
 
   useEffect(() => {
@@ -71,12 +71,12 @@ export default function SettingsPage() {
         try {
           updateUser({
             name: formData.name,
-            phone: formData.phone,
-            preferences: {
-              receiveEmails: formData.receiveEmails,
-              receiveNotifications: formData.receiveNotifications,
-              twoFactorAuth: formData.twoFactorAuth,
-            },
+            // phone: formData.phone,
+            // preferences: {
+            //   receiveEmails: formData.receiveEmails,
+            //   receiveNotifications: formData.receiveNotifications,
+            //   twoFactorAuth: formData.twoFactorAuth,
+            // },
           });
           setSuccessMessage("اطلاعات شخصی با موفقیت به‌روزرسانی شد");
 
@@ -233,7 +233,7 @@ export default function SettingsPage() {
                       className="rounded-xl"
                     />
 
-                    <Input
+                    {/* <Input
                       label="شماره موبایل"
                       name="phone"
                       value={formData.phone}
@@ -327,7 +327,7 @@ export default function SettingsPage() {
                           </label>
                         </div>
                       </div>
-                    </div>
+                    </div> */}
 
                     <div className="pt-4 flex justify-end">
                       <Button
@@ -494,23 +494,17 @@ export default function SettingsPage() {
                       <input
                         type="checkbox"
                         name="twoFactorAuth"
-                        checked={formData.twoFactorAuth}
-                        onChange={handleChange}
+                        // Update this to use a local state variable instead of formData
+                        checked={false}
+                        // Update this to be a no-op or use a different state variable
+                        onChange={() => {}}
                         className="sr-only"
                       />
                       <div
-                        className={`w-11 h-6 rounded-full transition-colors ${
-                          formData.twoFactorAuth
-                            ? "bg-blue-500"
-                            : "bg-gray-300 dark:bg-gray-600"
-                        }`}
+                        className={`w-11 h-6 rounded-full transition-colors bg-gray-300 dark:bg-gray-600`}
                       >
                         <div
-                          className={`w-5 h-5 rounded-full bg-white transform transition-transform ${
-                            formData.twoFactorAuth
-                              ? "translate-x-5 rtl:-translate-x-5"
-                              : "translate-x-1 rtl:-translate-x-1"
-                          }`}
+                          className={`w-5 h-5 rounded-full bg-white transform transition-transform translate-x-1 rtl:-translate-x-1`}
                         ></div>
                       </div>
                     </label>

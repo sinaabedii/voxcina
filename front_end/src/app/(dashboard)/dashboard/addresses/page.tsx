@@ -527,7 +527,7 @@ export default function AddressesPage() {
               انصراف
             </Button>
             <Button
-              variant="destructive"
+              variant="danger"
               onClick={handleDelete}
               className="rounded-xl"
             >

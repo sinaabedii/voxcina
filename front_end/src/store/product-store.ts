@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { Product, ProductFilter } from "@/types/product";
-import { products as mockProducts } from "@/data/products";
 import { delay } from "@/lib/utils";
 
 interface ProductState {

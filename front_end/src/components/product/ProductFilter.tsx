@@ -16,11 +16,21 @@ const ProductFilter: React.FC<ProductFilterProps> = ({
   onClose,
   isMobile = false,
 }) => {
-  const { categories, filter, setFilter, clearFilters, products } =
-    useProductStore();
+  // Updated: Remove categories from store destructuring, derive from products
+  const { filter, setFilter, clearFilters, products } = useProductStore();
 
   const [localFilter, setLocalFilter] =
     useState<Partial<ProductFilterType>>(filter);
+
+  // Derive unique categories from products
+  const categories = Array.from(
+    new Set(products.map((product) => product.category))
+  )
+    .map((category, index) => ({
+      id: `${index + 1}`, // Generate a simple ID if needed
+      name: category,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   useEffect(() => {
     setLocalFilter(filter);
@@ -70,7 +80,7 @@ const ProductFilter: React.FC<ProductFilterProps> = ({
 
     setLocalFilter({ ...localFilter, categories: newCategories });
   };
-
+  
   const handleBrandChange = (brand: string) => {
     const currentBrands = localFilter.brands || [];
     const newBrands = currentBrands.includes(brand)

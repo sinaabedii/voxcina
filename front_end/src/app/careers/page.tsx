@@ -29,32 +29,31 @@ export default function CareersPage() {
   const [formSubmitted, setFormSubmitted] = useState(false);
 
   const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    const { name, value, type } = e.target as HTMLInputElement;
-
-    if (type === "checkbox") {
+    const target = e.target;
+    const { name } = target;
+    
+    if (target.type === "checkbox" && target instanceof HTMLInputElement) {
       setFormData((prev) => ({
         ...prev,
-        [name]: (e.target as HTMLInputElement).checked,
+        [name]: target.checked,
       }));
-    } else if (type === "file") {
-      if (e.target.files && e.target.files[0]) {
+    } else if (target.type === "file" && target instanceof HTMLInputElement) {
+      if (target.files && target.files[0]) {
         setFormData((prev) => ({
           ...prev,
-          [name]: e.target.files ? e.target.files[0] : null,
+          [name]: target.files ? target.files[0] : null,
         }));
       }
     } else {
       setFormData((prev) => ({
         ...prev,
-        [name]: value,
+        [name]: target.value,
       }));
     }
   };
-
+  
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 

@@ -84,7 +84,7 @@ export default function OrdersPage() {
       );
     });
 
-  const getStatusStyle = (status) => {
+  const getStatusStyle = (status: string) => {
     switch(status) {
       case 'delivered':
         return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
@@ -99,7 +99,7 @@ export default function OrdersPage() {
     }
   };
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status: string) => {
     switch(status) {
       case 'delivered':
         return <Package className="w-4 h-4 ml-1" />;

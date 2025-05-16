@@ -2,18 +2,314 @@
 
 import { useEffect, useState, useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
+import { Product, ProductColor, Review, ProductFilter } from "@/types/product";
+
+// Define a specific type for filters to make priceRange required
+type SummerFilters = {
+  priceRange: { min: number; max: number };
+  colors: string[];
+  sizes: string[];
+  sort: "price-asc" | "price-desc" | "newest" | "rating" | "popular";
+};
+
+// Demo Review data to satisfy Review interface
+const DEMO_REVIEWS: Review[] = [
+  {
+    id: "rev1",
+    productId: "1",
+    userId: "user1",
+    userName: "علی",
+    rating: 4,
+    title: "عالی",
+    comment: "محصول بسیار خوبی است، کیفیت پارچه عالی است.",
+    date: "2025-05-01",
+    likes: 5,
+    dislikes: 0,
+    verified: true,
+  },
+  {
+    id: "rev2",
+    productId: "1",
+    userId: "user2",
+    userName: "مریم",
+    rating: 5,
+    title: "خیلی شیک",
+    comment: "طراحی زیبا و مناسب تابستان.",
+    date: "2025-05-02",
+    likes: 3,
+    dislikes: 1,
+    verified: true,
+  },
+];
+
+// Updated DEMO_SUMMER_PRODUCTS to match Product interface
+const DEMO_SUMMER_PRODUCTS: Product[] = [
+  {
+    id: "1",
+    name: "پیراهن آستین کوتاه طرح هاوایی",
+    description: "پیراهن آستین کوتاه با طرح هاوایی، مناسب برای استایل تابستانی.",
+    price: 1290000,
+    images: ["summer-shirt-1.jpg", "summer-shirt-1-alt1.jpg", "summer-shirt-1-alt2.jpg"],
+    category: "پیراهن مردانه",
+    categoryId: "1",
+    brand: "SummerVibes",
+    inStock: true,
+    sizes: ["S", "M", "L", "XL"],
+    colors: [
+      { name: "آبی", code: "#0000FF" },
+      { name: "سبز", code: "#008000" },
+      { name: "قرمز", code: "#FF0000" },
+    ],
+    rating: 4.5,
+    reviewCount: 2,
+    isNew: true,
+    createdAt: "2025-05-01",
+    updatedAt: "2025-05-01",
+    reviews: DEMO_REVIEWS, // Fixed: Corrected DEMO_REV to DEMO_REVIEWS and added comma
+    discountPercentage: 15,
+    stockCount: 100,
+    sku: "SHIRT-HAWAII-001",
+    material: "پنبه",
+    weight: { value: 300, unit: "g" },
+  },
+  {
+    id: "2",
+    name: "تاپ آستین حلقه‌ای زنانه",
+    description: "تاپ راحت و سبک زنانه، ایده‌آل برای روزهای گرم تابستان.",
+    price: 890000,
+    images: ["summer-top-1.jpg", "summer-top-1-alt1.jpg", "summer-top-1-alt2.jpg"],
+    category: "تاپ زنانه",
+    categoryId: "2",
+    brand: "CoolBreeze",
+    inStock: true,
+    sizes: ["XS", "S", "M", "L"],
+    colors: [
+      { name: "زرد", code: "#FFFF00" },
+      { name: "صورتی", code: "#FF69B4" },
+      { name: "سفید", code: "#FFFFFF" },
+    ],
+    rating: 4.2,
+    reviewCount: 1,
+    isNew: true,
+    createdAt: "2025-05-01",
+    updatedAt: "2025-05-01",
+    reviews: [DEMO_REVIEWS[0]],
+    discountPercentage: 0,
+    stockCount: 80,
+    sku: "TOP-WOMEN-001",
+    material: "پنبه و پلی‌استر",
+    weight: { value: 200, unit: "g" },
+  },
+  {
+    id: "3",
+    name: "شلوارک جین مردانه",
+    description: "شلوارک جین با دوام و راحت، مناسب برای استفاده روزمره.",
+    price: 1490000,
+    images: ["summer-shorts-1.jpg", "summer-shorts-1-alt1.jpg", "summer-shorts-1-alt2.jpg"],
+    category: "شلوارک مردانه",
+    categoryId: "3",
+    brand: "DenimCo",
+    inStock: true,
+    sizes: ["S", "M", "L", "XL", "XXL"],
+    colors: [
+      { name: "آبی تیره", code: "#00008B" },
+      { name: "خاکستری", code: "#808080" },
+      { name: "مشکی", code: "#000000" },
+    ],
+    rating: 4.7,
+    reviewCount: 2,
+    isNew: false,
+    createdAt: "2025-05-01",
+    updatedAt: "2025-05-01",
+    reviews: DEMO_REVIEWS,
+    discountPercentage: 20,
+    stockCount: 120,
+    sku: "SHORTS-DENIM-001",
+    material: "جین",
+    weight: { value: 500, unit: "g" },
+  },
+  {
+    id: "4",
+    name: "پیراهن آستین بلند سفید مردانه",
+    description: "پیراهن سفید کلاسیک با پارچه خنک برای تابستان.",
+    price: 1590000,
+    images: ["summer-shirt-2.jpg", "summer-shirt-2-alt1.jpg", "summer-shirt-2-alt2.jpg"],
+    category: "پیراهن مردانه",
+    categoryId: "1",
+    brand: "ClassicWear",
+    inStock: true,
+    sizes: ["S", "M", "L", "XL"],
+    colors: [
+      { name: "سفید", code: "#FFFFFF" },
+      { name: "آبی روشن", code: "#ADD8E6" },
+      { name: "خاکستری روشن", code: "#D3D3D3" },
+    ],
+    rating: 4.8,
+    reviewCount: 1,
+    isNew: false,
+    createdAt: "2025-05-01",
+    updatedAt: "2025-05-01",
+    reviews: [DEMO_REVIEWS[1]],
+    discountPercentage: 0,
+    stockCount: 90,
+    sku: "SHIRT-WHITE-002",
+    material: "پنبه",
+    weight: { value: 350, unit: "g" },
+  },
+  {
+    id: "5",
+    name: "لباس ساحلی زنانه گلدار",
+    description: "لباس ساحلی گلدار با طراحی شیک و پارچه سبک.",
+    price: 1790000,
+    images: ["summer-dress-1.jpg", "summer-dress-1-alt1.jpg", "summer-dress-1-alt2.jpg"],
+    category: "لباس ساحلی",
+    categoryId: "4",
+    brand: "BeachBloom",
+    inStock: true,
+    sizes: ["XS", "S", "M", "L"],
+    colors: [
+      { name: "صورتی", code: "#FF69B4" },
+      { name: "آبی", code: "#0000FF" },
+      { name: "زرد", code: "#FFFF00" },
+    ],
+    rating: 4.3,
+    reviewCount: 1,
+    isNew: true,
+    createdAt: "2025-05-01",
+    updatedAt: "2025-05-01",
+    reviews: [DEMO_REVIEWS[0]],
+    discountPercentage: 10,
+    stockCount: 70,
+    sku: "DRESS-FLORAL-001",
+    material: "شیفون",
+    weight: { value: 250, unit: "g" },
+  },
+  {
+    id: "6",
+    name: "کلاه حصیری تابستانی",
+    description: "کلاه حصیری شیک برای محافظت از آفتاب تابستان.",
+    price: 590000,
+    images: ["summer-hat-1.jpg", "summer-hat-1-alt1.jpg", "summer-hat-1-alt2.jpg"],
+    category: "اکسسوری",
+    categoryId: "5",
+    brand: "SunShade",
+    inStock: true,
+    sizes: ["S", "M", "L"],
+    colors: [
+      { name: "بژ", code: "#F5F5DC" },
+      { name: "قهوه‌ای", code: "#8B4513" },
+      { name: "سفید", code: "#FFFFFF" },
+    ],
+    rating: 4.1,
+    reviewCount: 1,
+    isNew: false,
+    createdAt: "2025-05-01",
+    updatedAt: "2025-05-01",
+    reviews: [DEMO_REVIEWS[1]],
+    discountPercentage: 0,
+    stockCount: 150,
+    sku: "HAT-STRAW-001",
+    material: "حصیر",
+    weight: { value: 150, unit: "g" },
+  },
+  {
+    id: "7",
+    name: "شلوار راحتی نخی مردانه",
+    description: "شلوار نخی راحت برای استفاده روزمره در تابستان.",
+    price: 1290000,
+    images: ["summer-pants-1.jpg", "summer-pants-1-alt1.jpg", "summer-pants-1-alt2.jpg"],
+    category: "شلوار مردانه",
+    categoryId: "6",
+    brand: "EasyWear",
+    inStock: true,
+    sizes: ["S", "M", "L", "XL", "XXL"],
+    colors: [
+      { name: "خاکستری", code: "#808080" },
+      { name: "آبی تیره", code: "#00008B" },
+      { name: "مشکی", code: "#000000" },
+    ],
+    rating: 4.4,
+    reviewCount: 1,
+    isNew: false,
+    createdAt: "2025-05-01",
+    updatedAt: "2025-05-01",
+    reviews: [DEMO_REVIEWS[0]],
+    discountPercentage: 5,
+    stockCount: 110,
+    sku: "PANTS-COTTON-001",
+    material: "پنبه",
+    weight: { value: 400, unit: "g" },
+  },
+  {
+    id: "8",
+    name: "دامن کوتاه تابستانی",
+    description: "دامن کوتاه با طراحی مدرن و پارچه خنک.",
+    price: 980000,
+    images: ["summer-skirt-1.jpg", "summer-skirt-1-alt1.jpg", "summer-skirt-1-alt2.jpg"],
+    category: "دامن زنانه",
+    categoryId: "7",
+    brand: "ChicStyle",
+    inStock: true,
+    sizes: ["XS", "S", "M", "L"],
+    colors: [
+      { name: "صورتی", code: "#FF69B4" },
+      { name: "سفید", code: "#FFFFFF" },
+      { name: "آبی", code: "#0000FF" },
+    ],
+    rating: 4.6,
+    reviewCount: 1,
+    isNew: true,
+    createdAt: "2025-05-01",
+    updatedAt: "2025-05-01",
+    reviews: [DEMO_REVIEWS[1]],
+    discountPercentage: 0,
+    stockCount: 85,
+    sku: "SKIRT-SUMMER-001",
+    material: "پنبه و پلی‌استر",
+    weight: { value: 200, unit: "g" },
+  },
+  {
+    id: "9",
+    name: "سوئیشرت نخی سبک",
+    description: "سوئیشرت سبک و راحت برای شب‌های خنک تابستان.",
+    price: 1390000,
+    images: ["summer-sweatshirt-1.jpg", "summer-sweatshirt-1-alt1.jpg", "summer-sweatshirt-1-alt2.jpg"],
+    category: "سوئیشرت",
+    categoryId: "8",
+    brand: "CozyFit",
+    inStock: true,
+    sizes: ["S", "M", "L", "XL"],
+    colors: [
+      { name: "آبی", code: "#0000FF" },
+      { name: "خاکستری", code: "#808080" },
+      { name: "مشکی", code: "#000000" },
+    ],
+    rating: 4.2,
+    reviewCount: 1,
+    isNew: false,
+    createdAt: "2025-05-01",
+    updatedAt: "2025-05-01",
+    reviews: [DEMO_REVIEWS[0]],
+    discountPercentage: 15,
+    stockCount: 95,
+    sku: "SWEATSHIRT-LIGHT-001",
+    material: "پنبه",
+    weight: { value: 300, unit: "g" },
+  },
+];
 
 export default function SummerCollection() {
-  const [filters, setFilters] = useState({
-    priceRange: [0, 5000000],
+  // Updated: Use SummerFilters type to ensure priceRange is required
+  const [filters, setFilters] = useState<SummerFilters>({
+    priceRange: { min: 0, max: 5000000 },
     colors: [],
     sizes: [],
-    sortBy: "newest",
+    sort: "newest",
   });
 
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const heroRef = useRef(null);
 
   const { scrollYProgress } = useScroll({
@@ -56,14 +352,14 @@ export default function SummerCollection() {
     fetchProducts();
   }, []);
 
-  const handleFilterChange = (filterType, value) => {
+  const handleFilterChange = (filterType: string, value: any) => {
     setFilters((prev) => ({
       ...prev,
       [filterType]: value,
     }));
   };
 
-  const showProductDetails = (product) => {
+  const showProductDetails = (product: Product) => {
     setSelectedProduct(product);
     document.body.style.overflow = "hidden";
   };
@@ -246,18 +542,18 @@ export default function SummerCollection() {
                     max="5000000"
                     step="100000"
                     className="w-full accent-primary"
-                    value={filters.priceRange[1]}
+                    value={filters.priceRange.max}
                     onChange={(e) =>
-                      handleFilterChange("priceRange", [
-                        0,
-                        parseInt(e.target.value),
-                      ])
+                      handleFilterChange("priceRange", {
+                        min: 0,
+                        max: parseInt(e.target.value),
+                      })
                     }
                   />
                   <div className="text-sm">
                     تا{" "}
                     <span className="font-medium">
-                      {filters.priceRange[1].toLocaleString("fa-IR")} تومان
+                      {filters.priceRange.max.toLocaleString("fa-IR")} تومان
                     </span>
                   </div>
                 </div>
@@ -267,26 +563,23 @@ export default function SummerCollection() {
                 <h4 className="font-medium mb-4">رنگ</h4>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    "bg-white border border-gray-300",
-                    "bg-black",
-                    "bg-red-500",
-                    "bg-blue-500",
-                    "bg-green-500",
-                    "bg-yellow-500",
-                    "bg-pink-500",
-                    "bg-purple-500",
+                    { name: "سفید", code: "#FFFFFF" },
+                    { name: "مشکی", code: "#000000" },
+                    { name: "قرمز", code: "#FF0000" },
+                    { name: "آبی", code: "#0000FF" },
+                    { name: "سبز", code: "#008000" },
+                    { name: "زرد", code: "#FFFF00" },
+                    { name: "صورتی", code: "#FF69B4" },
+                    { name: "بنفش", code: "#800080" },
                   ].map((color, index) => (
                     <button
                       key={index}
-                      className={`w-8 h-8 rounded-full ${color} ${
-                        filters.colors.includes(index)
-                          ? "ring-2 ring-offset-2 ring-primary"
-                          : ""
-                      }`}
+                      className={`w-8 h-8 rounded-full`}
+                      style={{ backgroundColor: color.code }}
                       onClick={() => {
-                        const newColors = filters.colors.includes(index)
-                          ? filters.colors.filter((c) => c !== index)
-                          : [...filters.colors, index];
+                        const newColors = filters.colors.includes(color.name)
+                          ? filters.colors.filter((c) => c !== color.name)
+                          : [...filters.colors, color.name];
                         handleFilterChange("colors", newColors);
                       }}
                     />
@@ -322,13 +615,13 @@ export default function SummerCollection() {
                 <h4 className="font-medium mb-4">مرتب‌سازی بر اساس</h4>
                 <select
                   className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-transparent"
-                  value={filters.sortBy}
-                  onChange={(e) => handleFilterChange("sortBy", e.target.value)}
+                  value={filters.sort}
+                  onChange={(e) => handleFilterChange("sort", e.target.value)}
                 >
                   <option value="newest">جدیدترین</option>
-                  <option value="price-low">قیمت: کم به زیاد</option>
-                  <option value="price-high">قیمت: زیاد به کم</option>
-                  <option value="popular">محبوب‌ترین</option>
+                  <option value="price-asc">قیمت: کم به زیاد</option>
+                  <option value="price-desc">قیمت: زیاد به کم</option>
+                  <option value="rating">محبوب‌ترین</option>
                 </select>
               </div>
             </div>
@@ -371,7 +664,7 @@ export default function SummerCollection() {
                         <div
                           className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
                           style={{
-                            backgroundImage: `url('/images/products/${product.image}')`,
+                            backgroundImage: `url('/images/products/${product.images[0]}')`,
                           }}
                         />
 
@@ -380,9 +673,9 @@ export default function SummerCollection() {
                             جدید
                           </div>
                         )}
-                        {product.discount > 0 && (
+                        {product.discountPercentage && product.discountPercentage > 0 && (
                           <div className="absolute top-3 left-3 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-medium z-10">
-                            {product.discount}% تخفیف
+                            {product.discountPercentage}% تخفیف
                           </div>
                         )}
 
@@ -435,11 +728,11 @@ export default function SummerCollection() {
 
                         <div className="flex justify-between items-center">
                           <div className="flex items-center">
-                            {product.discount > 0 ? (
+                            {product.discountPercentage && product.discountPercentage > 0 ? (
                               <>
                                 <span className="text-primary font-bold">
                                   {Math.round(
-                                    product.price * (1 - product.discount / 100)
+                                    product.price * (1 - product.discountPercentage / 100)
                                   ).toLocaleString("fa-IR")}{" "}
                                   تومان
                                 </span>
@@ -723,7 +1016,7 @@ export default function SummerCollection() {
                   <div
                     className="absolute inset-0 bg-cover bg-center"
                     style={{
-                      backgroundImage: `url('/images/products/${selectedProduct.image}')`,
+                      backgroundImage: `url('/images/products/${selectedProduct.images[0]}')`,
                     }}
                   />
 
@@ -732,14 +1025,14 @@ export default function SummerCollection() {
                       جدید
                     </div>
                   )}
-                  {selectedProduct.discount > 0 && (
+                  {selectedProduct.discountPercentage && selectedProduct.discountPercentage > 0 && (
                     <div className="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-medium z-10">
-                      {selectedProduct.discount}% تخفیف
+                      {selectedProduct.discountPercentage}% تخفیف
                     </div>
                   )}
 
                   <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 space-x-reverse">
-                    {[...Array(4)].map((_, index) => (
+                    {selectedProduct.images.slice(0, 4).map((img, index) => (
                       <button
                         key={index}
                         className={`w-12 h-12 rounded-md overflow-hidden border-2 ${
@@ -749,7 +1042,7 @@ export default function SummerCollection() {
                         <div
                           className="w-full h-full bg-cover bg-center"
                           style={{
-                            backgroundImage: `url('/images/products/${selectedProduct.image}')`,
+                            backgroundImage: `url('/images/products/${img}')`,
                           }}
                         />
                       </button>
@@ -787,19 +1080,19 @@ export default function SummerCollection() {
                           {selectedProduct.rating}
                         </span>
                         <span className="text-gray-500 dark:text-gray-400 text-sm mr-1">
-                          ({selectedProduct.reviews} نظر)
+                          ({selectedProduct.reviewCount} نظر)
                         </span>
                       </div>
                     </div>
 
                     <div className="mb-6">
                       <div className="flex items-baseline mb-2">
-                        {selectedProduct.discount > 0 ? (
+                        {selectedProduct.discountPercentage && selectedProduct.discountPercentage > 0 ? (
                           <>
                             <span className="text-2xl md:text-3xl font-bold text-primary">
                               {Math.round(
                                 selectedProduct.price *
-                                  (1 - selectedProduct.discount / 100)
+                                  (1 - selectedProduct.discountPercentage / 100)
                               ).toLocaleString("fa-IR")}{" "}
                               تومان
                             </span>
@@ -816,12 +1109,12 @@ export default function SummerCollection() {
                         )}
                       </div>
 
-                      {selectedProduct.discount > 0 && (
+                      {selectedProduct.discountPercentage && selectedProduct.discountPercentage > 0 && (
                         <div className="text-sm text-green-600 dark:text-green-400">
                           شما{" "}
                           {Math.round(
                             selectedProduct.price *
-                              (selectedProduct.discount / 100)
+                              (selectedProduct.discountPercentage / 100)
                           ).toLocaleString("fa-IR")}{" "}
                           تومان سود می‌کنید
                         </div>
@@ -831,8 +1124,7 @@ export default function SummerCollection() {
                     <div className="mb-6">
                       <h3 className="font-medium mb-3">توضیحات محصول</h3>
                       <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
-                        {selectedProduct.description ||
-                          "این محصول از مجموعه تابستانه ۱۴۰۴ با طراحی منحصر به فرد و پارچه با کیفیت، گزینه عالی برای روزهای گرم تابستان است. با سبک معاصر و راحتی فوق العاده، این محصول برای استایل روزانه و مهمانی‌های تابستانی مناسب است."}
+                        {selectedProduct.description}
                       </p>
                     </div>
                   </div>
@@ -841,20 +1133,15 @@ export default function SummerCollection() {
                     <div className="mb-6">
                       <h3 className="font-medium mb-3">انتخاب رنگ</h3>
                       <div className="flex space-x-3 space-x-reverse">
-                        {[
-                          "bg-blue-500",
-                          "bg-red-500",
-                          "bg-green-500",
-                          "bg-yellow-500",
-                          "bg-gray-600",
-                        ].map((color, index) => (
+                        {selectedProduct.colors?.map((color, index) => (
                           <button
                             key={index}
-                            className={`w-10 h-10 rounded-full ${color} ${
+                            className={`w-10 h-10 rounded-full ${
                               index === 0
                                 ? "ring-2 ring-offset-2 ring-primary"
                                 : ""
                             }`}
+                            style={{ backgroundColor: color.code }}
                           />
                         ))}
                       </div>
@@ -863,11 +1150,11 @@ export default function SummerCollection() {
                     <div className="mb-8">
                       <h3 className="font-medium mb-3">انتخاب سایز</h3>
                       <div className="flex space-x-3 space-x-reverse">
-                        {["XS", "S", "M", "L", "XL"].map((size, index) => (
+                        {selectedProduct.sizes?.map((size, index) => (
                           <button
                             key={size}
                             className={`w-12 h-12 flex items-center justify-center border rounded-md ${
-                              index === 2
+                              index === 0
                                 ? "bg-primary text-white border-primary"
                                 : "border-gray-300 dark:border-gray-600"
                             }`}
@@ -924,126 +1211,6 @@ export default function SummerCollection() {
     </div>
   );
 }
-
-const DEMO_SUMMER_PRODUCTS = [
-  {
-    id: 1,
-    name: "پیراهن آستین کوتاه طرح هاوایی",
-    category: "پیراهن مردانه",
-    price: 1290000,
-    discount: 15,
-    rating: 4.5,
-    reviews: 32,
-    isNew: true,
-    image: "summer-shirt-1.jpg",
-    colors: [0, 2, 4],
-    sizes: ["S", "M", "L", "XL"],
-  },
-  {
-    id: 2,
-    name: "تاپ آستین حلقه‌ای زنانه",
-    category: "تاپ زنانه",
-    price: 890000,
-    discount: 0,
-    rating: 4.2,
-    reviews: 18,
-    isNew: true,
-    image: "summer-top-1.jpg",
-    colors: [1, 3, 5],
-    sizes: ["XS", "S", "M", "L"],
-  },
-  {
-    id: 3,
-    name: "شلوارک جین مردانه",
-    category: "شلوارک مردانه",
-    price: 1490000,
-    discount: 20,
-    rating: 4.7,
-    reviews: 45,
-    isNew: false,
-    image: "summer-shorts-1.jpg",
-    colors: [0, 1, 4],
-    sizes: ["S", "M", "L", "XL", "XXL"],
-  },
-  {
-    id: 4,
-    name: "پیراهن آستین بلند سفید مردانه",
-    category: "پیراهن مردانه",
-    price: 1590000,
-    discount: 0,
-    rating: 4.8,
-    reviews: 27,
-    isNew: false,
-    image: "summer-shirt-2.jpg",
-    colors: [0, 2, 4],
-    sizes: ["S", "M", "L", "XL"],
-  },
-  {
-    id: 5,
-    name: "لباس ساحلی زنانه گلدار",
-    category: "لباس ساحلی",
-    price: 1790000,
-    discount: 10,
-    rating: 4.3,
-    reviews: 22,
-    isNew: true,
-    image: "summer-dress-1.jpg",
-    colors: [1, 3, 5],
-    sizes: ["XS", "S", "M", "L"],
-  },
-  {
-    id: 6,
-    name: "کلاه حصیری تابستانی",
-    category: "اکسسوری",
-    price: 590000,
-    discount: 0,
-    rating: 4.1,
-    reviews: 15,
-    isNew: false,
-    image: "summer-hat-1.jpg",
-    colors: [0, 2, 5],
-    sizes: ["S", "M", "L"],
-  },
-  {
-    id: 7,
-    name: "شلوار راحتی نخی مردانه",
-    category: "شلوار مردانه",
-    price: 1290000,
-    discount: 5,
-    rating: 4.4,
-    reviews: 29,
-    isNew: false,
-    image: "summer-pants-1.jpg",
-    colors: [0, 1, 4],
-    sizes: ["S", "M", "L", "XL", "XXL"],
-  },
-  {
-    id: 8,
-    name: "دامن کوتاه تابستانی",
-    category: "دامن زنانه",
-    price: 980000,
-    discount: 0,
-    rating: 4.6,
-    reviews: 31,
-    isNew: true,
-    image: "summer-skirt-1.jpg",
-    colors: [1, 3, 5],
-    sizes: ["XS", "S", "M", "L"],
-  },
-  {
-    id: 9,
-    name: "سوئیشرت نخی سبک",
-    category: "سوئیشرت",
-    price: 1390000,
-    discount: 15,
-    rating: 4.2,
-    reviews: 24,
-    isNew: false,
-    image: "summer-sweatshirt-1.jpg",
-    colors: [0, 2, 4],
-    sizes: ["S", "M", "L", "XL"],
-  },
-];
 
 const SUMMER_TRENDS = [
   {

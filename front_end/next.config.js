@@ -10,7 +10,6 @@ const nextConfig = {
     defaultLocale: 'fa',
     localeDetection: false,
   },
-  dir: 'rtl',
 };
 
 module.exports = nextConfig;

@@ -102,7 +102,7 @@ export default function DashboardPage() {
   };
 
   // گرفتن وضعیت استایل برای هر سفارش
-  const getStatusStyle = (status) => {
+  const getStatusStyle = (status:string) => {
     switch(status) {
       case 'delivered':
         return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';

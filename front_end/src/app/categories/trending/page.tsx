@@ -4,10 +4,22 @@ import { useEffect, useState, useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import Link from "next/link";
 
+// Define Trend interface to match TRENDING_DATA structure
+interface Trend {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  image: string;
+  popularity: number;
+  tags: string[];
+}
+
 export default function TrendingPage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
-  const [trends, setTrends] = useState([]);
+  // Updated: Type trends as Trend[]
+  const [trends, setTrends] = useState<Trend[]>([]);
   const heroRef = useRef(null);
 
   const { scrollYProgress } = useScroll({
@@ -55,7 +67,7 @@ export default function TrendingPage() {
 
     fetchTrends();
   }, []);
-
+  
   const filteredTrends =
     activeCategory === "all"
       ? trends

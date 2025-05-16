@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { Check, Truck, AlertCircle } from "lucide-react";
+
 import { Card, CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import CheckoutForm from "@/components/checkout/CheckoutForm";
@@ -11,8 +14,6 @@ import { useCart } from "@/hooks/useCart";
 import { useDashboardStore, Address } from "@/store/dashboard-store";
 import { SHIPPING_METHODS } from "@/lib/constants";
 import { formatPrice } from "@/lib/utils";
-import { motion } from "framer-motion";
-import { Check, Truck, AlertCircle } from "lucide-react";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -26,11 +27,22 @@ export default function CheckoutPage() {
   );
   const [isProcessing, setIsProcessing] = useState(false);
 
-  if (cart.items.length === 0) {
-    router.push("/cart");
-    return null;
-  }
+  /* ────────────────────────────────────────────
+     Redirect to /cart on the CLIENT only
+  ───────────────────────────────────────────── */
+  useEffect(() => {
+    if (cart.items.length === 0) {
+      router.replace("/cart");
+    }
+  }, [cart.items.length, router]);
 
+  /* While the redirect effect hasn’t run yet, render nothing.
+     This avoids executing any of the heavy checkout UI on the server. */
+  if (cart.items.length === 0) return null;
+
+  /* ────────────────────────────────────────────
+     Place-order handler
+  ───────────────────────────────────────────── */
   const handlePlaceOrder = async () => {
     if (!selectedAddress) {
       alert("لطفا یک آدرس انتخاب کنید");
@@ -52,6 +64,7 @@ export default function CheckoutPage() {
 
       clearCart();
 
+      // simulate payment gateway round-trip
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       router.push(`/checkout/success?orderId=${orderId}`);
@@ -62,13 +75,14 @@ export default function CheckoutPage() {
     }
   };
 
+  /* ────────────────────────────────────────────
+     Motion variants
+  ───────────────────────────────────────────── */
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
+      transition: { staggerChildren: 0.1 },
     },
   };
 
@@ -81,6 +95,9 @@ export default function CheckoutPage() {
     },
   };
 
+  /* ────────────────────────────────────────────
+     JSX
+  ───────────────────────────────────────────── */
   return (
     <div className="container py-8 md:py-12">
       <motion.h1
@@ -98,6 +115,7 @@ export default function CheckoutPage() {
         initial="hidden"
         animate="visible"
       >
+        {/* ───────── Left column ───────── */}
         <motion.div className="lg:col-span-2 space-y-6" variants={itemVariants}>
           <motion.div variants={itemVariants}>
             <CheckoutForm
@@ -219,6 +237,7 @@ export default function CheckoutPage() {
           </motion.div>
         </motion.div>
 
+        {/* ───────── Right column ───────── */}
         <motion.div variants={itemVariants}>
           <div className="sticky top-24">
             <CartSummary showCheckoutButton={false} />

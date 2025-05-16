@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useProductStore } from '@/store/product-store';
 import ProductGrid from '@/components/product/ProductGrid';
 
@@ -10,20 +10,46 @@ interface CategoryDetailPageProps {
   };
 }
 
+// Define a local interface for the category
+interface Category {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 export default function CategoryDetailPage({ params }: CategoryDetailPageProps) {
   const { categoryId } = params;
   const { 
-    activeCategory,
-    fetchCategoryById,
+    // Remove activeCategory from here
+    // fetchCategoryById, // This doesn't seem to exist in your store
     setFilter,
     getFilteredProducts,
     isLoading,
+    products // Use products to find category information
   } = useProductStore();
+  
+  // Create a local state for the active category
+  const [activeCategory, setActiveCategory] = useState<Category | null>(null);
 
   useEffect(() => {
-    fetchCategoryById(categoryId);
+    // Find the category from products
+    const findCategory = () => {
+      const product = products.find(p => p.categoryId === categoryId);
+      if (product) {
+        setActiveCategory({
+          id: product.categoryId,
+          name: product.category, // Assuming product.category contains the name
+          description: '' // You might need to get this from elsewhere
+        });
+      }
+    };
+
+    // Set filter to show only products from this category
     setFilter({ categories: [categoryId] });
-  }, [categoryId, fetchCategoryById, setFilter]);
+    
+    // Find the category info from products
+    findCategory();
+  }, [categoryId, products, setFilter]);
 
   const filteredProducts = getFilteredProducts();
 
