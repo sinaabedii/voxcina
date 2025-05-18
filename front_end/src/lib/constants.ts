@@ -150,7 +150,7 @@ export const PROVINCES = [
 export const DEMO_BANNERS = [
   {
     id: 1,
-    title: "کالکشن جدید aaaaaaaaa",
+    title: "کالکشن جدید ",
     description: "تا ۳۰٪ تخفیف برای محصولات جدید",
     imageUrl: "/images/banners/summer-collection.jpg",
     href: "/categories/summer",

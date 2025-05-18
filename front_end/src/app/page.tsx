@@ -138,8 +138,6 @@ export default function HomePage() {
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-200">
                   تابستانه
                 </span>
-                {" "}
-                امیر حسین خره
               </motion.h1>
 
               <motion.p
@@ -222,21 +220,11 @@ export default function HomePage() {
           </span>
         </motion.h2>
 
-        {isLoadingCategories && (
-          <div className="text-center py-8">درحال بارگذاری دسته‌بندی‌ها...</div>
+        {isLoadingCategories && <div className="text-center py-8">درحال بارگذاری دسته‌بندی‌ها...</div>}
+        {categoriesError && <div className="text-center py-8 text-red-500">خطا در بارگذاری دسته‌بندی‌ها: {categoriesError}</div>}
+        {!isLoadingCategories && !categoriesError && categories.length === 0 && (
+          <div className="text-center py-8">هیچ دسته‌بندی برای نمایش وجود ندارد.</div>
         )}
-        {categoriesError && (
-          <div className="text-center py-8 text-red-500">
-            خطا در بارگذاری دسته‌بندی‌ها: {categoriesError}
-          </div>
-        )}
-        {!isLoadingCategories &&
-          !categoriesError &&
-          categories.length === 0 && (
-            <div className="text-center py-8">
-              هیچ دسته‌بندی برای نمایش وجود ندارد.
-            </div>
-          )}
 
         {!isLoadingCategories && !categoriesError && categories.length > 0 && (
           <motion.div
