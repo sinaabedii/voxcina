@@ -59,6 +59,21 @@ services:
     networks:
       - backend-network
 
+  front_end:
+    container_name: voxcina_frontend
+    build:
+      context: ./front_end
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - server
+    networks:
+      - backend-network
+
 volumes:
   mongodb-data:
 
