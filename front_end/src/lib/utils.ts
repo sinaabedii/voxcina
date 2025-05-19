@@ -1,5 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { Brand } from "@/types/brand";
+import { Category } from "@/types/category";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -70,4 +72,16 @@ export function debounce<T extends (...args: any[]) => any>(
     clearTimeout(timeout);
     timeout = setTimeout(() => fn(...args), delay);
   };
+}
+
+
+export function getBrandName(brand_id: string, brands: Brand[]): string {
+  const brand = brands.find(b => b.id === brand_id);
+  return brand ? brand.name : '';
+}
+
+export function getCategoryName(category_ids: string[], categories: Category[]): string {
+  if (!Array.isArray(category_ids) || category_ids.length === 0) return '';
+  const cat = categories.find(c => c.id === category_ids[0]);
+  return cat ? cat.name : '';
 }

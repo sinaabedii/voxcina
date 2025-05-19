@@ -13,6 +13,7 @@ interface CategoryState {
   error: string | null;
   fetchCategories: () => Promise<void>;
   fetchCategoryById: (id: string) => Promise<void>;
+  getCategoryName: (categoryId: string) => string; // Add this method
 }
 
 export const useCategoryStore = create<CategoryState>()((set, get) => ({
@@ -87,6 +88,12 @@ export const useCategoryStore = create<CategoryState>()((set, get) => ({
       });
     }
   },
+  getCategoryName: (categoryId: string, categoriesArray?: Category[]) => {
+    const { categories } = get();
+    const categoriesToUse = categoriesArray || categories;
+    const category = categoriesToUse.find(cat => cat.id === categoryId);
+    return category ? category.name : 'Category';
+  }
 }));
 
 // Note: If you want to persist parts of the category store (e.g., activeCategory if needed),

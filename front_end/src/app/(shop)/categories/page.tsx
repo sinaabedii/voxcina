@@ -14,36 +14,34 @@ interface Category {
 
 export default function CategoriesPage() {
   // Remove properties that don't exist in ProductState
-  const { isLoading, products, fetchProducts } = useProductStore();
+  const { isLoading, products, fetchProducts, categories: storeCategories } = useProductStore();
+
   
   // Create a local state for categories
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
-    // Instead of fetchCategories, use fetchProducts which exists in your store
     fetchProducts();
   }, [fetchProducts]);
 
-  // Extract unique categories from products when products change
   useEffect(() => {
-    if (!products.length) return;
+    if (!products.length || !storeCategories.length) return;
 
-    // Extract unique categories from products
-    const uniqueCategories = products.reduce<Record<string, Category>>((acc, product) => {
-      if (!acc[product.categoryId]) {
-        acc[product.categoryId] = {
-          id: product.categoryId,
-          name: product.category,
-          slug: product.categoryId, // Using categoryId as slug, adjust if needed
-          description: '' // Add description if available in your data
-        };
+    // Build a set of all category IDs referenced by products
+    const categoryIds = new Set<string>();
+    products.forEach(product => {
+      if (Array.isArray(product.category_ids)) {
+        product.category_ids.forEach(id => categoryIds.add(id));
       }
-      return acc;
-    }, {});
+    });
 
-    // Convert to array
-    setCategories(Object.values(uniqueCategories));
-  }, [products]);
+    // Now map these IDs to real categories
+    const uniqueCategories = Array.from(categoryIds)
+      .map(id => storeCategories.find(cat => cat.id === id))
+      .filter(Boolean) as Category[];
+
+    setCategories(uniqueCategories);
+  }, [products, storeCategories]);
 
   if (isLoading) {
     return (

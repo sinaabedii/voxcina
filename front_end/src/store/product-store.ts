@@ -1,7 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { Product, ProductFilter } from "@/types/product";
-import { delay } from "@/lib/utils";
+import { delay, getBrandName, getCategoryName } from "@/lib/utils";
+import { Brand } from "@/types/brand";
+import { Category } from "@/types/category";
 
 interface ProductState {
   products: Product[];
@@ -13,7 +15,12 @@ interface ProductState {
   filter: ProductFilter;
   recentlyViewed: Product[];
   comparedProducts: Product[];
+  brands: Brand[];
+  categories: Category[];
 
+
+  fetchBrands: () => Promise<void>;
+  fetchCategories: () => Promise<void>;
   fetchProducts: () => Promise<void>;
   fetchProductById: (id: string) => Promise<void>;
   fetchFlashSaleProducts: () => Promise<void>;
@@ -41,6 +48,8 @@ export const useProductStore = create<ProductState>()(
       filter: {},
       recentlyViewed: [],
       comparedProducts: [],
+      brands: [],
+      categories: [],
 
       fetchProducts: async () => {
         set({ isLoading: true, error: null });
@@ -146,93 +155,84 @@ export const useProductStore = create<ProductState>()(
       clearFilters: () => {
         set({ filter: {} });
       },
+      fetchBrands: async () => {
+        try {
+          const response = await fetch("/api/brands");
+          const data = await response.json();
+          set({ brands: data });
+        } catch {
+          set({ brands: [] });
+        }
+      },
+      fetchCategories: async () => {
+        try {
+          const response = await fetch("/api/categories");
+          const data = await response.json();
+          set({ categories: data });
+        } catch {
+          set({ categories: [] });
+        }
+      },
 
       getFilteredProducts: () => {
-        const { products, filter } = get();
+        const { products, filter, brands, categories } = get();
 
-        return products
-          .filter((product) => {
-            if (filter.inStockOnly && !product.inStock) {
+        return products.filter((product) => {
+          // In-stock: at least one variant available
+          const inStock = product.variants.some((v) => v.quantity > 0);
+          if (filter.inStockOnly && !inStock) return false;
+
+          // Category
+          if (filter.categories && filter.categories.length > 0) {
+            if (!product.category_ids.some(id => filter.categories!.includes(id))) {
               return false;
             }
+          }
 
-            if (filter.categories && filter.categories.length > 0) {
-              if (!filter.categories.includes(product.categoryId)) {
-                return false;
-              }
+          // Brand
+          if (filter.brands && filter.brands.length > 0) {
+            if (!filter.brands.includes(product.brand_id)) {
+              return false;
             }
+          }
 
-            if (filter.brands && filter.brands.length > 0) {
-              if (!filter.brands.includes(product.brand)) {
-                return false;
-              }
+          // Price
+          if (filter.priceRange) {
+            if (product.price < filter.priceRange.min || product.price > filter.priceRange.max) {
+              return false;
             }
+          }
 
-            if (filter.priceRange) {
-              if (
-                product.price < filter.priceRange.min ||
-                product.price > filter.priceRange.max
-              ) {
-                return false;
-              }
+          // Color
+          if (filter.colors && filter.colors.length > 0) {
+            if (!product.variants.some((v) => filter.colors!.includes(v.color))) {
+              return false;
             }
+          }
 
-            if (filter.colors && filter.colors.length > 0 && product.colors) {
-              const productColorCodes = product.colors.map((c) => c.code);
-              if (
-                !filter.colors.some((color) =>
-                  productColorCodes.includes(color)
-                )
-              ) {
-                return false;
-              }
+          // Size
+          if (filter.sizes && filter.sizes.length > 0) {
+            if (!product.variants.some((v) => filter.sizes!.includes(v.size))) {
+              return false;
             }
+          }
 
-            if (filter.sizes && filter.sizes.length > 0 && product.sizes) {
-              if (!filter.sizes.some((size) => product.sizes?.includes(size))) {
-                return false;
-              }
-            }
+          // Search
+          if (filter.search && filter.search.trim() !== "") {
+            const searchTerm = filter.search.toLowerCase();
+            const brandName = getBrandName(product.brand_id, brands);
+            const categoryName = getCategoryName(product.category_ids, categories);
 
-            if (typeof filter.rating === "number") {
-              if (product.rating < filter.rating) {
-                return false;
-              }
-            }
+            return (
+              product.name.toLowerCase().includes(searchTerm) ||
+              product.description.toLowerCase().includes(searchTerm) ||
+              brandName.toLowerCase().includes(searchTerm) ||
+              categoryName.toLowerCase().includes(searchTerm)
+            );
+          }
 
-            if (filter.search && filter.search.trim() !== "") {
-              const searchTerm = filter.search.toLowerCase();
-              return (
-                product.name.toLowerCase().includes(searchTerm) ||
-                product.description.toLowerCase().includes(searchTerm) ||
-                product.brand.toLowerCase().includes(searchTerm) ||
-                product.category.toLowerCase().includes(searchTerm)
-              );
-            }
-
-            return true;
-          })
-          .sort((a, b) => {
-            if (!filter.sort) return 0;
-
-            switch (filter.sort) {
-              case "price-asc":
-                return a.price - b.price;
-              case "price-desc":
-                return b.price - a.price;
-              case "newest":
-                return (
-                  new Date(b.createdAt).getTime() -
-                  new Date(a.createdAt).getTime()
-                );
-              case "rating":
-                return b.rating - a.rating;
-              case "popular":
-                return b.reviewCount - a.reviewCount;
-              default:
-                return 0;
-            }
-          });
+          return true;
+        });
       },
 
       addRecentlyViewed: (product) => {

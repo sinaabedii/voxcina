@@ -1,7 +1,35 @@
-export interface ProductColor {
-  name: string;
-  code: string;
+import {Category} from "./category";
+
+
+export interface ProductVariant {
+  size: string;           // e.g., "S", "M", "L"
+  color: string;          // e.g., "Red", "Blue"
+  sku: string;            // Unique per variant (e.g., "TSHIRT-RED-M")
+  quantity: number;       // Available stock
+  images: string[];       // Optional variant-specific images
 }
+
+export interface ProductAttribute {
+  name: string;           // e.g., "Material", "Care Instructions"
+  value: string;          // e.g., "Cotton", "Machine Washable"
+}
+
+export interface Product {
+  id?: string;                    // MongoDB ObjectID, can be absent if not yet created
+  name: string;
+  description: string;
+  price: number;                  // Base price
+  images: string[];               // Main product images (URLs)
+  category_ids: string[];         // Array of category ObjectIDs as strings
+  brand_id: string;               // Brand ObjectID as string
+  variants: ProductVariant[];     // Size/color-specific data
+  attributes: ProductAttribute[]; // Product-wide metadata
+  is_flash_sale: boolean;         // Part of flash-sale campaign?
+  is_active: boolean;             // Soft delete flag
+  created_at: string;             // ISO 8601 timestamp
+  updated_at: string;             // ISO 8601 timestamp
+}
+
 
 export interface Review {
   id: string;
@@ -24,95 +52,16 @@ export interface Review {
   editDate?: string;
 }
 
-export interface ProductSpecification {
-  group: string;
-  items: {
-    key: string;
-    value: string;
-  }[];
-}
-
-export interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  originalPrice?: number;
-  images: string[];
-  category: string;
-  categoryId: string;
-  brand: string;
-  inStock: boolean;
-  sizes?: string[];
-  colors?: ProductColor[];
-  rating: number;
-  reviewCount: number;
-  features?: string[];
-  isNew?: boolean;
-  isFeatured?: boolean;
-  createdAt: string;
-  updatedAt: string;
-  reviews?: Review[];
-  sku?: string;
-  stockCount?: number;
-  specifications?: ProductSpecification[];
-  tags?: string[];
-  discountPercentage?: number;
-  relatedProductIds?: string[];
-  videoUrl?: string;
-  warranty?: string;
-  material?: string;
-  downloadableFiles?: { name: string; url: string }[];
-  hasVariants?: boolean;
-  variantId?: string;
-  attributes?: Record<string, string>;
-  viewCount?: number;
-  salesCount?: number;
-  isCustomizable?: boolean;
-  hasGift?: boolean;
-  dimensions?: {
-    width: number;
-    height: number;
-    depth: number;
-    unit: "cm" | "mm" | "in";
-  };
-  weight?: {
-    value: number;
-    unit: "kg" | "g" | "lb";
-  };
-}
-
-export interface Category {
-  id: string;
-  name: string;
-  description?: string;
-  image?: string;
-  slug: string;
-  parentId?: string;
-  children?: Category[];
-  productCount?: number;
-  featured?: boolean;
-  order?: number;
-  icon?: string;
-  bannerImage?: string;
-  metaTitle?: string;
-  metaDescription?: string;
-  isActive?: boolean;
-}
-
 export interface Brand {
-  id: string;
+  id?: string;             // MongoDB ObjectID, can be absent if not yet created
   name: string;
-  logo: string;
-  description?: string;
-  website?: string;
-  country?: string;
-  foundedYear?: number;
-  isOfficial?: boolean;
-  featured?: boolean;
-  productCount?: number;
-  bannerImage?: string;
+  slug: string;
+  logo: string;            // URL to logo image
+  description: string;
+  createdAt?: string;      // ISO 8601 timestamp, optional
+  updatedAt?: string;      // ISO 8601 timestamp, optional
 }
+
 
 export interface ProductFilter {
   categories?: string[];

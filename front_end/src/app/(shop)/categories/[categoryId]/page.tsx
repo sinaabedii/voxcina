@@ -22,6 +22,7 @@ export default function CategoryDetailPage({ params }: CategoryDetailPageProps) 
   const { 
     // Remove activeCategory from here
     // fetchCategoryById, // This doesn't seem to exist in your store
+    categories,
     setFilter,
     getFilteredProducts,
     isLoading,
@@ -32,24 +33,21 @@ export default function CategoryDetailPage({ params }: CategoryDetailPageProps) 
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
 
   useEffect(() => {
-    // Find the category from products
-    const findCategory = () => {
-      const product = products.find(p => p.categoryId === categoryId);
-      if (product) {
-        setActiveCategory({
-          id: product.categoryId,
-          name: product.category, // Assuming product.category contains the name
-          description: '' // You might need to get this from elsewhere
-        });
-      }
-    };
-
     // Set filter to show only products from this category
     setFilter({ categories: [categoryId] });
-    
-    // Find the category info from products
-    findCategory();
-  }, [categoryId, products, setFilter]);
+
+    // Find the category from categories list, NOT from products
+    const category = categories.find(cat => cat.id === categoryId);
+    if (category) {
+      setActiveCategory({
+        id: category.id!,
+        name: category.name,
+        description: category.description
+      });
+    } else {
+      setActiveCategory(null);
+    }
+  }, [categoryId, categories, setFilter]);
 
   const filteredProducts = getFilteredProducts();
 

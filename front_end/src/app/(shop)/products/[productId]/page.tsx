@@ -33,6 +33,8 @@ import Button from "@/components/ui/Button";
 import ProductGrid from "@/components/product/ProductGrid";
 import ProductReviews from "@/components/product/ProductReviews";
 import { Review } from "@/types/product";
+import { useCategoryStore } from "@/store/category-store";
+
 
 interface ProductDetailPageProps {
   params: {
@@ -70,10 +72,21 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const { addItem } = useCartStore();
   const { reviews, addReview, likeReview, dislikeReview } = useReviewStore();
   const { addToFavorites, isFavorite } = useDashboardStore();
+  const { categories, fetchCategories, getCategoryName } = useCategoryStore();
 
-  const isProductFavorite = activeProduct
+
+ const isProductFavorite = activeProduct && activeProduct.id
     ? isFavorite(activeProduct.id)
     : false;
+
+  // Extract available sizes and colors from variants
+  const availableSizes = activeProduct 
+    ? [...new Set(activeProduct.variants.map(variant => variant.size))]
+    : [];
+    
+  const availableColors = activeProduct 
+    ? [...new Set(activeProduct.variants.map(variant => variant.color))]
+    : [];
 
   const productReviews = reviews.filter(
     (review) => review.productId === productId
@@ -146,8 +159,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const handleAddToCart = () => {
     if (
       !selectedSize &&
-      activeProduct.sizes &&
-      activeProduct.sizes.length > 0
+      availableSizes.length > 0
     ) {
       alert("لطفاً سایز مورد نظر خود را انتخاب کنید");
       return;
@@ -155,8 +167,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
     if (
       !selectedColor &&
-      activeProduct.colors &&
-      activeProduct.colors.length > 0
+      availableColors.length > 0
     ) {
       alert("لطفاً رنگ مورد نظر خود را انتخاب کنید");
       return;
@@ -176,7 +187,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   };
 
   const handleToggleFavorite = () => {
-    addToFavorites(activeProduct.id);
+    if (activeProduct && activeProduct.id) {
+      addToFavorites(activeProduct.id);
+    }
   };
 
   const incrementQuantity = () => {
@@ -224,7 +237,12 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const similarProducts = products
     .filter(
       (p) =>
-        p.categoryId === activeProduct.categoryId && p.id !== activeProduct.id
+        activeProduct && 
+        activeProduct.category_ids && 
+        p.category_ids && 
+        activeProduct.category_ids.length > 0 && 
+        p.category_ids.some(catId => activeProduct.category_ids.includes(catId)) && 
+        p.id !== activeProduct.id
     )
     .slice(0, 4);
 
@@ -242,16 +260,21 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         <a href="/products" className="hover:text-primary">
           محصولات
         </a>
-        <span className="mx-2">/</span>
-        <a
-          href={`/categories/${activeProduct.categoryId}`}
-          className="hover:text-primary"
-        >
-          {activeProduct.category}
-        </a>
+        {activeProduct && activeProduct.category_ids && activeProduct.category_ids.length > 0 && (
+          <>
+            <span className="mx-2">/</span>
+            <a
+              href={`/categories/${activeProduct.category_ids[0]}`}
+              className="hover:text-primary"
+            >
+              {getCategoryName(activeProduct.category_ids[0])}
+            </a>
+          </>
+        )}
         <span className="mx-2">/</span>
         <span className="text-foreground">{activeProduct.name}</span>
       </div>
+
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
         <div>
@@ -364,74 +387,75 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             </div>
           )}
 
-          {activeProduct.sizes && activeProduct.sizes.length > 0 && (
-            <div className="mt-4">
-              <button
-                className="text-sm text-primary flex items-center hover:underline"
-                onClick={() => setShowSizeGuide(!showSizeGuide)}
-              >
-                <Info className="h-4 w-4 ml-1" />
-                راهنمای انتخاب سایز
-              </button>
+          {availableSizes.length > 0 && (
+  <div className="mt-4">
+    <button
+      className="text-sm text-primary flex items-center hover:underline"
+      onClick={() => setShowSizeGuide(!showSizeGuide)}
+    >
+      <Info className="h-4 w-4 ml-1" />
+      راهنمای انتخاب سایز
+    </button>
 
-              {showSizeGuide && (
-                <div className="mt-2 p-4 border border-border rounded-lg bg-card shadow-sm">
-                  <h4 className="font-medium mb-2">راهنمای سایز</h4>
+    {showSizeGuide && (
+      <div className="mt-2 p-4 border border-border rounded-lg bg-card shadow-sm">
+        <h4 className="font-medium mb-2">راهنمای سایز</h4>
 
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="p-2 text-right">سایز</th>
-                          <th className="p-2 text-right">سینه (cm)</th>
-                          <th className="p-2 text-right">کمر (cm)</th>
-                          <th className="p-2 text-right">باسن (cm)</th>
-                          <th className="p-2 text-right">قد (cm)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="border-b">
-                          <td className="p-2">S</td>
-                          <td className="p-2">88-90</td>
-                          <td className="p-2">76-78</td>
-                          <td className="p-2">94-96</td>
-                          <td className="p-2">160-165</td>
-                        </tr>
-                        <tr className="border-b">
-                          <td className="p-2">M</td>
-                          <td className="p-2">90-94</td>
-                          <td className="p-2">78-82</td>
-                          <td className="p-2">96-100</td>
-                          <td className="p-2">165-170</td>
-                        </tr>
-                        <tr className="border-b">
-                          <td className="p-2">L</td>
-                          <td className="p-2">94-98</td>
-                          <td className="p-2">82-86</td>
-                          <td className="p-2">100-104</td>
-                          <td className="p-2">170-175</td>
-                        </tr>
-                        <tr>
-                          <td className="p-2">XL</td>
-                          <td className="p-2">98-102</td>
-                          <td className="p-2">86-90</td>
-                          <td className="p-2">104-108</td>
-                          <td className="p-2">175-180</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b">
+                <th className="p-2 text-right">سایز</th>
+                <th className="p-2 text-right">سینه (cm)</th>
+                <th className="p-2 text-right">کمر (cm)</th>
+                <th className="p-2 text-right">باسن (cm)</th>
+                <th className="p-2 text-right">قد (cm)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b">
+                <td className="p-2">S</td>
+                <td className="p-2">88-90</td>
+                <td className="p-2">76-78</td>
+                <td className="p-2">94-96</td>
+                <td className="p-2">160-165</td>
+              </tr>
+              <tr className="border-b">
+                <td className="p-2">M</td>
+                <td className="p-2">90-94</td>
+                <td className="p-2">78-82</td>
+                <td className="p-2">96-100</td>
+                <td className="p-2">165-170</td>
+              </tr>
+              <tr className="border-b">
+                <td className="p-2">L</td>
+                <td className="p-2">94-98</td>
+                <td className="p-2">82-86</td>
+                <td className="p-2">100-104</td>
+                <td className="p-2">170-175</td>
+              </tr>
+              <tr>
+                <td className="p-2">XL</td>
+                <td className="p-2">98-102</td>
+                <td className="p-2">86-90</td>
+                <td className="p-2">104-108</td>
+                <td className="p-2">175-180</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-                  <div className="mt-3 text-xs text-muted-foreground">
-                    <p>
-                      روش اندازه‌گیری: لطفاً از متر نواری استفاده کنید و
-                      اندازه‌ها را در حالت ایستاده و بدون کشش اندازه‌گیری کنید.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+        <div className="mt-3 text-xs text-muted-foreground">
+          <p>
+            روش اندازه‌گیری: لطفاً از متر نواری استفاده کنید و
+            اندازه‌ها را در حالت ایستاده و بدون کشش اندازه‌گیری کنید.
+          </p>
+        </div>
+      </div>
+    )}
+  </div>
+)}
+
         </div>
 
         <div>
@@ -576,7 +600,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             </p>
           </div>
 
-          {activeProduct.sizes && activeProduct.sizes.length > 0 && (
+          {availableSizes.length > 0 && (
             <div className="mb-6">
               <div className="flex justify-between items-center mb-2">
                 <h3 className="text-sm font-medium">سایز</h3>
@@ -588,7 +612,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
-                {activeProduct.sizes.map((size) => (
+                {availableSizes.map((size) => (
                   <button
                     key={size}
                     className={`px-4 py-2 border rounded-md text-sm transition-all ${
@@ -605,34 +629,66 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             </div>
           )}
 
-          {activeProduct.colors && activeProduct.colors.length > 0 && (
+          {availableColors.length > 0 && (
             <div className="mb-6">
               <div className="flex justify-between items-center mb-2">
                 <h3 className="text-sm font-medium">رنگ</h3>
                 <span className="text-xs text-muted-foreground">
                   {selectedColor
-                    ? activeProduct.colors.find((c) => c.code === selectedColor)
-                        ?.name
+                    ? availableColors.find((c) => c === selectedColor)
                     : "لطفاً رنگ را انتخاب کنید"}
                 </span>
               </div>
               <div className="flex flex-wrap gap-3">
-                {activeProduct.colors.map((color) => (
+                {availableColors.map((color) => (
                   <button
-                    key={color.code}
+                    key={color}
                     className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                      selectedColor === color.code
+                      selectedColor === color
                         ? "ring-2 ring-primary ring-offset-2"
                         : "ring-1 ring-border hover:ring-gray-400"
                     }`}
-                    onClick={() => setSelectedColor(color.code)}
-                    title={color.name}
+                    onClick={() => setSelectedColor(color)}
+                    title={color}
                   >
                     <span
                       className="w-8 h-8 rounded-full block"
-                      style={{ backgroundColor: color.code }}
+                      style={{ backgroundColor: color }}
                     />
-                    {selectedColor === color.code && (
+                    {selectedColor === color && (
+                      <CheckCircle className="absolute h-4 w-4 text-white drop-shadow-md" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {availableColors.length > 0 && (
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-sm font-medium">رنگ</h3>
+                <span className="text-xs text-muted-foreground">
+                  {selectedColor || "لطفاً رنگ را انتخاب کنید"}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {availableColors.map((color) => (
+                  <button
+                    key={color}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                      selectedColor === color
+                        ? "ring-2 ring-primary ring-offset-2"
+                        : "ring-1 ring-border hover:ring-gray-400"
+                    }`}
+                    onClick={() => setSelectedColor(color)}
+                    title={color}
+                  >
+                    <span
+                      className="w-8 h-8 rounded-full block"
+                      style={{ backgroundColor: color }}
+                    />
+                    {selectedColor === color && (
                       <CheckCircle className="absolute h-4 w-4 text-white drop-shadow-md" />
                     )}
                   </button>

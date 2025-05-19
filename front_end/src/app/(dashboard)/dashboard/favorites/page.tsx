@@ -9,9 +9,10 @@ import { Product } from '@/types/product';
 import { motion } from 'framer-motion';
 import Button from '@/components/ui/Button';
 import { useRouter } from 'next/navigation';
+import { getBrandName, getCategoryName } from "@/lib/utils";
 
 export default function FavoritesPage() {
-  const { products, isLoading } = useProductStore();
+  const { products, isLoading ,brands, categories} = useProductStore();
   const { favorites, removeFromFavorites } = useDashboardStore();
   const [favoriteProducts, setFavoriteProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,19 +28,27 @@ export default function FavoritesPage() {
       
       let filteredProducts = favoriteProductsList;
       if (searchQuery.trim() !== '') {
-        filteredProducts = filteredProducts.filter(product => 
-          product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          product.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          product.category.toLowerCase().includes(searchQuery.toLowerCase())
-        );
+        filteredProducts = filteredProducts.filter(product => {
+          const brandName = getBrandName(product.brand_id, brands);
+          const categoryName = getCategoryName(product.category_ids, categories);
+          return (
+            product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            brandName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            categoryName.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+        });
       }
       
       switch (sortOption) {
         case 'newest':
-          filteredProducts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          filteredProducts.sort((a, b) => 
+            new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+          );
           break;
         case 'oldest':
-          filteredProducts.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          filteredProducts.sort((a, b) => 
+            new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime()
+          );
           break;
         case 'price-asc':
           filteredProducts.sort((a, b) => a.price - b.price);
@@ -259,7 +268,8 @@ export default function FavoritesPage() {
                       )}
                       
                       <button
-                        onClick={() => handleRemoveFavorite(product.id)}
+                        disabled={!product.id}
+                        onClick={() => product.id && handleRemoveFavorite(product.id)}
                         className="absolute top-2 left-2 p-2 bg-white dark:bg-gray-800 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-pink-50 dark:hover:bg-pink-900/30"
                         aria-label="حذف از علاقه‌مندی‌ها"
                         title="حذف از علاقه‌مندی‌ها"
@@ -276,7 +286,9 @@ export default function FavoritesPage() {
                       <h3 className="font-medium text-gray-900 dark:text-white mb-1 line-clamp-1">
                         {product.name}
                       </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{product.brand}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                        {getBrandName(product.brand_id, brands)}
+                      </p>
                       
                       <div className="flex justify-between items-center">
                         <div className="font-bold text-gray-900 dark:text-white">

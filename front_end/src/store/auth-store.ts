@@ -68,56 +68,67 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       register: async (data) => {
-        set({ isLoading: true, error: null });
+          set({ isLoading: true, error: null });
 
-        try {
-          if (data.password !== data.confirmPassword) {
-            throw new Error("رمز عبور و تکرار آن مطابقت ندارند");
-          }
+          try {
+            if (data.password !== data.confirmPassword) {
+              throw new Error("رمز عبور و تکرار آن مطابقت ندارند");
+            }
 
-          const response = await fetch("/api/users/register", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              name: data.name,
-              email: data.email,
-              password: data.password,
-            }),
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || "Registration failed");
-          }
-
-          const responseData = await response.json();
-
-          if (responseData.token && responseData.user) {
-            localStorage.setItem("authToken", responseData.token);
-
-            set({
-              user: responseData.user,
-              isAuthenticated: true,
-              isLoading: false,
-              error: null,
+            const response = await fetch("/api/users/register", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                name: data.name,
+                email: data.email,
+                password: data.password,
+              }),
             });
 
-            return responseData.user;
-          } else {
-            throw new Error("Invalid response format from server");
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.message || "Registration failed");
+            }
+
+            const userData = await response.json();
+            
+            // Extract token from response
+            if (userData.token) {
+              localStorage.setItem("authToken", userData.token);
+              
+              // Create user object from flat response
+              const user: User = {
+                id: userData.id,
+                name: userData.name,
+                email: userData.email,
+                role: userData.role as "user" | "admin" | "seller", // Cast to expected enum
+                createdAt: userData.created_at,
+                updatedAt: userData.updated_at
+              };
+
+              set({
+                user,
+                isAuthenticated: true,
+                isLoading: false,
+                error: null,
+              });
+
+              return user;
+            } else {
+              throw new Error("Invalid response format from server");
+            }
+          } catch (error) {
+            set({
+              isLoading: false,
+              error: error instanceof Error ? error.message : "خطای ناشناخته",
+              user: null,
+              isAuthenticated: false,
+            });
+            throw error;
           }
-        } catch (error) {
-          set({
-            isLoading: false,
-            error: error instanceof Error ? error.message : "خطای ناشناخته",
-            user: null,
-            isAuthenticated: false,
-          });
-          throw error;
-        }
-      },
+        },
 
       logout: async () => {
         try {

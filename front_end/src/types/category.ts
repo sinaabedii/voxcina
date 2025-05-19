@@ -1,11 +1,10 @@
-// Corresponds to the Go backend's models.Category
 export interface Category {
-  id?: string; // Corresponds to primitive.ObjectID, omitempty suggests it can be absent (e.g., before creation)
+  id?: string;                  // MongoDB ObjectID, can be absent if not yet created
   name: string;
   slug: string;
-  parent_id?: string | null; // Corresponds to primitive.ObjectID, omitempty. Nullable if it can be explicitly null in JSON.
+  parent_id?: string | null;    // Parent category ObjectID as string, nullable
   description: string;
-  image: string;
-  // For frontend usage, we might want to represent hierarchical structures directly
-  children?: Category[];
-} 
+  image: string;                // URL to category image
+  created_at?: string;          // ISO 8601 timestamp, optional
+  updated_at?: string;          // ISO 8601 timestamp, optional
+}
