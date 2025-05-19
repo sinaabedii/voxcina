@@ -67,10 +67,10 @@ const StarRating: React.FC<StarRatingProps> = ({
             <Star
               className={cn(
                 starSizes[size],
-                "transition-all",
+                "transition-all duration-200",
                 isFilled
-                  ? "text-amber-400 fill-amber-400 drop-shadow-sm"
-                  : "text-gray-300 dark:text-gray-600",
+                  ? "text-warning fill-warning drop-shadow-sm"
+                  : "text-muted",
                 !readonly && "cursor-pointer"
               )}
               onClick={() => handleClick(starValue)}
@@ -81,7 +81,7 @@ const StarRating: React.FC<StarRatingProps> = ({
         );
       })}
       {!readonly && (
-        <span className="text-xs text-gray-500 dark:text-gray-400 mr-2">
+        <span className="text-xs text-muted-foreground mr-2">
           {hoverRating > 0 ? hoverRating : rating} از {totalStars}
         </span>
       )}

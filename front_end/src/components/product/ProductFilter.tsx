@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { X, Filter, Check } from "lucide-react";
 import { useProductStore } from "@/store/product-store";
 import { ProductFilter as ProductFilterType } from "@/types/product";
 import Button from "@/components/ui/Button";
 import { SORT_OPTIONS } from "@/lib/constants";
+import { motion } from "framer-motion";
 
 interface ProductFilterProps {
   onClose?: () => void;
@@ -130,30 +131,35 @@ const ProductFilter: React.FC<ProductFilterProps> = ({
 
   return (
     <div
-      className={`bg-card rounded-lg border shadow-sm ${isMobile ? "p-4" : ""}`}
+      className={`voxcina-card bg-card rounded-xl ${isMobile ? "p-5" : "p-4"} animate-fadeIn`}
     >
       {isMobile && (
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold">فیلترها</h2>
+        <div className="flex justify-between items-center mb-5 pb-3 border-b border-border/10">
+          <h2 className="text-lg font-bold text-primary flex items-center">
+            <Filter className="h-5 w-5 ml-2" />
+            فیلترها
+          </h2>
           {onClose && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
               onClick={onClose}
-              className="p-1 rounded-full hover:bg-muted transition-colors"
+              className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-all duration-200"
               aria-label="بستن"
             >
               <X className="h-5 w-5" />
-            </button>
+            </motion.button>
           )}
         </div>
       )}
 
       <div className="space-y-6">
         <div>
-          <h3 className="text-sm font-medium mb-2">مرتب‌سازی</h3>
+          <h3 className="text-sm font-medium mb-3 text-primary border-r-2 border-primary/20 pr-2">مرتب‌سازی</h3>
           <select
             value={localFilter.sort || ""}
             onChange={(e) => handleSortChange(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="voxcina-input w-full rounded-lg border border-border/20 bg-background px-3 py-2 text-sm hover:border-primary/30 focus:border-primary/50 transition-all duration-200 shadow-soft"
           >
             <option value="">پیش‌فرض</option>
             {SORT_OPTIONS.map((option) => (
@@ -165,18 +171,26 @@ const ProductFilter: React.FC<ProductFilterProps> = ({
         </div>
 
         <div>
-          <h3 className="text-sm font-medium mb-2">دسته‌بندی</h3>
-          <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+          <h3 className="text-sm font-medium mb-3 text-primary border-r-2 border-primary/20 pr-2">دسته‌بندی</h3>
+          <div className="space-y-2 max-h-40 overflow-y-auto scrollbar-hide custom-scrollbar pr-1">
             {categories.map((category) => (
               <div key={category.id} className="flex items-center">
-                <input
-                  type="checkbox"
-                  id={`category-${category.id}`}
-                  checked={(localFilter.categories || []).includes(category.id)}
-                  onChange={() => handleCategoryChange(category.id)}
-                  className="ml-2 h-4 w-4 rounded border-gray-300"
-                />
-                <label htmlFor={`category-${category.id}`} className="text-sm">
+                <div className="relative ml-2">
+                  <input
+                    type="checkbox"
+                    id={`category-${category.id}`}
+                    checked={(localFilter.categories || []).includes(category.id)}
+                    onChange={() => handleCategoryChange(category.id)}
+                    className="peer h-4 w-4 rounded border-border/30 text-primary focus:ring-primary/30 transition-all duration-200"
+                  />
+                  <div className="absolute inset-0 pointer-events-none opacity-0 peer-checked:opacity-100 flex items-center justify-center">
+                    <Check className="h-3 w-3 text-white" />
+                  </div>
+                </div>
+                <label 
+                  htmlFor={`category-${category.id}`} 
+                  className="text-sm text-foreground hover:text-primary cursor-pointer transition-colors duration-200"
+                >
                   {category.name}
                 </label>
               </div>
@@ -185,22 +199,27 @@ const ProductFilter: React.FC<ProductFilterProps> = ({
         </div>
 
         <div>
-          <h3 className="text-sm font-medium mb-2">محدوده قیمت</h3>
-          <div className="space-y-1">
+          <h3 className="text-sm font-medium mb-3 text-primary border-r-2 border-primary/20 pr-2">محدوده قیمت</h3>
+          <div className="space-y-2">
             {priceRanges.map((range, index) => (
-              <div key={index} className="flex items-center">
-                <input
-                  type="radio"
-                  id={`price-${index}`}
-                  name="price-range"
-                  checked={
-                    localFilter.priceRange?.min === range.min &&
-                    localFilter.priceRange?.max === range.max
-                  }
-                  onChange={() => handlePriceRangeChange(range)}
-                  className="ml-2 h-4 w-4 rounded-full border-gray-300"
-                />
-                <label htmlFor={`price-${index}`} className="text-sm">
+              <div key={index} className="flex items-center group">
+                <div className="relative ml-2">
+                  <input
+                    type="radio"
+                    id={`price-${index}`}
+                    name="price-range"
+                    checked={
+                      localFilter.priceRange?.min === range.min &&
+                      localFilter.priceRange?.max === range.max
+                    }
+                    onChange={() => handlePriceRangeChange(range)}
+                    className="h-4 w-4 rounded-full border-border/30 text-primary focus:ring-primary/30 transition-all duration-200"
+                  />
+                </div>
+                <label 
+                  htmlFor={`price-${index}`} 
+                  className="text-sm text-foreground group-hover:text-primary cursor-pointer transition-colors duration-200"
+                >
                   {formatPriceRange(range)}
                 </label>
               </div>
@@ -210,18 +229,26 @@ const ProductFilter: React.FC<ProductFilterProps> = ({
 
         {brands.length > 0 && (
           <div>
-            <h3 className="text-sm font-medium mb-2">برند</h3>
-            <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+            <h3 className="text-sm font-medium mb-3 text-primary border-r-2 border-primary/20 pr-2">برند</h3>
+            <div className="space-y-2 max-h-40 overflow-y-auto scrollbar-hide custom-scrollbar pr-1">
               {brands.map((brand) => (
                 <div key={brand} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id={`brand-${brand}`}
-                    checked={(localFilter.brands || []).includes(brand)}
-                    onChange={() => handleBrandChange(brand)}
-                    className="ml-2 h-4 w-4 rounded border-gray-300"
-                  />
-                  <label htmlFor={`brand-${brand}`} className="text-sm">
+                  <div className="relative ml-2">
+                    <input
+                      type="checkbox"
+                      id={`brand-${brand}`}
+                      checked={(localFilter.brands || []).includes(brand)}
+                      onChange={() => handleBrandChange(brand)}
+                      className="peer h-4 w-4 rounded border-border/30 text-primary focus:ring-primary/30 transition-all duration-200"
+                    />
+                    <div className="absolute inset-0 pointer-events-none opacity-0 peer-checked:opacity-100 flex items-center justify-center">
+                      <Check className="h-3 w-3 text-white" />
+                    </div>
+                  </div>
+                  <label 
+                    htmlFor={`brand-${brand}`} 
+                    className="text-sm text-foreground hover:text-primary cursor-pointer transition-colors duration-200"
+                  >
                     {brand}
                   </label>
                 </div>
@@ -231,15 +258,17 @@ const ProductFilter: React.FC<ProductFilterProps> = ({
         )}
         {uniqueColors.length > 0 && (
           <div>
-            <h3 className="text-sm font-medium mb-2">رنگ</h3>
+            <h3 className="text-sm font-medium mb-3 text-primary border-r-2 border-primary/20 pr-2">رنگ</h3>
             <div className="flex flex-wrap gap-2">
               {uniqueColors.map((color) => (
-                <button
+                <motion.button
                   key={color.code}
-                  className={`w-6 h-6 rounded-full border ${
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                  className={`w-6 h-6 rounded-full border shadow-soft transition-all duration-200 ${
                     (localFilter.colors || []).includes(color.code)
-                      ? "border-primary ring-2 ring-primary ring-opacity-30"
-                      : "border-gray-300"
+                      ? "border-primary ring-2 ring-primary/30"
+                      : "border-border/30 hover:border-primary/30"
                   }`}
                   style={{ backgroundColor: color.code }}
                   onClick={() => handleColorChange(color.code)}
@@ -253,30 +282,41 @@ const ProductFilter: React.FC<ProductFilterProps> = ({
 
         {uniqueSizes.length > 0 && (
           <div>
-            <h3 className="text-sm font-medium mb-2">سایز</h3>
+            <h3 className="text-sm font-medium mb-3 text-primary border-r-2 border-primary/20 pr-2">سایز</h3>
             <div className="flex flex-wrap gap-2">
               {uniqueSizes.map((size) => (
-                <button
+                <motion.button
                   key={size}
-                  className={`px-2 py-1 text-xs rounded-md border ${
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`px-2 py-1 text-xs rounded-md border shadow-soft transition-all duration-200 ${
                     (localFilter.sizes || []).includes(size)
                       ? "border-primary bg-primary/10 text-primary"
-                      : "border-gray-300 bg-background text-foreground"
+                      : "border-border/20 bg-background text-foreground hover:border-primary/30"
                   }`}
                   onClick={() => handleSizeChange(size)}
                 >
                   {size}
-                </button>
+                </motion.button>
               ))}
             </div>
           </div>
         )}
 
-        <div className="flex flex-col space-y-2 pt-4 border-t">
-          <Button variant="primary" onClick={applyFilters}>
+        <div className="flex flex-col space-y-2 pt-4 border-t border-border/10">
+          <Button 
+            variant="primary" 
+            onClick={applyFilters}
+            className="flex items-center justify-center"
+          >
+            <Check className="ml-1 h-4 w-4" />
             اعمال فیلترها
           </Button>
-          <Button variant="outline" onClick={resetFilters}>
+          <Button 
+            variant="outline" 
+            onClick={resetFilters}
+            className="hover:bg-secondary transition-colors duration-200"
+          >
             پاک کردن فیلترها
           </Button>
         </div>

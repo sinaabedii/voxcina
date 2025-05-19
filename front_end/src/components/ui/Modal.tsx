@@ -76,19 +76,19 @@ const Modal: React.FC<ModalProps> = ({
         >
           <motion.div
             ref={contentRef}
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
+            initial={{ scale: 0.95, opacity: 0, y: 10 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 10 }}
             transition={{ type: "spring", damping: 30, stiffness: 400 }}
             className={cn(
-              "w-full max-w-md max-h-[90vh] overflow-auto bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700",
+              "w-full max-w-md max-h-[90vh] overflow-auto bg-card rounded-xl shadow-medium border border-border/10",
               contentClassName
             )}
           >
             {(title || showCloseButton) && (
-              <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between p-5 border-b border-border/10">
                 {title && (
-                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                  <h2 className="text-lg font-bold text-primary">
                     {title}
                   </h2>
                 )}
@@ -96,7 +96,7 @@ const Modal: React.FC<ModalProps> = ({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="text-muted-foreground hover:text-foreground transition-colors duration-200 p-1.5 rounded-full hover:bg-secondary"
                     aria-label="بستن"
                   >
                     <X className="h-5 w-5" />

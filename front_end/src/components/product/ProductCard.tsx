@@ -41,13 +41,13 @@ const ProductCard: React.FC<ProductCardProps> = ({
   return (
     <Link
       href={`/products/${id}`}
-      className={`group block rounded-xl overflow-hidden transition-all duration-300 ${
+      className={`product-card group block rounded-xl overflow-hidden transition-all duration-300 ${
         glassEffect
-          ? "border border-white/10 dark:border-white/5 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm hover:bg-white dark:hover:bg-gray-800"
-          : "bg-background border border-gray-200 dark:border-gray-700"
-      } hover:shadow-md`}
+          ? "glass-effect backdrop-blur-sm hover:bg-card/90"
+          : "bg-card border border-border/10"
+      } hover:shadow-medium`}
     >
-      <div className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-gray-900">
+      <div className="product-card-image relative aspect-square overflow-hidden bg-secondary/30">
         {images && images.length > 0 ? (
           <Image
             src={images[0]}
@@ -58,19 +58,19 @@ const ProductCard: React.FC<ProductCardProps> = ({
             priority
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-800">
-            <span className="text-gray-500 dark:text-gray-400">بدون تصویر</span>
+          <div className="w-full h-full flex items-center justify-center bg-secondary">
+            <span className="text-muted-foreground">بدون تصویر</span>
           </div>
         )}
 
         <div className="absolute top-3 right-3 flex flex-col gap-2">
           {(isNew || ribbonLabel) && (
-            <span className="px-2.5 py-1 bg-amber-400 text-black text-xs font-bold rounded-lg shadow-sm">
+            <span className="product-tag bg-warning text-warning-foreground shadow-soft">
               {ribbonLabel || "جدید"}
             </span>
           )}
           {discount > 0 && (
-            <span className="px-2.5 py-1 bg-red-500 text-white text-xs font-bold rounded-lg shadow-sm">
+            <span className="product-tag bg-destructive text-destructive-foreground shadow-soft">
               {discount}٪ تخفیف
             </span>
           )}
@@ -79,7 +79,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
         <button
           className={`absolute top-3 left-3 p-2 backdrop-blur-sm rounded-full z-10 transition-all duration-300 ${
             isProductFavorite
-              ? "bg-red-500/10 text-red-500"
+              ? "bg-destructive/10 text-destructive"
               : "bg-black/10 text-white hover:bg-white/20"
           }`}
           onClick={(e) => {
@@ -101,18 +101,18 @@ const ProductCard: React.FC<ProductCardProps> = ({
         </button>
       </div>
 
-      <div className="p-4">
+      <div className="product-card-content p-4">
         <div className="flex justify-between items-start">
           <div>
-            <h3 className="font-medium text-gray-900 dark:text-white line-clamp-1">
+            <h3 className="product-card-title font-medium text-foreground group-hover:text-primary transition-colors duration-300 line-clamp-1">
               {name}
             </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{brand}</p>
+            <p className="text-sm text-muted-foreground">{brand}</p>
           </div>
 
           {rating && (
-            <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-md px-1.5 py-0.5">
-              <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+            <div className="flex items-center bg-secondary rounded-md px-1.5 py-0.5">
+              <Star className="h-3.5 w-3.5 text-warning fill-warning" />
               <span className="text-xs font-medium mr-1">{rating}</span>
             </div>
           )}
@@ -121,15 +121,15 @@ const ProductCard: React.FC<ProductCardProps> = ({
         <div className="mt-2 mb-3">
           <div className="flex items-center gap-2">
             <span
-              className={`text-lg font-bold ${
-                discount > 0 ? "text-primary" : "text-gray-900 dark:text-white"
+              className={`product-card-price text-lg font-bold ${
+                discount > 0 ? "text-primary" : "text-foreground"
               }`}
             >
               {formatPrice(price)}
             </span>
 
             {originalPrice && originalPrice > price && (
-              <span className="text-sm text-gray-500 dark:text-gray-400 line-through">
+              <span className="product-card-discount text-sm text-muted-foreground line-through">
                 {formatPrice(originalPrice)}
               </span>
             )}
@@ -141,7 +141,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
           size="sm"
           fullWidth
           onClick={handleAddToCart}
-          className="rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+          className="rounded-xl"
         >
           افزودن به سبد خرید
         </Button>

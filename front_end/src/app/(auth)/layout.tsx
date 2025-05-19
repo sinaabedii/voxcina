@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
-import { APP_NAME } from '@/lib/constants';
+// import Link from 'next/link';
+// import { APP_NAME } from '@/lib/constants';
 
 export default function AuthLayout({
   children,
@@ -10,13 +10,13 @@ export default function AuthLayout({
 }) {
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="py-4 border-b">
+      {/* <header className="py-4 border-b">
         <div className="container flex justify-between items-center">
           <Link href="/" className="text-xl font-bold">
             {APP_NAME}
           </Link>
         </div>
-      </header>
+      </header> */}
       
       <main className="flex-grow flex items-center justify-center py-12">
         <div className="w-full max-w-md">
@@ -24,11 +24,11 @@ export default function AuthLayout({
         </div>
       </main>
       
-      <footer className="py-6 border-t">
+      {/* <footer className="py-6 border-t">
         <div className="container text-center text-sm text-muted-foreground">
           &copy; {new Date().getFullYear()} {APP_NAME}. تمامی حقوق محفوظ است.
         </div>
-      </footer>
+      </footer> */}
     </div>
   );
 }

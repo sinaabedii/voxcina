@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useDashboardStore } from "@/store/dashboard-store";
 import { PROVINCES } from "@/lib/constants";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function AddressesPage() {
   const {
@@ -161,20 +161,21 @@ export default function AddressesPage() {
   };
 
   return (
-    <div className="container py-8 md:py-12">
+    <div className="container py-8 md:py-12 mx-auto px-4 md:px-8 transition-all duration-500 ease-in-out">
       <motion.div
         className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <h1 className="text-2xl md:text-3xl font-bold mb-4 sm:mb-0 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-          آدرس‌های من
+        <h1 className="text-2xl md:text-3xl font-bold mb-4 sm:mb-0 text-voxcina-blue dark:text-secondary-200 relative">
+          <span className="relative z-10">آدرس‌های من</span>
+          <span className="absolute bottom-1 left-0 w-full h-3 bg-secondary-200 dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
         </h1>
         <Button
           variant="primary"
           onClick={handleAddNew}
-          className="rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+          className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-soft hover:shadow-medium transition-all duration-300 flex items-center"
         >
           <Plus className="w-4 h-4 ml-2" />
           افزودن آدرس جدید
@@ -182,15 +183,20 @@ export default function AddressesPage() {
       </motion.div>
 
       {isLoading ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <Card className="border-0 shadow-lg">
+        <motion.div 
+          initial={{ opacity: 0 }} 
+          animate={{ opacity: 1 }}
+          className="min-h-[300px] flex items-center justify-center"
+        >
+          <Card className="border border-secondary-200 dark:border-voxcina-darkBlue/30 shadow-soft rounded-2xl backdrop-blur-sm bg-white/60 dark:bg-voxcina-blue/10 w-full md:max-w-md mx-auto">
             <CardContent className="p-8 flex items-center justify-center">
               <div className="flex flex-col items-center">
-                <div className="relative w-12 h-12 mb-4">
-                  <div className="absolute top-0 right-0 w-full h-full border-4 border-indigo-200 dark:border-indigo-900 rounded-full animate-ping"></div>
-                  <div className="absolute top-0 right-0 w-full h-full border-4 border-t-indigo-500 dark:border-t-indigo-400 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+                <div className="relative w-16 h-16 mb-4">
+                  <div className="absolute top-0 right-0 w-full h-full border-4 border-secondary-200 dark:border-voxcina-darkBlue/30 rounded-full animate-pulse-soft"></div>
+                  <div className="absolute top-0 right-0 w-full h-full border-4 border-t-voxcina-blue dark:border-t-secondary-200 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+                  <MapPin className="absolute inset-0 m-auto w-6 h-6 text-voxcina-blue/40 dark:text-secondary-200/40" />
                 </div>
-                <p className="text-gray-500 dark:text-gray-400">
+                <p className="text-voxcina-blue/70 dark:text-secondary-200/70 font-medium">
                   در حال بارگذاری آدرس‌ها...
                 </p>
               </div>
@@ -203,124 +209,177 @@ export default function AddressesPage() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
         >
-          <Card className="border-0 shadow-lg overflow-hidden">
-            <CardContent className="p-8 text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
-                <MapPin className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+          <Card className="border border-secondary-200 dark:border-voxcina-darkBlue/30 shadow-soft rounded-2xl overflow-hidden backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
+            <CardContent className="p-8 md:p-12 text-center">
+              <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-secondary-100 to-secondary-200 dark:from-voxcina-darkBlue/20 dark:to-voxcina-blue/20 mb-6 shadow-soft">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0.5 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ 
+                    repeat: Infinity, 
+                    repeatType: "reverse", 
+                    duration: 2
+                  }}
+                >
+                  <MapPin className="h-10 w-10 text-voxcina-blue/60 dark:text-secondary-300" />
+                </motion.div>
               </div>
-              <h3 className="text-lg font-semibold mb-2">
+              <h3 className="text-xl font-semibold mb-3 text-voxcina-blue dark:text-secondary-200">
                 هنوز آدرسی ثبت نکرده‌اید
               </h3>
-              <p className="text-muted-foreground mb-6">
-                برای ثبت سفارش نیاز به حداقل یک آدرس دارید
+              <p className="text-voxcina-blue/70 dark:text-secondary-300 mb-8 max-w-md mx-auto">
+                برای ثبت سفارش و ارسال محصولات نیاز به حداقل یک آدرس دارید.
+                آدرس خود را اضافه کنید تا تجربه خرید آسان‌تری داشته باشید.
               </p>
-              <Button
-                variant="primary"
-                className="rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                onClick={handleAddNew}
+              <motion.div
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <Plus className="w-4 h-4 ml-2" />
-                افزودن آدرس جدید
-              </Button>
+                <Button
+                  variant="primary"
+                  className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-soft hover:shadow-medium transition-all duration-300 px-6 py-3"
+                  onClick={handleAddNew}
+                >
+                  <Plus className="w-5 h-5 ml-2" />
+                  افزودن آدرس جدید
+                </Button>
+              </motion.div>
             </CardContent>
           </Card>
         </motion.div>
       ) : (
-        <motion.div
-          className="grid grid-cols-1 md:grid-cols-2 gap-6"
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-        >
-          {addresses.map((address) => (
-            <motion.div key={address.id} variants={itemVariants}>
-              <Card
-                className={`border-0 shadow-md hover:shadow-lg transition-all overflow-hidden ${
-                  address.isDefault
-                    ? "bg-gradient-to-br from-indigo-50/70 to-purple-50/70 dark:from-indigo-950/30 dark:to-purple-950/30"
-                    : ""
-                }`}
-              >
-                <CardHeader className="pb-2 flex flex-row justify-between items-start relative">
-                  {address.isDefault && (
-                    <div className="absolute top-0 left-0 w-16 h-16 overflow-hidden">
-                      <div className="bg-indigo-500 text-white text-xs font-bold text-center transform rotate-45 translate-y-2 -translate-x-6 w-24 py-1">
-                        پیش‌فرض
-                      </div>
-                    </div>
-                  )}
-                  <div>
-                    <CardTitle className="text-lg flex items-center">
-                      {getAddressTypeIcon(address.title)}
-                      {address.title}
-                    </CardTitle>
-                  </div>
-                  <div className="flex space-x-2 space-x-reverse">
-                    <button
-                      className="text-indigo-500 p-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 rounded-full transition-colors"
-                      onClick={() => handleEdit(address.id)}
-                      aria-label="ویرایش آدرس"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      className="text-red-500 p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full transition-colors"
-                      onClick={() => confirmDelete(address.id)}
-                      aria-label="حذف آدرس"
-                    >
-                      <Trash className="w-4 h-4" />
-                    </button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col space-y-2">
-                    <p className="font-medium">
-                      {address.firstName} {address.lastName}
-                    </p>
-
-                    <div className="flex items-start">
-                      <MapPin className="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 ml-2 flex-shrink-0" />
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {address.province}، {address.city}، {address.address}
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 dark:text-gray-400">
+        <div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mb-6 flex justify-between items-center"
+          >
+            <p className="text-sm text-voxcina-blue/70 dark:text-secondary-300 bg-secondary-100 dark:bg-voxcina-blue/10 px-4 py-2 rounded-full shadow-inner-soft">
+              <span className="font-bold text-voxcina-blue dark:text-secondary-200">{addresses.length}</span> آدرس ثبت شده
+            </p>
+          </motion.div>
+          
+          <AnimatePresence>
+            <motion.div
+              className="grid grid-cols-1 md:grid-cols-2 gap-6"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              {addresses.map((address) => (
+                <motion.div 
+                  key={address.id} 
+                  variants={itemVariants}
+                  whileHover={{ y: -5 }}
+                  className="h-full"
+                >
+                  <Card
+                    className={`h-full border border-secondary-200 dark:border-voxcina-darkBlue/30 shadow-soft hover:shadow-medium transition-all overflow-hidden rounded-2xl backdrop-blur-sm 
+                      ${
+                        address.isDefault
+                          ? "bg-gradient-to-br from-voxcina-blue/5 to-secondary-200/70 dark:from-voxcina-blue/15 dark:to-voxcina-blue/5 border-voxcina-blue/20 dark:border-voxcina-blue/30"
+                          : "bg-white/90 dark:bg-voxcina-blue/10"
+                      }`}
+                  >
+                    <CardHeader className="pb-2 flex flex-row justify-between items-start relative pt-6">
+                      {address.isDefault && (
+                        <div className="absolute top-0 left-0 w-20 h-20 overflow-hidden">
+                          <div className="bg-voxcina-blue dark:bg-secondary-200 text-white dark:text-voxcina-blue text-xs font-bold text-center transform rotate-45 translate-y-2 -translate-x-6 w-28 py-1 shadow-soft">
+                            پیش‌فرض
+                          </div>
+                        </div>
+                      )}
                       <div>
-                        <span className="text-xs text-gray-500 dark:text-gray-500">
-                          کد پستی:
-                        </span>
-                        <span className="font-mono mr-1 tracking-wide">
-                          {address.postalCode}
-                        </span>
+                        <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-secondary-200">
+                          <span className="relative">
+                            <span className="absolute -right-2 -top-2 w-8 h-8 bg-secondary-200 dark:bg-voxcina-blue/20 rounded-full -z-10"></span>
+                            {getAddressTypeIcon(address.title)}
+                          </span>
+                          {address.title}
+                        </CardTitle>
                       </div>
-                      <div>
-                        <span className="text-xs text-gray-500 dark:text-gray-500">
-                          شماره تماس:
-                        </span>
-                        <span className="font-mono mr-1 tracking-wide ltr">
-                          {address.phoneNumber}
-                        </span>
+                      <div className="flex space-x-2 space-x-reverse">
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          className="text-voxcina-blue p-1.5 hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-blue/20 rounded-full transition-colors"
+                          onClick={() => handleEdit(address.id)}
+                          aria-label="ویرایش آدرس"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          className="text-red-500 p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-full transition-colors"
+                          onClick={() => confirmDelete(address.id)}
+                          aria-label="حذف آدرس"
+                        >
+                          <Trash className="w-4 h-4" />
+                        </motion.button>
                       </div>
-                    </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-col space-y-3">
+                        <p className="font-medium text-voxcina-blue dark:text-secondary-200">
+                          {address.firstName} {address.lastName}
+                        </p>
 
-                    {!address.isDefault && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-3 border-indigo-200 text-indigo-700 dark:border-indigo-800 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 w-full rounded-xl group"
-                        onClick={() => setDefaultAddress(address.id)}
-                      >
-                        <CheckCircle className="w-4 h-4 ml-2 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        تنظیم به عنوان آدرس پیش‌فرض
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                        <div className="flex items-start">
+                          <div className="w-6 h-6 bg-secondary-200 dark:bg-voxcina-blue/20 rounded-full flex items-center justify-center ml-2 flex-shrink-0">
+                            <MapPin className="w-3.5 h-3.5 text-voxcina-blue dark:text-secondary-300" />
+                          </div>
+                          <p className="text-sm text-voxcina-blue/70 dark:text-secondary-300">
+                            {address.province}، {address.city}، {address.address}
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 text-sm mt-2">
+                          <div className="bg-secondary-100 dark:bg-voxcina-blue/10 p-2 rounded-lg">
+                            <span className="text-xs text-voxcina-blue/50 dark:text-secondary-400 block mb-1">
+                              کد پستی:
+                            </span>
+                            <span className="font-mono tracking-wide text-voxcina-blue dark:text-secondary-300">
+                              {address.postalCode}
+                            </span>
+                          </div>
+                          <div className="bg-secondary-100 dark:bg-voxcina-blue/10 p-2 rounded-lg">
+                            <span className="text-xs text-voxcina-blue/50 dark:text-secondary-400 block mb-1">
+                              شماره تماس:
+                            </span>
+                            <span className="font-mono tracking-wide ltr text-voxcina-blue dark:text-secondary-300">
+                              {address.phoneNumber}
+                            </span>
+                          </div>
+                        </div>
+
+                        {!address.isDefault && (
+                          <motion.div
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            className="mt-3"
+                          >
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mt-3 border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-secondary-200 hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20 w-full rounded-xl group overflow-hidden relative"
+                              onClick={() => setDefaultAddress(address.id)}
+                            >
+                              <span className="absolute inset-0 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></span>
+                              <CheckCircle className="w-4 h-4 ml-2 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <span className="relative z-10">تنظیم به عنوان آدرس پیش‌فرض</span>
+                            </Button>
+                          </motion.div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
             </motion.div>
-          ))}
-        </motion.div>
+          </AnimatePresence>
+        </div>
       )}
 
       <Modal
@@ -331,7 +390,7 @@ export default function AddressesPage() {
         <form onSubmit={handleSubmit}>
           <div className="space-y-5">
             <div className="flex flex-col space-y-2">
-              <label className="text-sm font-medium mb-1">نوع آدرس</label>
+              <label className="text-sm font-medium mb-1 text-voxcina-blue dark:text-secondary-200">نوع آدرس</label>
               <div className="flex space-x-4 space-x-reverse">
                 <label className="flex items-center cursor-pointer">
                   <input
@@ -343,15 +402,15 @@ export default function AddressesPage() {
                     className="sr-only"
                   />
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2 mr-2 ${
+                    className={`w-12 h-12 rounded-full flex items-center justify-center border-2 mr-2 transition-all duration-300 ${
                       formData.addressType === "home"
-                        ? "border-indigo-500 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30"
-                        : "border-gray-200 text-gray-400 dark:border-gray-700"
+                        ? "border-voxcina-blue bg-voxcina-blue/5 text-voxcina-blue dark:bg-voxcina-blue/20 dark:text-secondary-200 scale-110"
+                        : "border-secondary-200 text-voxcina-blue/40 dark:border-voxcina-darkBlue/30 dark:text-secondary-400"
                     }`}
                   >
                     <Home className="w-5 h-5" />
                   </div>
-                  <span>خانه</span>
+                  <span className="text-voxcina-blue dark:text-secondary-200 mr-2">خانه</span>
                 </label>
 
                 <label className="flex items-center cursor-pointer">
@@ -364,15 +423,15 @@ export default function AddressesPage() {
                     className="sr-only"
                   />
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2 mr-2 ${
+                    className={`w-12 h-12 rounded-full flex items-center justify-center border-2 mr-2 transition-all duration-300 ${
                       formData.addressType === "work"
-                        ? "border-indigo-500 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30"
-                        : "border-gray-200 text-gray-400 dark:border-gray-700"
+                        ? "border-voxcina-blue bg-voxcina-blue/5 text-voxcina-blue dark:bg-voxcina-blue/20 dark:text-secondary-200 scale-110"
+                        : "border-secondary-200 text-voxcina-blue/40 dark:border-voxcina-darkBlue/30 dark:text-secondary-400"
                     }`}
                   >
                     <Briefcase className="w-5 h-5" />
                   </div>
-                  <span>محل کار</span>
+                  <span className="text-voxcina-blue dark:text-secondary-200 mr-2">محل کار</span>
                 </label>
               </div>
             </div>
@@ -387,6 +446,7 @@ export default function AddressesPage() {
                   ? "مثال: خانه، منزل پدری"
                   : "مثال: دفتر، شرکت"
               }
+              className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
             />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -396,6 +456,7 @@ export default function AddressesPage() {
                 value={formData.firstName}
                 onChange={handleChange}
                 required
+                className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
               />
               <Input
                 label="نام خانوادگی"
@@ -403,6 +464,7 @@ export default function AddressesPage() {
                 value={formData.lastName}
                 onChange={handleChange}
                 required
+                className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
               />
             </div>
 
@@ -413,16 +475,17 @@ export default function AddressesPage() {
               onChange={handleChange}
               placeholder="مثال: ۰۹۱۲۱۲۳۴۵۶۷"
               required
+              className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
             />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium block mb-1">استان</label>
+                <label className="text-sm font-medium block mb-1 text-voxcina-blue dark:text-secondary-200">استان</label>
                 <select
                   name="province"
                   value={formData.province}
                   onChange={handleChange}
-                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+                  className="w-full rounded-xl border border-secondary-200 dark:border-voxcina-darkBlue/30 bg-white dark:bg-voxcina-darkBlue/20 px-3 py-2 text-sm focus:outline-none focus:border-voxcina-blue focus:ring-2 focus:ring-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200"
                   required
                 >
                   <option value="">انتخاب استان</option>
@@ -439,6 +502,7 @@ export default function AddressesPage() {
                 value={formData.city}
                 onChange={handleChange}
                 required
+                className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
               />
             </div>
 
@@ -449,6 +513,7 @@ export default function AddressesPage() {
               onChange={handleChange}
               placeholder="مثال: خیابان اصلی، کوچه فرعی، پلاک ۱۲، واحد ۳"
               required
+              className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
             />
 
             <Input
@@ -458,20 +523,21 @@ export default function AddressesPage() {
               onChange={handleChange}
               placeholder="مثال: ۱۲۳۴۵۶۷۸۹۰"
               required
+              className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
             />
 
-            <div className="flex items-center bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-xl">
+            <div className="flex items-center bg-gradient-to-r from-voxcina-blue/5 to-secondary-200/70 dark:from-voxcina-blue/10 dark:to-voxcina-blue/5 p-4 rounded-xl">
               <input
                 type="checkbox"
                 id="isDefault"
                 name="isDefault"
                 checked={formData.isDefault}
                 onChange={handleChange}
-                className="ml-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                className="ml-2 h-4 w-4 rounded border-secondary-300 text-voxcina-blue focus:ring-voxcina-blue/30"
               />
               <label
                 htmlFor="isDefault"
-                className="text-sm text-indigo-700 dark:text-indigo-300"
+                className="text-sm text-voxcina-blue dark:text-secondary-200"
               >
                 تنظیم به عنوان آدرس پیش‌فرض
               </label>
@@ -482,14 +548,14 @@ export default function AddressesPage() {
                 type="button"
                 variant="outline"
                 onClick={() => setIsModalOpen(false)}
-                className="rounded-xl"
+                className="rounded-xl border-secondary-200 dark:border-voxcina-darkBlue/30 text-voxcina-blue dark:text-secondary-200 hover:bg-secondary-100 dark:hover:bg-voxcina-darkBlue/20"
               >
                 انصراف
               </Button>
               <Button
                 type="submit"
                 variant="primary"
-                className="rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-soft hover:shadow-medium transition-all duration-300"
               >
                 {editingAddress ? "ویرایش آدرس" : "افزودن آدرس"}
               </Button>
@@ -503,16 +569,16 @@ export default function AddressesPage() {
         onClose={() => setDeleteConfirmId(null)}
         title="حذف آدرس"
       >
-        <div className="p-2">
-          <div className="flex items-start mb-4">
-            <div className="bg-red-100 dark:bg-red-900/20 p-3 rounded-full ml-4 flex-shrink-0">
+        <div className="p-4">
+          <div className="flex items-start mb-6">
+            <div className="bg-red-50 dark:bg-red-500/10 p-3 rounded-full ml-4 flex-shrink-0">
               <AlertCircle className="h-6 w-6 text-red-500" />
             </div>
             <div>
-              <p className="font-medium text-gray-900 dark:text-white mb-1">
+              <p className="font-medium text-voxcina-blue dark:text-secondary-200 mb-2">
                 آیا از حذف این آدرس مطمئن هستید؟
               </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-voxcina-blue/70 dark:text-secondary-300">
                 این عمل قابل بازگشت نیست و آدرس به طور کامل حذف خواهد شد.
               </p>
             </div>
@@ -522,17 +588,22 @@ export default function AddressesPage() {
             <Button
               variant="outline"
               onClick={() => setDeleteConfirmId(null)}
-              className="rounded-xl"
+              className="rounded-xl border-secondary-200 dark:border-voxcina-darkBlue/30 text-voxcina-blue dark:text-secondary-200"
             >
               انصراف
             </Button>
-            <Button
-              variant="danger"
-              onClick={handleDelete}
-              className="rounded-xl"
+            <motion.div
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
             >
-              حذف آدرس
-            </Button>
+              <Button
+                variant="danger"
+                onClick={handleDelete}
+                className="rounded-xl bg-red-500 hover:bg-red-600 text-white"
+              >
+                حذف آدرس
+              </Button>
+            </motion.div>
           </div>
         </div>
       </Modal>

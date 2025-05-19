@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import { getBrandName, getCategoryName } from "@/lib/utils";
 
 export default function FavoritesPage() {
-  const { products, isLoading ,brands, categories} = useProductStore();
+  const { products, isLoading, brands, categories} = useProductStore();
   const { favorites, removeFromFavorites } = useDashboardStore();
   const [favoriteProducts, setFavoriteProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,7 +62,7 @@ export default function FavoritesPage() {
       
       setFavoriteProducts(filteredProducts);
     }
-  }, [favorites, products, isLoading, searchQuery, sortOption]);
+  }, [favorites, products, isLoading, searchQuery, sortOption, brands, categories]);
 
   const handleRemoveFavorite = (productId: string) => {
     setIsRemoving(productId);
@@ -105,8 +105,8 @@ export default function FavoritesPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <h1 className="text-2xl md:text-3xl font-bold mb-4 sm:mb-0 bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent flex items-center">
-          <Heart className="w-6 h-6 text-pink-500 ml-2" />
+        <h1 className="text-2xl md:text-3xl font-bold mb-4 sm:mb-0 bg-gradient-to-r from-voxcina-blue to-primary-500 bg-clip-text text-transparent flex items-center">
+          <Heart className="w-6 h-6 text-voxcina-blue ml-2" />
           محصولات موردعلاقه
         </h1>
         
@@ -117,23 +117,23 @@ export default function FavoritesPage() {
               placeholder="جستجو در علاقه‌مندی‌ها..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full sm:w-64 h-10 pl-10 pr-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500 dark:focus:ring-pink-400"
+              className="w-full sm:w-64 h-10 pl-10 pr-4 rounded-xl border border-secondary-200 dark:border-voxcina-darkBlue/30 bg-white dark:bg-voxcina-blue/10 focus:outline-none focus:ring-2 focus:ring-voxcina-blue/30 text-voxcina-blue dark:text-secondary-200 placeholder-voxcina-blue/50 dark:placeholder-secondary-400 shadow-inner-soft"
             />
-            <Search className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
+            <Search className="w-5 h-5 absolute left-3 top-2.5 text-voxcina-blue/60 dark:text-secondary-300" />
           </div>
           
           <div className="relative">
             <select
               value={sortOption}
               onChange={(e) => setSortOption(e.target.value)}
-              className="h-10 pr-4 pl-10 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500 dark:focus:ring-pink-400 text-sm appearance-none cursor-pointer"
+              className="h-10 pr-4 pl-10 rounded-xl border border-secondary-200 dark:border-voxcina-darkBlue/30 bg-white dark:bg-voxcina-blue/10 focus:outline-none focus:ring-2 focus:ring-voxcina-blue/30 text-sm appearance-none cursor-pointer text-voxcina-blue dark:text-secondary-200 shadow-inner-soft"
             >
               <option value="newest">جدیدترین</option>
               <option value="oldest">قدیمی‌ترین</option>
               <option value="price-asc">ارزان‌ترین</option>
               <option value="price-desc">گران‌ترین</option>
             </select>
-            <Filter className="w-5 h-5 absolute left-3 top-2.5 text-gray-400 pointer-events-none" />
+            <Filter className="w-5 h-5 absolute left-3 top-2.5 text-voxcina-blue/60 dark:text-secondary-300 pointer-events-none" />
           </div>
         </div>
       </motion.div>
@@ -147,15 +147,15 @@ export default function FavoritesPage() {
         >
           {skeletonLoaders.map((index) => (
             <motion.div key={index} variants={itemVariants}>
-              <Card className="border-0 shadow-md overflow-hidden">
+              <Card className="border border-secondary-200 dark:border-voxcina-darkBlue/30 shadow-soft rounded-2xl overflow-hidden bg-white/90 dark:bg-voxcina-blue/10 backdrop-blur-sm">
                 <CardContent className="p-0">
-                  <div className="aspect-square bg-gray-100 dark:bg-gray-800 animate-pulse"></div>
+                  <div className="aspect-square bg-secondary-100 dark:bg-voxcina-darkBlue/20 animate-pulse-soft"></div>
                   <div className="p-4 space-y-2">
-                    <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3 animate-pulse"></div>
+                    <div className="h-5 bg-secondary-200 dark:bg-voxcina-darkBlue/30 rounded-lg animate-pulse-soft"></div>
+                    <div className="h-4 bg-secondary-200 dark:bg-voxcina-darkBlue/30 rounded-lg w-2/3 animate-pulse-soft"></div>
                     <div className="pt-2 flex justify-between items-center">
-                      <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3 animate-pulse"></div>
-                      <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
+                      <div className="h-6 bg-secondary-200 dark:bg-voxcina-darkBlue/30 rounded-lg w-1/3 animate-pulse-soft"></div>
+                      <div className="h-8 w-8 rounded-full bg-secondary-200 dark:bg-voxcina-darkBlue/30 animate-pulse-soft"></div>
                     </div>
                   </div>
                 </CardContent>
@@ -169,22 +169,22 @@ export default function FavoritesPage() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
         >
-          <Card className="border-0 shadow-lg overflow-hidden">
+          <Card className="border border-secondary-200 dark:border-voxcina-darkBlue/30 shadow-soft rounded-2xl overflow-hidden bg-white/90 dark:bg-voxcina-blue/10 backdrop-blur-sm">
             <CardContent className="p-8 sm:p-12 flex flex-col items-center justify-center text-center">
               <div className="relative mb-6">
-                <div className="absolute inset-0 bg-pink-100 dark:bg-pink-900/20 rounded-full animate-ping opacity-30"></div>
-                <div className="relative bg-pink-50 dark:bg-pink-900/30 p-4 rounded-full">
-                  <Heart className="w-16 h-16 text-pink-500" />
+                <div className="absolute inset-0 bg-voxcina-blue/10 dark:bg-voxcina-blue/20 rounded-full animate-pulse-soft opacity-30"></div>
+                <div className="relative bg-voxcina-blue/5 dark:bg-voxcina-blue/30 p-4 rounded-full shadow-soft">
+                  <Heart className="w-16 h-16 text-voxcina-blue dark:text-secondary-200" />
                 </div>
               </div>
               
-              <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">
+              <h3 className="text-xl font-bold mb-3 text-voxcina-blue dark:text-secondary-200">
                 {searchQuery 
                   ? 'محصولی با این مشخصات یافت نشد' 
                   : 'هنوز محصولی به علاقه‌مندی‌ها اضافه نکرده‌اید'}
               </h3>
               
-              <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-md">
+              <p className="text-voxcina-blue/70 dark:text-secondary-300 mb-8 max-w-md">
                 {searchQuery 
                   ? 'جستجوی دیگری را امتحان کنید یا فیلترها را تغییر دهید.' 
                   : 'با کلیک روی آیکون قلب در صفحه محصولات، آنها را به لیست علاقه‌مندی‌های خود اضافه کنید.'}
@@ -199,7 +199,7 @@ export default function FavoritesPage() {
                   <Button 
                     onClick={handleNavigateToShop}
                     variant="primary"
-                    className="rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600"
+                    className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-soft hover:shadow-medium transition-all duration-300"
                   >
                     <ShoppingCart className="w-4 h-4 ml-2" />
                     مشاهده فروشگاه
@@ -211,7 +211,7 @@ export default function FavoritesPage() {
                 <Button 
                   onClick={() => setSearchQuery('')}
                   variant="outline"
-                  className="mt-2 rounded-xl"
+                  className="mt-2 rounded-xl border-secondary-200 text-voxcina-blue dark:border-voxcina-darkBlue/30 dark:text-secondary-200 hover:bg-secondary-100 dark:hover:bg-voxcina-darkBlue/20"
                 >
                   پاک کردن جستجو
                 </Button>
@@ -227,7 +227,7 @@ export default function FavoritesPage() {
             transition={{ duration: 0.3 }}
             className="mb-4 flex justify-between items-center"
           >
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-voxcina-blue/70 dark:text-secondary-300">
               {favoriteProducts.length} محصول یافت شد
             </p>
             
@@ -236,7 +236,7 @@ export default function FavoritesPage() {
                 variant="ghost" 
                 size="sm" 
                 onClick={() => setSearchQuery('')}
-                className="text-pink-500 hover:text-pink-600 hover:bg-pink-50 dark:hover:bg-pink-900/20"
+                className="text-voxcina-blue hover:text-voxcina-darkBlue hover:bg-voxcina-blue/5 dark:text-secondary-200 dark:hover:bg-voxcina-blue/20 rounded-xl"
               >
                 نمایش همه ({favorites.length})
               </Button>
@@ -256,9 +256,9 @@ export default function FavoritesPage() {
                 className={isRemoving === product.id ? 'scale-95 opacity-50' : ''}
                 transition={{ duration: 0.3 }}
               >
-                <Card className="group border-0 shadow-md hover:shadow-lg transition-all overflow-hidden">
+                <Card className="group border border-secondary-200 dark:border-voxcina-darkBlue/30 shadow-soft hover:shadow-medium transition-all overflow-hidden rounded-2xl bg-white/90 dark:bg-voxcina-blue/10 backdrop-blur-sm">
                   <CardContent className="p-0 relative">
-                    <div className="aspect-square bg-gray-100 dark:bg-gray-800 relative overflow-hidden">
+                    <div className="aspect-square bg-secondary-100 dark:bg-voxcina-darkBlue/30 relative overflow-hidden rounded-t-2xl">
                       {product.images && product.images[0] && (
                         <img 
                           src={product.images[0]} 
@@ -270,46 +270,46 @@ export default function FavoritesPage() {
                       <button
                         disabled={!product.id}
                         onClick={() => product.id && handleRemoveFavorite(product.id)}
-                        className="absolute top-2 left-2 p-2 bg-white dark:bg-gray-800 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-pink-50 dark:hover:bg-pink-900/30"
+                        className="absolute top-3 left-3 p-2 bg-white/80 dark:bg-voxcina-darkBlue/60 backdrop-blur-sm rounded-full shadow-soft opacity-0 group-hover:opacity-100 transition-opacity hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/30"
                         aria-label="حذف از علاقه‌مندی‌ها"
                         title="حذف از علاقه‌مندی‌ها"
                       >
-                        <Trash2 className="w-4 h-4 text-pink-500" />
+                        <Trash2 className="w-4 h-4 text-voxcina-blue dark:text-secondary-200" />
                       </button>
                       
-                      <div className="absolute top-2 right-2 p-1.5 bg-pink-100 dark:bg-pink-900/30 rounded-lg">
-                        <Clock className="w-4 h-4 text-pink-500" />
+                      <div className="absolute top-3 right-3 p-1.5 bg-voxcina-blue/10 dark:bg-voxcina-blue/30 backdrop-blur-sm rounded-lg shadow-soft">
+                        <Clock className="w-4 h-4 text-voxcina-blue dark:text-secondary-200" />
                       </div>
                     </div>
                     
                     <div className="p-4">
-                      <h3 className="font-medium text-gray-900 dark:text-white mb-1 line-clamp-1">
+                      <h3 className="font-medium text-voxcina-blue dark:text-secondary-200 mb-1 line-clamp-1">
                         {product.name}
                       </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                      <p className="text-sm text-voxcina-blue/60 dark:text-secondary-300 mb-3">
                         {getBrandName(product.brand_id, brands)}
                       </p>
                       
                       <div className="flex justify-between items-center">
-                        <div className="font-bold text-gray-900 dark:text-white">
+                        <div className="font-bold text-voxcina-blue dark:text-secondary-200">
                           {new Intl.NumberFormat('fa-IR').format(product.price)} تومان
                         </div>
                         
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="p-2 text-pink-500 hover:text-pink-600 hover:bg-pink-50 dark:hover:bg-pink-900/20 rounded-full"
+                          className="p-2 text-voxcina-blue hover:text-voxcina-darkBlue hover:bg-voxcina-blue/5 dark:text-secondary-200 dark:hover:bg-voxcina-blue/20 rounded-full"
                           onClick={() => router.push(`/products/${product.id}`)}
                         >
                           <ArrowRight className="w-4 h-4" />
                         </Button>
                       </div>
                       
-                      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+                      <div className="mt-3 pt-3 border-t border-secondary-100 dark:border-voxcina-darkBlue/20">
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="w-full rounded-xl border-pink-200 text-pink-700 dark:border-pink-800 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-pink-900/20"
+                          className="w-full rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-secondary-200 hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20 transition-colors"
                         >
                           <ShoppingCart className="w-4 h-4 ml-2" />
                           افزودن به سبد خرید

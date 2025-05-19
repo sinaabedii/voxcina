@@ -24,6 +24,7 @@ export interface CartSummary {
   tax: number;
   discount: number;
   total: number;
+  items?: CartItem[];
 }
 
 export interface PromoCode {

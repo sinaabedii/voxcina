@@ -25,10 +25,10 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     ref
   ) => {
     return (
-      <div className="w-full space-y-1">
+      <div className="w-full space-y-2">
         {label && (
           <label
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            className="text-sm font-medium leading-none text-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             htmlFor={props.id}
           >
             {label}
@@ -37,7 +37,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
 
         <div className="relative">
           {leftElement && (
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
               {leftElement}
             </div>
           )}
@@ -45,11 +45,13 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           <input
             type={type}
             className={cn(
-              "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+              "voxcina-input flex h-10 w-full rounded-md border border-border/30 bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:border-primary/50 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200",
               {
                 "pl-10": leftElement,
                 "pr-10": rightElement,
-                "border-destructive focus-visible:ring-destructive": error,
+                "border-destructive focus-visible:ring-destructive/50 shadow-soft shadow-destructive/10": error,
+                "hover:border-primary/30": !error,
+                "shadow-soft": !error,
               },
               className
             )}
@@ -58,14 +60,14 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           />
 
           {rightElement && (
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+            <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground">
               {rightElement}
             </div>
           )}
         </div>
 
         {error ? (
-          <p className="text-xs text-destructive">{error}</p>
+          <p className="text-xs text-destructive animate-fadeIn">{error}</p>
         ) : helperText ? (
           <p className="text-xs text-muted-foreground">{helperText}</p>
         ) : null}

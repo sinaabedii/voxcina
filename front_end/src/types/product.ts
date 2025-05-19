@@ -1,35 +1,37 @@
-import {Category} from "./category";
-
+import { Category } from "./category";
 
 export interface ProductVariant {
-  size: string;           // e.g., "S", "M", "L"
-  color: string;          // e.g., "Red", "Blue"
-  sku: string;            // Unique per variant (e.g., "TSHIRT-RED-M")
-  quantity: number;       // Available stock
-  images: string[];       // Optional variant-specific images
+  size: string; // e.g., "S", "M", "L"
+  color: string; // e.g., "Red", "Blue"
+  sku: string; // Unique per variant (e.g., "TSHIRT-RED-M")
+  quantity: number; // Available stock
+  images: string[]; // Optional variant-specific images
 }
 
 export interface ProductAttribute {
-  name: string;           // e.g., "Material", "Care Instructions"
-  value: string;          // e.g., "Cotton", "Machine Washable"
+  name: string; // e.g., "Material", "Care Instructions"
+  value: string; // e.g., "Cotton", "Machine Washable"
 }
 
 export interface Product {
-  id?: string;                    // MongoDB ObjectID, can be absent if not yet created
+  id?: string; // MongoDB ObjectID, can be absent if not yet created
   name: string;
   description: string;
-  price: number;                  // Base price
-  images: string[];               // Main product images (URLs)
-  category_ids: string[];         // Array of category ObjectIDs as strings
-  brand_id: string;               // Brand ObjectID as string
-  variants: ProductVariant[];     // Size/color-specific data
-  attributes: ProductAttribute[]; // Product-wide metadata
-  is_flash_sale: boolean;         // Part of flash-sale campaign?
-  is_active: boolean;             // Soft delete flag
-  created_at: string;             // ISO 8601 timestamp
-  updated_at: string;             // ISO 8601 timestamp
-}
+  price: number; // Base price //
+  
+  originalPrice: number; // add continue/////////////
 
+  images: string[]; // Main product images (URLs)
+  category_ids: string[]; // Array of category ObjectIDs as strings
+  brand_id: string; // Brand ObjectID as string
+  variants: ProductVariant[]; // Size/color-specific data
+  attributes: ProductAttribute[]; // Product-wide metadata
+  is_flash_sale: boolean; // Part of flash-sale campaign?
+  is_active: boolean; // Soft delete flag
+  created_at: string; // ISO 8601 timestamp
+  updated_at: string; // ISO 8601 timestamp
+  inStock: boolean
+}
 
 export interface Review {
   id: string;
@@ -53,15 +55,14 @@ export interface Review {
 }
 
 export interface Brand {
-  id?: string;             // MongoDB ObjectID, can be absent if not yet created
+  id?: string; // MongoDB ObjectID, can be absent if not yet created
   name: string;
   slug: string;
-  logo: string;            // URL to logo image
+  logo: string; // URL to logo image
   description: string;
-  createdAt?: string;      // ISO 8601 timestamp, optional
-  updatedAt?: string;      // ISO 8601 timestamp, optional
+  createdAt?: string; // ISO 8601 timestamp, optional
+  updatedAt?: string; // ISO 8601 timestamp, optional
 }
-
 
 export interface ProductFilter {
   categories?: string[];

@@ -18,7 +18,6 @@ export default function VerifyCodePage() {
   const inputRefs = useRef<Array<HTMLInputElement | null>>(Array(6).fill(null));
   const router = useRouter();
 
-  // Countdown timer for resend button
   useEffect(() => {
     if (resendCountdown > 0) {
       const timer = setTimeout(() => {
@@ -30,7 +29,6 @@ export default function VerifyCodePage() {
     }
   }, [resendCountdown]);
 
-  // Focus the first input on mount
   useEffect(() => {
     if (inputRefs.current[0]) {
       inputRefs.current[0].focus();
@@ -38,18 +36,14 @@ export default function VerifyCodePage() {
   }, []);
 
   const handleChange = (index: number, value: string) => {
-    // Clear error when user starts typing
     if (error) setError(null);
 
-    // Only allow numbers
     if (value && !/^[0-9]$/.test(value)) return;
 
-    // Update code
     const newCode = [...code];
     newCode[index] = value;
     setCode(newCode);
 
-    // Auto-focus next input
     if (value && index < 5 && inputRefs.current[index + 1]) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -59,7 +53,6 @@ export default function VerifyCodePage() {
     index: number,
     e: React.KeyboardEvent<HTMLInputElement>
   ) => {
-    // Focus previous input on backspace
     if (
       e.key === "Backspace" &&
       !code[index] &&
@@ -74,12 +67,10 @@ export default function VerifyCodePage() {
     e.preventDefault();
     const pastedData = e.clipboardData.getData("text").trim();
 
-    // Check if pasted data is a valid 6-digit number
     if (/^\d{6}$/.test(pastedData)) {
       const newCode = pastedData.split("");
       setCode(newCode);
 
-      // Focus the last input
       if (inputRefs.current[5]) {
         inputRefs.current[5]?.focus();
       }
@@ -89,21 +80,17 @@ export default function VerifyCodePage() {
   const handleResendCode = () => {
     if (!canResend) return;
 
-    // Reset state
     setCanResend(false);
     setResendCountdown(60);
     setError(null);
 
-    // Mock API call
     setTimeout(() => {
-      // Show success message or toast here
     }, 1000);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate all digits are filled
     if (code.some((digit) => !digit)) {
       setError("لطفاً کد تأیید ۶ رقمی را کامل وارد کنید");
       return;
@@ -111,14 +98,11 @@ export default function VerifyCodePage() {
 
     setIsLoading(true);
 
-    // Mock verification API call
     setTimeout(() => {
       setIsLoading(false);
 
-      // Check if code is correct (for demo, we'll consider "123456" as correct)
       if (code.join("") === "123456") {
         setIsVerified(true);
-        // Redirect after 2 seconds
         setTimeout(() => {
           router.push("/sign-in");
         }, 2000);
@@ -128,7 +112,6 @@ export default function VerifyCodePage() {
     }, 1500);
   };
 
-  // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -144,24 +127,18 @@ export default function VerifyCodePage() {
     visible: { y: 0, opacity: 1, transition: { duration: 0.5 } },
   };
 
-  const digitVariants = {
-    initial: { scale: 0.9, opacity: 0 },
-    animate: { scale: 1, opacity: 1 },
-    transition: { type: "spring", stiffness: 300, damping: 15 },
-  };
+  
 
-  // Create an array of 6 elements for rendering code inputs
   const codeInputs = Array(6).fill(null);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-voxcina-cream py-12 px-4 sm:px-6 lg:px-8">
+    <div className="flex items-center justify-center  py-12 px-4 sm:px-6 lg:px-8">
       <motion.div
         className="w-full max-w-md"
         initial="hidden"
         animate="visible"
         variants={containerVariants}
       >
-        {/* Animated Background Gradient */}
         <motion.div
           className="absolute inset-0 bg-gradient-to-tr from-voxcina-blue/5 via-primary-300/5 to-secondary-300/10 blur-3xl opacity-30 -z-10"
           animate={{
@@ -226,7 +203,6 @@ export default function VerifyCodePage() {
                         ارسال شد
                       </p>
 
-                      {/* Verification Code Input Fields */}
                       <div dir="rtl" className="flex justify-center gap-2 mb-2">
                         {codeInputs.map((_, index) => (
                           <div key={index} className="w-10 sm:w-12">

@@ -88,25 +88,26 @@ export default function HomePage() {
 
     setMousePosition({ x, y });
   };
-
   return (
-    <div className="pb-16 overflow-x-hidden font-sans">
+    <div className="pb-16 overflow-x-hidden font-sans bg-voxcina-cream">
+      {/* Hero Section with Improved Mobile Responsiveness */}
       <section
         ref={heroRef as React.RefObject<HTMLElement>}
-        className="relative h-[70vh] md:h-[85vh] mb-24 overflow-hidden"
+        className="relative h-[80vh] md:h-[85vh] mb-16 md:mb-24 overflow-hidden"
         onMouseMove={handleMouseMove}
       >
         <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-fuchsia-900 via-purple-800 to-indigo-900"
+          className="absolute inset-0 bg-voxcina-blue"
           style={{ scale: heroScale, opacity: heroOpacity, y: heroY }}
         />
-        <div className="absolute inset-0 bg-[url('/images/banners/heroheader.jpeg')] opacity-15 mix-blend-soft-light"></div>
+        <div className="absolute inset-0 bg-[url('/images/banners/heroheader.jpeg')] bg-cover bg-center opacity-20 mix-blend-soft-light"></div>
 
+        {/* Enhanced Mobile-friendly Blur Effect */}
         <motion.div
-          className="absolute w-[300px] h-[300px] rounded-full bg-white opacity-5 blur-3xl pointer-events-none mix-blend-overlay"
+          className="absolute w-[200px] h-[200px] md:w-[300px] md:h-[300px] rounded-full bg-white opacity-10 blur-3xl pointer-events-none mix-blend-overlay"
           animate={{
-            x: mousePosition.x - 150,
-            y: mousePosition.y - 150,
+            x: mousePosition.x - 100,
+            y: mousePosition.y - 100,
           }}
           transition={{ type: "spring", damping: 15, stiffness: 150 }}
         />
@@ -117,25 +118,25 @@ export default function HomePage() {
           transition={{ duration: 1 }}
           className="relative h-full w-full flex items-center"
         >
-          <div className="container">
+          <div className="container px-6 md:px-8">
             <div className="max-w-lg md:max-w-xl text-white z-10 relative">
               <motion.span
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 0.8, y: 0 }}
                 transition={{ duration: 0.7 }}
-                className="inline-block py-1 px-3 rounded-full bg-white/10 backdrop-blur-md text-sm mb-4 border border-white/20"
+                className="inline-block py-1 px-3 rounded-full bg-white/10 backdrop-blur-md text-sm mb-4 border border-white/20 shadow-soft"
               >
-                #FashionForward2025
+                #VoxcinaStyle2025
               </motion.span>
 
               <motion.h1
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, delay: 0.2 }}
-                className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 leading-tight"
+                className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold mb-4 md:mb-6 leading-tight"
               >
                 کالکشن جدید{" "}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-200">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-secondary-200 to-secondary-100">
                   تابستانه
                 </span>
               </motion.h1>
@@ -144,7 +145,7 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, delay: 0.4 }}
-                className="text-xl md:text-2xl mb-10 text-gray-100 font-light"
+                className="text-lg sm:text-xl md:text-2xl mb-8 md:mb-10 text-gray-100 font-light"
               >
                 با مجموعه جدید تابستانه ما، استایل تابستانی خود را متحول کنید
               </motion.p>
@@ -157,11 +158,11 @@ export default function HomePage() {
               >
                 <Link
                   href="/categories/summer"
-                  className="group relative overflow-hidden bg-white text-black px-8 py-4 rounded-full font-medium hover:bg-opacity-95 transition-all duration-300 hover:shadow-xl inline-block"
+                  className="group relative overflow-hidden bg-voxcina-cream text-voxcina-blue px-6 sm:px-8 py-3 sm:py-4 rounded-full font-medium hover:shadow-xl transition-all duration-300 inline-block"
                 >
                   <span className="relative z-10">مشاهده کالکشن</span>
                   <motion.span
-                    className="absolute inset-0 bg-gradient-to-r from-amber-300 to-yellow-200 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                    className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                     initial={{ x: "100%" }}
                     whileHover={{ x: 0 }}
                     transition={{ type: "spring", stiffness: 100 }}
@@ -170,7 +171,7 @@ export default function HomePage() {
 
                 <Link
                   href="/categories/trending"
-                  className="backdrop-blur-md bg-white/10 text-white border border-white/20 px-8 py-4 rounded-full font-medium hover:bg-white/20 transition-all duration-300 inline-block"
+                  className="backdrop-blur-md bg-white/10 text-white border border-white/20 px-6 sm:px-8 py-3 sm:py-4 rounded-full font-medium hover:bg-white/20 transition-all duration-300 inline-block"
                 >
                   ترندهای امسال
                 </Link>
@@ -179,20 +180,24 @@ export default function HomePage() {
           </div>
         </motion.div>
 
-        <div className="absolute right-10 top-1/4 w-24 h-24 bg-pink-500 rounded-full opacity-30 animate-float blur-lg"></div>
-        <div className="absolute left-20 bottom-1/4 w-32 h-32 bg-amber-400 rounded-full opacity-20 animate-float-delay blur-xl"></div>
-        <div className="absolute right-1/4 bottom-20 w-16 h-16 bg-blue-500 rounded-full opacity-25 animate-float-slow blur-md"></div>
+        {/* Enhanced Floating Elements with Better Animation */}
+        <div className="absolute right-4 md:right-10 top-1/4 w-16 md:w-24 h-16 md:h-24 bg-secondary-400 rounded-full opacity-30 animate-pulse-soft blur-lg"></div>
+        <div className="absolute left-8 md:left-20 bottom-1/4 w-20 md:w-32 h-20 md:h-32 bg-secondary-300 rounded-full opacity-20 animate-pulse-soft blur-xl"></div>
+        <div className="absolute right-1/3 bottom-12 md:bottom-20 w-12 md:w-16 h-12 md:h-16 bg-primary-400 rounded-full opacity-25 animate-pulse-soft blur-md"></div>
 
+        {/* Scroll Indicator - Mobile Friendly */}
         <motion.div
-          className="absolute bottom-10 left-1/2 transform -translate-x-1/2 flex flex-col items-center"
+          className="absolute bottom-6 md:bottom-10 left-1/2 transform -translate-x-1/2 flex flex-col items-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.2, duration: 0.8 }}
         >
-          <span className="text-white/70 mb-2 text-sm">اسکرول کنید</span>
-          <span className="w-6 h-10 border-2 border-white/30 rounded-full flex justify-center pt-1">
+          <span className="text-white/70 mb-2 text-xs md:text-sm">
+            اسکرول کنید
+          </span>
+          <span className="w-5 md:w-6 h-8 md:h-10 border-2 border-white/30 rounded-full flex justify-center pt-1">
             <motion.span
-              className="w-1.5 h-1.5 bg-white rounded-full"
+              className="w-1 md:w-1.5 h-1 md:h-1.5 bg-white rounded-full"
               animate={{ y: [0, 12, 0] }}
               transition={{
                 repeat: Infinity,
@@ -204,31 +209,85 @@ export default function HomePage() {
         </motion.div>
       </section>
 
+      {/* Categories Section - Improved Mobile Grid */}
       <motion.section
-        className="container mb-32"
+        className="container px-4 md:px-8 mb-20 md:mb-32"
         initial="hidden"
         animate={isVisible ? "visible" : "hidden"}
         variants={fadeIn}
       >
         <motion.h2
-          className="text-3xl font-bold mb-12 border-b pb-4 relative text-center md:text-right"
+          className="text-2xl sm:text-3xl font-bold mb-8 md:mb-12 pb-4 relative text-center md:text-right text-voxcina-blue"
           variants={fadeIn}
         >
           <span className="relative inline-block">
             دسته‌بندی‌های محبوب
-            <span className="absolute -bottom-1 left-0 right-0 h-1 bg-gradient-to-r from-primary to-pink-500"></span>
+            <span className="absolute -bottom-1 left-0 right-0 h-1 bg-gradient-to-r from-voxcina-blue to-primary-400"></span>
           </span>
         </motion.h2>
 
-        {isLoadingCategories && <div className="text-center py-8">درحال بارگذاری دسته‌بندی‌ها...</div>}
-        {categoriesError && <div className="text-center py-8 text-red-500">خطا در بارگذاری دسته‌بندی‌ها: {categoriesError}</div>}
-        {!isLoadingCategories && !categoriesError && categories.length === 0 && (
-          <div className="text-center py-8">هیچ دسته‌بندی برای نمایش وجود ندارد.</div>
+        {isLoadingCategories && (
+          <div className="text-center py-8">
+            <div className="inline-block w-12 md:w-16 h-12 md:h-16 relative">
+              <div className="absolute inset-0 border-4 border-secondary-300 rounded-full opacity-25"></div>
+              <div className="absolute inset-0 border-4 border-t-voxcina-blue rounded-full animate-spin"></div>
+            </div>
+            <p className="mt-4 text-voxcina-blue">
+              درحال بارگذاری دسته‌بندی‌ها...
+            </p>
+          </div>
         )}
 
+        {categoriesError && (
+          <div className="text-center py-8 text-red-500 bg-red-50 rounded-2xl p-4 md:p-6 shadow-soft">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <p className="text-sm md:text-base">
+              خطا در بارگذاری دسته‌بندی‌ها: {categoriesError}
+            </p>
+          </div>
+        )}
+
+        {!isLoadingCategories &&
+          !categoriesError &&
+          categories.length === 0 && (
+            <div className="text-center py-8 bg-secondary-100 rounded-2xl p-6 md:p-8 shadow-soft">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-4 text-voxcina-blue"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M20 12H4"
+                />
+              </svg>
+              <p className="text-voxcina-blue text-sm md:text-base">
+                هیچ دسته‌بندی برای نمایش وجود ندارد.
+              </p>
+            </div>
+          )}
+
+        {/* Improved Mobile Grid for Categories */}
         {!isLoadingCategories && !categoriesError && categories.length > 0 && (
           <motion.div
-            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6"
+            className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6"
             variants={staggerContainer}
           >
             {mainCategories.map((category, index) => (
@@ -237,11 +296,11 @@ export default function HomePage() {
                   href={`/categories/${category.slug}`}
                   className="group block"
                 >
-                  <div className="relative h-60 md:h-72 rounded-2xl overflow-hidden bg-gray-200 shadow-md transition-all duration-500 group-hover:shadow-2xl">
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 group-hover:via-black/20 transition-colors duration-500">
+                  <div className="relative h-52 xs:h-60 md:h-72 rounded-2xl overflow-hidden bg-secondary-200 shadow-soft transition-all duration-500 group-hover:shadow-medium">
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-voxcina-blue/80 group-hover:via-voxcina-blue/20 transition-colors duration-500">
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
                         <motion.div
-                          className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md"
+                          className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md"
                           whileHover={{ scale: 1.1 }}
                           transition={{
                             type: "spring",
@@ -251,7 +310,7 @@ export default function HomePage() {
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
-                            className="h-7 w-7 text-white"
+                            className="h-6 w-6 md:h-7 md:w-7 text-white"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
@@ -266,9 +325,11 @@ export default function HomePage() {
                         </motion.div>
                       </div>
                     </div>
-                    <div className="absolute inset-x-0 bottom-0 p-5 text-white transform transition-transform duration-500 group-hover:translate-y-0">
-                      <h3 className="text-xl font-bold">{category.name}</h3>
-                      <div className="h-0.5 w-0 bg-white transition-all duration-500 group-hover:w-24 mt-3"></div>
+                    <div className="absolute inset-x-0 bottom-0 p-4 md:p-5 text-white transform transition-transform duration-500 group-hover:translate-y-0">
+                      <h3 className="text-lg md:text-xl font-bold">
+                        {category.name}
+                      </h3>
+                      <div className="h-0.5 w-0 bg-white transition-all duration-500 group-hover:w-20 md:group-hover:w-24 mt-2 md:mt-3"></div>
                     </div>
                   </div>
                 </Link>
@@ -277,36 +338,36 @@ export default function HomePage() {
           </motion.div>
         )}
       </motion.section>
-
+      {/* Seasonal Collection Section - Improved Mobile Layout */}
       <motion.section
-        className="container mb-32 overflow-hidden"
+        className="container px-4 md:px-8 mb-20 md:mb-32 overflow-hidden"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-100px" }}
         variants={fadeIn}
       >
-        <div className="relative rounded-3xl bg-neutral-100 dark:bg-neutral-900">
+        <div className="relative rounded-3xl bg-secondary-200 shadow-soft overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-2">
-            <div className="p-8 md:p-12 lg:p-16 flex flex-col justify-center">
+            <div className="p-6 sm:p-8 md:p-12 lg:p-16 flex flex-col justify-center">
               <motion.span
-                className="inline-block py-1 px-3 rounded-full bg-primary/10 text-primary text-sm mb-4"
+                className="inline-block py-1 px-3 rounded-full bg-voxcina-blue/10 text-voxcina-blue text-xs sm:text-sm mb-3 md:mb-4"
                 variants={fadeIn}
               >
                 کالکشن فصلی
               </motion.span>
 
               <motion.h2
-                className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6"
+                className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-6 text-voxcina-blue"
                 variants={fadeIn}
               >
-                طراحی‌های منحصربفرد <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-pink-500">
+                طراحی‌های منحصربفرد <br className="hidden sm:block" />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-voxcina-blue to-primary-400">
                   برای سبک زندگی مدرن
                 </span>
               </motion.h2>
 
               <motion.p
-                className="text-lg text-gray-600 dark:text-gray-300 mb-8"
+                className="text-base md:text-lg text-voxcina-blue/80 mb-6 md:mb-8"
                 variants={fadeIn}
               >
                 محصولات طراحی شده با بهترین متریال‌ها که برای راحتی و استایل شما
@@ -317,12 +378,12 @@ export default function HomePage() {
               <motion.div variants={fadeIn}>
                 <Link
                   href="/collections/season"
-                  className="inline-flex items-center font-medium text-primary hover:text-primary-dark transition-colors group"
+                  className="inline-flex items-center font-medium text-voxcina-blue hover:text-voxcina-darkBlue transition-colors group"
                 >
                   <span>مشاهده کالکشن</span>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 mr-2 transform transition-transform duration-300 group-hover:translate-x-1"
+                    className="h-4 w-4 md:h-5 md:w-5 mr-2 transform transition-transform duration-300 group-hover:translate-x-1"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -338,9 +399,9 @@ export default function HomePage() {
               </motion.div>
             </div>
 
-            <div className="relative h-80 md:h-auto">
+            <div className="relative h-64 sm:h-72 md:h-auto">
               <div className="absolute inset-0 overflow-hidden rounded-b-3xl md:rounded-r-3xl md:rounded-bl-none">
-                <div className="absolute inset-0 bg-gradient-to-br from-pink-600/20 to-primary/30 mix-blend-multiply z-10"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-voxcina-blue/20 to-voxcina-blue/30 mix-blend-multiply z-10"></div>
                 <motion.div
                   className="absolute inset-0 bg-[url('/images/banners/Ulyana-Sergeenko-New-York-Fashion-Week-Fall-slash-Winter-Feb-12-2013-c-Mode-Pure.jpg')] bg-cover bg-center"
                   initial={{ scale: 1.05 }}
@@ -352,36 +413,38 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="hidden md:block absolute -bottom-6 right-12 w-12 h-12 bg-primary rounded-full opacity-20"></div>
-          <div className="hidden md:block absolute top-12 left-6 w-24 h-24 bg-pink-500 rounded-full opacity-10"></div>
+          {/* Decorative Elements - Adjusted for Mobile */}
+          <div className="hidden md:block absolute -bottom-6 right-12 w-12 h-12 bg-voxcina-blue rounded-full opacity-20"></div>
+          <div className="hidden md:block absolute top-12 left-6 w-24 h-24 bg-secondary-600 rounded-full opacity-10"></div>
         </div>
       </motion.section>
 
+      {/* Popular Products Section */}
       <motion.section
-        className="container mb-32"
+        className="container px-4 md:px-8 mb-20 md:mb-32"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-100px" }}
         variants={fadeIn}
       >
-        <div className="flex justify-between items-center mb-12">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 md:mb-12">
           <motion.h2
-            className="text-3xl font-bold relative inline-block"
+            className="text-2xl sm:text-3xl font-bold relative inline-block text-voxcina-blue mb-4 sm:mb-0"
             variants={fadeIn}
           >
             محصولات پرطرفدار
-            <span className="absolute -bottom-1 left-0 right-0 h-1 bg-gradient-to-r from-primary to-pink-500"></span>
+            <span className="absolute -bottom-1 left-0 right-0 h-1 bg-gradient-to-r from-voxcina-blue to-primary-400"></span>
           </motion.h2>
 
           <motion.div variants={fadeIn}>
             <Link
               href="/products?sort=popular"
-              className="text-primary hover:text-primary-dark flex items-center group transition-all duration-300"
+              className="text-voxcina-blue hover:text-voxcina-darkBlue flex items-center group transition-all duration-300"
             >
               <span>مشاهده همه</span>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 mr-1 transform transition-transform duration-300 group-hover:translate-x-1"
+                className="h-4 w-4 md:h-5 md:w-5 mr-1 transform transition-transform duration-300 group-hover:translate-x-1"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -398,10 +461,10 @@ export default function HomePage() {
         </div>
 
         {isProductLoading ? (
-          <div className="h-64 flex items-center justify-center">
-            <div className="relative w-16 h-16">
-              <div className="absolute inset-0 border-4 border-gray-200 rounded-full"></div>
-              <div className="absolute inset-0 border-4 border-t-primary rounded-full animate-spin"></div>
+          <div className="h-52 md:h-64 flex items-center justify-center">
+            <div className="relative w-12 h-12 md:w-16 md:h-16">
+              <div className="absolute inset-0 border-4 border-secondary-200 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-t-voxcina-blue rounded-full animate-spin"></div>
             </div>
           </div>
         ) : (
@@ -420,26 +483,27 @@ export default function HomePage() {
         )}
       </motion.section>
 
+      {/* Fashion Trends Section - Improved for Mobile */}
       <motion.section
-        className="container mb-32"
+        className="container px-4 md:px-8 mb-20 md:mb-32"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-100px" }}
         variants={scaleUp}
       >
-        <div className="relative bg-gradient-to-br from-fuchsia-900 to-violet-900 rounded-3xl overflow-hidden">
+        <div className="relative bg-voxcina-blue rounded-3xl overflow-hidden shadow-medium">
           <div className="absolute inset-0 bg-[url('/pattern.svg')] opacity-10 mix-blend-overlay"></div>
 
-          <div className="py-12 px-8 md:p-16 lg:p-20 text-center">
+          <div className="py-10 px-6 sm:py-12 sm:px-8 md:p-16 lg:p-20 text-center">
             <motion.h2
-              className="text-3xl md:text-4xl lg:text-5xl font-bold mb-8 text-white"
+              className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-6 sm:mb-8 text-white"
               variants={fadeIn}
             >
               ترندهای فشن ۲۰۲۵
             </motion.h2>
 
             <motion.p
-              className="text-white/80 mb-12 max-w-2xl mx-auto text-lg"
+              className="text-white/80 mb-8 sm:mb-12 mx-auto text-base md:text-lg max-w-xs sm:max-w-md md:max-w-2xl"
               variants={fadeIn}
             >
               آخرین ترندهای دنیای مد را کشف کنید و با سبک منحصر به فرد خود، در
@@ -447,29 +511,29 @@ export default function HomePage() {
             </motion.p>
 
             <motion.div
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+              className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6"
               variants={staggerContainer}
             >
               {[
                 {
                   name: "مینیمال لاکچری",
                   icon: "✨",
-                  color: "from-pink-500 to-rose-500",
+                  color: "from-secondary-300 to-secondary-400",
                 },
                 {
                   name: "استایل نئو کلاسیک",
                   icon: "🌟",
-                  color: "from-blue-500 to-indigo-500",
+                  color: "from-primary-300 to-primary-400",
                 },
                 {
                   name: "استریت استایل",
                   icon: "⚡",
-                  color: "from-amber-500 to-orange-200",
+                  color: "from-secondary-200 to-secondary-300",
                 },
                 {
                   name: "اکو فرندلی",
                   icon: "🌱",
-                  color: "from-green-500 to-emerald-500",
+                  color: "from-primary-200 to-primary-300",
                 },
               ].map((trend, index) => (
                 <motion.div
@@ -482,13 +546,13 @@ export default function HomePage() {
                       .replace(/\s+/g, "-")
                       .toLowerCase()}`}
                   >
-                    <div className="bg-white/10 backdrop-blur-lg rounded-xl p-6 hover:bg-white/15 transition-colors duration-300 h-full border border-white/5">
+                    <div className="bg-white/10 backdrop-blur-lg rounded-xl p-5 md:p-6 hover:bg-white/15 transition-colors duration-300 h-full border border-white/5 shadow-soft">
                       <div
-                        className={`w-12 h-12 rounded-full bg-gradient-to-br ${trend.color} flex items-center justify-center text-xl mb-4 mx-auto`}
+                        className={`w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br ${trend.color} flex items-center justify-center text-lg md:text-xl mb-3 md:mb-4 mx-auto shadow-soft`}
                       >
                         {trend.icon}
                       </div>
-                      <h3 className="text-white text-lg font-medium">
+                      <h3 className="text-white text-base md:text-lg font-medium">
                         {trend.name}
                       </h3>
                     </div>
@@ -500,35 +564,36 @@ export default function HomePage() {
         </div>
       </motion.section>
 
+      {/* Banner Grid Section - Mobile Optimized */}
       <motion.section
-        className="container mb-32"
+        className="container px-4 md:px-8 mb-20 md:mb-32"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-100px" }}
         variants={scaleUp}
       >
         <motion.div
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8"
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8"
           variants={staggerContainer}
         >
           {DEMO_BANNERS.map((banner, index) => (
             <motion.div key={banner.id} variants={itemVariant}>
               <Link
                 href={banner.href}
-                className="relative h-80 rounded-2xl overflow-hidden group block"
+                className="relative h-64 sm:h-72 md:h-80 rounded-2xl overflow-hidden group block shadow-soft"
               >
-                <div className="absolute inset-0 bg-gradient-to-tr from-indigo-600 to-purple-600 opacity-90 group-hover:opacity-95 transition-opacity duration-500"></div>
+                <div className="absolute inset-0 bg-gradient-to-tr from-voxcina-blue to-primary-400 opacity-90 group-hover:opacity-95 transition-opacity duration-500"></div>
                 <div className="absolute inset-0 bg-[url('/pattern.svg')] opacity-10 mix-blend-overlay"></div>
 
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 transform transition-transform duration-500">
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-5 sm:p-8 transform transition-transform duration-500">
                   <motion.div
-                    className="w-16 h-16 rounded-full bg-white/20 mb-6 flex items-center justify-center backdrop-blur-md"
+                    className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-white/20 mb-4 md:mb-6 flex items-center justify-center backdrop-blur-md"
                     whileHover={{ rotate: 90 }}
                     transition={{ duration: 0.5 }}
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="h-8 w-8 text-white"
+                      className="h-6 w-6 md:h-8 md:w-8 text-white"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -541,23 +606,23 @@ export default function HomePage() {
                       />
                     </svg>
                   </motion.div>
-                  <h3 className="text-white text-2xl font-bold mb-4">
+                  <h3 className="text-white text-xl md:text-2xl font-bold mb-3 md:mb-4">
                     {banner.title}
                   </h3>
-                  <p className="text-white/80 text-base mb-6">
+                  <p className="text-white/80 text-sm md:text-base mb-4 md:mb-6">
                     {banner.description}
                   </p>
-                  <div className="w-0 h-0.5 bg-white/70 transition-all duration-300 group-hover:w-16"></div>
+                  <div className="w-0 h-0.5 bg-white/70 transition-all duration-300 group-hover:w-12 md:group-hover:w-16"></div>
                 </div>
 
-                <div className="absolute bottom-6 right-6">
+                <div className="absolute bottom-4 right-4 md:bottom-6 md:right-6">
                   <motion.div
-                    className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md group-hover:bg-white/30 transition-all duration-300"
+                    className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md group-hover:bg-white/30 transition-all duration-300"
                     whileHover={{ scale: 1.2 }}
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 text-white"
+                      className="h-4 w-4 md:h-5 md:w-5 text-white"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -576,32 +641,32 @@ export default function HomePage() {
           ))}
         </motion.div>
       </motion.section>
-
+      {/* New Products Section */}
       <motion.section
-        className="container mb-32"
+        className="container px-4 md:px-8 mb-20 md:mb-32"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-100px" }}
         variants={fadeIn}
       >
-        <div className="flex justify-between items-center mb-12">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 md:mb-12">
           <motion.h2
-            className="text-3xl font-bold relative inline-block"
+            className="text-2xl sm:text-3xl font-bold relative inline-block text-voxcina-blue mb-4 sm:mb-0"
             variants={fadeIn}
           >
             جدیدترین محصولات
-            <span className="absolute -bottom-1 left-0 right-0 h-1 bg-gradient-to-r from-primary to-pink-500"></span>
+            <span className="absolute -bottom-1 left-0 right-0 h-1 bg-gradient-to-r from-voxcina-blue to-primary-400"></span>
           </motion.h2>
 
           <motion.div variants={fadeIn}>
             <Link
               href="/products?sort=newest"
-              className="text-primary hover:text-primary-dark flex items-center group transition-all duration-300"
+              className="text-voxcina-blue hover:text-voxcina-darkBlue flex items-center group transition-all duration-300"
             >
               <span>مشاهده همه</span>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 mr-1 transform transition-transform duration-300 group-hover:translate-x-1"
+                className="h-4 w-4 md:h-5 md:w-5 mr-1 transform transition-transform duration-300 group-hover:translate-x-1"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -618,10 +683,10 @@ export default function HomePage() {
         </div>
 
         {isProductLoading ? (
-          <div className="h-64 flex items-center justify-center">
-            <div className="relative w-16 h-16">
-              <div className="absolute inset-0 border-4 border-gray-200 rounded-full"></div>
-              <div className="absolute inset-0 border-4 border-t-primary rounded-full animate-spin"></div>
+          <div className="h-52 md:h-64 flex items-center justify-center">
+            <div className="relative w-12 h-12 md:w-16 md:h-16">
+              <div className="absolute inset-0 border-4 border-secondary-200 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-t-voxcina-blue rounded-full animate-spin"></div>
             </div>
           </div>
         ) : (
@@ -640,18 +705,19 @@ export default function HomePage() {
         )}
       </motion.section>
 
+      {/* Features Section - Mobile Optimized */}
       <motion.section
-        className="container mb-32"
+        className="container px-4 md:px-8 mb-20 md:mb-32"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-100px" }}
         variants={fadeIn}
       >
-        <div className="relative py-16 px-6 md:p-16 bg-gradient-to-r from-gray-900 to-gray-800 rounded-3xl overflow-hidden">
+        <div className="relative py-12 px-5 sm:py-16 sm:px-6 md:p-16 bg-gradient-to-r from-voxcina-darkBlue to-voxcina-blue rounded-3xl overflow-hidden shadow-medium">
           <div className="absolute inset-0 bg-[url('/pattern.svg')] opacity-5 mix-blend-overlay"></div>
 
           <motion.div
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10"
             variants={staggerContainer}
           >
             {[
@@ -659,7 +725,7 @@ export default function HomePage() {
                 icon: (
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-12 w-12"
+                    className="h-10 w-10 md:h-12 md:w-12"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -679,7 +745,7 @@ export default function HomePage() {
                 icon: (
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-12 w-12"
+                    className="h-10 w-10 md:h-12 md:w-12"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -699,7 +765,7 @@ export default function HomePage() {
                 icon: (
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-12 w-12"
+                    className="h-10 w-10 md:h-12 md:w-12"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -719,7 +785,7 @@ export default function HomePage() {
                 icon: (
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-12 w-12"
+                    className="h-10 w-10 md:h-12 md:w-12"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -741,47 +807,54 @@ export default function HomePage() {
                 className="text-center relative"
                 variants={itemVariant}
               >
-                <div className="flex justify-center mb-6">
+                <div className="flex justify-center mb-4 md:mb-6">
                   <motion.div
-                    className="bg-gradient-to-br from-white/20 to-white/5 text-white p-5 rounded-2xl backdrop-blur-sm border border-white/10"
+                    className="bg-gradient-to-br from-white/20 to-white/5 text-white p-4 md:p-5 rounded-2xl backdrop-blur-sm border border-white/10 shadow-soft"
                     whileHover={{ scale: 1.05, rotate: 5 }}
                     transition={{ type: "spring", stiffness: 400, damping: 10 }}
                   >
                     {benefit.icon}
                   </motion.div>
                 </div>
-                <h3 className="text-xl font-bold mb-3 text-white">
+                <h3 className="text-lg md:text-xl font-bold mb-2 md:mb-3 text-white">
                   {benefit.title}
                 </h3>
-                <p className="text-white/70">{benefit.description}</p>
+                <p className="text-white/70 text-sm md:text-base">
+                  {benefit.description}
+                </p>
               </motion.div>
             ))}
           </motion.div>
 
-          <div className="absolute -top-5 left-10 w-32 h-32 rounded-full bg-purple-500/10 blur-3xl"></div>
-          <div className="absolute -bottom-10 right-10 w-48 h-48 rounded-full bg-indigo-600/10 blur-3xl"></div>
+          {/* Enhanced Background Effects */}
+          <div className="absolute -top-5 left-10 w-24 md:w-32 h-24 md:h-32 rounded-full bg-secondary-400/10 blur-3xl"></div>
+          <div className="absolute -bottom-10 right-10 w-32 md:w-48 h-32 md:h-48 rounded-full bg-primary-400/10 blur-3xl"></div>
         </div>
       </motion.section>
-
+      {/* Instagram Section - Mobile Optimized */}
       <motion.section
-        className="container mb-32"
+        className="container px-4 md:px-8 mb-20 md:mb-32"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-100px" }}
         variants={fadeIn}
       >
-        <div className="text-center mb-12">
-          <motion.h2 className="text-3xl font-bold mb-4" variants={fadeIn}>
+        <div className="text-center mb-8 md:mb-12">
+          <motion.h2
+            className="text-2xl sm:text-3xl font-bold mb-3 md:mb-4 text-voxcina-blue"
+            variants={fadeIn}
+          >
             مارا در اینستاگرام دنبال کنید
           </motion.h2>
           <motion.p
-            className="text-gray-600 dark:text-gray-300 max-w-lg mx-auto"
+            className="text-voxcina-blue/80 max-w-xs sm:max-w-md md:max-w-lg mx-auto text-sm md:text-base"
             variants={fadeIn}
           >
             جدیدترین محصولات و ترندها را در اینستاگرام ما ببینید
           </motion.p>
         </div>
 
+        {/* Instagram Grid - Mobile Optimized */}
         <motion.div
           className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 md:gap-4"
           variants={staggerContainer}
@@ -789,19 +862,19 @@ export default function HomePage() {
           {[...Array(6)].map((_, index) => (
             <motion.a
               key={index}
-              href="https://instagram.com/cna.jean"
+              href="https://instagram.com/voxcina"
               target="_blank"
               rel="noopener noreferrer"
-              className="group relative aspect-square overflow-hidden bg-gray-200 rounded-lg"
+              className="group relative aspect-square overflow-hidden bg-secondary-200 rounded-lg shadow-soft"
               variants={itemVariant}
               whileHover={{ scale: 1.02 }}
             >
-              <div className="absolute inset-0 bg-gradient-to-tr from-black/0 to-black/0 group-hover:from-black/50 group-hover:to-black/30 transition-all duration-300 z-10"></div>
+              <div className="absolute inset-0 bg-gradient-to-tr from-black/0 to-black/0 group-hover:from-voxcina-blue/50 group-hover:to-voxcina-blue/30 transition-all duration-300 z-10"></div>
 
               <motion.div
                 className="absolute inset-0 scale-105 group-hover:scale-100 transition-transform duration-700 bg-cover bg-center"
                 style={{
-                  backgroundImage: `url('/instagram.com/cna.jean-${
+                  backgroundImage: `url('/instagram.com/voxcina-${
                     index + 1
                   }.jpg')`,
                 }}
@@ -811,7 +884,7 @@ export default function HomePage() {
                 <div className="bg-white/20 backdrop-blur-md p-2 rounded-full">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6 text-white"
+                    className="h-5 w-5 md:h-6 md:w-6 text-white"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -829,17 +902,17 @@ export default function HomePage() {
           ))}
         </motion.div>
 
-        <motion.div className="text-center mt-8" variants={fadeIn}>
+        <motion.div className="text-center mt-6 md:mt-8" variants={fadeIn}>
           <a
-            href="https://instagram.com/cna.jean"
+            href="https://instagram.com/voxcina"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center text-gray-600 dark:text-gray-300 hover:text-primary transition-colors"
+            className="inline-flex items-center text-voxcina-blue hover:text-voxcina-darkBlue transition-colors"
           >
-            <span className="text-lg mr-2">cna.jean</span>
+            <span className="text-base md:text-lg mr-2">voxcina</span>
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
+              className="h-4 w-4 md:h-5 md:w-5"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -855,56 +928,61 @@ export default function HomePage() {
         </motion.div>
       </motion.section>
 
+      {/* Newsletter Section - Mobile Optimized */}
       <motion.section
-        className="container mb-16"
+        className="container px-4 md:px-8 mb-16 md:mb-20"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-100px" }}
         variants={fadeIn}
       >
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-700 rounded-3xl p-10 md:p-16 text-center relative overflow-hidden">
+        <div className="bg-gradient-to-r from-voxcina-blue to-primary-600 rounded-3xl p-6 sm:p-10 md:p-16 text-center relative overflow-hidden shadow-medium">
           <div className="absolute inset-0 bg-[url('/pattern.svg')] opacity-10 mix-blend-overlay"></div>
 
-          <div className="absolute -top-20 -left-20 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-          <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-pink-500/20 rounded-full blur-3xl"></div>
+          {/* Enhanced Background Blur Effects */}
+          <div className="absolute -top-20 -left-20 w-48 md:w-64 h-48 md:h-64 bg-white/10 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-20 -right-20 w-48 md:w-64 h-48 md:h-64 bg-secondary-400/20 rounded-full blur-3xl"></div>
 
           <motion.div
-            className="relative z-10 max-w-2xl mx-auto"
+            className="relative z-10 max-w-md sm:max-w-lg md:max-w-2xl mx-auto"
             variants={fadeIn}
           >
             <motion.span
-              className="inline-block py-1 px-3 rounded-full bg-white/10 backdrop-blur-sm text-white/90 text-sm mb-4 border border-white/5"
+              className="inline-block py-1 px-3 rounded-full bg-white/10 backdrop-blur-sm text-white/90 text-xs md:text-sm mb-3 md:mb-4 border border-white/5"
               variants={fadeIn}
             >
               اولین نفری باشید که مطلع می‌شوید
             </motion.span>
 
             <motion.h3
-              className="text-3xl md:text-4xl font-bold text-white mb-4"
+              className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-3 md:mb-4"
               variants={fadeIn}
             >
               عضویت در خبرنامه
             </motion.h3>
 
             <motion.p
-              className="text-white/80 mb-8 max-w-lg mx-auto"
+              className="text-white/80 mb-6 md:mb-8 max-w-xs sm:max-w-md lg:max-w-lg mx-auto text-sm md:text-base"
               variants={fadeIn}
             >
               برای دریافت آخرین اخبار، تخفیف‌ها و محصولات جدید در خبرنامه ما عضو
               شوید
             </motion.p>
 
-            <motion.div className="max-w-md mx-auto" variants={fadeIn}>
+            <motion.div
+              className="max-w-xs sm:max-w-md mx-auto"
+              variants={fadeIn}
+            >
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
                   <input
                     type="email"
                     placeholder="ایمیل خود را وارد کنید"
-                    className="w-full px-5 py-4 rounded-xl outline-none text-right pr-10 bg-white/10 backdrop-blur-md border border-white/10 text-white placeholder-white/50 focus:bg-white/15 transition-all duration-300"
+                    className="w-full px-4 md:px-5 py-3 md:py-4 rounded-xl outline-none text-right pr-8 md:pr-10 bg-white/10 backdrop-blur-md border border-white/10 text-white placeholder-white/50 focus:bg-white/15 transition-all duration-300 shadow-inner-soft text-sm md:text-base"
                   />
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-white/50"
+                    className="h-4 w-4 md:h-5 md:w-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-white/50"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -917,12 +995,12 @@ export default function HomePage() {
                     />
                   </svg>
                 </div>
-                <button className="bg-white text-indigo-600 px-8 py-4 rounded-xl hover:bg-white/90 transition-colors font-medium">
+                <button className="bg-voxcina-cream text-voxcina-blue px-6 md:px-8 py-3 md:py-4 rounded-xl hover:bg-white transition-colors font-medium shadow-soft text-sm md:text-base">
                   عضویت
                 </button>
               </div>
 
-              <p className="text-white/60 text-sm mt-4">
+              <p className="text-white/60 text-xs md:text-sm mt-3 md:mt-4">
                 ما به حریم خصوصی شما احترام می‌گذاریم و هرگز اطلاعات شما را به
                 اشتراک نمی‌گذاریم.
               </p>
@@ -931,25 +1009,26 @@ export default function HomePage() {
         </div>
       </motion.section>
 
+      {/* App Download Section - Mobile Optimized */}
       <motion.section
-        className="container"
+        className="container px-4 md:px-8"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-100px" }}
         variants={fadeIn}
       >
-        <div className="relative rounded-3xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 overflow-hidden">
+        <div className="relative rounded-3xl bg-gradient-to-br from-secondary-100 to-secondary-200 overflow-hidden shadow-soft">
           <div className="grid grid-cols-1 md:grid-cols-2">
-            <div className="p-8 md:p-12 lg:p-16 flex flex-col justify-center">
+            <div className="p-6 sm:p-8 md:p-12 lg:p-16 flex flex-col justify-center">
               <motion.h2
-                className="text-3xl md:text-4xl font-bold mb-6"
+                className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 md:mb-6 text-voxcina-blue"
                 variants={fadeIn}
               >
                 دانلود اپلیکیشن موبایل ما
               </motion.h2>
 
               <motion.p
-                className="text-gray-600 dark:text-gray-300 mb-8"
+                className="text-sm md:text-base text-voxcina-blue/80 mb-6 md:mb-8"
                 variants={fadeIn}
               >
                 با اپلیکیشن موبایل ما تجربه خرید آسان‌تر، سریع‌تر و لذت‌بخش‌تری
@@ -958,18 +1037,18 @@ export default function HomePage() {
               </motion.p>
 
               <motion.div
-                className="flex flex-wrap gap-4"
+                className="flex flex-col xs:flex-row flex-wrap gap-3 md:gap-4"
                 variants={staggerContainer}
               >
                 <motion.a
                   href="#"
-                  className="bg-black text-white py-3 px-6 rounded-xl flex items-center space-x-2 hover:bg-gray-900 transition-colors"
+                  className="bg-voxcina-blue text-white py-2 md:py-3 px-4 md:px-6 rounded-xl flex items-center space-x-2 hover:bg-voxcina-darkBlue transition-colors shadow-soft"
                   variants={itemVariant}
                   whileHover={{ scale: 1.03 }}
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-7 w-7"
+                    className="h-6 w-6 md:h-7 md:w-7"
                     fill="currentColor"
                     viewBox="0 0 24 24"
                   >
@@ -977,19 +1056,21 @@ export default function HomePage() {
                   </svg>
                   <div className="flex flex-col mr-3">
                     <span className="text-xs">دانلود از</span>
-                    <span className="text-sm font-bold">App Store</span>
+                    <span className="text-xs md:text-sm font-bold">
+                      App Store
+                    </span>
                   </div>
                 </motion.a>
 
                 <motion.a
                   href="#"
-                  className="bg-black text-white py-3 px-6 rounded-xl flex items-center space-x-2 hover:bg-gray-900 transition-colors"
+                  className="bg-voxcina-blue text-white py-2 md:py-3 px-4 md:px-6 rounded-xl flex items-center space-x-2 hover:bg-voxcina-darkBlue transition-colors shadow-soft"
                   variants={itemVariant}
                   whileHover={{ scale: 1.03 }}
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-7 w-7"
+                    className="h-6 w-6 md:h-7 md:w-7"
                     fill="currentColor"
                     viewBox="0 0 24 24"
                   >
@@ -997,13 +1078,15 @@ export default function HomePage() {
                   </svg>
                   <div className="flex flex-col mr-3">
                     <span className="text-xs">دانلود از</span>
-                    <span className="text-sm font-bold">Google Play</span>
+                    <span className="text-xs md:text-sm font-bold">
+                      Google Play
+                    </span>
                   </div>
                 </motion.a>
               </motion.div>
             </div>
 
-            <div className="relative h-80 md:h-auto flex items-center justify-center p-8">
+            <div className="relative h-64 sm:h-72 md:h-auto flex items-center justify-center p-6 md:p-8">
               <motion.div
                 className="relative max-w-xs mx-auto"
                 initial={{ y: 20, opacity: 0 }}
@@ -1013,13 +1096,13 @@ export default function HomePage() {
               >
                 <div className="bg-black rounded-3xl overflow-hidden border-8 border-gray-800 shadow-2xl relative z-10">
                   <div className="aspect-[9/19.5] w-full bg-white">
-                    <div className="absolute top-0 right-0 left-0 h-6 bg-black rounded-t-xl flex justify-center items-center">
-                      <div className="w-20 h-1.5 bg-gray-700 rounded-full"></div>
+                    <div className="absolute top-0 right-0 left-0 h-5 md:h-6 bg-black rounded-t-xl flex justify-center items-center">
+                      <div className="w-16 md:w-20 h-1 md:h-1.5 bg-gray-700 rounded-full"></div>
                     </div>
                   </div>
                 </div>
 
-                <div className="absolute -inset-4 bg-gradient-to-br from-primary/40 to-purple-500/40 rounded-full blur-xl -z-10 opacity-70"></div>
+                <div className="absolute -inset-3 md:-inset-4 bg-gradient-to-br from-voxcina-blue/40 to-primary-400/40 rounded-full blur-xl -z-10 opacity-70"></div>
               </motion.div>
             </div>
           </div>

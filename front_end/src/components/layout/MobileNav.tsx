@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { X, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { APP_NAME } from "@/lib/constants";
 
 interface NavItem {
   label: string;
@@ -78,35 +79,35 @@ const MobileNav: React.FC<MobileNavProps> = ({ navItems, onClose }) => {
       />
 
       <motion.div
-        className="fixed inset-y-0 right-0 w-4/5 max-w-sm bg-white dark:bg-gray-900 shadow-xl"
+        className="fixed inset-y-0 right-0 w-4/5 max-w-sm bg-card shadow-strong border-l border-border/10"
         initial="hidden"
         animate="visible"
         exit="hidden"
         variants={menuVariants}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            منو
+        <div className="flex items-center justify-between p-5 border-b border-border/10">
+          <h2 className="text-xl font-bold text-primary">
+            {APP_NAME}
           </h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-all duration-200"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="py-4 px-5 overflow-y-auto max-h-[calc(100vh-8rem)]">
-          <nav className="space-y-4">
+          <nav className="space-y-3">
             {navItems.map((item) => (
               <div key={item.href} className="rounded-xl overflow-hidden">
                 <div
-                  className={`flex items-center justify-between p-3 rounded-xl ${
+                  className={`flex items-center justify-between p-3 rounded-xl transition-all duration-200 ${
                     pathname === item.href
-                      ? "bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 text-primary"
-                      : "hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100"
-                  } transition-colors`}
+                      ? "bg-primary/10 text-primary"
+                      : "hover:bg-secondary text-foreground hover:text-primary"
+                  }`}
                 >
                   <Link
                     href={item.href}
@@ -121,7 +122,7 @@ const MobileNav: React.FC<MobileNavProps> = ({ navItems, onClose }) => {
                   {item.children && (
                     <button
                       onClick={(e) => toggleExpand(e, item.href)}
-                      className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200/50 dark:hover:bg-gray-700/50"
+                      className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-primary/10"
                       aria-label={`باز/بسته کردن منوی ${item.label}`}
                     >
                       <ChevronDown
@@ -141,7 +142,7 @@ const MobileNav: React.FC<MobileNavProps> = ({ navItems, onClose }) => {
                       initial="hidden"
                       animate="visible"
                       exit="hidden"
-                      className="pr-4 mr-1 border-r border-gray-200 dark:border-gray-700"
+                      className="pr-4 mr-1 border-r-2 border-primary/20"
                     >
                       <div className="py-2 space-y-1">
                         {item.children.map((child) => (
@@ -150,10 +151,10 @@ const MobileNav: React.FC<MobileNavProps> = ({ navItems, onClose }) => {
                             href={child.href}
                             onClick={onClose}
                             className={cn(
-                              "block py-2 px-3 rounded-lg text-sm transition-colors",
+                              "block py-2 px-3 rounded-lg text-sm transition-all duration-200",
                               pathname === child.href
-                                ? "bg-gray-50 dark:bg-gray-800 text-primary font-medium"
-                                : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                ? "bg-secondary text-primary font-medium"
+                                : "text-foreground hover:bg-secondary hover:text-primary"
                             )}
                           >
                             {child.label}
@@ -168,18 +169,18 @@ const MobileNav: React.FC<MobileNavProps> = ({ navItems, onClose }) => {
           </nav>
         </div>
 
-        <div className="absolute bottom-0 inset-x-0 p-5 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+        <div className="absolute bottom-0 inset-x-0 p-5 border-t border-border/10 bg-card">
           <div className="grid grid-cols-2 gap-3">
             <Link
               href="/sign-in"
-              className="flex items-center justify-center py-3 px-4 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              className="voxcina-button-secondary"
               onClick={onClose}
             >
               ورود
             </Link>
             <Link
               href="/sign-up"
-              className="flex items-center justify-center py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium hover:from-indigo-700 hover:to-purple-700 transition-colors"
+              className="voxcina-button-primary"
               onClick={onClose}
             >
               ثبت نام

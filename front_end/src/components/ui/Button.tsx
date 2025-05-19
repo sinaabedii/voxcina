@@ -29,22 +29,23 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <button
         className={cn(
-          "inline-flex items-center justify-center rounded-xl font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-60 disabled:pointer-events-none",
+          "inline-flex items-center justify-center rounded-xl font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 disabled:opacity-60 disabled:pointer-events-none",
           {
-            "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-sm hover:shadow-md":
+            "bg-primary text-primary-foreground hover:bg-primary/90 shadow-soft hover:shadow-medium":
               variant === "primary",
-            "bg-secondary text-secondary-foreground hover:bg-secondary/90":
+            "bg-secondary text-secondary-foreground hover:bg-secondary/90 shadow-soft":
               variant === "secondary",
-            "border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-800 dark:text-gray-200":
+            "border border-border bg-background hover:bg-secondary hover:border-primary/20 text-foreground shadow-soft":
               variant === "outline",
-            "bg-transparent text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100":
+            "bg-transparent text-foreground hover:bg-secondary hover:text-primary":
               variant === "ghost",
             "underline-offset-4 hover:underline text-primary hover:text-primary/80":
               variant === "link",
-            "bg-red-600 hover:bg-red-700 text-white": variant === "danger",
-            "h-9 px-3.5 text-xs": size === "sm",
-            "h-11 px-5 py-2.5 text-sm": size === "md",
-            "h-12 px-6 py-3 text-base": size === "lg",
+            "bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-soft":
+              variant === "danger",
+            "h-9 px-3.5 text-xs rounded-lg": size === "sm",
+            "h-11 px-5 py-2.5 text-sm rounded-xl": size === "md",
+            "h-12 px-6 py-3 text-base rounded-xl": size === "lg",
             "w-full": fullWidth,
           },
           className

@@ -27,97 +27,99 @@
 }
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: "IranSansX", system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 }
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* رنگ‌های اصلی وکسینا - آبی تیره #1A3C69 و کرم روشن #f4f1ec */
+    --background: 38 30% 96%;
+    --foreground: 213 60% 25%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 38 30% 96%;
+    --card-foreground: 213 60% 25%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 38 30% 96%;
+    --popover-foreground: 213 60% 25%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 213 60% 25%;
+    --primary-foreground: 38 30% 96%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 38 30% 92%;
+    --secondary-foreground: 213 60% 25%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 213 30% 90%;
+    --muted-foreground: 213 30% 40%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 213 30% 80%;
+    --accent-foreground: 213 60% 25%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 38 30% 96%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 213 20% 80%;
+    --input: 213 20% 80%;
+    --ring: 213 60% 25%;
 
     --radius: 0.5rem;
 
     /* رنگ‌های اضافی برای فروشگاه */
-    --success: 142.1 76.2% 36.3%;
-    --success-foreground: 355.7 100% 97.3%;
+    --success: 142 70% 45%;
+    --success-foreground: 38 30% 96%;
 
-    --warning: 47.9 95.8% 53.1%;
-    --warning-foreground: 26 83.3% 14.1%;
+    --warning: 40 90% 50%;
+    --warning-foreground: 213 60% 25%;
 
-    --info: 221.2 83.2% 53.3%;
-    --info-foreground: 210 40% 98%;
+    --info: 213 70% 50%;
+    --info-foreground: 38 30% 96%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 213 60% 10%;
+    --foreground: 38 30% 96%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 213 60% 12%;
+    --card-foreground: 38 30% 96%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 213 60% 12%;
+    --popover-foreground: 38 30% 96%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 213 60% 25%;
+    --primary-foreground: 38 30% 96%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 213 30% 20%;
+    --secondary-foreground: 38 30% 96%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 213 30% 20%;
+    --muted-foreground: 38 20% 70%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 213 30% 30%;
+    --accent-foreground: 38 30% 96%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 38 30% 96%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 213 30% 30%;
+    --input: 213 30% 30%;
+    --ring: 38 30% 96%;
 
     /* رنگ‌های اضافی برای حالت تاریک */
-    --success: 142.1 70.6% 45.3%;
-    --success-foreground: 144.9 80.4% 10%;
+    --success: 142 70% 45%;
+    --success-foreground: 38 30% 96%;
 
-    --warning: 47.9 95.8% 53.1%;
-    --warning-foreground: 26 83.3% 14.1%;
+    --warning: 40 90% 50%;
+    --warning-foreground: 213 60% 25%;
 
-    --info: 217.2 91.2% 59.8%;
-    --info-foreground: 222.2 47.4% 11.2%;
+    --info: 213 70% 50%;
+    --info-foreground: 38 30% 96%;
   }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border scroll-smooth;
   }
   body {
     @apply bg-background text-foreground;
@@ -152,6 +154,29 @@
   /* تنظیمات RTL */
   html[dir="rtl"] {
     text-align: right;
+  }
+  
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-secondary bg-opacity-50;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-primary bg-opacity-50 rounded-full transition-all duration-300;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-opacity-70;
+  }
+  
+  /* انیمیشن برای ترنزیشن صفحات */
+  .page-transition-wrapper {
+    @apply animate-fadeIn;
   }
 }
 
@@ -324,7 +349,7 @@
   }
 
   .product-tag {
-    @apply inline-block text-xs px-2 py-1 rounded-full font-medium;
+    @apply inline-block text-xs px-2 py-1 rounded-full font-medium bg-secondary text-primary;
   }
 
   .scrollbar-hide {
@@ -336,15 +361,15 @@
     display: none;
   }
 
-  /* نوار پیشرفت به سبک رنگین کمان */
-  .rainbow-progress {
+  /* نوار پیشرفت سفارشی */
+  .voxcina-progress {
     background: linear-gradient(
       to right,
-      #ff5f6d,
-      #ffc371,
-      #2cccff,
-      #20e3b2,
-      #ffcc70
+      #1A3C69,
+      #335D8E,
+      #4C7DB4,
+      #6595CA,
+      #7EA8D8
     );
     background-size: 200% 100%;
     animation: shimmer 2s linear infinite;
@@ -356,7 +381,7 @@
   }
 
   .hover-lift:hover {
-    @apply transform -translate-y-1 shadow-md;
+    @apply transform -translate-y-1 shadow-soft;
   }
 
   .hover-scale {
@@ -377,12 +402,12 @@
 
   /* نمایش اسکلتون لودینگ */
   .skeleton {
-    @apply bg-gray-200 animate-pulse rounded;
+    @apply bg-secondary animate-pulse rounded;
   }
 
   /* استایل‌های مربوط به مقایسه محصولات */
   .compare-highlight {
-    @apply bg-yellow-50 -mx-4 px-4 py-2 border-l-4 border-yellow-500;
+    @apply bg-secondary/60 -mx-4 px-4 py-2 border-l-4 border-primary;
   }
 
   .compare-diff {
@@ -392,60 +417,67 @@
   .compare-same {
     @apply text-muted-foreground;
   }
+  
+  /* افکت شیشه‌ای */
+  .glass-effect {
+    @apply bg-white/60 dark:bg-black/60 backdrop-blur-md border border-white/20 dark:border-black/20 shadow-soft;
+  }
 }
 
 @layer components {
+  /* دکمه‌ها */
   .btn {
     @apply inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
   }
 
   .btn-primary {
-    @apply bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2;
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 shadow-soft transition-all duration-300;
   }
 
   .btn-secondary {
-    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-4 py-2;
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-4 py-2 shadow-soft transition-all duration-300;
   }
 
   .btn-outline {
-    @apply border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2;
+    @apply border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 shadow-soft transition-all duration-300;
   }
 
   .btn-success {
-    @apply bg-green-600 text-white hover:bg-green-700 h-10 px-4 py-2;
+    @apply bg-success text-success-foreground hover:bg-success/90 h-10 px-4 py-2 shadow-soft transition-all duration-300;
   }
 
   .btn-danger {
-    @apply bg-red-600 text-white hover:bg-red-700 h-10 px-4 py-2;
+    @apply bg-destructive text-destructive-foreground hover:bg-destructive/90 h-10 px-4 py-2 shadow-soft transition-all duration-300;
   }
 
   .btn-warning {
-    @apply bg-amber-500 text-white hover:bg-amber-600 h-10 px-4 py-2;
+    @apply bg-warning text-warning-foreground hover:bg-warning/90 h-10 px-4 py-2 shadow-soft transition-all duration-300;
   }
 
   .btn-info {
-    @apply bg-blue-500 text-white hover:bg-blue-600 h-10 px-4 py-2;
+    @apply bg-info text-info-foreground hover:bg-info/90 h-10 px-4 py-2 shadow-soft transition-all duration-300;
   }
 
   .btn-ghost {
-    @apply text-foreground hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2;
+    @apply text-foreground hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 transition-all duration-300;
   }
 
   .btn-link {
-    @apply text-primary underline-offset-4 hover:underline p-0 h-auto;
+    @apply text-primary underline-offset-4 hover:underline p-0 h-auto transition-all duration-300;
   }
 
+  /* ورودی‌ها */
   .input {
-    @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200;
   }
 
   /* کارت محصول */
   .product-card {
-    @apply relative bg-card rounded-lg border overflow-hidden transition-all duration-300 hover:shadow-md;
+    @apply relative bg-card rounded-lg border border-border/10 overflow-hidden transition-all duration-300 hover:shadow-medium ;
   }
 
   .product-card-image {
-    @apply aspect-square relative overflow-hidden bg-gray-100;
+    @apply aspect-square relative overflow-hidden bg-secondary/30;
   }
 
   .product-card-content {
@@ -453,11 +485,11 @@
   }
 
   .product-card-title {
-    @apply font-medium line-clamp-2 h-12 mb-1;
+    @apply font-medium line-clamp-2 h-12 mb-1 group-hover:text-primary transition-colors duration-300;
   }
 
   .product-card-price {
-    @apply text-lg font-bold mt-2;
+    @apply text-lg font-bold mt-2 text-primary;
   }
 
   .product-card-discount {
@@ -465,41 +497,41 @@
   }
 
   .product-card-badge {
-    @apply absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded;
+    @apply absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded-full bg-primary text-primary-foreground shadow-soft;
   }
 
   /* نوار پیمایش سفارشی */
-  .custom-scrollbar {
-    @apply scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent hover:scrollbar-thumb-gray-400;
-  }
+  /* .custom-scrollbar {
+    @apply \ scrollbar-thumb-primary/30 scrollbar-track-transparent hover:scrollbar-thumb-primary/50;
+  } */
 
   /* بج‌ها */
   .badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-all duration-200;
   }
 
   .badge-primary {
-    @apply bg-primary/10 text-primary;
+    @apply bg-primary/10 text-primary hover:bg-primary/20;
   }
 
   .badge-secondary {
-    @apply bg-secondary text-secondary-foreground;
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80;
   }
 
   .badge-success {
-    @apply bg-green-100 text-green-800;
+    @apply bg-success/10 text-success hover:bg-success/20;
   }
 
   .badge-danger {
-    @apply bg-red-100 text-red-800;
+    @apply bg-destructive/10 text-destructive hover:bg-destructive/20;
   }
 
   .badge-warning {
-    @apply bg-amber-100 text-amber-800;
+    @apply bg-warning/10 text-warning-foreground hover:bg-warning/20;
   }
 
   .badge-info {
-    @apply bg-blue-100 text-blue-800;
+    @apply bg-info/10 text-info hover:bg-info/20;
   }
 
   /* ستاره های امتیازدهی */
@@ -508,11 +540,11 @@
   }
 
   .star-filled {
-    @apply text-yellow-400 fill-yellow-400;
+    @apply text-warning fill-warning;
   }
 
   .star-empty {
-    @apply text-gray-300;
+    @apply text-muted;
   }
 
   /* فیلدهای فرم‌های اختصاصی */
@@ -534,40 +566,40 @@
 
   /* مودال‌های اختصاصی */
   .modal-overlay {
-    @apply fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4 animate-fadeIn;
+    @apply fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn;
   }
 
   .modal-content {
-    @apply bg-white rounded-lg max-w-md w-full p-6 relative animate-slideUp shadow-xl;
+    @apply bg-card rounded-lg max-w-md w-full p-6 relative animate-slideUp shadow-medium border border-border/10;
   }
 
   .modal-title {
-    @apply text-lg font-bold mb-4;
+    @apply text-lg font-bold mb-4 text-primary;
   }
 
   .modal-close {
-    @apply absolute top-4 right-4 text-gray-400 hover:text-gray-600;
+    @apply absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors duration-200;
   }
 
   /* اعلان‌های سیستمی */
   .notification {
-    @apply fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg animate-slideInRight max-w-md;
+    @apply fixed top-4 right-4 z-50 p-4 rounded-lg shadow-medium animate-slideInRight max-w-md backdrop-blur-sm;
   }
 
   .notification-success {
-    @apply bg-green-600 text-white;
+    @apply bg-success/90 text-success-foreground border border-success/20;
   }
 
   .notification-error {
-    @apply bg-red-600 text-white;
+    @apply bg-destructive/90 text-destructive-foreground border border-destructive/20;
   }
 
   .notification-warning {
-    @apply bg-amber-500 text-white;
+    @apply bg-warning/90 text-warning-foreground border border-warning/20;
   }
 
   .notification-info {
-    @apply bg-blue-500 text-white;
+    @apply bg-info/90 text-info-foreground border border-info/20;
   }
 
   /* لودر */
@@ -581,11 +613,11 @@
 
   /* تب‌ها */
   .tabs {
-    @apply flex border-b mb-4;
+    @apply flex border-b border-border/20 mb-4;
   }
 
   .tab {
-    @apply px-4 py-2 border-b-2 border-transparent text-muted-foreground font-medium;
+    @apply px-4 py-2 border-b-2 border-transparent text-muted-foreground font-medium transition-all duration-200;
   }
 
   .tab-active {
@@ -594,7 +626,7 @@
 
   /* افکت اسکیمر (برای لودینگ) */
   .skeleton-loader {
-    @apply rounded bg-gray-200 relative overflow-hidden;
+    @apply rounded bg-secondary/50 relative overflow-hidden;
   }
 
   .skeleton-loader::after {
@@ -608,6 +640,60 @@
       rgba(255, 255, 255, 0)
     );
   }
+  
+  /* استایل‌های جدید وکسینا */
+  .voxcina-container {
+    @apply container px-4 sm:px-6 lg:px-8 mx-auto;
+  }
+  
+  .voxcina-card {
+    @apply bg-card rounded-lg shadow-soft border border-border/10 transition-all duration-300 hover:shadow-medium;
+  }
+  
+  .voxcina-input {
+    @apply bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200;
+  }
+  
+  .voxcina-button-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-4 py-2 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 disabled:pointer-events-none shadow-soft;
+  }
+  
+  .voxcina-button-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/90 rounded-md px-4 py-2 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-secondary/30 disabled:opacity-50 disabled:pointer-events-none shadow-soft;
+  }
+  
+  .voxcina-badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-all duration-200;
+  }
+  
+  /* نویگیشن */
+  .voxcina-nav {
+    @apply bg-card shadow-soft sticky top-0 z-40 backdrop-blur-sm;
+  }
+  
+  .voxcina-nav-link {
+    @apply text-foreground hover:text-primary transition-colors duration-200 px-3 py-2 rounded-md;
+  }
+  
+  .voxcina-nav-link-active {
+    @apply text-primary font-medium;
+  }
+  
+  /* سایه‌ها */
+  .shadow-soft {
+    @apply shadow-[0_4px_20px_rgba(26,60,105,0.05)];
+  }
+  
+  .shadow-medium {
+    @apply shadow-[0_6px_25px_rgba(26,60,105,0.1)];
+  }
+  
+  .shadow-strong {
+    @apply shadow-[0_10px_30px_rgba(26,60,105,0.15)];
+  }
+  
+  /* استایل‌های مربوط به توست */
+  .voxcina-toast {
+    @apply shadow-medium border border-border/10 text-foreground bg-background backdrop-blur-sm ;
+  }
 }
-
-

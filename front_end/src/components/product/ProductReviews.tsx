@@ -8,6 +8,8 @@ import {
   MessageCircle,
   CheckCircle2,
   ImageIcon,
+  Star,
+  PenLine,
 } from "lucide-react";
 import { Review } from "@/types/product";
 import Button from "@/components/ui/Button";
@@ -15,6 +17,7 @@ import StarRating from "@/components/ui/StarRating";
 import { useAuthStore } from "@/store/auth-store";
 import { useReviewStore } from "@/store/review-store";
 import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ProductReviewsProps {
   productId: string;
@@ -151,14 +154,18 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
   };
 
   return (
-    <div className="mt-10 pt-10 border-t">
-      <h2 className="text-2xl font-bold mb-6">نظرات و امتیازها</h2>
+    <div className="mt-10 pt-10 border-t border-border/10 animate-fadeIn">
+      <h2 className="text-2xl font-bold mb-6 text-primary flex items-center">
+        <MessageCircle className="h-6 w-6 ml-2" />
+        نظرات و امتیازها
+      </h2>
 
-      <div className="bg-gray-50 p-6 rounded-lg mb-8">
+      <div className="bg-secondary/30 p-6 rounded-xl mb-8 shadow-soft border border-border/5">
         <div className="flex flex-col md:flex-row gap-8">
-          <div className="text-center md:border-l md:pl-8">
-            <div className="text-4xl font-bold mb-2">
+          <div className="text-center md:border-l md:border-border/10 md:pl-8">
+            <div className="text-4xl font-bold mb-2 text-primary flex justify-center items-baseline">
               {avgRating.toFixed(1)}
+              <span className="text-lg text-muted-foreground mr-1">از 5</span>
             </div>
             <StarRating
               initialRating={avgRating}
@@ -172,14 +179,17 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
           </div>
 
           <div className="flex-grow">
-            <h3 className="text-lg font-medium mb-4">توزیع امتیازها</h3>
-            <div className="space-y-2">
+            <h3 className="text-lg font-medium mb-4 text-primary">توزیع امتیازها</h3>
+            <div className="space-y-3">
               {ratingStats.map((stat) => (
                 <div key={stat.stars} className="flex items-center">
-                  <div className="w-16 text-sm">{stat.stars} ستاره</div>
-                  <div className="flex-grow mx-4 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="w-16 text-sm flex items-center">
+                    <Star className="text-warning fill-warning h-4 w-4 ml-1" />
+                    {stat.stars}
+                  </div>
+                  <div className="flex-grow mx-4 h-2 bg-secondary rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-yellow-400 rounded-full"
+                      className="h-full bg-warning rounded-full transition-all duration-500"
                       style={{ width: `${stat.percentage}%` }}
                     />
                   </div>
@@ -197,8 +207,9 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
             variant="primary"
             onClick={() => setIsWritingReview(true)}
             disabled={!isAuthenticated}
+            className="shadow-soft hover:shadow-medium"
           >
-            <MessageCircle className="ml-2 h-4 w-4" />
+            <PenLine className="ml-2 h-4 w-4" />
             نوشتن نظر
           </Button>
           {!isAuthenticated && (
@@ -208,12 +219,16 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
           )}
         </div>
       ) : (
-        <div className="bg-card border rounded-lg p-6 mb-8">
-          <h3 className="text-lg font-medium mb-4">نظر خود را بنویسید</h3>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="voxcina-card p-6 mb-8"
+        >
+          <h3 className="text-lg font-medium mb-4 text-primary border-r-2 border-primary pr-2">نظر خود را بنویسید</h3>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-sm font-medium mb-1 text-foreground">
                 امتیاز شما
               </label>
               <StarRating
@@ -222,17 +237,17 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
                 size="lg"
               />
               {errors.rating && (
-                <p className="text-xs text-destructive mt-1">{errors.rating}</p>
+                <p className="text-xs text-destructive mt-1 animate-fadeIn">{errors.rating}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-sm font-medium mb-1 text-foreground">
                 عنوان نظر
               </label>
               <input
                 type="text"
-                className="w-full rounded-md border border-input px-3 py-2"
+                className="voxcina-input w-full"
                 placeholder="یک عنوان مختصر برای نظر خود بنویسید"
                 value={newReview.title}
                 onChange={(e) =>
@@ -240,14 +255,14 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
                 }
               />
               {errors.title && (
-                <p className="text-xs text-destructive mt-1">{errors.title}</p>
+                <p className="text-xs text-destructive mt-1 animate-fadeIn">{errors.title}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">متن نظر</label>
+              <label className="block text-sm font-medium mb-1 text-foreground">متن نظر</label>
               <textarea
-                className="w-full rounded-md border border-input px-3 py-2 min-h-[100px]"
+                className="voxcina-input w-full min-h-[120px] transition-all duration-200"
                 placeholder="تجربه خود از این محصول را به اشتراک بگذارید..."
                 value={newReview.comment}
                 onChange={(e) =>
@@ -255,38 +270,38 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
                 }
               />
               {errors.comment && (
-                <p className="text-xs text-destructive mt-1">
+                <p className="text-xs text-destructive mt-1 animate-fadeIn">
                   {errors.comment}
                 </p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-sm font-medium mb-2 text-foreground">
                 آیا این محصول را پیشنهاد می‌کنید؟
               </label>
               <div className="flex space-x-4 space-x-reverse">
-                <label className="flex items-center">
+                <label className="flex items-center group cursor-pointer">
                   <input
                     type="radio"
-                    className="ml-2"
+                    className="ml-2 text-primary focus:ring-primary/50"
                     checked={newReview.isRecommended === true}
                     onChange={() =>
                       setNewReview({ ...newReview, isRecommended: true })
                     }
                   />
-                  بله
+                  <span className="group-hover:text-primary transition-colors duration-200">بله</span>
                 </label>
-                <label className="flex items-center">
+                <label className="flex items-center group cursor-pointer">
                   <input
                     type="radio"
-                    className="ml-2"
+                    className="ml-2 text-destructive focus:ring-destructive/50"
                     checked={newReview.isRecommended === false}
                     onChange={() =>
                       setNewReview({ ...newReview, isRecommended: false })
                     }
                   />
-                  خیر
+                  <span className="group-hover:text-destructive transition-colors duration-200">خیر</span>
                 </label>
               </div>
             </div>
@@ -295,6 +310,7 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
               <Button
                 variant="outline"
                 onClick={() => setIsWritingReview(false)}
+                className="hover:bg-secondary"
               >
                 انصراف
               </Button>
@@ -303,15 +319,15 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
               </Button>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {reviews.length > 0 && (
-        <div className="flex flex-wrap justify-between items-center mb-6">
+        <div className="flex flex-wrap justify-between items-center mb-6 bg-secondary/20 p-3 rounded-lg">
           <div className="flex items-center mb-2 sm:mb-0">
-            <label className="text-sm ml-2">مرتب‌سازی:</label>
+            <label className="text-sm ml-2 text-foreground">مرتب‌سازی:</label>
             <select
-              className="border rounded-md py-1 px-2 text-sm"
+              className="voxcina-input py-1 px-2 text-sm border-border/20"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
             >
@@ -325,13 +341,13 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
             <input
               type="checkbox"
               id="show-with-images"
-              className="ml-2"
+              className="ml-2 text-primary rounded focus:ring-primary/30"
               checked={showOnlyWithImages}
               onChange={(e) => setShowOnlyWithImages(e.target.checked)}
             />
             <label
               htmlFor="show-with-images"
-              className="text-sm flex items-center"
+              className="text-sm flex items-center cursor-pointer hover:text-primary transition-colors duration-200"
             >
               <ImageIcon className="ml-1 w-4 h-4" />
               فقط نظرات دارای تصویر
@@ -341,9 +357,9 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
       )}
 
       {sortedReviews.length === 0 ? (
-        <div className="text-center py-10 bg-muted/20 rounded-lg">
-          <MessageCircle className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
-          <p className="text-muted-foreground">
+        <div className="text-center py-10 bg-secondary/20 rounded-xl border border-border/10 shadow-soft">
+          <MessageCircle className="mx-auto h-12 w-12 text-primary/50 mb-2" />
+          <p className="text-foreground">
             هنوز نظری برای این محصول ثبت نشده است.
           </p>
           <p className="text-sm text-muted-foreground mt-1">
@@ -361,11 +377,17 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
               : null;
 
             return (
-              <div key={review.id} className="border rounded-lg p-4">
+              <motion.div 
+                key={review.id} 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="voxcina-card p-4"
+              >
                 <div className="flex justify-between mb-2">
                   <div className="flex items-center">
                     {review.userAvatar ? (
-                      <div className="relative w-10 h-10 rounded-full overflow-hidden mr-3">
+                      <div className="relative w-10 h-10 rounded-full overflow-hidden mr-3 shadow-soft border border-border/10">
                         <Image
                           src={review.userAvatar}
                           alt={review.userName}
@@ -374,15 +396,15 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
                         />
                       </div>
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center ml-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center ml-3 shadow-soft">
                         {review.userName.charAt(0).toUpperCase()}
                       </div>
                     )}
                     <div>
-                      <div className="font-medium flex items-center">
+                      <div className="font-medium flex items-center text-foreground">
                         {review.userName}
                         {review.verified && (
-                          <CheckCircle2 className="text-green-500 w-4 h-4 mr-1" />
+                          <CheckCircle2 className="text-success w-4 h-4 mr-1" />
                         )}
                       </div>
                       <div className="text-sm text-muted-foreground">
@@ -397,14 +419,14 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
                   />
                 </div>
 
-                <h4 className="font-medium mt-4">{review.title}</h4>
+                <h4 className="font-medium mt-4 text-primary">{review.title}</h4>
 
-                <div className="mt-2 text-gray-700">
+                <div className="mt-2 text-foreground">
                   {isLongComment && !isExpanded ? (
                     <>
                       {review.comment.slice(0, 300)}...
                       <button
-                        className="text-primary text-sm mr-1 hover:underline"
+                        className="text-primary text-sm mr-1 hover:text-primary/80 hover:underline transition-colors duration-200"
                         onClick={() => toggleExpandReview(review.id)}
                       >
                         ادامه مطلب
@@ -415,7 +437,7 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
                       {review.comment}
                       {isLongComment && isExpanded && (
                         <button
-                          className="text-primary text-sm block mt-2 hover:underline"
+                          className="text-primary text-sm block mt-2 hover:text-primary/80 hover:underline transition-colors duration-200"
                           onClick={() => toggleExpandReview(review.id)}
                         >
                           نمایش کمتر
@@ -426,19 +448,20 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
                 </div>
 
                 {review.images && review.images.length > 0 && (
-                  <div className="mt-4 flex space-x-2 space-x-reverse overflow-x-auto py-2">
+                  <div className="mt-4 flex space-x-2 space-x-reverse overflow-x-auto py-2 custom-scrollbar">
                     {review.images.map((img, index) => (
-                      <div
+                      <motion.div
                         key={index}
+                        whileHover={{ scale: 1.05 }}
                         className="relative w-20 h-20 flex-shrink-0"
                       >
                         <Image
                           src={img}
                           alt={`تصویر ${index + 1}`}
                           fill
-                          className="object-cover rounded-md"
+                          className="object-cover rounded-md border border-border/10 shadow-soft"
                         />
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 )}
@@ -446,8 +469,10 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
                 {review.isRecommended !== undefined && (
                   <div
                     className={cn(
-                      "mt-4 text-sm",
-                      review.isRecommended ? "text-green-600" : "text-red-600"
+                      "mt-4 text-sm font-medium px-2 py-1 rounded-md inline-flex items-center",
+                      review.isRecommended 
+                        ? "text-success bg-success/10" 
+                        : "text-destructive bg-destructive/10"
                     )}
                   >
                     {review.isRecommended
@@ -457,11 +482,13 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
                 )}
 
                 <div className="mt-4 flex items-center text-sm text-muted-foreground">
-                  <button
+                  <motion.button
+                    whileHover={isAuthenticated && !userAction ? { scale: 1.1 } : {}}
+                    whileTap={isAuthenticated && !userAction ? { scale: 0.95 } : {}}
                     className={cn(
-                      "flex items-center hover:text-foreground ml-4 transition-colors",
+                      "flex items-center hover:text-foreground ml-4 transition-all duration-200",
                       isAuthenticated && !userAction && "cursor-pointer",
-                      userAction === "like" && "text-green-600",
+                      userAction === "like" && "text-success",
                       !isAuthenticated && "opacity-75 cursor-not-allowed"
                     )}
                     onClick={() => handleLikeReview(review.id)}
@@ -475,12 +502,14 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
                       fill={userAction === "like" ? "currentColor" : "none"}
                     />
                     <span>{review.likes}</span>
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
+                    whileHover={isAuthenticated && !userAction ? { scale: 1.1 } : {}}
+                    whileTap={isAuthenticated && !userAction ? { scale: 0.95 } : {}}
                     className={cn(
-                      "flex items-center hover:text-foreground transition-colors",
+                      "flex items-center hover:text-foreground transition-all duration-200",
                       isAuthenticated && !userAction && "cursor-pointer",
-                      userAction === "dislike" && "text-red-600",
+                      userAction === "dislike" && "text-destructive",
                       !isAuthenticated && "opacity-75 cursor-not-allowed"
                     )}
                     onClick={() => handleDislikeReview(review.id)}
@@ -494,9 +523,9 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
                       fill={userAction === "dislike" ? "currentColor" : "none"}
                     />
                     <span>{review.dislikes}</span>
-                  </button>
+                  </motion.button>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>

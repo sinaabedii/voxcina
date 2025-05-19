@@ -137,7 +137,7 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
           regex.test(part) ? (
             <mark
               key={i}
-              className="bg-yellow-100 dark:bg-yellow-900/40 text-gray-900 dark:text-yellow-100 rounded-sm px-0.5"
+              className="bg-primary/10 text-primary rounded-sm px-0.5"
             >
               {part}
             </mark>
@@ -157,7 +157,7 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
     >
       <form onSubmit={handleSubmit} className="relative">
         <div className="relative">
-          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <input
             ref={inputRef}
             type="text"
@@ -165,9 +165,9 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={placeholder}
             className={cn(
-              "pl-10 pr-10 py-2 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800",
-              "text-sm shadow-sm hover:shadow-md focus:shadow-md transition-shadow duration-300",
-              "focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary h-12"
+              "voxcina-input pl-10 pr-10 py-2 w-full rounded-xl border border-border/20 bg-background",
+              "text-sm shadow-soft hover:shadow-medium focus:shadow-medium transition-all duration-200",
+              "focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 h-12"
             )}
             autoComplete="off"
             onFocus={() => {
@@ -180,7 +180,7 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
             <button
               type="button"
               onClick={handleClearSearch}
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 h-6 w-6 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex items-center justify-center transition-colors"
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 h-6 w-6 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-all duration-200"
             >
               <X className="h-4 w-4" />
             </button>
@@ -189,17 +189,17 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
       </form>
 
       {showResults && (
-        <div className="absolute z-50 mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg overflow-hidden">
+        <div className="absolute z-50 mt-1 w-full rounded-xl border border-border/10 bg-card shadow-medium overflow-hidden animate-fadeIn">
           {isSearching ? (
             <div className="p-6 text-center">
               <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">
+              <p className="text-sm text-muted-foreground mt-3">
                 در حال جستجو...
               </p>
             </div>
           ) : results.length === 0 ? (
             <div className="p-6 text-center">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 محصولی یافت نشد
               </p>
             </div>
@@ -209,11 +209,11 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
                 {results.map((product) => (
                   <li
                     key={product.id}
-                    className="border-b border-gray-100 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200"
+                    className="border-b border-border/5 last:border-b-0 hover:bg-secondary/50 transition-all duration-200 group"
                   >
                     <Link
                       href={`/products/${product.id}`}
-                      className="block p-4 transition-colors"
+                      className="block p-4 transition-all"
                       onClick={() => {
                         setShowResults(false);
                         if (onClose) onClose();
@@ -221,20 +221,20 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
                     >
                       <div className="flex justify-between items-start">
                         <div>
-                          <h4 className="font-medium text-gray-900 dark:text-white">
+                          <h4 className="font-medium text-foreground group-hover:text-primary transition-colors duration-200">
                             {highlightText(product.name)}
                           </h4>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                          <p className="text-sm text-muted-foreground mt-1">
                             {product.brand} - {product.category}
                           </p>
                         </div>
                         <div className="text-left flex flex-col items-end">
-                          <span className="font-bold text-gray-900 dark:text-white">
+                          <span className="font-bold text-primary">
                             {formatPrice(product.price)}
                           </span>
                           {product.originalPrice &&
                             product.originalPrice > product.price && (
-                              <span className="text-xs text-gray-500 dark:text-gray-400 line-through">
+                              <span className="text-xs text-muted-foreground line-through">
                                 {formatPrice(product.originalPrice)}
                               </span>
                             )}
@@ -246,7 +246,7 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
               </ul>
               <Link
                 href={`/products?search=${encodedSearchTerm}`}
-                className="block p-3 bg-gray-50 dark:bg-gray-700/50 text-center text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-primary"
+                className="block p-3 bg-secondary/50 text-center text-sm font-medium hover:bg-secondary transition-all duration-200 text-primary hover:text-primary/80 flex items-center justify-center"
                 onClick={() => {
                   setShowResults(false);
                   if (onClose) onClose();
