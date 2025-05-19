@@ -2,6 +2,7 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { Brand } from "@/types/brand";
 import { Category } from "@/types/category";
+import { Product } from "@/types/product";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -85,3 +86,12 @@ export function getCategoryName(category_ids: string[], categories: Category[]):
   const cat = categories.find(c => c.id === category_ids[0]);
   return cat ? cat.name : '';
 }
+
+
+// Helper function to check if a product has a specific attribute
+export const hasAttribute = (product: Product, attributeName: string): boolean => {
+  return product.attributes?.some(
+    attr => attr.name.toLowerCase() === attributeName.toLowerCase() && 
+    (attr.value.toLowerCase() === 'true' || attr.value === '1')
+  ) || false;
+};

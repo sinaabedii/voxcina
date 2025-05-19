@@ -9,8 +9,9 @@ export interface ProductVariant {
 }
 
 export interface ProductAttribute {
-  name: string; // e.g., "Material", "Care Instructions"
-  value: string; // e.g., "Cotton", "Machine Washable"
+  name: string;      // Key/identifier, e.g., "material"
+  value: string;     // Value, e.g., "Cotton"
+  shownName?: string; // Display name, e.g., "Material" (optional)
 }
 
 export interface Product {
@@ -24,6 +25,8 @@ export interface Product {
   images: string[]; // Main product images (URLs)
   category_ids: string[]; // Array of category ObjectIDs as strings
   brand_id: string; // Brand ObjectID as string
+  brand?: string; // Brand name (added property) ToDo : not returned from API, it should be
+
   variants: ProductVariant[]; // Size/color-specific data
   attributes: ProductAttribute[]; // Product-wide metadata
   is_flash_sale: boolean; // Part of flash-sale campaign?

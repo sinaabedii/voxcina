@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Heart, Star } from "lucide-react";
 import { Product } from "@/types/product";
-import { formatPrice, getDiscountPercentage } from "@/lib/utils";
+import { formatPrice, getDiscountPercentage, hasAttribute } from "@/lib/utils";
 import { useCartStore } from "@/store/cart-store";
 import Button from "@/components/ui/Button";
 import { useDashboardStore } from "@/store/dashboard-store";
@@ -16,6 +16,7 @@ interface ProductCardProps {
   ribbonLabel?: string;
 }
 
+
 const ProductCard: React.FC<ProductCardProps> = ({
   product,
   glassEffect = false,
@@ -23,11 +24,13 @@ const ProductCard: React.FC<ProductCardProps> = ({
 }) => {
   const { isFavorite, addToFavorites, removeFromFavorites } =
     useDashboardStore();
-  const isProductFavorite = isFavorite(product.id);
+  const isProductFavorite = isFavorite(product.id || '');
   const addItem = useCartStore((state) => state.addItem);
 
-  const { id, name, price, originalPrice, images, brand, rating, isNew } =
+  const { id, name, price, originalPrice, images, brand } =
     product;
+  const rating = null; // Or calculate from reviews if available
+  const isNew = hasAttribute(product, "isNew");
 
   const discount = originalPrice
     ? getDiscountPercentage(originalPrice, price)
@@ -82,11 +85,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
               ? "bg-destructive/10 text-destructive"
               : "bg-black/10 text-white hover:bg-white/20"
           }`}
-          onClick={(e) => {
+          onClick={(e: React.MouseEvent) => {
             e.preventDefault();
-            isProductFavorite
-              ? removeFromFavorites(product.id)
-              : addToFavorites(product.id);
+            // Fix: Add null check when toggling favorites
+            if (product.id) {
+              isProductFavorite
+                ? removeFromFavorites(product.id)
+                : addToFavorites(product.id);
+            }
           }}
           aria-label={
             isProductFavorite

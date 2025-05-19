@@ -34,6 +34,7 @@ import ProductGrid from "@/components/product/ProductGrid";
 import ProductReviews from "@/components/product/ProductReviews";
 import { Review } from "@/types/product";
 import { useCategoryStore } from "@/store/category-store";
+import { hasAttribute } from "@/lib/utils";
 
 
 interface ProductDetailPageProps {
@@ -460,7 +461,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
         <div>
           <div className="flex flex-wrap gap-2 mb-3">
-            {activeProduct.isNew && (
+            {hasAttribute(activeProduct, 'isNew') && (
               <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded">
                 جدید
               </span>
@@ -481,7 +482,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 موجود در انبار
               </span>
             )}
-            {activeProduct.isFeatured && (
+            {hasAttribute(activeProduct, 'isFeatured') && (
               <span className="bg-purple-500 text-white text-xs px-2 py-1 rounded">
                 محصول ویژه
               </span>
@@ -805,14 +806,28 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
           <div className="bg-muted/30 rounded-lg p-4 mb-6">
             <h3 className="text-sm font-medium mb-3">ویژگی‌های محصول</h3>
             <ul className="space-y-2">
-              {activeProduct.features ? (
-                activeProduct.features.map((feature, index) => (
+              {activeProduct.attributes && activeProduct.attributes
+                .filter(attr => 
+                  attr.value && 
+                  attr.value.trim() !== '' && 
+                  attr.value.toLowerCase() !== 'false' &&
+                  attr.value !== '0'
+                )
+                .map((attribute, index) => (
                   <li key={index} className="text-sm flex items-start">
                     <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 ml-2 flex-shrink-0" />
-                    {feature}
+                    {/* Use shownName if available, otherwise fallback to name */}
+                    {attribute.shownName || attribute.name}: {attribute.value}
                   </li>
                 ))
-              ) : (
+              }
+              {(!activeProduct.attributes || 
+                !activeProduct.attributes.some(attr => 
+                  attr.value && 
+                  attr.value.trim() !== '' && 
+                  attr.value.toLowerCase() !== 'false' &&
+                  attr.value !== '0'
+                )) && (
                 <li className="text-sm text-muted-foreground">
                   ویژگی خاصی درج نشده است
                 </li>
