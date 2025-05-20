@@ -1,4 +1,4 @@
-export const APP_NAME = "دیجی استایل";
+export const APP_NAME = "ووکسینا";
 export const APP_DESCRIPTION = "فروشگاه آنلاین پوشاک و مد";
 
 export const NAV_ITEMS = [

@@ -36,7 +36,7 @@ export default function CheckoutPage() {
     }
   }, [cart.items.length, router]);
 
-  /* While the redirect effect hasn’t run yet, render nothing.
+  /* While the redirect effect hasn't run yet, render nothing.
      This avoids executing any of the heavy checkout UI on the server. */
   if (cart.items.length === 0) return null;
 
@@ -101,12 +101,13 @@ export default function CheckoutPage() {
   return (
     <div className="container py-8 md:py-12">
       <motion.h1
-        className="text-2xl md:text-3xl font-bold mb-8 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"
+        className="text-2xl md:text-3xl font-bold mb-8 text-voxcina-blue dark:text-voxcina-cream relative inline-block"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        تکمیل سفارش
+        <span className="relative z-10">تکمیل سفارش</span>
+        <span className="absolute bottom-1 left-0 w-full h-3 bg-voxcina-cream dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
       </motion.h1>
 
       <motion.div
@@ -117,17 +118,25 @@ export default function CheckoutPage() {
       >
         {/* ───────── Left column ───────── */}
         <motion.div className="lg:col-span-2 space-y-6" variants={itemVariants}>
-          <motion.div variants={itemVariants}>
+          <motion.div
+            variants={itemVariants}
+            whileHover={{ y: -3 }}
+            transition={{ duration: 0.2 }}
+          >
             <CheckoutForm
               onSelectAddress={setSelectedAddress}
               selectedAddressId={selectedAddress?.id}
             />
           </motion.div>
 
-          <motion.div variants={itemVariants}>
-            <Card>
+          <motion.div
+            variants={itemVariants}
+            whileHover={{ y: -3 }}
+            transition={{ duration: 0.2 }}
+          >
+            <Card className="border border-voxcina-cream/30 dark:border-voxcina-blue/30 bg-white/90 dark:bg-voxcina-blue/10 shadow-sm rounded-2xl backdrop-blur-sm">
               <CardContent className="p-6">
-                <h2 className="text-lg font-bold mb-6 text-gray-900 dark:text-white">
+                <h2 className="text-lg font-semibold mb-6 text-voxcina-blue dark:text-voxcina-cream">
                   روش ارسال
                 </h2>
 
@@ -135,10 +144,10 @@ export default function CheckoutPage() {
                   {SHIPPING_METHODS.map((method) => (
                     <div
                       key={method.id}
-                      className={`border rounded-xl p-4 cursor-pointer transition-all ${
+                      className={`border rounded-xl p-4 cursor-pointer transition-all duration-300 ${
                         selectedShippingMethod === method.id
-                          ? "border-primary bg-primary/5 dark:bg-primary/10 shadow-sm"
-                          : "border-gray-200 dark:border-gray-700 hover:border-primary/30 hover:shadow-sm"
+                          ? "border-voxcina-blue dark:border-voxcina-cream/70 bg-voxcina-cream/30 dark:bg-voxcina-blue/20 shadow-sm"
+                          : "border-voxcina-cream/30 dark:border-voxcina-blue/30 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/30 hover:shadow-sm"
                       }`}
                       onClick={() => setSelectedShippingMethod(method.id)}
                     >
@@ -156,10 +165,10 @@ export default function CheckoutPage() {
                               className="w-5 h-5 opacity-0 absolute"
                             />
                             <div
-                              className={`w-5 h-5 rounded-full border flex items-center justify-center mr-3 ml-2 ${
+                              className={`w-5 h-5 rounded-full border flex items-center justify-center mr-3 ml-2 transition-all duration-200 ${
                                 selectedShippingMethod === method.id
-                                  ? "border-primary bg-primary text-white"
-                                  : "border-gray-300 dark:border-gray-600"
+                                  ? "border-voxcina-blue dark:border-voxcina-cream bg-voxcina-blue dark:bg-voxcina-cream text-white dark:text-voxcina-blue"
+                                  : "border-voxcina-blue/30 dark:border-voxcina-cream/30"
                               }`}
                             >
                               {selectedShippingMethod === method.id && (
@@ -168,7 +177,7 @@ export default function CheckoutPage() {
                             </div>
                             <label
                               htmlFor={`shipping-${method.id}`}
-                              className="font-medium cursor-pointer text-gray-900 dark:text-white"
+                              className="font-medium cursor-pointer text-voxcina-blue dark:text-voxcina-cream"
                             >
                               {method.title}
                             </label>
@@ -177,15 +186,15 @@ export default function CheckoutPage() {
                         <span
                           className={`font-bold ${
                             selectedShippingMethod === method.id
-                              ? "text-primary"
-                              : "text-gray-700 dark:text-gray-300"
+                              ? "text-voxcina-blue dark:text-voxcina-cream"
+                              : "text-voxcina-blue/70 dark:text-voxcina-cream/70"
                           }`}
                         >
                           {formatPrice(method.price)}
                         </span>
                       </div>
-                      <div className="flex mt-3 mr-10 text-sm text-gray-600 dark:text-gray-400 items-start">
-                        <Truck className="h-4 w-4 text-gray-400 dark:text-gray-500 mt-0.5 ml-2 flex-shrink-0" />
+                      <div className="flex mt-3 mr-10 text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 items-start">
+                        <Truck className="h-4 w-4 text-voxcina-blue/50 dark:text-voxcina-cream/50 mt-0.5 ml-2 flex-shrink-0" />
                         <p>{method.description}</p>
                       </div>
                     </div>
@@ -194,8 +203,11 @@ export default function CheckoutPage() {
               </CardContent>
             </Card>
           </motion.div>
-
-          <motion.div variants={itemVariants}>
+          <motion.div
+            variants={itemVariants}
+            whileHover={{ y: -3 }}
+            transition={{ duration: 0.2 }}
+          >
             <PaymentMethods
               onSelectMethod={setSelectedPaymentMethod}
               selectedMethod={selectedPaymentMethod}
@@ -204,14 +216,14 @@ export default function CheckoutPage() {
 
           {!selectedAddress && (
             <motion.div
-              className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start"
+              className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl p-4 flex items-start shadow-sm"
               variants={itemVariants}
               animate={{
                 scale: [1, 1.02, 1],
                 transition: { repeat: 2, duration: 1 },
               }}
             >
-              <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5 ml-3 flex-shrink-0" />
+              <AlertCircle className="h-5 w-5 text-amber-500 dark:text-amber-400 mt-0.5 ml-3 flex-shrink-0" />
               <div>
                 <h3 className="font-medium text-amber-800 dark:text-amber-400">
                   لطفا آدرس تحویل را انتخاب کنید
@@ -223,14 +235,18 @@ export default function CheckoutPage() {
             </motion.div>
           )}
 
-          <motion.div className="flex justify-end" variants={itemVariants}>
+          <motion.div
+            className="flex justify-end"
+            variants={itemVariants}
+            whileHover={{ y: -3 }}
+          >
             <Button
               variant="primary"
               size="lg"
               onClick={handlePlaceOrder}
               isLoading={isProcessing}
               disabled={!selectedAddress || isProcessing}
-              className="w-full sm:w-auto rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 px-8 py-3"
+              className="w-full sm:w-auto rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue dark:bg-voxcina-cream/90 dark:hover:bg-voxcina-cream dark:text-voxcina-blue text-white shadow-md hover:shadow-lg transition-all duration-300 px-8 py-3"
             >
               ثبت سفارش و پرداخت
             </Button>
@@ -238,13 +254,19 @@ export default function CheckoutPage() {
         </motion.div>
 
         {/* ───────── Right column ───────── */}
-        <motion.div variants={itemVariants}>
+        <motion.div
+          variants={itemVariants}
+          whileHover={{ y: -5 }}
+          transition={{ duration: 0.3 }}
+        >
           <div className="sticky top-24">
             <CartSummary showCheckoutButton={false} />
 
-            <div className="mt-6 bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-800 rounded-xl p-4">
-              <h3 className="font-bold text-green-800 dark:text-green-400 flex items-center mb-2">
-                <Check className="h-5 w-5 ml-2 text-green-500" />
+            <div className="mt-6 bg-green-50/80 dark:bg-green-900/10 border border-green-100 dark:border-green-800/30 rounded-xl p-4 shadow-sm backdrop-blur-sm">
+              <h3 className="font-semibold text-green-800 dark:text-green-400 flex items-center mb-2">
+                <div className="w-5 h-5 bg-green-100 dark:bg-green-800/30 rounded-full flex items-center justify-center ml-2">
+                  <Check className="h-3.5 w-3.5 text-green-500 dark:text-green-400" />
+                </div>
                 خرید امن و مطمئن
               </h3>
               <p className="text-sm text-green-700 dark:text-green-500">

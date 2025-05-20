@@ -50,13 +50,13 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="w-64 bg-card border-l border-border/10 min-h-[calc(100vh-4rem)] shadow-soft">
+    <aside className="w-full h-full bg-white/90 dark:bg-voxcina-blue/90 backdrop-blur-sm">
       <div className="py-8 px-4">
         <div className="px-4 mb-6">
-          <h2 className="text-lg font-bold text-primary">
+          <h2 className="text-lg font-bold text-voxcina-blue dark:text-voxcina-cream">
             حساب کاربری
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60 mt-1">
             مدیریت اطلاعات و سفارش‌ها
           </p>
         </div>
@@ -77,22 +77,27 @@ const Sidebar = () => {
               const isActive = pathname === item.href;
 
               return (
-                <motion.div key={item.href} variants={itemVariants}>
+                <motion.div 
+                  key={item.href} 
+                  variants={itemVariants}
+                  whileHover={{ x: 3 }}
+                  transition={{ duration: 0.2 }}
+                >
                   <Link
                     href={item.href}
                     className={cn(
-                      "flex items-center px-4 py-3 text-sm rounded-xl transition-all duration-200",
+                      "flex items-center px-4 py-3 text-sm rounded-xl transition-all duration-300",
                       isActive
-                        ? "bg-primary text-primary-foreground font-medium shadow-soft"
-                        : "text-foreground hover:bg-secondary hover:text-primary"
+                        ? "bg-voxcina-blue dark:bg-voxcina-cream/90 text-white dark:text-voxcina-blue font-medium shadow-sm"
+                        : "text-voxcina-blue/80 dark:text-voxcina-cream/80 hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 hover:text-voxcina-blue dark:hover:text-voxcina-cream"
                     )}
                   >
                     <div
                       className={cn(
-                        "flex items-center justify-center w-8 h-8 rounded-lg mr-3 transition-all duration-200",
+                        "flex items-center justify-center w-8 h-8 rounded-lg mr-3 transition-all duration-300",
                         isActive
-                          ? "bg-primary-foreground/20"
-                          : "bg-secondary text-foreground group-hover:bg-primary/10"
+                          ? "bg-white/20 dark:bg-voxcina-blue/20"
+                          : "bg-voxcina-cream/50 dark:bg-voxcina-blue/50 text-voxcina-blue/70 dark:text-voxcina-cream/70"
                       )}
                     >
                       {item.icon}
@@ -103,12 +108,16 @@ const Sidebar = () => {
               );
             })}
 
-            <motion.div variants={itemVariants}>
+            <motion.div 
+              variants={itemVariants}
+              whileHover={{ x: 3 }}
+              transition={{ duration: 0.2 }}
+            >
               <button
                 onClick={handleLogout}
-                className="flex items-center px-4 py-3 text-sm rounded-xl transition-all duration-200 w-full text-destructive hover:bg-destructive/10"
+                className="flex items-center px-4 py-3 text-sm rounded-xl transition-all duration-300 w-full text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10"
               >
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg mr-3 bg-destructive/10 text-destructive">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg mr-3 bg-red-100 dark:bg-red-900/20 text-red-500 dark:text-red-400">
                   <LogOut className="w-5 h-5" />
                 </div>
                 خروج از حساب
@@ -118,16 +127,16 @@ const Sidebar = () => {
         </nav>
       </div>
 
-      <div className="absolute bottom-0 inset-x-0 p-4 border-t border-border/10">
+      <div className="absolute bottom-0 inset-x-0 p-4 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 bg-white/90 dark:bg-voxcina-blue/90 backdrop-blur-sm">
         <div className="flex items-center">
-          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg shadow-soft">
+          <div className="w-10 h-10 rounded-xl bg-voxcina-blue dark:bg-voxcina-cream flex items-center justify-center text-white dark:text-voxcina-blue font-bold text-lg shadow-sm">
             ک
           </div>
           <div className="mr-3">
-            <p className="text-sm font-medium text-foreground">
+            <p className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">
               کاربر نمونه
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
               example@email.com
             </p>
           </div>
