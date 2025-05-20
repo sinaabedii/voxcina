@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Search, X, ArrowUpRight, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getBrandName, getCategoryName } from "@/lib/utils";
 import { useProductStore } from "@/store/product-store";
 import { formatPrice } from "@/lib/utils";
 import { Product } from "@/types/product";
@@ -25,7 +25,7 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
   const [results, setResults] = useState<Product[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const { products } = useProductStore();
+  const { products, brands, categories } = useProductStore();
   const router = useRouter();
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -56,14 +56,21 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
       const trimmedSearchTerm = searchTerm.trim().toLowerCase();
       const filteredProducts = products
         .filter((product) => {
-          const inStock = product.inStock;
+          // Check if product has at least one variant with quantity > 0
+          const inStock = product.variants.some(v => v.quantity > 0);
 
           if (!inStock) return false;
 
           const name = product.name.toLowerCase();
           const description = product.description.toLowerCase();
-          const brand = product.brand.toLowerCase();
-          const category = product.category.toLowerCase();
+          
+          // Get brand name safely using utility function or fallback
+          const brandName = getBrandName(product.brand_id, brands) || "";
+          const brand = brandName.toLowerCase();
+          
+          // Get category names safely
+          const categoryName = getCategoryName(product.category_ids, categories) || "";
+          const category = categoryName.toLowerCase();
 
           return (
             name.includes(trimmedSearchTerm) ||
@@ -83,8 +90,12 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
           if (aStartsWith && !bStartsWith) return -1;
           if (!aStartsWith && bStartsWith) return 1;
 
-          if (a.isFeatured && !b.isFeatured) return -1;
-          if (!a.isFeatured && b.isFeatured) return 1;
+          // Check if isFeatured exists, otherwise use is_flash_sale
+          const aFeatured = 'isFeatured' in a ? a.isFeatured : a.is_flash_sale;
+          const bFeatured = 'isFeatured' in b ? b.isFeatured : b.is_flash_sale;
+
+          if (aFeatured && !bFeatured) return -1;
+          if (!aFeatured && bFeatured) return 1;
 
           return 0;
         })
@@ -100,7 +111,7 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchTerm, products]);
+  }, [searchTerm, products, brands, categories]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,43 +217,49 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
           ) : (
             <>
               <ul>
-                {results.map((product) => (
-                  <li
-                    key={product.id}
-                    className="border-b border-border/5 last:border-b-0 hover:bg-secondary/50 transition-all duration-200 group"
-                  >
-                    <Link
-                      href={`/products/${product.id}`}
-                      className="block p-4 transition-all"
-                      onClick={() => {
-                        setShowResults(false);
-                        if (onClose) onClose();
-                      }}
+                {results.map((product) => {
+                  // Get brand and category names safely
+                  const brandName = getBrandName(product.brand_id, brands);
+                  const categoryName = getCategoryName(product.category_ids, categories);
+                  
+                  return (
+                    <li
+                      key={product.id}
+                      className="border-b border-border/5 last:border-b-0 hover:bg-secondary/50 transition-all duration-200 group"
                     >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-medium text-foreground group-hover:text-primary transition-colors duration-200">
-                            {highlightText(product.name)}
-                          </h4>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {product.brand} - {product.category}
-                          </p>
+                      <Link
+                        href={`/products/${product.id}`}
+                        className="block p-4 transition-all"
+                        onClick={() => {
+                          setShowResults(false);
+                          if (onClose) onClose();
+                        }}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-medium text-foreground group-hover:text-primary transition-colors duration-200">
+                              {highlightText(product.name)}
+                            </h4>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {brandName} {categoryName ? `- ${categoryName}` : ''}
+                            </p>
+                          </div>
+                          <div className="text-left flex flex-col items-end">
+                            <span className="font-bold text-primary">
+                              {formatPrice(product.price)}
+                            </span>
+                            {product.originalPrice &&
+                              product.originalPrice > product.price && (
+                                <span className="text-xs text-muted-foreground line-through">
+                                  {formatPrice(product.originalPrice)}
+                                </span>
+                              )}
+                          </div>
                         </div>
-                        <div className="text-left flex flex-col items-end">
-                          <span className="font-bold text-primary">
-                            {formatPrice(product.price)}
-                          </span>
-                          {product.originalPrice &&
-                            product.originalPrice > product.price && (
-                              <span className="text-xs text-muted-foreground line-through">
-                                {formatPrice(product.originalPrice)}
-                              </span>
-                            )}
-                        </div>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
               <Link
                 href={`/products?search=${encodedSearchTerm}`}

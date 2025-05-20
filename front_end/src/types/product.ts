@@ -1,5 +1,3 @@
-import { Category } from "./category";
-
 export interface ProductVariant {
   size: string; // e.g., "S", "M", "L"
   color: string; // e.g., "Red", "Blue"
@@ -15,7 +13,7 @@ export interface ProductAttribute {
 }
 
 export interface Product {
-  id?: string; // MongoDB ObjectID, can be absent if not yet created
+  id: string; // MongoDB ObjectID, can be absent if not yet created
   name: string;
   description: string;
   price: number; // Base price //
@@ -67,31 +65,20 @@ export interface Brand {
   updatedAt?: string; // ISO 8601 timestamp, optional
 }
 
+// Update this in your types/product.ts file
+
 export interface ProductFilter {
   categories?: string[];
   brands?: string[];
+  colors?: string[];
+  sizes?: string[];
   priceRange?: {
     min: number;
     max: number;
   };
-  colors?: string[];
-  sizes?: string[];
-  rating?: number;
-  sort?: "price-asc" | "price-desc" | "newest" | "rating" | "popular";
-  search?: string;
   inStockOnly?: boolean;
-
-  discountOnly?: boolean;
-  newOnly?: boolean;
-  featuredOnly?: boolean;
-  tags?: string[];
-  attributes?: Record<string, string[]>;
-  materials?: string[];
-  hasVideo?: boolean;
-  hasReviews?: boolean;
-  warranty?: string[];
-  page?: number;
-  limit?: number;
+  search?: string;
+  sort?: 'price-asc' | 'price-desc' | 'newest' | 'popularity' | string;
 }
 
 export interface RecentlyViewedProduct {

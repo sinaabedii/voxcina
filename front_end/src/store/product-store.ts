@@ -176,53 +176,53 @@ export const useProductStore = create<ProductState>()(
 
       getFilteredProducts: () => {
         const { products, filter, brands, categories } = get();
-
+      
         return products.filter((product) => {
           // In-stock: at least one variant available
           const inStock = product.variants.some((v) => v.quantity > 0);
           if (filter.inStockOnly && !inStock) return false;
-
+      
           // Category
           if (filter.categories && filter.categories.length > 0) {
             if (!product.category_ids.some(id => filter.categories!.includes(id))) {
               return false;
             }
           }
-
+      
           // Brand
           if (filter.brands && filter.brands.length > 0) {
             if (!filter.brands.includes(product.brand_id)) {
               return false;
             }
           }
-
+      
           // Price
           if (filter.priceRange) {
             if (product.price < filter.priceRange.min || product.price > filter.priceRange.max) {
               return false;
             }
           }
-
-          // Color
+      
+          // Color - Updated to check variants
           if (filter.colors && filter.colors.length > 0) {
             if (!product.variants.some((v) => filter.colors!.includes(v.color))) {
               return false;
             }
           }
-
-          // Size
+      
+          // Size - Updated to check variants
           if (filter.sizes && filter.sizes.length > 0) {
             if (!product.variants.some((v) => filter.sizes!.includes(v.size))) {
               return false;
             }
           }
-
+      
           // Search
           if (filter.search && filter.search.trim() !== "") {
             const searchTerm = filter.search.toLowerCase();
             const brandName = getBrandName(product.brand_id, brands);
             const categoryName = getCategoryName(product.category_ids, categories);
-
+      
             return (
               product.name.toLowerCase().includes(searchTerm) ||
               product.description.toLowerCase().includes(searchTerm) ||
@@ -230,7 +230,7 @@ export const useProductStore = create<ProductState>()(
               categoryName.toLowerCase().includes(searchTerm)
             );
           }
-
+      
           return true;
         });
       },

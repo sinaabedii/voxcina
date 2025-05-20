@@ -7,46 +7,64 @@ import { ProductFilter as ProductFilterType } from "@/types/product";
 import Button from "@/components/ui/Button";
 import { SORT_OPTIONS } from "@/lib/constants";
 import { motion } from "framer-motion";
+import { useCategoryStore } from "@/store/category-store"; // path may differ
 
 interface ProductFilterProps {
   onClose?: () => void;
   isMobile?: boolean;
 }
 
+// Define a color interface based on the structure used in the component
+interface ColorOption {
+  code: string;
+  name: string;
+}
+
 const ProductFilter: React.FC<ProductFilterProps> = ({
   onClose,
   isMobile = false,
 }) => {
-  // Updated: Remove categories from store destructuring, derive from products
   const { filter, setFilter, clearFilters, products } = useProductStore();
 
   const [localFilter, setLocalFilter] =
     useState<Partial<ProductFilterType>>(filter);
 
   // Derive unique categories from products
+  const { getCategoryName } = useCategoryStore();
+
   const categories = Array.from(
-    new Set(products.map((product) => product.category))
-  )
-    .map((category, index) => ({
-      id: `${index + 1}`, // Generate a simple ID if needed
-      name: category,
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    new Set(products.flatMap((p) => p.category_ids ?? []))
+  ).map((id) => ({
+    id,                           // keep the real id
+    name: getCategoryName(id),    // human-readable label
+  }));
 
   useEffect(() => {
     setLocalFilter(filter);
   }, [filter]);
 
+  // Extract and filter out undefined brand values
   const brands = Array.from(
-    new Set(products.map((product) => product.brand))
-  ).sort();
+    new Set(products.map((product) => product.brand).filter(Boolean))
+  ).sort() as string[];
 
-  const allColors = products.flatMap((product) => product.colors || []);
-  const uniqueColors = Array.from(
-    new Map(allColors.map((color) => [color.code, color])).values()
-  ).sort((a, b) => a.name.localeCompare(b.name));
+  // Extract all unique colors from product variants
+  const allColorCodes = products.flatMap((product) => 
+    product.variants.map(variant => variant.color)
+  );
+  
+  // Create unique color objects (assuming we'll need to map color codes to names)
+  // Note: This is an approximation since the original data had color objects with code and name
+  const uniqueColorCodes = Array.from(new Set(allColorCodes));
+  const uniqueColors: ColorOption[] = uniqueColorCodes.map(colorCode => ({
+    code: colorCode,
+    name: colorCode, // Using code as name since we don't have a mapping
+  })).sort((a, b) => a.name.localeCompare(b.name));
 
-  const allSizes = products.flatMap((product) => product.sizes || []);
+  // Extract all unique sizes from product variants
+  const allSizes = products.flatMap((product) => 
+    product.variants.map(variant => variant.size)
+  );
   const uniqueSizes = Array.from(new Set(allSizes)).sort();
 
   const prices = products.map((product) => product.price);
