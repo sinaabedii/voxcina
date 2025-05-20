@@ -25,7 +25,7 @@ export const useAuthStore = create<AuthStore>()(
 
       login: async (credentials) => {
         set({ isLoading: true, error: null });
-
+      
         try {
           const response = await fetch("/api/users/login", {
             method: "POST",
@@ -34,24 +34,34 @@ export const useAuthStore = create<AuthStore>()(
             },
             body: JSON.stringify(credentials),
           });
-
+      
           if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.message || "Login failed");
           }
-
+      
           const data = await response.json();
-
-          if (data.token && data.user) {
+      
+          if (data.token) {
             localStorage.setItem("authToken", data.token);
-
+            
+            // Create a user object from the flat response
+            const user: User = {
+              id: data.id,
+              name: data.name,
+              email: data.email,
+              role: data.role as "user" | "admin" | "seller" | "customer", // Add "customer" to the valid roles
+              createdAt: data.created_at,
+              updatedAt: data.updated_at
+            };
+      
             set({
-              user: data.user,
+              user,
               isAuthenticated: true,
               isLoading: false,
               error: null,
             });
-            return data.user;
+            return user;
           } else {
             throw new Error("Invalid response format from server");
           }
