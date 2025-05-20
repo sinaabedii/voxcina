@@ -1,407 +1,339 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Button from "@/components/ui/Button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { motion } from "framer-motion";
+import Link from "next/link";
+import { useAuthStore } from "@/store/auth-store";
+import { APP_NAME } from "@/lib/constants";
+import Sidebar from "@/components/layout/Sidebar";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Bell,
+  ShoppingCart,
+  User,
+  Search,
+  Menu,
+  X,
+  Sun,
+  Moon,
+  LogOut,
+} from "lucide-react";
 
-export default function VerifyCodePage() {
-  const [code, setCode] = useState<string[]>(Array(6).fill(""));
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [resendCountdown, setResendCountdown] = useState(60);
-  const [canResend, setCanResend] = useState(false);
-  const [isVerified, setIsVerified] = useState(false);
-
-  const inputRefs = useRef<Array<HTMLInputElement | null>>(Array(6).fill(null));
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { user, isAuthenticated, logout } = useAuthStore();
   const router = useRouter();
+  const [isChecking, setIsChecking] = useState(true);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
 
-  // Countdown timer for resend button
   useEffect(() => {
-    if (resendCountdown > 0) {
-      const timer = setTimeout(() => {
-        setResendCountdown(resendCountdown - 1);
-      }, 1000);
-      return () => clearTimeout(timer);
-    } else {
-      setCanResend(true);
-    }
-  }, [resendCountdown]);
+    const isDark =
+      localStorage.getItem("theme") === "dark" ||
+      (!localStorage.getItem("theme") &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches);
 
-  // Focus the first input on mount
-  useEffect(() => {
-    if (inputRefs.current[0]) {
-      inputRefs.current[0].focus();
-    }
+    setIsDarkMode(isDark);
+    document.documentElement.classList.toggle("dark", isDark);
   }, []);
 
-  const handleChange = (index: number, value: string) => {
-    // Clear error when user starts typing
-    if (error) setError(null);
-
-    // Only allow numbers
-    if (value && !/^[0-9]$/.test(value)) return;
-
-    // Update code
-    const newCode = [...code];
-    newCode[index] = value;
-    setCode(newCode);
-
-    // Auto-focus next input
-    if (value && index < 5 && inputRefs.current[index + 1]) {
-      inputRefs.current[index + 1]?.focus();
-    }
+  const toggleDarkMode = () => {
+    const newMode = !isDarkMode;
+    setIsDarkMode(newMode);
+    document.documentElement.classList.toggle("dark", newMode);
+    localStorage.setItem("theme", newMode ? "dark" : "light");
   };
 
-  const handleKeyDown = (
-    index: number,
-    e: React.KeyboardEvent<HTMLInputElement>
-  ) => {
-    // Focus previous input on backspace
-    if (
-      e.key === "Backspace" &&
-      !code[index] &&
-      index > 0 &&
-      inputRefs.current[index - 1]
-    ) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    const pastedData = e.clipboardData.getData("text").trim();
-
-    // Check if pasted data is a valid 6-digit number
-    if (/^\d{6}$/.test(pastedData)) {
-      const newCode = pastedData.split("");
-      setCode(newCode);
-
-      // Focus the last input
-      if (inputRefs.current[5]) {
-        inputRefs.current[5]?.focus();
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!isAuthenticated) {
+        router.push("/sign-in");
       }
-    }
-  };
+      setIsChecking(false);
+    }, 500);
 
-  const handleResendCode = () => {
-    if (!canResend) return;
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, router]);
 
-    // Reset state
-    setCanResend(false);
-    setResendCountdown(60);
-    setError(null);
-
-    // Mock API call
-    setTimeout(() => {
-      // Show success message or toast here
-    }, 1000);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Validate all digits are filled
-    if (code.some((digit) => !digit)) {
-      setError("لطفاً کد تأیید ۶ رقمی را کامل وارد کنید");
-      return;
-    }
-
-    setIsLoading(true);
-
-    // Mock verification API call
-    setTimeout(() => {
-      setIsLoading(false);
-
-      // Check if code is correct (for demo, we'll consider "123456" as correct)
-      if (code.join("") === "123456") {
-        setIsVerified(true);
-        // Redirect after 2 seconds
-        setTimeout(() => {
-          router.push("/sign-in");
-        }, 2000);
-      } else {
-        setError("کد وارد شده صحیح نیست");
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        !target.closest("#profile-menu") &&
+        !target.closest("#profile-button")
+      ) {
+        setShowProfileMenu(false);
       }
-    }, 1500);
-  };
+    };
 
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
-  };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1, transition: { duration: 0.5 } },
-  };
+  useEffect(() => {
+    const handleRouteChange = () => {
+      setIsMobileSidebarOpen(false);
+    };
 
-  const digitVariants = {
-    initial: { scale: 0.9, opacity: 0 },
-    animate: { scale: 1, opacity: 1 },
-    transition: { type: "spring", stiffness: 300, damping: 15 },
-  };
+    window.addEventListener("popstate", handleRouteChange);
+    return () => window.removeEventListener("popstate", handleRouteChange);
+  }, []);
 
-  // Create an array of 6 elements for rendering code inputs
-  const codeInputs = Array(6).fill(null);
+  if (isChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-voxcina-blue/95 transition-all duration-300">
+        <div className="text-center">
+          <div className="inline-block relative w-16 h-16 mb-4">
+            <div className="absolute top-0 right-0 w-full h-full border-4 border-voxcina-cream/30 dark:border-voxcina-cream/10 rounded-full animate-pulse-soft"></div>
+            <div className="absolute top-0 right-0 w-full h-full border-4 border-t-voxcina-blue dark:border-t-voxcina-cream border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+          </div>
+          <p className="text-voxcina-blue/70 dark:text-voxcina-cream/70 font-medium">
+            در حال بررسی وضعیت ورود...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-voxcina-cream py-12 px-4 sm:px-6 lg:px-8">
-      <motion.div
-        className="w-full max-w-md"
-        initial="hidden"
-        animate="visible"
-        variants={containerVariants}
-      >
-        {/* Animated Background Gradient */}
-        <motion.div
-          className="absolute inset-0 bg-gradient-to-tr from-voxcina-blue/5 via-primary-300/5 to-secondary-300/10 blur-3xl opacity-30 -z-10"
-          animate={{
-            opacity: [0.2, 0.3, 0.2],
-            scale: [1, 1.05, 1],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            repeatType: "reverse",
-          }}
-        />
+    <div className="min-h-screen flex flex-col bg-white dark:bg-voxcina-blue/95 transition-all duration-300">
+      <header className="bg-white/80 dark:bg-voxcina-blue/90 border-b border-voxcina-cream/30 dark:border-voxcina-blue/30 py-3 px-4 md:px-6 sticky top-0 z-30 shadow-sm backdrop-blur-sm">
+        <div className="container mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <button
+              className="md:hidden p-2 text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream rounded-full hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
+              onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+              aria-label={isMobileSidebarOpen ? "بستن منو" : "باز کردن منو"}
+            >
+              {isMobileSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
 
-        <motion.div variants={itemVariants} className="text-center mb-8">
-          <Link href="/sign-in" className="inline-block mb-4">
-            <div className="flex items-center justify-center text-voxcina-blue hover:text-voxcina-darkBlue transition-colors">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 ml-1"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+            <Link href="/" className="flex items-center">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-r from-voxcina-blue to-voxcina-darkBlue flex items-center justify-center text-white font-bold text-sm ml-2 shadow-sm">
+                {APP_NAME.charAt(0)}
+              </div>
+              <span className="text-lg font-bold text-voxcina-blue dark:text-voxcina-cream hidden sm:inline-block">
+                {APP_NAME}
+              </span>
+            </Link>
+          </div>
+
+          <div className="hidden md:flex items-center bg-voxcina-cream/30 dark:bg-voxcina-blue/30 rounded-xl w-80 px-3 py-2 border border-voxcina-cream/50 dark:border-voxcina-blue/50 shadow-inner-soft backdrop-blur-sm">
+            <Search
+              size={18}
+              className="text-voxcina-blue/60 dark:text-voxcina-cream/60 ml-2"
+            />
+            <input
+              type="text"
+              placeholder="جستجو در فروشگاه..."
+              className="bg-transparent border-none focus:outline-none text-sm w-full text-voxcina-blue dark:text-voxcina-cream placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50"
+            />
+          </div>
+
+          <div className="flex items-center gap-1 sm:gap-3">
+            <motion.button
+              className="p-2 text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream rounded-full hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 relative transition-colors"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Bell size={18} />
+              <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+            </motion.button>
+
+            <Link
+              href="/cart"
+              className="p-2 text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream rounded-full hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 relative transition-colors"
+            >
+              <ShoppingCart size={18} />
+              <span className="absolute top-0 right-0 w-4 h-4 bg-voxcina-blue dark:bg-voxcina-cream rounded-full text-white dark:text-voxcina-blue text-[10px] flex items-center justify-center">
+                3
+              </span>
+            </Link>
+
+            <motion.button
+              className="p-2 text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream rounded-full hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
+              onClick={toggleDarkMode}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </motion.button>
+
+            <div className="relative">
+              <motion.button
+                id="profile-button"
+                className="flex items-center gap-2 hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 py-1 px-2 rounded-lg transition-colors"
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M19 12H5M12 19l-7-7 7-7"
-                />
-              </svg>
-              <span>بازگشت به صفحه ورود</span>
-            </div>
-          </Link>
-          <h2 className="text-3xl font-bold text-voxcina-blue">
-            تایید{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-voxcina-blue to-primary-400">
-              کد امنیتی
-            </span>
-          </h2>
-          <p className="mt-2 text-sm text-voxcina-blue/70">
-            کد ۶ رقمی ارسال شده به ایمیل خود را وارد نمایید
-          </p>
-        </motion.div>
+                <div className="relative w-9 h-9 rounded-xl bg-voxcina-cream dark:bg-voxcina-blue/50 flex items-center justify-center overflow-hidden border-2 border-white/80 dark:border-voxcina-blue/80 shadow-sm">
+                  {user?.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={user.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-sm font-bold text-voxcina-blue dark:text-voxcina-cream">
+                      {user?.name?.charAt(0) || "V"}
+                    </span>
+                  )}
+                </div>
+                <span className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream hidden sm:inline-block">
+                  {user?.name || "کاربر"}
+                </span>
+              </motion.button>
 
-        <Card className="w-full bg-white/80 backdrop-blur-md border border-white/20 shadow-medium rounded-2xl overflow-hidden">
-          <CardHeader className="text-center pb-2 pt-6">
-            <CardTitle className="text-2xl font-bold text-voxcina-blue">
-              تایید حساب کاربری
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4">
-            {!isVerified ? (
-              <form onSubmit={handleSubmit}>
-                <motion.div className="space-y-6" variants={containerVariants}>
-                  <motion.div variants={itemVariants}>
-                    <div className="flex flex-col items-center">
-                      <p className="text-sm text-voxcina-blue/70 mb-4">
-                        کد تأیید به ایمیل{" "}
-                        <span className="font-medium text-voxcina-blue">
-                          user@example.com
-                        </span>{" "}
-                        ارسال شد
-                      </p>
-
-                      {/* Verification Code Input Fields */}
-                      <div dir="rtl" className="flex justify-center gap-2 mb-2">
-                        {codeInputs.map((_, index) => (
-                          <div key={index} className="w-10 sm:w-12">
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              autoComplete="one-time-code"
-                              maxLength={1}
-                              value={code[index] || ""}
-                              onChange={(e) => handleChange(index, e.target.value)}
-                              onKeyDown={(e) => handleKeyDown(index, e)}
-                              onPaste={index === 0 ? handlePaste : undefined}
-                              ref={(el) => {
-                                inputRefs.current[index] = el;
-                              }}
-                              className={`
-                                w-full h-12 sm:h-14 
-                                text-center text-xl font-bold 
-                                rounded-xl 
-                                text-voxcina-blue
-                                ${
-                                  error
-                                    ? "border-red-300 bg-red-50"
-                                    : "border-secondary-300 bg-white/70"
-                                }
-                                border-2
-                                focus:border-voxcina-blue focus:ring-2 focus:ring-voxcina-blue/20
-                                transition-all duration-200
-                                appearance-none
-                              `}
-                            />
-                          </div>
-                        ))}
-                      </div>
-
-                      {error && (
-                        <motion.p
-                          className="text-red-500 text-sm mt-2 flex items-center"
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3 }}
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4 ml-1"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                          </svg>
-                          {error}
-                        </motion.p>
-                      )}
-                    </div>
-                  </motion.div>
-
+              <AnimatePresence>
+                {showProfileMenu && (
                   <motion.div
-                    className="flex justify-center"
-                    variants={itemVariants}
-                  >
-                    <button
-                      type="button"
-                      onClick={handleResendCode}
-                      disabled={!canResend}
-                      className={`text-sm py-2 px-4 ${
-                        canResend
-                          ? "text-voxcina-blue hover:text-voxcina-darkBlue cursor-pointer"
-                          : "text-voxcina-blue/50 cursor-not-allowed"
-                      } transition-colors`}
-                    >
-                      {canResend
-                        ? "ارسال مجدد کد تأیید"
-                        : `ارسال مجدد کد تا ${resendCountdown} ثانیه دیگر`}
-                    </button>
-                  </motion.div>
-
-                  <motion.div variants={itemVariants}>
-                    <Button
-                      variant="primary"
-                      fullWidth
-                      type="submit"
-                      isLoading={isLoading}
-                      className="bg-voxcina-blue hover:bg-voxcina-darkBlue text-white py-3 rounded-xl transition-all duration-300 shadow-soft hover:shadow-medium"
-                    >
-                      {isLoading ? "در حال بررسی..." : "تایید کد"}
-                    </Button>
-                  </motion.div>
-                </motion.div>
-              </form>
-            ) : (
-              <motion.div
-                className="py-6"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5 }}
-              >
-                <div className="flex flex-col items-center text-center">
-                  <motion.div
-                    className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-4"
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
+                    id="profile-menu"
+                    className="absolute left-0 mt-2 w-52 bg-white/90 dark:bg-voxcina-blue/90 rounded-xl shadow-md py-1 z-50 border border-voxcina-cream dark:border-voxcina-blue/50 backdrop-blur-sm"
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
                     transition={{
+                      duration: 0.2,
                       type: "spring",
                       stiffness: 300,
-                      damping: 20,
+                      damping: 25,
                     }}
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-10 w-10 text-green-500"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                    <div className="px-4 py-3 border-b border-voxcina-cream/30 dark:border-voxcina-blue/30">
+                      <p className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">
+                        {user?.name}
+                      </p>
+                      <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
+                        {user?.email}
+                      </p>
+                    </div>
+                    <Link
+                      href="/dashboard"
+                      className="block px-4 py-2 text-sm text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2.5}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
+                      داشبورد
+                    </Link>
+                    <Link
+                      href="/dashboard/settings"
+                      className="block px-4 py-2 text-sm text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
+                    >
+                      تنظیمات حساب
+                    </Link>
+                    <button
+                      className="w-full text-right px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
+                      onClick={() => logout && logout()}
+                    >
+                      خروج از حساب
+                    </button>
                   </motion.div>
-                  <h3 className="text-xl font-bold text-voxcina-blue mb-2">
-                    تأیید موفقیت‌آمیز
-                  </h3>
-                  <p className="text-sm text-voxcina-blue/70 mb-1">
-                    حساب کاربری شما با موفقیت تأیید شد
-                  </p>
-                  <p className="text-xs text-voxcina-blue/60 mb-4">
-                    در حال انتقال به صفحه ورود...
-                  </p>
-
-                  <div className="w-16 h-1 bg-gray-200 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-voxcina-blue"
-                      initial={{ width: 0 }}
-                      animate={{ width: "100%" }}
-                      transition={{ duration: 2 }}
-                    />
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </CardContent>
-        </Card>
-
-        <motion.div
-          className="mt-6 text-center text-xs text-voxcina-blue/60"
-          variants={itemVariants}
-        >
-          <div className="flex flex-row-reverse justify-center items-center space-x-2 space-x-reverse">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4 text-voxcina-blue/60"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-              />
-            </svg>
-            <span>کد تأیید فقط به مدت ۱۰ دقیقه معتبر است</span>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
-        </motion.div>
-      </motion.div>
+        </div>
+      </header>
+
+      <div className="flex flex-1 relative">
+        <AnimatePresence>
+          {isMobileSidebarOpen && (
+            <>
+              <motion.div
+                className="fixed inset-0 bg-voxcina-blue/30 backdrop-blur-sm z-40 md:hidden"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsMobileSidebarOpen(false)}
+              />
+
+              <motion.div
+                className="fixed inset-y-0 right-0 w-72 bg-white/90 dark:bg-voxcina-blue/90 z-50 md:hidden border-l border-voxcina-cream/30 dark:border-voxcina-blue/50 backdrop-blur-sm shadow-lg"
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              >
+                <div className="p-4 border-b border-voxcina-cream/30 dark:border-voxcina-blue/30 flex items-center justify-between">
+                  <h2 className="font-bold text-lg text-voxcina-blue dark:text-voxcina-cream">
+                    {APP_NAME}
+                  </h2>
+                  <motion.button
+                    className="p-2 text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream rounded-full hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
+                    onClick={() => setIsMobileSidebarOpen(false)}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <X size={18} />
+                  </motion.button>
+                </div>
+                <Sidebar />
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        <div className="hidden md:block w-72 h-full sticky top-16 border-l border-voxcina-cream/30 dark:border-voxcina-blue/30 py-6 bg-white/90 dark:bg-voxcina-blue/90 backdrop-blur-sm">
+          <Sidebar />
+        </div>
+
+        <motion.main
+          className="flex-grow p-4 md:p-6 lg:p-8 overflow-x-hidden"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="container mx-auto">{children}</div>
+        </motion.main>
+      </div>
+
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-voxcina-blue/90 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 py-3 px-4 flex justify-around items-center z-30 backdrop-blur-sm shadow-md">
+        <Link href="/dashboard" className="flex flex-col items-center group">
+          <div className="p-2 text-voxcina-blue/70 group-hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:group-hover:text-voxcina-cream rounded-full group-hover:bg-voxcina-cream/30 dark:group-hover:bg-voxcina-blue/30 transition-colors">
+            <User size={18} />
+          </div>
+          <span className="text-xs mt-1 text-voxcina-blue/70 dark:text-voxcina-cream/70 group-hover:text-voxcina-blue dark:group-hover:text-voxcina-cream transition-colors">
+            داشبورد
+          </span>
+        </Link>
+        <Link href="/products" className="flex flex-col items-center group">
+          <div className="p-2 text-voxcina-blue/70 group-hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:group-hover:text-voxcina-cream rounded-full group-hover:bg-voxcina-cream/30 dark:group-hover:bg-voxcina-blue/30 transition-colors">
+            <Search size={18} />
+          </div>
+          <span className="text-xs mt-1 text-voxcina-blue/70 dark:text-voxcina-cream/70 group-hover:text-voxcina-blue dark:group-hover:text-voxcina-cream transition-colors">
+            جستجو
+          </span>
+        </Link>
+        <Link href="/cart" className="flex flex-col items-center group">
+          <div className="p-2 text-voxcina-blue/70 group-hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:group-hover:text-voxcina-cream rounded-full group-hover:bg-voxcina-cream/30 dark:group-hover:bg-voxcina-blue/30 transition-colors relative">
+            <ShoppingCart size={18} />
+            <span className="absolute top-0 right-0 w-4 h-4 bg-voxcina-blue dark:bg-voxcina-cream rounded-full text-white dark:text-voxcina-blue text-[10px] flex items-center justify-center">
+              3
+            </span>
+          </div>
+          <span className="text-xs mt-1 text-voxcina-blue/70 dark:text-voxcina-cream/70 group-hover:text-voxcina-blue dark:group-hover:text-voxcina-cream transition-colors">
+            سبد خرید
+          </span>
+        </Link>
+        <button
+          className="flex flex-col items-center group"
+          onClick={() => logout && logout()}
+        >
+          <div className="p-2 text-voxcina-blue/70 group-hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:group-hover:text-voxcina-cream rounded-full group-hover:bg-voxcina-cream/30 dark:group-hover:bg-voxcina-blue/30 transition-colors">
+            <LogOut size={18} />
+          </div>
+          <span className="text-xs mt-1 text-voxcina-blue/70 dark:text-voxcina-cream/70 group-hover:text-voxcina-blue dark:group-hover:text-voxcina-cream transition-colors">
+            خروج
+          </span>
+        </button>
+      </div>
     </div>
   );
 }
