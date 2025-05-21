@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { APP_NAME, APP_DESCRIPTION } from "@/lib/constants";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
+import ClientLayout from "../components/layout/ClientLayout";
 
 export const metadata: Metadata = {
   title: {
@@ -45,9 +46,11 @@ export default function RootLayout({
         <link rel="icon" href="/images/Logo/WXTransparent-org.png" sizes="any" />
       </head>
       <body className="min-h-screen bg-background text-foreground font-iransans antialiased selection:bg-primary/20 selection:text-primary">
-        <div className="page-transition-wrapper">
-          <main className="flex flex-col min-h-screen">{children}</main>
-        </div>
+        <ClientLayout>
+          <div className="page-transition-wrapper">
+            <main className="flex flex-col min-h-screen">{children}</main>
+          </div>
+        </ClientLayout>
 
         <Toaster
           position="top-center"

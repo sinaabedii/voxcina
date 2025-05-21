@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useProductStore } from "@/store/product-store";
 import { useCategoryStore } from "@/store/category-store";
 import ProductGrid from "@/components/product/ProductGrid";
-import { DEMO_BANNERS } from "@/lib/constants";
 import { motion, useScroll, useTransform } from "framer-motion";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -71,11 +70,6 @@ export default function HomePage() {
   const itemVariant = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-  };
-
-  const scaleUp = {
-    hidden: { scale: 0.95, opacity: 0 },
-    visible: { scale: 1, opacity: 1, transition: { duration: 0.5 } },
   };
 
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -485,162 +479,6 @@ export default function HomePage() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
-          variants={scaleUp}
-        >
-          <div className="relative bg-voxcina-blue rounded-3xl overflow-hidden shadow-medium">
-            <div className="absolute inset-0 bg-[url('/pattern.svg')] opacity-10 mix-blend-overlay"></div>
-
-            <div className="py-10 px-6 sm:py-12 sm:px-8 md:p-16 lg:p-20 text-center">
-              <motion.h2
-                className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-6 sm:mb-8 text-white"
-                variants={fadeIn}
-              >
-                ترندهای فشن ۲۰۲۵
-              </motion.h2>
-
-              <motion.p
-                className="text-white/80 mb-8 sm:mb-12 mx-auto text-base md:text-lg max-w-xs sm:max-w-md md:max-w-2xl"
-                variants={fadeIn}
-              >
-                آخرین ترندهای دنیای مد را کشف کنید و با سبک منحصر به فرد خود، در
-                میان جمعیت بدرخشید
-              </motion.p>
-
-              <motion.div
-                className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6"
-                variants={staggerContainer}
-              >
-                {[
-                  {
-                    name: "مینیمال لاکچری",
-                    icon: "✨",
-                    color: "from-secondary-300 to-secondary-400",
-                  },
-                  {
-                    name: "استایل نئو کلاسیک",
-                    icon: "🌟",
-                    color: "from-primary-300 to-primary-400",
-                  },
-                  {
-                    name: "استریت استایل",
-                    icon: "⚡",
-                    color: "from-secondary-200 to-secondary-300",
-                  },
-                  {
-                    name: "اکو فرندلی",
-                    icon: "🌱",
-                    color: "from-primary-200 to-primary-300",
-                  },
-                ].map((trend, index) => (
-                  <motion.div
-                    key={index}
-                    variants={itemVariant}
-                    whileHover={{ y: -5, transition: { duration: 0.2 } }}
-                  >
-                    <Link
-                      href={`/trends/${trend.name
-                        .replace(/\s+/g, "-")
-                        .toLowerCase()}`}
-                    >
-                      <div className="bg-white/10 backdrop-blur-lg rounded-xl p-5 md:p-6 hover:bg-white/15 transition-colors duration-300 h-full border border-white/5 shadow-soft">
-                        <div
-                          className={`w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br ${trend.color} flex items-center justify-center text-lg md:text-xl mb-3 md:mb-4 mx-auto shadow-soft`}
-                        >
-                          {trend.icon}
-                        </div>
-                        <h3 className="text-white text-base md:text-lg font-medium">
-                          {trend.name}
-                        </h3>
-                      </div>
-                    </Link>
-                  </motion.div>
-                ))}
-              </motion.div>
-            </div>
-          </div>
-        </motion.section>
-
-        <motion.section
-          className="container px-4 md:px-8 mb-20 md:mb-32"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
-          variants={scaleUp}
-        >
-          <motion.div
-            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8"
-            variants={staggerContainer}
-          >
-            {DEMO_BANNERS.map((banner, index) => (
-              <motion.div key={banner.id} variants={itemVariant}>
-                <Link
-                  href={banner.href}
-                  className="relative h-64 sm:h-72 md:h-80 rounded-2xl overflow-hidden group block shadow-soft"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-tr from-voxcina-blue to-primary-400 opacity-90 group-hover:opacity-95 transition-opacity duration-500"></div>
-                  <div className="absolute inset-0 bg-[url('/pattern.svg')] opacity-10 mix-blend-overlay"></div>
-
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-5 sm:p-8 transform transition-transform duration-500">
-                    <motion.div
-                      className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-white/20 mb-4 md:mb-6 flex items-center justify-center backdrop-blur-md"
-                      whileHover={{ rotate: 90 }}
-                      transition={{ duration: 0.5 }}
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-6 w-6 md:h-8 md:w-8 text-white"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M13 10V3L4 14h7v7l9-11h-7z"
-                        />
-                      </svg>
-                    </motion.div>
-                    <h3 className="text-white text-xl md:text-2xl font-bold mb-3 md:mb-4">
-                      {banner.title}
-                    </h3>
-                    <p className="text-white/80 text-sm md:text-base mb-4 md:mb-6">
-                      {banner.description}
-                    </p>
-                    <div className="w-0 h-0.5 bg-white/70 transition-all duration-300 group-hover:w-12 md:group-hover:w-16"></div>
-                  </div>
-
-                  <div className="absolute bottom-4 right-4 md:bottom-6 md:right-6">
-                    <motion.div
-                      className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md group-hover:bg-white/30 transition-all duration-300"
-                      whileHover={{ scale: 1.2 }}
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4 md:h-5 md:w-5 text-white"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M14 5l7 7m0 0l-7 7m7-7H3"
-                        />
-                      </svg>
-                    </motion.div>
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
-          </motion.div>
-        </motion.section>
-        <motion.section
-          className="container px-4 md:px-8 mb-20 md:mb-32"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
           variants={fadeIn}
         >
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 md:mb-12">
@@ -932,7 +770,6 @@ export default function HomePage() {
           <div className="bg-gradient-to-r from-voxcina-blue to-primary-600 rounded-3xl p-6 sm:p-10 md:p-16 text-center relative overflow-hidden shadow-medium">
             <div className="absolute inset-0 bg-[url('/pattern.svg')] opacity-10 mix-blend-overlay"></div>
 
-            {/* Enhanced Background Blur Effects */}
             <div className="absolute -top-20 -left-20 w-48 md:w-64 h-48 md:h-64 bg-white/10 rounded-full blur-3xl"></div>
             <div className="absolute -bottom-20 -right-20 w-48 md:w-64 h-48 md:h-64 bg-secondary-400/20 rounded-full blur-3xl"></div>
 
@@ -999,105 +836,6 @@ export default function HomePage() {
                 </p>
               </motion.div>
             </motion.div>
-          </div>
-        </motion.section>
-
-        <motion.section
-          className="container px-4 md:px-8"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
-          variants={fadeIn}
-        >
-          <div className="relative rounded-3xl bg-gradient-to-br from-secondary-100 to-secondary-200 overflow-hidden shadow-soft">
-            <div className="grid grid-cols-1 md:grid-cols-2">
-              <div className="p-6 sm:p-8 md:p-12 lg:p-16 flex flex-col justify-center">
-                <motion.h2
-                  className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 md:mb-6 text-voxcina-blue"
-                  variants={fadeIn}
-                >
-                  دانلود اپلیکیشن موبایل ما
-                </motion.h2>
-
-                <motion.p
-                  className="text-sm md:text-base text-voxcina-blue/80 mb-6 md:mb-8"
-                  variants={fadeIn}
-                >
-                  با اپلیکیشن موبایل ما تجربه خرید آسان‌تر، سریع‌تر و
-                  لذت‌بخش‌تری داشته باشید. از تخفیف‌های ویژه و امکانات منحصر به
-                  فرد بهره‌مند شوید.
-                </motion.p>
-
-                <motion.div
-                  className="flex flex-col xs:flex-row flex-wrap gap-3 md:gap-4"
-                  variants={staggerContainer}
-                >
-                  <motion.a
-                    href="#"
-                    className="bg-voxcina-blue text-white py-2 md:py-3 px-4 md:px-6 rounded-xl flex items-center space-x-2 hover:bg-voxcina-darkBlue transition-colors shadow-soft"
-                    variants={itemVariant}
-                    whileHover={{ scale: 1.03 }}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-6 w-6 md:h-7 md:w-7"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.21 2.33-.91 3.57-.84 1.5.09 2.63.68 3.38 1.68-3.03 1.86-2.53 5.68.08 7.08-.65 1.45-1.51 2.9-2.11 4.24zM12.03 7.25c-.15-2.23 1.66-4.13 3.67-4.75.18 2.23-1.7 4.17-3.67 4.75z" />
-                    </svg>
-                    <div className="flex flex-col mr-3">
-                      <span className="text-xs">دانلود از</span>
-                      <span className="text-xs md:text-sm font-bold">
-                        App Store
-                      </span>
-                    </div>
-                  </motion.a>
-
-                  <motion.a
-                    href="#"
-                    className="bg-voxcina-blue text-white py-2 md:py-3 px-4 md:px-6 rounded-xl flex items-center space-x-2 hover:bg-voxcina-darkBlue transition-colors shadow-soft"
-                    variants={itemVariant}
-                    whileHover={{ scale: 1.03 }}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-6 w-6 md:h-7 md:w-7"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M3.609 1.814L13.792 12 3.609 22.186a.996.996 0 0 1-.293-.707V2.521a1 1 0 0 1 .293-.707zM14.5 12.707l2.302 2.302-10.956 6.172 8.654-8.474zm2.302-3.716l-2.302 2.302-8.653-8.474 10.955 6.172zm1.344.666L7.974 3.314C9.149 2.462 10.515 2 12 2c5.512 0 10.069 4.236 10.069 9.5S17.512 21 12 21c-1.485 0-2.851-.462-4.026-1.314l10.172-6.343a2.003 2.003 0 0 0 0-3.372z" />
-                    </svg>
-                    <div className="flex flex-col mr-3">
-                      <span className="text-xs">دانلود از</span>
-                      <span className="text-xs md:text-sm font-bold">
-                        Google Play
-                      </span>
-                    </div>
-                  </motion.a>
-                </motion.div>
-              </div>
-
-              <div className="relative h-64 sm:h-72 md:h-auto flex items-center justify-center p-6 md:p-8">
-                <motion.div
-                  className="relative max-w-xs mx-auto"
-                  initial={{ y: 20, opacity: 0 }}
-                  whileInView={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 1, delay: 0.3 }}
-                  viewport={{ once: true }}
-                >
-                  <div className="bg-black rounded-3xl overflow-hidden border-8 border-gray-800 shadow-2xl relative z-10">
-                    <div className="aspect-[9/19.5] w-full bg-white">
-                      <div className="absolute top-0 right-0 left-0 h-5 md:h-6 bg-black rounded-t-xl flex justify-center items-center">
-                        <div className="w-16 md:w-20 h-1 md:h-1.5 bg-gray-700 rounded-full"></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="absolute -inset-3 md:-inset-4 bg-gradient-to-br from-voxcina-blue/40 to-primary-400/40 rounded-full blur-xl -z-10 opacity-70"></div>
-                </motion.div>
-              </div>
-            </div>
           </div>
         </motion.section>
       </div>
