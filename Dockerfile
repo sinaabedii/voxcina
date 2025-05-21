@@ -35,8 +35,12 @@ WORKDIR /app
 # Copy the binary from the builder stage
 COPY --from=builder /build/main .
 
-# Create necessary directories
-RUN mkdir -p admin uploads
+# Create necessary directories with proper permissions
+RUN mkdir -p admin uploads/products/main uploads/categories && \
+    chmod -R 777 uploads
+
+# Copy test files for testing
+COPY test/test_files /app/test/test_files/
 
 # If you have admin files, copy them in a separate step
 # COPY admin/ admin/
