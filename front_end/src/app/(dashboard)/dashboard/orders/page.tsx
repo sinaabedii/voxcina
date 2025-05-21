@@ -333,7 +333,7 @@ export default function OrdersPage() {
                             >
                               <Download className="h-5 w-5" />
                             </button>
-                            <Link href={`/orders${order.id}`}>
+                            <Link href={`/dashboard/orders/${order.id}`}>
                               <button
                                 className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors text-indigo-500 dark:text-indigo-400"
                                 title="جزئیات"
