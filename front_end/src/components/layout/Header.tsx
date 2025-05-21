@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, User, Menu, X } from "lucide-react";
+import { Search, User, Menu, X, ShoppingBag } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
@@ -20,10 +20,10 @@ const Header = () => {
   const pathname = usePathname();
   const cart = useCartStore((state) => state.cart);
 
-  // const itemCount = cart.items.reduce(
-  //   (count, item) => count + item.quantity,
-  //   0
-  // );
+  const itemCount = cart.items.reduce(
+    (count, item) => count + item.quantity,
+    0
+  );
 
   useEffect(() => {
     const handleScroll = () => {
@@ -55,10 +55,7 @@ const Header = () => {
             <Menu className="h-5 w-5 sm:h-6 sm:w-6" />
           </motion.button>
 
-          <Link
-            href="/"
-            className="flex items-center group"
-          >
+          <Link href="/" className="flex items-center group">
             <div className="relative w-24 sm:w-28 md:w-32 h-10 sm:h-12 md:h-12 transition-all duration-300">
               <Image
                 alt={APP_NAME}
@@ -110,7 +107,7 @@ const Header = () => {
         <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3">
           <AnimatePresence>
             {isSearchOpen ? (
-              <motion.div 
+              <motion.div
                 className="absolute right-4 md:right-6 top-full mt-2 w-[calc(100%-2rem)] md:w-[calc(100%-3rem)] lg:w-80 flex items-center bg-white/95 dark:bg-voxcina-blue/95 z-10 rounded-xl shadow-md border border-voxcina-cream/30 dark:border-voxcina-blue/50 backdrop-blur-sm"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -133,7 +130,7 @@ const Header = () => {
               </motion.div>
             ) : null}
           </AnimatePresence>
-          
+
           <motion.button
             onClick={() => setIsSearchOpen(true)}
             className="p-2 rounded-full text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-all duration-300 relative group"
@@ -155,7 +152,7 @@ const Header = () => {
               <span className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-0 h-0.5 bg-voxcina-blue dark:bg-voxcina-cream group-hover:w-1/2 transition-all duration-300"></span>
             </Link>
           </motion.div> */}
-          
+
           <motion.div className="relative">
             <Link
               href="/sign-in"
@@ -167,7 +164,7 @@ const Header = () => {
             </Link>
           </motion.div>
 
-          {/* <Link
+          <Link
             href="/cart"
             className="p-2 rounded-full text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-all duration-300 relative group"
             aria-label="سبد خرید"
@@ -179,7 +176,7 @@ const Header = () => {
               </span>
             )}
             <span className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-0 h-0.5 bg-voxcina-blue dark:bg-voxcina-cream group-hover:w-1/2 transition-all duration-300"></span>
-          </Link> */}
+          </Link>
         </div>
       </div>
 
