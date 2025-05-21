@@ -127,7 +127,7 @@ const Sidebar = () => {
         </nav>
       </div>
 
-      <div className="absolute bottom-0 inset-x-0 p-4 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 bg-white/90 dark:bg-voxcina-blue/90 backdrop-blur-sm">
+      {/* <div className="absolute bottom-0 inset-x-0 p-4 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 bg-white/90 dark:bg-voxcina-blue/90 backdrop-blur-sm">
         <div className="flex items-center">
           <div className="w-10 h-10 rounded-xl bg-voxcina-blue dark:bg-voxcina-cream flex items-center justify-center text-white dark:text-voxcina-blue font-bold text-lg shadow-sm">
             ک
@@ -141,7 +141,7 @@ const Sidebar = () => {
             </p>
           </div>
         </div>
-      </div>
+      </div> */}
     </aside>
   );
 };
