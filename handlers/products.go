@@ -393,19 +393,10 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := r.ParseMultipartForm(MAX_UPLOAD_SIZE); err != nil {
-		utils.ErrorResponse(
-			w,
-			http.StatusBadRequest,
-			"Error parsing multipart form: "+err.Error(),
-		)
-		return
-	}
-
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
 		15*time.Second,
-	) // Increased timeout for potential multiple operations
+	)
 	defer cancel()
 
 	collection := db.Database.Collection("products")
@@ -424,272 +415,357 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 
 	update := bson.M{}
 	somethingToUpdate := false
+	var imagesToDelete []string
+	var finalImagePaths []string
+	var newlyUploadedPaths []string
 
-	// --- Form Data ---
-	// Helper to update field if value is provided
-	updateIfProvided := func(key string, value string, parseFunc func(string) (interface{}, error)) {
-		if value != "" {
-			parsedVal, err := parseFunc(value)
-			if err != nil {
-				// Consider logging this error or returning a more specific bad request
-				utils.ErrorResponse(
-					w,
-					http.StatusBadRequest,
-					fmt.Sprintf("Invalid format for %s: %s", key, err.Error()),
-				)
-				return // Early exit or collect errors
-			}
-			update[key] = parsedVal
-			somethingToUpdate = true
+	// Check content type to determine how to process the request
+	contentType := r.Header.Get("Content-Type")
+
+	if strings.Contains(contentType, "application/json") {
+		// Handle JSON request
+		var productUpdate struct {
+			Name        *string                   `json:"name"`
+			Description *string                   `json:"description"`
+			Price       *float64                  `json:"price"`
+			CategoryIDs []string                  `json:"categoryIds"`
+			BrandID     *string                   `json:"brandId"`
+			Variants    []models.ProductVariant   `json:"variants"`
+			Attributes  []models.ProductAttribute `json:"attributes"`
+			IsFlashSale *bool                     `json:"isFlashSale"`
+			IsActive    *bool                     `json:"isActive"`
 		}
-	}
 
-	stringParser := func(s string) (interface{}, error) { return s, nil }
-
-	updateIfProvided("name", r.FormValue("name"), stringParser)
-	updateIfProvided("description", r.FormValue("description"), stringParser)
-	if priceStr := r.FormValue("price"); priceStr != "" {
-		price, err := strconv.ParseFloat(priceStr, 64)
-		if err != nil {
-			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid price format")
-			return
-		}
-		update["price"] = price
-		somethingToUpdate = true
-	}
-
-	if categoryIDsJSON := r.FormValue("categoryIds"); categoryIDsJSON != "" {
-		var tempCategoryIDs []string
-		if err := json.Unmarshal([]byte(categoryIDsJSON), &tempCategoryIDs); err != nil {
+		// Parse JSON request body
+		decoder := json.NewDecoder(r.Body)
+		if err := decoder.Decode(&productUpdate); err != nil {
 			utils.ErrorResponse(
 				w,
 				http.StatusBadRequest,
-				"Invalid categoryIds JSON format: "+err.Error(),
+				"Invalid JSON format: "+err.Error(),
 			)
 			return
 		}
-		var categoryIDs []primitive.ObjectID
-		for _, idStr := range tempCategoryIDs {
-			objID, err := primitive.ObjectIDFromHex(idStr)
+
+		// Update fields only if they are provided in JSON
+		if productUpdate.Name != nil {
+			update["name"] = *productUpdate.Name
+			somethingToUpdate = true
+		}
+		if productUpdate.Description != nil {
+			update["description"] = *productUpdate.Description
+			somethingToUpdate = true
+		}
+		if productUpdate.Price != nil {
+			update["price"] = *productUpdate.Price
+			somethingToUpdate = true
+		}
+
+		if len(productUpdate.CategoryIDs) > 0 {
+			var categoryIDs []primitive.ObjectID
+			for _, idStr := range productUpdate.CategoryIDs {
+				objID, err := primitive.ObjectIDFromHex(idStr)
+				if err != nil {
+					utils.ErrorResponse(
+						w,
+						http.StatusBadRequest,
+						"Invalid ObjectID in categoryIds: "+idStr,
+					)
+					return
+				}
+				categoryIDs = append(categoryIDs, objID)
+			}
+			update["category_ids"] = categoryIDs
+			somethingToUpdate = true
+		}
+
+		if productUpdate.BrandID != nil {
+			brandID, err := primitive.ObjectIDFromHex(*productUpdate.BrandID)
 			if err != nil {
+				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid brandId format")
+				return
+			}
+			update["brand_id"] = brandID
+			somethingToUpdate = true
+		}
+
+		if len(productUpdate.Variants) > 0 {
+			update["variants"] = productUpdate.Variants
+			somethingToUpdate = true
+		}
+
+		if len(productUpdate.Attributes) > 0 {
+			update["attributes"] = productUpdate.Attributes
+			somethingToUpdate = true
+		}
+
+		if productUpdate.IsFlashSale != nil {
+			update["is_flash_sale"] = *productUpdate.IsFlashSale
+			somethingToUpdate = true
+		}
+
+		if productUpdate.IsActive != nil {
+			update["is_active"] = *productUpdate.IsActive
+			somethingToUpdate = true
+		}
+
+		// Note: Image management is not included in JSON updates,
+		// so existing images will remain untouched
+
+	} else if strings.Contains(contentType, "multipart/form-data") {
+		// Parse multipart form
+		if err := r.ParseMultipartForm(MAX_UPLOAD_SIZE); err != nil {
+			utils.ErrorResponse(
+				w,
+				http.StatusBadRequest,
+				"Error parsing multipart form: "+err.Error(),
+			)
+			return
+		}
+
+		// Helper to update field if value is provided
+		updateIfProvided := func(key string, value string, parseFunc func(string) (interface{}, error)) {
+			if value != "" {
+				parsedVal, err := parseFunc(value)
+				if err != nil {
+					utils.ErrorResponse(
+						w,
+						http.StatusBadRequest,
+						fmt.Sprintf("Invalid format for %s: %s", key, err.Error()),
+					)
+					return
+				}
+				update[key] = parsedVal
+				somethingToUpdate = true
+			}
+		}
+
+		stringParser := func(s string) (interface{}, error) { return s, nil }
+
+		updateIfProvided("name", r.FormValue("name"), stringParser)
+		updateIfProvided("description", r.FormValue("description"), stringParser)
+		if priceStr := r.FormValue("price"); priceStr != "" {
+			price, err := strconv.ParseFloat(priceStr, 64)
+			if err != nil {
+				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid price format")
+				return
+			}
+			update["price"] = price
+			somethingToUpdate = true
+		}
+
+		if categoryIDsJSON := r.FormValue("categoryIds"); categoryIDsJSON != "" {
+			var tempCategoryIDs []string
+			if err := json.Unmarshal([]byte(categoryIDsJSON), &tempCategoryIDs); err != nil {
 				utils.ErrorResponse(
 					w,
 					http.StatusBadRequest,
-					"Invalid ObjectID in categoryIds: "+idStr,
+					"Invalid categoryIds JSON format: "+err.Error(),
 				)
 				return
 			}
-			categoryIDs = append(categoryIDs, objID)
+			var categoryIDs []primitive.ObjectID
+			for _, idStr := range tempCategoryIDs {
+				objID, err := primitive.ObjectIDFromHex(idStr)
+				if err != nil {
+					utils.ErrorResponse(
+						w,
+						http.StatusBadRequest,
+						"Invalid ObjectID in categoryIds: "+idStr,
+					)
+					return
+				}
+				categoryIDs = append(categoryIDs, objID)
+			}
+			update["category_ids"] = categoryIDs
+			somethingToUpdate = true
 		}
-		update["category_ids"] = categoryIDs
-		somethingToUpdate = true
-	}
 
-	if brandIDStr := r.FormValue("brandId"); brandIDStr != "" {
-		brandID, err := primitive.ObjectIDFromHex(brandIDStr)
-		if err != nil {
-			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid brandId format")
-			return
+		if brandIDStr := r.FormValue("brandId"); brandIDStr != "" {
+			brandID, err := primitive.ObjectIDFromHex(brandIDStr)
+			if err != nil {
+				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid brandId format")
+				return
+			}
+			update["brand_id"] = brandID
+			somethingToUpdate = true
 		}
-		update["brand_id"] = brandID
-		somethingToUpdate = true
-	}
 
-	// Variants and Attributes: For simplicity, we'll replace them entirely if provided.
-	// More complex merging logic could be added if needed.
-	if variantsJSON := r.FormValue("variants"); variantsJSON != "" {
-		var variants []models.ProductVariant
-		if err := json.Unmarshal([]byte(variantsJSON), &variants); err != nil {
-			utils.ErrorResponse(
-				w,
-				http.StatusBadRequest,
-				"Invalid variants JSON format: "+err.Error(),
-			)
-			return
+		if variantsJSON := r.FormValue("variants"); variantsJSON != "" {
+			var variants []models.ProductVariant
+			if err := json.Unmarshal([]byte(variantsJSON), &variants); err != nil {
+				utils.ErrorResponse(
+					w,
+					http.StatusBadRequest,
+					"Invalid variants JSON format: "+err.Error(),
+				)
+				return
+			}
+			update["variants"] = variants
+			somethingToUpdate = true
 		}
-		update["variants"] = variants
-		somethingToUpdate = true
-	}
 
-	if attributesJSON := r.FormValue("attributes"); attributesJSON != "" {
-		var attributes []models.ProductAttribute
-		if err := json.Unmarshal([]byte(attributesJSON), &attributes); err != nil {
-			utils.ErrorResponse(
-				w,
-				http.StatusBadRequest,
-				"Invalid attributes JSON format: "+err.Error(),
-			)
-			return
+		if attributesJSON := r.FormValue("attributes"); attributesJSON != "" {
+			var attributes []models.ProductAttribute
+			if err := json.Unmarshal([]byte(attributesJSON), &attributes); err != nil {
+				utils.ErrorResponse(
+					w,
+					http.StatusBadRequest,
+					"Invalid attributes JSON format: "+err.Error(),
+				)
+				return
+			}
+			update["attributes"] = attributes
+			somethingToUpdate = true
 		}
-		update["attributes"] = attributes
-		somethingToUpdate = true
-	}
 
-	if isFlashSaleStr := r.FormValue("isFlashSale"); isFlashSaleStr != "" {
-		isFlashSale, err := strconv.ParseBool(isFlashSaleStr)
-		if err != nil {
-			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid isFlashSale format")
-			return
+		if isFlashSaleStr := r.FormValue("isFlashSale"); isFlashSaleStr != "" {
+			isFlashSale, err := strconv.ParseBool(isFlashSaleStr)
+			if err != nil {
+				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid isFlashSale format")
+				return
+			}
+			update["is_flash_sale"] = isFlashSale
+			somethingToUpdate = true
 		}
-		update["is_flash_sale"] = isFlashSale
-		somethingToUpdate = true
-	}
 
-	if isActiveStr := r.FormValue("isActive"); isActiveStr != "" {
-		isActive, err := strconv.ParseBool(isActiveStr)
-		if err != nil {
-			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid isActive format")
-			return
+		if isActiveStr := r.FormValue("isActive"); isActiveStr != "" {
+			isActive, err := strconv.ParseBool(isActiveStr)
+			if err != nil {
+				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid isActive format")
+				return
+			}
+			update["is_active"] = isActive
+			somethingToUpdate = true
 		}
-		update["is_active"] = isActive
-		somethingToUpdate = true
-	}
 
-	// --- Main Image Management ---
-	var finalImagePaths []string
-	var imagesToDelete []string
-	newlyUploadedPaths := []string{}
-
-	// 1. Process existing images to keep
-	existingImagePathsJSON := r.FormValue(
-		"existingImagePaths",
-	) // JSON array of strings (paths)
-	if existingImagePathsJSON != "" {
-		var existingPathsToKeep []string
-		if err := json.Unmarshal([]byte(existingImagePathsJSON), &existingPathsToKeep); err != nil {
-			utils.ErrorResponse(
-				w,
-				http.StatusBadRequest,
-				"Invalid existingImagePaths JSON format: "+err.Error(),
-			)
-			return
-		}
-		// Basic validation: ensure these paths are somewhat sane (e.g., start with /uploads/)
-		for _, p := range existingPathsToKeep {
-			if strings.HasPrefix(
-				p,
-				"/uploads/products/main/",
-			) { // Check if they are from our main upload dir
-				finalImagePaths = append(finalImagePaths, p)
-			} else {
-				// Potentially log this or return an error if strict path validation is needed
-				// For now, we'll just skip non-conforming paths from existingImagePaths
+		// Process existing images to keep
+		existingImagePathsJSON := r.FormValue("existingImagePaths")
+		if existingImagePathsJSON != "" {
+			var existingPathsToKeep []string
+			if err := json.Unmarshal([]byte(existingImagePathsJSON), &existingPathsToKeep); err != nil {
+				utils.ErrorResponse(
+					w,
+					http.StatusBadRequest,
+					"Invalid existingImagePaths JSON format: "+err.Error(),
+				)
+				return
+			}
+			for _, p := range existingPathsToKeep {
+				if strings.HasPrefix(p, "/uploads/products/main/") {
+					finalImagePaths = append(finalImagePaths, p)
+				}
 			}
 		}
-	}
 
-	// 2. Process new image uploads
-	files := r.MultipartForm.File["mainImages"] // "mainImages" is the field for new uploads
-	if len(finalImagePaths)+len(files) > MAX_MAIN_IMAGES {
-		utils.ErrorResponse(
-			w,
-			http.StatusBadRequest,
-			fmt.Sprintf(
-				"Total main images (existing + new) cannot exceed %d.",
-				MAX_MAIN_IMAGES,
-			),
-		)
+		// Process new image uploads
+		files := r.MultipartForm.File["mainImages"]
+		if len(finalImagePaths)+len(files) > MAX_MAIN_IMAGES {
+			utils.ErrorResponse(
+				w,
+				http.StatusBadRequest,
+				fmt.Sprintf(
+					"Total main images (existing + new) cannot exceed %d.",
+					MAX_MAIN_IMAGES,
+				),
+			)
+			return
+		}
+
+		uploadDir := "./uploads/products/main"
+		if len(files) > 0 {
+			if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+				utils.ErrorResponse(
+					w,
+					http.StatusInternalServerError,
+					"Error creating main product uploads directory: "+err.Error(),
+				)
+				return
+			}
+		}
+
+		for _, handler := range files {
+			file, err := handler.Open()
+			if err != nil {
+				utils.ErrorResponse(
+					w,
+					http.StatusInternalServerError,
+					"Error opening new main image file: "+err.Error(),
+				)
+				return
+			}
+			defer file.Close()
+
+			ext := filepath.Ext(handler.Filename)
+			filename := fmt.Sprintf(
+				"%s-%d-%s%s",
+				productID.Hex(),
+				time.Now().UnixNano(),
+				strings.ReplaceAll(filepath.Base(handler.Filename), ext, ""),
+				ext,
+			)
+			filePath := filepath.Join(uploadDir, filename)
+
+			dst, err := os.Create(filePath)
+			if err != nil {
+				utils.ErrorResponse(
+					w,
+					http.StatusInternalServerError,
+					"Error creating new main image file on server: "+err.Error(),
+				)
+				return
+			}
+			defer dst.Close()
+
+			if _, err := io.Copy(dst, file); err != nil {
+				_ = os.Remove(filePath)
+				utils.ErrorResponse(
+					w,
+					http.StatusInternalServerError,
+					"Error saving new main image file: "+err.Error(),
+				)
+				return
+			}
+			serverPath := "/uploads/products/main/" + filename
+			finalImagePaths = append(finalImagePaths, serverPath)
+			newlyUploadedPaths = append(newlyUploadedPaths, filePath)
+			somethingToUpdate = true
+		}
+
+		// Determine images to delete
+		if existingImagePathsJSON != "" || len(files) > 0 {
+			update["images"] = finalImagePaths
+			existingImageMap := make(map[string]bool)
+			for _, p := range finalImagePaths {
+				existingImageMap[p] = true
+			}
+			for _, oldPath := range existingProduct.Images {
+				if !existingImageMap[oldPath] {
+					imagesToDelete = append(imagesToDelete, "."+oldPath)
+				}
+			}
+		}
+
+	} else {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Unsupported Content-Type. Use application/json or multipart/form-data")
 		return
 	}
 
-	uploadDir := "./uploads/products/main"
-	if len(files) > 0 {
-		if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
-			utils.ErrorResponse(
-				w,
-				http.StatusInternalServerError,
-				"Error creating main product uploads directory: "+err.Error(),
-			)
-			return
-		}
-	}
-
-	for _, handler := range files {
-		file, err := handler.Open()
-		if err != nil {
-			utils.ErrorResponse(
-				w,
-				http.StatusInternalServerError,
-				"Error opening new main image file: "+err.Error(),
-			)
-			return
-		}
-		defer file.Close()
-
-		ext := filepath.Ext(handler.Filename)
-		// Use product ID in filename for better organization
-		filename := fmt.Sprintf(
-			"%s-%d-%s%s",
-			productID.Hex(),
-			time.Now().UnixNano(),
-			strings.ReplaceAll(filepath.Base(handler.Filename), ext, ""),
-			ext,
-		)
-		filePath := filepath.Join(uploadDir, filename)
-
-		dst, err := os.Create(filePath)
-		if err != nil {
-			utils.ErrorResponse(
-				w,
-				http.StatusInternalServerError,
-				"Error creating new main image file on server: "+err.Error(),
-			)
-			return
-		}
-		defer dst.Close()
-
-		if _, err := io.Copy(dst, file); err != nil {
-			// Attempt to clean up partially created file
-			_ = os.Remove(filePath)
-			utils.ErrorResponse(
-				w,
-				http.StatusInternalServerError,
-				"Error saving new main image file: "+err.Error(),
-			)
-			return
-		}
-		serverPath := "/uploads/products/main/" + filename
-		finalImagePaths = append(finalImagePaths, serverPath)
-		newlyUploadedPaths = append(
-			newlyUploadedPaths,
-			filePath,
-		) // Store full path for potential cleanup on DB error
-		somethingToUpdate = true
-	}
-
-	// If existingImagePathsJSON was provided OR new files were uploaded, update "images"
-	// This ensures "images" is only updated if the client intended to manage images.
-	if existingImagePathsJSON != "" || len(files) > 0 {
-		update["images"] = finalImagePaths
-		// Determine images to delete from the filesystem
-		existingImageMap := make(map[string]bool)
-		for _, p := range finalImagePaths {
-			existingImageMap[p] = true
-		}
-		for _, oldPath := range existingProduct.Images {
-			if !existingImageMap[oldPath] {
-				imagesToDelete = append(
-					imagesToDelete,
-					"."+oldPath,
-				) // Add "." for server-side path
-			}
-		}
-	}
-
-	if !somethingToUpdate && len(files) == 0 && existingImagePathsJSON == "" {
-		utils.JSONResponse(w, http.StatusOK, existingProduct) // Nothing to update
+	if !somethingToUpdate {
+		utils.JSONResponse(w, http.StatusOK, existingProduct)
 		return
 	}
 
 	update["updated_at"] = time.Now()
-
 	updateDoc := bson.M{"$set": update}
 
 	_, err = collection.UpdateOne(ctx, bson.M{"_id": productID}, updateDoc)
 	if err != nil {
-		// If DB update fails, attempt to delete newly uploaded files
-		for _, p := range newlyUploadedPaths {
-			_ = os.Remove(p)
+		// Clean up newly uploaded files if DB update fails
+		for _, path := range newlyUploadedPaths {
+			if err := os.Remove(path); err != nil {
+				fmt.Printf("WARN: Failed to clean up uploaded file %s: %v\n", path, err)
+			}
 		}
 		utils.ErrorResponse(
 			w,
@@ -699,11 +775,9 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If DB update was successful, delete old images from filesystem
+	// Delete old images from filesystem after successful DB update
 	for _, pathToDelete := range imagesToDelete {
 		if err := os.Remove(pathToDelete); err != nil {
-			// Log this error, but don't fail the entire request
-			// as the main product update was successful.
 			fmt.Printf("WARN: Failed to delete old image %s: %v\n", pathToDelete, err)
 		}
 	}
@@ -712,7 +786,6 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	var updatedProduct models.Product
 	err = collection.FindOne(ctx, bson.M{"_id": productID}).Decode(&updatedProduct)
 	if err != nil {
-		// This shouldn't ideally happen if update was successful
 		utils.ErrorResponse(
 			w,
 			http.StatusInternalServerError,
