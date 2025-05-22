@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { motion } from "framer-motion";
+import Image from "next/image";
+import { APP_NAME } from "@/lib/constants";
 
 export default function VerifyCodePage() {
   const [code, setCode] = useState<string[]>(Array(6).fill(""));
@@ -176,11 +178,19 @@ export default function VerifyCodePage() {
                 transition={{ type: "spring", stiffness: 300 }}
               >
                 <div className="relative">
-                  <img
-                    src="/images/Logo/BlueXTransparent.png"
-                    alt="وکسینا"
-                    className="h-12 w-auto sm:h-14 md:h-16 object-contain filter drop-shadow-lg"
-                  />
+                  <Link href="/" className="flex items-center group">
+                    <div className="relative w-24 sm:w-28 md:w-32 h-10 sm:h-12 md:h-12 transition-all duration-300">
+                      <Image
+                        alt={APP_NAME}
+                        priority
+                        quality={100}
+                        src={"/images/Logo/BlueXTransparent.png"}
+                        fill
+                        className="object-contain"
+                        sizes="(max-width: 640px) 6rem, (max-width: 768px) 7rem, 8rem"
+                      />
+                    </div>
+                  </Link>
                   <div
                     className="hidden h-12 sm:h-14 md:h-16 items-center justify-center bg-gradient-to-r from-voxcina-blue to-primary-400 text-white font-bold text-lg sm:text-xl md:text-2xl px-4 rounded-xl shadow-medium"
                     style={{ display: "none" }}

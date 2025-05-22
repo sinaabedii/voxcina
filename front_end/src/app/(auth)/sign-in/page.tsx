@@ -9,13 +9,17 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { motion } from "framer-motion";
+import Image from "next/image";
+import { APP_NAME } from "@/lib/constants";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
+    {}
+  );
 
   const { login, isLoading, error } = useAuthStore();
   const router = useRouter();
@@ -46,11 +50,6 @@ export default function SignInPage() {
       await login({ email, password });
       router.push("/");
     } catch (error) {}
-  };
-
-  const fillTestAccount = () => {
-    setEmail("user@example.com");
-    setPassword("password");
   };
 
   const containerVariants = {
@@ -85,11 +84,19 @@ export default function SignInPage() {
                 transition={{ type: "spring", stiffness: 300 }}
               >
                 <div className="relative">
-                  <img
-                    src="/images/Logo/BlueXTransparent.png"
-                    alt="وکسینا"
-                    className="h-12 w-auto sm:h-14 md:h-16 object-contain filter drop-shadow-lg"
-                  />
+                  <Link href="/" className="flex items-center group">
+                    <div className="relative w-24 sm:w-28 md:w-32 h-10 sm:h-12 md:h-12 transition-all duration-300">
+                      <Image
+                        alt={APP_NAME}
+                        priority
+                        quality={100}
+                        src={"/images/Logo/BlueXTransparent.png"}
+                        fill
+                        className="object-contain"
+                        sizes="(max-width: 640px) 6rem, (max-width: 768px) 7rem, 8rem"
+                      />
+                    </div>
+                  </Link>
                   <div
                     className="hidden h-12 sm:h-14 md:h-16 items-center justify-center bg-gradient-to-r from-voxcina-blue to-primary-400 text-white font-bold text-lg sm:text-xl md:text-2xl px-4 rounded-xl shadow-medium"
                     style={{ display: "none" }}
@@ -171,7 +178,7 @@ export default function SignInPage() {
                           <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-secondary-300 rounded-lg bg-white/70 transition-all duration-200 hover:border-voxcina-blue/50 peer-checked:border-voxcina-blue peer-checked:bg-voxcina-blue">
                             <svg
                               className={`w-3 h-3 sm:w-4 sm:h-4 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 transition-opacity duration-200 ${
-                                rememberMe ? 'opacity-100' : 'opacity-0'
+                                rememberMe ? "opacity-100" : "opacity-0"
                               }`}
                               fill="none"
                               stroke="currentColor"
@@ -255,13 +262,6 @@ export default function SignInPage() {
                         ثبت‌نام کنید
                       </Link>
                     </p>
-                    <button
-                      type="button"
-                      onClick={fillTestAccount}
-                      className="text-xs text-voxcina-blue/60 hover:text-voxcina-blue cursor-pointer transition-colors underline underline-offset-2"
-                    >
-                      پر کردن خودکار (برای آزمایش)
-                    </button>
                   </motion.div>
                 </motion.div>
               </form>

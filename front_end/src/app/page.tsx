@@ -38,7 +38,6 @@ export default function HomePage() {
   const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 150]);
 
-  // داده‌های ماک برای دسته‌بندی‌های دایره‌ای
   const mockCategories = [
     {
       id: 1,
@@ -89,16 +88,8 @@ export default function HomePage() {
       icon: "💄",
       color: "from-rose-400 to-pink-500",
     },
-    {
-      id: 8,
-      name: "خانه و آشپزخانه",
-      slug: "home",
-      icon: "🏠",
-      color: "from-violet-400 to-purple-500",
-    },
   ];
 
-  // داده‌های اسلایدر جدید
   const sliderData = [
     {
       id: 1,
@@ -150,7 +141,6 @@ export default function HomePage() {
 
     document.documentElement.style.scrollBehavior = "smooth";
 
-    // اسلایدر خودکار
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % sliderData.length);
     }, 4000);
@@ -212,7 +202,6 @@ export default function HomePage() {
     <>
       <Header />
       <div className="pb-16 overflow-x-hidden font-sans bg-voxcina-cream">
-        {/* Hero Section اصلی - بدون تغییر */}
         <section
           ref={heroRef as React.RefObject<HTMLElement>}
           className="relative h-[80vh] md:h-[85vh] mb-16 md:mb-24 overflow-hidden"
@@ -328,7 +317,6 @@ export default function HomePage() {
           </motion.div>
         </section>
 
-        {/* بخش دسته‌بندی‌های دایره‌ای با داده‌های ماک */}
         <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-24"
           initial="hidden"
@@ -346,7 +334,6 @@ export default function HomePage() {
           </motion.h2>
 
           <motion.div className="relative" variants={staggerContainer}>
-            {/* دسته‌بندی‌های دایره‌ای - اسکرول افقی */}
             <div className="overflow-x-auto scrollbar-hide">
               <div
                 className="flex gap-4 sm:gap-6 md:gap-8 pb-4 px-2"
@@ -362,24 +349,19 @@ export default function HomePage() {
                       href={`/categories/${category.slug}`}
                       className="block relative"
                     >
-                      {/* دایره اصلی */}
                       <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 rounded-full overflow-hidden shadow-soft group-hover:shadow-medium transition-all duration-500">
-                        {/* گرادیان پس‌زمینه */}
                         <div
                           className={`absolute inset-0 bg-gradient-to-br ${category.color} opacity-80 group-hover:opacity-100 transition-all duration-500`}
                         />
 
-                        {/* اورلی */}
                         <div className="absolute inset-0 bg-white/10 group-hover:bg-white/5 transition-all duration-500" />
 
-                        {/* آیکون مرکزی */}
                         <div className="absolute inset-0 flex items-center justify-center">
                           <span className="text-xl sm:text-2xl md:text-3xl lg:text-4xl filter drop-shadow-sm">
                             {category.icon}
                           </span>
                         </div>
 
-                        {/* حلقه انیمیشن */}
                         <motion.div
                           className="absolute inset-0 rounded-full border-2 border-white/50 opacity-0 group-hover:opacity-100"
                           initial={{ scale: 0.8, opacity: 0 }}
@@ -391,13 +373,11 @@ export default function HomePage() {
                         />
                       </div>
 
-                      {/* نام دسته‌بندی */}
                       <div className="mt-2 md:mt-3 text-center">
                         <h3 className="text-xs sm:text-sm md:text-base font-medium text-voxcina-blue group-hover:text-voxcina-darkBlue transition-colors duration-300 leading-tight px-1 whitespace-nowrap">
                           {category.name}
                         </h3>
 
-                        {/* خط زیر نام */}
                         <motion.div
                           className="mt-1 mx-auto h-0.5 bg-gradient-to-r from-voxcina-blue/50 to-primary-400/50 rounded-full"
                           initial={{ width: 0 }}
@@ -411,7 +391,6 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* اندیکیتور اسکرول برای موبایل */}
             <div className="flex justify-center mt-4 md:hidden">
               <div className="flex space-x-1">
                 <div className="w-2 h-2 bg-voxcina-blue/30 rounded-full"></div>
@@ -420,7 +399,6 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* دکمه مشاهده همه دسته‌بندی‌ها */}
             <motion.div
               className="text-center mt-6 md:mt-8"
               initial={{ opacity: 0, y: 20 }}
@@ -452,7 +430,6 @@ export default function HomePage() {
           </motion.div>
         </motion.section>
 
-        {/* بخش کالکشن فصلی */}
         <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-24 overflow-hidden"
           initial="hidden"
@@ -532,7 +509,6 @@ export default function HomePage() {
           </div>
         </motion.section>
 
-        {/* بخش محصولات پرطرفدار */}
         <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-24"
           initial="hidden"
@@ -596,7 +572,6 @@ export default function HomePage() {
           )}
         </motion.section>
 
-        {/* اسلایدر جدید و شیک */}
         <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-24"
           initial="hidden"
@@ -605,7 +580,6 @@ export default function HomePage() {
           variants={fadeIn}
         >
           <div className="relative h-64 sm:h-80 md:h-96 lg:h-[450px] rounded-3xl overflow-hidden shadow-medium">
-            {/* اسلاید فعلی */}
             <motion.div
               key={currentSlide}
               className={`absolute inset-0 bg-gradient-to-r ${sliderData[currentSlide].bgColor}`}
@@ -613,7 +587,6 @@ export default function HomePage() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.8 }}
             >
-              {/* تصویر پس‌زمینه */}
               <div
                 className="absolute inset-0 bg-cover bg-center opacity-30 mix-blend-overlay"
                 style={{
@@ -621,10 +594,8 @@ export default function HomePage() {
                 }}
               />
 
-              {/* اورلی گرادیان */}
               <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/40" />
 
-              {/* محتوا */}
               <div className="relative h-full flex items-center">
                 <div className="w-full px-6 sm:px-8 md:px-12 lg:px-16">
                   <div className="max-w-lg md:max-w-2xl text-white">
@@ -689,12 +660,10 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* عناصر تزئینی */}
               <div className="absolute top-4 right-4 sm:top-6 sm:right-6 md:top-8 md:right-8 w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-white/10 rounded-full backdrop-blur-sm animate-pulse-soft" />
               <div className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 md:bottom-8 md:left-8 w-8 h-8 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-white/15 rounded-full backdrop-blur-sm animate-pulse-soft" />
             </motion.div>
 
-            {/* کنترل‌های اسلایدر */}
             <div className="absolute inset-y-0 left-2 sm:left-4 md:left-6 flex items-center">
               <button
                 onClick={prevSlide}
@@ -739,7 +708,6 @@ export default function HomePage() {
               </button>
             </div>
 
-            {/* نقاط ناوبری */}
             <div className="absolute bottom-4 sm:bottom-6 md:bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-2 md:space-x-3">
               {sliderData.map((_, index) => (
                 <button
@@ -754,7 +722,6 @@ export default function HomePage() {
               ))}
             </div>
 
-            {/* شماره اسلاید */}
             <div className="absolute top-4 left-4 sm:top-6 sm:left-6 md:top-8 md:left-8 bg-black/30 backdrop-blur-sm text-white px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 md:py-2 rounded-full border border-white/20">
               <span className="text-xs sm:text-sm md:text-base font-medium">
                 {currentSlide + 1} / {sliderData.length}
@@ -763,7 +730,6 @@ export default function HomePage() {
           </div>
         </motion.section>
 
-        {/* بخش جدیدترین محصولات */}
         <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-24"
           initial="hidden"
@@ -827,7 +793,6 @@ export default function HomePage() {
           )}
         </motion.section>
 
-        {/* بخش مزایای خرید */}
         <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-24"
           initial="hidden"
@@ -957,7 +922,6 @@ export default function HomePage() {
           </div>
         </motion.section>
 
-        {/* بخش اینستاگرام */}
         <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-24"
           initial="hidden"
@@ -1053,7 +1017,6 @@ export default function HomePage() {
           </motion.div>
         </motion.section>
 
-        {/* بخش خبرنامه */}
         <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-20"
           initial="hidden"
