@@ -34,7 +34,6 @@
 
 @layer base {
   :root {
-    /* رنگ‌های اصلی وکسینا - آبی تیره #1A3C69 و کرم روشن #f4f1ec */
     --background: 38 30% 96%;
     --foreground: 213 60% 25%;
 
@@ -65,7 +64,6 @@
 
     --radius: 0.5rem;
 
-    /* رنگ‌های اضافی برای فروشگاه */
     --success: 142 70% 45%;
     --success-foreground: 38 30% 96%;
 
@@ -105,7 +103,6 @@
     --input: 213 30% 30%;
     --ring: 38 30% 96%;
 
-    /* رنگ‌های اضافی برای حالت تاریک */
     --success: 142 70% 45%;
     --success-foreground: 38 30% 96%;
 
@@ -125,7 +122,6 @@
     @apply bg-background text-foreground;
   }
 
-  /* فونت‌ها و استایل‌های پایه */
   h1,
   h2,
   h3,
@@ -151,41 +147,36 @@
     @apply text-lg md:text-xl;
   }
 
-  /* تنظیمات RTL */
   html[dir="rtl"] {
     text-align: right;
   }
-  
-  /* Custom Scrollbar */
+
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
-  
+
   ::-webkit-scrollbar-track {
     @apply bg-secondary bg-opacity-50;
   }
-  
+
   ::-webkit-scrollbar-thumb {
     @apply bg-primary bg-opacity-50 rounded-full transition-all duration-300;
   }
-  
+
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-opacity-70;
   }
-  
-  /* انیمیشن برای ترنزیشن صفحات */
+
   .page-transition-wrapper {
     @apply animate-fadeIn;
   }
 }
 
-/* Custom Styles */
 .container {
   @apply px-4 mx-auto max-w-7xl;
 }
 
-/* انیمیشن‌ها */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -339,7 +330,6 @@
     animation: bounce 1s ease infinite;
   }
 
-  /* استایل‌های مورد استفاده صفحه جزئیات محصول */
   .product-zoom {
     @apply cursor-zoom-in overflow-hidden relative;
   }
@@ -361,21 +351,19 @@
     display: none;
   }
 
-  /* نوار پیشرفت سفارشی */
   .voxcina-progress {
     background: linear-gradient(
       to right,
-      #1A3C69,
-      #335D8E,
-      #4C7DB4,
-      #6595CA,
-      #7EA8D8
+      #1a3c69,
+      #335d8e,
+      #4c7db4,
+      #6595ca,
+      #7ea8d8
     );
     background-size: 200% 100%;
     animation: shimmer 2s linear infinite;
   }
 
-  /* افکت‌های هاور پیشرفته */
   .hover-lift {
     @apply transition-all duration-300;
   }
@@ -400,12 +388,10 @@
     @apply brightness-110;
   }
 
-  /* نمایش اسکلتون لودینگ */
   .skeleton {
     @apply bg-secondary animate-pulse rounded;
   }
 
-  /* استایل‌های مربوط به مقایسه محصولات */
   .compare-highlight {
     @apply bg-secondary/60 -mx-4 px-4 py-2 border-l-4 border-primary;
   }
@@ -417,15 +403,13 @@
   .compare-same {
     @apply text-muted-foreground;
   }
-  
-  /* افکت شیشه‌ای */
+
   .glass-effect {
     @apply bg-white/60 dark:bg-black/60 backdrop-blur-md border border-white/20 dark:border-black/20 shadow-soft;
   }
 }
 
 @layer components {
-  /* دکمه‌ها */
   .btn {
     @apply inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
   }
@@ -466,14 +450,12 @@
     @apply text-primary underline-offset-4 hover:underline p-0 h-auto transition-all duration-300;
   }
 
-  /* ورودی‌ها */
   .input {
     @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200;
   }
 
-  /* کارت محصول */
   .product-card {
-    @apply relative bg-card rounded-lg border border-border/10 overflow-hidden transition-all duration-300 hover:shadow-medium ;
+    @apply relative bg-card rounded-lg border border-border/10 overflow-hidden transition-all duration-300 hover:shadow-medium;
   }
 
   .product-card-image {
@@ -500,12 +482,6 @@
     @apply absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded-full bg-primary text-primary-foreground shadow-soft;
   }
 
-  /* نوار پیمایش سفارشی */
-  /* .custom-scrollbar {
-    @apply \ scrollbar-thumb-primary/30 scrollbar-track-transparent hover:scrollbar-thumb-primary/50;
-  } */
-
-  /* بج‌ها */
   .badge {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-all duration-200;
   }
@@ -534,7 +510,6 @@
     @apply bg-info/10 text-info hover:bg-info/20;
   }
 
-  /* ستاره های امتیازدهی */
   .stars-container {
     @apply flex items-center;
   }
@@ -547,7 +522,6 @@
     @apply text-muted;
   }
 
-  /* فیلدهای فرم‌های اختصاصی */
   .form-group {
     @apply mb-4;
   }
@@ -564,7 +538,6 @@
     @apply text-xs text-muted-foreground mt-1;
   }
 
-  /* مودال‌های اختصاصی */
   .modal-overlay {
     @apply fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn;
   }
@@ -581,7 +554,6 @@
     @apply absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors duration-200;
   }
 
-  /* اعلان‌های سیستمی */
   .notification {
     @apply fixed top-4 right-4 z-50 p-4 rounded-lg shadow-medium animate-slideInRight max-w-md backdrop-blur-sm;
   }
@@ -602,7 +574,6 @@
     @apply bg-info/90 text-info-foreground border border-info/20;
   }
 
-  /* لودر */
   .loader {
     @apply w-6 h-6 border-2 border-t-transparent rounded-full animate-spin;
   }
@@ -611,7 +582,6 @@
     @apply border-primary border-t-transparent;
   }
 
-  /* تب‌ها */
   .tabs {
     @apply flex border-b border-border/20 mb-4;
   }
@@ -624,7 +594,6 @@
     @apply border-primary text-primary;
   }
 
-  /* افکت اسکیمر (برای لودینگ) */
   .skeleton-loader {
     @apply rounded bg-secondary/50 relative overflow-hidden;
   }
@@ -640,60 +609,85 @@
       rgba(255, 255, 255, 0)
     );
   }
-  
-  /* استایل‌های جدید وکسینا */
+
   .voxcina-container {
     @apply container px-4 sm:px-6 lg:px-8 mx-auto;
   }
-  
+
   .voxcina-card {
     @apply bg-card rounded-lg shadow-soft border border-border/10 transition-all duration-300 hover:shadow-medium;
   }
-  
+
   .voxcina-input {
     @apply bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200;
   }
-  
+
   .voxcina-button-primary {
     @apply bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-4 py-2 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 disabled:pointer-events-none shadow-soft;
   }
-  
+
   .voxcina-button-secondary {
     @apply bg-secondary text-secondary-foreground hover:bg-secondary/90 rounded-md px-4 py-2 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-secondary/30 disabled:opacity-50 disabled:pointer-events-none shadow-soft;
   }
-  
+
   .voxcina-badge {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-all duration-200;
   }
-  
-  /* نویگیشن */
+
   .voxcina-nav {
     @apply bg-card shadow-soft sticky top-0 z-40 backdrop-blur-sm;
   }
-  
+
   .voxcina-nav-link {
     @apply text-foreground hover:text-primary transition-colors duration-200 px-3 py-2 rounded-md;
   }
-  
+
   .voxcina-nav-link-active {
     @apply text-primary font-medium;
   }
-  
-  /* سایه‌ها */
+
   .shadow-soft {
     @apply shadow-[0_4px_20px_rgba(26,60,105,0.05)];
   }
-  
+
   .shadow-medium {
     @apply shadow-[0_6px_25px_rgba(26,60,105,0.1)];
   }
-  
+
   .shadow-strong {
     @apply shadow-[0_10px_30px_rgba(26,60,105,0.15)];
   }
-  
-  /* استایل‌های مربوط به توست */
+
   .voxcina-toast {
-    @apply shadow-medium border border-border/10 text-foreground bg-background backdrop-blur-sm ;
+    @apply shadow-medium border border-border/10 text-foreground bg-background backdrop-blur-sm;
   }
+}
+
+/* Custom Checkbox Styles */
+input[type="checkbox"]:checked + label > div {
+  @apply border-voxcina-blue bg-voxcina-blue;
+}
+
+input[type="checkbox"]:checked + label > div > svg {
+  @apply opacity-100;
+}
+
+input[type="checkbox"]:focus + label > div {
+  @apply ring-2 ring-voxcina-blue/30 ring-offset-2;
+}
+
+input[type="checkbox"]:hover + label > div {
+  @apply border-voxcina-blue/50 shadow-sm;
+}
+
+input[type="checkbox"]:active + label > div {
+  @apply scale-95;
+}
+
+input[type="checkbox"] + label > div {
+  @apply transition-all duration-200 ease-in-out;
+}
+
+input[type="checkbox"] + label > div > svg {
+  @apply transition-opacity duration-200 ease-in-out;
 }

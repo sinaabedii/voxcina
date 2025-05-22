@@ -87,214 +87,231 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="flex  items-center justify-center  py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 overflow-x-hidden">
       <motion.div
-        className="w-full max-w-md"
+        className="w-full max-w-md mx-auto relative z-10"
         initial="hidden"
         animate="visible"
         variants={containerVariants}
       >
-        <motion.div
-          className="absolute inset-0 bg-gradient-to-br from-voxcina-blue/5 to-secondary-300/10 blur-3xl opacity-30 -z-10"
-          animate={{
-            opacity: [0.2, 0.3, 0.2],
-            scale: [1, 1.05, 1],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            repeatType: "reverse",
-          }}
-        />
+        <motion.div variants={itemVariants}>
+          <Card className="w-full bg-white/80 backdrop-blur-md border border-white/20 shadow-medium rounded-2xl sm:rounded-3xl overflow-hidden">
+            <CardHeader className="text-center pb-2 pt-6 px-4 sm:px-6">
+              <motion.div
+                className="flex justify-center mb-4"
+                whileHover={{ scale: 1.05 }}
+                transition={{ type: "spring", stiffness: 300 }}
+              >
+                <div className="relative">
+                  <img
+                    src="/images/Logo/BlueXTransparent.png"
+                    alt="وکسینا"
+                    className="h-12 w-auto sm:h-14 md:h-16 object-contain filter drop-shadow-lg"
+                  />
+                  <div
+                    className="hidden h-12 sm:h-14 md:h-16 items-center justify-center bg-gradient-to-r from-voxcina-blue to-primary-400 text-white font-bold text-lg sm:text-xl md:text-2xl px-4 rounded-xl shadow-medium"
+                    style={{ display: "none" }}
+                  >
+                    وکسینا
+                  </div>
+                </div>
+              </motion.div>
 
-        <motion.div variants={itemVariants} className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-voxcina-blue">
-            عضویت در{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-voxcina-blue to-primary-400">
-              وکسینا
-            </span>
-          </h2>
-          <p className="mt-2 text-sm text-voxcina-blue/70">
-            همین الان به خانواده وکسینا بپیوندید
-          </p>
+              <CardTitle className="text-xl sm:text-2xl font-bold text-voxcina-blue">
+                ایجاد حساب کاربری
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-2 px-4 sm:px-6 pb-6">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <motion.div className="space-y-4" variants={containerVariants}>
+                  <motion.div variants={itemVariants}>
+                    <Input
+                      label="نام و نام خانوادگی"
+                      type="text"
+                      id="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      error={errors.name}
+                      leftElement={
+                        <User className="h-4 w-4 sm:h-5 sm:w-5 text-voxcina-blue/60" />
+                      }
+                      placeholder="علی محمدی"
+                      className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5"
+                    />
+                  </motion.div>
+
+                  <motion.div variants={itemVariants}>
+                    <Input
+                      label="ایمیل"
+                      type="email"
+                      id="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      error={errors.email}
+                      leftElement={
+                        <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-voxcina-blue/60" />
+                      }
+                      placeholder="example@mail.com"
+                      className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5"
+                    />
+                  </motion.div>
+
+                  <motion.div variants={itemVariants}>
+                    <Input
+                      label="رمز عبور"
+                      type={showPassword ? "text" : "password"}
+                      id="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      error={errors.password}
+                      leftElement={
+                        <Lock className="h-4 w-4 sm:h-5 sm:w-5 text-voxcina-blue/60" />
+                      }
+                      rightElement={
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="text-voxcina-blue/60 hover:text-voxcina-blue transition-colors p-1"
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4 sm:h-5 sm:w-5" />
+                          ) : (
+                            <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
+                          )}
+                        </button>
+                      }
+                      placeholder="••••••••"
+                      className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5"
+                    />
+                  </motion.div>
+
+                  <motion.div variants={itemVariants}>
+                    <Input
+                      label="تکرار رمز عبور"
+                      type={showPassword ? "text" : "password"}
+                      id="confirmPassword"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      error={errors.confirmPassword}
+                      leftElement={
+                        <Lock className="h-4 w-4 sm:h-5 sm:w-5 text-voxcina-blue/60" />
+                      }
+                      placeholder="••••••••"
+                      className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5"
+                    />
+                  </motion.div>
+
+                  <motion.div
+                    className="flex items-start mt-4 space-x-3 space-x-reverse"
+                    variants={itemVariants}
+                  >
+                    <div className="relative flex items-center">
+                      <input
+                        type="checkbox"
+                        id="terms"
+                        className="sr-only"
+                        required
+                      />
+                      <label
+                        htmlFor="terms"
+                        className="relative flex items-center cursor-pointer"
+                      >
+                        <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-secondary-300 rounded-lg bg-white/70 transition-all duration-200 hover:border-voxcina-blue/50 peer-checked:border-voxcina-blue peer-checked:bg-voxcina-blue">
+                          <svg
+                            className="w-3 h-3 sm:w-4 sm:h-4 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 peer-checked:opacity-100 transition-opacity duration-200"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={3}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        </div>
+                      </label>
+                    </div>
+                    <label
+                      htmlFor="terms"
+                      className="text-xs sm:text-sm text-voxcina-blue/80 leading-relaxed cursor-pointer select-none"
+                    >
+                      <span>قوانین و مقررات را </span>
+                      <Link
+                        href="/terms"
+                        className="text-voxcina-blue font-medium hover:text-voxcina-darkBlue transition-colors underline underline-offset-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        مطالعه کرده و می‌پذیرم
+                      </Link>
+                    </label>
+                  </motion.div>
+
+                  {error && (
+                    <motion.div
+                      className="p-3 rounded-xl bg-red-50 text-red-500 text-xs sm:text-sm border border-red-100 shadow-soft"
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <div className="flex items-center">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4 sm:h-5 sm:w-5 ml-2 flex-shrink-0"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        <span className="leading-relaxed">{error}</span>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  <motion.div className="pt-3" variants={itemVariants}>
+                    <Button
+                      variant="primary"
+                      fullWidth
+                      type="submit"
+                      isLoading={isLoading}
+                      className="bg-voxcina-blue hover:bg-voxcina-darkBlue text-white py-3 sm:py-3.5 rounded-xl transition-all duration-300 shadow-soft hover:shadow-medium text-sm sm:text-base font-medium"
+                    >
+                      {isLoading ? "در حال ثبت‌نام..." : "ثبت‌نام"}
+                    </Button>
+                  </motion.div>
+
+                  <motion.div
+                    className="text-center mt-4"
+                    variants={itemVariants}
+                  >
+                    <p className="text-xs sm:text-sm text-voxcina-blue/70">
+                      قبلاً ثبت‌نام کرده‌اید؟{" "}
+                      <Link
+                        href="/sign-in"
+                        className="text-voxcina-blue font-medium hover:text-voxcina-darkBlue transition-colors underline underline-offset-2"
+                      >
+                        وارد شوید
+                      </Link>
+                    </p>
+                  </motion.div>
+                </motion.div>
+              </form>
+            </CardContent>
+          </Card>
         </motion.div>
 
-        <Card className="w-full bg-white/80 backdrop-blur-md border border-white/20 shadow-medium rounded-2xl overflow-hidden">
-          <CardHeader className="text-center pb-2 pt-6">
-            <CardTitle className="text-2xl font-bold text-voxcina-blue">
-              ایجاد حساب کاربری
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <form onSubmit={handleSubmit}>
-              <motion.div className="space-y-4" variants={containerVariants}>
-                <motion.div variants={itemVariants}>
-                  <Input
-                    label="نام و نام خانوادگی"
-                    type="text"
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    error={errors.name}
-                    leftElement={
-                      <User className="h-4 w-4 text-voxcina-blue/60" />
-                    }
-                    placeholder="علی محمدی"
-                    className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl"
-                  />
-                </motion.div>
-
-                <motion.div variants={itemVariants}>
-                  <Input
-                    label="ایمیل"
-                    type="email"
-                    id="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    error={errors.email}
-                    leftElement={
-                      <Mail className="h-4 w-4 text-voxcina-blue/60" />
-                    }
-                    placeholder="example@mail.com"
-                    className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl"
-                  />
-                </motion.div>
-
-                <motion.div variants={itemVariants}>
-                  <Input
-                    label="رمز عبور"
-                    type={showPassword ? "text" : "password"}
-                    id="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    error={errors.password}
-                    leftElement={
-                      <Lock className="h-4 w-4 text-voxcina-blue/60" />
-                    }
-                    rightElement={
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="text-voxcina-blue/60 hover:text-voxcina-blue transition-colors"
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                    }
-                    placeholder="••••••••"
-                    className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl"
-                  />
-                </motion.div>
-
-                <motion.div variants={itemVariants}>
-                  <Input
-                    label="تکرار رمز عبور"
-                    type={showPassword ? "text" : "password"}
-                    id="confirmPassword"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    error={errors.confirmPassword}
-                    leftElement={
-                      <Lock className="h-4 w-4 text-voxcina-blue/60" />
-                    }
-                    placeholder="••••••••"
-                    className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl"
-                  />
-                </motion.div>
-
-                <motion.div
-                  className="flex items-center mt-2"
-                  variants={itemVariants}
-                >
-                  <input
-                    type="checkbox"
-                    id="terms"
-                    className="ml-2 h-4 w-4 rounded border-secondary-300 text-voxcina-blue focus:ring-voxcina-blue/30"
-                    required
-                  />
-                  <label
-                    htmlFor="terms"
-                    className="text-sm text-voxcina-blue/80"
-                  >
-                    <span>قوانین و مقررات را </span>
-                    <Link
-                      href="#"
-                      className="text-voxcina-blue font-medium hover:text-voxcina-darkBlue transition-colors"
-                    >
-                      مطالعه کرده و می‌پذیرم
-                    </Link>
-                  </label>
-                </motion.div>
-
-                {error && (
-                  <motion.div
-                    className="p-3 rounded-xl bg-red-50 text-red-500 text-sm border border-red-100 shadow-soft"
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <div className="flex items-center">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5 ml-2 flex-shrink-0"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      <span>{error}</span>
-                    </div>
-                  </motion.div>
-                )}
-
-                <motion.div className="pt-2" variants={itemVariants}>
-                  <Button
-                    variant="primary"
-                    fullWidth
-                    type="submit"
-                    isLoading={isLoading}
-                    className="bg-voxcina-blue hover:bg-voxcina-darkBlue text-white py-3 rounded-xl transition-all duration-300 shadow-soft hover:shadow-medium"
-                  >
-                    {isLoading ? "در حال ثبت‌نام..." : "ثبت‌نام"}
-                  </Button>
-                </motion.div>
-
-                <motion.div
-                  className="text-center mt-4"
-                  variants={itemVariants}
-                >
-                  <p className="text-sm text-voxcina-blue/70">
-                    قبلاً ثبت‌نام کرده‌اید؟{" "}
-                    <Link
-                      href="/sign-in"
-                      className="text-voxcina-blue font-medium hover:text-voxcina-darkBlue transition-colors"
-                    >
-                      وارد شوید
-                    </Link>
-                  </p>
-                </motion.div>
-              </motion.div>
-            </form>
-          </CardContent>
-        </Card>
-
-        <motion.div
-          variants={itemVariants}
-          className="mt-6 text-center text-xs text-voxcina-blue/60"
-        >
-          <div className="flex flex-row-reverse justify-center items-center space-x-2 space-x-reverse">
+        <motion.div variants={itemVariants} className="mt-4 text-center">
+          <div className="inline-flex items-center justify-center space-x-2 space-x-reverse bg-white/50 backdrop-blur-sm rounded-full px-3 sm:px-4 py-2 border border-white/20 shadow-soft">
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4 text-voxcina-blue/60"
+              className="h-3 w-3 sm:h-4 sm:w-4 text-voxcina-blue/60 flex-shrink-0"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -306,7 +323,9 @@ export default function SignUpPage() {
                 d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
               />
             </svg>
-            <span>اطلاعات شما نزد ما محفوظ می‌ماند</span>
+            <span className="text-xs sm:text-sm text-voxcina-blue/60">
+              اطلاعات شما نزد ما محفوظ می‌ماند
+            </span>
           </div>
         </motion.div>
       </motion.div>

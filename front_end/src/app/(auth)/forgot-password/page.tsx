@@ -45,7 +45,7 @@ export default function ForgotPasswordPage() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1,
+        staggerChildren: 0.08,
       },
     },
   };
@@ -56,32 +56,19 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="flex  items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 overflow-x-hidden">
       <motion.div
-        className="w-full max-w-md"
+        className="w-full max-w-md mx-auto relative z-10"
         initial="hidden"
         animate="visible"
         variants={containerVariants}
       >
-        <motion.div
-          className="absolute inset-0 bg-gradient-to-tr from-voxcina-blue/5 to-secondary-300/10 blur-3xl opacity-30 -z-10"
-          animate={{
-            opacity: [0.2, 0.3, 0.2],
-            scale: [1, 1.05, 1],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            repeatType: "reverse",
-          }}
-        />
-
-        <motion.div variants={itemVariants} className="text-center mb-8">
+        <motion.div variants={itemVariants} className="text-center mb-6">
           <Link href="/sign-in" className="inline-block mb-4">
             <div className="flex items-center justify-center text-voxcina-blue hover:text-voxcina-darkBlue transition-colors">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 ml-1"
+                className="h-4 w-4 sm:h-5 sm:w-5 ml-1"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -93,98 +80,104 @@ export default function ForgotPasswordPage() {
                   d="M19 12H5M12 19l-7-7 7-7"
                 />
               </svg>
-              <span>بازگشت به صفحه ورود</span>
+              <span className="text-sm sm:text-base">بازگشت به صفحه ورود</span>
             </div>
           </Link>
-          <h2 className="text-3xl font-bold text-voxcina-blue">
+          <h1 className="text-2xl sm:text-3xl font-bold text-voxcina-blue mb-1">
             بازیابی{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-voxcina-blue to-primary-400">
               رمز عبور
             </span>
-          </h2>
-          <p className="mt-2 text-sm text-voxcina-blue/70">
+          </h1>
+          <p className="text-sm sm:text-base text-voxcina-blue/70 leading-relaxed">
             لینک بازیابی رمز عبور به ایمیل شما ارسال خواهد شد
           </p>
         </motion.div>
 
-        <Card className="w-full bg-white/80 backdrop-blur-md border border-white/20 shadow-medium rounded-2xl overflow-hidden">
-          <CardHeader className="text-center pb-2 pt-6">
-            <CardTitle className="text-2xl font-bold text-voxcina-blue">
-              فراموشی رمز عبور
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4">
-            {!isSubmitted ? (
-              <form onSubmit={handleSubmit}>
-                <motion.div className="space-y-5" variants={containerVariants}>
-                  <motion.div variants={itemVariants}>
-                    <Input
-                      label="ایمیل"
-                      type="email"
-                      id="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      error={errors.email}
-                      leftElement={
-                        <Mail className="h-4 w-4 text-voxcina-blue/60" />
-                      }
-                      placeholder="example@mail.com"
-                      className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl"
-                    />
-                  </motion.div>
-
-                  <motion.div className="pt-2" variants={itemVariants}>
-                    <Button
-                      variant="primary"
-                      fullWidth
-                      type="submit"
-                      isLoading={isLoading}
-                      className="bg-voxcina-blue hover:bg-voxcina-darkBlue text-white py-3 rounded-xl transition-all duration-300 shadow-soft hover:shadow-medium"
-                    >
-                      {isLoading ? "در حال ارسال..." : "ارسال لینک بازیابی"}
-                    </Button>
-                  </motion.div>
-                </motion.div>
-              </form>
-            ) : (
+        <motion.div variants={itemVariants}>
+          <Card className="w-full bg-white/80 backdrop-blur-md border border-white/20 shadow-medium rounded-2xl sm:rounded-3xl overflow-hidden">
+            <CardHeader className="text-center pb-2 pt-6 px-4 sm:px-6">
               <motion.div
-                className="py-4"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5 }}
+                className="flex justify-center mb-4"
+                whileHover={{ scale: 1.05 }}
+                transition={{ type: "spring", stiffness: 300 }}
               >
-                <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-8 w-8 text-green-500"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
+                <div className="relative">
+                  <img
+                    src="/images/Logo/BlueXTransparent.png"
+                    alt="وکسینا"
+                    className="h-12 w-auto sm:h-14 md:h-16 object-contain filter drop-shadow-lg"
+                  />
+                  <div
+                    className="hidden h-12 sm:h-14 md:h-16 items-center justify-center bg-gradient-to-r from-voxcina-blue to-primary-400 text-white font-bold text-lg sm:text-xl md:text-2xl px-4 rounded-xl shadow-medium"
+                    style={{ display: "none" }}
+                  >
+                    وکسینا
                   </div>
-                  <h3 className="text-xl font-bold text-voxcina-blue mb-2">
-                    ایمیل ارسال شد
-                  </h3>
-                  <p className="text-sm text-voxcina-blue/70 mb-4">
-                    لینک بازیابی رمز عبور به ایمیل <strong>{email}</strong>{" "}
-                    ارسال شد.
-                    <br />
-                    لطفاً صندوق ورودی خود را بررسی کنید.
-                  </p>
+                </div>
+              </motion.div>
 
-                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-voxcina-blue/80 w-full mb-4">
-                    <div className="flex">
+              <CardTitle className="text-xl sm:text-2xl font-bold text-voxcina-blue">
+                فراموشی رمز عبور
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-2 px-4 sm:px-6 pb-6">
+              {!isSubmitted ? (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <motion.div
+                    className="space-y-4"
+                    variants={containerVariants}
+                  >
+                    <motion.div variants={itemVariants}>
+                      <Input
+                        label="ایمیل"
+                        type="email"
+                        id="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        error={errors.email}
+                        leftElement={
+                          <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-voxcina-blue/60" />
+                        }
+                        placeholder="example@mail.com"
+                        className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5"
+                      />
+                    </motion.div>
+
+                    <motion.div className="pt-3" variants={itemVariants}>
+                      <Button
+                        variant="primary"
+                        fullWidth
+                        type="submit"
+                        isLoading={isLoading}
+                        className="bg-voxcina-blue hover:bg-voxcina-darkBlue text-white py-3 sm:py-3.5 rounded-xl transition-all duration-300 shadow-soft hover:shadow-medium text-sm sm:text-base font-medium"
+                      >
+                        {isLoading ? "در حال ارسال..." : "ارسال لینک بازیابی"}
+                      </Button>
+                    </motion.div>
+                  </motion.div>
+                </form>
+              ) : (
+                <motion.div
+                  className="py-4"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <div className="flex flex-col items-center text-center">
+                    <motion.div
+                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-green-100 flex items-center justify-center mb-4"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 300,
+                        damping: 20,
+                      }}
+                    >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5 text-blue-500 ml-2 flex-shrink-0"
+                        className="h-8 w-8 sm:h-10 sm:w-10 text-green-500"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -193,38 +186,67 @@ export default function ForgotPasswordPage() {
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          d="M5 13l4 4L19 7"
                         />
                       </svg>
-                      <span>
-                        اگر ایمیل را دریافت نکردید، لطفاً پوشه اسپم را بررسی
-                        کنید.
-                      </span>
+                    </motion.div>
+                    <h3 className="text-lg sm:text-xl font-bold text-voxcina-blue mb-2">
+                      ایمیل ارسال شد
+                    </h3>
+                    <p className="text-sm text-voxcina-blue/70 mb-4 leading-relaxed">
+                      لینک بازیابی رمز عبور به ایمیل{" "}
+                      <span className="font-medium text-voxcina-blue">
+                        {email}
+                      </span>{" "}
+                      ارسال شد.
+                      <br />
+                      لطفاً صندوق ورودی خود را بررسی کنید.
+                    </p>
+
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 sm:p-4 text-xs sm:text-sm text-voxcina-blue/80 w-full mb-4">
+                      <div className="flex items-start">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 ml-2 flex-shrink-0 mt-0.5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        <span className="leading-relaxed">
+                          اگر ایمیل را دریافت نکردید، لطفاً پوشه اسپم را بررسی
+                          کنید.
+                        </span>
+                      </div>
                     </div>
+
+                    <Link href="/sign-in" className="w-full">
+                      <Button
+                        variant="outline"
+                        fullWidth
+                        className="border-voxcina-blue text-voxcina-blue hover:bg-voxcina-blue hover:text-white rounded-xl transition-all duration-300 text-sm sm:text-base"
+                      >
+                        بازگشت به صفحه ورود
+                      </Button>
+                    </Link>
                   </div>
+                </motion.div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
 
-                  <Link href="/sign-in">
-                    <Button
-                      variant="outline"
-                      className="border-voxcina-blue text-voxcina-blue hover:bg-voxcina-blue hover:text-white rounded-xl transition-all duration-300"
-                    >
-                      بازگشت به صفحه ورود
-                    </Button>
-                  </Link>
-                </div>
-              </motion.div>
-            )}
-          </CardContent>
-        </Card>
-
-        <motion.div
-          className="mt-6 text-center text-xs text-voxcina-blue/60"
-          variants={itemVariants}
-        >
-          <div className="flex flex-row-reverse justify-center items-center space-x-2 space-x-reverse">
+        <motion.div variants={itemVariants} className="mt-4 text-center">
+          <div className="inline-flex items-center justify-center space-x-2 space-x-reverse bg-white/50 backdrop-blur-sm rounded-full px-3 sm:px-4 py-2 border border-white/20 shadow-soft">
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4 text-voxcina-blue/60"
+              className="h-3 w-3 sm:h-4 sm:w-4 text-voxcina-blue/60 flex-shrink-0"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -236,7 +258,9 @@ export default function ForgotPasswordPage() {
                 d="M20.618 5.984A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
               />
             </svg>
-            <span>اطلاعات شما نزد ما محفوظ می‌ماند</span>
+            <span className="text-xs sm:text-sm text-voxcina-blue/60">
+              اطلاعات شما نزد ما محفوظ می‌ماند
+            </span>
           </div>
         </motion.div>
       </motion.div>

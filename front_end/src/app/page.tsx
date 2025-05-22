@@ -27,6 +27,7 @@ export default function HomePage() {
   } = useCategoryStore();
 
   const [isVisible, setIsVisible] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
   const heroRef = useRef<HTMLElement | null>(null);
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -37,6 +38,110 @@ export default function HomePage() {
   const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 150]);
 
+  // داده‌های ماک برای دسته‌بندی‌های دایره‌ای
+  const mockCategories = [
+    {
+      id: 1,
+      name: "پوشاک زنانه",
+      slug: "women-clothing",
+      icon: "👗",
+      color: "from-pink-400 to-purple-500",
+    },
+    {
+      id: 2,
+      name: "پوشاک مردانه",
+      slug: "men-clothing",
+      icon: "👔",
+      color: "from-blue-400 to-indigo-500",
+    },
+    {
+      id: 3,
+      name: "کیف و کفش",
+      slug: "bags-shoes",
+      icon: "👜",
+      color: "from-amber-400 to-orange-500",
+    },
+    {
+      id: 4,
+      name: "لوازم جانبی",
+      slug: "accessories",
+      icon: "💍",
+      color: "from-emerald-400 to-teal-500",
+    },
+    {
+      id: 5,
+      name: "کودک و نوزاد",
+      slug: "kids",
+      icon: "🧸",
+      color: "from-cyan-400 to-blue-500",
+    },
+    {
+      id: 6,
+      name: "ورزشی",
+      slug: "sports",
+      icon: "⚽",
+      color: "from-green-400 to-emerald-500",
+    },
+    {
+      id: 7,
+      name: "آرایشی",
+      slug: "beauty",
+      icon: "💄",
+      color: "from-rose-400 to-pink-500",
+    },
+    {
+      id: 8,
+      name: "خانه و آشپزخانه",
+      slug: "home",
+      icon: "🏠",
+      color: "from-violet-400 to-purple-500",
+    },
+  ];
+
+  // داده‌های اسلایدر جدید
+  const sliderData = [
+    {
+      id: 1,
+      title: "کالکشن پاییز 2025",
+      subtitle: "رنگ‌های گرم و طراحی‌های منحصربفرد",
+      image: "/images/slider/autumn-collection.jpg",
+      buttonText: "کاوش کنید",
+      buttonLink: "/collections/autumn-2025",
+      badge: "جدید",
+      bgColor: "from-amber-500 to-orange-600",
+    },
+    {
+      id: 2,
+      title: "تخفیف ویژه برندها",
+      subtitle: "تا 70% تخفیف روی محبوب‌ترین برندها",
+      image: "/images/slider/brand-sale.jpg",
+      buttonText: "خرید کنید",
+      buttonLink: "/sales/brands",
+      badge: "فروش ویژه",
+      bgColor: "from-red-500 to-pink-600",
+    },
+    {
+      id: 3,
+      title: "استایل اداری شیک",
+      subtitle: "برای روزهای کاری پرانرژی",
+      image: "/images/slider/office-style.jpg",
+      buttonText: "مشاهده استایل‌ها",
+      buttonLink: "/collections/office",
+      badge: "ترند",
+      bgColor: "from-slate-500 to-gray-600",
+    },
+    {
+      id: 4,
+      title: "لوازم جانبی لوکس",
+      subtitle: "کیف، کفش و جواهرات برندهای معتبر",
+      image: "/images/slider/luxury-accessories.jpg",
+      buttonText: "مجموعه لوکس",
+      buttonLink: "/collections/luxury",
+      badge: "پریمیوم",
+      bgColor: "from-purple-500 to-indigo-600",
+    },
+  ];
+
   useEffect(() => {
     fetchFlashSaleProducts();
     fetchNewProducts();
@@ -45,12 +150,16 @@ export default function HomePage() {
 
     document.documentElement.style.scrollBehavior = "smooth";
 
+    // اسلایدر خودکار
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % sliderData.length);
+    }, 4000);
+
     return () => {
       document.documentElement.style.scrollBehavior = "";
+      clearInterval(interval);
     };
   }, [fetchFlashSaleProducts, fetchNewProducts, fetchCategories]);
-
-  const mainCategories = categories.slice(0, 5);
 
   const fadeIn = {
     hidden: { opacity: 0, y: 20 },
@@ -84,10 +193,26 @@ export default function HomePage() {
 
     setMousePosition({ x, y });
   };
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % sliderData.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide(
+      (prev) => (prev - 1 + sliderData.length) % sliderData.length
+    );
+  };
+
+  const goToSlide = (index: number) => {
+    setCurrentSlide(index);
+  };
+
   return (
     <>
       <Header />
       <div className="pb-16 overflow-x-hidden font-sans bg-voxcina-cream">
+        {/* Hero Section اصلی - بدون تغییر */}
         <section
           ref={heroRef as React.RefObject<HTMLElement>}
           className="relative h-[80vh] md:h-[85vh] mb-16 md:mb-24 overflow-hidden"
@@ -203,63 +328,114 @@ export default function HomePage() {
           </motion.div>
         </section>
 
+        {/* بخش دسته‌بندی‌های دایره‌ای با داده‌های ماک */}
         <motion.section
-          className="container px-4 md:px-8 mb-20 md:mb-32"
+          className="container px-4 md:px-8 mb-16 md:mb-24"
           initial="hidden"
           animate={isVisible ? "visible" : "hidden"}
           variants={fadeIn}
         >
           <motion.h2
-            className="text-2xl sm:text-3xl font-bold mb-8 md:mb-12 pb-4 relative text-center md:text-right text-voxcina-blue"
+            className="text-xl sm:text-2xl md:text-3xl font-bold mb-6 md:mb-10 pb-3 relative text-center text-voxcina-blue"
             variants={fadeIn}
           >
             <span className="relative inline-block">
               دسته‌بندی‌های محبوب
-              <span className="absolute -bottom-1 left-0 right-0 h-1 bg-gradient-to-r from-voxcina-blue to-primary-400"></span>
+              <span className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-16 md:w-24 h-0.5 bg-gradient-to-r from-voxcina-blue to-primary-400 rounded-full"></span>
             </span>
           </motion.h2>
 
-          {isLoadingCategories && (
-            <div className="text-center py-8">
-              <div className="inline-block w-12 md:w-16 h-12 md:h-16 relative">
-                <div className="absolute inset-0 border-4 border-secondary-300 rounded-full opacity-25"></div>
-                <div className="absolute inset-0 border-4 border-t-voxcina-blue rounded-full animate-spin"></div>
-              </div>
-              <p className="mt-4 text-voxcina-blue">
-                درحال بارگذاری دسته‌بندی‌ها...
-              </p>
-            </div>
-          )}
-
-          {categoriesError && (
-            <div className="text-center py-8 text-red-500 bg-red-50 rounded-2xl p-4 md:p-6 shadow-soft">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+          <motion.div className="relative" variants={staggerContainer}>
+            {/* دسته‌بندی‌های دایره‌ای - اسکرول افقی */}
+            <div className="overflow-x-auto scrollbar-hide">
+              <div
+                className="flex gap-4 sm:gap-6 md:gap-8 pb-4 px-2"
+                style={{ minWidth: "max-content" }}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <p className="text-sm md:text-base">
-                خطا در بارگذاری دسته‌بندی‌ها: {categoriesError}
-              </p>
-            </div>
-          )}
+                {mockCategories.map((category, index) => (
+                  <motion.div
+                    key={category.id}
+                    variants={itemVariant}
+                    className="flex flex-col items-center group flex-shrink-0"
+                  >
+                    <Link
+                      href={`/categories/${category.slug}`}
+                      className="block relative"
+                    >
+                      {/* دایره اصلی */}
+                      <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 rounded-full overflow-hidden shadow-soft group-hover:shadow-medium transition-all duration-500">
+                        {/* گرادیان پس‌زمینه */}
+                        <div
+                          className={`absolute inset-0 bg-gradient-to-br ${category.color} opacity-80 group-hover:opacity-100 transition-all duration-500`}
+                        />
 
-          {!isLoadingCategories &&
-            !categoriesError &&
-            categories.length === 0 && (
-              <div className="text-center py-8 bg-secondary-100 rounded-2xl p-6 md:p-8 shadow-soft">
+                        {/* اورلی */}
+                        <div className="absolute inset-0 bg-white/10 group-hover:bg-white/5 transition-all duration-500" />
+
+                        {/* آیکون مرکزی */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-xl sm:text-2xl md:text-3xl lg:text-4xl filter drop-shadow-sm">
+                            {category.icon}
+                          </span>
+                        </div>
+
+                        {/* حلقه انیمیشن */}
+                        <motion.div
+                          className="absolute inset-0 rounded-full border-2 border-white/50 opacity-0 group-hover:opacity-100"
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          whileHover={{
+                            scale: [0.8, 1.1, 1],
+                            opacity: [0, 0.7, 0.7],
+                            transition: { duration: 0.6, ease: "easeOut" },
+                          }}
+                        />
+                      </div>
+
+                      {/* نام دسته‌بندی */}
+                      <div className="mt-2 md:mt-3 text-center">
+                        <h3 className="text-xs sm:text-sm md:text-base font-medium text-voxcina-blue group-hover:text-voxcina-darkBlue transition-colors duration-300 leading-tight px-1 whitespace-nowrap">
+                          {category.name}
+                        </h3>
+
+                        {/* خط زیر نام */}
+                        <motion.div
+                          className="mt-1 mx-auto h-0.5 bg-gradient-to-r from-voxcina-blue/50 to-primary-400/50 rounded-full"
+                          initial={{ width: 0 }}
+                          whileHover={{ width: "80%" }}
+                          transition={{ duration: 0.3 }}
+                        />
+                      </div>
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            {/* اندیکیتور اسکرول برای موبایل */}
+            <div className="flex justify-center mt-4 md:hidden">
+              <div className="flex space-x-1">
+                <div className="w-2 h-2 bg-voxcina-blue/30 rounded-full"></div>
+                <div className="w-6 h-2 bg-voxcina-blue rounded-full"></div>
+                <div className="w-2 h-2 bg-voxcina-blue/30 rounded-full"></div>
+              </div>
+            </div>
+
+            {/* دکمه مشاهده همه دسته‌بندی‌ها */}
+            <motion.div
+              className="text-center mt-6 md:mt-8"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.6 }}
+              viewport={{ once: true }}
+            >
+              <Link
+                href="/categories"
+                className="inline-flex items-center bg-voxcina-blue text-white px-4 sm:px-6 md:px-8 py-2 sm:py-3 md:py-4 rounded-full font-medium hover:bg-voxcina-darkBlue transition-all duration-300 shadow-soft hover:shadow-medium group text-sm md:text-base"
+              >
+                <span>مشاهده همه دسته‌بندی‌ها</span>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-4 text-voxcina-blue"
+                  className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 mr-1 md:mr-2 transform transition-transform duration-300 group-hover:translate-x-1"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -268,80 +444,25 @@ export default function HomePage() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M20 12H4"
+                    d="M9 5l7 7-7 7"
                   />
                 </svg>
-                <p className="text-voxcina-blue text-sm md:text-base">
-                  هیچ دسته‌بندی برای نمایش وجود ندارد.
-                </p>
-              </div>
-            )}
-
-          {!isLoadingCategories &&
-            !categoriesError &&
-            categories.length > 0 && (
-              <motion.div
-                className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6"
-                variants={staggerContainer}
-              >
-                {mainCategories.map((category, index) => (
-                  <motion.div key={category.id || index} variants={itemVariant}>
-                    <Link
-                      href={`/categories/${category.slug}`}
-                      className="group block"
-                    >
-                      <div className="relative h-52 xs:h-60 md:h-72 rounded-2xl overflow-hidden bg-secondary-200 shadow-soft transition-all duration-500 group-hover:shadow-medium">
-                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-voxcina-blue/80 group-hover:via-voxcina-blue/20 transition-colors duration-500">
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                            <motion.div
-                              className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md"
-                              whileHover={{ scale: 1.1 }}
-                              transition={{
-                                type: "spring",
-                                stiffness: 400,
-                                damping: 10,
-                              }}
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-6 w-6 md:h-7 md:w-7 text-white"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M14 5l7 7m0 0l-7 7m7-7H3"
-                                />
-                              </svg>
-                            </motion.div>
-                          </div>
-                        </div>
-                        <div className="absolute inset-x-0 bottom-0 p-4 md:p-5 text-white transform transition-transform duration-500 group-hover:translate-y-0">
-                          <h3 className="text-lg md:text-xl font-bold">
-                            {category.name}
-                          </h3>
-                          <div className="h-0.5 w-0 bg-white transition-all duration-500 group-hover:w-20 md:group-hover:w-24 mt-2 md:mt-3"></div>
-                        </div>
-                      </div>
-                    </Link>
-                  </motion.div>
-                ))}
-              </motion.div>
-            )}
+              </Link>
+            </motion.div>
+          </motion.div>
         </motion.section>
+
+        {/* بخش کالکشن فصلی */}
         <motion.section
-          className="container px-4 md:px-8 mb-20 md:mb-32 overflow-hidden"
+          className="container px-4 md:px-8 mb-16 md:mb-24 overflow-hidden"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
           variants={fadeIn}
         >
-          <div className="relative rounded-3xl bg-secondary-200 shadow-soft overflow-hidden">
+          <div className="relative rounded-3xl bg-gradient-to-br from-secondary-200 via-secondary-100 to-white shadow-soft overflow-hidden">
             <div className="grid grid-cols-1 md:grid-cols-2">
-              <div className="p-6 sm:p-8 md:p-12 lg:p-16 flex flex-col justify-center">
+              <div className="p-6 sm:p-8 md:p-12 lg:p-16 flex flex-col justify-center relative">
                 <motion.span
                   className="inline-block py-1 px-3 rounded-full bg-voxcina-blue/10 text-voxcina-blue text-xs sm:text-sm mb-3 md:mb-4"
                   variants={fadeIn}
@@ -411,8 +532,9 @@ export default function HomePage() {
           </div>
         </motion.section>
 
+        {/* بخش محصولات پرطرفدار */}
         <motion.section
-          className="container px-4 md:px-8 mb-20 md:mb-32"
+          className="container px-4 md:px-8 mb-16 md:mb-24"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
@@ -474,8 +596,176 @@ export default function HomePage() {
           )}
         </motion.section>
 
+        {/* اسلایدر جدید و شیک */}
         <motion.section
-          className="container px-4 md:px-8 mb-20 md:mb-32"
+          className="container px-4 md:px-8 mb-16 md:mb-24"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          variants={fadeIn}
+        >
+          <div className="relative h-64 sm:h-80 md:h-96 lg:h-[450px] rounded-3xl overflow-hidden shadow-medium">
+            {/* اسلاید فعلی */}
+            <motion.div
+              key={currentSlide}
+              className={`absolute inset-0 bg-gradient-to-r ${sliderData[currentSlide].bgColor}`}
+              initial={{ opacity: 0, scale: 1.1 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8 }}
+            >
+              {/* تصویر پس‌زمینه */}
+              <div
+                className="absolute inset-0 bg-cover bg-center opacity-30 mix-blend-overlay"
+                style={{
+                  backgroundImage: `url('${sliderData[currentSlide].image}')`,
+                }}
+              />
+
+              {/* اورلی گرادیان */}
+              <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/40" />
+
+              {/* محتوا */}
+              <div className="relative h-full flex items-center">
+                <div className="w-full px-6 sm:px-8 md:px-12 lg:px-16">
+                  <div className="max-w-lg md:max-w-2xl text-white">
+                    <motion.span
+                      key={`badge-${currentSlide}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.6, delay: 0.2 }}
+                      className="inline-block py-1.5 px-3 rounded-full bg-white/20 backdrop-blur-sm text-xs sm:text-sm mb-3 md:mb-4 border border-white/30"
+                    >
+                      {sliderData[currentSlide].badge}
+                    </motion.span>
+
+                    <motion.h3
+                      key={`title-${currentSlide}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.6, delay: 0.4 }}
+                      className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 md:mb-4 leading-tight"
+                    >
+                      {sliderData[currentSlide].title}
+                    </motion.h3>
+
+                    <motion.p
+                      key={`subtitle-${currentSlide}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.6, delay: 0.6 }}
+                      className="text-sm sm:text-base md:text-lg lg:text-xl mb-4 md:mb-6 text-white/90 leading-relaxed"
+                    >
+                      {sliderData[currentSlide].subtitle}
+                    </motion.p>
+
+                    <motion.div
+                      key={`button-${currentSlide}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.6, delay: 0.8 }}
+                    >
+                      <Link
+                        href={sliderData[currentSlide].buttonLink}
+                        className="inline-flex items-center bg-white text-gray-900 px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 md:py-4 rounded-full font-semibold hover:bg-gray-100 transition-all duration-300 shadow-lg hover:shadow-xl group text-sm md:text-base"
+                      >
+                        <span>{sliderData[currentSlide].buttonText}</span>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4 md:h-5 md:w-5 mr-1.5 md:mr-2 transform transition-transform duration-300 group-hover:translate-x-1"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      </Link>
+                    </motion.div>
+                  </div>
+                </div>
+              </div>
+
+              {/* عناصر تزئینی */}
+              <div className="absolute top-4 right-4 sm:top-6 sm:right-6 md:top-8 md:right-8 w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-white/10 rounded-full backdrop-blur-sm animate-pulse-soft" />
+              <div className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 md:bottom-8 md:left-8 w-8 h-8 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-white/15 rounded-full backdrop-blur-sm animate-pulse-soft" />
+            </motion.div>
+
+            {/* کنترل‌های اسلایدر */}
+            <div className="absolute inset-y-0 left-2 sm:left-4 md:left-6 flex items-center">
+              <button
+                onClick={prevSlide}
+                className="bg-white/20 backdrop-blur-md border border-white/30 text-white p-2 sm:p-3 md:p-4 rounded-full hover:bg-white/30 transition-all duration-300 shadow-lg group"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 transform group-hover:scale-110 transition-transform"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div className="absolute inset-y-0 right-2 sm:right-4 md:right-6 flex items-center">
+              <button
+                onClick={nextSlide}
+                className="bg-white/20 backdrop-blur-md border border-white/30 text-white p-2 sm:p-3 md:p-4 rounded-full hover:bg-white/30 transition-all duration-300 shadow-lg group"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 transform group-hover:scale-110 transition-transform"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* نقاط ناوبری */}
+            <div className="absolute bottom-4 sm:bottom-6 md:bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-2 md:space-x-3">
+              {sliderData.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => goToSlide(index)}
+                  className={`w-2 h-2 sm:w-3 sm:h-3 md:w-4 md:h-4 rounded-full transition-all duration-300 border border-white/50 ${
+                    index === currentSlide
+                      ? "bg-white scale-125 shadow-lg"
+                      : "bg-white/50 hover:bg-white/75"
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* شماره اسلاید */}
+            <div className="absolute top-4 left-4 sm:top-6 sm:left-6 md:top-8 md:left-8 bg-black/30 backdrop-blur-sm text-white px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 md:py-2 rounded-full border border-white/20">
+              <span className="text-xs sm:text-sm md:text-base font-medium">
+                {currentSlide + 1} / {sliderData.length}
+              </span>
+            </div>
+          </div>
+        </motion.section>
+
+        {/* بخش جدیدترین محصولات */}
+        <motion.section
+          className="container px-4 md:px-8 mb-16 md:mb-24"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
@@ -537,18 +827,19 @@ export default function HomePage() {
           )}
         </motion.section>
 
+        {/* بخش مزایای خرید */}
         <motion.section
-          className="container px-4 md:px-8 mb-20 md:mb-32"
+          className="container px-4 md:px-8 mb-16 md:mb-24"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
           variants={fadeIn}
         >
-          <div className="relative py-12 px-5 sm:py-16 sm:px-6 md:p-16 bg-gradient-to-r from-voxcina-darkBlue to-voxcina-blue rounded-3xl overflow-hidden shadow-medium">
+          <div className="relative py-10 px-5 sm:py-12 sm:px-6 md:p-16 bg-gradient-to-r from-voxcina-darkBlue to-voxcina-blue rounded-3xl overflow-hidden shadow-medium">
             <div className="absolute inset-0 bg-[url('/pattern.svg')] opacity-5 mix-blend-overlay"></div>
 
             <motion.div
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10"
+              className="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 md:gap-10"
               variants={staggerContainer}
             >
               {[
@@ -556,7 +847,7 @@ export default function HomePage() {
                   icon: (
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="h-10 w-10 md:h-12 md:w-12"
+                      className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -576,7 +867,7 @@ export default function HomePage() {
                   icon: (
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="h-10 w-10 md:h-12 md:w-12"
+                      className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -596,7 +887,7 @@ export default function HomePage() {
                   icon: (
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="h-10 w-10 md:h-12 md:w-12"
+                      className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -616,7 +907,7 @@ export default function HomePage() {
                   icon: (
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="h-10 w-10 md:h-12 md:w-12"
+                      className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -638,9 +929,9 @@ export default function HomePage() {
                   className="text-center relative"
                   variants={itemVariant}
                 >
-                  <div className="flex justify-center mb-4 md:mb-6">
+                  <div className="flex justify-center mb-3 md:mb-4">
                     <motion.div
-                      className="bg-gradient-to-br from-white/20 to-white/5 text-white p-4 md:p-5 rounded-2xl backdrop-blur-sm border border-white/10 shadow-soft"
+                      className="bg-gradient-to-br from-white/20 to-white/5 text-white p-3 md:p-4 rounded-2xl backdrop-blur-sm border border-white/10 shadow-soft"
                       whileHover={{ scale: 1.05, rotate: 5 }}
                       transition={{
                         type: "spring",
@@ -651,10 +942,10 @@ export default function HomePage() {
                       {benefit.icon}
                     </motion.div>
                   </div>
-                  <h3 className="text-lg md:text-xl font-bold mb-2 md:mb-3 text-white">
+                  <h3 className="text-sm sm:text-base md:text-lg font-bold mb-1 md:mb-2 text-white">
                     {benefit.title}
                   </h3>
-                  <p className="text-white/70 text-sm md:text-base">
+                  <p className="text-white/70 text-xs sm:text-sm md:text-base leading-relaxed">
                     {benefit.description}
                   </p>
                 </motion.div>
@@ -665,22 +956,24 @@ export default function HomePage() {
             <div className="absolute -bottom-10 right-10 w-32 md:w-48 h-32 md:h-48 rounded-full bg-primary-400/10 blur-3xl"></div>
           </div>
         </motion.section>
+
+        {/* بخش اینستاگرام */}
         <motion.section
-          className="container px-4 md:px-8 mb-20 md:mb-32"
+          className="container px-4 md:px-8 mb-16 md:mb-24"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
           variants={fadeIn}
         >
-          <div className="text-center mb-8 md:mb-12">
+          <div className="text-center mb-6 md:mb-8">
             <motion.h2
-              className="text-2xl sm:text-3xl font-bold mb-3 md:mb-4 text-voxcina-blue"
+              className="text-2xl sm:text-3xl font-bold mb-2 md:mb-3 text-voxcina-blue"
               variants={fadeIn}
             >
-              مارا در اینستاگرام دنبال کنید
+              ما را در اینستاگرام دنبال کنید
             </motion.h2>
             <motion.p
-              className="text-voxcina-blue/80 max-w-xs sm:max-w-md md:max-w-lg mx-auto text-sm md:text-base"
+              className="text-voxcina-blue/80 max-w-md mx-auto text-sm md:text-base"
               variants={fadeIn}
             >
               جدیدترین محصولات و ترندها را در اینستاگرام ما ببینید
@@ -688,7 +981,7 @@ export default function HomePage() {
           </div>
 
           <motion.div
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 md:gap-4"
+            className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 md:gap-3"
             variants={staggerContainer}
           >
             {[...Array(6)].map((_, index) => (
@@ -697,9 +990,9 @@ export default function HomePage() {
                 href="https://instagram.com/voxcina"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group relative aspect-square overflow-hidden bg-secondary-200 rounded-lg shadow-soft"
+                className="group relative aspect-square overflow-hidden bg-secondary-200 rounded-lg shadow-soft hover:shadow-medium transition-all duration-300"
                 variants={itemVariant}
-                whileHover={{ scale: 1.02 }}
+                whileHover={{ scale: 1.02, y: -2 }}
               >
                 <div className="absolute inset-0 bg-gradient-to-tr from-black/0 to-black/0 group-hover:from-voxcina-blue/50 group-hover:to-voxcina-blue/30 transition-all duration-300 z-10"></div>
 
@@ -716,7 +1009,7 @@ export default function HomePage() {
                   <div className="bg-white/20 backdrop-blur-md p-2 rounded-full">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 md:h-6 md:w-6 text-white"
+                      className="h-4 w-4 md:h-5 md:w-5 text-white"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -734,14 +1027,14 @@ export default function HomePage() {
             ))}
           </motion.div>
 
-          <motion.div className="text-center mt-6 md:mt-8" variants={fadeIn}>
+          <motion.div className="text-center mt-4 md:mt-6" variants={fadeIn}>
             <a
               href="https://instagram.com/voxcina"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center text-voxcina-blue hover:text-voxcina-darkBlue transition-colors"
             >
-              <span className="text-base md:text-lg mr-2">voxcina</span>
+              <span className="text-base md:text-lg mr-2">@voxcina</span>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-4 w-4 md:h-5 md:w-5"
@@ -760,6 +1053,7 @@ export default function HomePage() {
           </motion.div>
         </motion.section>
 
+        {/* بخش خبرنامه */}
         <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-20"
           initial="hidden"
@@ -767,14 +1061,14 @@ export default function HomePage() {
           viewport={{ once: true, margin: "-100px" }}
           variants={fadeIn}
         >
-          <div className="bg-gradient-to-r from-voxcina-blue to-primary-600 rounded-3xl p-6 sm:p-10 md:p-16 text-center relative overflow-hidden shadow-medium">
+          <div className="bg-gradient-to-r from-voxcina-blue to-primary-600 rounded-3xl p-6 sm:p-8 md:p-12 text-center relative overflow-hidden shadow-medium">
             <div className="absolute inset-0 bg-[url('/pattern.svg')] opacity-10 mix-blend-overlay"></div>
 
             <div className="absolute -top-20 -left-20 w-48 md:w-64 h-48 md:h-64 bg-white/10 rounded-full blur-3xl"></div>
             <div className="absolute -bottom-20 -right-20 w-48 md:w-64 h-48 md:h-64 bg-secondary-400/20 rounded-full blur-3xl"></div>
 
             <motion.div
-              className="relative z-10 max-w-md sm:max-w-lg md:max-w-2xl mx-auto"
+              className="relative z-10 max-w-md sm:max-w-lg md:max-w-xl mx-auto"
               variants={fadeIn}
             >
               <motion.span
@@ -785,34 +1079,31 @@ export default function HomePage() {
               </motion.span>
 
               <motion.h3
-                className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-3 md:mb-4"
+                className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-2 md:mb-3"
                 variants={fadeIn}
               >
                 عضویت در خبرنامه
               </motion.h3>
 
               <motion.p
-                className="text-white/80 mb-6 md:mb-8 max-w-xs sm:max-w-md lg:max-w-lg mx-auto text-sm md:text-base"
+                className="text-white/80 mb-4 md:mb-6 text-sm md:text-base"
                 variants={fadeIn}
               >
                 برای دریافت آخرین اخبار، تخفیف‌ها و محصولات جدید در خبرنامه ما
                 عضو شوید
               </motion.p>
 
-              <motion.div
-                className="max-w-xs sm:max-w-md mx-auto"
-                variants={fadeIn}
-              >
+              <motion.div className="max-w-sm mx-auto" variants={fadeIn}>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <div className="relative flex-1">
                     <input
                       type="email"
                       placeholder="ایمیل خود را وارد کنید"
-                      className="w-full px-4 md:px-5 py-3 md:py-4 rounded-xl outline-none text-right pr-8 md:pr-10 bg-white/10 backdrop-blur-md border border-white/10 text-white placeholder-white/50 focus:bg-white/15 transition-all duration-300 shadow-inner-soft text-sm md:text-base"
+                      className="w-full px-3 md:px-4 py-2.5 md:py-3 rounded-xl outline-none text-right pr-6 md:pr-8 bg-white/10 backdrop-blur-md border border-white/10 text-white placeholder-white/50 focus:bg-white/15 transition-all duration-300 text-sm md:text-base"
                     />
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 md:h-5 md:w-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-white/50"
+                      className="h-4 w-4 md:h-5 md:w-5 absolute right-2 md:right-3 top-1/2 transform -translate-y-1/2 text-white/50"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -825,12 +1116,12 @@ export default function HomePage() {
                       />
                     </svg>
                   </div>
-                  <button className="bg-voxcina-cream text-voxcina-blue px-6 md:px-8 py-3 md:py-4 rounded-xl hover:bg-white transition-colors font-medium shadow-soft text-sm md:text-base">
+                  <button className="bg-voxcina-cream text-voxcina-blue px-4 md:px-6 py-2.5 md:py-3 rounded-xl hover:bg-white transition-colors font-medium shadow-soft text-sm md:text-base">
                     عضویت
                   </button>
                 </div>
 
-                <p className="text-white/60 text-xs md:text-sm mt-3 md:mt-4">
+                <p className="text-white/60 text-xs md:text-sm mt-3 leading-relaxed">
                   ما به حریم خصوصی شما احترام می‌گذاریم و هرگز اطلاعات شما را به
                   اشتراک نمی‌گذاریم.
                 </p>
