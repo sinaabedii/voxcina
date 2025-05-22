@@ -13,7 +13,7 @@ while true; do
 
   if [[ "$LOCAL" != "$REMOTE" ]]; then
     printf '\n[%s] New commits detected – redeploying…\n' "$(date +'%F %T')"
-    git pull --ff-only origin "$BRANCH"
+    git pull origin "$BRANCH"
     docker compose stop "$SERVICE"
     docker compose build "$SERVICE"
     docker compose up -d "$SERVICE" --remove-orphans
