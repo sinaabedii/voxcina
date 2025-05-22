@@ -52,24 +52,20 @@ export default function RootLayout({
           </div>
         </ClientLayout>
 
-        <Toaster
-          position="top-center"
-          reverseOrder={false}
-          toastOptions={{
-            className: "voxcina-toast",
-            duration: 5000,
+        <div id="_rht_toaster" style={{ position: 'fixed', zIndex: 9999, top: 16, left: 16, right: 16, bottom: 16, pointerEvents: 'none' }}>
+          <Toaster position="top-center" toastOptions={{ 
             style: {
-              background: "var(--background)",
-              color: "var(--foreground)",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius)",
-              boxShadow: "0 4px 20px rgba(26, 60, 105, 0.1)",
-              direction: "rtl",
-              fontFamily: "IranSansX, sans-serif",
-              padding: "16px",
-            },
-          }}
-        />
+              direction: 'rtl',
+              fontFamily: 'IranSansX, sans-serif',
+              background: 'var(--background)',
+              color: 'var(--foreground)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)',
+              boxShadow: '0 4px 20px rgba(26, 60, 105, 0.1)',
+              padding: '16px'
+            } 
+          }} />
+        </div>
 
         <script
           dangerouslySetInnerHTML={{
