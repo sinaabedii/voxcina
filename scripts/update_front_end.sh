@@ -17,6 +17,7 @@ while true; do
     docker compose stop "$SERVICE"
     docker compose build "$SERVICE"
     docker compose up -d "$SERVICE" --remove-orphans
+    sudo docker system prune -f
     printf '[%s] Done.\n' "$(date +'%F %T')"
   else
     printf '[%s] No changes.\n' "$(date +'%F %T')"
