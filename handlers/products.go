@@ -24,11 +24,19 @@ import (
 )
 
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024 // 10 MB
-const MAX_MAIN_IMAGES = 5
+const MAX_MAIN_IMAGES = 10
+
+const BaseUploadDir = "./uploads"
 
 // AddProduct handles POST /api/admin/products
 func AddProduct(w http.ResponseWriter, r *http.Request) {
+	// Debug logging
+	fmt.Println("=============== AddProduct handler called ===============")
+	fmt.Printf("Content-Type: %s\n", r.Header.Get("Content-Type"))
+	fmt.Printf("Content-Length: %s\n", r.Header.Get("Content-Length"))
+	
 	if err := r.ParseMultipartForm(MAX_UPLOAD_SIZE); err != nil {
+		fmt.Printf("Error parsing multipart form: %v\n", err)
 		utils.ErrorResponse(
 			w,
 			http.StatusBadRequest,
@@ -37,16 +45,29 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Log the form values for debugging
+	fmt.Println("Form values:")
+	for key, values := range r.Form {
+		fmt.Printf("  %s: %v\n", key, values)
+	}
+	
+	// Log the file headers for debugging
+	fmt.Println("File headers:")
+	for key, fileHeaders := range r.MultipartForm.File {
+		fmt.Printf("  %s: %d files\n", key, len(fileHeaders))
+		for i, header := range fileHeaders {
+			fmt.Printf("    File %d: %s, size: %d bytes\n", i, header.Filename, header.Size)
+		}
+	}
+
 	// --- Form Data ---
 	name := r.FormValue("name")
 	description := r.FormValue("description")
 	priceStr := r.FormValue("price")
-	categoryIDsJSON := r.FormValue("categoryIds") // JSON array of strings
+	categoryIDsJSON := r.FormValue("categoryIds")
 	brandIDStr := r.FormValue("brandId")
-	variantsJSON := r.FormValue(
-		"variants",
-	) // JSON array of models.ProductVariant (variant images not handled here yet)
-	attributesJSON := r.FormValue("attributes") // JSON array of models.ProductAttribute
+	variantsJSON := r.FormValue("variants")
+	attributesJSON := r.FormValue("attributes")
 	isFlashSaleStr := r.FormValue("isFlashSale")
 	isActiveStr := r.FormValue("isActive")
 
@@ -104,8 +125,6 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 			)
 			return
 		}
-		// Variant image uploads would be handled here if supported in this step
-		// For now, variant.Images will be empty or as provided in JSON (if URLs)
 	}
 
 	var attributes []models.ProductAttribute
@@ -122,7 +141,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 
 	isFlashSale, _ := strconv.ParseBool(isFlashSaleStr)
 	isActive, err := strconv.ParseBool(isActiveStr)
-	if isActiveStr == "" { // Default to true if not provided
+	if isActiveStr == "" {
 		isActive = true
 		err = nil
 	}
@@ -135,9 +154,17 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Generate product ID early to use in filenames
+	productID := primitive.NewObjectID()
+
 	// --- Main Image Uploads ---
 	var mainImagePaths []string
+	var uploadedFilePaths []string // For cleanup on failure
+	
+	// Get the image files from the multipart form
 	files := r.MultipartForm.File["mainImages"]
+	fmt.Printf("Received file upload request. Number of main images: %d\n", len(files))
+	
 	if len(files) > MAX_MAIN_IMAGES {
 		utils.ErrorResponse(
 			w,
@@ -147,67 +174,109 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, handler := range files {
-		file, err := handler.Open()
-		if err != nil {
+	// Create complete upload path
+	uploadDir := filepath.Join(BaseUploadDir, "products", "main")
+	fmt.Printf("Upload directory: %s\n", uploadDir)
+
+	// Only proceed with directory creation if we have files to upload
+	if len(files) > 0 {
+		// Create recursive directory structure
+		fmt.Printf("Creating directory: %s\n", uploadDir)
+		if err := os.MkdirAll(uploadDir, 0755); err != nil {
+			fmt.Printf("Error creating upload directory: %v\n", err)
 			utils.ErrorResponse(
 				w,
 				http.StatusInternalServerError,
-				"Error opening main image file: "+err.Error(),
+				fmt.Sprintf("Error creating upload directory %s: %v", uploadDir, err),
+			)
+			return
+		}
+		
+		// Verify directory exists
+		if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
+			fmt.Printf("Directory still doesn't exist after creation: %v\n", err)
+			utils.ErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				fmt.Sprintf("Failed to create upload directory %s", uploadDir),
+			)
+			return
+		}
+		
+		fmt.Printf("Directory created successfully: %s\n", uploadDir)
+	}
+
+	// Process each file
+	for i, handler := range files {
+		fmt.Printf("Processing file %d: %s\n", i, handler.Filename)
+		
+		file, err := handler.Open()
+		if err != nil {
+			fmt.Printf("Error opening file: %v\n", err)
+			utils.ErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				fmt.Sprintf("Error opening file %s: %v", handler.Filename, err),
 			)
 			return
 		}
 		defer file.Close()
 
-		uploadDir := "./uploads/products/main"
-		if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
-			utils.ErrorResponse(
-				w,
-				http.StatusInternalServerError,
-				"Error creating main product uploads directory: "+err.Error(),
-			)
-			return
-		}
-		// Create a unique filename, e.g., productID-timestamp-originalExt
-		// Since productID is not available yet, use a placeholder or timestamp only for now.
-		// Better: generate productID first, then use it in filenames.
+		// Create a unique filename
 		ext := filepath.Ext(handler.Filename)
 		filename := fmt.Sprintf(
-			"%d-%s%s",
+			"%s-%d-%d%s",
+			productID.Hex(),
 			time.Now().UnixNano(),
-			strings.ReplaceAll(handler.Filename, ext, ""),
+			i,
 			ext,
 		)
 		filePath := filepath.Join(uploadDir, filename)
+		fmt.Printf("Creating file at: %s\n", filePath)
 
+		// Create the file
 		dst, err := os.Create(filePath)
 		if err != nil {
+			fmt.Printf("Error creating file: %v\n", err)
 			utils.ErrorResponse(
 				w,
 				http.StatusInternalServerError,
-				"Error creating main image file on server: "+err.Error(),
+				fmt.Sprintf("Error creating file %s: %v", filePath, err),
 			)
 			return
 		}
-		defer dst.Close()
+		
+		// Copy the file contents
+		bytesCopied, err := io.Copy(dst, file)
+		dst.Close() // Close immediately after writing
+		
+		if err != nil {
+			fmt.Printf("Error copying file content: %v\n", err)
+			_ = os.Remove(filePath) // Clean up partially created file
+			utils.ErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				fmt.Sprintf("Error saving file %s: %v", filePath, err),
+			)
+			return
+		}
+		
+		fmt.Printf("Successfully wrote %d bytes to %s\n", bytesCopied, filePath)
 
-		if _, err := io.Copy(dst, file); err != nil {
-			utils.ErrorResponse(
-				w,
-				http.StatusInternalServerError,
-				"Error saving main image file: "+err.Error(),
-			)
-			return
-		}
-		mainImagePaths = append(mainImagePaths, "/uploads/products/main/"+filename)
+		// Path that will be stored in the database and used in URLs
+		serverPath := filepath.Join("/uploads/products/main", filename)
+		mainImagePaths = append(mainImagePaths, serverPath)
+		uploadedFilePaths = append(uploadedFilePaths, filePath)
+		
+		fmt.Printf("Added image path to product: %s\n", serverPath)
 	}
 
 	product := models.Product{
-		ID:          primitive.NewObjectID(),
+		ID:          productID,
 		Name:        name,
 		Description: description,
 		Price:       price,
-		Images:      mainImagePaths, // Assign uploaded main image paths
+		Images:      mainImagePaths,
 		CategoryIDs: categoryIDs,
 		BrandID:     brandID,
 		Variants:    variants,
@@ -225,13 +294,15 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	_, err = collection.InsertOne(ctx, product)
 	if err != nil {
 		// Clean up uploaded files if DB insert fails
-		for _, p := range mainImagePaths {
-			_ = os.Remove("." + p) // Construct server path, ignore error on cleanup
+		for _, p := range uploadedFilePaths {
+			if err := os.Remove(p); err != nil {
+				fmt.Printf("WARN: Failed to clean up file %s: %v\n", p, err)
+			}
 		}
 		utils.ErrorResponse(
 			w,
 			http.StatusInternalServerError,
-			"Error adding product to database: "+err.Error(),
+			fmt.Sprintf("Error adding product to database: %v", err),
 		)
 		return
 	}

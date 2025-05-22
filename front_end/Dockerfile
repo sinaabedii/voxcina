@@ -23,5 +23,8 @@ COPY --from=builder /app/package*.json       ./
 COPY --from=builder /app/node_modules        ./node_modules
 COPY --from=builder /app/next.config.js      ./
 
+# Create uploads directory structure inside public
+RUN mkdir -p ./public/uploads/products/main ./public/uploads/categories
+
 EXPOSE 3000
 CMD ["npm", "run", "start"] 
