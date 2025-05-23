@@ -73,7 +73,7 @@ services:
     environment:
       - NODE_ENV=production
       - GO_BACKEND_URL=http://server:8080
-      - NEXT_PUBLIC_API_URL=https://www.voxina.com
+      - NEXT_PUBLIC_API_URL=https://www.voxcina.com
       - NEXT_PUBLIC_IS_PRODUCTION=${IS_PRODUCTION:-false}
     volumes:
       - ./uploads:/app/public/uploads

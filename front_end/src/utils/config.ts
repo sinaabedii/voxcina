@@ -3,7 +3,7 @@
  */
 
 // API and backend URLs
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://www.voxina.com';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://www.voxcina.com';
 export const BACKEND_URL = process.env.GO_BACKEND_URL || 'http://server:8080';
 
 // Environment detection

@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
@@ -313,7 +314,7 @@ func TestAdminEndpoints(t *testing.T) {
 	err = api.UnmarshalJSON(body, &productData)
 	assert.NoError(t, err)
 
-	_, ok = productData["id"].(string)
+	productID, ok := productData["id"].(string)
 	assert.True(t, ok)
 
 	// Verify product details
@@ -341,54 +342,54 @@ func TestAdminEndpoints(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, 2, len(attributes))
 
-	// // Test update product (admin only) with JSON
-	// updateProductBody := map[string]any{
-	// 	"name":        "Updated Test Product",
-	// 	"description": "Updated test product description",
-	// 	"price":       129.99,
-	// 	"variants": []map[string]any{
-	// 		{
-	// 			"size":     "M",
-	// 			"color":    "Red",
-	// 			"sku":      "TEST-RED-M",
-	// 			"quantity": 100,
-	// 		},
-	// 		{
-	// 			"size":     "L",
-	// 			"color":    "Blue",
-	// 			"sku":      "TEST-BLUE-L",
-	// 			"quantity": 200,
-	// 		},
-	// 	},
-	// }
+	// Test update product (admin only) with JSON
+	updateProductBody := map[string]any{
+		"name":        "Updated Test Product",
+		"description": "Updated test product description",
+		"price":       129.99,
+		"variants": []map[string]any{
+			{
+				"size":     "M",
+				"color":    "Red",
+				"sku":      "TEST-RED-M",
+				"quantity": 100,
+			},
+			{
+				"size":     "L",
+				"color":    "Blue",
+				"sku":      "TEST-BLUE-L",
+				"quantity": 200,
+			},
+		},
+	}
 
-	// resp, body, err = api.Request(
-	// 	http.MethodPut,
-	// 	"/admin/products/"+productID,
-	// 	updateProductBody,
-	// 	api.AdminToken,
-	// )
-	// assert.NoError(t, err)
-	// if resp.StatusCode != http.StatusOK {
-	// 	fmt.Println("Response body:", string(body))
-	// }
-	// assert.Equal(t, http.StatusOK, resp.StatusCode)
+	resp, body, err = api.Request(
+		http.MethodPut,
+		"/admin/products/"+productID,
+		updateProductBody,
+		api.AdminToken,
+	)
+	assert.NoError(t, err)
+	if resp.StatusCode != http.StatusOK {
+		fmt.Println("Response body:", string(body))
+	}
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	// // Verify the update was successful and images were preserved
-	// var updatedProduct map[string]interface{}
-	// err = json.Unmarshal(body, &updatedProduct)
-	// assert.NoError(t, err)
+	// Verify the update was successful and images were preserved
+	var updatedProduct map[string]interface{}
+	err = json.Unmarshal(body, &updatedProduct)
+	assert.NoError(t, err)
 
-	// // Check that name was updated
-	// assert.Equal(t, "Updated Test Product", updatedProduct["name"])
+	// Check that name was updated
+	assert.Equal(t, "Updated Test Product", updatedProduct["name"])
 
-	// // Check that price was updated
-	// assert.Equal(t, 129.99, updatedProduct["price"])
+	// Check that price was updated
+	assert.Equal(t, 129.99, updatedProduct["price"])
 
-	// // Check that images still exist
-	// images, ok = updatedProduct["images"].([]any)
-	// assert.True(t, ok, "Images should be an array")
-	// assert.NotEmpty(t, images, "Images should not be empty after update")
+	// Check that images still exist
+	images, ok = updatedProduct["images"].([]any)
+	assert.True(t, ok, "Images should be an array")
+	assert.NotEmpty(t, images, "Images should not be empty after update")
 
 	// Test create discount (admin only)
 	// 	discountBody := map[string]any{
