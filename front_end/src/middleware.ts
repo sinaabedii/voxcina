@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { getBackendUrl } from '@/utils/config';
 
 // This function can be marked `async` if using `await` inside
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const backendUrl = getBackendUrl();
 
   // Handle direct uploads paths - redirect these to the backend
   if (pathname.startsWith('/uploads/')) {
+    const backendUrl = process.env.GO_BACKEND_URL || 'http://localhost:8080'
     return NextResponse.rewrite(new URL(`${backendUrl}${pathname}`, request.url))
   }
 
@@ -18,6 +17,7 @@ export function middleware(request: NextRequest) {
     if (url?.startsWith('/uploads/')) {
       // For image optimization requests of backend images,
       // we need to make sure the original image is accessible
+      const backendUrl = process.env.GO_BACKEND_URL || 'http://localhost:8080'
       const originalImageUrl = `${backendUrl}${url}`
       
       // We don't rewrite here - we let Next.js handle it with our config

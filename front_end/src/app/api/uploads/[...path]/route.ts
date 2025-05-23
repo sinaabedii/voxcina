@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl } from "@/utils/config";
+
+const GO_BACKEND_URL = process.env.GO_BACKEND_URL || "http://localhost:8080";
 
 /**
  * This API route serves as a direct proxy for image files stored on the backend.
@@ -11,13 +12,12 @@ export async function GET(
 ) {
   // Create the path from the segments
   const path = params.path?.join("/") || "";
-  const backendUrl = getBackendUrl();
-  const imageUrl = `${backendUrl}/uploads/${path}`;
+  const backendUrl = `${GO_BACKEND_URL}/uploads/${path}`;
   
-  console.log(`Proxying image request to: ${imageUrl}`);
+  console.log(`Proxying image request to: ${backendUrl}`);
   
   try {
-    const response = await fetch(imageUrl, {
+    const response = await fetch(backendUrl, {
       method: "GET",
       next: { revalidate: 60 }, // Cache for 60 seconds
     });

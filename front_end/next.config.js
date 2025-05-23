@@ -3,7 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   images: {
-    domains: ['localhost', 'www.voxicna.com', 'server'],
+    domains: ['localhost'],
     remotePatterns: [
       {
         protocol: 'http',
@@ -14,11 +14,6 @@ const nextConfig = {
       {
         protocol: 'http',
         hostname: 'server',
-        pathname: '/uploads/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'www.voxcina.com',
         pathname: '/uploads/**',
       }
     ],
@@ -32,9 +27,7 @@ const nextConfig = {
     return [
       {
         source: '/uploads/:path*',
-        destination: process.env.NODE_ENV === 'production' 
-          ? 'https://www.voxcina.com/uploads/:path*' 
-          : 'http://server:8080/uploads/:path*',
+        destination: 'http://localhost:8080/uploads/:path*',
       }
     ];
   }
