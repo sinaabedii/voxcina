@@ -4,6 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useProductStore } from "@/store/product-store";
 import { useCategoryStore } from "@/store/category-store";
+import { useCartStore } from "@/store/cart-store";
+import { Product } from "@/types/product";
 import ProductGrid from "@/components/product/ProductGrid";
 import { motion, useScroll, useTransform } from "framer-motion";
 import Header from "@/components/layout/Header";
@@ -26,6 +28,8 @@ export default function HomePage() {
     isLoading: isLoadingCategories,
     error: categoriesError,
   } = useCategoryStore();
+
+  const { addItem: addItemToCart } = useCartStore();
 
   const [isVisible, setIsVisible] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -174,6 +178,11 @@ export default function HomePage() {
 
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
+  const handleAddToCart = (product: Product) => {
+    addItemToCart(product, 1);
+    console.log(`${product.name} added to cart`);
+  };
+
   const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
     const heroElement = heroRef.current;
     if (!heroElement) return;
@@ -184,8 +193,6 @@ export default function HomePage() {
 
     setMousePosition({ x, y });
   };
-
-
 
   return (
     <>
@@ -556,6 +563,7 @@ export default function HomePage() {
                 products={featuredProducts}
                 columns={4}
                 glassEffect={true}
+                onAddToCart={handleAddToCart}
               />
             </motion.div>
           )}
@@ -621,6 +629,7 @@ export default function HomePage() {
                 products={newProducts}
                 columns={4}
                 ribbonLabel="جدید"
+                onAddToCart={handleAddToCart}
               />
             </motion.div>
           )}

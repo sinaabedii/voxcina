@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Heart, Star, X, Check, AlertCircle } from "lucide-react";
+import { Heart, Star, X, Check, AlertCircle, ShoppingCart } from "lucide-react";
 import { Product } from "@/types/product";
 import { formatPrice, getDiscountPercentage, hasAttribute } from "@/lib/utils";
 import { useCartStore } from "@/store/cart-store";
@@ -15,6 +15,7 @@ interface ProductCardProps {
   product: Product;
   glassEffect?: boolean;
   ribbonLabel?: string;
+  onAddToCart?: (product: Product) => void;
 }
 
 
@@ -22,6 +23,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   product,
   glassEffect = false,
   ribbonLabel,
+  onAddToCart,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
@@ -121,26 +123,40 @@ const ProductCard: React.FC<ProductCardProps> = ({
     setSelectedSize(null);
   };
 
-  const handleAddToCart = () => {
+  const showNotification = (message: string) => {
+    const notification = document.createElement("div");
+    notification.className =
+      "fixed top-20 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-md shadow-lg z-50 animate-fadeOut";
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+      if (document.body.contains(notification)) {
+        document.body.removeChild(notification);
+      }
+    }, 3000); // Increased timeout slightly for visibility
+  };
+
+  const handleModalAddToCart = () => {
     if (selectedColor && selectedSize && isVariantInStock(selectedSize, selectedColor)) {
       addItem(product, 1, selectedSize, selectedColor);
       handleCloseModal();
-      
-      // Show success notification
-      const notification = document.createElement("div");
-      notification.className =
-        "fixed top-20 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-md shadow-lg z-50 animate-fadeOut";
-      notification.textContent = "محصول به سبد خرید اضافه شد";
-      document.body.appendChild(notification);
-  
-      setTimeout(() => {
-        document.body.removeChild(notification);
-      }, 2000);
+      showNotification("محصول به سبد خرید اضافه شد");
+    }
+  };
+
+  const handleDirectAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (onAddToCart) {
+      onAddToCart(product);
+      showNotification("محصول به سبد خرید اضافه شد");
     }
   };
 
   // Check if the product has any variants in stock
   const hasVariantsInStock = product.variants && product.variants.some(v => v.quantity > 0);
+
+  const canAddToCartDirectly = onAddToCart && (!product.variants || product.variants.length === 0);
 
   return (
     <>
@@ -194,7 +210,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
             }`}
             onClick={(e: React.MouseEvent) => {
               e.preventDefault();
-              // Fix: Add null check when toggling favorites
               if (product.id) {
                 isProductFavorite
                   ? removeFromFavorites(product.id)
@@ -250,15 +265,27 @@ const ProductCard: React.FC<ProductCardProps> = ({
           </div>
 
           {product.inStock && hasVariantsInStock && (
-            <Button
-              variant="primary"
-              size="sm"
-              fullWidth
-              onClick={handleOpenModal}
-              className="rounded-xl"
-            >
-              انتخاب رنگ و سایز
-            </Button>
+            <div className="mt-4 pt-4 border-t border-border/10">
+              {onAddToCart ? (
+                <Button
+                  variant="primary"
+                  className="w-full"
+                  onClick={canAddToCartDirectly ? handleDirectAddToCart : handleOpenModal}
+                >
+                  {canAddToCartDirectly ? "افزودن به سبد خرید" : (hasVariantsInStock ? "انتخاب گزینه ها" : "مشاهده محصول")}
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  fullWidth
+                  onClick={handleOpenModal}
+                  className="rounded-xl"
+                >
+                  انتخاب رنگ و سایز
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </Link>
@@ -377,14 +404,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 variant="primary"
                 size="lg"
                 fullWidth
-                onClick={handleAddToCart}
+                onClick={handleModalAddToCart}
                 disabled={!selectedColor || !selectedSize || !isVariantInStock(selectedSize!, selectedColor!)}
                 className="rounded-xl mt-2"
               >
-                افزودن به سبد خرید
-                {selectedColor && selectedSize && isVariantInStock(selectedSize, selectedColor) && (
-                  <Check className="mr-2 h-4 w-4" />
-                )}
+                تایید و افزودن به سبد
               </Button>
             </motion.div>
           </motion.div>

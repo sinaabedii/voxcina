@@ -10,6 +10,7 @@ interface ProductGridProps {
   className?: string;
   glassEffect?: boolean;
   ribbonLabel?: string;
+  onAddToCart?: (product: Product) => void;
 }
 
 const ProductGrid: React.FC<ProductGridProps> = ({
@@ -18,6 +19,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({
   className = "",
   glassEffect = false,
   ribbonLabel,
+  onAddToCart,
 }) => {
   // Ensure products is always an array
   const safeProducts = Array.isArray(products) ? products : [];
@@ -88,6 +90,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({
             product={product}
             glassEffect={glassEffect}
             ribbonLabel={ribbonLabel}
+            onAddToCart={onAddToCart}
           />
         </motion.div>
       ))}
