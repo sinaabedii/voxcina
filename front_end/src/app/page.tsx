@@ -185,19 +185,7 @@ export default function HomePage() {
     setMousePosition({ x, y });
   };
 
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % sliderData.length);
-  };
 
-  const prevSlide = () => {
-    setCurrentSlide(
-      (prev) => (prev - 1 + sliderData.length) % sliderData.length
-    );
-  };
-
-  const goToSlide = (index: number) => {
-    setCurrentSlide(index);
-  };
 
   return (
     <>
