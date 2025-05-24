@@ -34,6 +34,7 @@ type Product struct {
 	Attributes  []ProductAttribute   `bson:"attributes"    json:"attributes"`    // Product-wide metadata
 	IsFlashSale bool                 `bson:"is_flash_sale" json:"is_flash_sale"` // Part of flash-sale campaign?
 	IsActive    bool                 `bson:"is_active"     json:"is_active"`     // Soft delete flag
+	InStock     bool                 `bson:"in_stock"      json:"inStock"`       // Indicates if product is in stock
 	CreatedAt   time.Time            `bson:"created_at"    json:"created_at"`
 	UpdatedAt   time.Time            `bson:"updated_at"    json:"updated_at"`
 }

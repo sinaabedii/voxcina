@@ -92,6 +92,54 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     ? [...new Set(activeProduct.variants.map((variant) => variant.color))]
     : [];
 
+  // Get available sizes based on selected color
+  const getAvailableSizesForColor = (color: string | undefined) => {
+    if (!activeProduct || !color) return availableSizes;
+    return [
+      ...new Set(
+        activeProduct.variants
+          .filter(v => v.color === color && v.quantity > 0)
+          .map(v => v.size)
+      )
+    ];
+  };
+
+  // Get available colors based on selected size
+  const getAvailableColorsForSize = (size: string | undefined) => {
+    if (!activeProduct || !size) return availableColors;
+    return [
+      ...new Set(
+        activeProduct.variants
+          .filter(v => v.size === size && v.quantity > 0)
+          .map(v => v.color)
+      )
+    ];
+  };
+
+  // Check if a specific variant is in stock
+  const isVariantInStock = (size: string, color: string) => {
+    if (!activeProduct) return false;
+    return activeProduct.variants.some(
+      v => v.size === size && v.color === color && v.quantity > 0
+    );
+  };
+
+  // Get available sizes based on selected color
+  const availableSizesForSelectedColor = selectedColor 
+    ? getAvailableSizesForColor(selectedColor)
+    : availableSizes;
+
+  // Get available colors based on selected size
+  const availableColorsForSelectedSize = selectedSize
+    ? getAvailableColorsForSize(selectedSize)
+    : availableColors;
+
+  // Clear selection handler
+  const handleClearSelection = () => {
+    setSelectedSize(undefined);
+    setSelectedColor(undefined);
+  };
+
   const productReviews = reviews.filter(
     (review) => review.productId === productId
   );
@@ -210,6 +258,12 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
     if (!selectedColor && availableColors.length > 0) {
       alert("لطفاً رنگ مورد نظر خود را انتخاب کنید");
+      return;
+    }
+
+    // Check if the selected variant is in stock
+    if (selectedSize && selectedColor && !isVariantInStock(selectedSize, selectedColor)) {
+      alert("ترکیب سایز و رنگ انتخابی موجود نیست");
       return;
     }
 
@@ -462,329 +516,176 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               </div>
             </motion.div>
           )}
-
-          {availableSizes.length > 0 && (
-            <div className="mt-6">
-              <button
-                className="text-sm text-voxcina-blue dark:text-voxcina-cream flex items-center hover:text-voxcina-blue/70 dark:hover:text-voxcina-cream/70 transition-colors"
-                onClick={() => setShowSizeGuide(!showSizeGuide)}
-              >
-                <Info className="h-4 w-4 ml-1" />
-                راهنمای انتخاب سایز
-              </button>
-
-              {showSizeGuide && (
-                <motion.div
-                  className="mt-2 p-4 border border-voxcina-cream/30 dark:border-voxcina-blue/30 rounded-xl bg-white/90 dark:bg-voxcina-blue/10 shadow-sm backdrop-blur-sm"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 20 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <h4 className="font-medium mb-3 text-voxcina-blue dark:text-voxcina-cream">
-                    راهنمای سایز
-                  </h4>
-
-                  <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-voxcina-blue/20 scrollbar-track-voxcina-cream/50 dark:scrollbar-thumb-voxcina-cream/30 dark:scrollbar-track-voxcina-blue/20">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-voxcina-cream/30 dark:border-voxcina-blue/30">
-                          <th className="p-2 text-right text-voxcina-blue dark:text-voxcina-cream">
-                            سایز
-                          </th>
-                          <th className="p-2 text-right text-voxcina-blue dark:text-voxcina-cream">
-                            سینه (cm)
-                          </th>
-                          <th className="p-2 text-right text-voxcina-blue dark:text-voxcina-cream">
-                            کمر (cm)
-                          </th>
-                          <th className="p-2 text-right text-voxcina-blue dark:text-voxcina-cream">
-                            باسن (cm)
-                          </th>
-                          <th className="p-2 text-right text-voxcina-blue dark:text-voxcina-cream">
-                            قد (cm)
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="border-b border-voxcina-cream/20 dark:border-voxcina-blue/20 hover:bg-voxcina-cream/10 dark:hover:bg-voxcina-blue/20 transition-colors">
-                          <td className="p-2 text-voxcina-blue dark:text-voxcina-cream">
-                            S
-                          </td>
-                          <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                            88-90
-                          </td>
-                          <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                            76-78
-                          </td>
-                          <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                            94-96
-                          </td>
-                          <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                            160-165
-                          </td>
-                        </tr>
-                        <tr className="border-b border-voxcina-cream/20 dark:border-voxcina-blue/20 hover:bg-voxcina-cream/10 dark:hover:bg-voxcina-blue/20 transition-colors">
-                          <td className="p-2 text-voxcina-blue dark:text-voxcina-cream">
-                            M
-                          </td>
-                          <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                            90-94
-                          </td>
-                          <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                            78-82
-                          </td>
-                          <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                            96-100
-                          </td>
-                          <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                            165-170
-                          </td>
-                        </tr>
-                        <tr className="border-b border-voxcina-cream/20 dark:border-voxcina-blue/20 hover:bg-voxcina-cream/10 dark:hover:bg-voxcina-blue/20 transition-colors">
-                          <td className="p-2 text-voxcina-blue dark:text-voxcina-cream">
-                            L
-                          </td>
-                          <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                            94-98
-                          </td>
-                          <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                            82-86
-                          </td>
-                          <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                            100-104
-                          </td>
-                          <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                            170-175
-                          </td>
-                        </tr>
-                        <tr className="hover:bg-voxcina-cream/10 dark:hover:bg-voxcina-blue/20 transition-colors">
-                          <td className="p-2 text-voxcina-blue dark:text-voxcina-cream">
-                            XL
-                          </td>
-                          <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                            98-102
-                          </td>
-                          <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                            86-90
-                          </td>
-                          <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                            104-108
-                          </td>
-                          <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                            175-180
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="mt-3 text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                    <p>
-                      روش اندازه‌گیری: لطفاً از متر نواری استفاده کنید و
-                      اندازه‌ها را در حالت ایستاده و بدون کشش اندازه‌گیری کنید.
-                    </p>
-                  </div>
-                </motion.div>
-              )}
-            </div>
-          )}
         </motion.div>
+
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="flex flex-wrap gap-2 mb-3">
-            {hasAttribute(activeProduct, "isNew") && (
-              <span className="bg-blue-500/90 dark:bg-blue-500/80 text-white dark:text-white/90 text-xs px-2 py-1 rounded-lg shadow-sm backdrop-blur-xs">
-                جدید
-              </span>
-            )}
-            {activeProduct.originalPrice &&
-              activeProduct.originalPrice > activeProduct.price && (
-                <span className="bg-red-500/90 dark:bg-red-500/80 text-white dark:text-white/90 text-xs px-2 py-1 rounded-lg shadow-sm backdrop-blur-xs">
-                  {Math.round(
-                    ((activeProduct.originalPrice - activeProduct.price) /
-                      activeProduct.originalPrice) *
-                      100
-                  )}
-                  ٪ تخفیف
-                </span>
-              )}
-            {activeProduct.inStock && (
-              <span className="bg-green-500/90 dark:bg-green-500/80 text-white dark:text-white/90 text-xs px-2 py-1 rounded-lg shadow-sm backdrop-blur-xs">
-                موجود در انبار
-              </span>
-            )}
-            {hasAttribute(activeProduct, "isFeatured") && (
-              <span className="bg-purple-500/90 dark:bg-purple-500/80 text-white dark:text-white/90 text-xs px-2 py-1 rounded-lg shadow-sm backdrop-blur-xs">
-                محصول ویژه
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm text-voxcina-blue dark:text-voxcina-cream/90 font-medium">
-              {activeProduct.brand}
-            </div>
-            <div className="flex items-center">
-              <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 ml-1" />
-              <span className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">
-                {avgRating.toFixed(1)}
-              </span>
-              <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 mr-1">
-                ({productReviews.length} نظر)
-              </span>
-            </div>
-          </div>
-
-          <h1 className="text-2xl md:text-3xl font-bold mb-4 text-voxcina-blue dark:text-voxcina-cream">
-            {activeProduct.name}
-          </h1>
-
-          <div className="mb-4">
-            <button
-              className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 flex items-center hover:text-voxcina-blue dark:hover:text-voxcina-cream transition-colors"
-              onClick={() => setShowPopularityStats(!showPopularityStats)}
-            >
-              <TrendingUp className="h-4 w-4 ml-1" />
-              آمار محبوبیت محصول
-              <ChevronRight
-                className={cn(
-                  "h-4 w-4 mr-1 transition-transform duration-200",
-                  showPopularityStats && "transform rotate-90"
-                )}
-              />
-            </button>
-
-            {showPopularityStats && (
-              <motion.div
-                className="mt-3 p-3 bg-voxcina-cream/30 dark:bg-voxcina-blue/20 rounded-xl text-sm shadow-sm backdrop-blur-sm"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                transition={{ duration: 0.3 }}
-              >
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="flex flex-col items-center p-2 bg-white/80 dark:bg-voxcina-blue/30 rounded-lg shadow-sm">
-                    <Users className="h-5 w-5 text-blue-500 dark:text-blue-400 mb-1" />
-                    <span className="font-medium text-voxcina-blue dark:text-voxcina-cream">
-                      ۱۲۵+
-                    </span>
-                    <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                      خریداران
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center p-2 bg-white/80 dark:bg-voxcina-blue/30 rounded-lg shadow-sm">
-                    <Calendar className="h-5 w-5 text-green-500 dark:text-green-400 mb-1" />
-                    <span className="font-medium text-voxcina-blue dark:text-voxcina-cream">
-                      ۲ ماه
-                    </span>
-                    <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                      در فروشگاه
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center p-2 bg-white/80 dark:bg-voxcina-blue/30 rounded-lg shadow-sm">
-                    <BarChart className="h-5 w-5 text-purple-500 dark:text-purple-400 mb-1" />
-                    <span className="font-medium text-voxcina-blue dark:text-voxcina-cream">
-                      ۸۷٪
-                    </span>
-                    <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                      رضایت مشتری
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center p-2 bg-white/80 dark:bg-voxcina-blue/30 rounded-lg shadow-sm">
-                    <Award className="h-5 w-5 text-amber-500 dark:text-amber-400 mb-1" />
-                    <span className="font-medium text-voxcina-blue dark:text-voxcina-cream">
-                      ۳
-                    </span>
-                    <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                      جوایز طراحی
-                    </span>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </div>
-
-          <motion.div
-            className="flex items-center mb-6 bg-voxcina-cream/30 dark:bg-voxcina-blue/20 p-4 rounded-xl shadow-sm backdrop-blur-sm"
-            whileHover={{ y: -3 }}
-            transition={{ duration: 0.3 }}
-          >
-            {activeProduct.originalPrice &&
-            activeProduct.originalPrice > activeProduct.price ? (
-              <div className="flex flex-col">
-                <div className="flex items-center">
-                  <span className="text-2xl font-bold text-voxcina-blue dark:text-voxcina-cream">
-                    {formatPrice(activeProduct.price)}
-                  </span>
-                  <span className="text-sm bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-lg mr-2">
-                    {Math.round(
-                      ((activeProduct.originalPrice - activeProduct.price) /
-                        activeProduct.originalPrice) *
-                        100
-                    )}
-                    ٪
-                  </span>
-                </div>
-                <div className="flex items-center mt-1">
-                  <span className="text-base text-voxcina-blue/60 dark:text-voxcina-cream/60 line-through">
-                    {formatPrice(activeProduct.originalPrice)}
-                  </span>
-                  <span className="text-xs text-green-600 dark:text-green-400 mr-2">
-                    {formatPrice(
-                      activeProduct.originalPrice - activeProduct.price
-                    )}{" "}
-                    تومان تخفیف
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <span className="text-2xl font-bold text-voxcina-blue dark:text-voxcina-cream">
-                {formatPrice(activeProduct.price)}
-              </span>
-            )}
-          </motion.div>
-
-          <div className="mb-6">
-            <p className="text-voxcina-blue/80 dark:text-voxcina-cream/80 leading-relaxed">
-              {activeProduct.description}
-            </p>
-          </div>
-
           {availableSizes.length > 0 && (
             <div className="mb-6">
               <div className="flex justify-between items-center mb-2">
                 <h3 className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">
                   سایز
                 </h3>
-                <button
-                  className="text-xs text-voxcina-blue dark:text-voxcina-cream hover:text-voxcina-blue/70 dark:hover:text-voxcina-cream/70 transition-colors"
-                  onClick={() => setShowSizeGuide(!showSizeGuide)}
-                >
-                  راهنمای سایز
-                </button>
+                <div className="flex items-center gap-4">
+                  <button
+                    className="text-xs text-voxcina-blue dark:text-voxcina-cream hover:text-voxcina-blue/70 dark:hover:text-voxcina-cream/70 transition-colors"
+                    onClick={() => setShowSizeGuide(!showSizeGuide)}
+                  >
+                    راهنمای سایز
+                  </button>
+                  {(selectedSize || selectedColor) && (
+                    <button
+                      className="text-xs text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors flex items-center"
+                      onClick={handleClearSelection}
+                    >
+                      <X className="h-3 w-3 ml-1" />
+                      حذف انتخاب
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                {availableSizes.map((size) => (
-                  <motion.button
-                    key={size}
-                    className={`px-4 py-2 border rounded-lg text-sm transition-all ${
-                      selectedSize === size
-                        ? "border-voxcina-blue dark:border-voxcina-cream bg-voxcina-blue/10 dark:bg-voxcina-cream/10 text-voxcina-blue dark:text-voxcina-cream font-medium shadow-sm"
-                        : "border-voxcina-cream/50 dark:border-voxcina-blue/30 text-voxcina-blue/80 dark:text-voxcina-cream/80 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/50"
-                    }`}
-                    onClick={() => setSelectedSize(size)}
-                    whileHover={{ y: -2 }}
-                    whileTap={{ scale: 0.97 }}
-                  >
-                    {size}
-                  </motion.button>
-                ))}
+                {availableSizes.map((size) => {
+                  const isAvailable = !selectedColor || availableSizesForSelectedColor.includes(size);
+                  return (
+                    <motion.button
+                      key={size}
+                      className={`px-4 py-2 border rounded-lg text-sm transition-all ${
+                        selectedSize === size
+                          ? "border-voxcina-blue dark:border-voxcina-cream bg-voxcina-blue/10 dark:bg-voxcina-cream/10 text-voxcina-blue dark:text-voxcina-cream font-medium shadow-sm"
+                          : isAvailable
+                          ? "border-voxcina-cream/50 dark:border-voxcina-blue/30 text-voxcina-blue/80 dark:text-voxcina-cream/80 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/50"
+                          : "border-voxcina-cream/30 dark:border-voxcina-blue/20 text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed opacity-60"
+                      }`}
+                      onClick={() => isAvailable && setSelectedSize(selectedSize === size ? undefined : size)}
+                      whileHover={isAvailable ? { y: -2 } : {}}
+                      whileTap={isAvailable ? { scale: 0.97 } : {}}
+                      disabled={!isAvailable}
+                    >
+                      {size}
+                    </motion.button>
+                  );
+                })}
               </div>
             </div>
+          )}
+
+          {showSizeGuide && (
+            <motion.div
+              className="mt-2 p-4 border border-voxcina-cream/30 dark:border-voxcina-blue/30 rounded-xl bg-white/90 dark:bg-voxcina-blue/10 shadow-sm backdrop-blur-sm mb-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <h4 className="font-medium mb-3 text-voxcina-blue dark:text-voxcina-cream">
+                راهنمای سایز
+              </h4>
+
+              <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-voxcina-blue/20 scrollbar-track-voxcina-cream/50 dark:scrollbar-thumb-voxcina-cream/30 dark:scrollbar-track-voxcina-blue/20">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-voxcina-cream/30 dark:border-voxcina-blue/30">
+                      <th className="p-2 text-right text-voxcina-blue dark:text-voxcina-cream">
+                        سایز
+                      </th>
+                      <th className="p-2 text-right text-voxcina-blue dark:text-voxcina-cream">
+                        سینه (cm)
+                      </th>
+                      <th className="p-2 text-right text-voxcina-blue dark:text-voxcina-cream">
+                        کمر (cm)
+                      </th>
+                      <th className="p-2 text-right text-voxcina-blue dark:text-voxcina-cream">
+                        باسن (cm)
+                      </th>
+                      <th className="p-2 text-right text-voxcina-blue dark:text-voxcina-cream">
+                        قد (cm)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-voxcina-cream/20 dark:border-voxcina-blue/20 hover:bg-voxcina-cream/10 dark:hover:bg-voxcina-blue/20 transition-colors">
+                      <td className="p-2 text-voxcina-blue dark:text-voxcina-cream">
+                        S
+                      </td>
+                      <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                        88-90
+                      </td>
+                      <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                        76-78
+                      </td>
+                      <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                        94-96
+                      </td>
+                      <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                        160-165
+                      </td>
+                    </tr>
+                    <tr className="border-b border-voxcina-cream/20 dark:border-voxcina-blue/20 hover:bg-voxcina-cream/10 dark:hover:bg-voxcina-blue/20 transition-colors">
+                      <td className="p-2 text-voxcina-blue dark:text-voxcina-cream">
+                        M
+                      </td>
+                      <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                        90-94
+                      </td>
+                      <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                        78-82
+                      </td>
+                      <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                        96-100
+                      </td>
+                      <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                        165-170
+                      </td>
+                    </tr>
+                    <tr className="border-b border-voxcina-cream/20 dark:border-voxcina-blue/20 hover:bg-voxcina-cream/10 dark:hover:bg-voxcina-blue/20 transition-colors">
+                      <td className="p-2 text-voxcina-blue dark:text-voxcina-cream">
+                        L
+                      </td>
+                      <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                        94-98
+                      </td>
+                      <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                        82-86
+                      </td>
+                      <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                        100-104
+                      </td>
+                      <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                        170-175
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-voxcina-cream/10 dark:hover:bg-voxcina-blue/20 transition-colors">
+                      <td className="p-2 text-voxcina-blue dark:text-voxcina-cream">
+                        XL
+                      </td>
+                      <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                        98-102
+                      </td>
+                      <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                        86-90
+                      </td>
+                      <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                        104-108
+                      </td>
+                      <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                        175-180
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-3 text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
+                <p>
+                  روش اندازه‌گیری: لطفاً از متر نواری استفاده کنید و
+                  اندازه‌ها را در حالت ایستاده و بدون کشش اندازه‌گیری کنید.
+                </p>
+              </div>
+            </motion.div>
           )}
 
           {availableColors.length > 0 && (
@@ -800,28 +701,34 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 </span>
               </div>
               <div className="flex flex-wrap gap-3">
-                {availableColors.map((color) => (
-                  <motion.button
-                    key={color}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                      selectedColor === color
-                        ? "ring-2 ring-voxcina-blue dark:ring-voxcina-cream ring-offset-2 dark:ring-offset-voxcina-blue/80"
-                        : "ring-1 ring-voxcina-cream/50 dark:ring-voxcina-blue/30 hover:ring-voxcina-blue/50 dark:hover:ring-voxcina-cream/50"
-                    }`}
-                    onClick={() => setSelectedColor(color)}
-                    title={color}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <span
-                      className="w-8 h-8 rounded-full block"
-                      style={{ backgroundColor: color }}
-                    />
-                    {selectedColor === color && (
-                      <CheckCircle className="absolute h-4 w-4 text-white drop-shadow-md" />
-                    )}
-                  </motion.button>
-                ))}
+                {availableColors.map((color) => {
+                  const isAvailable = !selectedSize || availableColorsForSelectedSize.includes(color);
+                  return (
+                    <motion.button
+                      key={color}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                        selectedColor === color
+                          ? "ring-2 ring-voxcina-blue dark:ring-voxcina-cream ring-offset-2 dark:ring-offset-voxcina-blue/80"
+                          : isAvailable
+                          ? "ring-1 ring-voxcina-cream/50 dark:ring-voxcina-blue/30 hover:ring-voxcina-blue/50 dark:hover:ring-voxcina-cream/50"
+                          : "ring-1 ring-voxcina-cream/30 dark:ring-voxcina-blue/20 opacity-40 cursor-not-allowed"
+                      }`}
+                      onClick={() => isAvailable && setSelectedColor(selectedColor === color ? undefined : color)}
+                      title={color}
+                      whileHover={isAvailable ? { scale: 1.1 } : {}}
+                      whileTap={isAvailable ? { scale: 0.9 } : {}}
+                      disabled={!isAvailable}
+                    >
+                      <span
+                        className="w-8 h-8 rounded-full block"
+                        style={{ backgroundColor: color }}
+                      />
+                      {selectedColor === color && (
+                        <CheckCircle className="absolute h-4 w-4 text-white drop-shadow-md" />
+                      )}
+                    </motion.button>
+                  );
+                })}
               </div>
             </div>
           )}

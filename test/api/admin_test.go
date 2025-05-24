@@ -249,6 +249,7 @@ func TestAdminEndpoints(t *testing.T) {
 	_ = productWriter.WriteField("attributes", attributesJSON)
 	_ = productWriter.WriteField("isFlashSale", "false")
 	_ = productWriter.WriteField("isActive", "true")
+	_ = productWriter.WriteField("inStock", "true")
 
 	// Add test product images
 	imagePaths := []string{
@@ -347,6 +348,7 @@ func TestAdminEndpoints(t *testing.T) {
 		"name":        "Updated Test Product",
 		"description": "Updated test product description",
 		"price":       129.99,
+		"inStock":     false,
 		"variants": []map[string]any{
 			{
 				"size":     "M",
@@ -386,10 +388,23 @@ func TestAdminEndpoints(t *testing.T) {
 	// Check that price was updated
 	assert.Equal(t, 129.99, updatedProduct["price"])
 
+	// Check that inStock was updated
+	assert.Equal(t, false, updatedProduct["inStock"])
+
 	// Check that images still exist
 	images, ok = updatedProduct["images"].([]any)
 	assert.True(t, ok, "Images should be an array")
 	assert.NotEmpty(t, images, "Images should not be empty after update")
+
+	// Verify variants
+	variants, ok = updatedProduct["variants"].([]any)
+	assert.True(t, ok)
+	assert.Equal(t, 2, len(variants))
+
+	// Verify attributes
+	attributes, ok = updatedProduct["attributes"].([]any)
+	assert.True(t, ok)
+	assert.Equal(t, 2, len(attributes))
 
 	// Test create discount (admin only)
 	// 	discountBody := map[string]any{
