@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -174,181 +174,214 @@ func TestAdminEndpoints(t *testing.T) {
 	}
 
 	// Test create product (admin only)
-	// First, fetch brands to get a valid brandId
-	resp, brandsBody, err := api.Request(http.MethodGet, "/api/brands", nil, "")
-	assert.NoError(t, err)
+	// Create a test brand first to ensure we have a valid brand ID
+	brandName := "Test Brand " + time.Now().Format(time.RFC3339)
+	var brandFormBody bytes.Buffer
+	brandWriter := multipart.NewWriter(&brandFormBody)
 
-	// Default fallback brandId in case we can't get a real one
-	brandID := "507f1f77bcf86cd799439011" // Dummy MongoDB ObjectID
+	// Add brand form fields
+	_ = brandWriter.WriteField("name", brandName)
+	_ = brandWriter.WriteField("slug", strings.ToLower(strings.ReplaceAll(brandName, " ", "-")))
+	_ = brandWriter.WriteField("description", "Test brand description")
 
-	// Try to parse the brands response and get a real brandId
-	if resp.StatusCode == http.StatusOK {
-		var brandsResult map[string]any
-		err = api.UnmarshalJSON(brandsBody, &brandsResult)
-		if err == nil {
-			brandsData, ok := brandsResult["data"].([]any)
-			if ok && len(brandsData) > 0 {
-				// Randomly select a brand from the list
-				randomIndex := rand.Intn(len(brandsData))
-				brand, ok := brandsData[randomIndex].(map[string]any)
-				if ok {
-					if id, ok := brand["id"].(string); ok && id != "" {
-						brandID = id
-					}
-				}
-			}
-		}
-	}
+	// Close the writer before sending
+	brandWriter.Close()
 
-	productName := "Test Product " + time.Now().Format(time.RFC3339)
-	productDescription := "Test product description"
-	productPrice := "99.99"
-
-	// Build category IDs JSON array with the category we just created
-	categoryIDsJSON := fmt.Sprintf("[\"%s\"]", categoryID)
-
-	// Create variants JSON
-	variantsJSON := `[
-		{
-			"size": "M",
-			"color": "Red",
-			"sku": "TEST-RED-M",
-			"quantity": 50
-		},
-		{
-			"size": "L",
-			"color": "Blue",
-			"sku": "TEST-BLUE-L",
-			"quantity": 30
-		}
-	]`
-
-	// Create attributes JSON
-	attributesJSON := `[
-		{
-			"name": "Material",
-			"value": "Cotton"
-		},
-		{
-			"name": "Care",
-			"value": "Machine wash cold"
-		}
-	]`
-
-	// Create multipart form data - using productFormBody instead of requestBody
-	var productFormBody bytes.Buffer
-	productWriter := multipart.NewWriter(&productFormBody)
-
-	// Add form fields
-	_ = productWriter.WriteField("name", productName)
-	_ = productWriter.WriteField("description", productDescription)
-	_ = productWriter.WriteField("price", productPrice)
-	_ = productWriter.WriteField("categoryIds", categoryIDsJSON)
-	_ = productWriter.WriteField("brandId", brandID)
-	_ = productWriter.WriteField("variants", variantsJSON)
-	_ = productWriter.WriteField("attributes", attributesJSON)
-	_ = productWriter.WriteField("isFlashSale", "false")
-	_ = productWriter.WriteField("isActive", "true")
-	_ = productWriter.WriteField("inStock", "true")
-
-	// Add test product images
-	imagePaths := []string{
-		"../test_files/test_product1.jpg",
-		"../test_files/test_product2.jpg",
-	}
-
-	for _, imagePath := range imagePaths {
-		// Try to open the image file, skip if not found
-		if imageFile, err := os.Open(imagePath); err == nil {
-			defer imageFile.Close()
-			fmt.Printf("Found test image: %s\n", imagePath)
-			part, err := productWriter.CreateFormFile(
-				"mainImages",
-				filepath.Base(imagePath),
-			)
-			if err == nil {
-				bytesWritten, err := io.Copy(part, imageFile)
-				if err != nil {
-					fmt.Printf("Error copying image to form: %v\n", err)
-				} else {
-					fmt.Printf("Successfully added %d bytes from %s to form\n", bytesWritten, imagePath)
-				}
-			} else {
-				fmt.Printf("Error creating form file: %v\n", err)
-			}
-		} else {
-			fmt.Printf("Test image not found: %s - %v\n", imagePath, err)
-		}
-	}
-
-	productWriter.Close()
-
-	// Create custom request with multipart form
-	productReq, err := http.NewRequest(
+	// Create custom request for brand creation
+	brandReq, err := http.NewRequest(
 		http.MethodPost,
-		api.BaseURL+"/admin/products",
-		&productFormBody,
+		api.BaseURL+"/api/brands",
+		&brandFormBody,
 	)
 	assert.NoError(t, err)
 
 	// Set content type for multipart form
-	productReq.Header.Set("Content-Type", productWriter.FormDataContentType())
-	productReq.Header.Set("Authorization", "Bearer "+api.AdminToken)
+	brandReq.Header.Set("Content-Type", brandWriter.FormDataContentType())
+	brandReq.Header.Set("Authorization", "Bearer "+api.AdminToken)
 
 	// Send the request
 	client = &http.Client{}
-	resp, err = client.Do(productReq)
+	resp, err = client.Do(brandReq)
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 
 	// Read response body
 	body, err = io.ReadAll(resp.Body)
 	assert.NoError(t, err)
-
+	
 	// Print response for debugging
-	fmt.Printf("Create product response status: %d\n", resp.StatusCode)
+	fmt.Printf("Create brand response status: %d\n", resp.StatusCode)
 	fmt.Printf("Response body: %s\n", string(body))
-
+	
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
 
-	var productData map[string]any
-	err = api.UnmarshalJSON(body, &productData)
+	var brandData map[string]any
+	err = api.UnmarshalJSON(body, &brandData)
 	assert.NoError(t, err)
 
-	productID, ok := productData["id"].(string)
+	brandID, ok := brandData["id"].(string)
 	assert.True(t, ok)
+	assert.NotEmpty(t, brandID)
 
-	// Verify product details
-	assert.Equal(t, productName, productData["name"])
-	assert.Equal(t, productDescription, productData["description"])
+	// Now we have a valid brand ID to use in product creation
 
-	// Check if images were uploaded
-	images, ok := productData["images"].([]any)
-	if len(imagePaths) > 0 && ok {
-		assert.NotEmpty(t, images)
-		for _, img := range images {
-			imgPath, ok := img.(string)
-			assert.True(t, ok)
-			assert.Contains(t, imgPath, "/uploads/products/main/")
+	// Create two products
+	var productIDs []string
+	for i := 1; i <= 2; i++ {
+		productName := fmt.Sprintf("Test Product %d %s", i, time.Now().Format(time.RFC3339))
+		productDescription := fmt.Sprintf("Test product %d description", i)
+		productPrice := fmt.Sprintf("%d.99", 79+i*10) // 89.99 and 99.99
+		productOriginalPrice := fmt.Sprintf("%d.99", 99+i*10) // 109.99 and 119.99
+
+		// Build category IDs JSON array with the category we just created
+		categoryIDsJSON := fmt.Sprintf("[\"%s\"]", categoryID)
+
+		// Create variants JSON
+		variantsJSON := fmt.Sprintf(`[
+			{
+				"size": "M",
+				"color": "Red",
+				"sku": "TEST%d-RED-M",
+				"quantity": 50
+			},
+			{
+				"size": "L",
+				"color": "Blue",
+				"sku": "TEST%d-BLUE-L",
+				"quantity": 30
+			}
+		]`, i, i)
+
+		// Create attributes JSON
+		attributesJSON := `[
+			{
+				"name": "Material",
+				"value": "Cotton"
+			},
+			{
+				"name": "Care",
+				"value": "Machine wash cold"
+			}
+		]`
+
+		// Create multipart form data
+		var productFormBody bytes.Buffer
+		productWriter := multipart.NewWriter(&productFormBody)
+
+		// Add form fields
+		_ = productWriter.WriteField("name", productName)
+		_ = productWriter.WriteField("description", productDescription)
+		_ = productWriter.WriteField("price", productPrice)
+		_ = productWriter.WriteField("originalPrice", productOriginalPrice)
+		_ = productWriter.WriteField("categoryIds", categoryIDsJSON)
+		_ = productWriter.WriteField("brandId", brandID)
+		_ = productWriter.WriteField("variants", variantsJSON)
+		_ = productWriter.WriteField("attributes", attributesJSON)
+		_ = productWriter.WriteField("isFlashSale", "false")
+		_ = productWriter.WriteField("isActive", "true")
+		_ = productWriter.WriteField("inStock", "true")
+
+		// Add test product images
+		imagePaths := []string{
+			"../test_files/test_product1.jpg",
+			"../test_files/test_product2.jpg",
 		}
+
+		for _, imagePath := range imagePaths {
+			// Try to open the image file, skip if not found
+			if imageFile, err := os.Open(imagePath); err == nil {
+				defer imageFile.Close()
+				fmt.Printf("Found test image: %s\n", imagePath)
+				part, err := productWriter.CreateFormFile(
+					"mainImages",
+					filepath.Base(imagePath),
+				)
+				if err == nil {
+					bytesWritten, err := io.Copy(part, imageFile)
+					if err != nil {
+						fmt.Printf("Error copying image to form: %v\n", err)
+					} else {
+						fmt.Printf("Successfully added %d bytes from %s to form\n", bytesWritten, imagePath)
+					}
+				} else {
+					fmt.Printf("Error creating form file: %v\n", err)
+				}
+			} else {
+				fmt.Printf("Test image not found: %s - %v\n", imagePath, err)
+			}
+		}
+
+		productWriter.Close()
+
+		// Create custom request with multipart form
+		productReq, err := http.NewRequest(
+			http.MethodPost,
+			api.BaseURL+"/admin/products",
+			&productFormBody,
+		)
+		assert.NoError(t, err)
+
+		// Set content type for multipart form
+		productReq.Header.Set("Content-Type", productWriter.FormDataContentType())
+		productReq.Header.Set("Authorization", "Bearer "+api.AdminToken)
+
+		// Send the request
+		client = &http.Client{}
+		resp, err = client.Do(productReq)
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+
+		// Read response body
+		body, err = io.ReadAll(resp.Body)
+		assert.NoError(t, err)
+
+		// Print response for debugging
+		fmt.Printf("Create product %d response status: %d\n", i, resp.StatusCode)
+		fmt.Printf("Response body: %s\n", string(body))
+
+		assert.Equal(t, http.StatusCreated, resp.StatusCode)
+
+		var productData map[string]any
+		err = api.UnmarshalJSON(body, &productData)
+		assert.NoError(t, err)
+
+		productID, ok := productData["id"].(string)
+		assert.True(t, ok)
+		productIDs = append(productIDs, productID)
+
+		// Verify product details
+		assert.Equal(t, productName, productData["name"])
+		assert.Equal(t, productDescription, productData["description"])
+
+		// Check if images were uploaded
+		images, ok := productData["images"].([]any)
+		if len(imagePaths) > 0 && ok {
+			assert.NotEmpty(t, images)
+			for _, img := range images {
+				imgPath, ok := img.(string)
+				assert.True(t, ok)
+				assert.Contains(t, imgPath, "/uploads/products/main/")
+			}
+		}
+
+		// Verify variants
+		variants, ok := productData["variants"].([]any)
+		assert.True(t, ok)
+		assert.Equal(t, 2, len(variants))
+
+		// Verify attributes
+		attributes, ok := productData["attributes"].([]any)
+		assert.True(t, ok)
+		assert.Equal(t, 2, len(attributes))
 	}
-
-	// Verify variants
-	variants, ok := productData["variants"].([]any)
-	assert.True(t, ok)
-	assert.Equal(t, 2, len(variants))
-
-	// Verify attributes
-	attributes, ok := productData["attributes"].([]any)
-	assert.True(t, ok)
-	assert.Equal(t, 2, len(attributes))
 
 	// Test update product (admin only) with JSON
 	updateProductBody := map[string]any{
-		"name":        "Updated Test Product",
-		"description": "Updated test product description",
-		"price":       129.99,
-		"inStock":     false,
+		"name":          "Updated Test Product",
+		"description":   "Updated test product description",
+		"price":         129.99,
+		"originalPrice": 149.99,
+		"inStock":       false,
 		"variants": []map[string]any{
 			{
 				"size":     "M",
@@ -367,7 +400,7 @@ func TestAdminEndpoints(t *testing.T) {
 
 	resp, body, err = api.Request(
 		http.MethodPut,
-		"/admin/products/"+productID,
+		"/admin/products/"+productIDs[0],
 		updateProductBody,
 		api.AdminToken,
 	)
@@ -387,95 +420,121 @@ func TestAdminEndpoints(t *testing.T) {
 
 	// Check that price was updated
 	assert.Equal(t, 129.99, updatedProduct["price"])
+	
+	// Check that original price was updated
+	assert.Equal(t, 149.99, updatedProduct["originalPrice"])
 
 	// Check that inStock was updated
 	assert.Equal(t, false, updatedProduct["inStock"])
 
 	// Check that images still exist
-	images, ok = updatedProduct["images"].([]any)
+	images, ok := updatedProduct["images"].([]any)
 	assert.True(t, ok, "Images should be an array")
 	assert.NotEmpty(t, images, "Images should not be empty after update")
 
 	// Verify variants
-	variants, ok = updatedProduct["variants"].([]any)
+	variants, ok := updatedProduct["variants"].([]any)
 	assert.True(t, ok)
 	assert.Equal(t, 2, len(variants))
 
 	// Verify attributes
-	attributes, ok = updatedProduct["attributes"].([]any)
+	attributes, ok := updatedProduct["attributes"].([]any)
 	assert.True(t, ok)
 	assert.Equal(t, 2, len(attributes))
 
 	// Test create discount (admin only)
-	// 	discountBody := map[string]any{
-	// 		"code":            "TEST" + time.Now().Format("150405"),
-	// 		"discountPercent": 10,
-	// 		"startDate":       time.Now().Format(time.RFC3339),
-	// 		"endDate": time.Now().
-	// 			AddDate(0, 1, 0).
-	// 			Format(time.RFC3339),
-	// 		// 1 month from now
-	// 		"isActive": true,
-	// 	}
-	// 	resp, body, err = api.Request(
-	// 		http.MethodPost,
-	// 		"/admin/discounts",
-	// 		discountBody,
-	// 		api.AdminToken,
-	// 	)
-	// 	assert.NoError(t, err)
-	// 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
+	discountBody := map[string]any{
+		"code":            "TEST" + time.Now().Format("150405"),
+		"discountPercent": 10,
+		"startDate":       time.Now().Format(time.RFC3339),
+		"endDate": time.Now().
+			AddDate(0, 1, 0).
+			Format(time.RFC3339),
+		// 1 month from now
+		"isActive": true,
+	}
+	resp, body, err = api.Request(
+		http.MethodPost,
+		"/admin/discounts",
+		discountBody,
+		api.AdminToken,
+	)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusCreated, resp.StatusCode)
 
-	// 	var discountResult map[string]any
-	// 	err = api.UnmarshalJSON(body, &discountResult)
-	// 	assert.NoError(t, err)
+	var discountResult map[string]any
+	err = api.UnmarshalJSON(body, &discountResult)
+	assert.NoError(t, err)
 
-	// 	discountData, ok := discountResult["data"].(map[string]any)
-	// 	assert.True(t, ok)
-	// 	discountID, ok := discountData["id"].(string)
-	// 	assert.True(t, ok)
+	discountData, ok := discountResult["data"].(map[string]any)
+	assert.True(t, ok)
+	discountID, ok := discountData["id"].(string)
+	assert.True(t, ok)
 
-	// 	// Test update discount (admin only)
-	// 	updateDiscountBody := map[string]any{
-	// 		"discountPercent": 15,
-	// 		"isActive":        false,
-	// 	}
-	// 	resp, _, err = api.Request(
-	// 		http.MethodPut,
-	// 		"/admin/discounts/"+discountID,
-	// 		updateDiscountBody,
-	// 		api.AdminToken,
-	// 	)
-	// 	assert.NoError(t, err)
-	// 	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	// Test update discount (admin only)
+	updateDiscountBody := map[string]any{
+		"discountPercent": 15,
+		"isActive":        false,
+	}
+	resp, _, err = api.Request(
+		http.MethodPut,
+		"/admin/discounts/"+discountID,
+		updateDiscountBody,
+		api.AdminToken,
+	)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	// 	// Test delete discount (admin only)
-	// 	resp, _, err = api.Request(
-	// 		http.MethodDelete,
-	// 		"/admin/discounts/"+discountID,
-	// 		nil,
-	// 		api.AdminToken,
-	// 	)
-	// 	assert.NoError(t, err)
-	// 	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	// Test delete discount (admin only)
+	resp, _, err = api.Request(
+		http.MethodDelete,
+		"/admin/discounts/"+discountID,
+		nil,
+		api.AdminToken,
+	)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	// 	// Test accessing admin endpoint with regular user token
-	// 	regularToken, err := api.Login("test@example.com", "Test123!@#")
-	// 	assert.NoError(t, err)
+	// Test accessing admin endpoint with regular user token
+	regularToken, err := api.Login("test@example.com", "Test123!@#")
+	assert.NoError(t, err)
 
-	// 	resp, _, err = api.Request(http.MethodGet, "/admin/users", nil, regularToken)
-	// 	assert.NoError(t, err)
-	// 	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+	resp, _, err = api.Request(http.MethodGet, "/admin/users", nil, regularToken)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 
-	// // Test delete product (admin only)
-	// resp, _, err = api.Request(
-	//
-	//	http.MethodDelete,
-	//	"/admin/products/"+productID,
-	//	nil,
-	//	api.AdminToken,
-	//
-	// )
-	// assert.NoError(t, err)
-	// assert.Equal(t, http.StatusOK, resp.StatusCode)
+	// Test delete first product
+	resp, _, err = api.Request(
+		http.MethodDelete,
+		"/admin/products/"+productIDs[0],
+		nil,
+		api.AdminToken,
+	)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	// Verify first product is deleted
+	resp, _, err = api.Request(
+		http.MethodGet,
+		"/api/products/"+productIDs[0],
+		nil,
+		"",
+	)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+
+	// Verify second product still exists
+	resp, body, err = api.Request(
+		http.MethodGet,
+		"/api/products/"+productIDs[1],
+		nil,
+		"",
+	)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var secondProduct map[string]any
+	err = api.UnmarshalJSON(body, &secondProduct)
+	assert.NoError(t, err)
+	assert.Equal(t, productIDs[1], secondProduct["id"])
 }

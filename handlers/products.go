@@ -64,6 +64,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 	description := r.FormValue("description")
 	priceStr := r.FormValue("price")
+	originalPriceStr := r.FormValue("originalPrice")
 	categoryIDsJSON := r.FormValue("categoryIds")
 	brandIDStr := r.FormValue("brandId")
 	variantsJSON := r.FormValue("variants")
@@ -84,6 +85,16 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid price format")
 		return
+	}
+
+	// Set originalPrice, default to the same as price if not provided
+	originalPrice := price
+	if originalPriceStr != "" {
+		originalPrice, err = strconv.ParseFloat(originalPriceStr, 64)
+		if err != nil {
+			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid originalPrice format")
+			return
+		}
 	}
 
 	var categoryIDs []primitive.ObjectID
@@ -112,6 +123,18 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	brandID, err := primitive.ObjectIDFromHex(brandIDStr)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid brandId format")
+		return
+	}
+
+	// Get brand name from database using brandID
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	var brand models.Brand
+	brandCollection := db.Database.Collection("brands")
+	err = brandCollection.FindOne(ctx, bson.M{"_id": brandID}).Decode(&brand)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid brandId: brand not found")
 		return
 	}
 
@@ -272,22 +295,24 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	product := models.Product{
-		ID:          productID,
-		Name:        name,
-		Description: description,
-		Price:       price,
-		Images:      mainImagePaths,
-		CategoryIDs: categoryIDs,
-		BrandID:     brandID,
-		Variants:    variants,
-		Attributes:  attributes,
-		IsFlashSale: isFlashSale,
-		IsActive:    isActive,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:            productID,
+		Name:          name,
+		Description:   description,
+		Price:         price,
+		OriginalPrice: originalPrice,
+		Images:        mainImagePaths,
+		CategoryIDs:   categoryIDs,
+		BrandID:       brandID,
+		Brand:         brand.Name,
+		Variants:      variants,
+		Attributes:    attributes,
+		IsFlashSale:   isFlashSale,
+		IsActive:      isActive,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	collection := db.Database.Collection("products")
@@ -496,15 +521,16 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	if strings.Contains(contentType, "application/json") {
 		// Handle JSON request
 		var productUpdate struct {
-			Name        *string                   `json:"name"`
-			Description *string                   `json:"description"`
-			Price       *float64                  `json:"price"`
-			CategoryIDs []string                  `json:"categoryIds"`
-			BrandID     *string                   `json:"brandId"`
-			Variants    []models.ProductVariant   `json:"variants"`
-			Attributes  []models.ProductAttribute `json:"attributes"`
-			IsFlashSale *bool                     `json:"isFlashSale"`
-			IsActive    *bool                     `json:"isActive"`
+			Name          *string                   `json:"name"`
+			Description   *string                   `json:"description"`
+			Price         *float64                  `json:"price"`
+			OriginalPrice *float64                  `json:"originalPrice"`
+			CategoryIDs   []string                  `json:"categoryIds"`
+			BrandID       *string                   `json:"brandId"`
+			Variants      []models.ProductVariant   `json:"variants"`
+			Attributes    []models.ProductAttribute `json:"attributes"`
+			IsFlashSale   *bool                     `json:"isFlashSale"`
+			IsActive      *bool                     `json:"isActive"`
 		}
 
 		// Parse JSON request body
@@ -530,6 +556,19 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		if productUpdate.Price != nil {
 			update["price"] = *productUpdate.Price
 			somethingToUpdate = true
+			
+			// Update original price if not explicitly provided
+			if productUpdate.OriginalPrice == nil {
+				// Only update original price if it was previously equal to price
+				if existingProduct.OriginalPrice == existingProduct.Price {
+					update["originalPrice"] = *productUpdate.Price
+				}
+			}
+		}
+		
+		if productUpdate.OriginalPrice != nil {
+			update["originalPrice"] = *productUpdate.OriginalPrice
+			somethingToUpdate = true
 		}
 
 		if len(productUpdate.CategoryIDs) > 0 {
@@ -546,7 +585,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				}
 				categoryIDs = append(categoryIDs, objID)
 			}
-			update["category_ids"] = categoryIDs
+			update["categoryIds"] = categoryIDs
 			somethingToUpdate = true
 		}
 
@@ -556,7 +595,18 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid brandId format")
 				return
 			}
-			update["brand_id"] = brandID
+			update["brandId"] = brandID
+			
+			// Fetch brand name and update it too
+			var brand models.Brand
+			brandCollection := db.Database.Collection("brands")
+			err = brandCollection.FindOne(ctx, bson.M{"_id": brandID}).Decode(&brand)
+			if err != nil {
+				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid brandId: brand not found")
+				return
+			}
+			update["brand"] = brand.Name
+			
 			somethingToUpdate = true
 		}
 
@@ -571,12 +621,12 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if productUpdate.IsFlashSale != nil {
-			update["is_flash_sale"] = *productUpdate.IsFlashSale
+			update["isFlashSale"] = *productUpdate.IsFlashSale
 			somethingToUpdate = true
 		}
 
 		if productUpdate.IsActive != nil {
-			update["is_active"] = *productUpdate.IsActive
+			update["isActive"] = *productUpdate.IsActive
 			somethingToUpdate = true
 		}
 
@@ -622,6 +672,26 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			update["price"] = price
+			
+			// If original price not provided, check if we should update it too
+			originalPriceStr := r.FormValue("originalPrice")
+			if originalPriceStr == "" {
+				// Only update original price if it was previously equal to price
+				if existingProduct.OriginalPrice == existingProduct.Price {
+					update["originalPrice"] = price
+				}
+			}
+			
+			somethingToUpdate = true
+		}
+
+		if originalPriceStr := r.FormValue("originalPrice"); originalPriceStr != "" {
+			originalPrice, err := strconv.ParseFloat(originalPriceStr, 64)
+			if err != nil {
+				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid originalPrice format")
+				return
+			}
+			update["originalPrice"] = originalPrice
 			somethingToUpdate = true
 		}
 
@@ -648,7 +718,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				}
 				categoryIDs = append(categoryIDs, objID)
 			}
-			update["category_ids"] = categoryIDs
+			update["categoryIds"] = categoryIDs
 			somethingToUpdate = true
 		}
 
@@ -658,7 +728,18 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid brandId format")
 				return
 			}
-			update["brand_id"] = brandID
+			update["brandId"] = brandID
+			
+			// Fetch brand name and update it too
+			var brand models.Brand
+			brandCollection := db.Database.Collection("brands")
+			err = brandCollection.FindOne(ctx, bson.M{"_id": brandID}).Decode(&brand)
+			if err != nil {
+				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid brandId: brand not found")
+				return
+			}
+			update["brand"] = brand.Name
+			
 			somethingToUpdate = true
 		}
 
@@ -696,7 +777,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid isFlashSale format")
 				return
 			}
-			update["is_flash_sale"] = isFlashSale
+			update["isFlashSale"] = isFlashSale
 			somethingToUpdate = true
 		}
 
@@ -706,7 +787,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid isActive format")
 				return
 			}
-			update["is_active"] = isActive
+			update["isActive"] = isActive
 			somethingToUpdate = true
 		}
 
@@ -827,7 +908,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	update["updated_at"] = time.Now()
+	update["updatedAt"] = time.Now()
 	updateDoc := bson.M{"$set": update}
 
 	_, err = collection.UpdateOne(ctx, bson.M{"_id": productID}, updateDoc)
@@ -913,7 +994,7 @@ func DeleteProduct(w http.ResponseWriter, r *http.Request) {
 	update := bson.M{
 		"$set": bson.M{
 			"is_active":  false,
-			"updated_at": time.Now(),
+			"updatedAt": time.Now(),
 		},
 	}
 

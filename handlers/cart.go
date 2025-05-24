@@ -233,6 +233,13 @@ func GetCart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// After successfully decoding the cart, check if it contains any items
+	if len(cart.Items) == 0 {
+		// Treat an empty cart as non-existent so that the frontend can POST its local items
+		utils.ErrorResponse(w, http.StatusNotFound, "Active cart is empty for user")
+		return
+	}
+
 	cartResponse, err := prepareCartResponse(ctx, cart)
 	if err != nil {
 		utils.ErrorResponse(
@@ -291,35 +298,43 @@ func CreateOrReplaceCart(w http.ResponseWriter, r *http.Request) {
 	cartCollection := db.Database.Collection("carts")
 	productsCollection := db.Database.Collection("products")
 
-	// Step 1: Deactivate all existing active carts for this user
-	deactivationUpdate := bson.M{
-		"$set": bson.M{"is_active": false, "updated_at": time.Now()},
-	}
-	_, err := cartCollection.UpdateMany(
-		ctx,
-		bson.M{"user_id": userID, "is_active": true},
-		deactivationUpdate,
-	)
-	if err != nil {
+	// Step 1: Check if there is an existing active cart for the user
+	var existingCart models.Cart
+	existingErr := cartCollection.FindOne(ctx, bson.M{"user_id": userID, "is_active": true}).
+		Decode(&existingCart)
+
+	if existingErr != nil && existingErr != mongo.ErrNoDocuments {
 		utils.ErrorResponse(
 			w,
 			http.StatusInternalServerError,
-			"Error deactivating existing carts: "+err.Error(),
+			"Error checking existing cart: "+existingErr.Error(),
 		)
 		return
 	}
 
-	// Step 2: Create a new cart object
-	newCart := models.Cart{
-		ID:        primitive.NewObjectID(), // Always a new ID
-		UserID:    userID,
-		IsActive:  true,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-		Items:     []models.CartItem{}, // Initialize empty, to be populated
+	// Helper map to merge quantities by product+variant
+	type itemKey struct {
+		ProductID primitive.ObjectID
+		Size      string
+		Color     string
 	}
 
-	// Step 3: Convert request items to models.CartItem and validate product IDs
+	mergeMap := make(map[itemKey]*models.CartItem)
+
+	// If an active cart already exists, seed mergeMap with its current items
+	if existingErr == nil {
+		for _, it := range existingCart.Items {
+			k := itemKey{
+				ProductID: it.ProductID,
+				Size:      it.Variant.Size,
+				Color:     it.Variant.Color,
+			}
+			copyItem := it // create copy to avoid referencing loop var
+			mergeMap[k] = &copyItem
+		}
+	}
+
+	// Step 2: Convert request items -> validate -> merge into map
 	for _, reqItem := range requestPayload.Items {
 		if reqItem.Quantity <= 0 {
 			utils.ErrorResponse(
@@ -351,36 +366,67 @@ func CreateOrReplaceCart(w http.ResponseWriter, r *http.Request) {
 					http.StatusNotFound,
 					fmt.Sprintf("Product with ID %s not found", reqItem.ProductID),
 				)
-				return
+			} else {
+				utils.ErrorResponse(w, http.StatusInternalServerError, "Error validating product: "+prodErr.Error())
 			}
-			utils.ErrorResponse(
-				w,
-				http.StatusInternalServerError,
-				"Error validating product: "+prodErr.Error(),
-			)
 			return
 		}
 
-		newCart.Items = append(newCart.Items, models.CartItem{
+		k := itemKey{
 			ProductID: productIDObj,
-			Variant:   reqItem.Variant,
-			Quantity:  reqItem.Quantity,
-		})
+			Size:      reqItem.Variant.Size,
+			Color:     reqItem.Variant.Color,
+		}
+		if existing, ok := mergeMap[k]; ok {
+			existing.Quantity += reqItem.Quantity // increment quantity
+		} else {
+			mergeMap[k] = &models.CartItem{
+				ProductID: productIDObj,
+				Variant:   reqItem.Variant,
+				Quantity:  reqItem.Quantity,
+			}
+		}
 	}
 
-	// Step 4: Insert the new cart into the database
-	_, err = cartCollection.InsertOne(ctx, newCart)
-	if err != nil {
-		utils.ErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"Error saving new cart: "+err.Error(),
-		)
-		return
+	// Build merged items slice
+	mergedItems := make([]models.CartItem, 0, len(mergeMap))
+	for _, v := range mergeMap {
+		mergedItems = append(mergedItems, *v)
 	}
 
-	// Step 5: Prepare and return the response for the new cart
-	finalCartResponse, err := prepareCartResponse(ctx, newCart)
+	// Decide whether to insert new cart or update existing
+	if existingErr == mongo.ErrNoDocuments {
+		// No active cart — create new
+		newCart := models.Cart{
+			ID:        primitive.NewObjectID(),
+			UserID:    userID,
+			IsActive:  true,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Items:     mergedItems,
+		}
+		if _, err := cartCollection.InsertOne(ctx, newCart); err != nil {
+			utils.ErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"Error saving new cart: "+err.Error(),
+			)
+			return
+		}
+		existingCart = newCart // for response preparation
+	} else {
+		// Active cart exists — update its items & timestamp
+		existingCart.Items = mergedItems
+		existingCart.UpdatedAt = time.Now()
+		update := bson.M{"$set": bson.M{"items": existingCart.Items, "updated_at": existingCart.UpdatedAt}}
+		if _, err := cartCollection.UpdateOne(ctx, bson.M{"_id": existingCart.ID}, update); err != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error updating cart: "+err.Error())
+			return
+		}
+	}
+
+	// Prepare and return response
+	finalCartResponse, err := prepareCartResponse(ctx, existingCart)
 	if err != nil {
 		utils.ErrorResponse(
 			w,
@@ -389,11 +435,8 @@ func CreateOrReplaceCart(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-	utils.JSONResponse(
-		w,
-		http.StatusCreated,
-		finalCartResponse,
-	) // 201 Created for new resource
+	utils.JSONResponse(w, http.StatusCreated, finalCartResponse)
+	return
 }
 
 // AddToCart adds or updates an item in the user's cart

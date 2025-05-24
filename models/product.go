@@ -23,18 +23,20 @@ type ProductAttribute struct {
 
 // Product represents a product in the shop
 type Product struct {
-	ID          primitive.ObjectID   `bson:"_id,omitempty" json:"id,omitempty"`
-	Name        string               `bson:"name"          json:"name"`
-	Description string               `bson:"description"   json:"description"`
-	Price       float64              `bson:"price"         json:"price"`         // Base price
-	Images      []string             `bson:"images"        json:"images"`        // Main product images (URLs)
-	CategoryIDs []primitive.ObjectID `bson:"category_ids"  json:"category_ids"`  // References to `categories`
-	BrandID     primitive.ObjectID   `bson:"brand_id"      json:"brand_id"`      // Reference to `brands`
-	Variants    []ProductVariant     `bson:"variants"      json:"variants"`      // Size/color-specific data
-	Attributes  []ProductAttribute   `bson:"attributes"    json:"attributes"`    // Product-wide metadata
-	IsFlashSale bool                 `bson:"is_flash_sale" json:"is_flash_sale"` // Part of flash-sale campaign?
-	IsActive    bool                 `bson:"is_active"     json:"is_active"`     // Soft delete flag
-	InStock     bool                 `bson:"in_stock"      json:"inStock"`       // Indicates if product is in stock
-	CreatedAt   time.Time            `bson:"created_at"    json:"created_at"`
-	UpdatedAt   time.Time            `bson:"updated_at"    json:"updated_at"`
+	ID            primitive.ObjectID   `bson:"_id,omitempty"  json:"id,omitempty"`
+	Name          string               `bson:"name"           json:"name"`
+	Description   string               `bson:"description"    json:"description"`
+	Price         float64              `bson:"price"          json:"price"`         // Base price
+	OriginalPrice float64              `bson:"original_price" json:"originalPrice"` // Original price before any discounts
+	Images        []string             `bson:"images"         json:"images"`        // Main product images (URLs)
+	CategoryIDs   []primitive.ObjectID `bson:"category_ids"   json:"category_ids"`  // References to `categories`
+	BrandID       primitive.ObjectID   `bson:"brand_id"       json:"brand_id"`      // Reference to `brands`
+	Brand         string               `bson:"brand"          json:"brand"`         // Brand name
+	Variants      []ProductVariant     `bson:"variants"       json:"variants"`      // Size/color-specific data
+	Attributes    []ProductAttribute   `bson:"attributes"     json:"attributes"`    // Product-wide metadata
+	IsFlashSale   bool                 `bson:"is_flash_sale"  json:"is_flash_sale"` // Part of flash-sale campaign?
+	IsActive      bool                 `bson:"is_active"      json:"is_active"`     // Soft delete flag
+	InStock       bool                 `bson:"in_stock"       json:"inStock"`       // Indicates if product is in stock
+	CreatedAt     time.Time            `bson:"created_at"     json:"created_at"`
+	UpdatedAt     time.Time            `bson:"updated_at"     json:"updated_at"`
 }
