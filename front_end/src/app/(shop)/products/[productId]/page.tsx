@@ -33,7 +33,7 @@ import { useProductStore } from "@/store/product-store";
 import { useCartStore } from "@/store/cart-store";
 import { useReviewStore } from "@/store/review-store";
 import { useDashboardStore } from "@/store/dashboard-store";
-import { formatPrice, cn } from "@/lib/utils";
+import { formatPrice, cn, getDiscountPercentage } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import ProductGrid from "@/components/product/ProductGrid";
 import ProductReviews from "@/components/product/ProductReviews";
@@ -523,6 +523,35 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
         >
+          {/* Product Name and Price Section */}
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-voxcina-blue dark:text-voxcina-cream mb-2">
+              {activeProduct.name}
+            </h1>
+            <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4">
+              {activeProduct.brand && <span className="font-medium">{activeProduct.brand}</span>}
+            </p>
+            
+            {/* Price Display */}
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-2xl font-bold text-voxcina-blue dark:text-voxcina-cream">
+                {formatPrice(activeProduct.price)}
+              </span>
+              
+              {activeProduct.originalPrice && activeProduct.originalPrice > activeProduct.price && (
+                <span className="text-lg text-voxcina-blue/50 dark:text-voxcina-cream/50 line-through">
+                  {formatPrice(activeProduct.originalPrice)}
+                </span>
+              )}
+              
+              {activeProduct.originalPrice && activeProduct.originalPrice > activeProduct.price && (
+                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-lg">
+                  {getDiscountPercentage(activeProduct.originalPrice, activeProduct.price)}٪ تخفیف
+                </span>
+              )}
+            </div>
+          </div>
+
           {availableSizes.length > 0 && (
             <div className="mb-6">
               <div className="flex justify-between items-center mb-2">

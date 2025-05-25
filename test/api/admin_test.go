@@ -181,7 +181,10 @@ func TestAdminEndpoints(t *testing.T) {
 
 	// Add brand form fields
 	_ = brandWriter.WriteField("name", brandName)
-	_ = brandWriter.WriteField("slug", strings.ToLower(strings.ReplaceAll(brandName, " ", "-")))
+	_ = brandWriter.WriteField(
+		"slug",
+		strings.ToLower(strings.ReplaceAll(brandName, " ", "-")),
+	)
 	_ = brandWriter.WriteField("description", "Test brand description")
 
 	// Close the writer before sending
@@ -190,7 +193,7 @@ func TestAdminEndpoints(t *testing.T) {
 	// Create custom request for brand creation
 	brandReq, err := http.NewRequest(
 		http.MethodPost,
-		api.BaseURL+"/api/brands",
+		api.BaseURL+"/brands",
 		&brandFormBody,
 	)
 	assert.NoError(t, err)
@@ -208,11 +211,11 @@ func TestAdminEndpoints(t *testing.T) {
 	// Read response body
 	body, err = io.ReadAll(resp.Body)
 	assert.NoError(t, err)
-	
+
 	// Print response for debugging
 	fmt.Printf("Create brand response status: %d\n", resp.StatusCode)
 	fmt.Printf("Response body: %s\n", string(body))
-	
+
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
 
 	var brandData map[string]any
@@ -228,9 +231,13 @@ func TestAdminEndpoints(t *testing.T) {
 	// Create two products
 	var productIDs []string
 	for i := 1; i <= 2; i++ {
-		productName := fmt.Sprintf("Test Product %d %s", i, time.Now().Format(time.RFC3339))
+		productName := fmt.Sprintf(
+			"Test Product %d %s",
+			i,
+			time.Now().Format(time.RFC3339),
+		)
 		productDescription := fmt.Sprintf("Test product %d description", i)
-		productPrice := fmt.Sprintf("%d.99", 79+i*10) // 89.99 and 99.99
+		productPrice := fmt.Sprintf("%d.99", 79+i*10)         // 89.99 and 99.99
 		productOriginalPrice := fmt.Sprintf("%d.99", 99+i*10) // 109.99 and 119.99
 
 		// Build category IDs JSON array with the category we just created
@@ -420,7 +427,7 @@ func TestAdminEndpoints(t *testing.T) {
 
 	// Check that price was updated
 	assert.Equal(t, 129.99, updatedProduct["price"])
-	
+
 	// Check that original price was updated
 	assert.Equal(t, 149.99, updatedProduct["originalPrice"])
 

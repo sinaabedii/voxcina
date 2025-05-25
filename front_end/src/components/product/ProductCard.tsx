@@ -43,7 +43,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
   const rating = null; // Or calculate from reviews if available
   const isNew = hasAttribute(product, "isNew");
 
-  const discount = originalPrice
+  // Use the original price from the product, with proper fallback
+  const discount = originalPrice && originalPrice > price
     ? getDiscountPercentage(originalPrice, price)
     : 0;
     

@@ -34,7 +34,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("=============== AddProduct handler called ===============")
 	fmt.Printf("Content-Type: %s\n", r.Header.Get("Content-Type"))
 	fmt.Printf("Content-Length: %s\n", r.Header.Get("Content-Length"))
-	
+
 	if err := r.ParseMultipartForm(MAX_UPLOAD_SIZE); err != nil {
 		fmt.Printf("Error parsing multipart form: %v\n", err)
 		utils.ErrorResponse(
@@ -50,13 +50,18 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	for key, values := range r.Form {
 		fmt.Printf("  %s: %v\n", key, values)
 	}
-	
+
 	// Log the file headers for debugging
 	fmt.Println("File headers:")
 	for key, fileHeaders := range r.MultipartForm.File {
 		fmt.Printf("  %s: %d files\n", key, len(fileHeaders))
 		for i, header := range fileHeaders {
-			fmt.Printf("    File %d: %s, size: %d bytes\n", i, header.Filename, header.Size)
+			fmt.Printf(
+				"    File %d: %s, size: %d bytes\n",
+				i,
+				header.Filename,
+				header.Size,
+			)
 		}
 	}
 
@@ -71,6 +76,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	attributesJSON := r.FormValue("attributes")
 	isFlashSaleStr := r.FormValue("isFlashSale")
 	isActiveStr := r.FormValue("isActive")
+	inStockStr := r.FormValue("inStock")
 
 	if name == "" || priceStr == "" || categoryIDsJSON == "" || brandIDStr == "" {
 		utils.ErrorResponse(
@@ -129,7 +135,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	// Get brand name from database using brandID
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	var brand models.Brand
 	brandCollection := db.Database.Collection("brands")
 	err = brandCollection.FindOne(ctx, bson.M{"_id": brandID}).Decode(&brand)
@@ -177,17 +183,31 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parse inStock value, default to true if not provided
+	inStock := true
+	if inStockStr != "" {
+		inStock, err = strconv.ParseBool(inStockStr)
+		if err != nil {
+			utils.ErrorResponse(
+				w,
+				http.StatusBadRequest,
+				"Invalid boolean value for inStock",
+			)
+			return
+		}
+	}
+
 	// Generate product ID early to use in filenames
 	productID := primitive.NewObjectID()
 
 	// --- Main Image Uploads ---
 	var mainImagePaths []string
 	var uploadedFilePaths []string // For cleanup on failure
-	
+
 	// Get the image files from the multipart form
 	files := r.MultipartForm.File["mainImages"]
 	fmt.Printf("Received file upload request. Number of main images: %d\n", len(files))
-	
+
 	if len(files) > MAX_MAIN_IMAGES {
 		utils.ErrorResponse(
 			w,
@@ -214,7 +234,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 			)
 			return
 		}
-		
+
 		// Verify directory exists
 		if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
 			fmt.Printf("Directory still doesn't exist after creation: %v\n", err)
@@ -225,14 +245,14 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 			)
 			return
 		}
-		
+
 		fmt.Printf("Directory created successfully: %s\n", uploadDir)
 	}
 
 	// Process each file
 	for i, handler := range files {
 		fmt.Printf("Processing file %d: %s\n", i, handler.Filename)
-		
+
 		file, err := handler.Open()
 		if err != nil {
 			fmt.Printf("Error opening file: %v\n", err)
@@ -268,11 +288,11 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 			)
 			return
 		}
-		
+
 		// Copy the file contents
 		bytesCopied, err := io.Copy(dst, file)
 		dst.Close() // Close immediately after writing
-		
+
 		if err != nil {
 			fmt.Printf("Error copying file content: %v\n", err)
 			_ = os.Remove(filePath) // Clean up partially created file
@@ -283,14 +303,14 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 			)
 			return
 		}
-		
+
 		fmt.Printf("Successfully wrote %d bytes to %s\n", bytesCopied, filePath)
 
 		// Path that will be stored in the database and used in URLs
 		serverPath := filepath.Join("/uploads/products/main", filename)
 		mainImagePaths = append(mainImagePaths, serverPath)
 		uploadedFilePaths = append(uploadedFilePaths, filePath)
-		
+
 		fmt.Printf("Added image path to product: %s\n", serverPath)
 	}
 
@@ -308,6 +328,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		Attributes:    attributes,
 		IsFlashSale:   isFlashSale,
 		IsActive:      isActive,
+		InStock:       inStock,
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
 	}
@@ -531,6 +552,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 			Attributes    []models.ProductAttribute `json:"attributes"`
 			IsFlashSale   *bool                     `json:"isFlashSale"`
 			IsActive      *bool                     `json:"isActive"`
+			InStock       *bool                     `json:"inStock"`
 		}
 
 		// Parse JSON request body
@@ -561,13 +583,13 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 			if productUpdate.OriginalPrice == nil {
 				// Only update original price if it was previously equal to price
 				if existingProduct.OriginalPrice == existingProduct.Price {
-					update["originalPrice"] = *productUpdate.Price
+					update["original_price"] = *productUpdate.Price
 				}
 			}
 		}
-		
+
 		if productUpdate.OriginalPrice != nil {
-			update["originalPrice"] = *productUpdate.OriginalPrice
+			update["original_price"] = *productUpdate.OriginalPrice
 			somethingToUpdate = true
 		}
 
@@ -596,17 +618,21 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			update["brandId"] = brandID
-			
+
 			// Fetch brand name and update it too
 			var brand models.Brand
 			brandCollection := db.Database.Collection("brands")
 			err = brandCollection.FindOne(ctx, bson.M{"_id": brandID}).Decode(&brand)
 			if err != nil {
-				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid brandId: brand not found")
+				utils.ErrorResponse(
+					w,
+					http.StatusBadRequest,
+					"Invalid brandId: brand not found",
+				)
 				return
 			}
 			update["brand"] = brand.Name
-			
+
 			somethingToUpdate = true
 		}
 
@@ -621,12 +647,17 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if productUpdate.IsFlashSale != nil {
-			update["isFlashSale"] = *productUpdate.IsFlashSale
+			update["is_flash_sale"] = *productUpdate.IsFlashSale
 			somethingToUpdate = true
 		}
 
 		if productUpdate.IsActive != nil {
-			update["isActive"] = *productUpdate.IsActive
+			update["is_active"] = *productUpdate.IsActive
+			somethingToUpdate = true
+		}
+
+		if productUpdate.InStock != nil {
+			update["in_stock"] = *productUpdate.InStock
 			somethingToUpdate = true
 		}
 
@@ -672,16 +703,16 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			update["price"] = price
-			
+
 			// If original price not provided, check if we should update it too
 			originalPriceStr := r.FormValue("originalPrice")
 			if originalPriceStr == "" {
 				// Only update original price if it was previously equal to price
 				if existingProduct.OriginalPrice == existingProduct.Price {
-					update["originalPrice"] = price
+					update["original_price"] = price
 				}
 			}
-			
+
 			somethingToUpdate = true
 		}
 
@@ -691,7 +722,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid originalPrice format")
 				return
 			}
-			update["originalPrice"] = originalPrice
+			update["original_price"] = originalPrice
 			somethingToUpdate = true
 		}
 
@@ -729,7 +760,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			update["brandId"] = brandID
-			
+
 			// Fetch brand name and update it too
 			var brand models.Brand
 			brandCollection := db.Database.Collection("brands")
@@ -739,7 +770,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			update["brand"] = brand.Name
-			
+
 			somethingToUpdate = true
 		}
 
@@ -777,7 +808,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid isFlashSale format")
 				return
 			}
-			update["isFlashSale"] = isFlashSale
+			update["is_flash_sale"] = isFlashSale
 			somethingToUpdate = true
 		}
 
@@ -787,7 +818,17 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid isActive format")
 				return
 			}
-			update["isActive"] = isActive
+			update["is_active"] = isActive
+			somethingToUpdate = true
+		}
+
+		if inStockStr := r.FormValue("inStock"); inStockStr != "" {
+			inStock, err := strconv.ParseBool(inStockStr)
+			if err != nil {
+				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid inStock format")
+				return
+			}
+			update["in_stock"] = inStock
 			somethingToUpdate = true
 		}
 
@@ -993,7 +1034,7 @@ func DeleteProduct(w http.ResponseWriter, r *http.Request) {
 	// Soft delete: Set IsActive to false and update UpdatedAt
 	update := bson.M{
 		"$set": bson.M{
-			"is_active":  false,
+			"is_active": false,
 			"updatedAt": time.Now(),
 		},
 	}

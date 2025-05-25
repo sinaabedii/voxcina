@@ -49,7 +49,7 @@ export function getDiscountPercentage(
   originalPrice: number,
   currentPrice: number
 ) {
-  if (originalPrice <= currentPrice) return 0;
+  if (!originalPrice || originalPrice <= currentPrice) return 0;
   return Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
 }
 
