@@ -22,6 +22,7 @@ export const useAuthStore = create<AuthStore>()(
       isAuthenticated: false,
       isLoading: false,
       error: null,
+      adminToken: null,
 
       login: async (credentials) => {
         set({ isLoading: true, error: null });
@@ -54,12 +55,18 @@ export const useAuthStore = create<AuthStore>()(
               createdAt: data.created_at,
               updatedAt: data.updated_at
             };
+            
+            let adminToken: string | null = null;
+            if (user.role === "admin") {
+              adminToken = data.token;
+            }
       
             set({
               user,
               isAuthenticated: true,
               isLoading: false,
               error: null,
+              adminToken,
             });
             return user;
           } else {
@@ -159,6 +166,7 @@ export const useAuthStore = create<AuthStore>()(
             user: null,
             isAuthenticated: false,
             error: null,
+            adminToken: null,
           });
         }
       },
@@ -244,8 +252,8 @@ export const useAuthStore = create<AuthStore>()(
     {
       name: "digi-style-auth",
       partialize: (state) => (Object.fromEntries(
-        Object.entries(state).filter(([key]) => ['user', 'isAuthenticated'].includes(key))
-      ) as { user: User | null; isAuthenticated: boolean }),
+        Object.entries(state).filter(([key]) => ['user', 'isAuthenticated', 'adminToken'].includes(key))
+      ) as { user: User | null; isAuthenticated: boolean, adminToken: string | null }),
     }
   )
 );

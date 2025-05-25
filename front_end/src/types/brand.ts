@@ -6,4 +6,5 @@ export interface Brand {
   description: string;
   createdAt?: string;
   updatedAt?: string;
+  isActive?: boolean;
 }

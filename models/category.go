@@ -14,6 +14,7 @@ type Category struct {
 	ParentID    primitive.ObjectID `bson:"parent_id,omitempty"  json:"parent_id,omitempty"` // Optional: For hierarchical categories
 	Description string             `bson:"description"          json:"description"`
 	Image       string             `bson:"image"                json:"image"` // URL to category image
+	IsActive    bool               `bson:"is_active"            json:"is_active"`           // Whether the category is active (defaults to true)
 	CreatedAt   time.Time          `bson:"created_at,omitempty" json:"created_at,omitempty"`
 	UpdatedAt   time.Time          `bson:"updated_at,omitempty" json:"updated_at,omitempty"`
 }

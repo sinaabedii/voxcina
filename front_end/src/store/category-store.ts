@@ -5,6 +5,7 @@ import { Category } from "@/types/category"; // Corrected import path
 
 // import { categories as mockCategories } from "@/data/categories"; // If you still need mock data for initial dev
 import { delay } from "@/lib/utils";
+import { useAuthStore } from "./auth-store"; // Import auth store
 
 interface CategoryState {
   categories: Category[];
@@ -14,6 +15,16 @@ interface CategoryState {
   fetchCategories: () => Promise<void>;
   fetchCategoryById: (id: string) => Promise<void>;
   getCategoryName: (categoryId: string) => string; // Add this method
+  createCategory: (
+    categoryData: FormData,
+    adminToken: string
+  ) => Promise<Category | null>;
+  updateCategory: (
+    id: string,
+    categoryData: FormData,
+    adminToken: string
+  ) => Promise<Category | null>;
+  deleteCategory: (id: string, adminToken: string) => Promise<boolean>;
 }
 
 export const useCategoryStore = create<CategoryState>()((set, get) => ({
@@ -93,7 +104,109 @@ export const useCategoryStore = create<CategoryState>()((set, get) => ({
     const categoriesToUse = categoriesArray || categories;
     const category = categoriesToUse.find(cat => cat.id === categoryId);
     return category ? category.name : 'Category';
-  }
+  },
+  createCategory: async (categoryData: FormData, adminToken: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch("/api/admin/categories", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: categoryData,
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || "Failed to create category"
+        );
+      }
+      const newCategory = await response.json();
+      set({
+        categories: [...get().categories, newCategory],
+        isLoading: false,
+      });
+      return newCategory;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : "Unknown error",
+        isLoading: false,
+      });
+      return null;
+    }
+  },
+
+  updateCategory: async (
+    id: string,
+    categoryData: FormData,
+    adminToken: string
+  ) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`/api/categories/${id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: categoryData,
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || "Failed to update category"
+        );
+      }
+      const updatedCategory = await response.json();
+      set({
+        categories: get().categories.map((cat) =>
+          cat.id === id ? updatedCategory : cat
+        ),
+        activeCategory:
+          get().activeCategory?.id === id
+            ? updatedCategory
+            : get().activeCategory,
+        isLoading: false,
+      });
+      return updatedCategory;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : "Unknown error",
+        isLoading: false,
+      });
+      return null;
+    }
+  },
+
+  deleteCategory: async (id: string, adminToken: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`/api/categories/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+        },
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || "Failed to delete category"
+        );
+      }
+      set({
+        categories: get().categories.filter((cat) => cat.id !== id),
+        activeCategory:
+          get().activeCategory?.id === id ? null : get().activeCategory,
+        isLoading: false,
+      });
+      return true;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : "Unknown error",
+        isLoading: false,
+      });
+      return false;
+    }
+  },
 }));
 
 // Note: If you want to persist parts of the category store (e.g., activeCategory if needed),

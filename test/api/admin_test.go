@@ -124,6 +124,7 @@ func TestAdminEndpoints(t *testing.T) {
 	// Add category name field (required)
 	_ = writer.WriteField("name", categoryName)
 	_ = writer.WriteField("description", "Test category description")
+	_ = writer.WriteField("is_active", "true")
 
 	// Try to add test image if it exists
 	imagePath := "../test_files/test_category.png"
@@ -167,6 +168,7 @@ func TestAdminEndpoints(t *testing.T) {
 	categoryID, ok := categoryResult["id"].(string)
 	assert.True(t, ok)
 	assert.Equal(t, categoryName, categoryResult["name"])
+	assert.Equal(t, true, categoryResult["is_active"])
 
 	// Verify image path if an image was uploaded
 	if _, err := os.Stat(imagePath); err == nil {

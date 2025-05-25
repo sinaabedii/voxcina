@@ -125,7 +125,7 @@ export default function ProductsClient() {
   return (
     <div className="container py-8 md:py-12">
       <motion.h1
-        className="text-2xl md:text-3xl font-bold mb-6 text-voxcina-blue dark:text-voxcina-cream relative inline-block hidden md:block"
+        className="text-2xl md:text-3xl font-bold mb-6 text-voxcina-blue dark:text-voxcina-cream relative hidden md:block"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}

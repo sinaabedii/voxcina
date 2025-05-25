@@ -7,4 +7,5 @@ export interface Category {
   image: string;                // URL to category image
   created_at?: string;          // ISO 8601 timestamp, optional
   updated_at?: string;          // ISO 8601 timestamp, optional
+  is_active?: boolean;          // Whether the category is active
 }

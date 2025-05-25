@@ -172,7 +172,7 @@ func CreateCategory(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 	slug := r.FormValue("slug")
 	description := r.FormValue("description")
-	parentIDStr := r.FormValue("parentId") // Optional
+	parentIDStr := r.FormValue("parent_id") // Corrected to snake_case
 
 	if name == "" {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Category name is required")
@@ -193,7 +193,7 @@ func CreateCategory(w http.ResponseWriter, r *http.Request) {
 			utils.ErrorResponse(
 				w,
 				http.StatusBadRequest,
-				"Invalid parentId format: "+err.Error(),
+				"Invalid parent_id format: "+err.Error(),
 			)
 			return
 		}
@@ -343,7 +343,8 @@ func UpdateCategory(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 	slug := r.FormValue("slug")
 	description := r.FormValue("description")
-	parentIDStr := r.FormValue("parentId")
+	parentIDStr := r.FormValue("parent_id")
+	isActiveStr := r.FormValue("is_active") // Get is_active string value
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -378,20 +379,44 @@ func UpdateCategory(w http.ResponseWriter, r *http.Request) {
 		existingCategory.Description = description
 	}
 
-	if parentIDStr != "" {
-		if parentIDStr == "0" || parentIDStr == "null" ||
-			parentIDStr == primitive.NilObjectID.Hex() {
-			update["parent_id"] = primitive.NilObjectID // Or use $unset if you want to remove the field
-			existingCategory.ParentID = primitive.NilObjectID
-		} else {
-			parentID, err := primitive.ObjectIDFromHex(parentIDStr)
-			if err != nil {
-				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid parentId format: "+err.Error())
-				return
-			}
-			update["parent_id"] = parentID
-			existingCategory.ParentID = parentID
+	// Handle parent_id more explicitly
+	fmt.Printf(
+		"Received parent_id string from form: '%s'\n",
+		parentIDStr,
+	) // Log received string
+	if parentIDStr != "" && parentIDStr != "0" && parentIDStr != "null" {
+		parsedParentID, err := primitive.ObjectIDFromHex(parentIDStr)
+		if err != nil {
+			fmt.Printf(
+				"Error parsing parent_id '%s': %v\n",
+				parentIDStr,
+				err,
+			) // Log error
+			utils.ErrorResponse(
+				w,
+				http.StatusBadRequest,
+				"Invalid parent_id format: "+err.Error(),
+			)
+			return
 		}
+		update["parent_id"] = parsedParentID
+		existingCategory.ParentID = parsedParentID
+		fmt.Printf(
+			"Successfully parsed parent_id to ObjectID: %s\n",
+			parsedParentID.Hex(),
+		) // Log success
+	} else {
+		// If parentIDStr is empty, "0", or "null", it means set to no parent
+		update["parent_id"] = primitive.NilObjectID       // Explicitly set to NilObjectID for BSON
+		existingCategory.ParentID = primitive.NilObjectID // Update for response struct
+		fmt.Println("Setting parent_id to NilObjectID")
+	}
+
+	// Handle is_active
+	if isActiveStr != "" {
+		parsedIsActive := isActiveStr == "true" // Simple conversion for "true" string
+		update["is_active"] = parsedIsActive
+		existingCategory.IsActive = parsedIsActive // Update for response
 	}
 
 	file, handler, err := r.FormFile("image")

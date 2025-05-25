@@ -34,6 +34,22 @@ interface ProductState {
   addToCompare: (product: Product) => void;
   removeFromCompare: (productId: string) => void;
   clearCompareList: () => void;
+  // Brand Admin Actions
+  createBrand: (brandData: FormData, adminToken: string) => Promise<Brand | null>;
+  updateBrand: (
+    id: string,
+    brandData: Partial<Brand> | FormData,
+    adminToken: string
+  ) => Promise<Brand | null>;
+  deleteBrand: (id: string, adminToken: string) => Promise<boolean>;
+  // Product Admin Actions
+  createProduct: (productData: FormData, adminToken: string) => Promise<Product | null>;
+  updateProduct: (
+    id: string,
+    productData: Partial<Product> | FormData,
+    adminToken: string
+  ) => Promise<Product | null>;
+  deleteProduct: (id: string, adminToken: string) => Promise<boolean>;
 }
 
 export const useProductStore = create<ProductState>()(
@@ -278,6 +294,194 @@ export const useProductStore = create<ProductState>()(
 
       clearCompareList: () => {
         set({ comparedProducts: [] });
+      },
+
+      // Brand Admin Actions
+      createBrand: async (brandData: FormData, adminToken: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await fetch("/api/brands", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${adminToken}`,
+            },
+            body: brandData,
+          });
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || "Failed to create brand");
+          }
+          const newBrand = await response.json();
+          set({
+            brands: [...get().brands, newBrand],
+            isLoading: false,
+          });
+          return newBrand;
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : "Unknown error creating brand",
+            isLoading: false,
+          });
+          return null;
+        }
+      },
+
+      updateBrand: async (
+        id: string,
+        brandData: Partial<Brand> | FormData,
+        adminToken: string
+      ) => {
+        set({ isLoading: true, error: null });
+        try {
+          const isFormData = brandData instanceof FormData;
+          const response = await fetch(`/api/brands/${id}`, {
+            method: "PUT",
+            headers: {
+              ...(isFormData ? {} : { "Content-Type": "application/json" }),
+              Authorization: `Bearer ${adminToken}`,
+            },
+            body: isFormData ? brandData : JSON.stringify(brandData),
+          });
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || "Failed to update brand");
+          }
+          const updatedBrand = await response.json();
+          set({
+            brands: get().brands.map((b) => (b.id === id ? updatedBrand : b)),
+            isLoading: false,
+          });
+          return updatedBrand;
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : "Unknown error updating brand",
+            isLoading: false,
+          });
+          return null;
+        }
+      },
+
+      deleteBrand: async (id: string, adminToken: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await fetch(`/api/brands/${id}`, {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${adminToken}`,
+            },
+          });
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || "Failed to delete brand");
+          }
+          set({
+            brands: get().brands.filter((b) => b.id !== id),
+            isLoading: false,
+          });
+          return true;
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : "Unknown error deleting brand",
+            isLoading: false,
+          });
+          return false;
+        }
+      },
+
+      // Product Admin Actions
+      createProduct: async (productData: FormData, adminToken: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await fetch("/api/admin/products", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${adminToken}`,
+              // Content-Type is set automatically for FormData
+            },
+            body: productData,
+          });
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || "Failed to create product");
+          }
+          const newProduct = await response.json();
+          set((state) => ({
+            products: [...state.products, newProduct],
+            isLoading: false,
+          }));
+          return newProduct;
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : "Unknown error creating product",
+            isLoading: false,
+          });
+          return null;
+        }
+      },
+
+      updateProduct: async (
+        id: string,
+        productData: Partial<Product> | FormData,
+        adminToken: string
+      ) => {
+        set({ isLoading: true, error: null });
+        try {
+          const isFormData = productData instanceof FormData;
+          const response = await fetch(`/api/admin/products/${id}`, {
+            method: "PUT",
+            headers: {
+              ...(isFormData ? {} : { "Content-Type": "application/json" }),
+              Authorization: `Bearer ${adminToken}`,
+            },
+            body: isFormData ? productData : JSON.stringify(productData),
+          });
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || "Failed to update product");
+          }
+          const updatedProduct = await response.json();
+          set((state) => ({
+            products: state.products.map((p) =>
+              p.id === id ? updatedProduct : p
+            ),
+            activeProduct: state.activeProduct?.id === id ? updatedProduct : state.activeProduct,
+            isLoading: false,
+          }));
+          return updatedProduct;
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : "Unknown error updating product",
+            isLoading: false,
+          });
+          return null;
+        }
+      },
+
+      deleteProduct: async (id: string, adminToken: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await fetch(`/api/admin/products/${id}`, {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${adminToken}`,
+            },
+          });
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || "Failed to delete product");
+          }
+          set((state) => ({
+            products: state.products.filter((p) => p.id !== id),
+            isLoading: false,
+          }));
+          return true;
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : "Unknown error deleting product",
+            isLoading: false,
+          });
+          return false;
+        }
       },
     }),
     {
