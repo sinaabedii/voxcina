@@ -111,9 +111,15 @@ func NewRouter() *mux.Router {
 	cartRouter.HandleFunc("", handlers.GetCart).
 		Methods(http.MethodGet)
 		// GET /api/cart
-	cartRouter.HandleFunc("", handlers.AddToCart).
+	cartRouter.HandleFunc("", handlers.CreateOrReplaceCart).
 		Methods(http.MethodPost)
-		// POST /api/cart
+		// POST /api/cart - Used by frontend to sync local cart on login (creates a new cart, deactivates old ones).
+
+	// Route for adding/updating a single item to an existing cart
+	cartRouter.HandleFunc("/item", handlers.AddItemToExistingCart).
+		Methods(http.MethodPost)
+		// POST /api/cart/item - Used by frontend addItem to add/update a single item in an existing cart.
+
 	cartRouter.HandleFunc("/item", handlers.RemoveFromCart).
 		Methods(http.MethodDelete)
 		// DELETE /api/cart/item

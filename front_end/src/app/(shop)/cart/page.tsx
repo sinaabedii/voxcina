@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Trash2, ShoppingBag, Minus, Plus, ArrowLeft } from "lucide-react";
@@ -9,6 +9,7 @@ import { formatPrice } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { motion, AnimatePresence } from "framer-motion";
+import { CartItem } from '@/types/cart';
 
 export default function CartPage() {
   const {
@@ -23,14 +24,13 @@ export default function CartPage() {
   const [promoInput, setPromoInput] = useState("");
   const [promoError, setPromoError] = useState("");
 
-  const handleQuantityChange = (itemId: string, quantity: number) => {
-    if (quantity > 0) {
-      updateItemQuantity(itemId, quantity);
-    }
+  const handleQuantityChange = (item: CartItem, quantity: number) => {
+    if (quantity < 1) return;
+    updateItemQuantity(item.productId, quantity, item.size, item.color);
   };
 
-  const handleRemoveItem = (itemId: string) => {
-    removeItem(itemId);
+  const handleRemoveItem = (item: CartItem) => {
+    removeItem(item.productId, item.size, item.color);
   };
 
   const handleApplyPromoCode = () => {
@@ -164,7 +164,7 @@ export default function CartPage() {
                           <div className="relative h-24 w-24 rounded-xl overflow-hidden bg-voxcina-cream/30 dark:bg-voxcina-blue/20 border border-voxcina-cream/50 dark:border-voxcina-blue/40 shadow-sm">
                             <Image
                               src={item.product.images[0]}
-                              alt={item.product.name}
+                              alt={item.product.name || 'Product image'}
                               fill
                               className="object-cover"
                             />
@@ -212,7 +212,7 @@ export default function CartPage() {
                                 className="w-8 h-8 flex items-center justify-center text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
                                 onClick={() =>
                                   handleQuantityChange(
-                                    item.id,
+                                    item,
                                     item.quantity - 1
                                   )
                                 }
@@ -228,7 +228,7 @@ export default function CartPage() {
                                 className="w-8 h-8 flex items-center justify-center text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
                                 onClick={() =>
                                   handleQuantityChange(
-                                    item.id,
+                                    item,
                                     item.quantity + 1
                                   )
                                 }
@@ -241,7 +241,7 @@ export default function CartPage() {
 
                             <motion.button
                               className="mr-3 w-8 h-8 rounded-full flex items-center justify-center text-voxcina-blue/50 dark:text-voxcina-cream/50 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                              onClick={() => handleRemoveItem(item.id)}
+                              onClick={() => handleRemoveItem(item)}
                               aria-label="حذف از سبد خرید"
                               whileHover={{ scale: 1.1 }}
                               whileTap={{ scale: 0.9 }}

@@ -18,7 +18,7 @@ export interface Product {
   description: string;
   price: number; // Base price //
   
-  originalPrice: number; // add continue/////////////
+  originalPrice: number; // add this property to backend model data 
 
   images: string[]; // Main product images (URLs)
   category_ids: string[]; // Array of category ObjectIDs as strings

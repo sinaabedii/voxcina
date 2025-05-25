@@ -47,14 +47,84 @@ interface CartStore {
     size?: string,
     color?: string
   ) => Promise<void>;
-  updateItemQuantity: (itemId: string, quantity: number) => Promise<void>;
-  removeItem: (itemId: string) => Promise<void>;
+  updateItemQuantity: (
+    productId: string, 
+    quantity: number,
+    size?: string, 
+    color?: string,
+  ) => Promise<void>;
+  removeItem: ( 
+    productId: string,
+    size?: string, 
+    color?: string
+  ) => Promise<void>;
   clearCart: () => Promise<void>;
   applyPromoCode: (code: string) => void;
   removePromoCode: () => void;
   calculateSummary: () => void;
   cleanupSubscriptions: () => void;
 }
+
+// Helper function to transform backend cart items to frontend structure if needed
+const transformBackendCartItemProduct = (backendProduct: any): Product => {
+  // Ensure all properties from backendProduct are spread, then specifically handle id and images.
+  // This assumes backendProduct is a superset or matches most of Product type from @/types/product
+  // and ProductResponse from cart.go which should contain: Name, Description, Price, Image, ID.
+  return {
+    ...(backendProduct as Omit<Product, 'id' | 'images'>), // Spread all other properties, assuming they match
+    id: backendProduct.id || backendProduct.ID, // Handle potential casing difference for id
+    name: backendProduct.name || backendProduct.Name, // Handle potential casing for name
+    description: backendProduct.description || backendProduct.Description, // Handle potential casing for description
+    price: backendProduct.price || backendProduct.Price, // Handle potential casing for price
+    images: backendProduct.image ? [backendProduct.image] : (backendProduct.images || []),
+    // Add other mandatory Product fields with defaults if not in backendProduct
+    // For example, if Product requires originalPrice and it might not be in backendProduct:
+    // originalPrice: backendProduct.originalPrice || backendProduct.Price || 0,
+    // category: backendProduct.category || { id: 'unknown', name: 'Unknown' },
+    // brand: backendProduct.brand || { id: 'unknown', name: 'Unknown' },
+    // stock: backendProduct.stock !== undefined ? backendProduct.stock : 0,
+    // ratings: backendProduct.ratings || 0,
+    // reviews: backendProduct.reviews || [],
+    // variants: backendProduct.variants || [],
+    // isFeatured: backendProduct.isFeatured || false,
+    // isNew: backendProduct.isNew || false,
+    // discount: backendProduct.discount || null,
+    // slug: backendProduct.slug || (backendProduct.name || backendProduct.Name || 'product').toLowerCase().replace(/\s+/g, '-'),
+  } as Product; // Assert as Product to satisfy the return type
+};
+
+// Helper function to process the cart data from backend
+const processBackendCartData = (backendCartData: any): { cart: Cart; summary: CartSummary } => {
+  if (!backendCartData || typeof backendCartData !== 'object') {
+    console.error('Invalid cart data received from backend (not an object):', backendCartData);
+    throw new Error('Invalid cart data received from backend (not an object)');
+  }
+  if (!Array.isArray(backendCartData.items)) {
+    console.warn('Backend cart data items is not an array, defaulting to empty array:', backendCartData.items);
+    backendCartData.items = [];
+  }
+
+  const processedItems: CartItem[] = backendCartData.items.map((item: any) => ({
+    ...item, // Spreads quantity, variant, etc.
+    product: item.product ? transformBackendCartItemProduct(item.product) : undefined as unknown as Product,
+    price: item.product ? item.product.price : (item.price || 0),
+    id: item.id || generateId(),
+    productId: item.product ? (item.product.id || item.product.ID) : item.productId,
+    size: item.variant?.size,
+    color: item.variant?.color,
+  }));
+
+  return {
+    cart: {
+      id: backendCartData.id || generateId(), // Use backend cart ID or generate a new one
+      userId: backendCartData.userId || null,
+      items: processedItems,
+      createdAt: backendCartData.createdAt || new Date().toISOString(),
+      updatedAt: backendCartData.updatedAt || new Date().toISOString(),
+    },
+    summary: backendCartData.summary || { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 },
+  };
+};
 
 export const useCartStore = create<CartStore>()(
   persist(
@@ -79,147 +149,111 @@ export const useCartStore = create<CartStore>()(
       syncRetryCount: 0,
 
       syncCartWithBackend: async () => {
-        const { cart } = get();
-        const { user, isAuthenticated } = useAuthStore.getState();
-
-        if (isAuthenticated && user) {
-          set({
-            cart: {
-              ...cart,
-              userId: user.id
-            }
-          });
-        }
-
-        if (!isAuthenticated || !user) {
-          return; // No need to sync if user is not authenticated
-        }
+        const { isAuthenticated, user } = useAuthStore.getState();
+        if (!isAuthenticated || !user) return;
 
         set({ isLoading: true, error: null });
         try {
           const response = await fetch('/api/cart', {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-            }
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
           });
-          
-          if (response.ok) {
-            const data = await response.json();
-            
-            if (!data || typeof data !== 'object' || !data.cart || !Array.isArray(data.cart.items)) {
-              throw new Error('Invalid cart data structure from API');
-            }
 
-            if (data.cart && data.cart.items && data.cart.items.length > 0) {
-              const backendItems = data.cart.items;
-              const localItems = cart.items;
-              
-              const mergedItems = [...localItems];
-              backendItems.forEach((backendItem: CartItem) => {
-                const existingIndex = mergedItems.findIndex(
-                  item => item.productId === backendItem.productId && 
-                         item.size === backendItem.size && 
-                         item.color === backendItem.color
-                );
-                
-                if (existingIndex === -1) {
-                  mergedItems.push(backendItem);
-                }
-              });
+          if (response.ok) { // Backend cart exists for the user
+            const rawBackendCart = await response.json();
+            const { cart: processedCart, summary: processedSummary } = processBackendCartData(rawBackendCart);
+            set({
+              cart: processedCart,
+              summary: processedSummary,
+              isLoading: false,
+              syncRetryCount: 0,
+            });
+          } else if (response.status === 404) { // No backend cart for this user, try to create one with local items
+            console.log('No cart on backend, attempting to POST local items.');
+            const localCartItems = get().cart.items.map(item => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              variant: { size: item.size, color: item.color }
+            }));
 
-              set({
-                cart: {
-                  ...data.cart,
-                  items: mergedItems,
-                  updatedAt: new Date().toISOString(),
-                },
-                summary: data.summary,
-                isLoading: false,
-                syncRetryCount: 0,
-              });
-            } else {
-              // If backend cart is empty or data is incomplete, post local cart.
-              await fetch('/api/cart', {
+            if (localCartItems.length > 0) {
+              const postResponse = await fetch('/api/cart', { // POST local items to create cart
                 method: 'POST',
-                headers: { 
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-                },
-                body: JSON.stringify({ items: cart.items }),
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
+                body: JSON.stringify({ items: localCartItems })
               });
+
+              if (postResponse.ok) {
+                // Assume POST returns the newly created cart with items and summary
+                const rawNewCart = await postResponse.json();
+                const { cart: processedCart, summary: processedSummary } = processBackendCartData(rawNewCart);
+                set({
+                  cart: processedCart,
+                  summary: processedSummary,
+                  isLoading: false,
+                  syncRetryCount: 0,
+                });
+                console.log('Local cart items successfully POSTed and cart updated from response.');
+              } else {
+                // POST failed to create cart or return it properly
+                const errorData = await postResponse.json().catch(() => ({ message: 'Failed to POST local cart and parse error response' }));
+                console.error('Error POSTing local cart items:', errorData.message || postResponse.statusText);
+                set({ 
+                  error: `Failed to send local cart to backend: ${errorData.message || postResponse.statusText}`,
+                  isLoading: false 
+                });
+                // Optional: try a fresh sync again as a fallback, but be cautious of loops
+                // get().syncCartWithBackend(); 
+              }
+            } else {
+              // No local items to POST, so the cart remains (or becomes) empty
+              console.log('Local cart is empty, no items to POST.');
+              // If backend also confirmed no cart (404), then an empty cart state is correct here.
+              // Ensure a clean empty state is set if not already.
+              const { cart: emptyCart, summary: emptySummary } = processBackendCartData({ items: [], summary: { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 } });
+              set({ cart: emptyCart, summary: emptySummary, isLoading: false });
             }
           } else {
-            // If fetching cart failed (e.g. 404), post local cart to create it.
-            await fetch('/api/cart', {
-              method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-              },
-              body: JSON.stringify({ items: cart.items }),
-            });
+            // Other non-404 error from GET /api/cart
+            const errorData = await response.json().catch(() => ({ message: 'Failed to sync and parse error'}));
+            throw new Error(errorData.message || 'Failed to sync cart with backend');
           }
         } catch (error) {
-          console.error('Error syncing cart:', error);
-          
+          console.error('Error in syncCartWithBackend:', error);
           set({ 
-            error: 'Failed to sync cart with backend', 
-            isLoading: false,
-            syncRetryCount: (get().syncRetryCount || 0) + 1
+            error: error instanceof Error ? error.message : 'An unknown error occurred while syncing cart', 
+            isLoading: false, 
+            syncRetryCount: (get().syncRetryCount || 0) + 1 
           });
-          
-          if ((get().syncRetryCount || 0) < 3) {
-            setTimeout(() => get().syncCartWithBackend(), 2000);
-          }
-        } finally {
-          set({ isLoading: false });
-          get().calculateSummary();
         }
       },
 
       addItem: async (product, quantity, size, color) => {
-        const { cart } = get();
+        const { cart: currentLocalCart } = get();
         const { isAuthenticated, user } = useAuthStore.getState();
-
         set({ isLoading: true, error: null });
         try {
           if (isAuthenticated && user) {
-            const response = await fetch('/api/cart', {
+            // When authenticated, add item to backend cart via POST /api/cart/item
+            const response = await fetch('/api/cart/item', { // <-- UPDATED ENDPOINT
               method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-              },
-              body: JSON.stringify({
-                productId: product.id,
-                quantity,
-                size,
-                color,
-              }),
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
+              body: JSON.stringify({ productId: product.id, quantity, variant: { size, color } })
             });
-
             if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.message || 'Failed to add item to cart');
+                 const errorData = await response.json().catch(() => ({ message: 'Failed to add item and parse error'}));
+                 throw new Error(errorData.message || 'Failed to add item to backend cart');
             }
-
-            const data = await response.json();
-            set({
-              cart: data.cart,
-              summary: data.summary,
-              isLoading: false,
-            });
+            const rawBackendCart = await response.json();
+            const { cart: processedCart, summary: processedSummary } = processBackendCartData(rawBackendCart);
+            set({ cart: processedCart, summary: processedSummary, isLoading: false });
           } else {
-            const existingItemIndex = cart.items.findIndex(
-              (item) =>
-                item.productId === product.id &&
-                item.size === size &&
-                item.color === color
+            // Local add logic (remains the same)
+            const existingItemIndex = currentLocalCart.items.findIndex(
+              item => item.productId === product.id && item.size === size && item.color === color
             );
-
             let updatedItems;
             if (existingItemIndex > -1) {
-              updatedItems = cart.items.map((item, index) =>
+              updatedItems = currentLocalCart.items.map((item, index) =>
                 index === existingItemIndex
                   ? { ...item, quantity: item.quantity + quantity }
                   : item
@@ -234,331 +268,245 @@ export const useCartStore = create<CartStore>()(
                 color: color,
                 price: product.price,
               };
-              updatedItems = [...cart.items, newItem];
+              updatedItems = [...currentLocalCart.items, newItem];
             }
-
             set({
-              cart: {
-                ...cart,
-                items: updatedItems,
-                updatedAt: new Date().toISOString(),
-              },
+              cart: { ...currentLocalCart, items: updatedItems, updatedAt: new Date().toISOString() },
               isLoading: false,
             });
+            get().calculateSummary(); // Calculate summary for local changes
           }
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to add item',
-            isLoading: false,
-          });
-        } finally {
-          get().calculateSummary();
-        }
+        } catch (error) { 
+            console.error('Error adding item:', error);
+            set({error: error instanceof Error ? error.message : 'Error adding item', isLoading: false}); 
+        } 
       },
 
-      updateItemQuantity: async (itemId, quantity) => {
-        const { cart } = get();
+      updateItemQuantity: async (productId, quantity, size, color) => {
         const { isAuthenticated, user } = useAuthStore.getState();
-
         set({ isLoading: true, error: null });
         try {
           if (isAuthenticated && user) {
-            const response = await fetch('/api/cart', {
+            const response = await fetch('/api/cart/item', {
               method: 'PUT',
-              headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-              },
-              body: JSON.stringify({ itemId, quantity }),
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
+              body: JSON.stringify({ productId, variant: { size, color }, quantity })
             });
-
             if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.message || 'Failed to update item quantity');
+                const errorData = await response.json().catch(() => ({ message: 'Failed to update and parse error'}));
+                throw new Error(errorData.message || 'Failed to update quantity');
             }
-
-            const data = await response.json();
-            set({
-              cart: data.cart,
-              summary: data.summary,
-              isLoading: false,
-            });
+            const rawBackendCart = await response.json();
+            const { cart: processedCart, summary: processedSummary } = processBackendCartData(rawBackendCart);
+            set({ cart: processedCart, summary: processedSummary, isLoading: false });
           } else {
-            const updatedItems = cart.items.map((item) =>
-              item.id === itemId ? { ...item, quantity } : item
+            const { cart: currentLocalCart } = get();
+            const updatedItems = currentLocalCart.items.map(item => 
+              item.productId === productId && item.size === size && item.color === color 
+                ? { ...item, quantity } 
+                : item
+            ).filter(item => item.quantity > 0);
+            set({ cart: { ...currentLocalCart, items: updatedItems, updatedAt: new Date().toISOString() }, isLoading: false });
+            get().calculateSummary(); // Calculate summary for local changes
+          }
+        } catch (error) { 
+            console.error('Error updating quantity:', error);
+            set({error: error instanceof Error ? error.message : 'Error updating qty', isLoading: false}); 
+        }
+      },
+
+      removeItem: async (productId, size, color) => {
+        const { isAuthenticated, user } = useAuthStore.getState();
+        set({ isLoading: true, error: null });
+        try {
+          if (isAuthenticated && user) {
+            const queryParams = new URLSearchParams({ productId, ...(size && { variantSize: size }), ...(color && { variantColor: color }) });
+            const response = await fetch(`/api/cart/item?${queryParams.toString()}`, { 
+                method: 'DELETE', 
+                headers: {'Authorization': `Bearer ${localStorage.getItem('authToken')}`}
+            });
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: 'Failed to remove and parse error'}));
+                throw new Error(errorData.message || 'Failed to remove item');
+            }
+            const rawBackendCart = await response.json();
+            const { cart: processedCart, summary: processedSummary } = processBackendCartData(rawBackendCart);
+            set({ cart: processedCart, summary: processedSummary, isLoading: false });
+          } else {
+            const { cart: currentLocalCart } = get();
+            const updatedItems = currentLocalCart.items.filter(
+              item => !(item.productId === productId && item.size === size && item.color === color)
             );
-            set({
-              cart: {
-                ...cart,
-                items: updatedItems,
-                updatedAt: new Date().toISOString(),
-              },
-              isLoading: false,
-            });
+            set({ cart: { ...currentLocalCart, items: updatedItems, updatedAt: new Date().toISOString() }, isLoading: false });
+            get().calculateSummary(); // Calculate summary for local changes
           }
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to update quantity',
-            isLoading: false,
-          });
-        } finally {
-          get().calculateSummary();
+        } catch (error) { 
+            console.error('Error removing item:', error);
+            set({error: error instanceof Error ? error.message : 'Error removing item', isLoading: false}); 
         }
       },
-
-      removeItem: async (itemId) => {
-        const { cart } = get();
-        const { isAuthenticated, user } = useAuthStore.getState();
-
-        set({ isLoading: true, error: null });
-        try {
-          if (isAuthenticated && user) {
-            const response = await fetch(`/api/cart/${itemId}`, {
-              method: 'DELETE',
-              headers: {
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-              }
-            });
-
-            if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.message || 'Failed to remove item from cart');
-            }
-
-            const data = await response.json();
-            set({
-              cart: data.cart,
-              summary: data.summary,
-              isLoading: false,
-            });
-          } else {
-            const updatedItems = cart.items.filter((item) => item.id !== itemId);
-            set({
-              cart: {
-                ...cart,
-                items: updatedItems,
-                updatedAt: new Date().toISOString(),
-              },
-              isLoading: false,
-            });
-          }
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to remove item',
-            isLoading: false,
-          });
-        } finally {
-          get().calculateSummary();
-        }
-      },
-
+      
       clearCart: async () => {
-        const { cart } = get();
         const { isAuthenticated, user } = useAuthStore.getState();
-
         set({ isLoading: true, error: null });
         try {
           if (isAuthenticated && user) {
-            const response = await fetch('/api/cart', {
-              method: 'DELETE',
-              headers: {
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-              }
+            const response = await fetch('/api/cart', { 
+                method: 'DELETE', 
+                headers: {'Authorization': `Bearer ${localStorage.getItem('authToken')}`}
             });
-
             if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.message || 'Failed to clear cart');
+                const errorData = await response.json().catch(() => ({ message: 'Failed to clear cart and parse error'}));
+                throw new Error(errorData.message || 'Failed to clear cart on backend');
             }
-
-            const data = await response.json();
+            const rawBackendCart = await response.json(); // Expecting empty cart structure { items: [], summary: {...} }
+            const { cart: processedCart, summary: processedSummary } = processBackendCartData(rawBackendCart);
+            set({ cart: processedCart, summary: processedSummary, promoCode: null, isLoading: false });
+          } else {
+            const { cart: currentLocalCart } = get();
             set({
-              cart: data.cart,
-              summary: data.summary,
+              cart: { ...currentLocalCart, items: [], updatedAt: new Date().toISOString() },
               promoCode: null,
               isLoading: false,
             });
-          } else {
-            set({
-              cart: {
-                ...cart,
-                items: [],
-                updatedAt: new Date().toISOString(),
-              },
-              promoCode: null,
-              isLoading: false,
-            });
+            get().calculateSummary(); // Calculate summary for local changes
           }
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to clear cart',
-            isLoading: false,
-          });
-        } finally {
-          get().calculateSummary();
+        } catch (error) { 
+            console.error('Error clearing cart:', error);
+            set({error: error instanceof Error ? error.message : 'Error clearing cart', isLoading: false}); 
         }
-      },
-
-      applyPromoCode: (code) => {
-        const { cart } = get();
-        const subtotal = cart.items.reduce(
-          (sum, item) => sum + item.price * item.quantity,
-          0
-        );
-
-        const foundPromo = validPromoCodes.find(
-          (promo) => promo.code.toUpperCase() === code.toUpperCase()
-        );
-
-        if (foundPromo) {
-          const isExpired =
-            foundPromo.expireDate &&
-            new Date(foundPromo.expireDate) < new Date();
-
-          const meetsMinPurchase = subtotal >= foundPromo.minPurchase;
-
-          if (isExpired) {
-            set({
-              promoCode: {
-                ...foundPromo,
-                isValid: false,
-                errorMessage: "کد تخفیف منقضی شده است",
-              },
-            });
-          } else if (!meetsMinPurchase) {
-            set({
-              promoCode: {
-                ...foundPromo,
-                isValid: false,
-                errorMessage: `حداقل خرید برای استفاده از این کد ${formatPrice(
-                  foundPromo.minPurchase
-                )} است`,
-              },
-            });
-          } else {
-            set({
-              promoCode: {
-                ...foundPromo,
-                isValid: true,
-                errorMessage: undefined,
-              },
-            });
-          }
-        } else {
-          set({
-            promoCode: {
-              code,
-              discountPercentage: 0,
-              minPurchase: 0,
-              maxDiscount: 0,
-              isValid: false,
-              errorMessage: "کد تخفیف نامعتبر است",
-            },
-          });
-        }
-
-        get().calculateSummary();
-      },
-
-      removePromoCode: () => {
-        set({ promoCode: null });
-        get().calculateSummary();
       },
 
       calculateSummary: () => {
         const { cart, promoCode } = get();
-
-        const subtotal = cart.items.reduce(
-          (sum, item) => sum + item.price * item.quantity,
-          0
-        );
-
-        const tax = subtotal * 0.09;
-        const shipping = cart.items.length > 0 ? 150000 : 0;
-        let discount = 0;
-        if (promoCode && promoCode.isValid) {
-          discount = subtotal * (promoCode.discountPercentage / 100);
-          if (promoCode.maxDiscount > 0 && discount > promoCode.maxDiscount) {
-            discount = promoCode.maxDiscount;
-          }
+        if (!cart || !cart.items) {
+          set({ summary: { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 } });
+          return;
         }
-        const total = subtotal + tax + shipping - discount;
-
+        let subtotal = cart.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+        let discountVal = 0;
+        if (promoCode && promoCode.isValid) {
+            const potentialDiscount = (subtotal * promoCode.discountPercentage) / 100;
+            if (promoCode.maxDiscount !== undefined && promoCode.maxDiscount > 0) {
+                discountVal = Math.min(potentialDiscount, promoCode.maxDiscount);
+            } else {
+                discountVal = potentialDiscount;
+            }
+        }
+        discountVal = Math.min(subtotal, discountVal);
+        const subtotalAfterDiscount = subtotal - discountVal;
+        const taxRate = 0.09; // 9% tax
+        const tax = subtotalAfterDiscount * taxRate;
+        const shipping = subtotalAfterDiscount > 500000 ? 0 : 35000; // Free shipping over 500,000
+        const total = subtotalAfterDiscount + tax + shipping;
         set({
           summary: {
-            subtotal,
+            subtotal: subtotal, 
             shipping,
             tax,
-            discount,
+            discount: discountVal,
             total,
           },
         });
       },
 
+       applyPromoCode: (code) => {
+        const { cart } = get(); // cart is used to check items, but summary.subtotal is used for minPurchase
+        const promo = validPromoCodes.find((p) => p.code === code);
+
+        if (promo) {
+          const now = new Date();
+          const expiry = new Date(promo.expireDate);
+          const currentSubtotal = get().summary.subtotal; 
+
+          if (now > expiry) {
+            set({ error: "کد تخفیف منقضی شده است", promoCode: { ...promo, isValid: false, errorMessage: 'منقضی شده' } });
+            return;
+          }
+          if (currentSubtotal < promo.minPurchase) {
+            set({ error: `حداقل خرید برای این کد ${formatPrice(promo.minPurchase)} تومان است`, promoCode: { ...promo, isValid: false, errorMessage: `حداقل خرید ${formatPrice(promo.minPurchase)}` } });
+            return;
+          }
+
+          set({ promoCode: { ...promo, isValid: true, errorMessage: '' }, error: null });
+        } else {
+          set({ error: "کد تخفیف نامعتبر است", promoCode: { code, isValid: false, errorMessage: 'نامعتبر', discountPercentage: 0, maxDiscount:0, expireDate: '', minPurchase: 0 } });
+        }
+        get().calculateSummary();
+      },
+
+      removePromoCode: () => {
+        set({ promoCode: null, error: null }); // Clear any promo related errors
+        get().calculateSummary();
+      },
       cleanupSubscriptions: () => {
-        // Implementation of cleanupSubscriptions method
+        // No direct subscriptions to cleanup in this version
       },
     }),
     {
-      name: "digi-style-cart",
+      name: "cart-storage",
+      partialize: (state) => ({
+        cart: state.cart,
+        // summary is also persisted, so it will be rehydrated
+        summary: state.summary, 
+        promoCode: state.promoCode,
+      }),
+      onRehydrateStorage: () => (hydratedState, error) => {
+        if (error) {
+          console.error("Error rehydrating cart state:", error);
+          // Fallback to initial state calculation if rehydration fails
+          useCartStore.getState().calculateSummary();
+          return;
+        }
+        if (hydratedState) {
+          console.log("Cart state rehydrated successfully");
+          // Ensure persisted cart items are properly structured for Product type if needed
+          // This is a good place for potential data migration if Product type changes
+          if (hydratedState.cart && Array.isArray(hydratedState.cart.items)) {
+            hydratedState.cart.items = hydratedState.cart.items.map(item => ({
+                ...item,
+                product: item.product ? transformBackendCartItemProduct(item.product) : undefined as unknown as Product,
+            }));
+            // Directly update the store with potentially transformed items from rehydration
+            // Note: `set` here might be tricky due to `persist` middleware. 
+            // It's generally safer to trigger an action that uses `set`.
+            // However, for rehydration, this initial setup based on hydrated state is common.
+            useCartStore.setState({ cart: hydratedState.cart, summary: hydratedState.summary, promoCode: hydratedState.promoCode });
+          }
+
+          const authState = useAuthStore.getState();
+          if (authState.isAuthenticated && authState.user) {
+            console.log("User is authenticated, queueing backend cart sync after rehydration.");
+            useCartStore.getState().syncCartWithBackend();
+          } else {
+            // If not authenticated, recalculate summary based on rehydrated local cart
+            // This ensures summary is correct if it wasn't persisted or changed format
+            useCartStore.getState().calculateSummary();
+          }
+        } else {
+            // If hydratedState is null (e.g. nothing in storage or version mismatch), calculate summary for initial empty cart.
+            console.log("No persisted cart state found or rehydration returned null, using initial state.");
+            useCartStore.getState().calculateSummary();
+        }
+      },
     }
   )
 );
 
-// Store the unsubscribe function
-let unsubscribeFromAuth: (() => void) | null = null;
-
-// Export an unsubscribe function that can be called when needed
-export const unsubscribeFromAuthChanges = () => {
-  if (typeof window !== 'undefined' && unsubscribeFromAuth) {
-    unsubscribeFromAuth();
-    unsubscribeFromAuth = null;
-  }
-};
-
-// Initialize auth subscription
-if (typeof window !== 'undefined') {
-  let previousIsAuthenticated: boolean = useAuthStore.getState().isAuthenticated;
-
-  unsubscribeFromAuth = useAuthStore.subscribe(async (state: AuthStore) => {
-    const currentIsAuthenticated = state.isAuthenticated;
-    
-    if (currentIsAuthenticated && !previousIsAuthenticated) {
-      // User just logged in
-      console.log("Auth Store: User logged in, cart store will sync.");
-      try {
-        await useCartStore.getState().syncCartWithBackend();
-      } catch (error) {
-        console.error("Error syncing cart after login:", error);
-      }
-    } else if (!currentIsAuthenticated && previousIsAuthenticated) {
-      // User just logged out
-      console.log("Auth Store: User logged out, cart store will clear.");
-      try {
-        const cartState = useCartStore.getState();
-        await cartState.clearCart();
-        
-        // Explicitly reset cart with null userId
-        useCartStore.setState({
-          cart: {
-            ...cartState.cart,
-            userId: null,
-            items: []
-          },
-          syncRetryCount: 0
-        });
-      } catch (error) {
-        console.error("Error clearing cart after logout:", error);
-      }
-    }
-    // Update previousIsAuthenticated for the next comparison
-    previousIsAuthenticated = currentIsAuthenticated;
-  });
-}
-
-// Update the cleanupSubscriptions implementation
-useCartStore.setState({
-  cleanupSubscriptions: () => {
-    unsubscribeFromAuthChanges();
+const authUnsubscribe = useAuthStore.subscribe((state, prevState) => {
+  if (state.isAuthenticated && !prevState.isAuthenticated && state.user) {
+    console.log('User logged in, syncing cart with backend.');
+    useCartStore.getState().syncCartWithBackend();
+  } else if (!state.isAuthenticated && prevState.isAuthenticated) {
+    console.log('User logged out, cart remains local.');
+    // Optionally, clear the cart or parts of it, or re-calculate summary if needed.
+    // For now, local cart persists, and summary should already be correct or will be on next action.
+    useCartStore.getState().calculateSummary(); // Recalculate summary for the local cart
   }
 });
+
+// Optional: Cleanup subscription when the module is unloaded (e.g., in a test environment or on app exit)
+// This is more relevant for React components, but good practice for long-lived stores.
+// useCartStore.getState().cleanupSubscriptions = () => {
+//   authUnsubscribe();
+// };

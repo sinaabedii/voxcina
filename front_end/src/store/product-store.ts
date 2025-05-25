@@ -178,9 +178,8 @@ export const useProductStore = create<ProductState>()(
         const { products, filter, brands, categories } = get();
       
         return products.filter((product) => {
-          // In-stock: at least one variant available
-          const inStock = product.variants.some((v) => v.quantity > 0);
-          if (filter.inStockOnly && !inStock) return false;
+          // In-stock filter
+          if (filter.inStockOnly && product.inStock === false) return false;
       
           // Category
           if (filter.categories && filter.categories.length > 0) {
