@@ -36,10 +36,23 @@ export interface FavoriteItem {
   addedAt: string;
 }
 
+export interface DashboardStats {
+  totalProducts: number;
+  totalUsers: number;
+  totalOrders: number;
+  pendingOrders: number;
+  totalSales: number;
+  activeDiscounts: number;
+  totalCategories: number;
+  totalBrands: number;
+  pendingReviews: number;
+}
+
 interface DashboardState {
   addresses: Address[];
   orders: Order[];
   favorites: FavoriteItem[];
+  dashboardStats: DashboardStats | null;
 
   addAddress: (
     address: Omit<Address, "id" | "isDefault"> & { isDefault?: boolean }
@@ -56,6 +69,8 @@ interface DashboardState {
   // سفارش‌ها
   createOrder: (items: any[], address: Address) => string;
   cancelOrder: (orderId: string) => void;
+
+  fetchDashboardStats: (adminToken: string) => Promise<void>;
 }
 
 export const useDashboardStore = create<DashboardState>()(
@@ -64,6 +79,7 @@ export const useDashboardStore = create<DashboardState>()(
       addresses: [],
       orders: [],
       favorites: [],
+      dashboardStats: null,
 
       addAddress: (addressData) => {
         const { addresses } = get();
@@ -199,6 +215,22 @@ export const useDashboardStore = create<DashboardState>()(
         });
 
         set({ orders: newOrders });
+      },
+
+      fetchDashboardStats: async (adminToken: string) => {
+        set({ dashboardStats: null });
+        try {
+          const response = await fetch("/api/admin/dashboard-stats", {
+            headers: {
+              Authorization: `Bearer ${adminToken}`,
+            },
+          });
+          if (!response.ok) throw new Error("Failed to fetch dashboard stats");
+          const data = await response.json();
+          set({ dashboardStats: data });
+        } catch (e) {
+          set({ dashboardStats: null });
+        }
       },
     }),
     {

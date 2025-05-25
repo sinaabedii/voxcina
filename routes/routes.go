@@ -198,5 +198,8 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/discounts/{id}", handlers.UpdateDiscount).Methods(http.MethodPut)
 	api.HandleFunc("/discounts/{id}", handlers.DeleteDiscount).Methods(http.MethodDelete)
 
+	// Admin Dashboard Statistics
+	adminRouter.HandleFunc("/dashboard-stats", handlers.DashboardStatsHandler).Methods("GET")
+
 	return router
 }

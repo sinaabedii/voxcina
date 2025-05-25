@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { useAuthStore } from "@/store/auth-store";
+import { useDashboardStore } from "@/store/dashboard-store";
 import { motion } from "framer-motion";
 import {
   BarChart3,
@@ -25,20 +26,10 @@ import Button from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
 
 export default function AdminDashboardPage() {
-  const { user } = useAuthStore();
+  const { user, adminToken } = useAuthStore();
+  const { dashboardStats, fetchDashboardStats } = useDashboardStore();
   const [activeTab, setActiveTab] = useState("all");
   const [showWelcome, setShowWelcome] = useState(true);
-  const [statsData, setStatsData] = useState({
-    totalProducts: 254,
-    totalUsers: 1457,
-    totalOrders: 328,
-    pendingOrders: 42,
-    totalSales: 245000000, // 245,000,000 تومان
-    activeDiscounts: 8,
-    totalCategories: 32,
-    totalBrands: 18,
-    pendingReviews: 24,
-  });
 
   const orders = [
     {
@@ -102,6 +93,12 @@ export default function AdminDashboardPage() {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    if (adminToken) {
+      fetchDashboardStats(adminToken);
+    }
+  }, [adminToken, fetchDashboardStats]);
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -135,6 +132,14 @@ export default function AdminDashboardPage() {
         return "bg-voxcina-cream text-voxcina-blue dark:bg-voxcina-blue/10 dark:text-voxcina-lightCream border border-voxcina-cream/70 dark:border-voxcina-blue/20";
     }
   };
+
+  if (!dashboardStats) {
+    return (
+      <div className="py-8 md:py-12 flex items-center justify-center min-h-[40vh]">
+        <div className="text-lg text-voxcina-blue dark:text-voxcina-cream">در حال بارگذاری آمار...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="py-8 md:py-12 transition-all duration-500 ease-in-out">
@@ -250,7 +255,7 @@ export default function AdminDashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{statsData.totalProducts}</div>
+                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{dashboardStats.totalProducts}</div>
                 <div className="flex justify-between items-center">
                   <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
                     محصول در فروشگاه
@@ -278,7 +283,7 @@ export default function AdminDashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{statsData.totalUsers}</div>
+                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{dashboardStats.totalUsers}</div>
                 <div className="flex justify-between items-center">
                   <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
                     کاربر ثبت شده
@@ -306,10 +311,10 @@ export default function AdminDashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{statsData.totalOrders}</div>
+                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{dashboardStats.totalOrders}</div>
                 <div className="flex justify-between items-center">
                   <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
-                    {statsData.pendingOrders} سفارش در انتظار تایید
+                    {dashboardStats.pendingOrders} سفارش در انتظار تایید
                   </p>
                   <Link href="/admin/orders">
                     <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
@@ -335,7 +340,7 @@ export default function AdminDashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">
-                  {formatPrice(statsData.totalSales)}
+                  {formatPrice(dashboardStats.totalSales)}
                 </div>
                 <div className="flex justify-between items-center">
                   <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
@@ -364,7 +369,7 @@ export default function AdminDashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{statsData.totalCategories}</div>
+                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{dashboardStats.totalCategories}</div>
                 <div className="flex justify-between items-center">
                   <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
                     دسته‌بندی فعال
@@ -392,7 +397,7 @@ export default function AdminDashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{statsData.pendingReviews}</div>
+                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{dashboardStats.pendingReviews}</div>
                 <div className="flex justify-between items-center">
                   <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
                     نظر در انتظار تایید

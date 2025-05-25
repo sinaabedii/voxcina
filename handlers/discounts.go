@@ -165,16 +165,16 @@ func GetDiscountByCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Optionally, validate if the discount is currently active
-	// now := time.Now()
-	// if now.Before(discount.ValidFrom) || now.After(discount.ValidTo) {
-	// 	 utils.ErrorResponse(w, http.StatusBadRequest, "Discount code is not active")
-	// 	 return
-	// }
-	// if discount.MaxUses > 0 && discount.UsedCount >= discount.MaxUses {
-	// 	 utils.ErrorResponse(w, http.StatusBadRequest, "Discount code has reached its maximum usage limit")
-	// 	 return
-	// }
+	// Validate if the discount is currently active
+	now := time.Now()
+	if now.Before(discount.ValidFrom) || now.After(discount.ValidTo) {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Discount code is not active")
+		return
+	}
+	if discount.MaxUses > 0 && discount.UsedCount >= discount.MaxUses {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Discount code has reached its maximum usage limit")
+		return
+	}
 
 	utils.JSONResponse(w, http.StatusOK, discount)
 }

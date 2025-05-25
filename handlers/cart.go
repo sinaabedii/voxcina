@@ -436,7 +436,6 @@ func CreateOrReplaceCart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	utils.JSONResponse(w, http.StatusCreated, finalCartResponse)
-	return
 }
 
 // AddToCart adds or updates an item in the user's cart
