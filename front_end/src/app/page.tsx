@@ -8,7 +8,9 @@ import ProductGrid from "@/components/product/ProductGrid";
 import { motion, useScroll, useTransform } from "framer-motion";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { ModernSliderSection } from "@/components/module/ModernSlider";
+import { ModernSliderSection } from "@/components/home/ModernSlider";
+import ColorMatchingTool from "@/components/home/ColorMatchingTool";
+import VirtualWardrobe from "@/components/home/VirtualWardrobe";
 
 export default function HomePage() {
   const {
@@ -185,12 +187,10 @@ export default function HomePage() {
     setMousePosition({ x, y });
   };
 
-
-
   return (
     <>
       <Header />
-      <div className="pb-16 overflow-x-hidden font-sans bg-voxcina-cream">
+      <div className="pb-10 overflow-x-hidden font-sans bg-voxcina-cream">
         <section
           ref={heroRef as React.RefObject<HTMLElement>}
           className="relative h-[80vh] md:h-[85vh] mb-16 md:mb-24 overflow-hidden"
@@ -563,6 +563,9 @@ export default function HomePage() {
 
         <ModernSliderSection />
 
+        <ColorMatchingTool />
+        
+
         <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-24"
           initial="hidden"
@@ -625,7 +628,7 @@ export default function HomePage() {
             </motion.div>
           )}
         </motion.section>
-
+        <VirtualWardrobe />
         <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-24"
           initial="hidden"

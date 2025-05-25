@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   Mail,
@@ -13,6 +13,114 @@ import {
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+
+type MapInstance = {
+  remove: () => void;
+} | null;
+
+const MapComponent = () => {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<MapInstance>(null);
+
+  useEffect(() => {
+    if (
+      typeof window !== "undefined" &&
+      mapRef.current &&
+      !mapInstanceRef.current
+    ) {
+      import("leaflet")
+        .then((L: any) => {
+          if (!mapRef.current) return;
+
+          try {
+            const map = L.map(mapRef.current).setView(
+              [35.762843063507674, 51.46413943689942],
+              15
+            );
+
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+              attribution:
+                '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            }).addTo(map);
+
+            const customIcon = L.divIcon({
+              className: "custom-marker",
+              html: `
+              <div style="
+                background: #1e40af;
+                width: 30px;
+                height: 30px;
+                border-radius: 50% 50% 50% 0;
+                transform: rotate(-45deg);
+                border: 3px solid white;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              ">
+                <div style="
+                  background: white;
+                  width: 8px;
+                  height: 8px;
+                  border-radius: 50%;
+                  transform: rotate(45deg);
+                "></div>
+              </div>
+            `,
+              iconSize: [30, 30],
+              iconAnchor: [15, 30],
+              popupAnchor: [0, -30],
+            });
+
+            const marker = L.marker([35.762843063507674, 51.46413943689942], {
+              icon: customIcon,
+            }).addTo(map);
+
+            marker.bindPopup(`
+            <div style="text-align: center; font-family: 'Vazir', sans-serif; direction: rtl;">
+              <h3 style="margin: 0 0 8px 0; color: #1e40af; font-size: 16px;">دفتر مرکزی Voxcina</h3>
+              <p style="margin: 0; color: #6b7280; font-size: 14px;">تهران، خیابان ولیعصر</p>
+            </div>
+          `);
+
+            mapInstanceRef.current = map;
+          } catch (error) {
+            console.error("Error initializing map:", error);
+          }
+        })
+        .catch((error) => {
+          console.error("Error loading Leaflet:", error);
+        });
+    }
+
+    return () => {
+      if (mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current.remove();
+          mapInstanceRef.current = null;
+        } catch (error) {
+          console.error("Error cleaning up map:", error);
+        }
+      }
+    };
+  }, []);
+
+  return (
+    <>
+      <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossOrigin=""
+      />
+      <div
+        ref={mapRef}
+        className="w-full h-full rounded-2xl overflow-hidden"
+        style={{ minHeight: "384px" }}
+      />
+    </>
+  );
+};
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -145,6 +253,7 @@ export default function ContactPage() {
             ></motion.div>
           </div>
         </div>
+
         <section className="py-16 px-4 relative">
           <div className="absolute inset-0 z-0 overflow-hidden">
             <div className="absolute top-0 right-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
@@ -264,6 +373,7 @@ export default function ContactPage() {
             </motion.div>
           </div>
         </section>
+
         <section
           id="our-locations"
           className="py-16 px-4 bg-secondary-100/50 dark:bg-voxcina-blue/5 relative"
@@ -297,24 +407,6 @@ export default function ContactPage() {
               >
                 <div className="absolute top-0 right-0 w-48 h-48 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full -mt-20 -mr-20 transition-all duration-500 group-hover:scale-125"></div>
 
-                <h3 className="text-xl font-bold mb-5 text-voxcina-blue dark:text-secondary-200 flex items-center relative z-10">
-                  <div className="w-10 h-10 rounded-xl bg-secondary-200 dark:bg-voxcina-blue/20 flex items-center justify-center ml-3 flex-shrink-0">
-                    <MapPin className="w-5 h-5 text-voxcina-blue dark:text-secondary-200" />
-                  </div>
-                  دفتر مرکزی
-                </h3>
-                <p className="text-voxcina-blue/70 dark:text-secondary-300 mb-4 pr-12 relative z-10">
-                  تهران، خیابان ولیعصر، بالاتر از میدان ونک، برج نگین، طبقه 12،
-                  واحد 1203
-                </p>
-                <p className="text-voxcina-blue/70 dark:text-secondary-300 mb-4 pr-12 relative z-10">
-                  کد پستی: 1234567890
-                </p>
-                <div className="flex items-center text-voxcina-blue/70 dark:text-secondary-300 mb-6 pr-12 relative z-10">
-                  <Phone className="w-5 h-5 ml-2 text-voxcina-blue/60 dark:text-secondary-300" />
-                  <span className="ltr">021-88776655</span>
-                </div>
-
                 <h3 className="text-xl font-bold mb-5 text-voxcina-blue dark:text-secondary-200 flex items-center mt-8 relative z-10">
                   <div className="w-10 h-10 rounded-xl bg-secondary-200 dark:bg-voxcina-blue/20 flex items-center justify-center ml-3 flex-shrink-0">
                     <MapPin className="w-5 h-5 text-voxcina-blue dark:text-secondary-200" />
@@ -342,76 +434,12 @@ export default function ContactPage() {
                 viewport={{ once: true, margin: "-100px" }}
                 whileHover={{ y: -5 }}
               >
-                <div className="absolute inset-0 p-6 bg-secondary-100/50 dark:bg-voxcina-blue/5">
-                  <div className="absolute inset-0">
-                    <svg
-                      width="100%"
-                      height="100%"
-                      viewBox="0 0 400 400"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <defs>
-                        <pattern
-                          id="grid"
-                          width="40"
-                          height="40"
-                          patternUnits="userSpaceOnUse"
-                        >
-                          <path
-                            d="M 40 0 L 0 0 0 40"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1"
-                            className="text-voxcina-blue/10 dark:text-secondary-200/10"
-                          />
-                        </pattern>
-                      </defs>
-                      <rect width="100%" height="100%" fill="url(#grid)" />
-                    </svg>
-                  </div>
-                </div>
-
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="relative">
-                    <motion.div
-                      initial={{ scale: 0.8, opacity: 0.5 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{
-                        repeat: Infinity,
-                        repeatType: "reverse",
-                        duration: 1.5,
-                      }}
-                      className="absolute -inset-10 rounded-full bg-voxcina-blue/10 dark:bg-secondary-200/10"
-                    ></motion.div>
-                    <motion.div
-                      initial={{ scale: 0.6, opacity: 0.8 }}
-                      animate={{ scale: 0.9, opacity: 0.5 }}
-                      transition={{
-                        repeat: Infinity,
-                        repeatType: "reverse",
-                        duration: 2,
-                        delay: 0.3,
-                      }}
-                      className="absolute -inset-5 rounded-full bg-voxcina-blue/20 dark:bg-secondary-200/20"
-                    ></motion.div>
-                    <div className="relative">
-                      <MapPin className="w-12 h-12 text-voxcina-blue dark:text-secondary-200" />
-                      <span className="absolute top-1 right-1 w-3 h-3 bg-voxcina-blue dark:bg-secondary-200 rounded-full"></span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 text-center">
-                  <div className="bg-white/80 dark:bg-voxcina-blue/30 rounded-xl shadow-soft px-4 py-2 backdrop-blur-sm border border-secondary-200/50 dark:border-voxcina-blue/30">
-                    <p className="text-voxcina-blue dark:text-secondary-200 font-medium">
-                      موقعیت دفاتر Voxcina
-                    </p>
-                  </div>
-                </div>
+                <MapComponent />
               </motion.div>
             </div>
           </div>
         </section>
+
         <section id="contact-form" className="py-16 px-4 relative">
           <div className="absolute inset-0 z-0 overflow-hidden">
             <div className="absolute top-0 left-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
@@ -578,6 +606,7 @@ export default function ContactPage() {
             </motion.div>
           </div>
         </section>
+
         <section className="py-16 px-4 bg-secondary-100/50 dark:bg-voxcina-blue/5 relative">
           <div className="absolute inset-0 z-0 overflow-hidden">
             <div className="absolute top-0 right-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
@@ -655,40 +684,6 @@ export default function ContactPage() {
                 </motion.div>
               ))}
             </div>
-
-            <motion.div
-              className="mt-16 text-center"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.5 }}
-              viewport={{ once: true, margin: "-100px" }}
-            >
-              <div className="bg-white/90 dark:bg-voxcina-blue/10 max-w-4xl mx-auto rounded-2xl shadow-soft overflow-hidden backdrop-blur-sm border border-secondary-200 dark:border-voxcina-darkBlue/30 p-8 md:p-10 relative">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full -mt-32 -mr-32"></div>
-                <div className="relative z-10">
-                  <h3 className="text-xl md:text-2xl font-bold text-voxcina-blue dark:text-secondary-200 mb-4">
-                    همچنان سوالی دارید؟
-                  </h3>
-                  <p className="text-voxcina-blue/70 dark:text-secondary-300 mb-6 max-w-xl mx-auto">
-                    تیم پشتیبانی Voxcina همیشه آماده پاسخگویی به سوالات و رفع
-                    مشکلات شما است. با ما در ارتباط باشید.
-                  </p>
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="inline-block"
-                  >
-                    <a
-                      href="#contact-form"
-                      className="inline-flex items-center bg-voxcina-blue hover:bg-voxcina-darkBlue text-white dark:bg-voxcina-blue/90 dark:hover:bg-voxcina-blue rounded-xl px-8 py-3 font-medium transition-colors shadow-soft hover:shadow-medium"
-                    >
-                      <MessageSquare className="w-5 h-5 ml-2" />
-                      ارسال پیام
-                    </a>
-                  </motion.div>
-                </div>
-              </div>
-            </motion.div>
           </div>
         </section>
       </div>
