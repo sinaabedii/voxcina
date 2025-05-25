@@ -382,7 +382,7 @@ export default function AboutPage() {
                   آدرس
                 </h3>
                 <p className="text-voxcina-blue/70 dark:text-secondary-300 text-center">
-                  تهران، خیابان ولیعصر، بالاتر از میدان ونک، برج نگین، طبقه 12
+                  پاسداران بوستان پنجم کوی گلشن پلاک ۱۴
                 </p>
               </motion.div>
 

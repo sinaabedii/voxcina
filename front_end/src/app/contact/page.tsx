@@ -414,11 +414,7 @@ export default function ContactPage() {
                   دفتر فروش
                 </h3>
                 <p className="text-voxcina-blue/70 dark:text-secondary-300 mb-4 pr-12 relative z-10">
-                  تهران، خیابان شریعتی، بالاتر از میرداماد، مجتمع تجاری رز، طبقه
-                  3، واحد 302
-                </p>
-                <p className="text-voxcina-blue/70 dark:text-secondary-300 mb-4 pr-12 relative z-10">
-                  کد پستی: 1234567891
+                پاسداران بوستان پنجم کوی گلشن پلاک ۱۴
                 </p>
                 <div className="flex items-center text-voxcina-blue/70 dark:text-secondary-300 pr-12 relative z-10">
                   <Phone className="w-5 h-5 ml-2 text-voxcina-blue/60 dark:text-secondary-300" />

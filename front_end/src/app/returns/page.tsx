@@ -8,11 +8,9 @@ import {
   CheckCircle,
   Clock,
   ShieldCheck,
-  AlertTriangle,
   HelpCircle,
   ChevronDown,
   ChevronUp,
-  ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
@@ -112,7 +110,6 @@ export default function ReturnsPage() {
   return (
     <>
       <Header />
-
       <div className="min-h-screen bg-voxcina-cream dark:bg-voxcina-darkBlue/90">
         <div className="bg-gradient-to-r from-voxcina-blue to-voxcina-darkBlue text-white relative overflow-hidden">
           <div className="absolute inset-0 overflow-hidden">
@@ -244,107 +241,6 @@ export default function ReturnsPage() {
             </div>
           </div>
         </section>
-        <section className="py-16 px-4 bg-secondary-100/50 dark:bg-voxcina-blue/5 relative">
-          <div className="absolute inset-0 z-0 overflow-hidden">
-            <div className="absolute bottom-0 left-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
-          </div>
-          <div className="container mx-auto max-w-4xl relative z-10">
-            <motion.div
-              className="text-center mb-12"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <h2 className="text-3xl font-bold mb-4 text-voxcina-blue dark:text-secondary-200 relative inline-block">
-                <span className="relative z-10">محصولات غیرقابل بازگشت</span>
-                <span className="absolute bottom-1 left-0 w-full h-3 bg-secondary-200 dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
-              </h2>
-              <div className="w-24 h-1 bg-voxcina-blue/30 dark:bg-secondary-200/30 mx-auto mt-2 rounded-full"></div>
-            </motion.div>
-
-            <motion.div
-              className="bg-white/90 dark:bg-voxcina-blue/10 rounded-2xl shadow-soft p-6 md:p-8 border border-secondary-200 dark:border-voxcina-darkBlue/30 backdrop-blur-sm"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div className="flex items-start mb-6">
-                <div className="w-12 h-12 bg-red-100/70 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-xl flex items-center justify-center ml-4 flex-shrink-0 border border-red-200 dark:border-red-800/30">
-                  <AlertTriangle className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold mb-3 text-voxcina-blue dark:text-secondary-200">
-                    برخی محصولات به دلایل بهداشتی یا امنیتی قابل بازگشت نیستند:
-                  </h3>
-                </div>
-              </div>
-
-              <ul className="space-y-4 mr-16">
-                <li className="flex items-start">
-                  <span className="w-2 h-2 bg-red-500 rounded-full mt-2 ml-3 flex-shrink-0"></span>
-                  <span className="text-voxcina-blue/70 dark:text-secondary-300">
-                    <strong className="text-voxcina-blue dark:text-secondary-200">
-                      محصولات بهداشتی و آرایشی
-                    </strong>{" "}
-                    که پلمپ آن‌ها باز شده باشد، به دلایل بهداشتی قابل بازگشت
-                    نیستند.
-                  </span>
-                </li>
-                <li className="flex items-start">
-                  <span className="w-2 h-2 bg-red-500 rounded-full mt-2 ml-3 flex-shrink-0"></span>
-                  <span className="text-voxcina-blue/70 dark:text-secondary-300">
-                    <strong className="text-voxcina-blue dark:text-secondary-200">
-                      محصولات غذایی، نوشیدنی و دارویی
-                    </strong>{" "}
-                    به دلایل بهداشتی و سلامتی قابل بازگشت نیستند.
-                  </span>
-                </li>
-                <li className="flex items-start">
-                  <span className="w-2 h-2 bg-red-500 rounded-full mt-2 ml-3 flex-shrink-0"></span>
-                  <span className="text-voxcina-blue/70 dark:text-secondary-300">
-                    <strong className="text-voxcina-blue dark:text-secondary-200">
-                      نرم‌افزارها، بازی‌ها و محتوای دیجیتال
-                    </strong>{" "}
-                    که لایسنس آن‌ها فعال شده یا بسته‌بندی آن‌ها باز شده باشد،
-                    قابل بازگشت نیستند.
-                  </span>
-                </li>
-                <li className="flex items-start">
-                  <span className="w-2 h-2 bg-red-500 rounded-full mt-2 ml-3 flex-shrink-0"></span>
-                  <span className="text-voxcina-blue/70 dark:text-secondary-300">
-                    <strong className="text-voxcina-blue dark:text-secondary-200">
-                      لباس‌های زیر، جوراب و محصولات مشابه
-                    </strong>{" "}
-                    که بسته‌بندی آن‌ها باز شده باشد، به دلایل بهداشتی قابل
-                    بازگشت نیستند.
-                  </span>
-                </li>
-                <li className="flex items-start">
-                  <span className="w-2 h-2 bg-red-500 rounded-full mt-2 ml-3 flex-shrink-0"></span>
-                  <span className="text-voxcina-blue/70 dark:text-secondary-300">
-                    <strong className="text-voxcina-blue dark:text-secondary-200">
-                      محصولات سفارشی‌سازی شده
-                    </strong>{" "}
-                    که طبق درخواست مشتری تولید شده‌اند، قابل بازگشت نیستند.
-                  </span>
-                </li>
-              </ul>
-
-              <div className="mt-6 p-4 bg-yellow-50/70 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800/30 rounded-xl">
-                <p className="text-voxcina-blue/80 dark:text-secondary-300 flex items-start">
-                  <AlertTriangle className="w-5 h-5 ml-2 mt-0.5 flex-shrink-0 text-yellow-600 dark:text-yellow-400" />
-                  <span>
-                    توجه: در صورتی که این محصولات دارای ایراد فنی یا آسیب‌دیدگی
-                    از قبل باشند، امکان بازگشت یا تعویض آن‌ها وجود دارد. در این
-                    موارد، لطفاً با پشتیبانی ما تماس بگیرید.
-                  </span>
-                </p>
-              </div>
-            </motion.div>
-          </div>
-        </section>
-
-        {/* Return Steps Section */}
         <section className="py-16 px-4 relative">
           <div className="absolute inset-0 z-0 overflow-hidden">
             <div className="absolute top-0 left-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
@@ -396,84 +292,6 @@ export default function ReturnsPage() {
           </div>
         </section>
 
-        <section className="py-16 px-4 bg-secondary-100/50 dark:bg-voxcina-blue/5 relative">
-          <div className="absolute inset-0 z-0 overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
-          </div>
-          <div className="container mx-auto max-w-4xl relative z-10">
-            <motion.div
-              className="text-center mb-12"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <h2 className="text-3xl font-bold mb-4 text-voxcina-blue dark:text-secondary-200 relative inline-block">
-                <span className="relative z-10">روش‌های بازگشت وجه</span>
-                <span className="absolute bottom-1 left-0 w-full h-3 bg-secondary-200 dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
-              </h2>
-              <div className="w-24 h-1 bg-voxcina-blue/30 dark:bg-secondary-200/30 mx-auto mt-2 rounded-full"></div>
-            </motion.div>
-
-            <motion.div
-              className="bg-white/90 dark:bg-voxcina-blue/10 rounded-2xl shadow-soft overflow-hidden border border-secondary-200 dark:border-voxcina-darkBlue/30 backdrop-blur-sm"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <table className="w-full">
-                <thead className="bg-secondary-100/70 dark:bg-voxcina-blue/20">
-                  <tr>
-                    <th className="py-4 px-6 text-right text-sm font-medium text-voxcina-blue/80 dark:text-secondary-200">
-                      روش پرداخت
-                    </th>
-                    <th className="py-4 px-6 text-right text-sm font-medium text-voxcina-blue/80 dark:text-secondary-200">
-                      روش بازگشت وجه
-                    </th>
-                    <th className="py-4 px-6 text-right text-sm font-medium text-voxcina-blue/80 dark:text-secondary-200">
-                      زمان تقریبی
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-secondary-200/50 dark:divide-voxcina-blue/10">
-                  <tr className="hover:bg-secondary-100/30 dark:hover:bg-voxcina-blue/5 transition-colors">
-                    <td className="py-4 px-6 text-voxcina-blue dark:text-secondary-200">
-                      پرداخت آنلاین (کارت بانکی)
-                    </td>
-                    <td className="py-4 px-6 text-voxcina-blue/70 dark:text-secondary-300">
-                      بازگشت به کارت
-                    </td>
-                    <td className="py-4 px-6 text-voxcina-blue/70 dark:text-secondary-300">
-                      ۲ تا ۷ روز کاری
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-secondary-100/30 dark:hover:bg-voxcina-blue/5 transition-colors">
-                    <td className="py-4 px-6 text-voxcina-blue dark:text-secondary-200">
-                      کیف پول
-                    </td>
-                    <td className="py-4 px-6 text-voxcina-blue/70 dark:text-secondary-300">
-                      بازگشت به کیف پول
-                    </td>
-                    <td className="py-4 px-6 text-voxcina-blue/70 dark:text-secondary-300">
-                      آنی
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-secondary-100/30 dark:hover:bg-voxcina-blue/5 transition-colors">
-                    <td className="py-4 px-6 text-voxcina-blue dark:text-secondary-200">
-                      پرداخت در محل
-                    </td>
-                    <td className="py-4 px-6 text-voxcina-blue/70 dark:text-secondary-300">
-                      واریز به حساب بانکی
-                    </td>
-                    <td className="py-4 px-6 text-voxcina-blue/70 dark:text-secondary-300">
-                      ۲ تا ۳ روز کاری
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </motion.div>
-          </div>
-        </section>
         <section className="py-16 px-4 relative">
           <div className="absolute inset-0 z-0 overflow-hidden">
             <div className="absolute top-0 left-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
@@ -562,46 +380,6 @@ export default function ReturnsPage() {
           </div>
         </section>
 
-        <section className="py-16 px-4 bg-secondary-100/50 dark:bg-voxcina-blue/5 relative">
-          <div className="absolute inset-0 z-0 overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
-          </div>
-          <div className="container mx-auto max-w-4xl relative z-10">
-            <motion.div
-              className="bg-white/90 dark:bg-voxcina-blue/10 rounded-2xl shadow-soft p-8 md:p-12 text-center border border-secondary-200 dark:border-voxcina-darkBlue/30 backdrop-blur-sm relative overflow-hidden"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <div className="absolute top-0 right-0 w-64 h-64 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full -mt-32 -mr-32"></div>
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full -mb-32 -ml-32"></div>
-
-              <div className="relative z-10">
-                <h2 className="text-2xl md:text-3xl font-bold mb-6 text-voxcina-blue dark:text-secondary-200">
-                  دانلود فایل کامل شرایط بازگشت کالا
-                </h2>
-                <p className="text-lg mb-8 text-voxcina-blue/70 dark:text-secondary-300 max-w-2xl mx-auto">
-                  برای دسترسی به جزئیات کامل شرایط و ضوابط بازگشت کالا،
-                  می‌توانید فایل زیر را دانلود کنید.
-                </p>
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="inline-block"
-                >
-                  <Link
-                    href="/downloads/return-policy.pdf"
-                    className="inline-flex items-center px-6 py-3 bg-voxcina-blue hover:bg-voxcina-darkBlue text-white dark:bg-voxcina-blue/90 dark:hover:bg-voxcina-blue font-medium rounded-xl shadow-soft hover:shadow-medium transition-all"
-                  >
-                    <ArrowRight className="w-5 h-5 ml-2" />
-                    دانلود شرایط بازگشت کالا
-                  </Link>
-                </motion.div>
-              </div>
-            </motion.div>
-          </div>
-        </section>
         <section className="py-16 px-4 relative">
           <div className="absolute inset-0 z-0 overflow-hidden">
             <div className="absolute top-0 left-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>

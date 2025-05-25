@@ -1,18 +1,20 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useProductStore } from "@/store/product-store";
 import { useCategoryStore } from "@/store/category-store";
 import { useCartStore } from "@/store/cart-store";
 import { Product } from "@/types/product";
 import ProductGrid from "@/components/product/ProductGrid";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { ModernSliderSection } from "@/components/home/ModernSlider";
 import ColorMatchingTool from "@/components/home/ColorMatchingTool";
 import VirtualWardrobe from "@/components/home/VirtualWardrobe";
+import HeroSection from "@/components/home/HeroSection";
+import ModernCategoriesSection from "@/components/home/ModernCategoriesSection";
 
 export default function HomePage() {
   const {
@@ -35,15 +37,6 @@ export default function HomePage() {
 
   const [isVisible, setIsVisible] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const heroRef = useRef<HTMLElement | null>(null);
-  const { scrollYProgress } = useScroll({
-    target: heroRef,
-    offset: ["start start", "end start"],
-  });
-
-  const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.1]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
-  const heroY = useTransform(scrollYProgress, [0, 1], [0, 150]);
 
   const mockCategories = [
     {
@@ -178,144 +171,18 @@ export default function HomePage() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
   };
 
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-
   const handleAddToCart = (product: Product) => {
     addItemToCart(product, 1);
     console.log(`${product.name} added to cart`);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
-    const heroElement = heroRef.current;
-    if (!heroElement) return;
-
-    const rect = heroElement.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    setMousePosition({ x, y });
   };
 
   return (
     <>
       <Header />
       <div className="pb-10 overflow-x-hidden font-sans bg-voxcina-cream">
-        <section
-          ref={heroRef as React.RefObject<HTMLElement>}
-          className="relative h-[80vh] md:h-[85vh] mb-16 md:mb-24 overflow-hidden"
-          onMouseMove={handleMouseMove}
-        >
-          <motion.div
-            className="absolute inset-0 bg-voxcina-blue"
-            style={{ scale: heroScale, opacity: heroOpacity, y: heroY }}
-          />
-          <div className="absolute inset-0 bg-[url('/images/banners/heroheader.jpeg')] bg-cover bg-center opacity-20 mix-blend-soft-light"></div>
+        <HeroSection />
 
-          <motion.div
-            className="absolute w-[200px] h-[200px] md:w-[300px] md:h-[300px] rounded-full bg-white opacity-10 blur-3xl pointer-events-none mix-blend-overlay"
-            animate={{
-              x: mousePosition.x - 100,
-              y: mousePosition.y - 100,
-            }}
-            transition={{ type: "spring", damping: 15, stiffness: 150 }}
-          />
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1 }}
-            className="relative h-full w-full flex items-center"
-          >
-            <div className="container px-6 md:px-8">
-              <div className="max-w-lg md:max-w-xl text-white z-10 relative">
-                <motion.span
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 0.8, y: 0 }}
-                  transition={{ duration: 0.7 }}
-                  className="inline-block py-1 px-3 rounded-full bg-white/10 backdrop-blur-md text-sm mb-4 border border-white/20 shadow-soft"
-                >
-                  #VoxcinaStyle2025
-                </motion.span>
-
-                <motion.h1
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.7, delay: 0.2 }}
-                  className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold mb-4 md:mb-6 leading-tight"
-                >
-                  کالکشن جدید{" "}
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-secondary-200 to-secondary-100">
-                    تابستانه
-                  </span>
-                </motion.h1>
-
-                <motion.p
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.7, delay: 0.4 }}
-                  className="text-lg sm:text-xl md:text-2xl mb-8 md:mb-10 text-gray-100 font-light"
-                >
-                  با مجموعه جدید تابستانه ما، استایل تابستانی خود را متحول کنید
-                </motion.p>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.7, delay: 0.6 }}
-                  className="flex flex-wrap gap-4"
-                >
-                  <Link
-                    href="/categories/summer"
-                    className="group relative overflow-hidden bg-voxcina-cream text-voxcina-blue px-6 sm:px-8 py-3 sm:py-4 rounded-full font-medium hover:shadow-xl transition-all duration-300 inline-block"
-                  >
-                    <span className="relative z-10">مشاهده کالکشن</span>
-                    <motion.span
-                      className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                      initial={{ x: "100%" }}
-                      whileHover={{ x: 0 }}
-                      transition={{ type: "spring", stiffness: 100 }}
-                    />
-                  </Link>
-
-                  <Link
-                    href="/categories/trending"
-                    className="backdrop-blur-md bg-white/10 text-white border border-white/20 px-6 sm:px-8 py-3 sm:py-4 rounded-full font-medium hover:bg-white/20 transition-all duration-300 inline-block"
-                  >
-                    ترندهای امسال
-                  </Link>
-                </motion.div>
-              </div>
-            </div>
-          </motion.div>
-
-          <div className="absolute right-4 md:right-10 top-1/4 w-16 md:w-24 h-16 md:h-24 bg-secondary-400 rounded-full opacity-30 animate-pulse-soft blur-lg"></div>
-          <div className="absolute left-8 md:left-20 bottom-1/4 w-20 md:w-32 h-20 md:h-32 bg-secondary-300 rounded-full opacity-20 animate-pulse-soft blur-xl"></div>
-          <div className="absolute right-1/3 bottom-12 md:bottom-20 w-12 md:w-16 h-12 md:h-16 bg-primary-400 rounded-full opacity-25 animate-pulse-soft blur-md"></div>
-
-          <motion.div
-            className="absolute bottom-6 md:bottom-10 left-1/2 transform -translate-x-1/2 flex flex-col items-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.2, duration: 0.8 }}
-          >
-            <span className="text-white/70 mb-2 text-xs md:text-sm">
-              اسکرول کنید
-            </span>
-            <span className="w-5 md:w-6 h-8 md:h-10 border-2 border-white/30 rounded-full flex justify-center pt-1">
-              <motion.span
-                className="w-1 md:w-1.5 h-1 md:h-1.5 bg-white rounded-full"
-                animate={{ y: [0, 12, 0] }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 1.5,
-                  ease: "easeInOut",
-                }}
-              />
-            </span>
-          </motion.div>
-        </section>
-
-        <motion.section
+        {/* <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-24"
           initial="hidden"
           animate={isVisible ? "visible" : "hidden"}
@@ -426,8 +293,8 @@ export default function HomePage() {
               </Link>
             </motion.div>
           </motion.div>
-        </motion.section>
-
+        </motion.section> */}
+        <ModernCategoriesSection />
         <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-24 overflow-hidden"
           initial="hidden"
@@ -574,7 +441,6 @@ export default function HomePage() {
         <ModernSliderSection />
 
         <ColorMatchingTool />
-        
 
         <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-24"
