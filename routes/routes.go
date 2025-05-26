@@ -132,12 +132,11 @@ func NewRouter() *mux.Router {
 	api.Handle("/checkout", middlewares.AuthMiddleware(http.HandlerFunc(handlers.Checkout))).
 		Methods(http.MethodPost)
 
-	// User's own orders - uses AuthMiddleware from userOrderRouter
-	userOrderRouter := api.PathPrefix("/user").
+	// User's own orders - uses AuthMiddleware
+	userOrderRouter := api.PathPrefix("/orders").
 		Subrouter()
-		// New subrouter for user-specific order routes
 	userOrderRouter.Use(middlewares.AuthMiddleware)
-	userOrderRouter.HandleFunc("/orders", handlers.GetUserOrders).Methods(http.MethodGet)
+	userOrderRouter.HandleFunc("", handlers.GetUserOrders).Methods(http.MethodGet)
 
 	// Specific order by ID - also requires auth, now handled by AuthMiddleware
 	// This route is now part of a subrouter that can have general AuthMiddleware.

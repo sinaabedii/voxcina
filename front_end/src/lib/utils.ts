@@ -95,3 +95,17 @@ export const hasAttribute = (product: Product, attributeName: string): boolean =
     (attr.value.toLowerCase() === 'true' || attr.value === '1')
   ) || false;
 };
+
+export function formatDate(dateString: string): string {
+  if (!dateString) return 'تاریخ نامشخص';
+  try {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}/${month}/${day}`;
+  } catch (error) {
+    console.error("Error formatting date:", dateString, error);
+    return 'تاریخ نامعتبر';
+  }
+}

@@ -17,65 +17,49 @@ import {
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
+import { useDashboardStore } from "@/store/dashboard-store";
 
 export default function DashboardPage() {
-  const { user } = useAuthStore();
-  const { cart } = useCartStore();
+  const { user, getProfile, isLoading: userLoading } = useAuthStore();
+  const { cart, syncCartWithBackend, isLoading: cartLoading } = useCartStore();
+  const { orders, fetchUserOrders } = useDashboardStore();
   const [activeTab, setActiveTab] = useState("all");
   const [showWelcome, setShowWelcome] = useState(true);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchAll() {
+      setLoading(true);
+      try {
+        await getProfile();
+        await fetchUserOrders();
+        await syncCartWithBackend();
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchAll();
+  }, []);
 
   const stats = {
-    totalOrders: 5,
-    pendingOrders: 1,
-    completedOrders: 4,
+    totalOrders: orders.length,
+    pendingOrders: orders.filter(o => o.status === "pending" || o.status === "processing" || o.status === "shipping").length,
+    completedOrders: orders.filter(o => o.status === "delivered").length,
     savedAddresses: user?.addresses?.length || 0,
     cartItems: cart.items.length,
   };
 
-  const orders = [
-    {
-      id: "DGS-10001",
-      date: "۱۴۰۲/۰۸/۱۵",
-      status: "delivered",
-      statusText: "تحویل شده",
-      amount: 2500000,
-    },
-    {
-      id: "DGS-10002",
-      date: "۱۴۰۲/۰۹/۰۲",
-      status: "shipping",
-      statusText: "در حال ارسال",
-      amount: 1800000,
-    },
-    {
-      id: "DGS-10003",
-      date: "۱۴۰۲/۰۹/۱۰",
-      status: "processing",
-      statusText: "در حال پردازش",
-      amount: 3200000,
-    },
-    {
-      id: "DGS-10004",
-      date: "۱۴۰۲/۰۹/۲۵",
-      status: "delivered",
-      statusText: "تحویل شده",
-      amount: 1450000,
-    },
-    {
-      id: "DGS-10005",
-      date: "۱۴۰۲/۱۰/۰۵",
-      status: "delivered",
-      statusText: "تحویل شده",
-      amount: 850000,
-    },
-  ];
-
+  const sortedOrders = [...orders].sort((a, b) => {
+    const da = new Date(a.createdAt || a.date || 0).getTime();
+    const db = new Date(b.createdAt || b.date || 0).getTime();
+    return db - da;
+  });
   const filteredOrders =
     activeTab === "all"
-      ? orders
-      : orders.filter((order) => {
+      ? sortedOrders
+      : sortedOrders.filter((order) => {
           if (activeTab === "pending")
-            return order.status === "processing" || order.status === "shipping";
+            return order.status === "processing" || order.status === "shipping" || order.status === "pending";
           if (activeTab === "delivered") return order.status === "delivered";
           return true;
         });
@@ -119,6 +103,10 @@ export default function DashboardPage() {
         return "bg-voxcina-cream text-voxcina-blue dark:bg-voxcina-blue/10 dark:text-voxcina-lightCream border border-voxcina-cream/70 dark:border-voxcina-blue/20";
     }
   };
+
+  if (loading || userLoading || cartLoading) {
+    return <div className="container py-8 md:py-12 mx-auto px-4 md:px-8 text-center text-lg">در حال بارگذاری...</div>;
+  }
 
   return (
     <div className="container py-8 md:py-12 mx-auto px-4 md:px-8 transition-all duration-500 ease-in-out">
@@ -412,7 +400,7 @@ export default function DashboardPage() {
                       >
                         <td className="p-4 font-medium text-voxcina-blue dark:text-voxcina-cream">{order.id}</td>
                         <td className="p-4 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          {order.date}
+                          {order.jalaliCreatedAt || order.date || order.createdAt}
                         </td>
                         <td className="p-4">
                           <span
@@ -424,7 +412,7 @@ export default function DashboardPage() {
                           </span>
                         </td>
                         <td className="p-4 font-bold text-voxcina-blue dark:text-voxcina-cream">
-                          {formatPrice(order.amount)}
+                          {formatPrice(order.totalAmount ?? order.total ?? 0)}
                         </td>
                         <td className="p-4 text-left">
                           <motion.button 

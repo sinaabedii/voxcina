@@ -17,18 +17,27 @@ export interface Address {
 
 export interface Order {
   id: string;
-  date: string;
+  orderNumber?: string;
+  date?: string; // fallback for old data
   status: "pending" | "processing" | "shipping" | "delivered" | "canceled";
-  statusText: string;
-  items: {
+  statusText?: string;
+  items?: {
     productId: string;
     name: string;
     quantity: number;
     price: number;
   }[];
-  total: number;
-  address: Address;
+  total?: number; // fallback for old data
+  totalAmount?: number;
+  address?: Address;
+  shippingAddress?: any;
   trackingCode?: string;
+  paymentStatus?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  jalaliCreatedAt?: string;
+  jalaliUpdatedAt?: string;
+  productCount?: number;
 }
 
 export interface FavoriteItem {
@@ -71,6 +80,8 @@ interface DashboardState {
   cancelOrder: (orderId: string) => void;
 
   fetchDashboardStats: (adminToken: string) => Promise<void>;
+
+  fetchUserOrders: () => Promise<void>;
 }
 
 export const useDashboardStore = create<DashboardState>()(
@@ -230,6 +241,21 @@ export const useDashboardStore = create<DashboardState>()(
           set({ dashboardStats: data });
         } catch (e) {
           set({ dashboardStats: null });
+        }
+      },
+
+      fetchUserOrders: async () => {
+        try {
+          const response = await fetch("/api/orders/user", {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+            },
+          });
+          if (!response.ok) throw new Error("Failed to fetch user orders");
+          const data = await response.json();
+          set({ orders: data });
+        } catch (e) {
+          set({ orders: [] });
         }
       },
     }),

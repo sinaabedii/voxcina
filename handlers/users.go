@@ -298,8 +298,24 @@ func GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// PasswordHash is already excluded by `json:"-"` in models.User
-	utils.JSONResponse(w, http.StatusOK, user)
+	// New response structure
+	response := make(map[string]interface{})
+	response["user_data"] = user // Keep all other user data
+
+	if len(user.Addresses) == 0 {
+		response["has_addresses"] = false
+		response["addresses_data"] = []models.Address{} // Ensure empty array
+		response["message"] = "شما هنوز هیچ آدرسی ثبت نکرده‌اید."
+		response["link_text"] = "افزودن آدرس جدید"
+		// Depending on your frontend routing for adding an address, 
+		// you might want a link_url or rely on a button triggering a modal.
+		// For now, I'll omit link_url as the page has an "Add New Address" button.
+	} else {
+		response["has_addresses"] = true
+		response["addresses_data"] = user.Addresses
+	}
+
+	utils.JSONResponse(w, http.StatusOK, response)
 }
 
 // UpdateProfile handles PUT /api/users/profile

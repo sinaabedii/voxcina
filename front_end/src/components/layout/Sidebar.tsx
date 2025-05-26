@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { User, Package, MapPin, Heart, LogOut, Settings, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ const Sidebar = () => {
   const pathname = usePathname();
   const { logout } = useAuthStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const router = useRouter();
 
   const sidebarItems = [
     {
@@ -41,9 +42,9 @@ const Sidebar = () => {
     },
   ];
 
-  const handleLogout = () => {
-    logout();
-    window.location.href = "/";
+  const handleLogout = async () => {
+    await logout();
+    router.push("/");
   };
 
   const itemVariants = {

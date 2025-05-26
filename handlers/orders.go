@@ -42,7 +42,7 @@ type OrderAPIResponse struct {
 	OrderNumber     string                 `json:"order_number"`
 	Items           []OrderItemAPIResponse `json:"items"`
 	TotalAmount     float64                `json:"total_amount"`
-	ShippingAddress models.ShippingAddress `json:"shipping_address"`
+	ShippingAddress models.Address         `json:"shipping_address"`
 	Status          string                 `json:"status"`
 	StatusText      string                 `json:"status_text"`
 	TrackingCode    *string                `json:"tracking_code,omitempty"` // omitempty for null tracking code
@@ -152,7 +152,7 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		// UserID is now from context, remove from here if it was present
 		Items           []models.OrderItem     `json:"items"`
 		TotalAmount     float64                `json:"totalAmount"`
-		ShippingAddress models.ShippingAddress `json:"shippingAddress"`
+		ShippingAddress models.Address         `json:"shippingAddress"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&orderData); err != nil {
@@ -354,7 +354,20 @@ func GetUserOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var responses []OrderAPIResponse
+	// Initialize responses as an empty slice, not nil
+	responses := make([]OrderAPIResponse, 0)
+	if len(orders) == 0 {
+		// No orders found, return a custom message
+		utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+			"message":     "شما هنوز هیچ سفارشی ثبت نکرده‌اید.",
+			"link_text":   "مشاهده محصولات",
+			"link_url":    "/products", // Or your actual products page URL
+			"has_orders":  false,
+			"orders_data": responses, // Will be an empty array []
+		})
+		return
+	}
+
 	for _, order := range orders {
 		resp, err := newOrderAPIResponse(ctx, order)
 		if err != nil {
@@ -372,7 +385,11 @@ func GetUserOrders(w http.ResponseWriter, r *http.Request) {
 		responses = append(responses, resp)
 	}
 
-	utils.JSONResponse(w, http.StatusOK, responses)
+	// If we have orders, return them along with a flag
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+		"has_orders":  true,
+		"orders_data": responses,
+	})
 }
 
 // PATCH /api/orders/:id/tracking

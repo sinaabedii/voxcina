@@ -22,31 +22,21 @@ type OrderItem struct {
 	PriceAtPurchase float64            `bson:"price_at_purchase" json:"price_at_purchase"` // Snapshot of price at order time
 }
 
-// ShippingAddress represents the delivery address for an order
-type ShippingAddress struct {
-	Street     string `bson:"street"      json:"street"`
-	City       string `bson:"city"        json:"city"`
-	State      string `bson:"state"       json:"state"`
-	PostalCode string `bson:"postal_code" json:"postal_code"`
-	Country    string `bson:"country"     json:"country"`
-}
-
 // Order represents a customer order
 type Order struct {
-	ID              primitive.ObjectID `bson:"_id,omitempty"             json:"id,omitempty"`
-	UserID          primitive.ObjectID `bson:"user_id"                   json:"user_id"`          // Reference to users
-	OrderNumber     string             `bson:"order_number"              json:"order_number"`     // Human-readable order ID (e.g., "DGS-10001")
-	Items           []OrderItem        `bson:"items"                     json:"items"`            // Items in the order
-	TotalAmount     float64            `bson:"total_amount"              json:"total_amount"`     // Total cost of the order
-	ShippingAddress ShippingAddress    `bson:"shipping_address"          json:"shipping_address"` // Delivery address
-	Status          string             `bson:"status"                    json:"status"`           // Values: "pending", "shipped", "delivered", etc.
-	StatusText      string             `bson:"status_text"               json:"status_text"`      // Localized status description (e.g., Persian)
-	TrackingCode    *string            `bson:"tracking_code"             json:"tracking_code"`    // Shipping tracking number (nullable)
-	PaymentStatus   string             `bson:"payment_status"            json:"payment_status"`   // Values: "pending", "paid", "failed"
-	TrackingNumber  string             `bson:"tracking_number,omitempty" json:"tracking_number,omitempty"`
-	IsActive        bool               `bson:"is_active"                 json:"is_active"` // Soft delete flag
-	CreatedAt       time.Time          `bson:"created_at"                json:"created_at"`
-	UpdatedAt       time.Time          `bson:"updated_at"                json:"updated_at"`
+	ID              primitive.ObjectID `bson:"_id,omitempty"           json:"id,omitempty"`
+	UserID          primitive.ObjectID `bson:"user_id"                 json:"user_id"`                 // Reference to users
+	OrderNumber     string             `bson:"order_number"            json:"order_number"`            // Human-readable order ID (e.g., "DGS-10001")
+	Items           []OrderItem        `bson:"items"                   json:"items"`                   // Items in the order
+	TotalAmount     float64            `bson:"total_amount"            json:"total_amount"`            // Total cost of the order
+	ShippingAddress Address            `bson:"shipping_address"        json:"shipping_address"`        // Delivery address, uses Address struct from user.go
+	Status          string             `bson:"status"                  json:"status"`                  // Values: "pending", "shipped", "delivered", "cancelled", etc.
+	StatusText      string             `bson:"status_text"             json:"status_text"`             // Localized status description (e.g., Persian)
+	PaymentStatus   string             `bson:"payment_status"          json:"payment_status"`          // Values: "pending", "paid", "failed"
+	TrackingCode    *string            `bson:"tracking_code,omitempty" json:"tracking_code,omitempty"` // Shipping tracking number (nullable)
+	IsActive        bool               `bson:"is_active"               json:"is_active"`               // Soft delete flag
+	CreatedAt       time.Time          `bson:"created_at"              json:"created_at"`
+	UpdatedAt       time.Time          `bson:"updated_at"              json:"updated_at"`
 }
 
 // GetProductCount returns the total number of products in the order
