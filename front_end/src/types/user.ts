@@ -10,7 +10,7 @@ export interface User {
 }
 
 export interface Address {
-  id: string;
+  id?: string; // Optional for new addresses
   title: string;
   firstName: string;
   lastName: string;
@@ -20,6 +20,22 @@ export interface Address {
   address: string;
   postalCode: string;
   isDefault: boolean;
+}
+
+// Backend address structure for API calls
+export interface BackendAddress {
+  title?: string;
+  first_name?: string;
+  last_name?: string;
+  phone_number?: string;
+  province?: string;
+  address?: string;
+  postal_code: string;
+  street?: string;
+  city: string;
+  state?: string;
+  country?: string;
+  is_default: boolean;
 }
 
 export interface LoginCredentials {

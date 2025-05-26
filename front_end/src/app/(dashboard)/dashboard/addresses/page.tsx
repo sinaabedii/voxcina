@@ -14,23 +14,30 @@ import {
   Briefcase,
   CheckCircle,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
-import { useDashboardStore } from "@/store/dashboard-store";
+import { useAddress } from "@/hooks/useAddress";
 import { PROVINCES } from "@/lib/constants";
 import { motion, AnimatePresence } from "framer-motion";
+import { Address } from "@/types/user";
+import { toast } from "react-hot-toast";
 
 export default function AddressesPage() {
   const {
     addresses,
+    isLoading,
+    error,
     addAddress,
     updateAddress,
-    removeAddress,
+    deleteAddress,
     setDefaultAddress,
-  } = useDashboardStore();
+  } = useAddress();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [operationLoading, setOperationLoading] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -45,13 +52,24 @@ export default function AddressesPage() {
     addressType: "home",
   });
 
+  // Reset form when modal closes
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 800);
-
-    return () => clearTimeout(timer);
-  }, []);
+    if (!isModalOpen) {
+      setEditingAddress(null);
+      setFormData({
+        title: "",
+        firstName: "",
+        lastName: "",
+        phoneNumber: "",
+        province: "",
+        city: "",
+        address: "",
+        postalCode: "",
+        isDefault: false,
+        addressType: "home",
+      });
+    }
+  }, [isModalOpen]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -70,16 +88,27 @@ export default function AddressesPage() {
 
   const handleEdit = (addressId: string) => {
     const address = addresses.find((addr) => addr.id === addressId);
-    if (address) {
-      setFormData({
-        ...address,
-        addressType: address.title.toLowerCase().includes("کار")
-          ? "work"
-          : "home",
-      });
-      setEditingAddress(addressId);
-      setIsModalOpen(true);
+    if (!address) {
+      toast.error("آدرس موردنظر یافت نشد");
+      return;
     }
+
+    setFormData({
+      title: address.title || "",
+      firstName: address.firstName || "",
+      lastName: address.lastName || "",
+      phoneNumber: address.phoneNumber || "",
+      province: address.province || "",
+      city: address.city || "",
+      address: address.address || "",
+      postalCode: address.postalCode || "",
+      isDefault: address.isDefault || false,
+      addressType: address.title?.toLowerCase().includes("کار") || 
+                   address.title?.toLowerCase().includes("شرکت") || 
+                   address.title?.toLowerCase().includes("دفتر") ? "work" : "home",
+    });
+    setEditingAddress(addressId);
+    setIsModalOpen(true);
   };
 
   const handleAddNew = () => {
@@ -92,7 +121,7 @@ export default function AddressesPage() {
       city: "",
       address: "",
       postalCode: "",
-      isDefault: addresses.length === 0,
+      isDefault: addresses.length === 0, // Auto set as default if first address
       addressType: "home",
     });
     setEditingAddress(null);
@@ -100,41 +129,96 @@ export default function AddressesPage() {
   };
 
   const confirmDelete = (addressId: string) => {
+    const address = addresses.find((addr) => addr.id === addressId);
+    if (!address) {
+      toast.error("آدرس موردنظر یافت نشد");
+      return;
+    }
     setDeleteConfirmId(addressId);
   };
 
-  const handleDelete = () => {
-    if (deleteConfirmId) {
-      removeAddress(deleteConfirmId);
+  const handleDelete = async () => {
+    if (!deleteConfirmId) return;
+
+    try {
+      setIsSubmitting(true);
+      setOperationLoading(deleteConfirmId);
+      
+      await deleteAddress(deleteConfirmId);
+      
+      toast.success("آدرس با موفقیت حذف شد");
       setDeleteConfirmId(null);
+    } catch (error) {
+      console.error("Failed to delete address:", error);
+      toast.error("خطا در حذف آدرس. لطفاً دوباره تلاش کنید");
+    } finally {
+      setIsSubmitting(false);
+      setOperationLoading(null);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate required fields
+    const requiredFields = ['firstName', 'lastName', 'phoneNumber', 'province', 'city', 'address', 'postalCode'];
+    const missingFields = requiredFields.filter(field => !formData[field as keyof typeof formData]);
+    
+    if (missingFields.length > 0) {
+      toast.error("لطفاً تمام فیلدهای ضروری را پر کنید");
+      return;
+    }
+
+    setIsSubmitting(true);
 
     const finalFormData = {
       ...formData,
-      title:
-        formData.addressType === "home"
-          ? formData.title || "خانه"
-          : formData.title || "محل کار",
+      title: formData.title || (formData.addressType === "home" ? "خانه" : "محل کار"),
     };
 
-    if (editingAddress) {
-      updateAddress(editingAddress, finalFormData);
-    } else {
-      addAddress(finalFormData);
+    try {
+      if (editingAddress) {
+        await updateAddress(editingAddress, finalFormData);
+        toast.success("آدرس با موفقیت ویرایش شد");
+      } else {
+        await addAddress(finalFormData);
+        toast.success("آدرس جدید با موفقیت اضافه شد");
+      }
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error("Failed to save address:", error);
+      const errorMessage = editingAddress 
+        ? "خطا در ویرایش آدرس. لطفاً دوباره تلاش کنید"
+        : "خطا در افزودن آدرس. لطفاً دوباره تلاش کنید";
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSetDefault = async (addressId: string) => {
+    if (!addressId) {
+      toast.error("شناسه آدرس نامعتبر است");
+      return;
     }
 
-    setIsModalOpen(false);
+    try {
+      setOperationLoading(addressId);
+      await setDefaultAddress(addressId);
+      toast.success("آدرس پیش‌فرض با موفقیت تغییر یافت");
+    } catch (error) {
+      console.error("Failed to set default address:", error);
+      toast.error("خطا در تنظیم آدرس پیش‌فرض. لطفاً دوباره تلاش کنید");
+    } finally {
+      setOperationLoading(null);
+    }
   };
 
   const getAddressTypeIcon = (title: string) => {
     if (
-      title.toLowerCase().includes("کار") ||
-      title.toLowerCase().includes("شرکت") ||
-      title.toLowerCase().includes("دفتر")
+      title?.toLowerCase().includes("کار") ||
+      title?.toLowerCase().includes("شرکت") ||
+      title?.toLowerCase().includes("دفتر")
     ) {
       return <Briefcase className="w-4 h-4 ml-2" />;
     }
@@ -160,6 +244,30 @@ export default function AddressesPage() {
     },
   };
 
+  // Show error state if there's an error
+  if (error && !isLoading) {
+    return (
+      <div className="container py-8 md:py-12 mx-auto px-4 md:px-8">
+        <Card className="border border-red-200 dark:border-red-800/30 shadow-soft rounded-2xl bg-red-50 dark:bg-red-900/10">
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2 text-red-700 dark:text-red-400">
+              خطا در بارگذاری آدرس‌ها
+            </h3>
+            <p className="text-red-600 dark:text-red-300 mb-4">{error}</p>
+            <Button 
+              variant="primary" 
+              onClick={() => window.location.reload()}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              تلاش مجدد
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="container py-8 md:py-12 mx-auto px-4 md:px-8 transition-all duration-500 ease-in-out">
       <motion.div
@@ -175,7 +283,8 @@ export default function AddressesPage() {
         <Button
           variant="primary"
           onClick={handleAddNew}
-          className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-soft hover:shadow-medium transition-all duration-300 flex items-center"
+          disabled={isLoading}
+          className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-soft hover:shadow-medium transition-all duration-300 flex items-center disabled:opacity-50"
         >
           <Plus className="w-4 h-4 ml-2" />
           افزودن آدرس جدید
@@ -296,27 +405,37 @@ export default function AddressesPage() {
                             <span className="absolute -right-2 -top-2 w-8 h-8 bg-secondary-200 dark:bg-voxcina-blue/20 rounded-full -z-10"></span>
                             {getAddressTypeIcon(address.title)}
                           </span>
-                          {address.title}
+                          {address.title || "آدرس"}
                         </CardTitle>
                       </div>
                       <div className="flex space-x-2 space-x-reverse">
                         <motion.button
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
-                          className="text-voxcina-blue p-1.5 hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-blue/20 rounded-full transition-colors"
-                          onClick={() => handleEdit(address.id)}
+                          className="text-voxcina-blue p-1.5 hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-blue/20 rounded-full transition-colors disabled:opacity-50"
+                          onClick={() => address.id && handleEdit(address.id)}
+                          disabled={!address.id || operationLoading === address.id}
                           aria-label="ویرایش آدرس"
                         >
-                          <Edit className="w-4 h-4" />
+                          {operationLoading === address.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Edit className="w-4 h-4" />
+                          )}
                         </motion.button>
                         <motion.button
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
-                          className="text-red-500 p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-full transition-colors"
-                          onClick={() => confirmDelete(address.id)}
+                          className="text-red-500 p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-full transition-colors disabled:opacity-50"
+                          onClick={() => address.id && confirmDelete(address.id)}
+                          disabled={!address.id || operationLoading === address.id}
                           aria-label="حذف آدرس"
                         >
-                          <Trash className="w-4 h-4" />
+                          {operationLoading === address.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash className="w-4 h-4" />
+                          )}
                         </motion.button>
                       </div>
                     </CardHeader>
@@ -363,12 +482,19 @@ export default function AddressesPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="mt-3 border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-secondary-200 hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20 w-full rounded-xl group overflow-hidden relative"
-                              onClick={() => setDefaultAddress(address.id)}
+                              className="mt-3 border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-secondary-200 hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20 w-full rounded-xl group overflow-hidden relative disabled:opacity-50"
+                              onClick={() => address.id && handleSetDefault(address.id)}
+                              disabled={!address.id || operationLoading === address.id}
                             >
                               <span className="absolute inset-0 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></span>
-                              <CheckCircle className="w-4 h-4 ml-2 opacity-0 group-hover:opacity-100 transition-opacity" />
-                              <span className="relative z-10">تنظیم به عنوان آدرس پیش‌فرض</span>
+                              {operationLoading === address.id ? (
+                                <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-4 h-4 ml-2 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              )}
+                              <span className="relative z-10">
+                                {operationLoading === address.id ? "در حال تنظیم..." : "تنظیم به عنوان آدرس پیش‌فرض"}
+                              </span>
                             </Button>
                           </motion.div>
                         )}
@@ -382,9 +508,10 @@ export default function AddressesPage() {
         </div>
       )}
 
+      {/* Create/Edit Address Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => !isSubmitting && setIsModalOpen(false)}
         title={editingAddress ? "ویرایش آدرس" : "افزودن آدرس جدید"}
       >
         <form onSubmit={handleSubmit}>
@@ -399,6 +526,7 @@ export default function AddressesPage() {
                     value="home"
                     checked={formData.addressType === "home"}
                     onChange={handleChange}
+                    disabled={isSubmitting}
                     className="sr-only"
                   />
                   <div
@@ -406,7 +534,7 @@ export default function AddressesPage() {
                       formData.addressType === "home"
                         ? "border-voxcina-blue bg-voxcina-blue/5 text-voxcina-blue dark:bg-voxcina-blue/20 dark:text-secondary-200 scale-110"
                         : "border-secondary-200 text-voxcina-blue/40 dark:border-voxcina-darkBlue/30 dark:text-secondary-400"
-                    }`}
+                    } ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     <Home className="w-5 h-5" />
                   </div>
@@ -420,6 +548,7 @@ export default function AddressesPage() {
                     value="work"
                     checked={formData.addressType === "work"}
                     onChange={handleChange}
+                    disabled={isSubmitting}
                     className="sr-only"
                   />
                   <div
@@ -427,7 +556,7 @@ export default function AddressesPage() {
                       formData.addressType === "work"
                         ? "border-voxcina-blue bg-voxcina-blue/5 text-voxcina-blue dark:bg-voxcina-blue/20 dark:text-secondary-200 scale-110"
                         : "border-secondary-200 text-voxcina-blue/40 dark:border-voxcina-darkBlue/30 dark:text-secondary-400"
-                    }`}
+                    } ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     <Briefcase className="w-5 h-5" />
                   </div>
@@ -441,6 +570,7 @@ export default function AddressesPage() {
               name="title"
               value={formData.title}
               onChange={handleChange}
+              disabled={isSubmitting}
               placeholder={
                 formData.addressType === "home"
                   ? "مثال: خانه، منزل پدری"
@@ -451,42 +581,46 @@ export default function AddressesPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
-                label="نام"
+                label="نام *"
                 name="firstName"
                 value={formData.firstName}
                 onChange={handleChange}
                 required
+                disabled={isSubmitting}
                 className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
               />
               <Input
-                label="نام خانوادگی"
+                label="نام خانوادگی *"
                 name="lastName"
                 value={formData.lastName}
                 onChange={handleChange}
                 required
+                disabled={isSubmitting}
                 className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
               />
             </div>
 
             <Input
-              label="شماره تماس"
+              label="شماره تماس *"
               name="phoneNumber"
               value={formData.phoneNumber}
               onChange={handleChange}
               placeholder="مثال: ۰۹۱۲۱۲۳۴۵۶۷"
               required
+              disabled={isSubmitting}
               className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
             />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium block mb-1 text-voxcina-blue dark:text-secondary-200">استان</label>
+                <label className="text-sm font-medium block mb-1 text-voxcina-blue dark:text-secondary-200">استان *</label>
                 <select
                   name="province"
                   value={formData.province}
                   onChange={handleChange}
-                  className="w-full rounded-xl border border-secondary-200 dark:border-voxcina-darkBlue/30 bg-white dark:bg-voxcina-darkBlue/20 px-3 py-2 text-sm focus:outline-none focus:border-voxcina-blue focus:ring-2 focus:ring-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200"
                   required
+                  disabled={isSubmitting}
+                  className="w-full rounded-xl border border-secondary-200 dark:border-voxcina-darkBlue/30 bg-white dark:bg-voxcina-darkBlue/20 px-3 py-2 text-sm focus:outline-none focus:border-voxcina-blue focus:ring-2 focus:ring-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="">انتخاب استان</option>
                   {PROVINCES.map((province) => (
@@ -497,32 +631,35 @@ export default function AddressesPage() {
                 </select>
               </div>
               <Input
-                label="شهر"
+                label="شهر *"
                 name="city"
                 value={formData.city}
                 onChange={handleChange}
                 required
+                disabled={isSubmitting}
                 className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
               />
             </div>
 
             <Input
-              label="آدرس کامل"
+              label="آدرس کامل *"
               name="address"
               value={formData.address}
               onChange={handleChange}
               placeholder="مثال: خیابان اصلی، کوچه فرعی، پلاک ۱۲، واحد ۳"
               required
+              disabled={isSubmitting}
               className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
             />
 
             <Input
-              label="کد پستی"
+              label="کد پستی *"
               name="postalCode"
               value={formData.postalCode}
               onChange={handleChange}
               placeholder="مثال: ۱۲۳۴۵۶۷۸۹۰"
               required
+              disabled={isSubmitting}
               className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
             />
 
@@ -533,7 +670,8 @@ export default function AddressesPage() {
                 name="isDefault"
                 checked={formData.isDefault}
                 onChange={handleChange}
-                className="ml-2 h-4 w-4 rounded border-secondary-300 text-voxcina-blue focus:ring-voxcina-blue/30"
+                disabled={isSubmitting}
+                className="ml-2 h-4 w-4 rounded border-secondary-300 text-voxcina-blue focus:ring-voxcina-blue/30 disabled:opacity-50"
               />
               <label
                 htmlFor="isDefault"
@@ -548,6 +686,7 @@ export default function AddressesPage() {
                 type="button"
                 variant="outline"
                 onClick={() => setIsModalOpen(false)}
+                disabled={isSubmitting}
                 className="rounded-xl border-secondary-200 dark:border-voxcina-darkBlue/30 text-voxcina-blue dark:text-secondary-200 hover:bg-secondary-100 dark:hover:bg-voxcina-darkBlue/20"
               >
                 انصراف
@@ -555,18 +694,29 @@ export default function AddressesPage() {
               <Button
                 type="submit"
                 variant="primary"
+                disabled={isSubmitting}
                 className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-soft hover:shadow-medium transition-all duration-300"
               >
-                {editingAddress ? "ویرایش آدرس" : "افزودن آدرس"}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                    {editingAddress ? "در حال ویرایش..." : "در حال افزودن..."}
+                  </>
+                ) : (
+                  <>
+                    {editingAddress ? "ویرایش آدرس" : "افزودن آدرس"}
+                  </>
+                )}
               </Button>
             </div>
           </div>
         </form>
       </Modal>
 
+      {/* Delete Confirmation Modal */}
       <Modal
         isOpen={deleteConfirmId !== null}
-        onClose={() => setDeleteConfirmId(null)}
+        onClose={() => !isSubmitting && setDeleteConfirmId(null)}
         title="حذف آدرس"
       >
         <div className="p-4">
@@ -588,20 +738,29 @@ export default function AddressesPage() {
             <Button
               variant="outline"
               onClick={() => setDeleteConfirmId(null)}
+              disabled={isSubmitting}
               className="rounded-xl border-secondary-200 dark:border-voxcina-darkBlue/30 text-voxcina-blue dark:text-secondary-200"
             >
               انصراف
             </Button>
             <motion.div
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
+              whileHover={{ scale: isSubmitting ? 1 : 1.03 }}
+              whileTap={{ scale: isSubmitting ? 1 : 0.97 }}
             >
               <Button
                 variant="danger"
                 onClick={handleDelete}
+                disabled={isSubmitting}
                 className="rounded-xl bg-red-500 hover:bg-red-600 text-white"
               >
-                حذف آدرس
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                    در حال حذف...
+                  </>
+                ) : (
+                  "حذف آدرس"
+                )}
               </Button>
             </motion.div>
           </div>

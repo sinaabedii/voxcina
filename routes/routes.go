@@ -29,6 +29,8 @@ func NewRouter() *mux.Router {
 	userAuthRouter.HandleFunc("/profile", handlers.GetProfile).Methods(http.MethodGet)
 	userAuthRouter.HandleFunc("/profile", handlers.UpdateProfile).Methods(http.MethodPut)
 	// Address Management for authenticated user
+	userAuthRouter.HandleFunc("/addresses", handlers.GetUserAddresses).
+		Methods(http.MethodGet)
 	userAuthRouter.HandleFunc("/addresses", handlers.AddUserAddress).
 		Methods(http.MethodPost)
 	userAuthRouter.HandleFunc("/addresses/{addressIndex}", handlers.UpdateUserAddress).

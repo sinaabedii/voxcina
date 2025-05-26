@@ -307,7 +307,7 @@ func GetProfile(w http.ResponseWriter, r *http.Request) {
 		response["addresses_data"] = []models.Address{} // Ensure empty array
 		response["message"] = "شما هنوز هیچ آدرسی ثبت نکرده‌اید."
 		response["link_text"] = "افزودن آدرس جدید"
-		// Depending on your frontend routing for adding an address, 
+		// Depending on your frontend routing for adding an address,
 		// you might want a link_url or rely on a button triggering a modal.
 		// For now, I'll omit link_url as the page has an "Add New Address" button.
 	} else {
@@ -441,11 +441,11 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 // This endpoint can be used to clear any server-side session cookies if used (not typical for pure JWT in headers)
 // or to add the token to a blacklist if implemented.
 func Logout(w http.ResponseWriter, r *http.Request) {
-	// If using httpOnly cookies for JWT (less common for SPAs, more for web apps):
+	// Clear the cookie (though this could be optional in a JWT setup).
 	// http.SetCookie(w, &http.Cookie{
-	// 	Name:     "token",
+	// 	Name:     "auth_token",
 	// 	Value:    "",
-	// 	Expires:  time.Now().Add(-time.Hour), // Set to past to expire immediately
+	// 	Expires:  time.Now().Add(-time.Hour),
 	// 	HttpOnly: true,
 	// 	Path:     "/",
 	// 	// Secure: true, // In production
@@ -463,6 +463,40 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 			"message": "Logout successful. Please clear your token on the client-side.",
 		},
 	)
+}
+
+// GetUserAddresses handles GET /api/users/addresses
+// Requires authentication
+func GetUserAddresses(w http.ResponseWriter, r *http.Request) {
+	// --- Get UserID from context (set by AuthMiddleware) ---
+	userIDCtx := r.Context().Value("userID")
+	if userIDCtx == nil {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+	userID, ok := userIDCtx.(primitive.ObjectID)
+	if !ok {
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Invalid userID format in context",
+		)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	userCollection := db.Database.Collection("users")
+
+	// --- Fetch the current user to get their addresses ---
+	var currentUser models.User
+	if err := userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&currentUser); err != nil {
+		utils.ErrorResponse(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	// Return the user's addresses
+	utils.JSONResponse(w, http.StatusOK, currentUser.Addresses)
 }
 
 // AddUserAddress handles POST /api/users/addresses
@@ -495,12 +529,13 @@ func AddUserAddress(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// --- Basic Validation for Address fields ---
-	if newAddress.Street == "" || newAddress.City == "" || newAddress.PostalCode == "" ||
-		newAddress.Country == "" {
+	if (newAddress.Street == "" && newAddress.Address == "") ||
+		newAddress.City == "" ||
+		newAddress.PostalCode == "" {
 		utils.ErrorResponse(
 			w,
 			http.StatusBadRequest,
-			"Street, City, PostalCode, and Country are required for an address",
+			"City, PostalCode, and either Street or Address are required for an address",
 		)
 		return
 	}
@@ -619,12 +654,13 @@ func UpdateUserAddress(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// --- Basic Validation for Address fields in payload ---
-	if addressUpdatePayload.Street == "" || addressUpdatePayload.City == "" ||
-		addressUpdatePayload.PostalCode == "" || addressUpdatePayload.Country == "" {
+	if (addressUpdatePayload.Street == "" && addressUpdatePayload.Address == "") ||
+		addressUpdatePayload.City == "" ||
+		addressUpdatePayload.PostalCode == "" {
 		utils.ErrorResponse(
 			w,
 			http.StatusBadRequest,
-			"Street, City, PostalCode, and Country are required for an address update",
+			"City, PostalCode, and either Street or Address are required for an address update",
 		)
 		return
 	}
