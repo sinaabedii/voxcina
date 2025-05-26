@@ -170,10 +170,10 @@ const Header = () => {
                 <button
                   type="button"
                   onClick={() => router.push("/sign-in")}
-                  className="px-3 py-1.5 rounded-full text-voxcina-blue/80 hover:text-voxcina-blue dark:text-voxcina-cream/80 dark:hover:text-voxcina-cream bg-voxcina-cream/20 dark:bg-voxcina-blue/20 hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 font-medium transition-all duration-300"
-                  aria-label="ورود یا ثبت نام"
+                  className="p-1.5 sm:p-2 rounded-full text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-100 dark:hover:bg-green-900 transition-all duration-300 relative group"
+                  aria-label="ورود یا ثبت‌نام"
                 >
-                  ورود|ثبت نام
+                  <User className="h-4 w-4 sm:h-[18px] sm:w-[18px] md:h-5 md:w-5" />
                 </button>
               )}
             </motion.div>
