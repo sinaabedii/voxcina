@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 
 interface WardrobeItem {
@@ -43,6 +43,7 @@ interface SavedOutfit {
 const VirtualWardrobe: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [draggedItem, setDraggedItem] = useState<WardrobeItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<WardrobeItem | null>(null);
   const [outfitItems, setOutfitItems] = useState<OutfitItems>({
     top: null,
     bottom: null,
@@ -50,6 +51,20 @@ const VirtualWardrobe: React.FC = () => {
     accessories: null,
   });
   const [savedOutfits, setSavedOutfits] = useState<SavedOutfit[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
+  const [touchPosition, setTouchPosition] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const wardrobeItems: WardrobeItem[] = [
     {
@@ -158,6 +173,7 @@ const VirtualWardrobe: React.FC = () => {
       ? wardrobeItems
       : wardrobeItems.filter((item) => item.category === selectedCategory);
 
+  // Desktop drag handlers
   const handleDragStart = (item: WardrobeItem): void => {
     setDraggedItem(item);
   };
@@ -185,8 +201,72 @@ const VirtualWardrobe: React.FC = () => {
     e.preventDefault();
   };
 
-  const handleDragEnter = (e: React.DragEvent): void => {
+  // Mobile touch handlers
+  const handleTouchStart = (e: React.TouchEvent, item: WardrobeItem): void => {
     e.preventDefault();
+    setDraggedItem(item);
+    const touch = e.touches[0];
+    setTouchPosition({ x: touch.clientX, y: touch.clientY });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent): void => {
+    if (!draggedItem) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    setTouchPosition({ x: touch.clientX, y: touch.clientY });
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent): void => {
+    if (!draggedItem) return;
+    e.preventDefault();
+
+    // Find which drop zone the touch ended on
+    const touch = e.changedTouches[0];
+    const elementBelow = document.elementFromPoint(
+      touch.clientX,
+      touch.clientY
+    );
+
+    if (elementBelow) {
+      const dropZone = elementBelow.closest("[data-drop-zone]");
+      if (dropZone) {
+        const zoneId = dropZone.getAttribute(
+          "data-zone-id"
+        ) as keyof OutfitItems;
+        const zoneCategory = dropZone.getAttribute(
+          "data-zone-category"
+        ) as WardrobeItem["category"];
+
+        if (draggedItem.category === zoneCategory) {
+          setOutfitItems((prev) => ({
+            ...prev,
+            [zoneId]: draggedItem,
+          }));
+        }
+      }
+    }
+
+    setDraggedItem(null);
+  };
+
+  // Mobile click handlers
+  const handleItemClick = (item: WardrobeItem): void => {
+    if (isMobile) {
+      setSelectedItem(item);
+    }
+  };
+
+  const handleZoneClick = (
+    zoneId: keyof OutfitItems,
+    category: WardrobeItem["category"]
+  ): void => {
+    if (isMobile && selectedItem && selectedItem.category === category) {
+      setOutfitItems((prev) => ({
+        ...prev,
+        [zoneId]: selectedItem,
+      }));
+      setSelectedItem(null);
+    }
   };
 
   const removeFromOutfit = (zoneId: keyof OutfitItems): void => {
@@ -218,6 +298,7 @@ const VirtualWardrobe: React.FC = () => {
       shoes: null,
       accessories: null,
     });
+    setSelectedItem(null);
   };
 
   const getColorStyle = (color: string): string => {
@@ -236,7 +317,7 @@ const VirtualWardrobe: React.FC = () => {
   };
 
   return (
-    <section className="container mx-auto px-4 mb-16">
+    <section className="container mx-auto px-4 mb-16" ref={dragRef}>
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -247,19 +328,65 @@ const VirtualWardrobe: React.FC = () => {
           کمد مجازی شما
         </h2>
         <p className="text-voxcina-blue/70 max-w-2xl mx-auto">
-          لباس‌هایتان را ترکیب کنید و استایل‌های جدید بسازید
+          {isMobile
+            ? "روی لباس‌ها کلیک کنید و سپس محل مناسب را انتخاب کنید"
+            : "لباس‌هایتان را ترکیب کنید و استایل‌های جدید بسازید"}
         </p>
       </motion.div>
 
+      {isMobile && selectedItem && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="fixed top-4 left-4 right-4 z-50 bg-white rounded-2xl shadow-xl p-4 flex items-center gap-3"
+        >
+          <img
+            src={selectedItem.image}
+            alt={selectedItem.name}
+            className="w-16 h-16 object-cover rounded-lg"
+          />
+          <div className="flex-1">
+            <p className="font-medium text-voxcina-blue">{selectedItem.name}</p>
+            <p className="text-sm text-voxcina-blue/70">
+              محل مناسب را انتخاب کنید
+            </p>
+          </div>
+          <button
+            onClick={() => setSelectedItem(null)}
+            className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center"
+          >
+            ×
+          </button>
+        </motion.div>
+      )}
+
+      {draggedItem && !isMobile && (
+        <motion.div
+          className="fixed pointer-events-none z-50 opacity-80"
+          style={{
+            left: touchPosition.x - 30,
+            top: touchPosition.y - 30,
+          }}
+          initial={{ scale: 0.8 }}
+          animate={{ scale: 1 }}
+        >
+          <img
+            src={draggedItem.image}
+            alt={draggedItem.name}
+            className="w-16 h-16 object-cover rounded-lg shadow-xl"
+          />
+        </motion.div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-3xl shadow-lg p-6">
-            <div className="flex flex-wrap gap-2 mb-6">
+          <div className="bg-white rounded-3xl shadow-lg p-4 md:p-6">
+            <div className="flex flex-wrap gap-2 mb-4 md:mb-6">
               {categories.map((category) => (
                 <motion.button
                   key={category.id}
                   onClick={() => setSelectedCategory(category.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium transition-all duration-300 ${
+                  className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-full font-medium transition-all duration-300 text-sm md:text-base ${
                     selectedCategory === category.id
                       ? "bg-voxcina-blue text-white shadow-lg"
                       : "bg-gray-100 text-voxcina-blue hover:bg-gray-200"
@@ -273,19 +400,25 @@ const VirtualWardrobe: React.FC = () => {
               ))}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-96 overflow-y-auto">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4 max-h-96 overflow-y-auto">
               {filteredItems.map((item) => (
                 <motion.div
                   key={item.id}
-                  draggable
-                  onDragStart={() => handleDragStart(item)}
-                  onDragEnd={handleDragEnd}
-                  className="bg-white rounded-xl shadow-md overflow-hidden cursor-grab active:cursor-grabbing hover:shadow-lg transition-all duration-300"
+                  draggable={!isMobile}
+                  onDragStart={() => !isMobile && handleDragStart(item)}
+                  onDragEnd={() => !isMobile && handleDragEnd()}
+                  onTouchStart={(e) => handleTouchStart(e, item)}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                  onClick={() => handleItemClick(item)}
+                  className={`bg-white rounded-xl shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 ${
+                    selectedItem?.id === item.id
+                      ? "ring-2 ring-voxcina-blue"
+                      : ""
+                  }`}
                   whileHover={{ scale: 1.05 }}
                   style={{
                     opacity: draggedItem?.id === item.id ? 0.5 : 1,
-                    transform:
-                      draggedItem?.id === item.id ? "rotate(5deg)" : "none",
                   }}
                 >
                   <div className="aspect-square bg-gray-100">
@@ -295,12 +428,14 @@ const VirtualWardrobe: React.FC = () => {
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <div className="p-3">
-                    <h4 className="font-medium text-sm text-voxcina-blue mb-1 truncate">
+                  <div className="p-2 md:p-3">
+                    <h4 className="font-medium text-xs md:text-sm text-voxcina-blue mb-1 truncate">
                       {item.name}
                     </h4>
                     <div className="flex justify-between items-center text-xs text-voxcina-blue/70">
-                      <span>{item.brand}</span>
+                      <span className="text-[10px] md:text-xs">
+                        {item.brand}
+                      </span>
                       <span
                         className="w-3 h-3 rounded-full border border-gray-300"
                         style={{ backgroundColor: getColorStyle(item.color) }}
@@ -314,45 +449,54 @@ const VirtualWardrobe: React.FC = () => {
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white rounded-3xl shadow-lg p-6">
+          <div className="bg-white rounded-3xl shadow-lg p-4 md:p-6">
             <h3 className="text-lg font-bold text-voxcina-blue mb-4 text-center">
               استایل شما
             </h3>
 
-            <div className="relative h-80 bg-gradient-to-b from-gray-50 to-gray-100 rounded-2xl overflow-hidden">
+            <div className="relative h-64 md:h-80 bg-gradient-to-b from-gray-50 to-gray-100 rounded-2xl overflow-hidden">
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-24 h-60 bg-gray-200 rounded-full opacity-20"></div>
+                <div className="w-20 md:w-24 h-48 md:h-60 bg-gray-200 rounded-full opacity-20"></div>
               </div>
 
               {dropZones.map((zone) => (
                 <motion.div
                   key={zone.id}
-                  className={`absolute w-16 h-16 border-2 border-dashed rounded-xl flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
-                    draggedItem?.category === zone.category
+                  data-drop-zone
+                  data-zone-id={zone.id}
+                  data-zone-category={zone.category}
+                  onClick={() => handleZoneClick(zone.id, zone.category)}
+                  className={`absolute w-14 h-14 md:w-16 md:h-16 border-2 border-dashed rounded-xl flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
+                    draggedItem?.category === zone.category ||
+                    selectedItem?.category === zone.category
                       ? "border-voxcina-blue bg-voxcina-blue/10 scale-110"
                       : "border-voxcina-blue/30 hover:border-voxcina-blue/60"
-                  }`}
+                  } ${isMobile ? "cursor-pointer" : ""}`}
                   style={zone.position}
-                  onDrop={(e) => handleDrop(e, zone.id, zone.category)}
-                  onDragOver={handleDragOver}
-                  onDragEnter={handleDragEnter}
+                  onDrop={(e) =>
+                    !isMobile && handleDrop(e, zone.id, zone.category)
+                  }
+                  onDragOver={(e) => !isMobile && handleDragOver(e)}
                 >
                   {outfitItems[zone.id] ? (
                     <div className="relative group">
                       <img
                         src={outfitItems[zone.id]!.image}
                         alt={outfitItems[zone.id]!.name}
-                        className="w-14 h-14 object-cover rounded-lg shadow-md"
+                        className="w-12 h-12 md:w-14 md:h-14 object-cover rounded-lg shadow-md"
                       />
                       <button
-                        onClick={() => removeFromOutfit(zone.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeFromOutfit(zone.id);
+                        }}
                         className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
                       >
                         ×
                       </button>
                     </div>
                   ) : (
-                    <span className="text-xs text-voxcina-blue/50 text-center">
+                    <span className="text-[10px] md:text-xs text-voxcina-blue/50 text-center">
                       {zone.name}
                     </span>
                   )}
@@ -366,7 +510,7 @@ const VirtualWardrobe: React.FC = () => {
                 disabled={Object.values(outfitItems).every(
                   (item) => item === null
                 )}
-                className="flex-1 bg-voxcina-blue text-white py-2 px-4 rounded-xl font-medium disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-voxcina-darkBlue transition-colors"
+                className="flex-1 bg-voxcina-blue text-white py-2 px-3 md:px-4 rounded-xl font-medium text-sm md:text-base disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-voxcina-darkBlue transition-colors"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
@@ -374,7 +518,7 @@ const VirtualWardrobe: React.FC = () => {
               </motion.button>
               <motion.button
                 onClick={clearOutfit}
-                className="bg-gray-200 text-voxcina-blue py-2 px-4 rounded-xl font-medium hover:bg-gray-300 transition-colors"
+                className="bg-gray-200 text-voxcina-blue py-2 px-3 md:px-4 rounded-xl font-medium text-sm md:text-base hover:bg-gray-300 transition-colors"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
@@ -384,8 +528,8 @@ const VirtualWardrobe: React.FC = () => {
           </div>
 
           {savedOutfits.length > 0 && (
-            <div className="bg-white rounded-3xl shadow-lg p-6">
-              <h3 className="text-lg font-bold text-voxcina-blue mb-4">
+            <div className="bg-white rounded-3xl shadow-lg p-4 md:p-6">
+              <h3 className="text-base md:text-lg font-bold text-voxcina-blue mb-4">
                 استایل‌های ذخیره شده
               </h3>
               <div className="space-y-3 max-h-40 overflow-y-auto">
@@ -423,65 +567,6 @@ const VirtualWardrobe: React.FC = () => {
           )}
         </div>
       </div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        className="mt-8 bg-gradient-to-r from-voxcina-blue/10 to-primary-100/10 rounded-2xl p-6"
-      >
-        <h3 className="text-lg font-bold text-voxcina-blue mb-3">
-          چگونه استفاده کنم؟
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-voxcina-blue/80">
-          <div className="flex items-start gap-3">
-            <span className="bg-voxcina-blue text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
-              1
-            </span>
-            <p>لباس‌هایتان را از کمد بگیرید و drag کنید</p>
-          </div>
-          <div className="flex items-start gap-3">
-            <span className="bg-voxcina-blue text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
-              2
-            </span>
-            <p>آن‌ها را به محل مناسب در مانکن drop کنید</p>
-          </div>
-          <div className="flex items-start gap-3">
-            <span className="bg-voxcina-blue text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
-              3
-            </span>
-            <p>استایل جدیدتان را ذخیره کنید</p>
-          </div>
-        </div>
-
-        {draggedItem && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="mt-4 p-3 bg-voxcina-blue/20 rounded-xl flex items-center gap-3"
-          >
-            <div className="w-8 h-8 bg-voxcina-blue rounded-lg flex items-center justify-center">
-              <span className="text-white text-sm">📦</span>
-            </div>
-            <div>
-              <p className="font-medium text-voxcina-blue">
-                در حال کشیدن: {draggedItem.name}
-              </p>
-              <p className="text-xs text-voxcina-blue/70">
-                این آیتم را به قسمت{" "}
-                {draggedItem.category === "tops"
-                  ? "بالاتنه"
-                  : draggedItem.category === "bottoms"
-                  ? "پایین‌تنه"
-                  : draggedItem.category === "shoes"
-                  ? "کفش"
-                  : "اکسسوری"}{" "}
-                بکشید
-              </p>
-            </div>
-          </motion.div>
-        )}
-      </motion.div>
     </section>
   );
 };
