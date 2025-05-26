@@ -63,6 +63,7 @@ interface CartStore {
   removePromoCode: () => void;
   calculateSummary: () => void;
   cleanupSubscriptions: () => void;
+  dismissCartWarnings: () => void;
 }
 
 // Helper function to transform backend cart items to frontend structure if needed
@@ -121,6 +122,7 @@ const processBackendCartData = (backendCartData: any): { cart: Cart; summary: Ca
       items: processedItems,
       createdAt: backendCartData.createdAt || new Date().toISOString(),
       updatedAt: backendCartData.updatedAt || new Date().toISOString(),
+      warnings: backendCartData.warnings || [], // Pass warnings from backend
     },
     summary: backendCartData.summary || { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 },
   };
@@ -167,6 +169,7 @@ export const useCartStore = create<CartStore>()(
               isLoading: false,
               syncRetryCount: 0,
             });
+            // UI: If cart.warnings && cart.warnings.length > 0, show a notification to the user
           } else if (response.status === 404) { // No backend cart for this user, try to create one with local items
             console.log('No cart on backend, attempting to POST local items.');
             const localCartItems = get().cart.items.map(item => ({
@@ -442,6 +445,11 @@ export const useCartStore = create<CartStore>()(
       cleanupSubscriptions: () => {
         // No direct subscriptions to cleanup in this version
       },
+      dismissCartWarnings: () => {
+        set((state) => ({
+          cart: { ...state.cart, warnings: [] }
+        }));
+      },
     }),
     {
       name: "cart-storage",
@@ -498,10 +506,8 @@ const authUnsubscribe = useAuthStore.subscribe((state, prevState) => {
     console.log('User logged in, syncing cart with backend.');
     useCartStore.getState().syncCartWithBackend();
   } else if (!state.isAuthenticated && prevState.isAuthenticated) {
-    console.log('User logged out, cart remains local.');
-    // Optionally, clear the cart or parts of it, or re-calculate summary if needed.
-    // For now, local cart persists, and summary should already be correct or will be on next action.
-    useCartStore.getState().calculateSummary(); // Recalculate summary for the local cart
+    console.log('User logged out, clearing cart from local storage.');
+    useCartStore.getState().clearCart(); // Clear cart on logout
   }
 });
 
@@ -510,3 +516,6 @@ const authUnsubscribe = useAuthStore.subscribe((state, prevState) => {
 // useCartStore.getState().cleanupSubscriptions = () => {
 //   authUnsubscribe();
 // };
+
+// Selector for cart warnings (for UI usage)
+export const getCartWarnings = () => useCartStore.getState().cart.warnings || [];

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Search, User, Menu, X, ShoppingBag } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ import MobileNav from "./MobileNav";
 import SmartSearch from "@/components/ui/SmartSearch";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/hooks/useAuth";
 
 const Header = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -19,6 +20,8 @@ const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const pathname = usePathname();
   const cart = useCartStore((state) => state.cart);
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
 
   const itemCount = cart.items.reduce(
     (count, item) => count + item.quantity,
@@ -154,13 +157,25 @@ const Header = () => {
               )}
             </Link>
             <motion.div className="relative">
-              <Link
-                href="/sign-in"
-                className="p-1.5 sm:p-2 rounded-full text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-all duration-300 relative group"
-                aria-label="حساب کاربری"
-              >
-                <User className="h-4 w-4 sm:h-[18px] sm:w-[18px] md:h-5 md:w-5" />
-              </Link>
+              {isAuthenticated ? (
+                <button
+                  type="button"
+                  onClick={() => router.push("/dashboard")}
+                  className="p-1.5 sm:p-2 rounded-full text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-all duration-300 relative group"
+                  aria-label="حساب کاربری"
+                >
+                  <User className="h-4 w-4 sm:h-[18px] sm:w-[18px] md:h-5 md:w-5" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => router.push("/sign-in")}
+                  className="px-3 py-1.5 rounded-full text-voxcina-blue/80 hover:text-voxcina-blue dark:text-voxcina-cream/80 dark:hover:text-voxcina-cream bg-voxcina-cream/20 dark:bg-voxcina-blue/20 hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 font-medium transition-all duration-300"
+                  aria-label="ورود یا ثبت نام"
+                >
+                  ورود|ثبت نام
+                </button>
+              )}
             </motion.div>
           </div>
         </div>

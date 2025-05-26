@@ -16,6 +16,7 @@ export interface Cart {
   items: CartItem[];
   createdAt: string;
   updatedAt: string;
+  warnings?: string[];
 }
 
 export interface CartSummary {

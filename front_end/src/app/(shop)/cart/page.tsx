@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Trash2, ShoppingBag, Minus, Plus, ArrowLeft } from "lucide-react";
-import { useCartStore } from "@/store/cart-store";
+import { useCartStore, getCartWarnings } from "@/store/cart-store";
 import { formatPrice } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -20,9 +20,20 @@ export default function CartPage() {
     applyPromoCode,
     removePromoCode,
     promoCode,
+    dismissCartWarnings,
   } = useCartStore();
   const [promoInput, setPromoInput] = useState("");
   const [promoError, setPromoError] = useState("");
+  const warnings = getCartWarnings();
+
+  useEffect(() => {
+    if (warnings.length) {
+      const timer = setTimeout(() => {
+        dismissCartWarnings();
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [warnings, dismissCartWarnings]);
 
   const handleQuantityChange = (item: CartItem, quantity: number) => {
     if (quantity < 1) return;
@@ -122,6 +133,23 @@ export default function CartPage() {
   }
   return (
     <div className="container py-8 md:py-12">
+      {warnings.length > 0 && (
+        <div className="mb-6">
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-700 dark:text-yellow-200 rounded-xl p-4 flex items-center justify-between shadow-sm animate-fade-in">
+            <div>
+              {warnings.map((msg, i) => (
+                <div key={i}>{msg}</div>
+              ))}
+            </div>
+            <button
+              className="ml-4 text-sm text-yellow-700 dark:text-yellow-200 hover:underline"
+              onClick={dismissCartWarnings}
+            >
+              بستن
+            </button>
+          </div>
+        </div>
+      )}
       <motion.h1
         className="text-2xl md:text-3xl font-bold mb-8 md:mb-12 text-voxcina-blue dark:text-voxcina-cream relative inline-block"
         initial={{ opacity: 0, y: -20 }}

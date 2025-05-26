@@ -45,6 +45,7 @@ type CartResponse struct {
 	Summary   CartSummary        `json:"summary"`
 	CreatedAt time.Time          `json:"createdAt"`
 	UpdatedAt time.Time          `json:"updatedAt"`
+	Warnings  []string           `json:"warnings,omitempty"`
 }
 
 // CartSummary represents the cart's financial summary
@@ -106,6 +107,7 @@ func getUserIDFromToken(r *http.Request) (primitive.ObjectID, error) {
 func prepareCartResponse(ctx context.Context, cart models.Cart) (CartResponse, error) {
 	var responseItems []CartItemResponse
 	productsCollection := db.Database.Collection("products")
+	var warnings []string // Collect warnings
 
 	for _, item := range cart.Items {
 		var product models.Product
@@ -114,23 +116,15 @@ func prepareCartResponse(ctx context.Context, cart models.Cart) (CartResponse, e
 			Decode(&product)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
-				// Product not found, this is a data integrity issue or product was deleted
-				// Log and decide whether to skip or return an error for the whole cart
-				utils.LogAction(
-					"error",
-					fmt.Sprintf(
-						"Product with ID %s in cart %s not found in products collection",
-						item.ProductID.Hex(),
-						cart.ID.Hex(),
-					),
-				)
-				// Optionally, skip this item:
-				// continue
-				// Or, return an error to indicate inconsistent cart data:
-				return CartResponse{}, fmt.Errorf(
-					"product %s not found, cart data inconsistent",
+				// Product not found, skip this item and log a warning
+				msg := fmt.Sprintf(
+					"Product with ID %s in cart %s not found, skipping",
 					item.ProductID.Hex(),
+					cart.ID.Hex(),
 				)
+				utils.LogAction("warning", msg)
+				warnings = append(warnings, msg)
+				continue // Skip this item
 			}
 			return CartResponse{}, fmt.Errorf(
 				"error fetching product %s: %w",
@@ -165,10 +159,8 @@ func prepareCartResponse(ctx context.Context, cart models.Cart) (CartResponse, e
 		Items:     responseItems,
 		CreatedAt: cart.CreatedAt,
 		UpdatedAt: cart.UpdatedAt,
-		Summary:   summary, // Embedding summary directly if CartResponse is updated to include it.
-		// For now, the response example in GetCart has Cart and Summary as separate fields.
-		// To match that, we would return cartResponse and summary separately, or adjust CartResponse struct.
-		// Let's adjust CartResponse to include Summary.
+		Summary:   summary,
+		Warnings:  warnings, // Add warnings to response
 	}, nil
 }
 
