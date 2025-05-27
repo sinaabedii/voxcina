@@ -13,6 +13,8 @@ export interface Address {
   address: string;
   postalCode: string;
   isDefault: boolean;
+  latitude: number;
+  longitude: number;
 }
 
 export interface Order {
