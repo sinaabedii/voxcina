@@ -11,6 +11,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { APP_NAME } from "@/lib/constants";
+import { toast } from "react-toastify";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");
@@ -21,7 +22,7 @@ export default function SignInPage() {
     {}
   );
 
-  const { login, isLoading, error } = useAuthStore();
+  const { login, isLoading } = useAuthStore();
   const router = useRouter();
 
   const validateForm = () => {
@@ -44,12 +45,18 @@ export default function SignInPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      toast.error("لطفا اطلاعات فرم را کامل کنید");
+      return;
+    }
 
     try {
       await login({ email, password });
       router.push("/");
-    } catch (error) {}
+    } catch (error) {
+      // Error is already handled in the auth store with toast
+      console.error("Login error:", error);
+    }
   };
 
   const containerVariants = {
@@ -209,33 +216,6 @@ export default function SignInPage() {
                       فراموشی رمز عبور
                     </Link>
                   </motion.div>
-
-                  {error && (
-                    <motion.div
-                      className="p-3 rounded-xl bg-red-50 text-red-500 text-xs sm:text-sm border border-red-100 shadow-soft"
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <div className="flex items-center">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4 sm:h-5 sm:w-5 ml-2 flex-shrink-0"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                        <span className="leading-relaxed">{error}</span>
-                      </div>
-                    </motion.div>
-                  )}
 
                   <motion.div className="pt-3" variants={itemVariants}>
                     <Button

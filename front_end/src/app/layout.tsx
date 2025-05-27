@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { APP_NAME, APP_DESCRIPTION } from "@/lib/constants";
 import "./globals.css";
-import { Toaster } from "react-hot-toast";
+import "react-toastify/dist/ReactToastify.css";
+import { ToastContainer } from "react-toastify";
 import ClientLayout from "../components/layout/ClientLayout";
 
 export const metadata: Metadata = {
@@ -52,20 +53,24 @@ export default function RootLayout({
           </div>
         </ClientLayout>
 
-        <div id="_rht_toaster" style={{ position: 'fixed', zIndex: 9999, top: 16, left: 16, right: 16, bottom: 16, pointerEvents: 'none' }}>
-          <Toaster position="top-center" toastOptions={{ 
-            style: {
-              direction: 'rtl',
-              fontFamily: 'IranSansX, sans-serif',
-              background: 'var(--background)',
-              color: 'var(--foreground)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              boxShadow: '0 4px 20px rgba(26, 60, 105, 0.1)',
-              padding: '16px'
-            } 
-          }} />
-        </div>
+        <ToastContainer
+          position="top-center"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={true}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="light"
+          toastStyle={{
+            fontFamily: 'IranSansX, sans-serif',
+            fontSize: '14px',
+            borderRadius: '12px',
+            boxShadow: '0 4px 20px rgba(26, 60, 105, 0.15)',
+          }}
+        />
 
         <script
           dangerouslySetInnerHTML={{

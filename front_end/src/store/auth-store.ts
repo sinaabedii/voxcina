@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { toast } from "react-toastify";
 import {
   User,
   LoginCredentials,
@@ -36,24 +37,32 @@ export const useAuthStore = create<AuthStore>()(
             body: JSON.stringify(credentials),
           });
       
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || "Login failed");
-          }
-      
           const data = await response.json();
+          
+          if (!response.ok) {
+            // Handle backend error response
+            const errorMessage = data.error || "خطا در ورود به سیستم";
+            set({
+              isLoading: false,
+              error: errorMessage,
+              user: null,
+              isAuthenticated: false,
+            });
+            toast.error(errorMessage);
+            throw new Error(errorMessage);
+          }
       
           if (data.token) {
             localStorage.setItem("authToken", data.token);
             
-            // Create a user object from the flat response
+            // Create a user object from the backend response structure
             const user: User = {
-              id: data.id,
+              id: data.id || data._id,
               name: data.name,
               email: data.email,
-              role: data.role as "user" | "admin" | "seller" | "customer", // Add "customer" to the valid roles
-              createdAt: data.created_at,
-              updatedAt: data.updated_at
+              role: data.role as "user" | "admin" | "seller" | "customer",
+              createdAt: data.createdAt || data.created_at,
+              updatedAt: data.updatedAt || data.updated_at
             };
             
             let adminToken: string | null = null;
@@ -68,17 +77,31 @@ export const useAuthStore = create<AuthStore>()(
               error: null,
               adminToken,
             });
+            
+            toast.success(`خوش آمدید، ${user.name}!`);
             return user;
           } else {
-            throw new Error("Invalid response format from server");
+            const errorMessage = "فرمت پاسخ سرور نامعتبر است";
+            set({
+              isLoading: false,
+              error: errorMessage,
+              user: null,
+              isAuthenticated: false,
+            });
+            toast.error(errorMessage);
+            throw new Error(errorMessage);
           }
         } catch (error) {
-          set({
-            isLoading: false,
-            error: error instanceof Error ? error.message : "خطای ناشناخته در ورود",
-            user: null,
-            isAuthenticated: false,
-          });
+          if (error instanceof Error && error.message !== "خطا در ورود به سیستم") {
+            const errorMessage = "خطای ناشناخته در ورود";
+            set({
+              isLoading: false,
+              error: errorMessage,
+              user: null,
+              isAuthenticated: false,
+            });
+            toast.error(errorMessage);
+          }
           localStorage.removeItem("authToken");
           throw error;
         }
@@ -89,7 +112,13 @@ export const useAuthStore = create<AuthStore>()(
 
           try {
             if (data.password !== data.confirmPassword) {
-              throw new Error("رمز عبور و تکرار آن مطابقت ندارند");
+              const errorMessage = "رمز عبور و تکرار آن مطابقت ندارند";
+              set({
+                isLoading: false,
+                error: errorMessage,
+              });
+              toast.error(errorMessage);
+              throw new Error(errorMessage);
             }
 
             const response = await fetch("/api/users/register", {
@@ -104,25 +133,33 @@ export const useAuthStore = create<AuthStore>()(
               }),
             });
 
-            if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.message || "Registration failed");
-            }
-
             const userData = await response.json();
+            
+            if (!response.ok) {
+              // Handle backend error response
+              const errorMessage = userData.error || "خطا در ثبت‌نام";
+              set({
+                isLoading: false,
+                error: errorMessage,
+                user: null,
+                isAuthenticated: false,
+              });
+              toast.error(errorMessage);
+              throw new Error(errorMessage);
+            }
             
             // Extract token from response
             if (userData.token) {
               localStorage.setItem("authToken", userData.token);
               
-              // Create user object from flat response
+              // Create user object from backend response structure
               const user: User = {
-                id: userData.id,
+                id: userData.id || userData._id,
                 name: userData.name,
                 email: userData.email,
-                role: userData.role as "user" | "admin" | "seller", // Cast to expected enum
-                createdAt: userData.created_at,
-                updatedAt: userData.updated_at
+                role: userData.role as "user" | "admin" | "seller" | "customer",
+                createdAt: userData.createdAt || userData.created_at,
+                updatedAt: userData.updatedAt || userData.updated_at
               };
 
               set({
@@ -132,17 +169,30 @@ export const useAuthStore = create<AuthStore>()(
                 error: null,
               });
 
+              toast.success(`ثبت‌نام با موفقیت انجام شد! خوش آمدید، ${user.name}`);
               return user;
             } else {
-              throw new Error("Invalid response format from server");
+              const errorMessage = "فرمت پاسخ سرور نامعتبر است";
+              set({
+                isLoading: false,
+                error: errorMessage,
+                user: null,
+                isAuthenticated: false,
+              });
+              toast.error(errorMessage);
+              throw new Error(errorMessage);
             }
           } catch (error) {
-            set({
-              isLoading: false,
-              error: error instanceof Error ? error.message : "خطای ناشناخته",
-              user: null,
-              isAuthenticated: false,
-            });
+            if (error instanceof Error && !error.message.includes("خطا در ثبت‌نام") && !error.message.includes("رمز عبور")) {
+              const errorMessage = "خطای ناشناخته";
+              set({
+                isLoading: false,
+                error: errorMessage,
+                user: null,
+                isAuthenticated: false,
+              });
+              toast.error(errorMessage);
+            }
             throw error;
           }
         },
@@ -168,6 +218,7 @@ export const useAuthStore = create<AuthStore>()(
             error: null,
             adminToken: null,
           });
+          toast.success("با موفقیت خارج شدید");
         }
       },
 
@@ -177,7 +228,9 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const token = localStorage.getItem("authToken");
           if (!token) {
-            throw new Error("کاربر وارد نشده است");
+            const errorMessage = "کاربر وارد نشده است";
+            toast.error(errorMessage);
+            throw new Error(errorMessage);
           }
 
           const response = await fetch("/api/users/profile", {
@@ -189,23 +242,34 @@ export const useAuthStore = create<AuthStore>()(
             body: JSON.stringify(userData),
           });
 
+          const data = await response.json();
+
           if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || "Failed to update profile");
+            const errorMessage = data.error || "خطا در به‌روزرسانی پروفایل";
+            set({
+              isLoading: false,
+              error: errorMessage,
+            });
+            toast.error(errorMessage);
+            throw new Error(errorMessage);
           }
 
-          const updatedUser = await response.json();
           set({
-            user: updatedUser,
+            user: data,
             isLoading: false,
           });
 
-          return updatedUser;
+          toast.success("پروفایل با موفقیت به‌روزرسانی شد");
+          return data;
         } catch (error) {
-          set({
-            isLoading: false,
-            error: error instanceof Error ? error.message : "خطای ناشناخته",
-          });
+          if (error instanceof Error && !error.message.includes("خطا در به‌روزرسانی")) {
+            const errorMessage = "خطای ناشناخته";
+            set({
+              isLoading: false,
+              error: errorMessage,
+            });
+            toast.error(errorMessage);
+          }
           throw error;
         }
       },
@@ -216,7 +280,14 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const token = localStorage.getItem("authToken");
           if (!token) {
-            throw new Error("کاربر وارد نشده است");
+            const errorMessage = "کاربر وارد نشده است";
+            set({
+              isLoading: false,
+              error: errorMessage,
+              user: null,
+              isAuthenticated: false,
+            });
+            throw new Error(errorMessage);
           }
 
           const response = await fetch("/api/users/profile", {
@@ -225,12 +296,27 @@ export const useAuthStore = create<AuthStore>()(
             },
           });
 
+          const data = await response.json();
+
           if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || "Failed to fetch profile");
+            const errorMessage = data.error || "خطا در دریافت اطلاعات پروفایل";
+            set({
+              isLoading: false,
+              error: errorMessage,
+              user: null,
+              isAuthenticated: false,
+            });
+            if (response.status === 401) {
+              localStorage.removeItem("authToken");
+              toast.error("جلسه شما منقضی شده است. لطفا مجددا وارد شوید");
+            } else {
+              toast.error(errorMessage);
+            }
+            throw new Error(errorMessage);
           }
 
-          const userData = await response.json();
+          // Handle the backend response structure for profile
+          const userData = data.user_data || data;
           set({
             user: userData,
             isAuthenticated: true,
@@ -239,12 +325,16 @@ export const useAuthStore = create<AuthStore>()(
 
           return userData;
         } catch (error) {
-          set({
-            isLoading: false,
-            error: error instanceof Error ? error.message : "خطای ناشناخته",
-            user: null,
-            isAuthenticated: false,
-          });
+          if (error instanceof Error && !error.message.includes("خطا در دریافت")) {
+            const errorMessage = "خطای ناشناخته";
+            set({
+              isLoading: false,
+              error: errorMessage,
+              user: null,
+              isAuthenticated: false,
+            });
+            toast.error(errorMessage);
+          }
           throw error;
         }
       },

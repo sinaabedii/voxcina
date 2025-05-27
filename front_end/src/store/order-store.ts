@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { Order, OrderItem, ShippingAddress } from "@/types/order"; // Assuming order.ts is created
 import { useAuthStore } from "./auth-store";
+import { toast } from "react-toastify"; // Import toast
 
 // Helper to transform backend order data to frontend structure if needed
 // For now, assumes backend data largely matches frontend Order type
@@ -148,7 +149,9 @@ export const useOrderStore = create<OrderState & OrderActions>()(
       createOrder: async (orderData: any) => {
         const { isAuthenticated } = useAuthStore.getState();
         if (!isAuthenticated) {
-          set({ error: "User not authenticated", isLoading: false });
+          const errMessage = "برای ثبت سفارش ابتدا وارد شوید";
+          set({ error: errMessage, isLoading: false });
+          toast.error(errMessage);
           return null;
         }
         set({ isLoading: true, error: null });
@@ -162,25 +165,34 @@ export const useOrderStore = create<OrderState & OrderActions>()(
             body: JSON.stringify(orderData),
           });
 
+          const responseData = await response.json(); // Always parse JSON response
+
           if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ message: "Failed to create order" }));
-            throw new Error(errorData.message || "Failed to create order");
+            const errMessage = responseData.error || responseData.message || "خطا در ثبت سفارش";
+            set({ error: errMessage, isLoading: false });
+            toast.error(errMessage);
+            throw new Error(errMessage);
           }
-          const newOrderBackend = await response.json();
-          const newOrder = transformBackendOrder(newOrderBackend);
+          const newOrder = transformBackendOrder(responseData);
           set((state) => ({
-            orders: [newOrder, ...state.orders], // Add to the beginning of the list
-            currentOrder: newOrder, // Optionally set as current
+            orders: [newOrder, ...state.orders], 
+            currentOrder: newOrder, 
             isLoading: false,
-            // Potentially update pagination if it makes sense here or refetch
           }));
+          toast.success("سفارش شما با موفقیت ثبت شد!"); 
           return newOrder;
         } catch (error) {
+          // Error toast is already shown in the if (!response.ok) block or if user is not authenticated
+          // This catch block will handle network errors or other unexpected issues
+          if (!(error instanceof Error && (error.message.includes("خطا در ثبت سفارش") || error.message.includes("برای ثبت سفارش ابتدا وارد شوید")))) {
+            const errMessage = "یک خطای پیش‌بینی نشده رخ داد. لطفا دوباره تلاش کنید.";
+            set({ 
+              error: errMessage, 
+              isLoading: false 
+            });
+            toast.error(errMessage);
+          }
           console.error("Error creating order:", error);
-          set({ 
-            error: error instanceof Error ? error.message : "An unknown error occurred while creating order", 
-            isLoading: false 
-          });
           return null;
         }
       },
