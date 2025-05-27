@@ -1,17 +1,17 @@
 # ===== Stage 1 — builder =====
-FROM node:20-alpine AS builder
+FROM docker.arvancloud.ir/node:20-alpine AS builder
 WORKDIR /app
 
 # 1️⃣ install deps first for better Docker cache
 COPY package*.json ./
-RUN npm ci --legacy-peer-deps
+RUN npm i
 
 # 2️⃣ copy source and build
 COPY . ./
 RUN npm run build
 
 # ===== Stage 2 — runtime =====
-FROM node:20-alpine AS runner
+FROM docker.arvancloud.ir/node:20-alpine AS runner
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
