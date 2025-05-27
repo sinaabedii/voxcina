@@ -3,10 +3,12 @@ export interface User {
   name: string;
   email: string;
   avatar?: string;
+  phone?: string;
   role: "user" | "admin" | "seller" | "customer";
   addresses?: Address[];
   createdAt: string;
   updatedAt: string;
+  isActive?: boolean;
 }
 
 export interface Address {

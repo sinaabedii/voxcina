@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { motion } from "framer-motion";
 import {
@@ -17,168 +17,100 @@ import {
   ShoppingBag,
   Ban,
   CheckCircle,
-  User,
+  User as UserIcon,
   X,
+  Edit3,
+  Trash2,
+  MoreVertical,
+  AlertTriangle,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
+import { useAdminUsersStore } from "@/store/auth-store";
+import { User } from "@/types/user";
+import { toast } from "react-toastify";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
+// Helper to format date strings (assuming backend sends ISO strings)
+const formatDate = (dateString: string | undefined) => {
+  if (!dateString) return "N/A";
+  try {
+    return new Date(dateString).toLocaleDateString("fa-IR", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  } catch (e) {
+    return dateString; // Fallback if parsing fails
+  }
+};
 
 export default function AdminUsersPage() {
+  const {
+    allUsers,
+    isLoading,
+    error,
+    fetchAllUsers,
+    updateUserAsAdmin,
+    deleteUserAsAdmin,
+  } = useAdminUsersStore();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState("newest");
-  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editedRole, setEditedRole] = useState<User['role'] | ''>('');
 
-  // Mock users data - would be fetched from API in real application
-  const [users, setUsers] = useState([
-    {
-      id: "user-1",
-      name: "علی محمدی",
-      email: "ali.mohammadi@example.com",
-      phone: "09123456789",
-      role: "admin",
-      status: "active",
-      avatar: "https://placehold.co/50x50",
-      joinDate: "1402/02/14",
-      lastLogin: "1402/06/15",
-      ordersCount: 0,
-      totalSpent: 0,
-    },
-    {
-      id: "user-2",
-      name: "زهرا احمدی",
-      email: "zahra.ahmadi@example.com",
-      phone: "09123456780",
-      role: "customer",
-      status: "active",
-      avatar: "https://placehold.co/50x50",
-      joinDate: "1401/09/25",
-      lastLogin: "1402/06/12",
-      ordersCount: 12,
-      totalSpent: 4750000,
-    },
-    {
-      id: "user-3",
-      name: "محمد حسینی",
-      email: "m.hosseini@example.com",
-      phone: "09123456781",
-      role: "customer",
-      status: "active",
-      avatar: "https://placehold.co/50x50",
-      joinDate: "1401/11/03",
-      lastLogin: "1402/06/10",
-      ordersCount: 8,
-      totalSpent: 3200000,
-    },
-    {
-      id: "user-4",
-      name: "فاطمه کریمی",
-      email: "f.karimi@example.com",
-      phone: "09123456782",
-      role: "customer",
-      status: "inactive",
-      avatar: "https://placehold.co/50x50",
-      joinDate: "1401/07/12",
-      lastLogin: "1402/03/05",
-      ordersCount: 3,
-      totalSpent: 850000,
-    },
-    {
-      id: "user-5",
-      name: "امیر رضایی",
-      email: "amir.rezaei@example.com",
-      phone: "09123456783",
-      role: "customer",
-      status: "banned",
-      avatar: "https://placehold.co/50x50",
-      joinDate: "1401/04/22",
-      lastLogin: "1401/11/18",
-      ordersCount: 2,
-      totalSpent: 450000,
-    },
-    {
-      id: "user-6",
-      name: "سارا نجفی",
-      email: "sara.najafi@example.com",
-      phone: "09123456784",
-      role: "staff",
-      status: "active",
-      avatar: "https://placehold.co/50x50",
-      joinDate: "1402/01/05",
-      lastLogin: "1402/06/14",
-      ordersCount: 0,
-      totalSpent: 0,
-    },
-    {
-      id: "user-7",
-      name: "مهدی قاسمی",
-      email: "mehdi.ghasemi@example.com",
-      phone: "09123456785",
-      role: "customer",
-      status: "active",
-      avatar: "https://placehold.co/50x50",
-      joinDate: "1401/08/19",
-      lastLogin: "1402/06/09",
-      ordersCount: 15,
-      totalSpent: 5800000,
-    },
-    {
-      id: "user-8",
-      name: "مینا صادقی",
-      email: "mina.sadeghi@example.com",
-      phone: "09123456786",
-      role: "customer",
-      status: "active",
-      avatar: "https://placehold.co/50x50",
-      joinDate: "1401/12/10",
-      lastLogin: "1402/06/01",
-      ordersCount: 6,
-      totalSpent: 2100000,
-    },
-    {
-      id: "user-9",
-      name: "رضا محمودی",
-      email: "reza.mahmoudi@example.com",
-      phone: "09123456787",
-      role: "customer",
-      status: "inactive",
-      avatar: "https://placehold.co/50x50",
-      joinDate: "1401/05/15",
-      lastLogin: "1402/02/28",
-      ordersCount: 1,
-      totalSpent: 320000,
-    },
-    {
-      id: "user-10",
-      name: "نیلوفر جعفری",
-      email: "niloofar.jafari@example.com",
-      phone: "09123456788",
-      role: "customer",
-      status: "active",
-      avatar: "https://placehold.co/50x50",
-      joinDate: "1401/10/07",
-      lastLogin: "1402/06/08",
-      ordersCount: 9,
-      totalSpent: 3750000,
-    },
-  ]);
+  useEffect(() => {
+    fetchAllUsers().catch(err => {
+      toast.error(`Failed to load users: ${err.message}`);
+    });
+  }, [fetchAllUsers]);
 
   // Filter and search users
-  const filteredUsers = users.filter((user: any) => {
-    // Filter by search term
+  const filteredUsers = allUsers.filter((user) => {
     const matchesSearch =
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.phone.toLowerCase().includes(searchTerm.toLowerCase());
+      (user.phone && user.phone.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    // Filter by role
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
 
-    // Filter by status
-    const matchesStatus = statusFilter === "all" || user.status === statusFilter;
-
+    const userIsActive = user.isActive === true;
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" && userIsActive) ||
+      (statusFilter === "inactive" && !userIsActive);
+    
     return matchesSearch && matchesRole && matchesStatus;
   });
 
@@ -187,19 +119,14 @@ export default function AdminUsersPage() {
     switch (sortBy) {
       case "name":
         return a.name.localeCompare(b.name);
-      case "orders":
-        return b.ordersCount - a.ordersCount;
-      case "spent":
-        return b.totalSpent - a.totalSpent;
       case "newest":
       default:
-        // Assuming joinDate is in format YYYY/MM/DD
-        return b.joinDate.localeCompare(a.joinDate);
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     }
   });
 
   // Pagination
-  const usersPerPage = 5;
+  const usersPerPage = 8;
   const totalPages = Math.ceil(sortedUsers.length / usersPerPage);
   const indexOfLastUser = currentPage * usersPerPage;
   const indexOfFirstUser = indexOfLastUser - usersPerPage;
@@ -210,559 +137,372 @@ export default function AdminUsersPage() {
       setCurrentPage(pageNumber);
     }
   };
+  
+  const handleEditUser = (user: User) => {
+    setEditingUser(user);
+    setEditedRole(user.role);
+    setIsEditModalOpen(true);
+  };
 
-  // Get status badge class
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
-      case "inactive":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400";
-      case "banned":
-        return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400";
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
+  const handleSaveUserChanges = async () => {
+    if (editingUser && editedRole && editingUser.role !== editedRole) {
+      try {
+        await updateUserAsAdmin(editingUser.id, { role: editedRole as User['role'] });
+        toast.success(`نقش کاربر ${editingUser.name} با موفقیت به‌روزرسانی شد.`);
+        setIsEditModalOpen(false);
+        setEditingUser(null);
+        fetchAllUsers();
+      } catch (err) {
+        toast.error(`خطا در به‌روزرسانی نقش کاربر: ${(err as Error).message}`);
+      }
+    } else if (editingUser && editedRole === '') {
+        toast.warn("لطفا یک نقش انتخاب کنید.");
+    } else {
+        setIsEditModalOpen(false);
     }
   };
 
-  // Get role badge class
-  const getRoleBadgeClass = (role: string) => {
-    switch (role) {
-      case "admin":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400";
-      case "staff":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400";
-      case "customer":
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
+  // Handle status change (isActive toggle)
+  const handleStatusChange = async (userId: string, currentIsActive: boolean | undefined) => {
+    const newIsActive = !(currentIsActive === true);
+    try {
+      await updateUserAsAdmin(userId, { isActive: newIsActive });
+      toast.success(`وضعیت کاربر با موفقیت به‌روزرسانی شد.`);
+      fetchAllUsers();
+    } catch (err) {
+      toast.error(`خطا در به‌روزرسانی وضعیت کاربر: ${(err as Error).message}`);
     }
   };
 
-  // Handle status change
-  const handleStatusChange = (userId: string, newStatus: string) => {
-    const updatedUsers = users.map((user: any) =>
-      user.id === userId ? { ...user, status: newStatus } : user
-    );
-    setUsers(updatedUsers);
-    
-    if (selectedUser && selectedUser.id === userId) {
-      setSelectedUser({ ...selectedUser, status: newStatus });
+  const confirmDeleteUser = (user: User) => {
+    setUserToDelete(user);
+    setIsConfirmDeleteDialogOpen(true);
+  };
+
+  const handleDeleteUser = async () => {
+    if (userToDelete) {
+      try {
+        await deleteUserAsAdmin(userToDelete.id);
+        toast.success(`کاربر ${userToDelete.name} با موفقیت حذف شد.`);
+        setIsConfirmDeleteDialogOpen(false);
+        setUserToDelete(null);
+        fetchAllUsers();
+      } catch (err) {
+        toast.error(`خطا در حذف کاربر: ${(err as Error).message}`);
+        setIsConfirmDeleteDialogOpen(false);
+      }
     }
   };
 
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.05,
-      },
-    },
-  };
+  if (isLoading && allUsers.length === 0) {
+    return <div className="flex justify-center items-center h-screen"><p className="text-lg">در حال بارگذاری کاربران...</p></div>;
+  }
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { type: "spring", stiffness: 300, damping: 30 },
-    },
-  };
+  if (error) {
+    return <div className="flex justify-center items-center h-screen text-red-500"><p>خطا در بارگذاری کاربران: {error}</p></div>;
+  }
 
   return (
-    <div className="py-8 md:py-12 transition-all duration-500 ease-in-out">
-      <motion.div
-        className="flex flex-col md:flex-row md:items-center justify-between mb-8"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <h1 className="text-2xl md:text-3xl font-bold text-voxcina-blue dark:text-voxcina-cream mb-4 md:mb-0 relative inline-block">
-          <span className="relative z-10">مدیریت کاربران</span>
-          <span className="absolute bottom-1 left-0 w-full h-3 bg-voxcina-cream dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
-        </h1>
-        
-        <div className="flex space-x-2 space-x-reverse">
-          <Button
-            variant="outline"
-            size="sm"
-            className={`rounded-xl ${
-              isFilterOpen
-                ? "bg-voxcina-blue/10 dark:bg-voxcina-cream/10 border-voxcina-blue/30 dark:border-voxcina-cream/30"
-                : "border-voxcina-blue/20 dark:border-voxcina-cream/20"
-            } text-voxcina-blue dark:text-voxcina-cream`}
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-          >
-            <Filter className="w-4 h-4 ml-1" />
-            فیلترها
-            <ChevronDown className={`w-4 h-4 mr-1 transition-transform duration-200 ${isFilterOpen ? "rotate-180" : ""}`} />
-          </Button>
-        </div>
-      </motion.div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="container mx-auto p-4 md:p-6"
+    >
+      <Card className="bg-white dark:bg-gray-800 shadow-xl rounded-lg">
+        <CardHeader className="border-b border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+            <CardTitle className="text-2xl font-semibold text-gray-800 dark:text-white mb-2 sm:mb-0">
+              <Users className="inline-block mr-3 text-primary h-7 w-7" />
+              مدیریت کاربران ({sortedUsers.length})
+            </CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="flex flex-col md:flex-row gap-4 mb-6 items-center">
+            <div className="relative flex-grow w-full md:w-auto">
+              <Input
+                type="text"
+                placeholder="جستجو بر اساس نام، ایمیل، شماره تماس..."
+                value={searchTerm}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                className="pl-10 w-full bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 focus:ring-primary focus:border-primary"
+              />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
+            </div>
+            
+            <div className="flex gap-2 flex-wrap">
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-full md:w-[180px] bg-gray-50 dark:bg-gray-700">
+                  <SelectValue placeholder="نقش کاربری" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">همه نقش‌ها</SelectItem>
+                  <SelectItem value="admin">مدیر</SelectItem>
+                  <SelectItem value="customer">مشتری</SelectItem>
+                </SelectContent>
+              </Select>
 
-      <motion.div
-        className="mb-6"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <div className="relative flex-grow">
-          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-            <Search className="w-5 h-5 text-voxcina-blue/50 dark:text-voxcina-cream/50" />
-          </div>
-          <input
-            type="text"
-            className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full pr-10 p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50 shadow-sm"
-            placeholder="جستجوی نام، ایمیل یا شماره موبایل..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </motion.div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full md:w-[180px] bg-gray-50 dark:bg-gray-700">
+                  <SelectValue placeholder="وضعیت" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">همه وضعیت‌ها</SelectItem>
+                  <SelectItem value="active">فعال</SelectItem>
+                  <SelectItem value="inactive">غیرفعال</SelectItem>
+                </SelectContent>
+              </Select>
 
-      {/* Filters */}
-      {isFilterOpen && (
-        <motion.div
-          className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4"
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <div>
-            <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-              نقش کاربر
-            </label>
-            <select
-              className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-            >
-              <option value="all">همه نقش‌ها</option>
-              <option value="admin">مدیر</option>
-              <option value="staff">کارمند</option>
-              <option value="customer">مشتری</option>
-            </select>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-full md:w-[180px] bg-gray-50 dark:bg-gray-700">
+                  <SelectValue placeholder="مرتب‌سازی بر اساس" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">جدیدترین عضویت</SelectItem>
+                  <SelectItem value="name">نام (الفبایی)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-              وضعیت
-            </label>
-            <select
-              className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">همه وضعیت‌ها</option>
-              <option value="active">فعال</option>
-              <option value="inactive">غیرفعال</option>
-              <option value="banned">مسدود شده</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-              مرتب‌سازی
-            </label>
-            <select
-              className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-            >
-              <option value="newest">جدیدترین</option>
-              <option value="name">نام</option>
-              <option value="orders">تعداد سفارشات</option>
-              <option value="spent">مبلغ کل خرید</option>
-            </select>
-          </div>
-        </motion.div>
-      )}
 
-      {/* Users List */}
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        {currentUsers.length > 0 ? (
-          <div className="space-y-4">
-            {currentUsers.map((user) => (
-              <motion.div
-                key={user.id}
-                variants={itemVariants}
-                className="transition-all duration-300"
-              >
-                <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-                  <CardContent className="p-4">
-                    <div className="flex items-center">
-                      <div className="w-12 h-12 rounded-full overflow-hidden bg-voxcina-cream/50 dark:bg-voxcina-blue/20 flex-shrink-0">
-                        <img
-                          src={user.avatar}
-                          alt={user.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="mr-3 flex-grow">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="font-medium text-voxcina-blue dark:text-voxcina-cream">
-                              {user.name}
-                            </h3>
-                            <div className="flex items-center text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60 space-x-2 space-x-reverse">
-                              <Mail className="w-3.5 h-3.5 ml-1" />
-                              <span>{user.email}</span>
-                              <span className="mx-1">|</span>
-                              <Phone className="w-3.5 h-3.5 ml-1" />
-                              <span>{user.phone}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-1 space-x-reverse">
-                            <span
-                              className={`text-xs px-2 py-0.5 rounded-full ${getStatusBadgeClass(user.status)}`}
-                            >
-                              {user.status === "active" ? "فعال" : user.status === "inactive" ? "غیرفعال" : "مسدود شده"}
-                            </span>
-                            <span
-                              className={`text-xs px-2 py-0.5 rounded-full ${getRoleBadgeClass(user.role)}`}
-                            >
-                              {user.role === "admin" ? "مدیر" : user.role === "staff" ? "کارمند" : "مشتری"}
-                            </span>
-                          </div>
+          {isLoading && <p className="text-center text-gray-500 dark:text-gray-400 py-4">در حال به‌روزرسانی لیست...</p>}
+
+          <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-750">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">کاربر</th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">نقش</th>
+                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">وضعیت</th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">تاریخ عضویت</th>
+                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">عملیات</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {currentUsers.length > 0 ? currentUsers.map((user) => (
+                  <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10">
+                          <img className="h-10 w-10 rounded-full" src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=random&color=fff`} alt={user.name} />
                         </div>
-                        <div className="flex flex-wrap items-center mt-2 text-sm">
-                          <div className="flex items-center ml-4">
-                            <Calendar className="w-4 h-4 text-voxcina-blue/60 dark:text-voxcina-cream/60 ml-1" />
-                            <span className="text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                              عضویت: {user.joinDate}
-                            </span>
-                          </div>
-                          <div className="flex items-center ml-4">
-                            <ShoppingBag className="w-4 h-4 text-voxcina-blue/60 dark:text-voxcina-cream/60 ml-1" />
-                            <span className="text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                              {user.ordersCount} سفارش
-                            </span>
-                          </div>
-                          <div className="flex items-center">
-                            <span className="text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                              {user.totalSpent.toLocaleString()} تومان
-                            </span>
-                          </div>
+                        <div className="mr-4">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">{user.name}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">{user.email}</div>
+                          {user.phone && <div className="text-xs text-gray-500 dark:text-gray-400">{user.phone}</div>}
                         </div>
                       </div>
-                      <div className="flex flex-col space-y-2 mr-4">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:text-voxcina-blue dark:hover:text-voxcina-cream rounded-lg"
-                          onClick={() => setSelectedUser(user)}
-                        >
-                          <UserCog className="w-4 h-4" />
-                        </Button>
-                        {user.status === "active" ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-500/70 hover:text-red-500 dark:text-red-400/70 dark:hover:text-red-400 rounded-lg"
-                            onClick={() => handleStatusChange(user.id, "banned")}
-                          >
-                            <Ban className="w-4 h-4" />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge variant={user.role === 'admin' ? 'destructive' : 'secondary'}>
+                        {user.role === 'admin' ? 'مدیر' : (user.role === 'customer' ? 'مشتری' : user.role)}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <Badge variant={user.isActive === true ? 'default' : 'outline'}
+                             className={`${user.isActive === true ? 'bg-green-100 text-green-700 dark:bg-green-700/20 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-700/20 dark:text-red-400'}`}
+                      >
+                        {user.isActive === true ? "فعال" : "غیرفعال"}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {formatDate(user.createdAt)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="p-2">
+                            <MoreVertical className="h-4 w-4" />
                           </Button>
-                        ) : user.status === "banned" ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-green-500/70 hover:text-green-500 dark:text-green-400/70 dark:hover:text-green-400 rounded-lg"
-                            onClick={() => handleStatusChange(user.id, "active")}
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-green-500/70 hover:text-green-500 dark:text-green-400/70 dark:hover:text-green-400 rounded-lg"
-                            onClick={() => handleStatusChange(user.id, "active")}
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditUser(user)}>
+                            <Edit3 className="mr-2 h-4 w-4" />
+                            ویرایش نقش
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange(user.id, user.isActive)}>
+                            {user.isActive === true ? <Ban className="mr-2 h-4 w-4 text-red-500" /> : <CheckCircle className="mr-2 h-4 w-4 text-green-500" />}
+                            {user.isActive === true ? 'غیرفعال کردن' : 'فعال کردن'}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => confirmDeleteUser(user)} className="text-red-600 dark:text-red-400 hover:!text-red-700 dark:hover:!text-red-500">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            حذف کاربر
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                      {allUsers.length === 0 && !isLoading ? "هیچ کاربری یافت نشد." : (searchTerm || roleFilter !== 'all' || statusFilter !== 'all' ? "هیچ کاربری با این فیلترها یافت نشد." : "در حال بارگذاری...")}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        ) : (
-          <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-md rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-            <CardContent className="p-8 text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-voxcina-cream dark:bg-voxcina-blue/20 mb-4">
-                <Users className="h-8 w-8 text-voxcina-blue/50 dark:text-voxcina-cream/50" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2 text-voxcina-blue dark:text-voxcina-cream">
-                کاربری یافت نشد
-              </h3>
-              <p className="text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-6">
-                هیچ کاربری با جستجو یا فیلترهای انتخاب شده یافت نشد
-              </p>
-              <div className="flex justify-center space-x-2 space-x-reverse">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSearchTerm("");
-                    setRoleFilter("all");
-                    setStatusFilter("all");
-                  }}
-                  className="rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
-                >
-                  پاک کردن فیلترها
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex justify-center mt-8">
-            <div className="flex items-center space-x-1 space-x-reverse bg-white dark:bg-voxcina-blue/30 rounded-xl p-1 shadow-sm">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`rounded-lg ${
-                  currentPage === 1
-                    ? "text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed"
-                    : "text-voxcina-blue dark:text-voxcina-cream"
-                }`}
-                onClick={() => paginate(currentPage - 1)}
-                disabled={currentPage === 1}
-              >
-                <ChevronRight className="h-5 w-5" />
-              </Button>
-
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                (number) => (
-                  <Button
-                    key={number}
-                    variant={currentPage === number ? "primary" : "ghost"}
-                    size="sm"
-                    className={`rounded-lg ${
-                      currentPage === number
-                        ? "bg-voxcina-blue text-white dark:bg-voxcina-cream dark:text-voxcina-blue"
-                        : "text-voxcina-blue dark:text-voxcina-cream"
-                    }`}
-                    onClick={() => paginate(number)}
-                  >
-                    {number}
-                  </Button>
-                )
-              )}
-
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`rounded-lg ${
-                  currentPage === totalPages
-                    ? "text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed"
-                    : "text-voxcina-blue dark:text-voxcina-cream"
-                }`}
-                onClick={() => paginate(currentPage + 1)}
-                disabled={currentPage === totalPages}
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-        )}
-      </motion.div>
-
-      {/* User Detail Modal */}
-      {selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-voxcina-blue/40 backdrop-blur-sm dark:bg-black/60">
-          <motion.div
-            className="bg-white dark:bg-voxcina-blue/90 rounded-2xl shadow-lg w-full max-w-lg mx-4"
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-          >
-            <div className="flex justify-between items-center p-4 border-b border-voxcina-cream/30 dark:border-voxcina-blue/30">
-              <h3 className="font-bold text-lg text-voxcina-blue dark:text-voxcina-cream">
-                جزئیات کاربر
-              </h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:text-voxcina-blue dark:hover:text-voxcina-cream rounded-lg"
-                onClick={() => setSelectedUser(null)}
-              >
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
-            <div className="p-4">
-              <div className="flex items-center mb-6">
-                <div className="w-20 h-20 rounded-full overflow-hidden bg-voxcina-cream/50 dark:bg-voxcina-blue/20 flex-shrink-0">
-                  <img
-                    src={selectedUser.avatar}
-                    alt={selectedUser.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="mr-4">
-                  <h2 className="text-xl font-semibold text-voxcina-blue dark:text-voxcina-cream">
-                    {selectedUser.name}
-                  </h2>
-                  <div className="flex items-center space-x-2 space-x-reverse mt-1">
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full ${getStatusBadgeClass(selectedUser.status)}`}
-                    >
-                      {selectedUser.status === "active" ? "فعال" : selectedUser.status === "inactive" ? "غیرفعال" : "مسدود شده"}
-                    </span>
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full ${getRoleBadgeClass(selectedUser.role)}`}
-                    >
-                      {selectedUser.role === "admin" ? "مدیر" : selectedUser.role === "staff" ? "کارمند" : "مشتری"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                      ایمیل
-                    </label>
-                    <div className="flex items-center">
-                      <Mail className="w-4 h-4 text-voxcina-blue/70 dark:text-voxcina-cream/70 ml-2" />
-                      <p className="text-voxcina-blue dark:text-voxcina-cream">
-                        {selectedUser.email}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                      شماره موبایل
-                    </label>
-                    <div className="flex items-center">
-                      <Phone className="w-4 h-4 text-voxcina-blue/70 dark:text-voxcina-cream/70 ml-2" />
-                      <p className="text-voxcina-blue dark:text-voxcina-cream">
-                        {selectedUser.phone}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                      تاریخ عضویت
-                    </label>
-                    <div className="flex items-center">
-                      <Calendar className="w-4 h-4 text-voxcina-blue/70 dark:text-voxcina-cream/70 ml-2" />
-                      <p className="text-voxcina-blue dark:text-voxcina-cream">
-                        {selectedUser.joinDate}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                      آخرین ورود
-                    </label>
-                    <div className="flex items-center">
-                      <Calendar className="w-4 h-4 text-voxcina-blue/70 dark:text-voxcina-cream/70 ml-2" />
-                      <p className="text-voxcina-blue dark:text-voxcina-cream">
-                        {selectedUser.lastLogin}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                      تعداد سفارشات
-                    </label>
-                    <div className="flex items-center">
-                      <ShoppingBag className="w-4 h-4 text-voxcina-blue/70 dark:text-voxcina-cream/70 ml-2" />
-                      <p className="text-voxcina-blue dark:text-voxcina-cream">
-                        {selectedUser.ordersCount} سفارش
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                      مجموع خرید
-                    </label>
-                    <div className="flex items-center">
-                      <p className="text-voxcina-blue dark:text-voxcina-cream">
-                        {selectedUser.totalSpent.toLocaleString()} تومان
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                    تغییر وضعیت کاربر
-                  </label>
-                  <div className="flex items-center space-x-2 space-x-reverse">
-                    <Button
-                      variant={selectedUser.status === "active" ? "primary" : "outline"}
-                      size="sm"
-                      className={`rounded-xl ${
-                        selectedUser.status === "active"
-                          ? "bg-green-600 hover:bg-green-700 text-white"
-                          : "border-green-600/30 text-green-600 dark:border-green-500/30 dark:text-green-500 hover:bg-green-600/10"
-                      }`}
-                      onClick={() => handleStatusChange(selectedUser.id, "active")}
-                    >
-                      <CheckCircle className="w-4 h-4 ml-1" />
-                      فعال
-                    </Button>
-                    <Button
-                      variant={selectedUser.status === "inactive" ? "primary" : "outline"}
-                      size="sm"
-                      className={`rounded-xl ${
-                        selectedUser.status === "inactive"
-                          ? "bg-yellow-600 hover:bg-yellow-700 text-white"
-                          : "border-yellow-600/30 text-yellow-600 dark:border-yellow-500/30 dark:text-yellow-500 hover:bg-yellow-600/10"
-                      }`}
-                      onClick={() => handleStatusChange(selectedUser.id, "inactive")}
-                    >
-                      <User className="w-4 h-4 ml-1" />
-                      غیرفعال
-                    </Button>
-                    <Button
-                      variant={selectedUser.status === "banned" ? "primary" : "outline"}
-                      size="sm"
-                      className={`rounded-xl ${
-                        selectedUser.status === "banned"
-                          ? "bg-red-600 hover:bg-red-700 text-white"
-                          : "border-red-600/30 text-red-600 dark:border-red-500/30 dark:text-red-500 hover:bg-red-600/10"
-                      }`}
-                      onClick={() => handleStatusChange(selectedUser.id, "banned")}
-                    >
-                      <Ban className="w-4 h-4 ml-1" />
-                      مسدود
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="p-4 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 flex justify-end">
+          {totalPages > 1 && (
+            <div className="mt-6 flex justify-between items-center">
               <Button
                 variant="outline"
                 size="sm"
-                className="rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
-                onClick={() => setSelectedUser(null)}
+                onClick={() => paginate(currentPage - 1)}
+                disabled={currentPage === 1}
               >
-                بستن
+                <ChevronRight className="h-4 w-4 mr-1" />
+                قبلی
+              </Button>
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                صفحه {currentPage} از {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => paginate(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                بعدی
+                <ChevronLeft className="h-4 w-4 ml-1" />
               </Button>
             </div>
-          </motion.div>
-        </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {editingUser && (
+        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>ویرایش نقش کاربر: {editingUser.name}</DialogTitle>
+              <DialogDescription>
+                نقش کاربر را انتخاب کنید.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <Select value={editedRole} onValueChange={(value: string) => setEditedRole(value as User['role'])}>
+                <SelectTrigger>
+                  <SelectValue placeholder="انتخاب نقش جدید" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="customer">مشتری</SelectItem>
+                  <SelectItem value="admin">مدیر</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>انصراف</Button>
+              <Button onClick={handleSaveUserChanges} disabled={isLoading || !editedRole || editedRole === editingUser.role}>
+                {isLoading ? "در حال ذخیره..." : "ذخیره تغییرات"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
-    </div>
+      
+      {userToDelete && (
+         <Dialog open={isConfirmDeleteDialogOpen} onOpenChange={setIsConfirmDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center">
+                <AlertTriangle className="text-red-500 mr-2 h-6 w-6" />
+                تایید حذف کاربر
+              </DialogTitle>
+              <DialogDescription>
+                آیا از حذف کاربر "{userToDelete.name}" مطمئن هستید؟ این عمل قابل بازگشت نیست.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="mt-4">
+              <Button variant="outline" onClick={() => setIsConfirmDeleteDialogOpen(false)}>
+                انصراف
+              </Button>
+              <Button variant="danger" onClick={handleDeleteUser} disabled={isLoading}>
+                {isLoading ? "در حال حذف..." : "بله، حذف کن"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {selectedUser && (
+        <motion.div
+          initial={{ opacity: 0, x: 100 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 100 }}
+          className="fixed top-0 left-0 h-full w-full md:w-96 bg-white dark:bg-gray-800 shadow-lg z-50 p-6 overflow-y-auto"
+        >
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-white">مشخصات کاربر</h3>
+            <Button variant="ghost" size="sm" className="p-2" onClick={() => setSelectedUser(null)}>
+              <X className="h-6 w-6" />
+            </Button>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3 rtl:space-x-reverse">
+              <img className="h-16 w-16 rounded-full" src={selectedUser.avatar || `https://ui-avatars.com/api/?name=${selectedUser.name}&background=random&color=fff`} alt={selectedUser.name} />
+              <div>
+                <p className="text-lg font-semibold text-gray-900 dark:text-white">{selectedUser.name}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{selectedUser.role}</p>
+              </div>
+            </div>
+            <div>
+              <Mail className="inline-block mr-2 h-5 w-5 text-gray-400 dark:text-gray-300" />
+              <span className="text-sm text-gray-700 dark:text-gray-200">{selectedUser.email}</span>
+            </div>
+            {selectedUser.phone && (
+              <div>
+                <Phone className="inline-block mr-2 h-5 w-5 text-gray-400 dark:text-gray-300" />
+                <span className="text-sm text-gray-700 dark:text-gray-200">{selectedUser.phone}</span>
+              </div>
+            )}
+            <div>
+              <Calendar className="inline-block mr-2 h-5 w-5 text-gray-400 dark:text-gray-300" />
+              <span className="text-sm text-gray-700 dark:text-gray-200">عضویت: {formatDate(selectedUser.createdAt)}</span>
+            </div>
+             <div>
+              {selectedUser.isActive === true ? 
+                <CheckCircle className="inline-block mr-2 h-5 w-5 text-green-500" /> :
+                <Ban className="inline-block mr-2 h-5 w-5 text-red-500" />
+              }
+              <span className={`text-sm ${selectedUser.isActive === true ? 'text-green-600' : 'text-red-600'}`}>
+                {selectedUser.isActive === true ? "فعال" : "غیرفعال"}
+              </span>
+            </div>
+            
+            <div className="mt-6 space-y-2">
+                 <Button 
+                    className="w-full"
+                    onClick={() => {
+                        setSelectedUser(null);
+                        handleEditUser(selectedUser);
+                    }}
+                  >
+                    <Edit3 className="mr-2 h-4 w-4" /> ویرایش نقش
+                 </Button>
+                <Button 
+                    variant="outline"
+                    className={`w-full ${selectedUser.isActive === true ? 'text-red-600 border-red-500 hover:bg-red-100 dark:hover:bg-red-900/30' : 'text-green-600 border-green-500 hover:bg-green-100 dark:hover:bg-green-900/30'}`}
+                    onClick={() => handleStatusChange(selectedUser.id, selectedUser.isActive)}
+                 >
+                    {selectedUser.isActive === true ? <Ban className="mr-2 h-4 w-4" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                    {selectedUser.isActive === true ? 'غیرفعال کردن' : 'فعال کردن'}
+                 </Button>
+                 <Button 
+                    variant="danger"
+                    className="w-full"
+                    onClick={() => {
+                        setSelectedUser(null);
+                        confirmDeleteUser(selectedUser);
+                    }}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" /> حذف کاربر
+                 </Button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </motion.div>
   );
 } 

@@ -775,3 +775,68 @@ func UpdateOrderStatusAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 	utils.JSONResponse(w, http.StatusOK, resp)
 }
+
+// GetRecentOrders retrieves a limited number of recent orders for the admin dashboard
+func GetRecentOrders(w http.ResponseWriter, r *http.Request) {
+	// Check if user is admin
+	roleCtx := r.Context().Value("role")
+	if roleCtx == nil || roleCtx.(string) != "admin" {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "Admin access required")
+		return
+	}
+
+	// Parse limit query parameter, default to 5 orders
+	limitParam := r.URL.Query().Get("limit")
+	limit := 5 // Default limit
+	if limitParam != "" {
+		parsedLimit, err := strconv.Atoi(limitParam)
+		if err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	collection := db.Database.Collection("orders")
+
+	// Find options: sort by creation date descending and limit results
+	findOptions := options.Find().
+		SetSort(bson.M{"created_at": -1}).
+		SetLimit(int64(limit))
+
+	cursor, err := collection.Find(ctx, bson.M{"is_active": true}, findOptions)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching recent orders")
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var orders []models.Order
+	if err := cursor.All(ctx, &orders); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error parsing recent orders")
+		return
+	}
+
+	// Transform orders to API response format
+	var responseOrders []OrderAPIResponse
+	for _, order := range orders {
+		apiOrder, err := newOrderAPIResponse(ctx, order)
+		if err != nil {
+			// Log error but continue with other orders
+			utils.LogAction("error", fmt.Sprintf("Error populating order %s: %v", order.ID.Hex(), err))
+			continue
+		}
+		responseOrders = append(responseOrders, apiOrder)
+	}
+
+	// Ensure we always return an array, even if empty
+	if responseOrders == nil {
+		responseOrders = []OrderAPIResponse{}
+	}
+
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+		"orders": responseOrders,
+		"count":  len(responseOrders),
+	})
+}

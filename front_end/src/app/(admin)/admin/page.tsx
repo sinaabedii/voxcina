@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { useAuthStore } from "@/store/auth-store";
 import { useDashboardStore } from "@/store/dashboard-store";
+import { useOrderStore } from "@/store/order-store";
+import { Order } from "@/types/order";
 import { motion } from "framer-motion";
 import {
   BarChart3,
@@ -28,62 +30,12 @@ import { formatPrice } from "@/lib/utils";
 export default function AdminDashboardPage() {
   const { user, adminToken } = useAuthStore();
   const { dashboardStats, fetchDashboardStats } = useDashboardStore();
+  const { fetchRecentOrders } = useOrderStore();
   const [activeTab, setActiveTab] = useState("all");
   const [showWelcome, setShowWelcome] = useState(true);
-
-  const orders = [
-    {
-      id: "ORD-10235",
-      date: "۱۴۰۲/۱۰/۲۱",
-      customer: "آرش محمدی",
-      status: "pending",
-      statusText: "در انتظار تایید",
-      amount: 3850000,
-    },
-    {
-      id: "ORD-10234",
-      date: "۱۴۰۲/۱۰/۲۱",
-      customer: "سارا احمدی",
-      status: "processing",
-      statusText: "در حال پردازش",
-      amount: 1240000,
-    },
-    {
-      id: "ORD-10233",
-      date: "۱۴۰۲/۱۰/۲۰",
-      customer: "محمد علیزاده",
-      status: "shipping",
-      statusText: "در حال ارسال",
-      amount: 5670000,
-    },
-    {
-      id: "ORD-10232",
-      date: "۱۴۰۲/۱۰/۲۰",
-      customer: "مریم کریمی",
-      status: "delivered",
-      statusText: "تحویل شده",
-      amount: 2980000,
-    },
-    {
-      id: "ORD-10231",
-      date: "۱۴۰۲/۱۰/۱۹",
-      customer: "رضا جعفری",
-      status: "delivered",
-      statusText: "تحویل شده",
-      amount: 1750000,
-    },
-  ];
-
-  const filteredOrders =
-    activeTab === "all"
-      ? orders
-      : orders.filter((order) => {
-          if (activeTab === "pending") return order.status === "pending";
-          if (activeTab === "processing") return order.status === "processing";
-          if (activeTab === "shipping") return order.status === "shipping";
-          if (activeTab === "delivered") return order.status === "delivered";
-          return true;
-        });
+  const [isLoading, setIsLoading] = useState(true);
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -96,8 +48,37 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     if (adminToken) {
       fetchDashboardStats(adminToken);
+      
+      // Fetch recent orders
+      const loadRecentOrders = async () => {
+        setIsLoading(true);
+        setOrdersError(null);
+        try {
+          const orders = await fetchRecentOrders(5); // Fetch 5 recent orders
+          setRecentOrders(orders || []); // Ensure we always have an array
+        } catch (error) {
+          console.error("Failed to fetch recent orders:", error);
+          setOrdersError("خطا در بارگذاری سفارش‌های اخیر");
+          setRecentOrders([]); // Set empty array on error
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      loadRecentOrders();
     }
-  }, [adminToken, fetchDashboardStats]);
+  }, [adminToken, fetchDashboardStats, fetchRecentOrders]);
+
+  const filteredOrders =
+    activeTab === "all"
+      ? recentOrders
+      : recentOrders.filter((order) => {
+          if (activeTab === "pending") return order.status === "pending";
+          if (activeTab === "processing") return order.status === "processing";
+          if (activeTab === "shipping") return order.status === "shipped";
+          if (activeTab === "delivered") return order.status === "delivered";
+          return true;
+        });
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -130,6 +111,22 @@ export default function AdminDashboardPage() {
         return "bg-red-100 text-voxcina-blue dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800/30";
       default:
         return "bg-voxcina-cream text-voxcina-blue dark:bg-voxcina-blue/10 dark:text-voxcina-lightCream border border-voxcina-cream/70 dark:border-voxcina-blue/20";
+    }
+  };
+
+  // Helper function to get tab label in Persian
+  const getTabLabel = (tab: string) => {
+    switch (tab) {
+      case "pending":
+        return "در انتظار";
+      case "processing":
+        return "در حال پردازش";
+      case "shipping":
+        return "در حال ارسال";
+      case "delivered":
+        return "تحویل شده";
+      default:
+        return "";
     }
   };
 
@@ -422,68 +419,198 @@ export default function AdminDashboardPage() {
       >
         <motion.div
           variants={itemVariants}
-          className="flex justify-between items-center mb-4"
+          className="flex justify-between items-center mb-6"
         >
           <h2 className="text-xl font-semibold flex items-center text-voxcina-blue dark:text-voxcina-cream">
             <Clock className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
             سفارش‌های اخیر
           </h2>
-          <div className="flex items-center gap-2">
-            <div className="bg-voxcina-cream/50 dark:bg-voxcina-blue/20 rounded-xl p-1 flex shadow-inner-soft backdrop-blur-sm">
+          <Link href="/admin/orders">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
+            >
+              مشاهده همه
+            </Button>
+          </Link>
+        </motion.div>
+
+        {/* Enhanced Filter Tabs with better styling */}
+        <motion.div 
+          variants={itemVariants}
+          className="mb-6"
+        >
+          <div className="bg-white/70 dark:bg-voxcina-blue/10 backdrop-blur-sm rounded-2xl p-2 border border-voxcina-cream/50 dark:border-voxcina-blue/20 shadow-sm">
+            <div className="flex flex-wrap gap-2">
               <button
-                className={`px-3 py-1 text-sm rounded-lg transition-all ${
-                  activeTab === "all"
-                    ? "bg-white dark:bg-voxcina-blue/40 shadow-sm text-voxcina-blue dark:text-voxcina-cream"
-                    : "text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:bg-white/50 dark:hover:bg-voxcina-blue/30"
-                }`}
                 onClick={() => setActiveTab("all")}
+                className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 ${
+                  activeTab === "all"
+                    ? "bg-voxcina-blue text-white shadow-lg shadow-voxcina-blue/20 dark:bg-voxcina-cream dark:text-voxcina-blue dark:shadow-voxcina-cream/20"
+                    : "text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:bg-voxcina-cream/50 dark:hover:bg-voxcina-blue/20 hover:text-voxcina-blue dark:hover:text-voxcina-cream"
+                }`}
               >
                 همه
               </button>
               <button
-                className={`px-3 py-1 text-sm rounded-lg transition-all ${
-                  activeTab === "pending"
-                    ? "bg-white dark:bg-voxcina-blue/40 shadow-sm text-voxcina-blue dark:text-voxcina-cream"
-                    : "text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:bg-white/50 dark:hover:bg-voxcina-blue/30"
-                }`}
                 onClick={() => setActiveTab("pending")}
+                className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 ${
+                  activeTab === "pending"
+                    ? "bg-red-500 text-white shadow-lg shadow-red-500/20"
+                    : "text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400"
+                }`}
               >
                 در انتظار
               </button>
               <button
-                className={`px-3 py-1 text-sm rounded-lg transition-all ${
-                  activeTab === "processing"
-                    ? "bg-white dark:bg-voxcina-blue/40 shadow-sm text-voxcina-blue dark:text-voxcina-cream"
-                    : "text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:bg-white/50 dark:hover:bg-voxcina-blue/30"
-                }`}
                 onClick={() => setActiveTab("processing")}
+                className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 ${
+                  activeTab === "processing"
+                    ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20"
+                    : "text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-600 dark:hover:text-amber-400"
+                }`}
               >
                 در حال پردازش
               </button>
               <button
-                className={`px-3 py-1 text-sm rounded-lg transition-all ${
-                  activeTab === "delivered"
-                    ? "bg-white dark:bg-voxcina-blue/40 shadow-sm text-voxcina-blue dark:text-voxcina-cream"
-                    : "text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:bg-white/50 dark:hover:bg-voxcina-blue/30"
+                onClick={() => setActiveTab("shipping")}
+                className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 ${
+                  activeTab === "shipping"
+                    ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20"
+                    : "text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400"
                 }`}
+              >
+                در حال ارسال
+              </button>
+              <button
                 onClick={() => setActiveTab("delivered")}
+                className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 ${
+                  activeTab === "delivered"
+                    ? "bg-green-500 text-white shadow-lg shadow-green-500/20"
+                    : "text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400"
+                }`}
               >
                 تحویل شده
               </button>
             </div>
-            <Link href="/admin/orders">
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
-              >
-                مشاهده همه
-              </Button>
-            </Link>
           </div>
         </motion.div>
 
-        {filteredOrders.length > 0 ? (
+        {isLoading ? (
+          <motion.div 
+            variants={itemVariants}
+            className="flex flex-col items-center justify-center"
+          >
+            <Card className="border border-voxcina-cream/60 dark:border-voxcina-blue/30 shadow-lg rounded-3xl backdrop-blur-sm bg-gradient-to-br from-white/95 to-voxcina-cream/20 dark:from-voxcina-blue/15 dark:to-voxcina-blue/5 p-12 max-w-lg mx-auto relative overflow-hidden">
+              {/* Background decoration */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-voxcina-blue/5 dark:bg-voxcina-cream/5 rounded-full -translate-y-16 translate-x-16"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-voxcina-cream/30 dark:bg-voxcina-blue/10 rounded-full translate-y-12 -translate-x-12"></div>
+              
+              <div className="text-center relative z-10">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-voxcina-blue/10 dark:bg-voxcina-cream/10 mb-4 mx-auto">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-voxcina-blue/20 dark:border-voxcina-cream/20 border-t-voxcina-blue dark:border-t-voxcina-cream"></div>
+                </div>
+                <p className="text-lg text-voxcina-blue dark:text-voxcina-cream font-medium">در حال بارگذاری سفارش‌ها...</p>
+                <p className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60 mt-2">لطفا صبر کنید</p>
+              </div>
+            </Card>
+          </motion.div>
+        ) : ordersError ? (
+          <motion.div 
+            variants={itemVariants}
+            className="flex flex-col items-center justify-center"
+          >
+            <Card className="border border-red-200/60 dark:border-red-800/40 shadow-lg rounded-3xl backdrop-blur-sm bg-gradient-to-br from-red-50/95 to-red-100/20 dark:from-red-900/15 dark:to-red-900/5 p-12 max-w-lg mx-auto relative overflow-hidden">
+              {/* Background decoration */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-red-100/30 dark:bg-red-900/10 rounded-full -translate-y-16 translate-x-16"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-red-200/40 dark:bg-red-800/10 rounded-full translate-y-12 -translate-x-12"></div>
+              
+              {/* Icon with enhanced styling */}
+              <div className="relative inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-red-100/50 to-red-200/50 dark:from-red-900/20 dark:to-red-800/20 mb-6 mx-auto shadow-inner">
+                <div className="w-20 h-20 rounded-full bg-white/80 dark:bg-red-900/20 flex items-center justify-center">
+                  <AlertCircle className="w-10 h-10 text-red-500 dark:text-red-400" />
+                </div>
+              </div>
+              
+              {/* Content with better typography */}
+              <div className="text-center relative z-10">
+                <h3 className="text-xl font-bold mb-3 text-red-700 dark:text-red-400">
+                  خطا در بارگذاری
+                </h3>
+                <p className="text-red-600/70 dark:text-red-400/70 mb-8 leading-relaxed">
+                  {ordersError}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.location.reload()}
+                  className="rounded-xl border-red-300 text-red-600 dark:border-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 shadow-sm hover:shadow-md transition-all duration-300"
+                >
+                  <AlertCircle className="w-4 h-4 ml-2" />
+                  تلاش مجدد
+                </Button>
+              </div>
+            </Card>
+          </motion.div>
+        ) : filteredOrders.length === 0 ? (
+          <motion.div 
+            variants={itemVariants}
+            className="flex flex-col items-center justify-center"
+          >
+            <Card className="border border-voxcina-cream/60 dark:border-voxcina-blue/30 shadow-lg rounded-3xl backdrop-blur-sm bg-gradient-to-br from-white/95 to-voxcina-cream/20 dark:from-voxcina-blue/15 dark:to-voxcina-blue/5 p-12 max-w-lg mx-auto relative overflow-hidden">
+              {/* Background decoration */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-voxcina-blue/5 dark:bg-voxcina-cream/5 rounded-full -translate-y-16 translate-x-16"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-voxcina-cream/30 dark:bg-voxcina-blue/10 rounded-full translate-y-12 -translate-x-12"></div>
+              
+              {/* Icon with enhanced styling */}
+              <div className="relative inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-voxcina-blue/10 to-voxcina-blue/20 dark:from-voxcina-cream/10 dark:to-voxcina-cream/20 mb-6 mx-auto shadow-inner">
+                <div className="w-20 h-20 rounded-full bg-white/80 dark:bg-voxcina-blue/20 flex items-center justify-center">
+                  <ShoppingCart className="w-10 h-10 text-voxcina-blue/60 dark:text-voxcina-cream/60" />
+                </div>
+              </div>
+              
+              {/* Content with better typography */}
+              <div className="text-center relative z-10">
+                <h3 className="text-xl font-bold mb-3 text-voxcina-blue dark:text-voxcina-cream">
+                  {activeTab === "all" ? "هیچ سفارشی یافت نشد" : `هیچ سفارش ${getTabLabel(activeTab)}ی یافت نشد`}
+                </h3>
+                <p className="text-voxcina-blue/60 dark:text-voxcina-cream/60 mb-8 leading-relaxed">
+                  {activeTab === "all" 
+                    ? "هنوز هیچ سفارشی در سیستم ثبت نشده است. سفارش‌های جدید به محض دریافت در اینجا نمایش داده خواهند شد."
+                    : `در حال حاضر هیچ سفارشی با وضعیت ${getTabLabel(activeTab)} وجود ندارد.`
+                  }
+                </p>
+                
+                {/* Action buttons with improved styling */}
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  {activeTab !== "all" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActiveTab("all")}
+                      className="rounded-xl border-voxcina-blue/30 text-voxcina-blue dark:border-voxcina-blue/40 dark:text-voxcina-cream hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-blue/20 shadow-sm hover:shadow-md transition-all duration-300"
+                    >
+                      نمایش همه سفارش‌ها
+                    </Button>
+                  )}
+                  {activeTab === "all" && (
+                    <Link href="/admin/orders">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-md hover:shadow-lg transition-all duration-300"
+                      >
+                        <Plus className="w-4 h-4 ml-2" />
+                        مدیریت سفارش‌ها
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </Card>
+          </motion.div>
+        ) : (
           <motion.div variants={itemVariants}>
             <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-md overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
               <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-voxcina-blue/20 scrollbar-track-voxcina-cream/50 dark:scrollbar-thumb-voxcina-cream/30 dark:scrollbar-track-voxcina-blue/20">
@@ -518,30 +645,34 @@ export default function AdminDashboardPage() {
                         transition={{ delay: index * 0.05 }}
                         whileHover={{ backgroundColor: 'rgba(244, 241, 236, 0.3)' }}
                       >
-                        <td className="p-4 font-medium text-voxcina-blue dark:text-voxcina-cream">{order.id}</td>
-                        <td className="p-4 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          {order.date}
+                        <td className="p-4 font-medium text-voxcina-blue dark:text-voxcina-cream">
+                          {order.order_number || 'نامشخص'}
                         </td>
                         <td className="p-4 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          {order.customer}
+                          {order.jalali_created_at || 'نامشخص'}
+                        </td>
+                        <td className="p-4 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                          {order.user_id || 'نامشخص'}
                         </td>
                         <td className="p-4">
                           <span
-                            className={`px-2 py-1 rounded-full text-xs ${getStatusStyle(
-                              order.status
-                            )}`}
+                            className={`px-2 py-1 rounded-full text-xs ${getStatusStyle(order.status || 'pending')}`}
                           >
-                            {order.statusText}
+                            {order.status_text || 'نامشخص'}
                           </span>
                         </td>
                         <td className="p-4 font-bold text-voxcina-blue dark:text-voxcina-cream">
-                          {formatPrice(order.amount)}
+                          {formatPrice(order.total_amount || 0)} تومان
                         </td>
                         <td className="p-4 text-left">
                           <motion.button 
                             className="p-2 hover:bg-voxcina-cream/50 dark:hover:bg-voxcina-blue/30 rounded-full transition-colors text-voxcina-blue/60 dark:text-voxcina-cream/60"
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
+                            onClick={() => {
+                              // Add navigation to order details
+                              console.log('Navigate to order:', order.id);
+                            }}
                           >
                             <ChevronRight className="h-5 w-5" />
                           </motion.button>
@@ -551,28 +682,6 @@ export default function AdminDashboardPage() {
                   </tbody>
                 </table>
               </div>
-            </Card>
-          </motion.div>
-        ) : (
-          <motion.div variants={itemVariants}>
-            <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-md rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-              <CardContent className="p-8 text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-voxcina-cream dark:bg-voxcina-blue/20 mb-4">
-                  <AlertCircle className="h-8 w-8 text-voxcina-blue/50 dark:text-voxcina-cream/50" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2 text-voxcina-blue dark:text-voxcina-cream">سفارشی یافت نشد</h3>
-                <p className="text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-6">
-                  هیچ سفارشی با این وضعیت وجود ندارد
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setActiveTab("all")}
-                  className="rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
-                >
-                  نمایش همه سفارش‌ها
-                </Button>
-              </CardContent>
             </Card>
           </motion.div>
         )}

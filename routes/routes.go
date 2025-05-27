@@ -71,6 +71,7 @@ func NewRouter() *mux.Router {
 
 	// Admin Order Management
 	adminRouter.HandleFunc("/orders", handlers.GetAllOrders).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/orders/recent", handlers.GetRecentOrders).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/orders/{orderId}", handlers.UpdateOrderStatusAdmin).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/orders/{orderId}", handlers.DeleteOrder).Methods("DELETE")
 

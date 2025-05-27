@@ -3,22 +3,40 @@ export interface OrderVariant {
   color: string;
 }
 
+// Product details included in order items (from backend OrderProductResponse)
+export interface OrderProductResponse {
+  id: string; // Corresponds to primitive.ObjectID
+  name: string;
+  image: string;
+}
+
+// Order item structure that matches backend OrderItemAPIResponse
 export interface OrderItem {
-  product_id: string; // Corresponds to primitive.ObjectID, typically string in frontend
+  product: OrderProductResponse; // Nested product details
   variant: OrderVariant;
   quantity: number;
   price_at_purchase: number;
-  // Optionally, include product details if they are denormalized or fetched with the order
-  // product?: { name: string; image?: string; slug?: string }; 
 }
 
-// Based on backend models.Address, used in Order's ShippingAddress
+// Extended address structure that matches backend models.Address
 export interface ShippingAddress {
-  street: string;
-  city: string;
-  state: string;
+  // Persian-specific fields (primary)
+  title?: string;
+  first_name?: string;
+  last_name?: string;
+  phone_number?: string;
+  province?: string;
+  address?: string;
   postal_code: string;
-  country: string;
+  latitude?: number;
+  longitude?: number;
+  
+  // Original backend fields (for compatibility)
+  street?: string;
+  city: string;
+  state?: string;
+  country?: string;
+  is_default?: boolean;
 }
 
 export interface Order {
@@ -32,14 +50,14 @@ export interface Order {
   status_text: string; // Localized status
   payment_status: 'pending' | 'paid' | 'failed' | 'refunded'; // Match backend statuses
   tracking_code?: string | null; // Nullable
-  is_active: boolean;
+  is_active?: boolean; // Optional since it's not always sent
   created_at: string; // ISO Date string
   updated_at: string; // ISO Date string
-  // Fields from OrderResponse (Jalali dates)
+  // Fields from OrderAPIResponse (Jalali dates)
   jalali_created_at: string;
   jalali_updated_at: string;
-  // Potentially add product_count if it's commonly used and sent by backend
-  // product_count?: number; 
+  // Product count field that backend always sends
+  product_count: number;
 }
 
 // For creating/updating orders - may differ from the full Order interface

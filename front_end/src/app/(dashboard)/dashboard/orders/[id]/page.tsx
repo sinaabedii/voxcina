@@ -241,13 +241,13 @@ const OrderDetailPage = () => {
                             </h3>
             <div className="space-y-4">
               {items.map((item, index) => (
-                <div key={item.product_id + index} className="flex flex-col sm:flex-row gap-4 p-4 border dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow">
+                <div key={item.product.id + index} className="flex flex-col sm:flex-row gap-4 p-4 border dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow">
                   <div className="w-full sm:w-24 h-24 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center text-gray-400 dark:text-gray-500">
                     <Package size={32} /> 
                                 </div>
                                 <div className="flex-grow">
                     <h4 className="font-semibold text-gray-800 dark:text-gray-200">
-                      محصول شناسه: {item.product_id}
+                      {item.product.name || `محصول شناسه: ${item.product.id}`}
                             </h4>
                     {(item.variant.size !== 'N/A' || item.variant.color !== 'N/A') && (
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">

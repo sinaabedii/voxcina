@@ -14,16 +14,21 @@ export interface AuthStore extends AuthState {
   logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<User>;
   getProfile: () => Promise<User>;
+  fetchAllUsers: () => Promise<User[]>;
+  updateUserAsAdmin: (userId: string, userData: Partial<User>) => Promise<User>;
+  deleteUserAsAdmin: (userId: string) => Promise<void>;
+  allUsers: User[];
 }
 
 export const useAuthStore = create<AuthStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       isAuthenticated: false,
       isLoading: false,
       error: null,
       adminToken: null,
+      allUsers: [],
 
       login: async (credentials) => {
         set({ isLoading: true, error: null });
@@ -338,12 +343,193 @@ export const useAuthStore = create<AuthStore>()(
           throw error;
         }
       },
+
+      fetchAllUsers: async () => {
+        set({ isLoading: true, error: null });
+        const token = get().adminToken || localStorage.getItem("authToken");
+        if (!token) {
+          const errorMessage = "Admin not authenticated";
+          set({ isLoading: false, error: errorMessage });
+          toast.error(errorMessage);
+          throw new Error(errorMessage);
+        }
+
+        try {
+          const response = await fetch("/api/admin/users", {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            const errorMessage = data.error || "Failed to fetch users";
+            set({ isLoading: false, error: errorMessage });
+            toast.error(errorMessage);
+            throw new Error(errorMessage);
+          }
+          
+          const users: User[] = Array.isArray(data) ? data.map((u: any) => ({
+            id: u.id || u._id,
+            name: u.name,
+            email: u.email,
+            role: u.role,
+            createdAt: u.created_at || u.createdAt,
+            updatedAt: u.updated_at || u.updatedAt,
+            isActive: u.is_active,
+            addresses: u.addresses || [],
+          })) : [];
+
+          set({ allUsers: users, isLoading: false, error: null });
+          return users;
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Unknown error fetching users";
+          set({ isLoading: false, error: errorMessage });
+          toast.error(errorMessage);
+          throw error;
+        }
+      },
+
+      updateUserAsAdmin: async (userId, userData) => {
+        set({ isLoading: true, error: null });
+        const token = get().adminToken || localStorage.getItem("authToken");
+        if (!token) {
+          const errorMessage = "Admin not authenticated";
+          set({ isLoading: false, error: errorMessage });
+          toast.error(errorMessage);
+          throw new Error(errorMessage);
+        }
+
+        try {
+          let apiPath = `/api/admin/users/${userId}`;
+          let body: any = { ...userData }; 
+
+          if (userData.role && Object.keys(userData).length === 1) {
+            apiPath = `/api/admin/users/${userId}/role`;
+            body = { role: userData.role };
+          } else {
+            // For other updates, ensure backend can handle them at /api/admin/users/{userId}
+            // e.g., if updating isActive, name, email.
+            // The body already contains all userData.
+          }
+
+          const response = await fetch(apiPath, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify(body),
+          });
+
+          const updatedUserBE = await response.json(); // Renamed to avoid conflict
+
+          if (!response.ok) {
+            const errorMessage = updatedUserBE.error || "Failed to update user";
+            set({ isLoading: false, error: errorMessage });
+            toast.error(errorMessage);
+            throw new Error(errorMessage);
+          }
+
+          const finalUser: User = {
+            id: updatedUserBE.id || updatedUserBE._id,
+            name: updatedUserBE.name,
+            email: updatedUserBE.email,
+            role: updatedUserBE.role,
+            createdAt: updatedUserBE.created_at || updatedUserBE.createdAt,
+            updatedAt: updatedUserBE.updated_at || updatedUserBE.updatedAt,
+            isActive: updatedUserBE.is_active, // Assuming backend sends this
+            addresses: updatedUserBE.addresses || [],
+            // avatar: updatedUserBE.avatar, // If avatar comes from backend
+          };
+
+          set((state) => ({
+            allUsers: state.allUsers.map((user) => // state.allUsers should now be valid
+              user.id === userId ? finalUser : user
+            ),
+            isLoading: false,
+            error: null,
+          }));
+          toast.success("User updated successfully");
+          return finalUser;
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Unknown error updating user";
+          set({ isLoading: false, error: errorMessage });
+          toast.error(errorMessage);
+          throw error;
+        }
+      },
+
+      deleteUserAsAdmin: async (userId) => {
+        set({ isLoading: true, error: null });
+        const token = get().adminToken || localStorage.getItem("authToken");
+        if (!token) {
+          const errorMessage = "Admin not authenticated";
+          set({ isLoading: false, error: errorMessage });
+          toast.error(errorMessage);
+          throw new Error(errorMessage);
+        }
+
+        try {
+          const response = await fetch(`/api/admin/users/${userId}`, {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+             const data = await response.json().catch(() => ({ error: "Failed to delete user and parse error" }));
+            const errorMessage = data.error || `Failed to delete user (status: ${response.status})`;
+            set({ isLoading: false, error: errorMessage });
+            toast.error(errorMessage);
+            throw new Error(errorMessage);
+          }
+          
+           if (response.status !== 204) {
+                const data = await response.json().catch(() => null); 
+                if (data && data.message) {
+                    toast.success(data.message);
+                } else {
+                    toast.success("User deleted successfully");
+                }
+            } else {
+                 toast.success("User deleted successfully");
+            }
+
+          set((state) => ({
+            allUsers: state.allUsers.filter((user) => user.id !== userId), // state.allUsers should be fine
+            isLoading: false,
+            error: null,
+          }));
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Unknown error deleting user";
+          set({ isLoading: false, error: errorMessage });
+          toast.error(errorMessage);
+          throw error;
+        }
+      },
     }),
     {
-      name: "digi-style-auth",
-      partialize: (state) => (Object.fromEntries(
-        Object.entries(state).filter(([key]) => ['user', 'isAuthenticated', 'adminToken'].includes(key))
-      ) as { user: User | null; isAuthenticated: boolean, adminToken: string | null }),
+      name: "auth-storage",
+      partialize: (state) =>
+        Object.fromEntries(
+          Object.entries(state).filter(([key]) => !['isLoading', 'error', 'allUsers'].includes(key))
+        ) as Pick<AuthStore, 'user' | 'isAuthenticated' | 'adminToken'>,
     }
   )
 );
+
+export const useAdminUsersStore = () => useAuthStore((state) => ({
+    allUsers: state.allUsers,
+    isLoading: state.isLoading,
+    error: state.error,
+    fetchAllUsers: state.fetchAllUsers,
+    updateUserAsAdmin: state.updateUserAsAdmin,
+    deleteUserAsAdmin: state.deleteUserAsAdmin,
+    adminToken: state.adminToken,
+}));
