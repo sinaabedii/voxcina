@@ -17,10 +17,11 @@ import {
   Loader2,
 } from "lucide-react";
 import { useAddress } from "@/hooks/useAddress";
-import { PROVINCES } from "@/lib/constants";
+import { useLocality } from "@/hooks/useLocality";
 import { motion, AnimatePresence } from "framer-motion";
 import { Address } from "@/types/user";
 import { toast } from "react-hot-toast";
+import MapPicker from "@/components/ui/MapPicker";
 
 export default function AddressesPage() {
   const {
@@ -32,6 +33,7 @@ export default function AddressesPage() {
     deleteAddress,
     setDefaultAddress,
   } = useAddress();
+  const { provinces, cities, fetchCities, loadingProvinces, loadingCities } = useLocality();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<string | null>(null);
@@ -50,6 +52,8 @@ export default function AddressesPage() {
     postalCode: "",
     isDefault: false,
     addressType: "home",
+    latitude: 0,
+    longitude: 0,
   });
 
   // Reset form when modal closes
@@ -67,9 +71,21 @@ export default function AddressesPage() {
         postalCode: "",
         isDefault: false,
         addressType: "home",
+        latitude: 0,
+        longitude: 0,
       });
     }
   }, [isModalOpen]);
+
+  // Fetch cities when province changes
+  useEffect(() => {
+    if (formData.province && provinces.length) {
+      const selected = provinces.find((p) => p.province_name === formData.province);
+      if (selected) {
+        fetchCities(selected.province_code);
+      }
+    }
+  }, [formData.province, provinces]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -106,6 +122,8 @@ export default function AddressesPage() {
       addressType: address.title?.toLowerCase().includes("کار") || 
                    address.title?.toLowerCase().includes("شرکت") || 
                    address.title?.toLowerCase().includes("دفتر") ? "work" : "home",
+      latitude: address.latitude || 0,
+      longitude: address.longitude || 0,
     });
     setEditingAddress(addressId);
     setIsModalOpen(true);
@@ -123,6 +141,8 @@ export default function AddressesPage() {
       postalCode: "",
       isDefault: addresses.length === 0, // Auto set as default if first address
       addressType: "home",
+      latitude: 0,
+      longitude: 0,
     });
     setEditingAddress(null);
     setIsModalOpen(true);
@@ -166,6 +186,12 @@ export default function AddressesPage() {
     
     if (missingFields.length > 0) {
       toast.error("لطفاً تمام فیلدهای ضروری را پر کنید");
+      return;
+    }
+
+    // Validate location selection
+    if (formData.latitude === 0 || formData.longitude === 0) {
+      toast.error("لطفاً موقعیت را از نقشه انتخاب کنید");
       return;
     }
 
@@ -392,13 +418,6 @@ export default function AddressesPage() {
                       }`}
                   >
                     <CardHeader className="pb-2 flex flex-row justify-between items-start relative pt-6">
-                      {address.isDefault && (
-                        <div className="absolute top-0 left-0 w-20 h-20 overflow-hidden">
-                          <div className="bg-voxcina-blue dark:bg-secondary-200 text-white dark:text-voxcina-blue text-xs font-bold text-center transform rotate-45 translate-y-2 -translate-x-6 w-28 py-1 shadow-soft">
-                            پیش‌فرض
-                          </div>
-                        </div>
-                      )}
                       <div>
                         <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-secondary-200">
                           <span className="relative">
@@ -406,6 +425,11 @@ export default function AddressesPage() {
                             {getAddressTypeIcon(address.title)}
                           </span>
                           {address.title || "آدرس"}
+                          {address.isDefault && (
+                            <span className="ml-2 px-2 py-0.5 text-xs font-semibold text-white bg-voxcina-blue rounded">
+                              پیش‌فرض
+                            </span>
+                          )}
                         </CardTitle>
                       </div>
                       <div className="flex space-x-2 space-x-reverse">
@@ -619,26 +643,43 @@ export default function AddressesPage() {
                   value={formData.province}
                   onChange={handleChange}
                   required
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || loadingProvinces}
                   className="w-full rounded-xl border border-secondary-200 dark:border-voxcina-darkBlue/30 bg-white dark:bg-voxcina-darkBlue/20 px-3 py-2 text-sm focus:outline-none focus:border-voxcina-blue focus:ring-2 focus:ring-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="">انتخاب استان</option>
-                  {PROVINCES.map((province) => (
-                    <option key={province} value={province}>
-                      {province}
-                    </option>
-                  ))}
+                  {loadingProvinces ? (
+                    <option value="">در حال بارگذاری...</option>
+                  ) : (
+                    provinces.map((p) => (
+                      <option key={p.province_code} value={p.province_name}>
+                        {p.province_name}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
-              <Input
-                label="شهر *"
-                name="city"
-                value={formData.city}
-                onChange={handleChange}
-                required
-                disabled={isSubmitting}
-                className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
-              />
+              <div>
+                <label className="text-sm font-medium block mb-1 text-voxcina-blue dark:text-secondary-200">شهر *</label>
+                <select
+                  name="city"
+                  value={formData.city}
+                  onChange={handleChange}
+                  required
+                  disabled={isSubmitting || loadingCities}
+                  className="w-full rounded-xl border border-secondary-200 dark:border-voxcina-darkBlue/30 bg-white dark:bg-voxcina-darkBlue/20 px-3 py-2 text-sm focus:outline-none focus:border-voxcina-blue focus:ring-2 focus:ring-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">انتخاب شهر</option>
+                  {loadingCities ? (
+                    <option value="">در حال بارگذاری...</option>
+                  ) : (
+                    cities.map((c) => (
+                      <option key={c.city_code} value={c.city_name}>
+                        {c.city_name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
             </div>
 
             <Input
@@ -662,6 +703,16 @@ export default function AddressesPage() {
               disabled={isSubmitting}
               className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
             />
+
+            <div className="flex flex-col space-y-2">
+              <label className="text-sm font-medium mb-1 text-voxcina-blue dark:text-secondary-200">موقعیت روی نقشه *</label>
+              <MapPicker
+                location={{ lat: formData.latitude, lng: formData.longitude }}
+                onChange={({ lat, lng }) =>
+                  setFormData({ ...formData, latitude: lat, longitude: lng })
+                }
+              />
+            </div>
 
             <div className="flex items-center bg-gradient-to-r from-voxcina-blue/5 to-secondary-200/70 dark:from-voxcina-blue/10 dark:to-voxcina-blue/5 p-4 rounded-xl">
               <input

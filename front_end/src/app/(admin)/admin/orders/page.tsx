@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Card, CardContent } from "@/components/ui/Card";
 import { motion } from "framer-motion";
 import {
   ShoppingCart,
   Search,
-  Filter,
   ChevronRight,
   ChevronLeft,
   Clock,
@@ -22,6 +21,7 @@ import {
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
+import { useOrderStore } from '@/store/order-store';
 
 export default function AdminOrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -31,198 +31,25 @@ export default function AdminOrdersPage() {
   const [dateFilter, setDateFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
 
-  // Mock order data - would be fetched from API in real application
-  const [orders, setOrders] = useState([
-    {
-      id: "ORD-10235",
-      date: "۱۴۰۲/۱۰/۲۱",
-      time: "۱۵:۳۰",
-      customer: "آرش محمدی",
-      customerId: "USR-1245",
-      email: "arash@example.com",
-      phone: "09123456789",
-      status: "pending",
-      statusText: "در انتظار تایید",
-      amount: 3850000,
-      items: 3,
-      paymentMethod: "آنلاین",
-      address: "تهران، خیابان ولیعصر، کوچه بهار، پلاک ۲۳",
-    },
-    {
-      id: "ORD-10234",
-      date: "۱۴۰۲/۱۰/۲۱",
-      time: "۱۲:۱۵",
-      customer: "سارا احمدی",
-      customerId: "USR-1242",
-      email: "sara@example.com",
-      phone: "09123456788",
-      status: "processing",
-      statusText: "در حال پردازش",
-      amount: 1240000,
-      items: 1,
-      paymentMethod: "آنلاین",
-      address: "اصفهان، خیابان چهارباغ، کوچه گلستان، پلاک ۴۵",
-    },
-    {
-      id: "ORD-10233",
-      date: "۱۴۰۲/۱۰/۲۰",
-      time: "۱۸:۴۵",
-      customer: "محمد علیزاده",
-      customerId: "USR-1235",
-      email: "mohammad@example.com",
-      phone: "09123456787",
-      status: "shipping",
-      statusText: "در حال ارسال",
-      amount: 5670000,
-      items: 4,
-      paymentMethod: "کارت به کارت",
-      address: "شیراز، بلوار زند، کوچه ارم، پلاک ۱۲",
-    },
-    {
-      id: "ORD-10232",
-      date: "۱۴۰۲/۱۰/۲۰",
-      time: "۱۰:۳۰",
-      customer: "مریم کریمی",
-      customerId: "USR-1228",
-      email: "maryam@example.com",
-      phone: "09123456786",
-      status: "delivered",
-      statusText: "تحویل شده",
-      amount: 2980000,
-      items: 2,
-      paymentMethod: "آنلاین",
-      address: "مشهد، بلوار امامت، کوچه سعادت، پلاک ۳۴",
-    },
-    {
-      id: "ORD-10231",
-      date: "۱۴۰۲/۱۰/۱۹",
-      time: "۱۶:۲۰",
-      customer: "رضا جعفری",
-      customerId: "USR-1220",
-      email: "reza@example.com",
-      phone: "09123456785",
-      status: "delivered",
-      statusText: "تحویل شده",
-      amount: 1750000,
-      items: 1,
-      paymentMethod: "پرداخت در محل",
-      address: "تبریز، خیابان ولیعصر، کوچه باهنر، پلاک ۵۶",
-    },
-    {
-      id: "ORD-10230",
-      date: "۱۴۰۲/۱۰/۱۹",
-      time: "۱۱:۱۰",
-      customer: "علی رضایی",
-      customerId: "USR-1218",
-      email: "ali@example.com",
-      phone: "09123456784",
-      status: "cancelled",
-      statusText: "لغو شده",
-      amount: 3450000,
-      items: 3,
-      paymentMethod: "آنلاین",
-      address: "کرج، بلوار گلشهر، کوچه نیلوفر، پلاک ۷۸",
-    },
-    {
-      id: "ORD-10229",
-      date: "۱۴۰۲/۱۰/۱۸",
-      time: "۱۴:۵۰",
-      customer: "نیما محمودی",
-      customerId: "USR-1205",
-      email: "nima@example.com",
-      phone: "09123456783",
-      status: "delivered",
-      statusText: "تحویل شده",
-      amount: 890000,
-      items: 1,
-      paymentMethod: "آنلاین",
-      address: "قم، خیابان امام، کوچه دانش، پلاک ۱۲",
-    },
-    {
-      id: "ORD-10228",
-      date: "۱۴۰۲/۱۰/۱۸",
-      time: "۰۹:۳۰",
-      customer: "زهرا کاظمی",
-      customerId: "USR-1198",
-      email: "zahra@example.com",
-      phone: "09123456782",
-      status: "delivered",
-      statusText: "تحویل شده",
-      amount: 2100000,
-      items: 2,
-      paymentMethod: "کارت به کارت",
-      address: "یزد، خیابان فرهنگ، کوچه آزادی، پلاک ۲۳",
-    },
-  ]);
+  // Connect to admin orders store
+  const { orders, fetchAdminOrders, deleteOrder, updateOrderStatusAdmin, pagination, isLoading } = useOrderStore();
 
-  // Filter and search orders
-  const filteredOrders = orders.filter((order: any) => {
-    // Filter by search term
-    const matchesSearch =
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer.name.toLowerCase().includes(searchTerm.toLowerCase());
+  // Fetch admin orders on filter or page change
+  useEffect(() => {
+    const filters: Record<string, any> = {};
+    if (statusFilter !== "all") filters.status = statusFilter;
+    if (searchTerm) filters.search = searchTerm;
+    fetchAdminOrders(currentPage, 5, filters);
+  }, [currentPage, statusFilter, searchTerm, fetchAdminOrders]);
 
-    // Filter by status
-    const matchesStatus = statusFilter === "all" || order.status === statusFilter;
-
-    // Filter by date
-    let matchesDate = true;
-    if (dateFilter !== "all") {
-      const orderDate = new Date(order.date);
-      const today = new Date();
-      const yesterday = new Date(today);
-      yesterday.setDate(today.getDate() - 1);
-      const lastWeek = new Date(today);
-      lastWeek.setDate(today.getDate() - 7);
-      const lastMonth = new Date(today);
-      lastMonth.setMonth(today.getMonth() - 1);
-
-      switch (dateFilter) {
-        case "today":
-          matchesDate = orderDate.toDateString() === today.toDateString();
-          break;
-        case "yesterday":
-          matchesDate = orderDate.toDateString() === yesterday.toDateString();
-          break;
-        case "week":
-          matchesDate = orderDate >= lastWeek;
-          break;
-        case "month":
-          matchesDate = orderDate >= lastMonth;
-          break;
-      }
-    }
-
-    return matchesSearch && matchesStatus && matchesDate;
-  });
-
-  // Sort orders
-  const sortedOrders = [...filteredOrders].sort((a, b) => {
-    switch (sortBy) {
-      case "amount-asc":
-        return a.amount - b.amount;
-      case "amount-desc":
-        return b.amount - a.amount;
-      case "customer":
-        return a.customer.localeCompare(b.customer);
-      default:
-        // newest by ID (higher is newer)
-        return b.id.localeCompare(a.id);
-    }
-  });
-
-  // Pagination
-  const ordersPerPage = 5;
-  const totalPages = Math.ceil(sortedOrders.length / ordersPerPage);
-  const indexOfLastOrder = currentPage * ordersPerPage;
-  const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
-  const currentOrders = sortedOrders.slice(indexOfFirstOrder, indexOfLastOrder);
-
+  // Handle pagination
   const paginate = (pageNumber: number) => {
-    if (pageNumber > 0 && pageNumber <= totalPages) {
+    if (pageNumber > 0 && pageNumber <= (pagination?.totalPages || 1)) {
       setCurrentPage(pageNumber);
     }
   };
+
+  const currentOrders = orders;
 
   // Helper function to get status style
   const getStatusStyle = (status: string) => {
@@ -240,35 +67,6 @@ export default function AdminOrdersPage() {
       default:
         return "bg-voxcina-cream text-voxcina-blue dark:bg-voxcina-blue/10 dark:text-voxcina-lightCream border border-voxcina-cream/70 dark:border-voxcina-blue/20";
     }
-  };
-
-  // Helper function to update order status
-  const updateOrderStatus = (orderId: string, newStatus: string) => {
-    const updatedOrders = orders.map((order: any) => {
-      if (order.id === orderId) {
-        let statusText = "";
-        switch (newStatus) {
-          case "pending":
-            statusText = "در انتظار تایید";
-            break;
-          case "processing":
-            statusText = "در حال پردازش";
-            break;
-          case "shipping":
-            statusText = "در حال ارسال";
-            break;
-          case "delivered":
-            statusText = "تحویل شده";
-            break;
-          case "cancelled":
-            statusText = "لغو شده";
-            break;
-        }
-        return { ...order, status: newStatus, statusText };
-      }
-      return order;
-    });
-    setOrders(updatedOrders);
   };
 
   // Animation variants
@@ -455,15 +253,15 @@ export default function AdminOrdersPage() {
                           <div className="flex items-center ml-4 min-w-[120px]">
                             <ShoppingCart className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
                             <span className="font-medium text-voxcina-blue dark:text-voxcina-cream">
-                              {order.id}
+                              {order.order_number}
                             </span>
                           </div>
                           <div className="flex items-center text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">
                             <Calendar className="w-4 h-4 ml-1" />
-                            <span>{order.date}</span>
+                            <span>{order.jalali_created_at}</span>
                             <span className="mx-1">|</span>
                             <Clock className="w-4 h-4 ml-1" />
-                            <span>{order.time}</span>
+                            <span>{new Date(order.created_at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
                         </div>
                         <div className="flex items-center">
@@ -472,7 +270,7 @@ export default function AdminOrdersPage() {
                               order.status
                             )}`}
                           >
-                            {order.statusText}
+                            {order.status_text}
                           </span>
                           <a
                             href={`/admin/orders/${order.id}`}
@@ -493,16 +291,13 @@ export default function AdminOrdersPage() {
                           </h3>
                           <div className="space-y-1 text-sm">
                             <p className="text-voxcina-blue dark:text-voxcina-cream">
-                              <span className="font-medium">{order.customer}</span>
+                              <span className="font-medium">{(order.shipping_address as any).first_name} {(order.shipping_address as any).last_name}</span>
                               <span className="text-xs mr-1 text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                                ({order.customerId})
+                                ({order.user_id})
                               </span>
                             </p>
                             <p className="text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                              {order.email}
-                            </p>
-                            <p className="text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                              {order.phone}
+                              {(order.shipping_address as any).phone_number}
                             </p>
                           </div>
                         </div>
@@ -514,17 +309,17 @@ export default function AdminOrdersPage() {
                           <div className="space-y-1 text-sm">
                             <p className="text-voxcina-blue dark:text-voxcina-cream flex justify-between">
                               <span>تعداد اقلام:</span>
-                              <span className="font-medium">{order.items} محصول</span>
+                              <span className="font-medium">{order.items.length} محصول</span>
                             </p>
                             <p className="text-voxcina-blue dark:text-voxcina-cream flex justify-between">
                               <span>مبلغ کل:</span>
                               <span className="font-medium">
-                                {formatPrice(order.amount)}
+                                {formatPrice(order.total_amount)}
                               </span>
                             </p>
                             <p className="text-voxcina-blue dark:text-voxcina-cream flex justify-between">
                               <span>روش پرداخت:</span>
-                              <span>{order.paymentMethod}</span>
+                              <span>{order.payment_status}</span>
                             </p>
                           </div>
                         </div>
@@ -533,7 +328,7 @@ export default function AdminOrdersPage() {
                             آدرس ارسال
                           </h3>
                           <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                            {order.address}
+                            {(order.shipping_address as any).address || `${order.shipping_address.city} ${order.shipping_address.state}`}
                           </p>
                         </div>
                       </div>
@@ -546,7 +341,7 @@ export default function AdminOrdersPage() {
                             size="sm"
                             className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 rounded-xl"
                             onClick={() =>
-                              updateOrderStatus(order.id, "cancelled")
+                              updateOrderStatusAdmin(order.id, "cancelled")
                             }
                           >
                             <XCircle className="w-4 h-4 ml-1" />
@@ -559,7 +354,7 @@ export default function AdminOrdersPage() {
                             size="sm"
                             className="text-voxcina-blue dark:text-voxcina-cream rounded-xl"
                             onClick={() =>
-                              updateOrderStatus(order.id, "processing")
+                              updateOrderStatusAdmin(order.id, "processing")
                             }
                           >
                             <CheckCircle className="w-4 h-4 ml-1" />
@@ -571,22 +366,18 @@ export default function AdminOrdersPage() {
                             variant="outline"
                             size="sm"
                             className="text-voxcina-blue dark:text-voxcina-cream rounded-xl"
-                            onClick={() =>
-                              updateOrderStatus(order.id, "shipping")
-                            }
+                            onClick={() => updateOrderStatusAdmin(order.id, "shipped")}
                           >
                             <TruckIcon className="w-4 h-4 ml-1" />
                             ارسال سفارش
                           </Button>
                         )}
-                        {order.status === "shipping" && (
+                        {order.status === "shipped" && (
                           <Button
                             variant="outline"
                             size="sm"
                             className="text-voxcina-blue dark:text-voxcina-cream rounded-xl"
-                            onClick={() =>
-                              updateOrderStatus(order.id, "delivered")
-                            }
+                            onClick={() => updateOrderStatusAdmin(order.id, "delivered")}
                           >
                             <CheckCircle className="w-4 h-4 ml-1" />
                             تحویل شده
@@ -629,7 +420,7 @@ export default function AdminOrdersPage() {
         )}
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {pagination && pagination.totalPages > 1 && (
           <div className="flex justify-center mt-8">
             <div className="flex items-center space-x-1 space-x-reverse bg-white dark:bg-voxcina-blue/30 rounded-xl p-1 shadow-sm">
               <Button
@@ -646,7 +437,7 @@ export default function AdminOrdersPage() {
                 <ChevronRight className="h-5 w-5" />
               </Button>
 
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+              {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(
                 (number) => (
                   <Button
                     key={number}
@@ -668,12 +459,12 @@ export default function AdminOrdersPage() {
                 variant="ghost"
                 size="sm"
                 className={`rounded-lg ${
-                  currentPage === totalPages
+                  currentPage === pagination.totalPages
                     ? "text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed"
                     : "text-voxcina-blue dark:text-voxcina-cream"
                 }`}
                 onClick={() => paginate(currentPage + 1)}
-                disabled={currentPage === totalPages}
+                disabled={currentPage === pagination.totalPages}
               >
                 <ChevronLeft className="h-5 w-5" />
               </Button>

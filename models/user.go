@@ -9,13 +9,15 @@ import (
 // Address represents a shipping or billing address for a user
 type Address struct {
 	// Frontend Persian-specific fields
-	Title       string `bson:"title,omitempty"        json:"title,omitempty"`
-	FirstName   string `bson:"first_name,omitempty"   json:"first_name,omitempty"`
-	LastName    string `bson:"last_name,omitempty"    json:"last_name,omitempty"`
-	PhoneNumber string `bson:"phone_number,omitempty" json:"phone_number,omitempty"`
-	Province    string `bson:"province,omitempty"     json:"province,omitempty"`
-	Address     string `bson:"address,omitempty"      json:"address,omitempty"`
-	PostalCode  string `bson:"postal_code"            json:"postal_code"`
+	Title       string  `bson:"title,omitempty"        json:"title,omitempty"`
+	FirstName   string  `bson:"first_name,omitempty"   json:"first_name,omitempty"`
+	LastName    string  `bson:"last_name,omitempty"    json:"last_name,omitempty"`
+	PhoneNumber string  `bson:"phone_number,omitempty" json:"phone_number,omitempty"`
+	Province    string  `bson:"province,omitempty"     json:"province,omitempty"`
+	Address     string  `bson:"address,omitempty"      json:"address,omitempty"`
+	PostalCode  string  `bson:"postal_code"            json:"postal_code"`
+	Latitude    float64 `bson:"latitude,omitempty"    json:"latitude,omitempty"`
+	Longitude   float64 `bson:"longitude,omitempty"   json:"longitude,omitempty"`
 
 	// Original backend fields (kept for compatibility)
 	Street    string `bson:"street,omitempty"  json:"street,omitempty"`

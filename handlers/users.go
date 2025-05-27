@@ -528,6 +528,16 @@ func AddUserAddress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// --- Basic Validation for Latitude and Longitude ---
+	if newAddress.Latitude == 0 && newAddress.Longitude == 0 {
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Latitude and Longitude are required for an address",
+		)
+		return
+	}
+
 	// --- Basic Validation for Address fields ---
 	if (newAddress.Street == "" && newAddress.Address == "") ||
 		newAddress.City == "" ||
@@ -649,6 +659,16 @@ func UpdateUserAddress(w http.ResponseWriter, r *http.Request) {
 			w,
 			http.StatusBadRequest,
 			"Invalid address update payload: "+err.Error(),
+		)
+		return
+	}
+
+	// --- Basic Validation for Latitude and Longitude ---
+	if addressUpdatePayload.Latitude == 0 && addressUpdatePayload.Longitude == 0 {
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Latitude and Longitude are required for an address update",
 		)
 		return
 	}

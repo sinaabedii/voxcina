@@ -20,6 +20,8 @@ export interface Address {
   address: string;
   postalCode: string;
   isDefault: boolean;
+  latitude: number;
+  longitude: number;
 }
 
 // Backend address structure for API calls
@@ -36,6 +38,8 @@ export interface BackendAddress {
   state?: string;
   country?: string;
   is_default: boolean;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface LoginCredentials {

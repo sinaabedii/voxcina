@@ -6,7 +6,7 @@ import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import { Address } from "@/store/dashboard-store";
 import { useDashboardStore } from "@/store/dashboard-store";
-import { PROVINCES } from "@/lib/constants";
+import { useLocality } from "@/hooks/useLocality";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface CheckoutFormProps {
@@ -34,6 +34,8 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
     isDefault: false,
   });
 
+  const { provinces, cities, fetchCities, loadingProvinces, loadingCities } = useLocality();
+
   useEffect(() => {
     if (addresses.length > 0 && !selectedAddressId) {
       const defaultAddress = addresses.find((addr) => addr.isDefault);
@@ -44,6 +46,15 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
       }
     }
   }, [addresses, onSelectAddress, selectedAddressId]);
+
+  useEffect(() => {
+    if (formData.province && provinces.length) {
+      const selected = provinces.find((p) => p.province_name === formData.province);
+      if (selected) {
+        fetchCities(selected.province_code);
+      }
+    }
+  }, [formData.province, provinces]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -259,29 +270,49 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium block mb-1">استان</label>
+                <label className="text-sm font-medium block mb-1">استان *</label>
                 <select
                   name="province"
                   value={formData.province}
                   onChange={handleChange}
                   className="voxcina-input w-full"
                   required
+                  disabled={loadingProvinces}
                 >
                   <option value="">انتخاب استان</option>
-                  {PROVINCES.map((province) => (
-                    <option key={province} value={province}>
-                      {province}
-                    </option>
-                  ))}
+                  {loadingProvinces ? (
+                    <option value="">در حال بارگذاری...</option>
+                  ) : (
+                    provinces.map((p) => (
+                      <option key={p.province_code} value={p.province_name}>
+                        {p.province_name}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
-              <Input
-                label="شهر"
-                name="city"
-                value={formData.city}
-                onChange={handleChange}
-                required
-              />
+              <div>
+                <label className="text-sm font-medium block mb-1">شهر *</label>
+                <select
+                  name="city"
+                  value={formData.city}
+                  onChange={handleChange}
+                  className="voxcina-input w-full"
+                  required
+                  disabled={loadingCities}
+                >
+                  <option value="">انتخاب شهر</option>
+                  {loadingCities ? (
+                    <option value="">در حال بارگذاری...</option>
+                  ) : (
+                    cities.map((c) => (
+                      <option key={c.city_code} value={c.city_name}>
+                        {c.city_name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
             </div>
 
             <Input

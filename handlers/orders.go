@@ -150,9 +150,9 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 
 	var orderData struct {
 		// UserID is now from context, remove from here if it was present
-		Items           []models.OrderItem     `json:"items"`
-		TotalAmount     float64                `json:"totalAmount"`
-		ShippingAddress models.Address         `json:"shippingAddress"`
+		Items           []models.OrderItem `json:"items"`
+		TotalAmount     float64            `json:"totalAmount"`
+		ShippingAddress models.Address     `json:"shippingAddress"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&orderData); err != nil {
@@ -596,4 +596,182 @@ func DeleteOrder(w http.ResponseWriter, r *http.Request) {
 		http.StatusOK,
 		map[string]string{"message": "Order deactivated successfully"},
 	)
+}
+
+// GetAllOrders handles GET /api/admin/orders (Admin only)
+func GetAllOrders(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	collection := db.Database.Collection("orders")
+
+	// Parse pagination parameters
+	pageQuery := r.URL.Query().Get("page")
+	limitQuery := r.URL.Query().Get("limit")
+	page, err := strconv.ParseInt(pageQuery, 10, 64)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.ParseInt(limitQuery, 10, 64)
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+	skip := (page - 1) * limit
+
+	findOptions := options.Find()
+	findOptions.SetSkip(skip)
+	findOptions.SetLimit(limit)
+	findOptions.SetSort(bson.D{{Key: "created_at", Value: -1}})
+
+	// Build filter
+	filter := bson.M{"is_active": true}
+	if status := r.URL.Query().Get("status"); status != "" && status != "all" {
+		filter["status"] = status
+	}
+	if search := r.URL.Query().Get("search"); search != "" {
+		filter["order_number"] = bson.M{"$regex": search, "$options": "i"}
+	}
+
+	cursor, err := collection.Find(ctx, filter, findOptions)
+	if err != nil {
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error fetching orders: "+err.Error(),
+		)
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var ordersData []models.Order
+	if err := cursor.All(ctx, &ordersData); err != nil {
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error decoding orders: "+err.Error(),
+		)
+		return
+	}
+
+	totalCount, err := collection.CountDocuments(ctx, filter)
+	if err != nil {
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error counting orders: "+err.Error(),
+		)
+		return
+	}
+
+	responses := make([]OrderAPIResponse, 0)
+	for _, ord := range ordersData {
+		resp, err := newOrderAPIResponse(ctx, ord)
+		if err != nil {
+			utils.LogAction(
+				"error",
+				fmt.Sprintf(
+					"Error preparing response for order %s: %v",
+					ord.ID.Hex(),
+					err,
+				),
+			)
+			continue
+		}
+		responses = append(responses, resp)
+	}
+
+	pagination := map[string]interface{}{
+		"currentPage": page,
+		"totalPages":  (totalCount + limit - 1) / limit,
+		"totalOrders": totalCount,
+		"pageSize":    limit,
+	}
+
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+		"orders":     responses,
+		"pagination": pagination,
+	})
+}
+
+// UpdateOrderStatusAdmin handles PUT /api/admin/orders/{orderId} to update order status (Admin only)
+func UpdateOrderStatusAdmin(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	orderIDStr, ok := vars["orderId"]
+	if !ok {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Order ID not provided in path")
+		return
+	}
+	orderID, err := primitive.ObjectIDFromHex(orderIDStr)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid Order ID format")
+		return
+	}
+
+	var payload struct {
+		Status string `json:"status"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	// Determine status text
+	var statusText string
+	switch payload.Status {
+	case "pending":
+		statusText = "در انتظار تایید"
+	case "processing":
+		statusText = "در حال پردازش"
+	case "shipping":
+		statusText = "در حال ارسال"
+	case "delivered":
+		statusText = "تحویل شده"
+	case "cancelled":
+		statusText = "لغو شده"
+	default:
+		statusText = ""
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	ordersCollection := db.Database.Collection("orders")
+
+	update := bson.M{"$set": bson.M{
+		"status":      payload.Status,
+		"status_text": statusText,
+		"updated_at":  time.Now(),
+	}}
+	result, err := ordersCollection.UpdateOne(ctx, bson.M{"_id": orderID}, update)
+	if err != nil {
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error updating order status: "+err.Error(),
+		)
+		return
+	}
+	if result.MatchedCount == 0 {
+		utils.ErrorResponse(w, http.StatusNotFound, "Order not found")
+		return
+	}
+
+	var updatedOrder models.Order
+	if err := ordersCollection.FindOne(ctx, bson.M{"_id": orderID}).Decode(&updatedOrder); err != nil {
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error fetching updated order: "+err.Error(),
+		)
+		return
+	}
+	resp, err := newOrderAPIResponse(ctx, updatedOrder)
+	if err != nil {
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error preparing updated response: "+err.Error(),
+		)
+		return
+	}
+	utils.JSONResponse(w, http.StatusOK, resp)
 }

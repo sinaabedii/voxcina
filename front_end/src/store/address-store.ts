@@ -29,6 +29,8 @@ const convertToBackendAddress = (frontendAddress: Address): BackendAddress => ({
   city: frontendAddress.city,
   postal_code: frontendAddress.postalCode,
   is_default: frontendAddress.isDefault,
+  latitude: frontendAddress.latitude,
+  longitude: frontendAddress.longitude,
 });
 
 const convertFromBackendAddress = (backendAddress: BackendAddress, index: number): Address => ({
@@ -42,6 +44,8 @@ const convertFromBackendAddress = (backendAddress: BackendAddress, index: number
   address: backendAddress.address || "",
   postalCode: backendAddress.postal_code,
   isDefault: backendAddress.is_default,
+  latitude: backendAddress.latitude || 0,
+  longitude: backendAddress.longitude || 0,
 });
 
 export const useAddressStore = create<AddressStore>()(

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
 	// "encoding/json" //	 Will be needed for POST/PUT
 	// "os" // Will be needed for file operations
 	// "path/filepath" // Will be needed for file operations
@@ -16,12 +17,35 @@ import (
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
+
 	// "github.com/gorilla/mux" // Will be needed for path parameters
 
 	"backEnd/db"
 	"backEnd/models"
 	"backEnd/utils"
 )
+
+// Helper: Get the number of products for a brand
+func getProductsCountForBrand(ctx context.Context, brandID primitive.ObjectID) int {
+	productCollection := db.Database.Collection("products")
+	count, err := productCollection.CountDocuments(ctx, bson.M{"brand_id": brandID})
+	if err != nil {
+		return 0
+	}
+	return int(count)
+}
+
+// Helper: Get the most recently created product's name for a brand
+func getFeaturedProductForBrand(ctx context.Context, brandID primitive.ObjectID) string {
+	productCollection := db.Database.Collection("products")
+	var product models.Product
+	err := productCollection.FindOne(ctx, bson.M{"brand_id": brandID}, options.FindOne().SetSort(bson.D{{"created_at", -1}})).Decode(&product)
+	if err != nil {
+		return ""
+	}
+	return product.Name
+}
 
 // GetBrands returns a list of all brands.
 // GET /api/brands
@@ -36,24 +60,28 @@ func GetBrands(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use a slice of bson.M to match the exact structure from TypeScript if needed,
-	// or directly use models.Brand if the structure is consistent.
-	// For now, using models.Brand assuming direct compatibility or that conversion happens in utils.JSONResponse
-	var brands []models.Brand // Changed from []bson.M to []models.Brand
+	var brands []models.Brand
 	if err := cursor.All(ctx, &brands); err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding brands")
 		return
 	}
 
-	// Convert BSON ObjectIDs to string IDs for frontend compatibility if not handled by model tags or JSONResponse
-	// This step might be redundant if `json:"id,omitempty"` and `bson:"_id,omitempty"` handle it.
-	// However, the original GetBrands used []bson.M and manually converted IDs.
-	// If using []models.Brand, ensure the JSON marshaling handles ID conversion.
-	// For consistency with the original GetBrands, manual conversion or ensuring utils.JSONResponse handles it is key.
-	// Let's assume utils.JSONResponse or model tags handle it for now.
-	// If not, we'll need to iterate and convert like the original.
+	type BrandWithExtras struct {
+		models.Brand
+		ProductsCount   int    `json:"productsCount"`
+		FeaturedProduct string `json:"featuredProduct,omitempty"`
+	}
 
-	utils.JSONResponse(w, http.StatusOK, brands)
+	var brandsWithExtras []BrandWithExtras
+	for _, brand := range brands {
+		brandsWithExtras = append(brandsWithExtras, BrandWithExtras{
+			Brand:          brand,
+			ProductsCount:  getProductsCountForBrand(ctx, brand.ID),
+			FeaturedProduct: getFeaturedProductForBrand(ctx, brand.ID),
+		})
+	}
+
+	utils.JSONResponse(w, http.StatusOK, brandsWithExtras)
 }
 
 // CreateBrand adds a new brand, handling logo image upload.
@@ -197,7 +225,19 @@ func GetBrandByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.JSONResponse(w, http.StatusOK, brand)
+	type BrandWithExtras struct {
+		models.Brand
+		ProductsCount   int    `json:"productsCount"`
+		FeaturedProduct string `json:"featuredProduct,omitempty"`
+	}
+
+	brandWithExtras := BrandWithExtras{
+		Brand:          brand,
+		ProductsCount:  getProductsCountForBrand(ctx, brand.ID),
+		FeaturedProduct: getFeaturedProductForBrand(ctx, brand.ID),
+	}
+
+	utils.JSONResponse(w, http.StatusOK, brandWithExtras)
 }
 
 // UpdateBrand updates an existing brand, handling logo image upload if provided.

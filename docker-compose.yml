@@ -73,6 +73,8 @@ services:
     environment:
       - NODE_ENV=production
       - GO_BACKEND_URL=http://server:8080
+      - POSTEX_API_KEY=${POSTEX_API_KEY}
+      - POSTEX_BASE_URL=https://api.postex.ir
     volumes:
       - ./uploads:/app/public/uploads
     depends_on:

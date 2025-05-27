@@ -49,11 +49,13 @@ interface OrderState {
 interface OrderActions {
   fetchOrders: (page?: number, limit?: number, filters?: Record<string, any>) => Promise<void>;
   fetchOrderById: (orderId: string) => Promise<Order | null>;
-  createOrder: (orderData: any) // Replace 'any' with a specific OrderSubmission type from @/types/order
-    => Promise<Order | null>; 
+  createOrder: (orderData: any) => Promise<Order | null>;
   // updateOrderStatus: (orderId: string, status: Order['status']) => Promise<void>; // Example for admin
   setCurrentOrder: (order: Order | null) => void;
   clearOrders: () => void;
+  fetchAdminOrders: (page?: number, limit?: number, filters?: Record<string, any>) => Promise<void>;
+  updateOrderStatusAdmin: (orderId: string, status: Order['status']) => Promise<void>;
+  deleteOrder: (orderId: string) => Promise<void>;
 }
 
 const initialState: OrderState = {
@@ -203,6 +205,101 @@ export const useOrderStore = create<OrderState & OrderActions>()(
 
       clearOrders: () => {
         set({ orders: [], currentOrder: null, pagination: null, isLoading: false, error: null });
+      },
+
+      fetchAdminOrders: async (page = 1, limit = 10, filters = {}) => {
+        const { isAuthenticated, user } = useAuthStore.getState();
+        if (!isAuthenticated || !user) {
+          set({ error: "User not authenticated", isLoading: false, orders: [], pagination: null });
+          return;
+        }
+        set({ isLoading: true, error: null });
+        try {
+          const queryParams = new URLSearchParams({ page: page.toString(), limit: limit.toString(), ...filters });
+          const response = await fetch(`/api/admin/orders?${queryParams.toString()}`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
+          });
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: "Failed to fetch admin orders" }));
+            throw new Error(errorData.message || "Failed to fetch admin orders");
+          }
+          const data = await response.json();
+          const transformed = (data.orders || []).map(transformBackendOrder);
+          set({
+            orders: transformed,
+            pagination: data.pagination || { currentPage: page, totalPages: 1, totalOrders: transformed.length, pageSize: limit },
+            isLoading: false,
+          });
+        } catch (error) {
+          console.error("Error fetching admin orders:", error);
+          set({ error: error instanceof Error ? error.message : "An unknown error occurred", isLoading: false });
+        }
+      },
+
+      updateOrderStatusAdmin: async (orderId, status) => {
+        const { isAuthenticated } = useAuthStore.getState();
+        if (!isAuthenticated) {
+          const err = "User not authenticated";
+          set({ error: err, isLoading: false });
+          toast.error(err);
+          return;
+        }
+        set({ isLoading: true, error: null });
+        try {
+          const response = await fetch(`/api/admin/orders/${orderId}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+            },
+            body: JSON.stringify({ status }),
+          });
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({ message: "Failed to update order status" }));
+            throw new Error(errData.message || "Failed to update order status");
+          }
+          const updated = await response.json();
+          const transformedOrder = transformBackendOrder(updated);
+          set(state => ({
+            orders: state.orders.map(o => (o.id === transformedOrder.id ? transformedOrder : o)),
+            isLoading: false,
+          }));
+          toast.success("Order status updated");
+        } catch (error) {
+          console.error("Error updating order status:", error);
+          set({ error: error instanceof Error ? error.message : "An unknown error occurred", isLoading: false });
+          toast.error(error instanceof Error ? error.message : "An unknown error occurred");
+        }
+      },
+
+      deleteOrder: async (orderId) => {
+        const { isAuthenticated } = useAuthStore.getState();
+        if (!isAuthenticated) {
+          const err = "User not authenticated";
+          set({ error: err, isLoading: false });
+          toast.error(err);
+          return;
+        }
+        set({ isLoading: true, error: null });
+        try {
+          const response = await fetch(`/api/admin/orders/${orderId}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
+          });
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({ message: "Failed to delete order" }));
+            throw new Error(errData.message || "Failed to delete order");
+          }
+          set(state => ({
+            orders: state.orders.filter(o => o.id !== orderId),
+            isLoading: false,
+          }));
+          toast.success("Order deleted");
+        } catch (error) {
+          console.error("Error deleting order:", error);
+          set({ error: error instanceof Error ? error.message : "An unknown error occurred", isLoading: false });
+          toast.error(error instanceof Error ? error.message : "An unknown error occurred");
+        }
       },
     }),
     {

@@ -2,22 +2,6 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import ClientBrandsPage from './client';
 
-// Define the Brand interface
-interface Brand {
-  id?: string;
-  _id?: string;
-  name: string;
-  slug: string;
-  description?: string;
-  website?: string;
-  logo?: string;
-  isActive?: boolean;
-  productsCount?: number;
-  featuredProduct?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
 async function getBrands() {
   const cookieStore = cookies();
   const token = cookieStore.get('authToken')?.value;

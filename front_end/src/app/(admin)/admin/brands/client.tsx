@@ -20,6 +20,7 @@ import {
 import Button from "@/components/ui/Button";
 import { adminApi } from "@/services/admin-api";
 import toast from "react-hot-toast";
+import { useBrandStore } from "@/store/brand-store";
 
 // Define the Brand interface to match what we get from the API
 interface Brand {
@@ -42,12 +43,20 @@ interface ClientBrandsPageProps {
 }
 
 export default function ClientBrandsPage({ initialBrands }: ClientBrandsPageProps) {
+  // Use the brand store
+  const {
+    brands,
+    isLoading,
+    fetchBrands,
+    createBrand,
+    updateBrand,
+    deleteBrand,
+  } = useBrandStore();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
-  const [brands, setBrands] = useState<Brand[]>(initialBrands);
-  const [loading, setLoading] = useState(false);
   const [newBrand, setNewBrand] = useState<Brand>({
     name: "",
     slug: "",
@@ -57,33 +66,12 @@ export default function ClientBrandsPage({ initialBrands }: ClientBrandsPageProp
     isActive: true,
   });
 
-  // Refresh brands from API when needed
-  const fetchBrands = async () => {
-    setLoading(true);
-    try {
-      const response = await adminApi.getBrands();
-      
-      // Map backend data to expected format if needed
-      const brandsData = Array.isArray(response) ? response : response.data || [];
-      
-      // Ensure consistent ID field (backend may return _id instead of id)
-      const mappedBrands = brandsData.map((brand: any) => ({
-        ...brand,
-        id: brand.id || brand._id,
-        // Set default values for fields that might not exist in the backend response
-        productsCount: brand.productsCount || 0,
-        featuredProduct: brand.featuredProduct || "-",
-        isActive: brand.isActive !== undefined ? brand.isActive : true
-      }));
-      
-      setBrands(mappedBrands);
-    } catch (error) {
-      console.error("Error fetching brands:", error);
-      toast.error("خطا در دریافت اطلاعات برندها");
-    } finally {
-      setLoading(false);
+  // On mount, fetch brands if not already loaded
+  useEffect(() => {
+    if (!brands || brands.length === 0) {
+      fetchBrands();
     }
-  };
+  }, [fetchBrands, brands]);
 
   // Filter and search brands
   const filteredBrands = brands.filter((brand) =>
@@ -107,14 +95,20 @@ export default function ClientBrandsPage({ initialBrands }: ClientBrandsPageProp
   // Add new brand
   const handleAddBrand = async () => {
     try {
-      // Make sure required fields are filled
       if (!newBrand.name || !newBrand.slug) {
         toast.error("نام و نامک (slug) الزامی هستند");
         return;
       }
-      
-      await adminApi.createBrand(newBrand);
-      toast.success("برند با موفقیت اضافه شد");
+      const formData = new FormData();
+      Object.entries(newBrand).forEach(([key, value]) => {
+        if (key !== "logo") {
+          formData.append(key, String(value));
+        }
+      });
+      if (newBrand.logo && typeof newBrand.logo !== "string") {
+        formData.append("logo", newBrand.logo as File);
+      }
+      await createBrand(formData);
       setNewBrand({
         name: "",
         slug: "",
@@ -124,39 +118,34 @@ export default function ClientBrandsPage({ initialBrands }: ClientBrandsPageProp
         isActive: true,
       });
       setIsAddModalOpen(false);
-      fetchBrands(); // Refresh the list
+      fetchBrands();
     } catch (error) {
-      console.error("Error adding brand:", error);
-      toast.error("خطا در افزودن برند");
+      // Error handled by store
     }
   };
 
   // Update brand
   const handleUpdateBrand = async () => {
     if (!editingBrand || !editingBrand.id) return;
-    
     try {
-      // Make sure required fields are filled
       if (!editingBrand.name || !editingBrand.slug) {
         toast.error("نام و نامک (slug) الزامی هستند");
         return;
       }
-      
-      // Use the correct ID field (id or _id)
-      const brandId = editingBrand.id || editingBrand._id;
-      
-      if (!brandId) {
-        toast.error("شناسه برند نامعتبر است");
-        return;
+      const formData = new FormData();
+      Object.entries(editingBrand).forEach(([key, value]) => {
+        if (key !== "logo") {
+          formData.append(key, String(value));
+        }
+      });
+      if (editingBrand.logo && typeof editingBrand.logo !== "string") {
+        formData.append("logo", editingBrand.logo as File);
       }
-      
-      await adminApi.updateBrand(brandId.toString(), editingBrand);
-      toast.success("برند با موفقیت به‌روزرسانی شد");
+      await updateBrand(editingBrand.id, formData);
       setEditingBrand(null);
-      fetchBrands(); // Refresh the list
+      fetchBrands();
     } catch (error) {
-      console.error("Error updating brand:", error);
-      toast.error("خطا در به‌روزرسانی برند");
+      // Error handled by store
     }
   };
 
@@ -164,12 +153,10 @@ export default function ClientBrandsPage({ initialBrands }: ClientBrandsPageProp
   const handleDeleteBrand = async (id: string) => {
     if (window.confirm("آیا از حذف این برند اطمینان دارید؟")) {
       try {
-        await adminApi.deleteBrand(id);
-        toast.success("برند با موفقیت حذف شد");
-        fetchBrands(); // Refresh the list
+        await deleteBrand(id);
+        fetchBrands();
       } catch (error) {
-        console.error("Error deleting brand:", error);
-        toast.error("خطا در حذف برند");
+        // Error handled by store
       }
     }
   };
@@ -178,7 +165,6 @@ export default function ClientBrandsPage({ initialBrands }: ClientBrandsPageProp
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>, isNew: boolean) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
     if (isNew) {
       setNewBrand({ ...newBrand, logo: file });
     } else if (editingBrand) {
@@ -198,18 +184,8 @@ export default function ClientBrandsPage({ initialBrands }: ClientBrandsPageProp
     const newIndex = direction === "up" ? index - 1 : index + 1;
     const brand = filteredBrands[index];
     const targetBrand = filteredBrands[newIndex];
-
-    // In a real implementation, you'd update the order via API
-    // For now, we'll just update the local state
-    const updatedBrands = [...brands];
-    const brandIndex = updatedBrands.findIndex(b => b.id === brand.id);
-    const targetIndex = updatedBrands.findIndex(b => b.id === targetBrand.id);
-    
-    // Swap positions
-    [updatedBrands[brandIndex], updatedBrands[targetIndex]] = 
-    [updatedBrands[targetIndex], updatedBrands[brandIndex]];
-    
-    setBrands(updatedBrands);
+    // Update order logic here if needed
+    // No setBrands, as we use the store now
   };
 
   // Animation variants
@@ -235,27 +211,13 @@ export default function ClientBrandsPage({ initialBrands }: ClientBrandsPageProp
   // Handle status change
   const handleStatusChange = async (brandId: string, newStatus: boolean) => {
     try {
-      // Find the brand
-      const brand = brands.find(b => b.id === brandId);
-      if (!brand) return;
-      
-      // Update the brand
-      await adminApi.updateBrand(brandId, { ...brand, isActive: newStatus });
-      
-      // Update local state
-      const updatedBrands = brands.map((brand) =>
-        brand.id === brandId ? { ...brand, isActive: newStatus } : brand
-      );
-      setBrands(updatedBrands);
-      
-      if (editingBrand && editingBrand.id === brandId) {
-        setEditingBrand({ ...editingBrand, isActive: newStatus });
-      }
-      
-      toast.success("وضعیت برند با موفقیت تغییر کرد");
+      // Only update isActive field
+      const formData = new FormData();
+      formData.append("isActive", String(newStatus));
+      await updateBrand(brandId, formData);
+      fetchBrands();
     } catch (error) {
-      console.error("Error updating brand status:", error);
-      toast.error("خطا در تغییر وضعیت برند");
+      // Error handled by store
     }
   };
 
@@ -309,7 +271,7 @@ export default function ClientBrandsPage({ initialBrands }: ClientBrandsPageProp
         initial="hidden"
         animate="visible"
       >
-        {loading ? (
+        {isLoading ? (
           // Loading state
           <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-md rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
             <CardContent className="p-8 text-center">
@@ -325,7 +287,7 @@ export default function ClientBrandsPage({ initialBrands }: ClientBrandsPageProp
           <div className="space-y-4">
             {currentBrands.map((brand, index) => (
               <motion.div
-                key={brand.id || brand._id}
+                key={brand.id || brand.id}
                 variants={itemVariants}
                 className="transition-all duration-300"
               >
@@ -378,18 +340,6 @@ export default function ClientBrandsPage({ initialBrands }: ClientBrandsPageProp
                               <span className="text-voxcina-blue/70 dark:text-voxcina-cream/70">
                                 محصول شاخص: {brand.featuredProduct}
                               </span>
-                            </div>
-                          )}
-                          {brand.website && (
-                            <div className="flex items-center">
-                              <a 
-                                href={brand.website} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-voxcina-blue/80 dark:text-voxcina-cream/80 hover:text-voxcina-blue dark:hover:text-voxcina-cream"
-                              >
-                                {brand.website.replace(/(^\w+:|^)\/\//, '')}
-                              </a>
                             </div>
                           )}
                         </div>

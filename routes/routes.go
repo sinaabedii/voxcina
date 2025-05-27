@@ -70,9 +70,9 @@ func NewRouter() *mux.Router {
 		// Soft delete
 
 	// Admin Order Management
-	adminRouter.HandleFunc("/orders/{orderId}", handlers.DeleteOrder).
-		Methods("DELETE")
-		// Soft delete
+	adminRouter.HandleFunc("/orders", handlers.GetAllOrders).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/orders/{orderId}", handlers.UpdateOrderStatusAdmin).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/orders/{orderId}", handlers.DeleteOrder).Methods("DELETE")
 
 	// Admin Cart Management
 	adminRouter.HandleFunc("/carts/{cartId}", handlers.DeleteCart).

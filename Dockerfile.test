@@ -16,7 +16,7 @@ COPY . .
 RUN rm -rf vendor/
 
 # Install test dependencies
-RUN go get github.com/stretchr/testify/assert
+# RUN go get github.com/stretchr/testify/assert
 
 # Make sure the script is executable
 RUN chmod +x /app/run_tests.sh
