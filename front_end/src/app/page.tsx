@@ -15,6 +15,7 @@ import ColorMatchingTool from "@/components/home/ColorMatchingTool";
 import VirtualWardrobe from "@/components/home/VirtualWardrobe";
 import HeroSection from "@/components/home/HeroSection";
 import ModernCategoriesSection from "@/components/home/ModernCategoriesSection";
+import { FaArrowLeft } from "react-icons/fa";
 
 export default function HomePage() {
   const {
@@ -172,20 +173,7 @@ export default function HomePage() {
                     className="inline-flex items-center font-medium text-voxcina-blue hover:text-voxcina-darkBlue transition-colors group"
                   >
                     <span>مشاهده کالکشن</span>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 md:h-5 md:w-5 mr-2 transform transition-transform duration-300 group-hover:translate-x-1"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
+                    <FaArrowLeft />
                   </Link>
                 </motion.div>
               </div>

@@ -14,7 +14,7 @@ const ModernCategoriesSection = () => {
       icon: "👗",
       color: "from-pink-400 to-rose-500",
       shadowColor: "shadow-pink-200",
-      products: "2,350",
+      products: "50",
     },
     {
       id: 2,
@@ -23,7 +23,7 @@ const ModernCategoriesSection = () => {
       icon: "👔",
       color: "from-blue-400 to-indigo-500",
       shadowColor: "shadow-blue-200",
-      products: "1,890",
+      products: "100",
     },
     {
       id: 3,
@@ -32,7 +32,7 @@ const ModernCategoriesSection = () => {
       icon: "👜",
       color: "from-amber-400 to-orange-500",
       shadowColor: "shadow-amber-200",
-      products: "3,120",
+      products: "20",
     },
     {
       id: 4,
@@ -41,44 +41,18 @@ const ModernCategoriesSection = () => {
       icon: "💍",
       color: "from-purple-400 to-violet-500",
       shadowColor: "shadow-purple-200",
-      products: "1,450",
+      products: "50",
     },
     {
-      id: 5,
-      name: "کودک و نوزاد",
-      slug: "kids",
-      icon: "🧸",
-      color: "from-cyan-400 to-teal-500",
-      shadowColor: "shadow-cyan-200",
-      products: "890",
-    },
-    {
-      id: 6,
-      name: "ورزشی",
-      slug: "sports",
-      icon: "⚽",
-      color: "from-green-400 to-emerald-500",
-      shadowColor: "shadow-green-200",
-      products: "1,200",
-    },
-    {
-      id: 7,
+      id: 4,
       name: "آرایشی",
       slug: "beauty",
       icon: "💄",
       color: "from-fuchsia-400 to-pink-500",
       shadowColor: "shadow-fuchsia-200",
-      products: "2,100",
+      products: "20",
     },
-    {
-      id: 8,
-      name: "لوازم خانه",
-      slug: "home",
-      icon: "🏠",
-      color: "from-teal-400 to-cyan-500",
-      shadowColor: "shadow-teal-200",
-      products: "980",
-    },
+    
   ];
 
   return (
