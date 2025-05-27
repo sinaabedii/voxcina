@@ -9,12 +9,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell,
   ShoppingCart,
-  User,
   Search,
   Menu,
   X,
-  Sun,
-  Moon,
   LogOut,
   LayoutDashboard,
   Package,
@@ -37,26 +34,8 @@ export default function AdminLayout({
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [activeSection, setActiveSection] = useState("dashboard");
-
-  useEffect(() => {
-    const isDark =
-      localStorage.getItem("theme") === "dark" ||
-      (!localStorage.getItem("theme") &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches);
-
-    setIsDarkMode(isDark);
-    document.documentElement.classList.toggle("dark", isDark);
-  }, []);
-
-  const toggleDarkMode = () => {
-    const newMode = !isDarkMode;
-    setIsDarkMode(newMode);
-    document.documentElement.classList.toggle("dark", newMode);
-    localStorage.setItem("theme", newMode ? "dark" : "light");
-  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -241,15 +220,6 @@ export default function AdminLayout({
               <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
             </motion.button>
 
-            <motion.button
-              className="p-2 text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream rounded-full hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
-              onClick={toggleDarkMode}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-            </motion.button>
-
             <div className="relative">
               <motion.button
                 id="profile-button"
@@ -381,8 +351,8 @@ export default function AdminLayout({
                           const isActive = activeSection === item.section;
 
                           return (
-                            <motion.div 
-                              key={item.href} 
+                            <motion.div
+                              key={item.href}
                               variants={{
                                 hidden: { opacity: 0, x: -20 },
                                 visible: { opacity: 1, x: 0 },
@@ -417,7 +387,7 @@ export default function AdminLayout({
                           );
                         })}
 
-                        <motion.div 
+                        <motion.div
                           variants={{
                             hidden: { opacity: 0, x: -20 },
                             visible: { opacity: 1, x: 0 },
@@ -471,8 +441,8 @@ export default function AdminLayout({
                   const isActive = activeSection === item.section;
 
                   return (
-                    <motion.div 
-                      key={item.href} 
+                    <motion.div
+                      key={item.href}
                       variants={{
                         hidden: { opacity: 0, x: -20 },
                         visible: { opacity: 1, x: 0 },
@@ -504,7 +474,7 @@ export default function AdminLayout({
                   );
                 })}
 
-                <motion.div 
+                <motion.div
                   variants={{
                     hidden: { opacity: 0, x: -20 },
                     visible: { opacity: 1, x: 0 },
@@ -538,4 +508,4 @@ export default function AdminLayout({
       </div>
     </div>
   );
-} 
+}

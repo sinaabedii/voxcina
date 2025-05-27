@@ -112,7 +112,7 @@ const Header = () => {
             <AnimatePresence>
               {isSearchOpen ? (
                 <motion.div
-                  className="absolute right-3 sm:right-4 md:right-6 top-full mt-2 w-[calc(100%-1.5rem)] sm:w-[calc(100%-2rem)] md:w-[calc(100%-3rem)] lg:w-80 flex items-center bg-white/95 dark:bg-voxcina-blue/95 z-10 rounded-xl shadow-md border border-voxcina-cream/30 dark:border-voxcina-blue/50 backdrop-blur-sm"
+                  className="absolute  top-full mt-2 w-[calc(100%-1.5rem)] sm:w-[calc(100%-2rem)] md:w-[calc(100%-3rem)] lg:w-80 flex items-center bg-white/95 dark:bg-voxcina-blue/95 z-10 rounded-xl shadow-md border border-voxcina-cream/30 dark:border-voxcina-blue/50 backdrop-blur-sm"
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}

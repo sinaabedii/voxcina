@@ -261,24 +261,6 @@ export const ModernSliderSection = () => {
                           className={`absolute inset-0 bg-gradient-to-r ${sliderData[currentSlide].accentColor} transform translate-x-full group-hover:translate-x-0 transition-transform duration-300`}
                         />
                       </Link>
-
-                      <button className="inline-flex items-center justify-center gap-2 md:gap-3 bg-white/10 backdrop-blur-md text-white px-4 py-2.5 md:px-6 md:py-4 rounded-full font-medium md:font-semibold hover:bg-white/20 transition-all duration-300 border border-white/20 text-sm md:text-base">
-                        <svg
-                          className="w-4 h-4 md:w-5 md:h-5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                          />
-                        </svg>
-                        <span className="hidden sm:inline">مشاهده ویدیو</span>
-                        <span className="sm:hidden">ویدیو</span>
-                      </button>
                     </motion.div>
                   </div>
 

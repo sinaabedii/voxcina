@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { Award, Target, TrendingUp, MapPin, Mail, Phone } from "lucide-react";
+import { MapPin, Mail, Phone } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -31,421 +31,350 @@ export default function AboutPage() {
     <>
       <Header />
 
-      <div className="min-h-screen bg-voxcina-cream dark:bg-voxcina-darkBlue/90">
-        <div className="bg-gradient-to-r from-voxcina-blue to-voxcina-darkBlue text-white relative overflow-hidden">
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute w-64 h-64 bg-white/10 rounded-full -top-20 -left-20 blur-3xl"></div>
-            <div className="absolute w-96 h-96 bg-primary-400/10 rounded-full -bottom-40 -right-20 blur-3xl"></div>
-          </div>
-          <div className="container mx-auto py-20 md:py-28 px-4 text-center relative z-10">
+      <div className="min-h-screen max-w-6xl mx-auto dark:bg-voxcina-darkBlue/90">
+        <div className="relative overflow-hidden bg-transparent">
+          <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
             <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="relative inline-block mb-6"
-            >
-              <span className="text-xl text-secondary-200 font-light">
-                Voxcina
-              </span>
-              <div className="w-full h-1 bg-secondary-200/30 mt-1 rounded-full"></div>
-            </motion.div>
-
-            <motion.h1
-              className="text-4xl md:text-5xl font-bold mb-6 relative"
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-            >
-              <span className="relative z-10">درباره ما</span>
-              <span className="absolute bottom-1 left-0 w-full h-3 bg-secondary-200/20 rounded-full -z-0 opacity-40"></span>
-            </motion.h1>
-
-            <motion.p
-              className="text-xl max-w-3xl mx-auto text-secondary-200"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
-            >
-              ما با تلاش و تعهد به ارائه بهترین محصولات و خدمات، در مسیر رضایت
-              مشتریان گام برمی‌داریم.
-            </motion.p>
-
+              animate={{
+                rotate: [0, 360],
+                scale: [1, 1.1, 1],
+              }}
+              transition={{
+                duration: 20,
+                repeat: Infinity,
+                ease: "linear",
+              }}
+              className="absolute -top-32 -right-32 w-64 h-64 border border-voxcina-blue/10 rounded-full"
+            />
             <motion.div
-              className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-voxcina-cream to-transparent dark:from-voxcina-darkBlue/90 dark:to-transparent"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1, duration: 1 }}
-            ></motion.div>
+              animate={{
+                rotate: [360, 0],
+                x: [0, 20, 0],
+                y: [0, -10, 0],
+              }}
+              transition={{
+                duration: 15,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+              className="absolute bottom-20 left-10 w-16 h-16 bg-gradient-to-br from-voxcina-blue/20 to-voxcina-darkBlue/20 transform rotate-45"
+            />
           </div>
+
+          <div className="relative z-10 container mx-auto px-4 py-16 sm:py-20 md:py-24 lg:py-32 max-w-7xl">
+            <div className="max-w-5xl mx-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-16 items-center">
+                <div className="lg:col-span-7 order-2 lg:order-1">
+                  <motion.div
+                    initial={{ opacity: 0, x: -50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.8 }}
+                  >
+                    <span className="inline-block text-xs sm:text-sm text-voxcina-blue/70 dark:text-secondary-200/70 font-medium tracking-[0.2em] sm:tracking-[0.3em] uppercase mb-4 sm:mb-6 relative">
+                      <span className="relative z-10">Voxcina</span>
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: "100%" }}
+                        transition={{ duration: 1, delay: 0.5 }}
+                        className="absolute bottom-0 left-0 h-px bg-voxcina-blue/50"
+                      />
+                    </span>
+                  </motion.div>
+
+                  <motion.h1
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.2 }}
+                    className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl xl:text-8xl font-bold text-voxcina-darkBlue dark:text-white mb-4 sm:mb-6 md:mb-8 leading-none"
+                  >
+                    <span className="block">درباره</span>
+                    <span className="block text-voxcina-blue relative">
+                      ما
+                      <motion.div
+                        initial={{ scaleX: 0 }}
+                        animate={{ scaleX: 1 }}
+                        transition={{ duration: 1, delay: 1 }}
+                        className="absolute -bottom-1 sm:-bottom-2 left-0 w-full h-1 sm:h-2 bg-voxcina-blue/20 origin-left"
+                      />
+                    </span>
+                  </motion.h1>
+
+                  <motion.p
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.6 }}
+                    className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 dark:text-secondary-200/80 leading-relaxed max-w-2xl"
+                  >
+                    جایی که
+                    <span className="text-voxcina-blue font-semibold">
+                      {" "}
+                      ایده‌ها{" "}
+                    </span>
+                    به
+                    <span className="text-voxcina-blue font-semibold">
+                      {" "}
+                      واقعیت{" "}
+                    </span>
+                    تبدیل می‌شوند
+                  </motion.p>
+                </div>
+
+                <div className="lg:col-span-5 order-1 lg:order-2">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 1, delay: 0.3 }}
+                    className="relative"
+                  >
+                    <div className="relative w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-72 lg:h-72 xl:w-80 xl:h-80 mx-auto">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{
+                          duration: 30,
+                          repeat: Infinity,
+                          ease: "linear",
+                        }}
+                        className="absolute inset-0 rounded-full border-2 border-dashed border-voxcina-blue/30"
+                      />
+
+                      <motion.div
+                        animate={{ rotate: -360 }}
+                        transition={{
+                          duration: 25,
+                          repeat: Infinity,
+                          ease: "linear",
+                        }}
+                        className="absolute inset-2 sm:inset-3 md:inset-4 rounded-full border border-voxcina-blue/50"
+                      />
+
+                      <div className="absolute inset-8 sm:inset-10 md:inset-12 lg:inset-14 xl:inset-16 bg-gradient-to-br from-voxcina-blue to-voxcina-darkBlue rounded-full flex items-center justify-center shadow-2xl">
+                        <motion.div
+                          animate={{
+                            scale: [1, 1.1, 1],
+                            rotate: [0, 180, 360],
+                          }}
+                          transition={{
+                            duration: 8,
+                            repeat: Infinity,
+                            ease: "easeInOut",
+                          }}
+                          className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white"
+                        >
+                          V
+                        </motion.div>
+                      </div>
+
+                      {[...Array(8)].map((_, i) => (
+                        <motion.div
+                          key={i}
+                          animate={{
+                            scale: [1, 1.5, 1],
+                            opacity: [0.5, 1, 0.5],
+                          }}
+                          transition={{
+                            duration: 2,
+                            repeat: Infinity,
+                            delay: i * 0.25,
+                            ease: "easeInOut",
+                          }}
+                          className="absolute w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 bg-voxcina-blue rounded-full"
+                          style={{
+                            top: `${50 + 40 * Math.sin((i * Math.PI) / 4)}%`,
+                            left: `${50 + 40 * Math.cos((i * Math.PI) / 4)}%`,
+                            transform: "translate(-50%, -50%)",
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <motion.div
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ duration: 1.5, delay: 1.2 }}
+            className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-voxcina-blue/30 to-transparent origin-center"
+          />
         </div>
 
-        <section className="py-16 px-4 relative">
-          <div className="absolute inset-0 z-0 overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
-          </div>
-          <div className="container mx-auto relative z-10">
+        <section className="py-12 sm:py-16 md:py-20 lg:py-24 relative bg-transparent">
+          <div className="container mx-auto px-4 max-w-7xl">
             <motion.div
-              className="max-w-4xl mx-auto"
+              className="max-w-6xl mx-auto"
               variants={containerVariants}
               initial="hidden"
               animate="visible"
             >
-              <motion.div variants={itemVariants} className="text-center mb-12">
-                <h2 className="text-3xl font-bold mb-4 text-voxcina-blue dark:text-secondary-200 relative inline-block">
-                  <span className="relative z-10">داستان ما</span>
-                  <span className="absolute bottom-1 left-0 w-full h-3 bg-secondary-200 dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
-                </h2>
-                <div className="w-24 h-1 bg-voxcina-blue/30 dark:bg-secondary-200/30 mx-auto mt-2 rounded-full"></div>
-              </motion.div>
-
               <motion.div
                 variants={itemVariants}
-                className="prose prose-lg max-w-none bg-white/80 dark:bg-voxcina-blue/10 p-8 rounded-2xl shadow-soft backdrop-blur-sm border border-secondary-200 dark:border-voxcina-darkBlue/30"
+                className="text-center mb-12 sm:mb-16 md:mb-20"
               >
-                <p className="text-voxcina-blue/80 dark:text-secondary-300">
-                  در سال ۱۳۹۵، با هدف ایجاد تحولی در صنعت فروش آنلاین، فعالیت
-                  خود را آغاز کردیم. ما از ابتدا با تمرکز بر کیفیت محصولات و
-                  تجربه خرید مشتریان، توانستیم به یکی از معتبرترین فروشگاه‌های
-                  آنلاین تبدیل شویم.
-                </p>
-
-                <p className="text-voxcina-blue/80 dark:text-secondary-300">
-                  امروز، با تیمی متشکل از ۵۰ نفر از متخصصان و همکاری با بیش از
-                  ۱۰۰ تولیدکننده و تأمین‌کننده معتبر، افتخار ارائه بیش از ۵۰۰۰
-                  محصول با کیفیت را داریم. ما همواره تلاش می‌کنیم تا با
-                  بهره‌گیری از آخرین فناوری‌ها و بهبود مستمر خدمات، رضایت
-                  مشتریان را جلب کنیم.
-                </p>
-
-                <p className="text-voxcina-blue/80 dark:text-secondary-300">
-                  چشم‌انداز ما گسترش دامنه فعالیت و حضور موثر در بازارهای
-                  بین‌المللی است. ماموریت ما ایجاد تجربه‌ای لذت‌بخش از خرید
-                  آنلاین برای همه مشتریان با هر سلیقه و بودجه‌ای است.
-                </p>
+                <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-voxcina-darkBlue dark:text-white mb-4 sm:mb-6 relative inline-block">
+                  داستان ما
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: "100%" }}
+                    transition={{ duration: 1, delay: 0.5 }}
+                    className="absolute -bottom-1 sm:-bottom-2 left-0 h-0.5 sm:h-1 bg-gradient-to-r from-voxcina-blue to-voxcina-darkBlue rounded-full"
+                  />
+                </h2>
               </motion.div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 mb-12 sm:mb-16">
+                <motion.div
+                  variants={itemVariants}
+                  className="bg-white/60 dark:bg-voxcina-blue/5 backdrop-blur-sm p-4 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl border border-voxcina-blue/10 relative overflow-hidden group hover:bg-white/80 dark:hover:bg-voxcina-blue/10 transition-all duration-500"
+                >
+                  <div className="absolute top-0 right-0 w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-gradient-to-bl from-voxcina-blue/20 to-transparent rounded-bl-xl sm:rounded-bl-2xl"></div>
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-voxcina-blue mb-3 sm:mb-4 relative z-10">
+                    شروع
+                  </h3>
+                  <p className="text-sm sm:text-base text-gray-700 dark:text-secondary-200/90 leading-relaxed relative z-10">
+                    در سال ۱۳۹۵، با هدف ایجاد تحولی در صنعت فروش آنلاین، فعالیت
+                    خود را آغاز کردیم و با تمرکز بر کیفیت محصولات توانستیم به
+                    یکی از معتبرترین فروشگاه‌ها تبدیل شویم.
+                  </p>
+                </motion.div>
+
+                <motion.div
+                  variants={itemVariants}
+                  className="bg-white/60 dark:bg-voxcina-blue/5 backdrop-blur-sm p-4 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl border border-voxcina-blue/10 relative overflow-hidden group hover:bg-white/80 dark:hover:bg-voxcina-blue/10 transition-all duration-500 lg:transform lg:translate-y-4 xl:translate-y-8"
+                >
+                  <div className="absolute top-0 right-0 w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-gradient-to-bl from-voxcina-darkBlue/20 to-transparent rounded-bl-xl sm:rounded-bl-2xl"></div>
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-voxcina-darkBlue mb-3 sm:mb-4 relative z-10">
+                    امروز
+                  </h3>
+                  <p className="text-sm sm:text-base text-gray-700 dark:text-secondary-200/90 leading-relaxed relative z-10">
+                    با تیمی متشکل از ۵۰ نفر از متخصصان و همکاری با بیش از ۱۰۰
+                    تولیدکننده، افتخار ارائه بیش از ۵۰۰۰ محصول با کیفیت را داریم
+                    و همواره در حال بهبود خدمات هستیم.
+                  </p>
+                </motion.div>
+
+                <motion.div
+                  variants={itemVariants}
+                  className="bg-white/60 dark:bg-voxcina-blue/5 backdrop-blur-sm p-4 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl border border-voxcina-blue/10 relative overflow-hidden group hover:bg-white/80 dark:hover:bg-voxcina-blue/10 transition-all duration-500"
+                >
+                  <div className="absolute top-0 right-0 w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-gradient-to-bl from-secondary-200/30 to-transparent rounded-bl-xl sm:rounded-bl-2xl"></div>
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-secondary-600 dark:text-secondary-200 mb-3 sm:mb-4 relative z-10">
+                    آینده
+                  </h3>
+                  <p className="text-sm sm:text-base text-gray-700 dark:text-secondary-200/90 leading-relaxed relative z-10">
+                    چشم‌انداز ما گسترش دامنه فعالیت و حضور موثر در بازارهای
+                    بین‌المللی است. ماموریت ما ایجاد تجربه‌ای لذت‌بخش از خرید
+                    آنلاین برای همه مشتریان است.
+                  </p>
+                </motion.div>
+              </div>
             </motion.div>
           </div>
         </section>
-        <section className="py-16 px-4 bg-secondary-100/50 dark:bg-voxcina-blue/5 relative">
-          <div className="absolute inset-0 z-0 overflow-hidden">
-            <div className="absolute bottom-0 left-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
+
+        <section className="py-24 bg-transparent relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-full">
+            <motion.div
+              animate={{ x: [0, 100, 0], y: [0, -50, 0] }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              className="absolute top-20 right-20 w-32 h-32 border border-voxcina-blue/5 rounded-full"
+            />
           </div>
-          <div className="container mx-auto relative z-10">
+
+          <div className="container mx-auto px-4 relative z-10 max-w-7xl">
             <motion.div
               className="text-center mb-16"
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
+              transition={{ duration: 0.8 }}
             >
-              <h2 className="text-3xl font-bold mb-4 text-voxcina-blue dark:text-secondary-200 relative inline-block">
-                <span className="relative z-10">ارزش‌های ما</span>
-                <span className="absolute bottom-1 left-0 w-full h-3 bg-secondary-200 dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
+              <h2 className="text-4xl md:text-5xl font-bold text-voxcina-darkBlue dark:text-white mb-6">
+                ارتباط با ما
               </h2>
-              <div className="w-24 h-1 bg-voxcina-blue/30 dark:bg-secondary-200/30 mx-auto mt-2 rounded-full"></div>
+              <div className="w-24 h-1 bg-gradient-to-r from-voxcina-blue to-voxcina-darkBlue mx-auto rounded-full"></div>
             </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <motion.div
-                className="bg-white/90 dark:bg-voxcina-blue/10 p-8 rounded-2xl shadow-soft border border-secondary-200 dark:border-voxcina-darkBlue/30 backdrop-blur-sm transition-all duration-300 hover:shadow-medium relative overflow-hidden group"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                whileHover={{ y: -5 }}
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full -mt-16 -mr-16 transition-all duration-500 group-hover:scale-125"></div>
-
-                <div className="w-16 h-16 bg-secondary-200/70 dark:bg-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 rounded-full flex items-center justify-center mx-auto mb-6 relative z-10 shadow-soft">
-                  <Award className="w-8 h-8" />
-                </div>
-
-                <h3 className="text-xl font-bold mb-3 text-voxcina-blue dark:text-secondary-200 relative z-10">
-                  کیفیت برتر
-                </h3>
-
-                <p className="text-voxcina-blue/70 dark:text-secondary-300 relative z-10">
-                  ما همواره به دنبال بهترین محصولات با بالاترین کیفیت هستیم تا
-                  رضایت مشتریان را جلب کنیم.
-                </p>
-              </motion.div>
-
-              <motion.div
-                className="bg-white/90 dark:bg-voxcina-blue/10 p-8 rounded-2xl shadow-soft border border-secondary-200 dark:border-voxcina-darkBlue/30 backdrop-blur-sm transition-all duration-300 hover:shadow-medium relative overflow-hidden group"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-                whileHover={{ y: -5 }}
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full -mt-16 -mr-16 transition-all duration-500 group-hover:scale-125"></div>
-
-                <div className="w-16 h-16 bg-secondary-200/70 dark:bg-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 rounded-full flex items-center justify-center mx-auto mb-6 relative z-10 shadow-soft">
-                  <Target className="w-8 h-8" />
-                </div>
-
-                <h3 className="text-xl font-bold mb-3 text-voxcina-blue dark:text-secondary-200 relative z-10">
-                  مشتری‌مداری
-                </h3>
-
-                <p className="text-voxcina-blue/70 dark:text-secondary-300 relative z-10">
-                  مشتریان محور اصلی فعالیت‌های ما هستند و تمام تلاش ما برای جلب
-                  رضایت و اعتماد آنهاست.
-                </p>
-              </motion.div>
-
-              <motion.div
-                className="bg-white/90 dark:bg-voxcina-blue/10 p-8 rounded-2xl shadow-soft border border-secondary-200 dark:border-voxcina-darkBlue/30 backdrop-blur-sm transition-all duration-300 hover:shadow-medium relative overflow-hidden group"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.6 }}
-                whileHover={{ y: -5 }}
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full -mt-16 -mr-16 transition-all duration-500 group-hover:scale-125"></div>
-
-                <div className="w-16 h-16 bg-secondary-200/70 dark:bg-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 rounded-full flex items-center justify-center mx-auto mb-6 relative z-10 shadow-soft">
-                  <TrendingUp className="w-8 h-8" />
-                </div>
-
-                <h3 className="text-xl font-bold mb-3 text-voxcina-blue dark:text-secondary-200 relative z-10">
-                  نوآوری مستمر
-                </h3>
-
-                <p className="text-voxcina-blue/70 dark:text-secondary-300 relative z-10">
-                  ما همواره به دنبال نوآوری و بهبود مستمر در محصولات و خدمات خود
-                  هستیم.
-                </p>
-              </motion.div>
-            </div>
-          </div>
-        </section>
-        <section className="py-16 px-4 relative">
-          <div className="absolute inset-0 z-0 overflow-hidden">
-            <div className="absolute top-0 left-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
-          </div>
-          <div className="container mx-auto relative z-10">
-            <motion.div
-              className="text-center mb-16"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <h2 className="text-3xl font-bold mb-4 text-voxcina-blue dark:text-secondary-200 relative inline-block">
-                <span className="relative z-10">تیم ما</span>
-                <span className="absolute bottom-1 left-0 w-full h-3 bg-secondary-200 dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
-              </h2>
-              <div className="w-24 h-1 bg-voxcina-blue/30 dark:bg-secondary-200/30 mx-auto mt-2 rounded-full"></div>
-            </motion.div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto mb-16">
               {[
                 {
-                  name: "علی محمدی",
-                  position: "مدیرعامل",
-                  image: "/api/placeholder/150/150",
+                  icon: MapPin,
+                  title: "آدرس",
+                  content: ["پاسداران بوستان پنجم کوی گلشن پلاک ۱۴"],
+                  delay: 0.2,
                 },
                 {
-                  name: "مریم احمدی",
-                  position: "مدیر محصول",
-                  image: "/api/placeholder/150/150",
+                  icon: Mail,
+                  title: "ایمیل",
+                  content: ["info@voxcina.com", "support@voxcina.com"],
+                  delay: 0.4,
                 },
                 {
-                  name: "رضا کریمی",
-                  position: "مدیر فنی",
-                  image: "/api/placeholder/150/150",
+                  icon: Phone,
+                  title: "تلفن",
+                  content: ["021-22325593", "09128930115"],
+                  delay: 0.6,
                 },
-                {
-                  name: "سارا حسینی",
-                  position: "مدیر فروش",
-                  image: "/api/placeholder/150/150",
-                },
-              ].map((member, index) => (
+              ].map((item, index) => (
                 <motion.div
                   key={index}
-                  className="bg-white/90 dark:bg-voxcina-blue/10 rounded-2xl overflow-hidden shadow-soft hover:shadow-medium transition-all duration-300 border border-secondary-200 dark:border-voxcina-darkBlue/30 backdrop-blur-sm group"
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.2 * index }}
-                  whileHover={{ y: -5 }}
+                  initial={{ opacity: 0, y: 50, rotateX: -15 }}
+                  animate={{ opacity: 1, y: 0, rotateX: 0 }}
+                  transition={{ duration: 0.8, delay: item.delay }}
+                  className="group perspective-1000"
                 >
-                  <div className="relative overflow-hidden">
-                    <img
-                      src={member.image}
-                      alt={member.name}
-                      className="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-voxcina-blue/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  </div>
+                  <div className="relative bg-white/60 dark:bg-voxcina-darkBlue/20 backdrop-blur-sm p-8 rounded-2xl shadow-lg border border-voxcina-blue/10 transform transition-all duration-500 group-hover:scale-105 group-hover:shadow-2xl group-hover:bg-white/80 dark:group-hover:bg-voxcina-darkBlue/30">
+                    <motion.div
+                      whileHover={{ scale: 1.2, rotate: 360 }}
+                      transition={{ duration: 0.5 }}
+                      className="w-16 h-16 bg-gradient-to-br from-voxcina-blue to-voxcina-darkBlue text-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg"
+                    >
+                      <item.icon className="w-8 h-8" />
+                    </motion.div>
 
-                  <div className="p-6 relative">
-                    <div className="absolute top-0 left-0 transform -translate-y-1/2 w-24 h-1 bg-secondary-200 dark:bg-voxcina-blue/30 rounded-full"></div>
-
-                    <h3 className="text-xl font-bold mb-1 text-voxcina-blue dark:text-secondary-200 transition-colors">
-                      {member.name}
+                    <h3 className="text-xl font-bold mb-4 text-voxcina-darkBlue dark:text-white text-center">
+                      {item.title}
                     </h3>
 
-                    <p className="text-voxcina-blue/60 dark:text-secondary-200/70 mb-4 inline-block px-3 py-1 bg-secondary-100 dark:bg-voxcina-blue/20 rounded-full text-sm">
-                      {member.position}
-                    </p>
-
-                    <div className="flex justify-center space-x-3 space-x-reverse mt-3">
-                      <motion.a
-                        href="#"
-                        className="w-8 h-8 rounded-full bg-secondary-100 dark:bg-voxcina-blue/20 flex items-center justify-center text-voxcina-blue/70 dark:text-secondary-300 hover:bg-voxcina-blue hover:text-white dark:hover:bg-secondary-200 dark:hover:text-voxcina-blue transition-colors"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
+                    <div className="text-center">
+                      {item.content.map((line, i) => (
+                        <p
+                          key={i}
+                          className="text-gray-600 dark:text-secondary-200/80 mb-1"
                         >
-                          <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" />
-                        </svg>
-                      </motion.a>
-
-                      <motion.a
-                        href="#"
-                        className="w-8 h-8 rounded-full bg-secondary-100 dark:bg-voxcina-blue/20 flex items-center justify-center text-voxcina-blue/70 dark:text-secondary-300 hover:bg-voxcina-blue hover:text-white dark:hover:bg-secondary-200 dark:hover:text-voxcina-blue transition-colors"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M12.315 2c2.43 0 2.784.013 3.808.06 1.064.049 1.791.218 2.427.465a4.902 4.902 0 011.772 1.153 4.902 4.902 0 011.153 1.772c.247.636.416 1.363.465 2.427.048 1.067.06 1.407.06 4.123v.08c0 2.643-.012 2.987-.06 4.043-.049 1.064-.218 1.791-.465 2.427a4.902 4.902 0 01-1.153 1.772 4.902 4.902 0 01-1.772 1.153c-.636.247-1.363.416-2.427.465-1.067.048-1.407.06-4.123.06h-.08c-2.643 0-2.987-.012-4.043-.06-1.064-.049-1.791-.218-2.427-.465a4.902 4.902 0 01-1.772-1.153 4.902 4.902 0 01-1.153-1.772c-.247-.636-.416-1.363-.465-2.427-.047-1.024-.06-1.379-.06-3.808v-.63c0-2.43.013-2.784.06-3.808.049-1.064.218-1.791.465-2.427a4.902 4.902 0 011.153-1.772A4.902 4.902 0 015.45 2.525c.636-.247 1.363-.416 2.427-.465C8.901 2.013 9.256 2 11.685 2h.63zm-.081 1.802h-.468c-2.456 0-2.784.011-3.807.058-.975.045-1.504.207-1.857.344-.467.182-.8.398-1.15.748-.35.35-.566.683-.748 1.15-.137.353-.3.882-.344 1.857-.047 1.023-.058 1.351-.058 3.807v.468c0 2.456.011 2.784.058 3.807.045.975.207 1.504.344 1.857.182.466.399.8.748 1.15.35.35.683.566 1.15.748.353.137.882.3 1.857.344 1.054.048 1.37.058 4.041.058h.08c2.597 0 2.917-.01 3.96-.058.976-.045 1.505-.207 1.858-.344.466-.182.8-.398 1.15-.748.35-.35.566-.683.748-1.15.137-.353.3-.882.344-1.857.048-1.055.058-1.37.058-4.041v-.08c0-2.597-.01-2.917-.058-3.96-.045-.976-.207-1.505-.344-1.858a3.097 3.097 0 00-.748-1.15 3.098 3.098 0 00-1.15-.748c-.353-.137-.882-.3-1.857-.344-1.023-.047-1.351-.058-3.807-.058zM12 6.865a5.135 5.135 0 110 10.27 5.135 5.135 0 010-10.27zm0 1.802a3.333 3.333 0 100 6.666 3.333 3.333 0 000-6.666zm5.338-3.205a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </motion.a>
-
-                      <motion.a
-                        href="#"
-                        className="w-8 h-8 rounded-full bg-secondary-100 dark:bg-voxcina-blue/20 flex items-center justify-center text-voxcina-blue/70 dark:text-secondary-300 hover:bg-voxcina-blue hover:text-white dark:hover:bg-secondary-200 dark:hover:text-voxcina-blue transition-colors"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </motion.a>
+                          {line}
+                        </p>
+                      ))}
                     </div>
+
+                    <div className="absolute inset-0 bg-gradient-to-br from-voxcina-blue/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                   </div>
                 </motion.div>
               ))}
             </div>
-          </div>
-        </section>
-        <section className="py-16 px-4 bg-secondary-100/50 dark:bg-voxcina-blue/5 relative">
-          <div className="absolute inset-0 z-0 overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
-          </div>
-          <div className="container mx-auto relative z-10">
-            <motion.div
-              className="text-center mb-16"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <h2 className="text-3xl font-bold mb-4 text-voxcina-blue dark:text-secondary-200 relative inline-block">
-                <span className="relative z-10">ارتباط با ما</span>
-                <span className="absolute bottom-1 left-0 w-full h-3 bg-secondary-200 dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
-              </h2>
-              <div className="w-24 h-1 bg-voxcina-blue/30 dark:bg-secondary-200/30 mx-auto mt-2 rounded-full"></div>
-            </motion.div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-              <motion.div
-                className="bg-white/90 dark:bg-voxcina-blue/10 p-6 rounded-2xl shadow-soft hover:shadow-medium transition-all duration-300 border border-secondary-200 dark:border-voxcina-darkBlue/30 backdrop-blur-sm"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                whileHover={{ y: -5 }}
-              >
-                <div className="w-16 h-16 bg-secondary-200/70 dark:bg-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 rounded-full flex items-center justify-center mx-auto mb-6 shadow-soft">
-                  <MapPin className="w-7 h-7" />
-                </div>
-                <h3 className="text-lg font-bold mb-2 text-voxcina-blue dark:text-secondary-200 text-center">
-                  آدرس
-                </h3>
-                <p className="text-voxcina-blue/70 dark:text-secondary-300 text-center">
-                  پاسداران بوستان پنجم کوی گلشن پلاک ۱۴
-                </p>
-              </motion.div>
-
-              <motion.div
-                className="bg-white/90 dark:bg-voxcina-blue/10 p-6 rounded-2xl shadow-soft hover:shadow-medium transition-all duration-300 border border-secondary-200 dark:border-voxcina-darkBlue/30 backdrop-blur-sm"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-                whileHover={{ y: -5 }}
-              >
-                <div className="w-16 h-16 bg-secondary-200/70 dark:bg-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 rounded-full flex items-center justify-center mx-auto mb-6 shadow-soft">
-                  <Mail className="w-7 h-7" />
-                </div>
-                <h3 className="text-lg font-bold mb-2 text-voxcina-blue dark:text-secondary-200 text-center">
-                  ایمیل
-                </h3>
-                <p className="text-voxcina-blue/70 dark:text-secondary-300 text-center">
-                  info@voxcina.com
-                </p>
-                <p className="text-voxcina-blue/70 dark:text-secondary-300 text-center">
-                  support@voxcina.com
-                </p>
-              </motion.div>
-
-              <motion.div
-                className="bg-white/90 dark:bg-voxcina-blue/10 p-6 rounded-2xl shadow-soft hover:shadow-medium transition-all duration-300 border border-secondary-200 dark:border-voxcina-darkBlue/30 backdrop-blur-sm"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.6 }}
-                whileHover={{ y: -5 }}
-              >
-                <div className="w-16 h-16 bg-secondary-200/70 dark:bg-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 rounded-full flex items-center justify-center mx-auto mb-6 shadow-soft">
-                  <Phone className="w-7 h-7" />
-                </div>
-                <h3 className="text-lg font-bold mb-2 text-voxcina-blue dark:text-secondary-200 text-center">
-                  تلفن
-                </h3>
-                <p className="text-voxcina-blue/70 dark:text-secondary-300 text-center">
-                  ۰۲۱-۸۸۷۷۶۶۵۵
-                </p>
-                <p className="text-voxcina-blue/70 dark:text-secondary-300 text-center">
-                  ۰۹۱۲۳۴۵۶۷۸۹
-                </p>
-              </motion.div>
-            </div>
 
             <motion.div
-              className="text-center mt-12"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.8 }}
+              className="text-center"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 1 }}
             >
               <motion.div
                 whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.98 }}
-                className="inline-block"
+                whileTap={{ scale: 0.95 }}
               >
                 <Link
                   href="/contact"
-                  className="inline-flex items-center bg-voxcina-blue hover:bg-voxcina-darkBlue text-white dark:bg-voxcina-blue/90 dark:hover:bg-voxcina-blue rounded-xl px-8 py-3 font-medium transition-colors shadow-soft hover:shadow-medium"
+                  className="inline-flex items-center bg-gradient-to-r from-voxcina-blue to-voxcina-darkBlue hover:from-voxcina-darkBlue hover:to-voxcina-blue text-white px-10 py-4 rounded-2xl font-semibold shadow-lg hover:shadow-2xl transition-all duration-300 group relative overflow-hidden"
                 >
-                  <Mail className="w-5 h-5 ml-2" />
+                  <Mail className="w-5 h-5 ml-3 group-hover:rotate-12 transition-transform duration-300" />
                   تماس با ما
+                  <motion.div
+                    className="absolute inset-0 bg-white/20 rounded-2xl"
+                    initial={{ x: "-100%" }}
+                    whileHover={{ x: "100%" }}
+                    transition={{ duration: 0.6 }}
+                  />
                 </Link>
               </motion.div>
             </motion.div>

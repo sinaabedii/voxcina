@@ -79,7 +79,7 @@ const MapComponent = () => {
             marker.bindPopup(`
             <div style="text-align: center; font-family: 'Vazir', sans-serif; direction: rtl;">
               <h3 style="margin: 0 0 8px 0; color: #1e40af; font-size: 16px;">دفتر مرکزی Voxcina</h3>
-              <p style="margin: 0; color: #6b7280; font-size: 14px;">تهران، خیابان ولیعصر</p>
+              <p style="margin: 0; color: #6b7280; font-size: 14px;">تهران، پاسداران</p>
             </div>
           `);
 
@@ -115,7 +115,7 @@ const MapComponent = () => {
       />
       <div
         ref={mapRef}
-        className="w-full h-full rounded-2xl overflow-hidden"
+        className="w-full h-full rounded-xl sm:rounded-2xl overflow-hidden"
         style={{ minHeight: "384px" }}
       />
     </>
@@ -206,229 +206,353 @@ export default function ContactPage() {
     <>
       <Header />
 
-      <div className="min-h-screen bg-voxcina-cream dark:bg-voxcina-darkBlue/90">
-        <div className="bg-gradient-to-r from-voxcina-blue to-voxcina-darkBlue text-white relative overflow-hidden">
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute w-64 h-64 bg-white/10 rounded-full -top-20 -left-20 blur-3xl"></div>
-            <div className="absolute w-96 h-96 bg-primary-400/10 rounded-full -bottom-40 -right-20 blur-3xl"></div>
-          </div>
-          <div className="container mx-auto py-20 md:py-28 px-4 text-center relative z-10">
+      <div className="min-h-screen max-w-6xl mx-auto  dark:bg-voxcina-darkBlue/90">
+        {/* هدر نوآورانه با لایه‌های عمق */}
+        <div className="relative overflow-hidden bg-transparent">
+          {/* شکل‌های هندسی پس‌زمینه */}
+          <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
             <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="relative inline-block mb-6"
-            >
-              <span className="text-xl text-secondary-200 font-light">
-                Voxcina
-              </span>
-              <div className="w-full h-1 bg-secondary-200/30 mt-1 rounded-full"></div>
-            </motion.div>
-
-            <motion.h1
-              className="text-4xl md:text-5xl font-bold mb-6 relative"
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-            >
-              <span className="relative z-10">تماس با ما</span>
-              <span className="absolute bottom-1 left-0 w-full h-3 bg-secondary-200/20 rounded-full -z-0 opacity-40"></span>
-            </motion.h1>
-
-            <motion.p
-              className="text-xl max-w-3xl mx-auto text-secondary-200"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
-            >
-              ما مشتاق شنیدن صدای شما هستیم. از طریق راه‌های ارتباطی زیر با ما
-              در تماس باشید.
-            </motion.p>
-
+              animate={{ 
+                rotate: [0, 360],
+                scale: [1, 1.1, 1]
+              }}
+              transition={{ 
+                duration: 20, 
+                repeat: Infinity, 
+                ease: "linear" 
+              }}
+              className="absolute -top-32 -right-32 w-64 h-64 border border-voxcina-blue/10 rounded-full"
+            />
             <motion.div
-              className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-voxcina-cream to-transparent dark:from-voxcina-darkBlue/90 dark:to-transparent"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1, duration: 1 }}
-            ></motion.div>
+              animate={{ 
+                rotate: [360, 0],
+                x: [0, 20, 0],
+                y: [0, -10, 0]
+              }}
+              transition={{ 
+                duration: 15, 
+                repeat: Infinity, 
+                ease: "easeInOut" 
+              }}
+              className="absolute bottom-20 left-10 w-16 h-16 bg-gradient-to-br from-voxcina-blue/20 to-voxcina-darkBlue/20 transform rotate-45"
+            />
           </div>
+
+          <div className="relative z-10 container mx-auto px-4 py-16 sm:py-20 md:py-24 lg:py-32 max-w-7xl">
+            <div className="max-w-5xl mx-auto">
+              
+              {/* بخش متن با طراحی نامتقارن */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-16 items-center">
+                
+                {/* ستون سمت راست - متن */}
+                <div className="lg:col-span-7 order-2 lg:order-1">
+                  <motion.div
+                    initial={{ opacity: 0, x: -50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.8 }}
+                  >
+                    <span className="inline-block text-xs sm:text-sm text-voxcina-blue/70 dark:text-secondary-200/70 font-medium tracking-[0.2em] sm:tracking-[0.3em] uppercase mb-4 sm:mb-6 relative">
+                      <span className="relative z-10">Voxcina</span>
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: "100%" }}
+                        transition={{ duration: 1, delay: 0.5 }}
+                        className="absolute bottom-0 left-0 h-px bg-voxcina-blue/50"
+                      />
+                    </span>
+                  </motion.div>
+
+                  <motion.h1
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.2 }}
+                    className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl xl:text-8xl font-bold text-voxcina-darkBlue dark:text-white mb-4 sm:mb-6 md:mb-8 leading-none"
+                  >
+                    <span className="block">تماس</span>
+                    <span className="block text-voxcina-blue relative">
+                      با ما
+                      <motion.div
+                        initial={{ scaleX: 0 }}
+                        animate={{ scaleX: 1 }}
+                        transition={{ duration: 1, delay: 1 }}
+                        className="absolute -bottom-1 sm:-bottom-2 left-0 w-full h-1 sm:h-2 bg-voxcina-blue/20 origin-left"
+                      />
+                    </span>
+                  </motion.h1>
+
+                  <motion.p
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.6 }}
+                    className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 dark:text-secondary-200/80 leading-relaxed max-w-2xl"
+                  >
+                    جایی که
+                    <span className="text-voxcina-blue font-semibold"> ارتباط </span>
+                    به
+                    <span className="text-voxcina-blue font-semibold"> همکاری </span>
+                    تبدیل می‌شود
+                  </motion.p>
+                </div>
+
+                {/* ستون سمت چپ - عنصر بصری */}
+                <div className="lg:col-span-5 order-1 lg:order-2">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 1, delay: 0.3 }}
+                    className="relative"
+                  >
+                    {/* دایره اصلی */}
+                    <div className="relative w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-72 lg:h-72 xl:w-80 xl:h-80 mx-auto">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+                        className="absolute inset-0 rounded-full border-2 border-dashed border-voxcina-blue/30"
+                      />
+                      
+                      <motion.div
+                        animate={{ rotate: -360 }}
+                        transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+                        className="absolute inset-2 sm:inset-3 md:inset-4 rounded-full border border-voxcina-blue/50"
+                      />
+                      
+                      {/* مرکز */}
+                      <div className="absolute inset-8 sm:inset-10 md:inset-12 lg:inset-14 xl:inset-16 bg-gradient-to-br from-voxcina-blue to-voxcina-darkBlue rounded-full flex items-center justify-center shadow-2xl">
+                        <motion.div
+                          animate={{ 
+                            scale: [1, 1.1, 1],
+                            rotate: [0, 180, 360]
+                          }}
+                          transition={{ 
+                            duration: 8, 
+                            repeat: Infinity, 
+                            ease: "easeInOut" 
+                          }}
+                          className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white"
+                        >
+                          V
+                        </motion.div>
+                      </div>
+
+                      {/* نقاط اطراف */}
+                      {[...Array(8)].map((_, i) => (
+                        <motion.div
+                          key={i}
+                          animate={{
+                            scale: [1, 1.5, 1],
+                            opacity: [0.5, 1, 0.5]
+                          }}
+                          transition={{
+                            duration: 2,
+                            repeat: Infinity,
+                            delay: i * 0.25,
+                            ease: "easeInOut"
+                          }}
+                          className="absolute w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 bg-voxcina-blue rounded-full"
+                          style={{
+                            top: `${50 + 40 * Math.sin((i * Math.PI) / 4)}%`,
+                            left: `${50 + 40 * Math.cos((i * Math.PI) / 4)}%`,
+                            transform: 'translate(-50%, -50%)'
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          {/* خط جداکننده انیمیت شده */}
+          <motion.div
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ duration: 1.5, delay: 1.2 }}
+            className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-voxcina-blue/30 to-transparent origin-center"
+          />
         </div>
 
-        <section className="py-16 px-4 relative">
-          <div className="absolute inset-0 z-0 overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
-          </div>
-          <div className="container mx-auto relative z-10">
+        {/* بخش اطلاعات تماس */}
+        <section className="py-12 sm:py-16 md:py-20 lg:py-24 relative bg-transparent">
+          <div className="container mx-auto px-4 max-w-7xl">
             <motion.div
-              className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 max-w-6xl mx-auto"
               variants={containerVariants}
               initial="hidden"
               animate="visible"
               viewport={{ once: true, margin: "-100px" }}
             >
+              
+              {/* کارت تلفن */}
               <motion.div
-                className="bg-white/90 dark:bg-voxcina-blue/10 p-8 rounded-2xl shadow-soft border border-secondary-200 dark:border-voxcina-darkBlue/30 backdrop-blur-sm transition-all duration-300 hover:shadow-medium relative overflow-hidden group"
+                className="bg-white/60 dark:bg-voxcina-blue/5 backdrop-blur-sm p-4 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl border border-voxcina-blue/10 relative overflow-hidden group hover:bg-white/80 dark:hover:bg-voxcina-blue/10 transition-all duration-500 hover:scale-105"
                 variants={itemVariants}
-                whileHover={{ y: -5 }}
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full -mt-16 -mr-16 transition-all duration-500 group-hover:scale-125"></div>
+                <div className="absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full -mt-8 sm:-mt-10 md:-mt-12 -mr-8 sm:-mr-10 md:-mr-12 transition-all duration-500 group-hover:scale-125"></div>
 
-                <div className="w-16 h-16 bg-secondary-200/70 dark:bg-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 rounded-full flex items-center justify-center mx-auto mb-6 relative z-10 shadow-soft">
-                  <Phone className="w-8 h-8" />
+                <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-br from-voxcina-blue to-voxcina-darkBlue text-white rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10 shadow-lg">
+                  <Phone className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" />
                 </div>
 
-                <h3 className="text-xl font-bold mb-5 text-voxcina-blue dark:text-secondary-200 text-center relative z-10">
+                <h3 className="text-lg sm:text-xl md:text-2xl font-bold mb-3 sm:mb-5 text-voxcina-blue dark:text-white text-center relative z-10">
                   تلفن تماس
                 </h3>
 
-                <div className="space-y-4 relative z-10">
+                <div className="space-y-3 sm:space-y-4 relative z-10">
                   <div className="text-center">
-                    <p className="text-voxcina-blue/70 dark:text-secondary-300 mb-1 font-medium text-sm">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-secondary-300 mb-1 font-medium">
                       پشتیبانی فروش:
                     </p>
-                    <p className="text-voxcina-blue dark:text-secondary-200 font-bold ltr py-1 px-4 bg-secondary-100/70 dark:bg-voxcina-blue/20 rounded-xl inline-block">
-                      021-88776655
+                    <p className="text-sm sm:text-base text-voxcina-blue dark:text-secondary-200 font-bold ltr py-1 px-3 sm:px-4 bg-white/70 dark:bg-voxcina-blue/20 rounded-lg sm:rounded-xl inline-block">
+                      021-22325593
                     </p>
                   </div>
                   <div className="text-center">
-                    <p className="text-voxcina-blue/70 dark:text-secondary-300 mb-1 font-medium text-sm">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-secondary-300 mb-1 font-medium">
                       پشتیبانی فنی:
                     </p>
-                    <p className="text-voxcina-blue dark:text-secondary-200 font-bold ltr py-1 px-4 bg-secondary-100/70 dark:bg-voxcina-blue/20 rounded-xl inline-block">
-                      021-88778899
+                    <p className="text-sm sm:text-base text-voxcina-blue dark:text-secondary-200 font-bold ltr py-1 px-3 sm:px-4 bg-white/70 dark:bg-voxcina-blue/20 rounded-lg sm:rounded-xl inline-block">
+                      021-22325593
                     </p>
                   </div>
                 </div>
               </motion.div>
 
+              {/* کارت ایمیل */}
               <motion.div
-                className="bg-white/90 dark:bg-voxcina-blue/10 p-8 rounded-2xl shadow-soft border border-secondary-200 dark:border-voxcina-darkBlue/30 backdrop-blur-sm transition-all duration-300 hover:shadow-medium relative overflow-hidden group"
+                className="bg-white/60 dark:bg-voxcina-blue/5 backdrop-blur-sm p-4 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl border border-voxcina-blue/10 relative overflow-hidden group hover:bg-white/80 dark:hover:bg-voxcina-blue/10 transition-all duration-500 hover:scale-105 lg:transform lg:translate-y-4 xl:translate-y-8"
                 variants={itemVariants}
-                whileHover={{ y: -5 }}
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full -mt-16 -mr-16 transition-all duration-500 group-hover:scale-125"></div>
+                <div className="absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-voxcina-darkBlue/5 dark:bg-voxcina-darkBlue/10 rounded-full -mt-8 sm:-mt-10 md:-mt-12 -mr-8 sm:-mr-10 md:-mr-12 transition-all duration-500 group-hover:scale-125"></div>
 
-                <div className="w-16 h-16 bg-secondary-200/70 dark:bg-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 rounded-full flex items-center justify-center mx-auto mb-6 relative z-10 shadow-soft">
-                  <Mail className="w-8 h-8" />
+                <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-br from-voxcina-darkBlue to-voxcina-blue text-white rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10 shadow-lg">
+                  <Mail className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" />
                 </div>
 
-                <h3 className="text-xl font-bold mb-5 text-voxcina-blue dark:text-secondary-200 text-center relative z-10">
+                <h3 className="text-lg sm:text-xl md:text-2xl font-bold mb-3 sm:mb-5 text-voxcina-darkBlue dark:text-white text-center relative z-10">
                   ایمیل
                 </h3>
 
-                <div className="space-y-4 relative z-10">
+                <div className="space-y-3 sm:space-y-4 relative z-10">
                   <div className="text-center">
-                    <p className="text-voxcina-blue/70 dark:text-secondary-300 mb-1 font-medium text-sm">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-secondary-300 mb-1 font-medium">
                       فروش و سفارشات:
                     </p>
-                    <p className="text-voxcina-blue dark:text-secondary-200 font-bold py-1 px-4 bg-secondary-100/70 dark:bg-voxcina-blue/20 rounded-xl inline-block">
-                      info@example.com
+                    <p className="text-sm sm:text-base text-voxcina-blue dark:text-secondary-200 font-bold py-1 px-3 sm:px-4 bg-white/70 dark:bg-voxcina-blue/20 rounded-lg sm:rounded-xl inline-block">
+                      info@voxcina.com
                     </p>
                   </div>
                   <div className="text-center">
-                    <p className="text-voxcina-blue/70 dark:text-secondary-300 mb-1 font-medium text-sm">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-secondary-300 mb-1 font-medium">
                       پشتیبانی مشتریان:
                     </p>
-                    <p className="text-voxcina-blue dark:text-secondary-200 font-bold py-1 px-4 bg-secondary-100/70 dark:bg-voxcina-blue/20 rounded-xl inline-block">
-                      support@example.com
+                    <p className="text-sm sm:text-base text-voxcina-blue dark:text-secondary-200 font-bold py-1 px-3 sm:px-4 bg-white/70 dark:bg-voxcina-blue/20 rounded-lg sm:rounded-xl inline-block">
+                      support@voxcina.com
                     </p>
                   </div>
                 </div>
               </motion.div>
 
+              {/* کارت ساعات کاری */}
               <motion.div
-                className="bg-white/90 dark:bg-voxcina-blue/10 p-8 rounded-2xl shadow-soft border border-secondary-200 dark:border-voxcina-darkBlue/30 backdrop-blur-sm transition-all duration-300 hover:shadow-medium relative overflow-hidden group"
+                className="bg-white/60 dark:bg-voxcina-blue/5 backdrop-blur-sm p-4 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl border border-voxcina-blue/10 relative overflow-hidden group hover:bg-white/80 dark:hover:bg-voxcina-blue/10 transition-all duration-500 hover:scale-105 sm:col-span-2 lg:col-span-1"
                 variants={itemVariants}
-                whileHover={{ y: -5 }}
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full -mt-16 -mr-16 transition-all duration-500 group-hover:scale-125"></div>
+                <div className="absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-secondary-200/20 rounded-full -mt-8 sm:-mt-10 md:-mt-12 -mr-8 sm:-mr-10 md:-mr-12 transition-all duration-500 group-hover:scale-125"></div>
 
-                <div className="w-16 h-16 bg-secondary-200/70 dark:bg-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 rounded-full flex items-center justify-center mx-auto mb-6 relative z-10 shadow-soft">
-                  <Clock className="w-8 h-8" />
+                <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-br from-secondary-600 to-secondary-400 text-white rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 relative z-10 shadow-lg">
+                  <Clock className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" />
                 </div>
 
-                <h3 className="text-xl font-bold mb-5 text-voxcina-blue dark:text-secondary-200 text-center relative z-10">
+                <h3 className="text-lg sm:text-xl md:text-2xl font-bold mb-3 sm:mb-5 text-secondary-600 dark:text-white text-center relative z-10">
                   ساعات کاری
                 </h3>
 
-                <div className="space-y-4 relative z-10">
+                <div className="space-y-3 sm:space-y-4 relative z-10">
                   <div className="text-center">
-                    <p className="text-voxcina-blue/70 dark:text-secondary-300 mb-1 font-medium text-sm">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-secondary-300 mb-1 font-medium">
                       شنبه تا چهارشنبه:
                     </p>
-                    <p className="text-voxcina-blue dark:text-secondary-200 font-bold py-1 px-4 bg-secondary-100/70 dark:bg-voxcina-blue/20 rounded-xl inline-block">
+                    <p className="text-sm sm:text-base text-voxcina-blue dark:text-secondary-200 font-bold py-1 px-3 sm:px-4 bg-white/70 dark:bg-voxcina-blue/20 rounded-lg sm:rounded-xl inline-block">
                       ۹ صبح تا ۵ بعدازظهر
                     </p>
                   </div>
                   <div className="text-center">
-                    <p className="text-voxcina-blue/70 dark:text-secondary-300 mb-1 font-medium text-sm">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-secondary-300 mb-1 font-medium">
                       پنجشنبه:
                     </p>
-                    <p className="text-voxcina-blue dark:text-secondary-200 font-bold py-1 px-4 bg-secondary-100/70 dark:bg-voxcina-blue/20 rounded-xl inline-block">
+                    <p className="text-sm sm:text-base text-voxcina-blue dark:text-secondary-200 font-bold py-1 px-3 sm:px-4 bg-white/70 dark:bg-voxcina-blue/20 rounded-lg sm:rounded-xl inline-block">
                       ۹ صبح تا ۱ بعدازظهر
                     </p>
                   </div>
                 </div>
               </motion.div>
+
             </motion.div>
           </div>
         </section>
 
-        <section
-          id="our-locations"
-          className="py-16 px-4 bg-secondary-100/50 dark:bg-voxcina-blue/5 relative"
-        >
-          <div className="absolute inset-0 z-0 overflow-hidden">
-            <div className="absolute bottom-0 left-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
-          </div>
-          <div className="container mx-auto relative z-10">
+        {/* بخش آدرس و نقشه */}
+        <section className="py-12 sm:py-16 md:py-20 lg:py-24 bg-transparent relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-full">
             <motion.div
-              className="text-center mb-12"
+              animate={{ x: [0, 50, 0], y: [0, -25, 0] }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              className="absolute top-10 sm:top-20 right-10 sm:right-20 w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 border border-voxcina-blue/5 rounded-full"
+            />
+          </div>
+
+          <div className="container mx-auto px-4 relative z-10 max-w-7xl">
+            <motion.div
+              className="text-center mb-8 sm:mb-12"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
               viewport={{ once: true, margin: "-100px" }}
             >
-              <h2 className="text-3xl font-bold mb-4 text-voxcina-blue dark:text-secondary-200 relative inline-block">
-                <span className="relative z-10">آدرس ما</span>
-                <span className="absolute bottom-1 left-0 w-full h-3 bg-secondary-200 dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-4 sm:mb-6 text-voxcina-darkBlue dark:text-white relative inline-block">
+                آدرس ما
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 1, delay: 0.5 }}
+                  className="absolute -bottom-1 sm:-bottom-2 left-0 h-0.5 sm:h-1 bg-gradient-to-r from-voxcina-blue to-voxcina-darkBlue rounded-full"
+                />
               </h2>
-              <div className="w-24 h-1 bg-voxcina-blue/30 dark:bg-secondary-200/30 mx-auto mt-2 rounded-full"></div>
             </motion.div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 max-w-6xl mx-auto">
               <motion.div
-                className="bg-white/90 dark:bg-voxcina-blue/10 p-8 rounded-2xl shadow-soft border border-secondary-200 dark:border-voxcina-darkBlue/30 backdrop-blur-sm transition-all duration-300 hover:shadow-medium relative overflow-hidden group"
+                className="bg-white/60 dark:bg-voxcina-blue/5 backdrop-blur-sm p-6 sm:p-8 rounded-xl sm:rounded-2xl shadow-lg border border-voxcina-blue/10 transition-all duration-500 relative overflow-hidden group hover:bg-white/80 dark:hover:bg-voxcina-blue/10 hover:scale-105"
                 initial={{ opacity: 0, x: -30 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5 }}
                 viewport={{ once: true, margin: "-100px" }}
-                whileHover={{ y: -5 }}
               >
-                <div className="absolute top-0 right-0 w-48 h-48 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full -mt-20 -mr-20 transition-all duration-500 group-hover:scale-125"></div>
+                <div className="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 md:w-48 md:h-48 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full -mt-12 sm:-mt-16 md:-mt-20 -mr-12 sm:-mr-16 md:-mr-20 transition-all duration-500 group-hover:scale-125"></div>
 
-                <h3 className="text-xl font-bold mb-5 text-voxcina-blue dark:text-secondary-200 flex items-center mt-8 relative z-10">
-                  <div className="w-10 h-10 rounded-xl bg-secondary-200 dark:bg-voxcina-blue/20 flex items-center justify-center ml-3 flex-shrink-0">
-                    <MapPin className="w-5 h-5 text-voxcina-blue dark:text-secondary-200" />
+                <h3 className="text-lg sm:text-xl font-bold mb-4 sm:mb-5 text-voxcina-blue dark:text-white flex items-center mt-6 sm:mt-8 relative z-10">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-voxcina-blue to-voxcina-darkBlue flex items-center justify-center ml-3 flex-shrink-0">
+                    <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                   </div>
                   دفتر فروش
                 </h3>
-                <p className="text-voxcina-blue/70 dark:text-secondary-300 mb-4 pr-12 relative z-10">
-                پاسداران بوستان پنجم کوی گلشن پلاک ۱۴
+                <p className="text-sm sm:text-base text-gray-700 dark:text-secondary-300 mb-3 sm:mb-4 pr-10 sm:pr-12 relative z-10">
+                  پاسداران بوستان پنجم کوی گلشن پلاک ۱۴
                 </p>
-                <div className="flex items-center text-voxcina-blue/70 dark:text-secondary-300 pr-12 relative z-10">
-                  <Phone className="w-5 h-5 ml-2 text-voxcina-blue/60 dark:text-secondary-300" />
-                  <span className="ltr">021-77889900</span>
+                <div className="flex items-center text-sm sm:text-base text-gray-600 dark:text-secondary-300 pr-10 sm:pr-12 relative z-10">
+                  <Phone className="w-4 h-4 sm:w-5 sm:h-5 ml-2 text-voxcina-blue/60 dark:text-secondary-300" />
+                  <span className="ltr">021-22325593</span>
                 </div>
               </motion.div>
 
               <motion.div
-                className="bg-white/90 dark:bg-voxcina-blue/10 rounded-2xl shadow-soft border border-secondary-200 dark:border-voxcina-darkBlue/30 backdrop-blur-sm transition-all duration-300 hover:shadow-medium overflow-hidden h-96 relative group"
+                className="bg-white/60 dark:bg-voxcina-blue/5 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-voxcina-blue/10 transition-all duration-500 overflow-hidden h-80 sm:h-96 relative group hover:bg-white/80 dark:hover:bg-voxcina-blue/10 hover:scale-105"
                 initial={{ opacity: 0, x: 30 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5 }}
                 viewport={{ once: true, margin: "-100px" }}
-                whileHover={{ y: -5 }}
               >
                 <MapComponent />
               </motion.div>
@@ -436,31 +560,36 @@ export default function ContactPage() {
           </div>
         </section>
 
-        <section id="contact-form" className="py-16 px-4 relative">
+        {/* بخش فرم تماس */}
+        <section className="py-12 sm:py-16 md:py-20 lg:py-24 bg-transparent relative">
           <div className="absolute inset-0 z-0 overflow-hidden">
             <div className="absolute top-0 left-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
           </div>
-          <div className="container mx-auto relative z-10">
+          <div className="container mx-auto px-4 relative z-10 max-w-7xl">
             <motion.div
-              className="text-center mb-12"
+              className="text-center mb-8 sm:mb-12"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
               viewport={{ once: true, margin: "-100px" }}
             >
-              <h2 className="text-3xl font-bold mb-4 text-voxcina-blue dark:text-secondary-200 relative inline-block">
-                <span className="relative z-10">ارسال پیام</span>
-                <span className="absolute bottom-1 left-0 w-full h-3 bg-secondary-200 dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-4 sm:mb-6 text-voxcina-darkBlue dark:text-white relative inline-block">
+                ارسال پیام
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 1, delay: 0.5 }}
+                  className="absolute -bottom-1 sm:-bottom-2 left-0 h-0.5 sm:h-1 bg-gradient-to-r from-voxcina-blue to-voxcina-darkBlue rounded-full"
+                />
               </h2>
-              <div className="w-24 h-1 bg-voxcina-blue/30 dark:bg-secondary-200/30 mx-auto mt-2 rounded-full"></div>
-              <p className="text-voxcina-blue/70 dark:text-secondary-300 max-w-2xl mx-auto mt-4">
+              <p className="text-sm sm:text-base text-gray-600 dark:text-secondary-200/80 max-w-2xl mx-auto mt-4">
                 برای ارسال پیام، پیشنهادات، انتقادات و یا درخواست همکاری، فرم
                 زیر را تکمیل کنید.
               </p>
             </motion.div>
 
             <motion.div
-              className="max-w-3xl mx-auto bg-white/90 dark:bg-voxcina-blue/10 rounded-2xl shadow-soft overflow-hidden backdrop-blur-sm border border-secondary-200 dark:border-voxcina-darkBlue/30"
+              className="max-w-4xl mx-auto bg-white/60 dark:bg-voxcina-blue/5 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg overflow-hidden border border-voxcina-blue/10"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
@@ -471,7 +600,7 @@ export default function ContactPage() {
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  className={`p-4 ${
+                  className={`p-3 sm:p-4 ${
                     formStatus.success
                       ? "bg-green-50/70 dark:bg-green-900/10 text-green-700 dark:text-green-400 border-b border-green-100 dark:border-green-900/20"
                       : "bg-red-50/70 dark:bg-red-900/10 text-red-700 dark:text-red-400 border-b border-red-100 dark:border-red-900/20"
@@ -482,12 +611,12 @@ export default function ContactPage() {
                   ) : (
                     <MessageSquare className="w-5 h-5 mt-0.5 ml-3 flex-shrink-0" />
                   )}
-                  <p>{formStatus.message}</p>
+                  <p className="text-sm sm:text-base">{formStatus.message}</p>
                 </motion.div>
               )}
 
-              <form onSubmit={handleSubmit} className="p-6 md:p-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <form onSubmit={handleSubmit} className="p-4 sm:p-6 md:p-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                   <div>
                     <label
                       htmlFor="name"
@@ -501,7 +630,7 @@ export default function ContactPage() {
                       name="name"
                       value={formData.name}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-secondary-200 dark:border-voxcina-blue/30 rounded-xl focus:ring-2 focus:ring-voxcina-blue/30 focus:border-voxcina-blue dark:focus:ring-secondary-200/30 dark:focus:border-secondary-200 bg-secondary-100/30 dark:bg-voxcina-blue/5 text-voxcina-blue dark:text-secondary-200 shadow-inner-soft backdrop-blur-xs"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-voxcina-blue/20 dark:border-voxcina-blue/30 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-voxcina-blue/30 focus:border-voxcina-blue dark:focus:ring-secondary-200/30 dark:focus:border-secondary-200 bg-white/80 dark:bg-voxcina-blue/10 text-voxcina-blue dark:text-secondary-200 text-sm sm:text-base placeholder-gray-500 dark:placeholder-secondary-400"
                       placeholder="نام و نام خانوادگی خود را وارد کنید"
                       required
                     />
@@ -520,7 +649,7 @@ export default function ContactPage() {
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-secondary-200 dark:border-voxcina-blue/30 rounded-xl focus:ring-2 focus:ring-voxcina-blue/30 focus:border-voxcina-blue dark:focus:ring-secondary-200/30 dark:focus:border-secondary-200 bg-secondary-100/30 dark:bg-voxcina-blue/5 text-voxcina-blue dark:text-secondary-200 shadow-inner-soft backdrop-blur-xs"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-voxcina-blue/20 dark:border-voxcina-blue/30 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-voxcina-blue/30 focus:border-voxcina-blue dark:focus:ring-secondary-200/30 dark:focus:border-secondary-200 bg-white/80 dark:bg-voxcina-blue/10 text-voxcina-blue dark:text-secondary-200 text-sm sm:text-base placeholder-gray-500 dark:placeholder-secondary-400"
                       placeholder="example@email.com"
                       required
                     />
@@ -539,7 +668,7 @@ export default function ContactPage() {
                       name="phone"
                       value={formData.phone}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-secondary-200 dark:border-voxcina-blue/30 rounded-xl focus:ring-2 focus:ring-voxcina-blue/30 focus:border-voxcina-blue dark:focus:ring-secondary-200/30 dark:focus:border-secondary-200 bg-secondary-100/30 dark:bg-voxcina-blue/5 text-voxcina-blue dark:text-secondary-200 shadow-inner-soft backdrop-blur-xs"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-voxcina-blue/20 dark:border-voxcina-blue/30 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-voxcina-blue/30 focus:border-voxcina-blue dark:focus:ring-secondary-200/30 dark:focus:border-secondary-200 bg-white/80 dark:bg-voxcina-blue/10 text-voxcina-blue dark:text-secondary-200 text-sm sm:text-base placeholder-gray-500 dark:placeholder-secondary-400"
                       placeholder="09123456789"
                     />
                   </div>
@@ -556,7 +685,7 @@ export default function ContactPage() {
                       name="subject"
                       value={formData.subject}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-secondary-200 dark:border-voxcina-blue/30 rounded-xl focus:ring-2 focus:ring-voxcina-blue/30 focus:border-voxcina-blue dark:focus:ring-secondary-200/30 dark:focus:border-secondary-200 bg-secondary-100/30 dark:bg-voxcina-blue/5 text-voxcina-blue dark:text-secondary-200 shadow-inner-soft backdrop-blur-xs"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-voxcina-blue/20 dark:border-voxcina-blue/30 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-voxcina-blue/30 focus:border-voxcina-blue dark:focus:ring-secondary-200/30 dark:focus:border-secondary-200 bg-white/80 dark:bg-voxcina-blue/10 text-voxcina-blue dark:text-secondary-200 text-sm sm:text-base"
                     >
                       <option value="">انتخاب کنید</option>
                       <option value="سوال">سوال</option>
@@ -568,7 +697,7 @@ export default function ContactPage() {
                   </div>
                 </div>
 
-                <div className="mt-6">
+                <div className="mt-4 sm:mt-6">
                   <label
                     htmlFor="message"
                     className="block text-sm font-medium text-voxcina-blue/80 dark:text-secondary-200/80 mb-2"
@@ -581,105 +710,31 @@ export default function ContactPage() {
                     value={formData.message}
                     onChange={handleChange}
                     rows={6}
-                    className="w-full px-4 py-3 border border-secondary-200 dark:border-voxcina-blue/30 rounded-xl focus:ring-2 focus:ring-voxcina-blue/30 focus:border-voxcina-blue dark:focus:ring-secondary-200/30 dark:focus:border-secondary-200 bg-secondary-100/30 dark:bg-voxcina-blue/5 text-voxcina-blue dark:text-secondary-200 shadow-inner-soft backdrop-blur-xs resize-none"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-voxcina-blue/20 dark:border-voxcina-blue/30 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-voxcina-blue/30 focus:border-voxcina-blue dark:focus:ring-secondary-200/30 dark:focus:border-secondary-200 bg-white/80 dark:bg-voxcina-blue/10 text-voxcina-blue dark:text-secondary-200 text-sm sm:text-base placeholder-gray-500 dark:placeholder-secondary-400 resize-none"
                     placeholder="پیام خود را بنویسید..."
                     required
                   ></textarea>
                 </div>
 
-                <div className="mt-8">
+                <div className="mt-6 sm:mt-8">
                   <motion.button
                     type="submit"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-8 py-3 bg-voxcina-blue hover:bg-voxcina-darkBlue text-white dark:bg-voxcina-blue/90 dark:hover:bg-voxcina-blue rounded-xl shadow-soft hover:shadow-medium transition-all flex items-center justify-center"
+                    className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-gradient-to-r from-voxcina-blue to-voxcina-darkBlue hover:from-voxcina-darkBlue hover:to-voxcina-blue text-white font-medium rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center text-sm sm:text-base relative overflow-hidden group"
                   >
-                    <Send className="w-5 h-5 ml-2" />
+                    <Send className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
                     ارسال پیام
+                    <motion.div
+                      className="absolute inset-0 bg-white/20 rounded-lg sm:rounded-xl"
+                      initial={{ x: "-100%" }}
+                      whileHover={{ x: "100%" }}
+                      transition={{ duration: 0.6 }}
+                    />
                   </motion.button>
                 </div>
               </form>
             </motion.div>
-          </div>
-        </section>
-
-        <section className="py-16 px-4 bg-secondary-100/50 dark:bg-voxcina-blue/5 relative">
-          <div className="absolute inset-0 z-0 overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
-          </div>
-          <div className="container mx-auto relative z-10">
-            <motion.div
-              className="text-center mb-12"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              viewport={{ once: true, margin: "-100px" }}
-            >
-              <h2 className="text-3xl font-bold mb-4 text-voxcina-blue dark:text-secondary-200 relative inline-block">
-                <span className="relative z-10">سوالات متداول</span>
-                <span className="absolute bottom-1 left-0 w-full h-3 bg-secondary-200 dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
-              </h2>
-              <div className="w-24 h-1 bg-voxcina-blue/30 dark:bg-secondary-200/30 mx-auto mt-2 rounded-full"></div>
-              <p className="text-voxcina-blue/70 dark:text-secondary-300 max-w-2xl mx-auto mt-4">
-                پاسخ بسیاری از سوالات متداول شما در این بخش قرار دارد.
-              </p>
-            </motion.div>
-
-            <div className="max-w-3xl mx-auto">
-              {[
-                {
-                  question: "چگونه می‌توانم با پشتیبانی فنی تماس بگیرم؟",
-                  answer:
-                    "شما می‌توانید از طریق شماره تلفن پشتیبانی فنی که در بالای صفحه درج شده است و یا از طریق ارسال ایمیل به support@example.com با کارشناسان ما در ارتباط باشید.",
-                },
-                {
-                  question: "ساعات کاری دفتر مرکزی چگونه است؟",
-                  answer:
-                    "دفتر مرکزی ما از شنبه تا چهارشنبه از ساعت ۹ صبح تا ۵ بعدازظهر و پنجشنبه‌ها از ساعت ۹ صبح تا ۱ بعدازظهر آماده خدمت‌رسانی به شما است.",
-                },
-                {
-                  question:
-                    "چطور می‌توانم در مورد همکاری با شرکت شما اطلاعات کسب کنم؟",
-                  answer:
-                    "برای همکاری با ما می‌توانید فرم ارسال پیام را با موضوع «همکاری» تکمیل کنید و یا از طریق ایمیل info@example.com با ما در ارتباط باشید.",
-                },
-              ].map((faq, index) => (
-                <motion.div
-                  key={index}
-                  className="mb-6 bg-white/90 dark:bg-voxcina-blue/10 p-6 rounded-2xl shadow-soft hover:shadow-medium transition-all backdrop-blur-sm border border-secondary-200 dark:border-voxcina-darkBlue/30 overflow-hidden group"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  viewport={{ once: true, margin: "-100px" }}
-                  whileHover={{ y: -5 }}
-                >
-                  <h3 className="text-lg font-bold text-voxcina-blue dark:text-secondary-200 mb-4 flex items-center relative z-10">
-                    <div className="w-8 h-8 rounded-full bg-secondary-200/70 dark:bg-voxcina-blue/20 flex items-center justify-center ml-3 flex-shrink-0 shadow-soft">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="w-4 h-4 text-voxcina-blue dark:text-secondary-200"
-                      >
-                        <path d="M10 13a2 2 0 0 1 4 0 2 2 0 0 1-4 0z"></path>
-                        <circle cx="12" cy="13" r="8"></circle>
-                        <path d="M12 9v-2M12 17v-2"></path>
-                      </svg>
-                    </div>
-                    {faq.question}
-                  </h3>
-                  <p className="text-voxcina-blue/70 dark:text-secondary-300 leading-relaxed pr-10 relative z-10">
-                    {faq.answer}
-                  </p>
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full -mt-16 -mr-16 transition-all duration-500 group-hover:scale-125"></div>
-                </motion.div>
-              ))}
-            </div>
           </div>
         </section>
       </div>

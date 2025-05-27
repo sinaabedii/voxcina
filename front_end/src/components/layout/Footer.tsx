@@ -40,7 +40,7 @@ const Footer = () => {
   };
 
   return (
-    <div className="bg-voxcina-cream w-full px-4 md:px-6 pb-10">
+    <div className="bg-transparent z-10 w-full px-4 md:px-6 pb-10">
       <footer className="w-full bg-white max-w-7xl mx-auto border border-border/10  rounded-2xl md:rounded-3xl">
         <div className="py-6 sm:py-8 md:py-8 px-4 md:px-6">
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
@@ -125,7 +125,7 @@ const Footer = () => {
                 </li>
                 <li className="text-xs sm:text-sm md:text-base text-foreground flex items-center group hover:text-primary transition-all duration-200">
                   <PhoneCall className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 ml-1.5 sm:ml-2 text-primary flex-shrink-0 group-hover:animate-pulse-once" />
-                  <span>۰۲۱-۸۸۷۷۶۶۵۵</span>
+                  <span>021-22325593</span>
                 </li>
                 <li className="text-xs sm:text-sm md:text-base text-foreground flex items-center group hover:text-primary transition-all duration-200">
                   <Mail className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 ml-1.5 sm:ml-2 text-primary flex-shrink-0 group-hover:animate-pulse-once" />

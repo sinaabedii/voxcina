@@ -12,10 +12,12 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { ModernSliderSection } from "@/components/home/ModernSlider";
 import ColorMatchingTool from "@/components/home/ColorMatchingTool";
-import VirtualWardrobe from "@/components/home/VirtualWardrobe";
+// import VirtualWardrobe from "@/components/home/VirtualWardrobe";
 import HeroSection from "@/components/home/HeroSection";
 import ModernCategoriesSection from "@/components/home/ModernCategoriesSection";
 import { FaArrowLeft } from "react-icons/fa";
+import AnimatedBackground from "@/components/ui/AnimatedBackground";
+import InstagramFeed from "@/components/home/InstagramFeed";
 
 export default function HomePage() {
   const {
@@ -128,7 +130,8 @@ export default function HomePage() {
   return (
     <>
       <Header />
-      <div className="pb-10 overflow-x-hidden font-sans bg-voxcina-cream">
+      <AnimatedBackground />
+      <div className="pb-10 overflow-x-hidden font-sans bg-transparent relative z-10">
         <HeroSection />
         <ModernCategoriesSection />
         <motion.section
@@ -170,7 +173,7 @@ export default function HomePage() {
                 <motion.div variants={fadeIn}>
                   <Link
                     href="/collections/season"
-                    className="inline-flex items-center font-medium text-voxcina-blue hover:text-voxcina-darkBlue transition-colors group"
+                    className="inline-flex gap-2 items-center font-medium text-voxcina-blue hover:text-voxcina-darkBlue transition-colors group"
                   >
                     <span>مشاهده کالکشن</span>
                     <FaArrowLeft />
@@ -328,7 +331,7 @@ export default function HomePage() {
             </motion.div>
           )}
         </motion.section>
-        <VirtualWardrobe />
+        {/* <VirtualWardrobe /> */}
         <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-24"
           initial="hidden"
@@ -458,100 +461,13 @@ export default function HomePage() {
           </div>
         </motion.section>
 
-        <motion.section
-          className="container px-4 md:px-8 mb-16 md:mb-24"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
-          variants={fadeIn}
-        >
-          <div className="text-center mb-6 md:mb-8">
-            <motion.h2
-              className="text-2xl sm:text-3xl font-bold mb-2 md:mb-3 text-voxcina-blue"
-              variants={fadeIn}
-            >
-              ما را در اینستاگرام دنبال کنید
-            </motion.h2>
-            <motion.p
-              className="text-voxcina-blue/80 max-w-md mx-auto text-sm md:text-base"
-              variants={fadeIn}
-            >
-              جدیدترین محصولات و ترندها را در اینستاگرام ما ببینید
-            </motion.p>
-          </div>
-
-          <motion.div
-            className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 md:gap-3"
-            variants={staggerContainer}
-          >
-            {[...Array(6)].map((_, index) => (
-              <motion.a
-                key={index}
-                href="https://instagram.com/voxcina"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group relative aspect-square overflow-hidden bg-secondary-200 rounded-lg shadow-soft hover:shadow-medium transition-all duration-300"
-                variants={itemVariant}
-                whileHover={{ scale: 1.02, y: -2 }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-tr from-black/0 to-black/0 group-hover:from-voxcina-blue/50 group-hover:to-voxcina-blue/30 transition-all duration-300 z-10"></div>
-
-                <motion.div
-                  className="absolute inset-0 scale-105 group-hover:scale-100 transition-transform duration-700 bg-cover bg-center"
-                  style={{
-                    backgroundImage: `url('/instagram.com/voxcina-${
-                      index + 1
-                    }.jpg')`,
-                  }}
-                />
-
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
-                  <div className="bg-white/20 backdrop-blur-md p-2 rounded-full">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 md:h-5 md:w-5 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              </motion.a>
-            ))}
-          </motion.div>
-
-          <motion.div className="text-center mt-4 md:mt-6" variants={fadeIn}>
-            <a
-              href="https://instagram.com/voxcina"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center text-voxcina-blue hover:text-voxcina-darkBlue transition-colors"
-            >
-              <span className="text-base md:text-lg mr-2">@voxcina</span>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-4 w-4 md:h-5 md:w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 5l7 7-7 7M5 5l7 7-7 7"
-                />
-              </svg>
-            </a>
-          </motion.div>
-        </motion.section>
+        <InstagramFeed
+          username="voxcina"
+          postsCount={6}
+          showCaption={true}
+          showStats={true}
+          className="mb-16"
+        />
 
         <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-20"

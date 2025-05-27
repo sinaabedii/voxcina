@@ -12,7 +12,6 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 
@@ -22,56 +21,6 @@ export default function ReturnsPage() {
   const toggleAccordion = (index: number) => {
     setActiveAccordion(activeAccordion === index ? null : index);
   };
-
-  const returnPolicies = [
-    {
-      title: "کالای سالم و بدون استفاده",
-      description:
-        "در صورتی که کالا سالم و بدون استفاده باشد، می‌توانید آن را تا ۷ روز پس از دریافت، بدون دلیل خاصی مرجوع کنید.",
-    },
-    {
-      title: "بسته‌بندی اصلی",
-      description:
-        "کالای مرجوعی باید در بسته‌بندی اصلی و همراه با تمامی لوازم جانبی، دفترچه راهنما و کارت گارانتی باشد.",
-    },
-    {
-      title: "فاکتور خرید",
-      description:
-        "برای مرجوع کردن کالا، باید فاکتور خرید را ارائه دهید. بدون فاکتور، امکان بازگشت کالا وجود ندارد.",
-    },
-    {
-      title: "محصولات غیرقابل بازگشت",
-      description:
-        "برخی کالاها مانند محصولات بهداشتی، مواد غذایی، نرم‌افزارها و محصولاتی که پلمپ آن‌ها باز شده است، قابل بازگشت نیستند.",
-    },
-  ];
-
-  const returnSteps = [
-    {
-      title: "ثبت درخواست بازگشت",
-      description:
-        "ابتدا وارد حساب کاربری خود شوید و در بخش «سفارش‌های من»، گزینه «درخواست بازگشت» را برای سفارش مورد نظر انتخاب کنید.",
-      icon: <RefreshCcw className="w-10 h-10" />,
-    },
-    {
-      title: "بسته‌بندی محصول",
-      description:
-        "محصول را همراه با تمامی لوازم جانبی، در بسته‌بندی اصلی و به صورت صحیح بسته‌بندی کنید.",
-      icon: <Package className="w-10 h-10" />,
-    },
-    {
-      title: "ارسال کالا",
-      description:
-        "پس از تأیید درخواست، کالا را از طریق پست یا پیک به آدرسی که به شما اعلام می‌شود، ارسال کنید.",
-      icon: <Clock className="w-10 h-10" />,
-    },
-    {
-      title: "بررسی و تأیید",
-      description:
-        "پس از دریافت کالا، کارشناسان ما آن را بررسی کرده و در صورت تأیید، مبلغ به حساب شما بازگردانده می‌شود.",
-      icon: <CheckCircle className="w-10 h-10" />,
-    },
-  ];
 
   const faqs = [
     {
@@ -110,76 +59,197 @@ export default function ReturnsPage() {
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-voxcina-cream dark:bg-voxcina-darkBlue/90">
-        <div className="bg-gradient-to-r from-voxcina-blue to-voxcina-darkBlue text-white relative overflow-hidden">
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute w-64 h-64 bg-white/10 rounded-full -top-20 -left-20 blur-3xl"></div>
-            <div className="absolute w-96 h-96 bg-primary-400/10 rounded-full -bottom-40 -right-20 blur-3xl"></div>
-          </div>
-          <div className="container mx-auto py-20 md:py-28 px-4 text-center relative z-10">
+      <div className="min-h-screen max-w-6xl mx-auto dark:bg-voxcina-darkBlue/90">
+        <div className="relative overflow-hidden bg-transparent">
+          <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
             <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="relative inline-block mb-6"
-            >
-              <span className="text-xl text-secondary-200 font-light">
-                Voxcina
-              </span>
-              <div className="w-full h-1 bg-secondary-200/30 mt-1 rounded-full"></div>
-            </motion.div>
-
-            <motion.h1
-              className="text-4xl md:text-5xl font-bold mb-6 relative"
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-            >
-              <span className="relative z-10">شرایط بازگشت کالا</span>
-              <span className="absolute bottom-1 left-0 w-full h-3 bg-secondary-200/20 rounded-full -z-0 opacity-40"></span>
-            </motion.h1>
-
-            <motion.p
-              className="text-xl max-w-3xl mx-auto text-secondary-200"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
-            >
-              ما تمام تلاش خود را می‌کنیم تا شما از خرید خود راضی باشید، اما اگر
-              به هر دلیلی قصد بازگشت کالا را دارید، این صفحه راهنمای شماست.
-            </motion.p>
-
+              animate={{
+                rotate: [0, 360],
+                scale: [1, 1.1, 1],
+              }}
+              transition={{
+                duration: 20,
+                repeat: Infinity,
+                ease: "linear",
+              }}
+              className="absolute -top-32 -right-32 w-64 h-64 border border-voxcina-blue/10 rounded-full"
+            />
             <motion.div
-              className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-voxcina-cream to-transparent dark:from-voxcina-darkBlue/90 dark:to-transparent"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1, duration: 1 }}
-            ></motion.div>
+              animate={{
+                rotate: [360, 0],
+                x: [0, 20, 0],
+                y: [0, -10, 0],
+              }}
+              transition={{
+                duration: 15,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+              className="absolute bottom-20 left-10 w-16 h-16 bg-gradient-to-br from-voxcina-blue/20 to-voxcina-darkBlue/20 transform rotate-45"
+            />
           </div>
+
+          <div className="relative z-10 container mx-auto px-4 py-16 sm:py-20 md:py-24 lg:py-32 max-w-7xl">
+            <div className="max-w-5xl mx-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-16 items-center">
+                <div className="lg:col-span-7 order-2 lg:order-1">
+                  <motion.div
+                    initial={{ opacity: 0, x: -50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.8 }}
+                  >
+                    <span className="inline-block text-xs sm:text-sm text-voxcina-blue/70 dark:text-secondary-200/70 font-medium tracking-[0.2em] sm:tracking-[0.3em] uppercase mb-4 sm:mb-6 relative">
+                      <span className="relative z-10">Voxcina</span>
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: "100%" }}
+                        transition={{ duration: 1, delay: 0.5 }}
+                        className="absolute bottom-0 left-0 h-px bg-voxcina-blue/50"
+                      />
+                    </span>
+                  </motion.div>
+
+                  <motion.h1
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.2 }}
+                    className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl xl:text-8xl font-bold text-voxcina-darkBlue dark:text-white mb-4 sm:mb-6 md:mb-8 leading-none"
+                  >
+                    <span className="block">بازگشت</span>
+                    <span className="block text-voxcina-blue relative">
+                      کالا
+                      <motion.div
+                        initial={{ scaleX: 0 }}
+                        animate={{ scaleX: 1 }}
+                        transition={{ duration: 1, delay: 1 }}
+                        className="absolute -bottom-1 sm:-bottom-2 left-0 w-full h-1 sm:h-2 bg-voxcina-blue/20 origin-left"
+                      />
+                    </span>
+                  </motion.h1>
+
+                  <motion.p
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.6 }}
+                    className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 dark:text-secondary-200/80 leading-relaxed max-w-2xl"
+                  >
+                    جایی که
+                    <span className="text-voxcina-blue font-semibold">
+                      {" "}
+                      رضایت{" "}
+                    </span>
+                    شما
+                    <span className="text-voxcina-blue font-semibold">
+                      {" "}
+                      اولویت{" "}
+                    </span>
+                    ماست
+                  </motion.p>
+                </div>
+
+                <div className="lg:col-span-5 order-1 lg:order-2">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 1, delay: 0.3 }}
+                    className="relative"
+                  >
+                    <div className="relative w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-72 lg:h-72 xl:w-80 xl:h-80 mx-auto">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{
+                          duration: 30,
+                          repeat: Infinity,
+                          ease: "linear",
+                        }}
+                        className="absolute inset-0 rounded-full border-2 border-dashed border-voxcina-blue/30"
+                      />
+
+                      <motion.div
+                        animate={{ rotate: -360 }}
+                        transition={{
+                          duration: 25,
+                          repeat: Infinity,
+                          ease: "linear",
+                        }}
+                        className="absolute inset-2 sm:inset-3 md:inset-4 rounded-full border border-voxcina-blue/50"
+                      />
+
+                      <div className="absolute inset-8 sm:inset-10 md:inset-12 lg:inset-14 xl:inset-16 bg-gradient-to-br from-voxcina-blue to-voxcina-darkBlue rounded-full flex items-center justify-center shadow-2xl">
+                        <motion.div
+                          animate={{
+                            scale: [1, 1.1, 1],
+                            rotate: [0, 180, 360],
+                          }}
+                          transition={{
+                            duration: 8,
+                            repeat: Infinity,
+                            ease: "easeInOut",
+                          }}
+                          className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white"
+                        >
+                          V
+                        </motion.div>
+                      </div>
+
+                      {[...Array(8)].map((_, i) => (
+                        <motion.div
+                          key={i}
+                          animate={{
+                            scale: [1, 1.5, 1],
+                            opacity: [0.5, 1, 0.5],
+                          }}
+                          transition={{
+                            duration: 2,
+                            repeat: Infinity,
+                            delay: i * 0.25,
+                            ease: "easeInOut",
+                          }}
+                          className="absolute w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 bg-voxcina-blue rounded-full"
+                          style={{
+                            top: `${50 + 40 * Math.sin((i * Math.PI) / 4)}%`,
+                            left: `${50 + 40 * Math.cos((i * Math.PI) / 4)}%`,
+                            transform: "translate(-50%, -50%)",
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <motion.div
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ duration: 1.5, delay: 1.2 }}
+            className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-voxcina-blue/30 to-transparent origin-center"
+          />
         </div>
 
-        <section className="py-12 px-4 -mt-8">
-          <div className="container mx-auto max-w-4xl">
+        <section className="py-8 sm:py-12 px-4 -mt-8">
+          <div className="container mx-auto max-w-5xl">
             <motion.div
-              className="bg-white/90 dark:bg-voxcina-blue/10 rounded-2xl shadow-soft p-6 md:p-8 border-t-4 border-voxcina-blue border border-secondary-200 dark:border-voxcina-darkBlue/30 backdrop-blur-sm"
+              className="bg-white/60 dark:bg-voxcina-blue/5 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 md:p-8 border-t-4 border-voxcina-blue border border-voxcina-blue/10"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-                <div className="w-20 h-20 bg-secondary-100/70 dark:bg-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 rounded-full flex items-center justify-center flex-shrink-0 shadow-soft">
-                  <ShieldCheck className="w-10 h-10" />
+              <div className="flex flex-col md:flex-row items-center md:items-start gap-4 sm:gap-6">
+                <div className="w-16 h-16 sm:w-18 sm:h-18 md:w-20 md:h-20 bg-gradient-to-br from-voxcina-blue to-voxcina-darkBlue text-white rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                  <ShieldCheck className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold mb-4 text-voxcina-blue dark:text-secondary-200 text-center md:text-right">
+                  <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 text-voxcina-blue dark:text-white text-center md:text-right">
                     ضمانت رضایت ۷ روزه
                   </h2>
-                  <p className="text-voxcina-blue/70 dark:text-secondary-300 mb-4">
+                  <p className="text-sm sm:text-base text-gray-700 dark:text-secondary-300 mb-3 sm:mb-4">
                     ما به کیفیت محصولات خود اطمینان داریم و می‌خواهیم شما نیز با
                     خیال راحت خرید کنید. به همین دلیل، ضمانت بازگشت ۷ روزه را
                     برای تمامی محصولات ارائه می‌دهیم.
                   </p>
-                  <p className="text-voxcina-blue/70 dark:text-secondary-300">
+                  <p className="text-sm sm:text-base text-gray-700 dark:text-secondary-300">
                     اگر به هر دلیلی از خرید خود راضی نیستید، می‌توانید تا ۷ روز
                     پس از دریافت کالا، آن را بدون هیچ سوالی مرجوع کنید و وجه خود
                     را دریافت نمایید.
@@ -190,143 +260,42 @@ export default function ReturnsPage() {
           </div>
         </section>
 
-        <section className="py-16 px-4 relative">
-          <div className="absolute inset-0 z-0 overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
-          </div>
-          <div className="container mx-auto relative z-10">
+        <section className="py-12 sm:py-16 md:py-20 lg:py-24 relative bg-transparent">
+          <div className="container mx-auto px-4 max-w-7xl">
             <motion.div
-              className="text-center mb-12"
+              className="text-center mb-8 sm:mb-12"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <h2 className="text-3xl font-bold mb-4 text-voxcina-blue dark:text-secondary-200 relative inline-block">
-                <span className="relative z-10">شرایط بازگشت کالا</span>
-                <span className="absolute bottom-1 left-0 w-full h-3 bg-secondary-200 dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
-              </h2>
-              <div className="w-24 h-1 bg-voxcina-blue/30 dark:bg-secondary-200/30 mx-auto mt-2 rounded-full"></div>
-              <p className="text-voxcina-blue/70 dark:text-secondary-300 max-w-2xl mx-auto mt-4">
-                برای بازگشت کالا لازم است شرایط زیر را رعایت کنید.
-              </p>
-            </motion.div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-              {returnPolicies.map((policy, index) => (
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-4 sm:mb-6 text-voxcina-darkBlue dark:text-white relative inline-block">
+                شرایط بازگشت کالا
                 <motion.div
-                  key={index}
-                  className="bg-white/90 dark:bg-voxcina-blue/10 p-6 rounded-2xl shadow-soft border border-secondary-200 dark:border-voxcina-darkBlue/30 backdrop-blur-sm transition-all duration-300 hover:shadow-medium relative overflow-hidden group"
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  whileHover={{ y: -5 }}
-                >
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full -mt-16 -mr-16 transition-all duration-500 group-hover:scale-125"></div>
-
-                  <div className="flex items-start relative z-10">
-                    <div className="w-10 h-10 bg-secondary-200/70 dark:bg-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 rounded-xl flex items-center justify-center ml-4 flex-shrink-0 shadow-soft">
-                      <CheckCircle className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold mb-2 text-voxcina-blue dark:text-secondary-200">
-                        {policy.title}
-                      </h3>
-                      <p className="text-voxcina-blue/70 dark:text-secondary-300">
-                        {policy.description}
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-        <section className="py-16 px-4 relative">
-          <div className="absolute inset-0 z-0 overflow-hidden">
-            <div className="absolute top-0 left-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
-          </div>
-          <div className="container mx-auto relative z-10">
-            <motion.div
-              className="text-center mb-12"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <h2 className="text-3xl font-bold mb-4 text-voxcina-blue dark:text-secondary-200 relative inline-block">
-                <span className="relative z-10">مراحل بازگشت کالا</span>
-                <span className="absolute bottom-1 left-0 w-full h-3 bg-secondary-200 dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
+                  initial={{ width: 0 }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 1, delay: 0.5 }}
+                  className="absolute -bottom-1 sm:-bottom-2 left-0 h-0.5 sm:h-1 bg-gradient-to-r from-voxcina-blue to-voxcina-darkBlue rounded-full"
+                />
               </h2>
-              <div className="w-24 h-1 bg-voxcina-blue/30 dark:bg-secondary-200/30 mx-auto mt-2 rounded-full"></div>
-              <p className="text-voxcina-blue/70 dark:text-secondary-300 max-w-2xl mx-auto mt-4">
-                برای بازگشت کالا، مراحل زیر را دنبال کنید.
-              </p>
             </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-6xl mx-auto">
-              {returnSteps.map((step, index) => (
-                <motion.div
-                  key={index}
-                  className="bg-white/90 dark:bg-voxcina-blue/10 p-6 rounded-2xl shadow-soft text-center relative border border-secondary-200 dark:border-voxcina-darkBlue/30 backdrop-blur-sm transition-all duration-300 hover:shadow-medium overflow-hidden group"
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  whileHover={{ y: -5 }}
-                >
-                  {index < 3 && (
-                    <div className="hidden md:block absolute top-16 left-0 w-full h-0.5 bg-secondary-200/70 dark:bg-voxcina-blue/30 z-0"></div>
-                  )}
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full -mt-16 -mr-16 transition-all duration-500 group-hover:scale-125"></div>
-
-                  <div className="w-16 h-16 bg-secondary-200/70 dark:bg-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 rounded-full flex items-center justify-center mx-auto mb-6 relative z-10 shadow-soft">
-                    {step.icon}
-                  </div>
-                  <h3 className="text-lg font-bold mb-2 text-voxcina-blue dark:text-secondary-200 relative z-10">
-                    {step.title}
-                  </h3>
-                  <p className="text-voxcina-blue/70 dark:text-secondary-300 text-sm relative z-10">
-                    {step.description}
-                  </p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="py-16 px-4 relative">
-          <div className="absolute inset-0 z-0 overflow-hidden">
-            <div className="absolute top-0 left-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
-          </div>
-          <div className="container mx-auto relative z-10">
-            <motion.div
-              className="text-center mb-12"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <h2 className="text-3xl font-bold mb-4 text-voxcina-blue dark:text-secondary-200 relative inline-block">
-                <span className="relative z-10">سوالات متداول</span>
-                <span className="absolute bottom-1 left-0 w-full h-3 bg-secondary-200 dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
-              </h2>
-              <div className="w-24 h-1 bg-voxcina-blue/30 dark:bg-secondary-200/30 mx-auto mt-2 rounded-full"></div>
-            </motion.div>
-
-            <div className="max-w-3xl mx-auto">
+            <div className="max-w-4xl mx-auto">
               {faqs.map((faq, index) => (
                 <motion.div
                   key={index}
-                  className="mb-6 bg-white/90 dark:bg-voxcina-blue/10 rounded-2xl shadow-soft overflow-hidden border border-secondary-200 dark:border-voxcina-darkBlue/30 backdrop-blur-sm transition-all duration-300 hover:shadow-medium"
+                  className="mb-4 sm:mb-6 bg-white/60 dark:bg-voxcina-blue/5 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg overflow-hidden border border-voxcina-blue/10 transition-all duration-500 hover:bg-white/80 dark:hover:bg-voxcina-blue/10"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                 >
                   <div
-                    className="p-6 cursor-pointer transition-colors hover:bg-secondary-100/30 dark:hover:bg-voxcina-blue/5"
+                    className="p-4 sm:p-6 cursor-pointer transition-colors hover:bg-white/20 dark:hover:bg-voxcina-blue/10"
                     onClick={() => toggleAccordion(index)}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-start">
-                        <HelpCircle className="w-6 h-6 text-voxcina-blue dark:text-secondary-300 mt-0.5 ml-3 flex-shrink-0" />
-                        <h3 className="text-lg font-bold text-voxcina-blue dark:text-secondary-200">
+                        <HelpCircle className="w-5 h-5 sm:w-6 sm:h-6 text-voxcina-blue dark:text-secondary-300 mt-0.5 ml-2 sm:ml-3 flex-shrink-0" />
+                        <h3 className="text-base sm:text-lg font-bold text-voxcina-blue dark:text-white">
                           {faq.question}
                         </h3>
                       </div>
@@ -340,12 +309,12 @@ export default function ReturnsPage() {
 
                   {activeAccordion === index && (
                     <motion.div
-                      className="border-t border-secondary-200/50 dark:border-voxcina-blue/20 px-6 pb-6 pt-4"
+                      className="border-t border-voxcina-blue/10 dark:border-voxcina-blue/20 px-4 sm:px-6 pb-4 sm:pb-6 pt-3 sm:pt-4"
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       transition={{ duration: 0.3 }}
                     >
-                      <p className="text-voxcina-blue/70 dark:text-secondary-300 mr-9">
+                      <p className="text-sm sm:text-base text-gray-700 dark:text-secondary-300 mr-7 sm:mr-9">
                         {faq.answer}
                       </p>
                     </motion.div>
@@ -353,85 +322,6 @@ export default function ReturnsPage() {
                 </motion.div>
               ))}
             </div>
-
-            <motion.div
-              className="text-center mt-10"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.5 }}
-            >
-              <p className="text-voxcina-blue/70 dark:text-secondary-300">
-                سوال دیگری دارید؟
-                <Link
-                  href="/faq"
-                  className="text-voxcina-blue dark:text-secondary-200 hover:text-voxcina-blue/80 dark:hover:text-secondary-300 transition-colors mr-1"
-                >
-                  به صفحه سوالات متداول مراجعه کنید
-                </Link>
-                یا
-                <Link
-                  href="/contact"
-                  className="text-voxcina-blue dark:text-secondary-200 hover:text-voxcina-blue/80 dark:hover:text-secondary-300 transition-colors mr-1 ml-1"
-                >
-                  با ما تماس بگیرید
-                </Link>
-              </p>
-            </motion.div>
-          </div>
-        </section>
-
-        <section className="py-16 px-4 relative">
-          <div className="absolute inset-0 z-0 overflow-hidden">
-            <div className="absolute top-0 left-0 w-96 h-96 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-full blur-3xl"></div>
-          </div>
-          <div className="container mx-auto max-w-4xl relative z-10">
-            <motion.div
-              className="bg-gradient-to-r from-voxcina-blue to-voxcina-darkBlue rounded-2xl p-8 md:p-12 text-white text-center relative overflow-hidden"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <div className="absolute inset-0">
-                <div className="absolute top-0 left-1/4 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-0 right-1/3 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-              </div>
-
-              <div className="relative z-10">
-                <h2 className="text-2xl md:text-3xl font-bold mb-6">
-                  نیاز به راهنمایی بیشتر دارید؟
-                </h2>
-                <p className="text-lg mb-8 max-w-2xl mx-auto">
-                  کارشناسان ما آماده پاسخگویی به سوالات شما در خصوص بازگشت کالا
-                  هستند.
-                </p>
-                <div className="flex flex-col md:flex-row justify-center gap-4">
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="inline-block"
-                  >
-                    <Link
-                      href="/contact"
-                      className="inline-block w-full md:w-auto px-6 py-3 bg-white text-voxcina-blue hover:bg-secondary-100 font-medium rounded-xl shadow-medium hover:shadow-strong transition-all"
-                    >
-                      تماس با پشتیبانی
-                    </Link>
-                  </motion.div>
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="inline-block"
-                  >
-                    <Link
-                      href="/customer-dashboard/orders"
-                      className="inline-block w-full md:w-auto px-6 py-3 bg-transparent border-2 border-white text-white font-medium rounded-xl hover:bg-white/10 transition-all"
-                    >
-                      مشاهده سفارش‌های من
-                    </Link>
-                  </motion.div>
-                </div>
-              </div>
-            </motion.div>
           </div>
         </section>
       </div>
@@ -439,3 +329,4 @@ export default function ReturnsPage() {
     </>
   );
 }
+        {/* بخش شرایط بازگشت */}
