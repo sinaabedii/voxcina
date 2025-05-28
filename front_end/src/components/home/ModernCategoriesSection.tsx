@@ -172,7 +172,7 @@ const ModernCategoriesSection = () => {
 
           <div className="md:hidden mb-12">
             <div className="relative">
-              <div className="overflow-x-auto scrollbar-hide py-4">
+              <div className="overflow-x-auto scrollbar-hide py-4 ">
                 <div
                   className="flex gap-4 px-4"
                   style={{ width: "max-content" }}
@@ -231,8 +231,6 @@ const ModernCategoriesSection = () => {
                   ))}
                 </div>
               </div>
-              <div className="absolute left-0 top-1/3 -translate-y-1/2 bg-gradient-to-r from-white via-white to-transparent w-8 h-20 pointer-events-none md:hidden" />
-              <div className="absolute right-0 top-1/3 -translate-y-1/2 bg-gradient-to-l from-white via-white to-transparent w-8 h-20 pointer-events-none md:hidden" />
             </div>
           </div>
         </div>

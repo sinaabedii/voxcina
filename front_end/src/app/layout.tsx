@@ -19,15 +19,53 @@ export const metadata: Metadata = {
     "خرید آنلاین",
     "وکسینا",
     "voxcina",
+    "لباس مردانه",
+    "لباس زنانه",
+    "لباس بچگانه",
+    "کفش",
+    "کیف",
+    "اکسسوری",
+    "تخفیف",
+    "حراج",
+    "ارسال رایگان",
   ],
   authors: [{ name: "Voxcina Team" }],
   creator: "Voxcina",
+  metadataBase: new URL("https://voxcina.com"),
   openGraph: {
     type: "website",
     locale: "fa_IR",
     title: APP_NAME,
     description: APP_DESCRIPTION,
     siteName: APP_NAME,
+    images: [
+      {
+        url: "/images/Logo/WXTransparent-org.png",
+        width: 1200,
+        height: 630,
+        alt: "وکسینا - فروشگاه آنلاین پوشاک و مد",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: APP_NAME,
+    description: APP_DESCRIPTION,
+    images: ["/images/Logo/WXTransparent-org.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  alternates: {
+    canonical: "/",
   },
 };
 
@@ -45,6 +83,49 @@ export default function RootLayout({
         />
         <meta name="theme-color" content="#1A3C69" />
         <link rel="icon" href="/images/Logo/WXTransparent-org.png" sizes="any" />
+        
+        {/* JSON-LD structured data for Organization */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "وکسینا",
+              alternateName: "Voxcina",
+              url: "https://voxcina.com",
+              logo: "https://voxcina.com/images/Logo/WXTransparent-org.png",
+              contactPoint: {
+                "@type": "ContactPoint",
+                telephone: "+982112345678",
+                contactType: "customer service",
+                availableLanguage: ["Persian", "English"],
+              },
+              sameAs: [
+                "https://www.instagram.com/voxcina",
+                "https://twitter.com/voxcina",
+              ],
+            }),
+          }}
+        />
+        
+        {/* JSON-LD structured data for WebSite */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "وکسینا",
+              url: "https://voxcina.com",
+              potentialAction: {
+                "@type": "SearchAction",
+                target: "https://voxcina.com/search?q={search_term_string}",
+                "query-input": "required name=search_term_string",
+              },
+            }),
+          }}
+        />
       </head>
       <body className="min-h-screen bg-background text-foreground font-iransans antialiased selection:bg-primary/20 selection:text-primary">
         <ClientLayout>

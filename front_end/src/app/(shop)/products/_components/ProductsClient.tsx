@@ -144,6 +144,12 @@ export default function ProductsClient() {
           <SmartSearch
             placeholder="جستجوی محصولات..."
             className="w-full"
+            isOpen={false}
+            value={searchTerm}
+            onChange={(value) => {
+              setSearchTerm(value);
+              setFilter({ search: value });
+            }}
             onClose={() => {
               setSearchTerm("");
               setFilter({ search: "" });

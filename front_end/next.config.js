@@ -30,6 +30,45 @@ const nextConfig = {
         destination: 'http://localhost:8080/uploads/:path*',
       }
     ];
+  },
+  async redirects() {
+    return [
+      {
+        source: '/category/:slug',
+        destination: '/categories/:slug',
+        permanent: true,
+      },
+      {
+        source: '/products/:slug',
+        destination: '/product/:slug',
+        permanent: true,
+      }
+    ];
+  },
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+        ],
+      },
+    ];
   }
 };
 

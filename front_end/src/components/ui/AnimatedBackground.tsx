@@ -26,7 +26,7 @@ const AnimatedBackground = () => {
       size: 300,
       x: 20,
       y: 70,
-      color: "from-pink-300/40 to-rose-300/25",
+      color: "from-gray-300/40 to-rose-300/25",
       duration: 18,
       delay: 4,
     },
@@ -68,22 +68,22 @@ const AnimatedBackground = () => {
     },
   ];
 
-  const floatingDots = Array.from({ length: 15 }, (_, i) => ({
-    id: i,
-    size: Math.random() * 20 + 10,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    color: [
-      "bg-purple-400/40",
-      "bg-pink-400/40",
-      "bg-blue-400/40",
-      "bg-indigo-400/40",
-      "bg-teal-400/40",
-      "bg-rose-400/40",
-    ][Math.floor(Math.random() * 6)],
-    duration: Math.random() * 10 + 15,
-    delay: Math.random() * 5,
-  }));
+  // const floatingDots = Array.from({ length: 15 }, (_, i) => ({
+  //   id: i,
+  //   size: Math.random() * 20 + 10,
+  //   x: Math.random() * 100,
+  //   y: Math.random() * 100,
+  //   color: [
+  //     "bg-purple-400/40",
+  //     "bg-pink-400/40",
+  //     "bg-blue-400/40",
+  //     "bg-indigo-400/40",
+  //     "bg-teal-400/40",
+  //     "bg-rose-400/40",
+  //   ][Math.floor(Math.random() * 6)],
+  //   duration: Math.random() * 10 + 15,
+  //   delay: Math.random() * 5,
+  // }));
 
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden">
@@ -135,7 +135,7 @@ const AnimatedBackground = () => {
         </motion.div>
       ))}
 
-      {floatingDots.map((dot) => (
+      {/* {floatingDots.map((dot) => (
         <motion.div
           key={dot.id}
           className={`absolute rounded-full ${dot.color} blur-sm`}
@@ -173,7 +173,7 @@ const AnimatedBackground = () => {
             }}
           />
         </motion.div>
-      ))}
+      ))} */}
 
       {Array.from({ length: 6 }).map((_, i) => (
         <motion.div
