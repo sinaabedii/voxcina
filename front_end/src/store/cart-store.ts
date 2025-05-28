@@ -259,11 +259,29 @@ export const useCartStore = create<CartStore>()(
                 throw new Error(errorData.message || 'Failed to create backend cart');
               }
             } else {
-              // No local items and no backend cart - set empty cart
-              console.log('No local items and no backend cart, setting empty cart.');
-              const { cart: emptyCart, summary: emptySummary } = processBackendCartData({ items: [], summary: { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 } });
-              set({ cart: emptyCart, summary: emptySummary, isLoading: false });
-              return; // Exit early
+              // No local items and no backend cart - create an empty cart on backend
+              console.log('No local items and no backend cart, creating new empty cart on backend...');
+              const postResponse = await fetch('/api/cart', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
+                body: JSON.stringify({ items: [] }) // Send empty items array
+              });
+
+              if (postResponse.ok) {
+                const rawNewCart = await postResponse.json();
+                const { cart: processedCart, summary: processedSummary } = processBackendCartData(rawNewCart);
+                set({
+                  cart: processedCart,
+                  summary: processedSummary,
+                  isLoading: false,
+                  syncRetryCount: 0,
+                });
+                console.log('New empty backend cart created.');
+                return; // Exit early
+              } else {
+                const errorData = await postResponse.json().catch(() => ({ message: 'Failed to create empty cart' }));
+                throw new Error(errorData.message || 'Failed to create empty backend cart');
+              }
             }
           } else {
             const errorData = await response.json().catch(() => ({ message: 'Failed to get backend cart'}));
