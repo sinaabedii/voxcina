@@ -74,7 +74,7 @@ const ProductSchema: React.FC<ProductSchemaProps> = ({
     },
     offers: {
       '@type': 'Offer',
-      url: `https://voxcina.com/product/${id}`,
+      url: `https://voxcina.com/products/${id}`,
       priceCurrency: currency,
       price: price,
       availability: `https://schema.org/${availability}`,
