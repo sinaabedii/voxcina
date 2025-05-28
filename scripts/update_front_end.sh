@@ -2,7 +2,6 @@
 set -uo pipefail
 
 BRANCH="${1:-develop}"
-SERVICE="${2:-front_end}"
 REPO_DIR="$( cd -- "$(dirname "$0")/.." && pwd )"
 cd "$REPO_DIR"
 
@@ -80,18 +79,18 @@ while true; do
       continue
     fi
     
-    if ! docker compose stop "$SERVICE"; then
-      printf '[%s] Warning: Failed to stop service, continuing with build...\n' "$(date +'%F %T')"
+    if ! docker compose stop; then
+      printf '[%s] Warning: Failed to stop services, continuing with build...\n' "$(date +'%F %T')"
     fi
     
-    if ! docker compose build "$SERVICE"; then
-      printf '[%s] Error: Failed to build service. Retrying in 60 seconds...\n' "$(date +'%F %T')"
+    if ! docker compose build; then
+      printf '[%s] Error: Failed to build services. Retrying in 60 seconds...\n' "$(date +'%F %T')"
       sleep 60
       continue
     fi
     
-    if ! docker compose up -d "$SERVICE" --remove-orphans; then
-      printf '[%s] Error: Failed to start service. Retrying in 60 seconds...\n' "$(date +'%F %T')"
+    if ! docker compose up -d --remove-orphans; then
+      printf '[%s] Error: Failed to start services. Retrying in 60 seconds...\n' "$(date +'%F %T')"
       sleep 60
       continue
     fi
