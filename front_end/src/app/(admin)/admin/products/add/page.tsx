@@ -96,7 +96,7 @@ export default function AddProductPage() {
     formData.append("isActive", isActive ? "true" : "false");
     formData.append("inStock", inStock ? "true" : "false");
     if (images) {
-      Array.from(images).forEach((file) => formData.append("images", file));
+      Array.from(images).forEach((file) => formData.append("mainImages", file));
     }
     const result = await createProduct(formData, adminToken);
     setSubmitting(false);
