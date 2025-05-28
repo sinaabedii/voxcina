@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Mail } from "lucide-react";
 import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
+import Input from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { motion } from "framer-motion";
 import Image from "next/image";

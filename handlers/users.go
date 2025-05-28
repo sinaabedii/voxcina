@@ -961,8 +961,9 @@ func ListUsers(w http.ResponseWriter, r *http.Request) {
 	findOptions.SetLimit(limit)
 	findOptions.SetSort(bson.D{{Key: "created_at", Value: -1}}) // Sort by newest first
 
-	// Default to fetching only active users
-	filter := bson.M{"is_active": true}
+	// For admin users list, show all users regardless of active status
+	// Admin can filter by status in the frontend if needed
+	filter := bson.M{} // Empty filter to get all users
 
 	// TODO: Add query param handling for more sophisticated filtering e.g. status=all, status=inactive
 

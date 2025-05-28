@@ -3,7 +3,7 @@ import { MapPin, Plus, Home, Briefcase, Check } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
-import Input from "@/components/ui/Input";
+import Input from "@/components/ui/input";
 import { Address } from "@/store/dashboard-store";
 import { useDashboardStore } from "@/store/dashboard-store";
 import { useLocality } from "@/hooks/useLocality";

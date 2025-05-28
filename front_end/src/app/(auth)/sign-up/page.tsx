@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
+import Input from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { motion } from "framer-motion";
 import Image from "next/image";

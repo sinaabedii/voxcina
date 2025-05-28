@@ -7,7 +7,7 @@ import { Trash2, ShoppingBag, Minus, Plus, ArrowLeft } from "lucide-react";
 import { useCartStore, getCartWarnings } from "@/store/cart-store";
 import { formatPrice } from "@/lib/utils";
 import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
+import Input from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { CartItem } from '@/types/cart';
 

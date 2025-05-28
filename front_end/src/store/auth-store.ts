@@ -372,15 +372,19 @@ export const useAuthStore = create<AuthStore>()(
             throw new Error(errorMessage);
           }
           
-          const users: User[] = Array.isArray(data) ? data.map((u: any) => ({
+          // Handle the response structure: { data: [...], total: ..., page: ... }
+          const usersData = data.data || data; // Try data.data first, fallback to data for backward compatibility
+          const users: User[] = Array.isArray(usersData) ? usersData.map((u: any) => ({
             id: u.id || u._id,
             name: u.name,
             email: u.email,
             role: u.role,
             createdAt: u.created_at || u.createdAt,
             updatedAt: u.updated_at || u.updatedAt,
-            isActive: u.is_active,
+            isActive: u.is_active !== undefined ? u.is_active : u.isActive,
             addresses: u.addresses || [],
+            phone: u.phone_number || u.phone,
+            avatar: u.avatar,
           })) : [];
 
           set({ allUsers: users, isLoading: false, error: null });

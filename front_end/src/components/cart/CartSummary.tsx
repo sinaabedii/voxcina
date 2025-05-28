@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useCart } from "@/hooks/useCart";
 import { formatPrice } from "@/lib/utils";
 import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
+import Input from "@/components/ui/input";
 import { Receipt, Tag, ShoppingBag, CreditCard, Percent, CheckCircle, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 

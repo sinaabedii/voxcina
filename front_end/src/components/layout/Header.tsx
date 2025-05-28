@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, User, Menu, X, ShoppingBag } from "lucide-react";
+import { Search, User, Menu, X, ShoppingBag, Shield } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
@@ -20,7 +20,7 @@ const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const pathname = usePathname();
   const cart = useCartStore((state) => state.cart);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const router = useRouter();
 
   const itemCount = cart.items.reduce(
@@ -156,7 +156,17 @@ const Header = () => {
                 </span>
               )}
             </Link>
-            <motion.div className="relative">
+            <motion.div className="relative flex items-center gap-1">
+              {isAuthenticated && user?.role === "admin" && (
+                <Link
+                  href="/admin"
+                  className="p-1.5 sm:p-2 rounded-full text-yellow-600 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300 hover:bg-yellow-100 dark:hover:bg-yellow-900 transition-all duration-300 relative group"
+                  aria-label="پنل ادمین"
+                  title="پنل ادمین"
+                >
+                  <Shield className="h-4 w-4 sm:h-[18px] sm:w-[18px] md:h-5 md:w-5" />
+                </Link>
+              )}
               {isAuthenticated ? (
                 <button
                   type="button"

@@ -7,7 +7,7 @@ import { Check, Truck, AlertCircle, MapPin, Plus, Home, Briefcase, Edit, Loader2
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
+import Input from "@/components/ui/input";
 import Modal from "@/components/ui/Modal";
 import MapPicker from "@/components/ui/MapPicker";
 import PaymentMethods from "@/components/checkout/PaymentMethods";

@@ -410,10 +410,25 @@ export const useOrderStore = create<OrderState & OrderActions>()(
   )
 );
 
-// Subscribe to auth changes to clear orders on logout
-useAuthStore.subscribe((state, prevState) => {
-  if (!state.isAuthenticated && prevState.isAuthenticated) {
-    console.log("User logged out, clearing order store.");
-    useOrderStore.getState().clearOrders();
+// Move auth subscription to be lazy-loaded to avoid circular dependency issues
+let authUnsubscribe: (() => void) | null = null;
+
+// Initialize auth subscription after stores are ready
+const initializeAuthSubscription = () => {
+  if (authUnsubscribe) return; // Already initialized
+  
+  try {
+    // Subscribe to auth changes to clear orders on logout
+    authUnsubscribe = useAuthStore.subscribe((state, prevState) => {
+      if (!state.isAuthenticated && prevState.isAuthenticated) {
+        console.log("User logged out, clearing order store.");
+        useOrderStore.getState().clearOrders();
+      }
+    });
+  } catch (error) {
+    console.error('Error initializing auth subscription in order store:', error);
   }
-}); 
+};
+
+// Initialize the subscription after a timeout to ensure both stores are ready
+setTimeout(initializeAuthSubscription, 100); 

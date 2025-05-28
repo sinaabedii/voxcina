@@ -956,3 +956,79 @@ func DeleteCart(w http.ResponseWriter, r *http.Request) {
 		map[string]string{"message": "Cart deactivated successfully"},
 	)
 }
+
+// ClearUserCart handles DELETE /api/cart - clears the entire cart for a user
+func ClearUserCart(w http.ResponseWriter, r *http.Request) {
+	userIDCtx := r.Context().Value("userID")
+	if userIDCtx == nil {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "User ID not found in context")
+		return
+	}
+	userID, ok := userIDCtx.(primitive.ObjectID)
+	if !ok || userID == primitive.NilObjectID {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid User ID")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cartCollection := db.Database.Collection("carts")
+	
+	// Find the user's active cart
+	var cart models.Cart
+	err := cartCollection.FindOne(ctx, bson.M{"user_id": userID, "is_active": true}).Decode(&cart)
+	
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			// No active cart found - return empty cart response
+			emptyCart := models.Cart{
+				ID:        primitive.NewObjectID(),
+				UserID:    userID,
+				IsActive:  true,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				Items:     []models.CartItem{},
+			}
+			
+			finalCartResponse, err := prepareCartResponse(ctx, emptyCart)
+			if err != nil {
+				utils.ErrorResponse(w, http.StatusInternalServerError, "Error preparing empty cart response: "+err.Error())
+				return
+			}
+			utils.JSONResponse(w, http.StatusOK, finalCartResponse)
+			return
+		}
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching cart: "+err.Error())
+		return
+	}
+
+	// Clear the cart items
+	cart.Items = []models.CartItem{}
+	cart.UpdatedAt = time.Now()
+
+	// Update the cart in database
+	updateFields := bson.M{
+		"items":      cart.Items,
+		"updated_at": cart.UpdatedAt,
+	}
+
+	_, err = cartCollection.UpdateOne(
+		ctx,
+		bson.M{"_id": cart.ID, "is_active": true},
+		bson.M{"$set": updateFields},
+	)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error clearing cart: "+err.Error())
+		return
+	}
+
+	// Return the cleared cart
+	finalCartResponse, err := prepareCartResponse(ctx, cart)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error preparing cleared cart response: "+err.Error())
+		return
+	}
+	
+	utils.JSONResponse(w, http.StatusOK, finalCartResponse)
+}
