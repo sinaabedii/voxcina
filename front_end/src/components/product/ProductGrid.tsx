@@ -1,7 +1,6 @@
 import React from "react";
 import ProductCard from "./ProductCard";
 import { Product } from "@/types/product";
-import { motion } from "framer-motion";
 import { ShoppingBag } from "lucide-react";
 
 interface ProductGridProps {
@@ -31,32 +30,6 @@ const ProductGrid: React.FC<ProductGridProps> = ({
     5: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
   };
 
-  const staggerContainer = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.08,
-        delayChildren: 0.1,
-      },
-    },
-  };
-
-  const itemVariant = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        type: "spring",
-        stiffness: 300,
-        damping: 20,
-        mass: 0.8,
-        duration: 0.4,
-      },
-    },
-  };
-
   if (safeProducts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4 bg-secondary/20 rounded-xl border border-border/10 shadow-soft min-h-[300px] animate-fadeIn">
@@ -72,19 +45,13 @@ const ProductGrid: React.FC<ProductGridProps> = ({
   }
 
   return (
-    <motion.div
+    <div
       className={`grid ${gridCols[columns]} gap-4 sm:gap-5 md:gap-6 ${className}`}
-      variants={staggerContainer}
-      initial="hidden"
-      animate="visible"
     >
       {safeProducts.map((product) => (
-        <motion.div
+        <div
           key={product.id}
-          variants={itemVariant}
-          whileHover={{ y: -8, scale: 1.02 }}
-          transition={{ duration: 0.3, type: "spring", stiffness: 300, damping: 20 }}
-          className="h-full"
+          className="h-full transition-transform duration-300 hover:-translate-y-2"
         >
           <ProductCard
             product={product}
@@ -92,9 +59,9 @@ const ProductGrid: React.FC<ProductGridProps> = ({
             ribbonLabel={ribbonLabel}
             onAddToCart={onAddToCart}
           />
-        </motion.div>
+        </div>
       ))}
-    </motion.div>
+    </div>
   );
 };
 

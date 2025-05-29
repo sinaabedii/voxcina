@@ -8,8 +8,8 @@ const AnimatedBackground = () => {
       size: 400,
       x: 10,
       y: 20,
-      color: "from-purple-300/40 to-pink-300/25",
-      duration: 20,
+      color: "from-purple-300/30 to-pink-300/15",
+      duration: 25,
       delay: 0,
     },
     {
@@ -17,8 +17,8 @@ const AnimatedBackground = () => {
       size: 350,
       x: 70,
       y: 10,
-      color: "from-blue-300/35 to-cyan-300/25",
-      duration: 25,
+      color: "from-blue-300/25 to-cyan-300/15",
+      duration: 30,
       delay: 2,
     },
     {
@@ -26,45 +26,9 @@ const AnimatedBackground = () => {
       size: 300,
       x: 20,
       y: 70,
-      color: "from-gray-300/40 to-rose-300/25",
-      duration: 18,
+      color: "from-indigo-300/25 to-purple-300/15",
+      duration: 27,
       delay: 4,
-    },
-    {
-      id: 4,
-      size: 450,
-      x: 60,
-      y: 60,
-      color: "from-indigo-300/35 to-purple-300/25",
-      duration: 22,
-      delay: 1,
-    },
-    {
-      id: 5,
-      size: 200,
-      x: 80,
-      y: 40,
-      color: "from-teal-300/40 to-green-300/25",
-      duration: 15,
-      delay: 3,
-    },
-    {
-      id: 6,
-      size: 180,
-      x: 15,
-      y: 50,
-      color: "from-orange-300/35 to-yellow-300/25",
-      duration: 17,
-      delay: 5,
-    },
-    {
-      id: 7,
-      size: 220,
-      x: 85,
-      y: 80,
-      color: "from-violet-300/40 to-fuchsia-300/25",
-      duration: 19,
-      delay: 2.5,
     },
   ];
 
@@ -91,7 +55,7 @@ const AnimatedBackground = () => {
       {colorfulCircles.map((circle) => (
         <motion.div
           key={circle.id}
-          className={`absolute rounded-full bg-gradient-to-br ${circle.color} blur-3xl`}
+          className={`absolute rounded-full bg-gradient-to-br ${circle.color} blur-2xl`}
           style={{
             width: circle.size,
             height: circle.size,
@@ -107,32 +71,7 @@ const AnimatedBackground = () => {
             repeat: Infinity,
             ease: "linear",
           }}
-        >
-          <motion.div
-            className="w-full h-full rounded-full"
-            animate={{
-              scale: [1, 1.2, 1],
-            }}
-            transition={{
-              duration: circle.duration * 0.7,
-              repeat: Infinity,
-            }}
-          />
-
-          <motion.div
-            className="absolute inset-0 rounded-full"
-            style={{
-              background: `radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%)`,
-            }}
-            animate={{
-              opacity: [0.3, 0.8, 0.3],
-            }}
-            transition={{
-              duration: circle.duration * 0.5,
-              repeat: Infinity,
-            }}
-          />
-        </motion.div>
+        />
       ))}
 
       {/* {floatingDots.map((dot) => (
@@ -175,72 +114,35 @@ const AnimatedBackground = () => {
         </motion.div>
       ))} */}
 
-      {Array.from({ length: 6 }).map((_, i) => (
+      {Array.from({ length: 3 }).map((_, i) => (
         <motion.div
           key={`extra-${i}`}
           className="absolute rounded-full"
           style={{
             width: 150 + i * 50,
             height: 150 + i * 50,
-            left: `${20 + i * 15}%`,
-            top: `${15 + i * 12}%`,
+            left: `${20 + i * 20}%`,
+            top: `${15 + i * 20}%`,
             background: `radial-gradient(circle, ${
               [
-                "rgba(168, 85, 247, 0.1)",
-                "rgba(236, 72, 153, 0.1)",
-                "rgba(59, 130, 246, 0.1)",
-                "rgba(16, 185, 129, 0.1)",
-                "rgba(245, 101, 101, 0.1)",
-                "rgba(139, 92, 246, 0.1)",
+                "rgba(168, 85, 247, 0.05)",
+                "rgba(236, 72, 153, 0.05)",
+                "rgba(59, 130, 246, 0.05)",
               ][i]
             } 0%, transparent 70%)`,
-            filter: "blur(60px)",
+            filter: "blur(40px)",
           }}
           animate={{
             rotate: i % 2 === 0 ? 360 : -360,
           }}
           transition={{
-            duration: 30 + i * 5,
+            duration: 40 + i * 5,
             repeat: Infinity,
             ease: "linear",
           }}
-        >
-          <motion.div
-            className="w-full h-full rounded-full"
-            animate={{
-              scale: [1, 1.3, 1],
-            }}
-            transition={{
-              duration: 20 + i * 3,
-              repeat: Infinity,
-            }}
-          />
-
-          <motion.div
-            className="absolute inset-0 rounded-full"
-            style={{
-              background: `radial-gradient(circle, ${
-                [
-                  "rgba(168, 85, 247, 0.05)",
-                  "rgba(236, 72, 153, 0.05)",
-                  "rgba(59, 130, 246, 0.05)",
-                  "rgba(16, 185, 129, 0.05)",
-                  "rgba(245, 101, 101, 0.05)",
-                  "rgba(139, 92, 246, 0.05)",
-                ][i]
-              } 0%, transparent 50%)`,
-            }}
-            animate={{
-              opacity: [0.2, 0.6, 0.2],
-            }}
-            transition={{
-              duration: 15 + i * 2,
-              repeat: Infinity,
-            }}
-          />
-        </motion.div>
+        />
       ))}
-      <div className="absolute inset-0 bg-white/5 backdrop-blur-[1px]" />
+      <div className="absolute inset-0 bg-white/10" />
     </div>
   );
 };

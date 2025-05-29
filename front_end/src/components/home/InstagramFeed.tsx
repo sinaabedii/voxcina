@@ -38,7 +38,6 @@ const InstagramFeed: React.FC<InstagramFeedProps> = ({
         setLoading(true);
         setError(null);
 
-        // روش 1: استفاده از Instagram Basic Display API
         const accessToken = process.env.NEXT_PUBLIC_INSTAGRAM_ACCESS_TOKEN;
 
         if (accessToken) {
@@ -53,7 +52,6 @@ const InstagramFeed: React.FC<InstagramFeedProps> = ({
             throw new Error("Failed to fetch Instagram posts");
           }
         } else {
-          // روش 2: استفاده از Instagram scraping API (برای حالت عمومی)
           const response = await fetch(
             `/api/instagram/${username}?count=${postsCount}`
           );
@@ -186,7 +184,6 @@ const InstagramFeed: React.FC<InstagramFeedProps> = ({
               transition={{ delay: index * 0.1 }}
               whileHover={{ scale: 1.02, y: -2 }}
             >
-              {/* عکس پست */}
               <div className="absolute inset-0">
                 <img
                   src={
@@ -204,10 +201,7 @@ const InstagramFeed: React.FC<InstagramFeedProps> = ({
                 />
               </div>
 
-              {/* اورلی تیره */}
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300" />
-
-              {/* آیکون نوع رسانه */}
               {post.media_type !== "IMAGE" && (
                 <div className="absolute top-2 right-2 z-10">
                   {post.media_type === "VIDEO" && (
@@ -241,9 +235,7 @@ const InstagramFeed: React.FC<InstagramFeedProps> = ({
                 </div>
               )}
 
-              {/* محتوای hover */}
               <div className="absolute inset-0 flex flex-col justify-between p-3 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10">
-                {/* آمار بالا */}
                 {showStats && (post.like_count || post.comments_count) && (
                   <div className="flex justify-between text-white text-xs">
                     {post.like_count && (
@@ -258,28 +250,9 @@ const InstagramFeed: React.FC<InstagramFeedProps> = ({
                         <span>{post.like_count}</span>
                       </div>
                     )}
-                    {post.comments_count && (
-                      <div className="flex items-center gap-1">
-                        <svg
-                          className="w-3 h-3"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                          />
-                        </svg>
-                        <span>{post.comments_count}</span>
-                      </div>
-                    )}
                   </div>
                 )}
 
-                {/* کپشن و تاریخ پایین */}
                 <div className="text-white">
                   {showCaption && post.caption && (
                     <p className="text-xs mb-1 line-clamp-2">
@@ -292,7 +265,6 @@ const InstagramFeed: React.FC<InstagramFeedProps> = ({
                 </div>
               </div>
 
-              {/* آیکون اینستاگرام */}
               <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
                 <div className="bg-white/20 backdrop-blur-md text-white p-1.5 rounded-full">
                   <svg
@@ -308,7 +280,6 @@ const InstagramFeed: React.FC<InstagramFeedProps> = ({
           ))}
         </motion.div>
 
-        {/* لینک به پیج اینستاگرام */}
         <motion.div
           className="text-center mt-6"
           initial={{ opacity: 0, y: 20 }}

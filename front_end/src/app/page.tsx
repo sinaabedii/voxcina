@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import Link from "next/link";
 import { useProductStore } from "@/store/product-store";
 import { useCategoryStore } from "@/store/category-store";
@@ -11,13 +11,14 @@ import { motion } from "framer-motion";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { ModernSliderSection } from "@/components/home/ModernSlider";
-import ColorMatchingTool from "@/components/home/ColorMatchingTool";
-// import VirtualWardrobe from "@/components/home/VirtualWardrobe";
 import HeroSection from "@/components/home/HeroSection";
 import ModernCategoriesSection from "@/components/home/ModernCategoriesSection";
 import { FaArrowLeft } from "react-icons/fa";
 import AnimatedBackground from "@/components/ui/AnimatedBackground";
-import InstagramFeed from "@/components/home/InstagramFeed";
+
+// Lazy load کردن کامپوننت‌های سنگین
+const ColorMatchingTool = lazy(() => import("@/components/home/ColorMatchingTool"));
+const InstagramFeed = lazy(() => import("@/components/home/InstagramFeed"));
 
 export default function HomePage() {
   const {
@@ -90,21 +91,19 @@ export default function HomePage() {
     fetchCategories();
     setIsVisible(true);
 
-    document.documentElement.style.scrollBehavior = "smooth";
-
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % sliderData.length);
     }, 4000);
 
     return () => {
-      document.documentElement.style.scrollBehavior = "";
       clearInterval(interval);
     };
   }, [fetchFlashSaleProducts, fetchNewProducts, fetchCategories]);
 
+  // انیمیشن‌های ساده‌تر با عملکرد بهتر
   const fadeIn = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
   };
 
   const staggerContainer = {
@@ -119,7 +118,7 @@ export default function HomePage() {
 
   const itemVariant = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
   };
 
   const handleAddToCart = (product: Product) => {
@@ -138,7 +137,7 @@ export default function HomePage() {
           className="container px-4 md:px-8 mb-16 md:mb-24 overflow-hidden"
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
+          viewport={{ once: true }}
           variants={fadeIn}
         >
           <div className="relative rounded-3xl bg-gradient-to-br from-secondary-200 via-secondary-100 to-white shadow-soft overflow-hidden">
@@ -184,12 +183,8 @@ export default function HomePage() {
               <div className="relative h-64 sm:h-72 md:h-auto">
                 <div className="absolute inset-0 overflow-hidden rounded-b-3xl md:rounded-r-3xl md:rounded-bl-none">
                   <div className="absolute inset-0 bg-gradient-to-br from-voxcina-blue/20 to-voxcina-blue/30 mix-blend-multiply z-10"></div>
-                  <motion.div
+                  <div
                     className="absolute inset-0 bg-[url('/images/banners/Ulyana-Sergeenko-New-York-Fashion-Week-Fall-slash-Winter-Feb-12-2013-c-Mode-Pure.jpg')] bg-cover bg-center"
-                    initial={{ scale: 1.05 }}
-                    whileInView={{ scale: 1 }}
-                    transition={{ duration: 1.5 }}
-                    viewport={{ once: true }}
                   />
                 </div>
               </div>
@@ -204,7 +199,7 @@ export default function HomePage() {
           className="container px-4 md:px-8 mb-16 md:mb-24"
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
+          viewport={{ once: true }}
           variants={fadeIn}
         >
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 md:mb-12">
@@ -248,31 +243,28 @@ export default function HomePage() {
               </div>
             </div>
           ) : (
-            <motion.div
-              variants={staggerContainer}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-100px" }}
-            >
+            <div>
               <ProductGrid
                 products={featuredProducts}
                 columns={4}
                 glassEffect={true}
                 onAddToCart={handleAddToCart}
               />
-            </motion.div>
+            </div>
           )}
         </motion.section>
 
         <ModernSliderSection />
 
-        <ColorMatchingTool />
+        <Suspense fallback={<div className="h-40 flex items-center justify-center">در حال بارگذاری...</div>}>
+          <ColorMatchingTool />
+        </Suspense>
 
         <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-24"
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
+          viewport={{ once: true }}
           variants={fadeIn}
         >
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 md:mb-12">
@@ -316,19 +308,14 @@ export default function HomePage() {
               </div>
             </div>
           ) : (
-            <motion.div
-              variants={staggerContainer}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-100px" }}
-            >
+            <div>
               <ProductGrid
                 products={newProducts}
                 columns={4}
                 ribbonLabel="جدید"
                 onAddToCart={handleAddToCart}
               />
-            </motion.div>
+            </div>
           )}
         </motion.section>
         {/* <VirtualWardrobe /> */}
@@ -336,16 +323,11 @@ export default function HomePage() {
           className="container px-4 md:px-8 mb-16 md:mb-24"
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
+          viewport={{ once: true }}
           variants={fadeIn}
         >
           <div className="relative py-10 px-5 sm:py-12 sm:px-6 md:p-16 bg-gradient-to-r from-voxcina-darkBlue to-voxcina-blue rounded-3xl overflow-hidden shadow-medium">
-            <div className="absolute inset-0 bg-[url('/pattern.svg')] opacity-5 mix-blend-overlay"></div>
-
-            <motion.div
-              className="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 md:gap-10"
-              variants={staggerContainer}
-            >
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 md:gap-10">
               {[
                 {
                   icon: (
@@ -428,23 +410,16 @@ export default function HomePage() {
                   description: "درگاه‌های پرداخت معتبر و امن",
                 },
               ].map((benefit, index) => (
-                <motion.div
+                <div
                   key={index}
                   className="text-center relative"
-                  variants={itemVariant}
                 >
                   <div className="flex justify-center mb-3 md:mb-4">
-                    <motion.div
+                    <div
                       className="bg-gradient-to-br from-white/20 to-white/5 text-white p-3 md:p-4 rounded-2xl backdrop-blur-sm border border-white/10 shadow-soft"
-                      whileHover={{ scale: 1.05, rotate: 5 }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 400,
-                        damping: 10,
-                      }}
                     >
                       {benefit.icon}
-                    </motion.div>
+                    </div>
                   </div>
                   <h3 className="text-sm sm:text-base md:text-lg font-bold mb-1 md:mb-2 text-white">
                     {benefit.title}
@@ -452,36 +427,30 @@ export default function HomePage() {
                   <p className="text-white/70 text-xs sm:text-sm md:text-base leading-relaxed">
                     {benefit.description}
                   </p>
-                </motion.div>
+                </div>
               ))}
-            </motion.div>
-
-            <div className="absolute -top-5 left-10 w-24 md:w-32 h-24 md:h-32 rounded-full bg-secondary-400/10 blur-3xl"></div>
-            <div className="absolute -bottom-10 right-10 w-32 md:w-48 h-32 md:h-48 rounded-full bg-primary-400/10 blur-3xl"></div>
+            </div>
           </div>
         </motion.section>
 
-        <InstagramFeed
-          username="voxcina"
-          postsCount={6}
-          showCaption={true}
-          showStats={true}
-          className="mb-16"
-        />
+        <Suspense fallback={<div className="h-40 flex items-center justify-center">در حال بارگذاری...</div>}>
+          <InstagramFeed
+            username="voxcina"
+            postsCount={6}
+            showCaption={true}
+            showStats={true}
+            className="mb-16"
+          />
+        </Suspense>
 
         <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-20"
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
+          viewport={{ once: true }}
           variants={fadeIn}
         >
           <div className="bg-gradient-to-r from-voxcina-blue to-primary-600 rounded-3xl p-6 sm:p-8 md:p-12 text-center relative overflow-hidden shadow-medium">
-            <div className="absolute inset-0 bg-[url('/pattern.svg')] opacity-10 mix-blend-overlay"></div>
-
-            <div className="absolute -top-20 -left-20 w-48 md:w-64 h-48 md:h-64 bg-white/10 rounded-full blur-3xl"></div>
-            <div className="absolute -bottom-20 -right-20 w-48 md:w-64 h-48 md:h-64 bg-secondary-400/20 rounded-full blur-3xl"></div>
-
             <motion.div
               className="relative z-10 max-w-md sm:max-w-lg md:max-w-xl mx-auto"
               variants={fadeIn}

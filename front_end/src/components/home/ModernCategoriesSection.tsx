@@ -1,9 +1,7 @@
 import React, { useState } from "react";
-import { motion } from "framer-motion";
 import Link from "next/link";
 
 const ModernCategoriesSection = () => {
-  const [hoveredCategory, setHoveredCategory] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
 
   const categories = [
@@ -44,7 +42,7 @@ const ModernCategoriesSection = () => {
       products: "50",
     },
     {
-      id: 4,
+      id: 5,
       name: "آرایشی",
       slug: "beauty",
       icon: "💄",
@@ -52,28 +50,15 @@ const ModernCategoriesSection = () => {
       shadowColor: "shadow-fuchsia-200",
       products: "20",
     },
-    
   ];
 
   return (
-    <section className="py-16 bg-transparent ">
+    <section className="py-16 bg-transparent">
       <div className="container mx-auto px-4">
-        <motion.div
-          className="text-center mb-12 md:mb-16"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <motion.span
-            className="inline-block px-4 py-1.5 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 text-sm font-medium mb-4"
-            initial={{ scale: 0.8 }}
-            whileInView={{ scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-          >
+        <div className="text-center mb-12 md:mb-16">
+          <span className="inline-block px-4 py-1.5 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 text-sm font-medium mb-4">
             دسته‌بندی‌ها
-          </motion.span>
+          </span>
 
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
             انتخاب
@@ -86,32 +71,19 @@ const ModernCategoriesSection = () => {
           <p className="text-gray-600 text-base md:text-lg max-w-2xl mx-auto">
             دسته‌بندی مورد نظر خود را انتخاب کنید و از خرید لذت ببرید
           </p>
-        </motion.div>
+        </div>
 
         <div className="relative">
           <div className="hidden md:flex flex-wrap justify-center gap-4 md:gap-6 lg:gap-8 max-w-4xl mx-auto mb-16">
-            {categories.map((category, index) => (
-              <motion.div
+            {categories.map((category) => (
+              <div
                 key={category.id}
-                initial={{ opacity: 0, scale: 0.8 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{
-                  duration: 0.5,
-                  delay: index * 0.05,
-                  type: "spring",
-                  stiffness: 200,
-                }}
                 className="relative"
               >
                 <Link href={`/categories/${category.slug}`}>
-                  <motion.div
-                    className="relative group cursor-pointer"
-                    onMouseEnter={() => setHoveredCategory(category.id)}
-                    onMouseLeave={() => setHoveredCategory(null)}
+                  <div
+                    className="relative group cursor-pointer transition-transform duration-300 hover:-translate-y-2"
                     onClick={() => setSelectedCategory(category.id)}
-                    whileHover={{ y: -8 }}
-                    whileTap={{ scale: 0.95 }}
                   >
                     <div
                       className={`relative w-24 h-24 md:w-28 md:h-28 lg:w-32 lg:h-32 rounded-full bg-gradient-to-br ${category.color} p-0.5 ${category.shadowColor} shadow-lg group-hover:shadow-xl transition-all duration-300`}
@@ -123,81 +95,53 @@ const ModernCategoriesSection = () => {
                       </div>
                     </div>
 
-                    <motion.div
-                      className={`absolute inset-0 rounded-full bg-gradient-to-br ${category.color} opacity-0 group-hover:opacity-20 transition-opacity duration-300`}
-                      initial={false}
-                      animate={
-                        hoveredCategory === category.id
-                          ? { scale: 1.15 }
-                          : { scale: 1 }
-                      }
-                      transition={{ duration: 0.3 }}
+                    <div
+                      className={`absolute inset-0 rounded-full bg-gradient-to-br ${category.color} opacity-0 group-hover:opacity-20 group-hover:scale-110 transition-all duration-300`}
                     />
 
-                    <motion.div
-                      className={`absolute -top-2 -right-2 bg-gradient-to-br ${category.color} text-white text-xs font-bold px-2 py-1 rounded-full shadow-md`}
-                      initial={{ scale: 0 }}
-                      animate={
-                        hoveredCategory === category.id
-                          ? { scale: 1, rotate: 10 }
-                          : { scale: 0 }
-                      }
-                      transition={{ type: "spring", stiffness: 500 }}
+                    <div
+                      className={`absolute -top-2 -right-2 bg-gradient-to-br ${category.color} text-white text-xs font-bold px-2 py-1 rounded-full shadow-md scale-0 group-hover:scale-100 transition-transform duration-300`}
                     >
                       {category.products}+
-                    </motion.div>
+                    </div>
 
                     {selectedCategory === category.id && (
-                      <motion.div
-                        className="absolute inset-0 rounded-full border-4 border-gray-800"
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1.1, opacity: 1 }}
-                        transition={{ type: "spring", stiffness: 300 }}
+                      <div
+                        className="absolute inset-0 rounded-full border-4 border-gray-800 scale-110"
                       />
                     )}
-                  </motion.div>
+                  </div>
 
-                  <motion.h3
+                  <h3
                     className="text-center mt-3 text-sm md:text-base font-medium text-gray-800 group-hover:text-gray-900 transition-colors"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.3 + index * 0.05 }}
                   >
                     {category.name}
-                  </motion.h3>
+                  </h3>
                 </Link>
-              </motion.div>
+              </div>
             ))}
           </div>
 
           <div className="md:hidden mb-12">
             <div className="relative">
-              <div className="overflow-x-auto scrollbar-hide py-4 ">
+              <div className="overflow-x-auto scrollbar-hide py-4">
                 <div
                   className="flex gap-4 px-4"
                   style={{ width: "max-content" }}
                 >
-                  {categories.map((category, index) => (
-                    <motion.div
+                  {categories.map((category) => (
+                    <div
                       key={category.id}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      whileInView={{ opacity: 1, scale: 1 }}
-                      viewport={{ once: true }}
-                      transition={{
-                        duration: 0.5,
-                        delay: index * 0.05,
-                        type: "spring",
-                        stiffness: 200,
+                      className="flex-shrink-0 opacity-0 animate-fadeIn"
+                      style={{
+                        animationDelay: `${category.id * 0.05}s`,
+                        animationFillMode: 'forwards'
                       }}
-                      className="flex-shrink-0"
                     >
                       <Link href={`/categories/${category.slug}`}>
-                        <motion.div
-                          className="relative group cursor-pointer"
-                          onTouchStart={() => setHoveredCategory(category.id)}
-                          onTouchEnd={() => setHoveredCategory(null)}
+                        <div
+                          className="relative group cursor-pointer active:scale-95 transition-transform duration-150"
                           onClick={() => setSelectedCategory(category.id)}
-                          whileTap={{ scale: 0.95 }}
                         >
                           <div
                             className={`relative w-20 h-20 rounded-full bg-gradient-to-br ${category.color} p-0.5 ${category.shadowColor} shadow-lg transition-all duration-300`}
@@ -214,20 +158,17 @@ const ModernCategoriesSection = () => {
                           </div>
 
                           {selectedCategory === category.id && (
-                            <motion.div
-                              className="absolute inset-0 rounded-full border-3 border-gray-800"
-                              initial={{ scale: 0.8, opacity: 0 }}
-                              animate={{ scale: 1.1, opacity: 1 }}
-                              transition={{ type: "spring", stiffness: 300 }}
+                            <div
+                              className="absolute inset-0 rounded-full border-3 border-gray-800 scale-110"
                             />
                           )}
-                        </motion.div>
+                        </div>
 
                         <h3 className="text-center mt-2 text-xs font-medium text-gray-800 px-1">
                           {category.name}
                         </h3>
                       </Link>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               </div>
