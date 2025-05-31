@@ -9,6 +9,7 @@ import { formatPrice, getDiscountPercentage, hasAttribute } from "@/lib/utils";
 import { useCartStore } from "@/store/cart-store";
 import Button from "@/components/ui/Button";
 import { useDashboardStore } from "@/store/dashboard-store";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ProductCardProps {
   product: Product;
@@ -248,205 +249,172 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
           <div className="mt-2 mb-3">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-foreground">
+              <span
+                className={`product-card-price text-lg font-bold ${
+                  discount > 0 ? "text-primary" : "text-foreground"
+                }`}
+              >
                 {formatPrice(price)}
               </span>
+
               {originalPrice && originalPrice > price && (
-                <span className="text-muted-foreground line-through text-sm">
+                <span className="product-card-discount text-sm text-muted-foreground line-through">
                   {formatPrice(originalPrice)}
                 </span>
               )}
             </div>
           </div>
 
-          <div className="mt-auto">
-            {!product.variants || product.variants.length === 0 ? (
-              canAddToCartDirectly ? (
+          {product.inStock && hasVariantsInStock && (
+            <div className="mt-4 pt-4 border-t border-border/10">
+              {onAddToCart ? (
+                <Button
+                  variant="primary"
+                  className="w-full"
+                  onClick={canAddToCartDirectly ? handleDirectAddToCart : handleOpenModal}
+                >
+                  {canAddToCartDirectly ? "افزودن به سبد خرید" : (hasVariantsInStock ? "انتخاب گزینه ها" : "مشاهده محصول")}
+                </Button>
+              ) : (
                 <Button
                   variant="primary"
                   size="sm"
-                  className="w-full"
-                  onClick={handleDirectAddToCart}
+                  fullWidth
+                  onClick={handleOpenModal}
+                  className="rounded-xl"
                 >
-                  افزودن به سبد خرید
+                  انتخاب رنگ و سایز
                 </Button>
-              ) : (
-                <Button variant="primary" size="sm" className="w-full">
-                  <span>مشاهده محصول</span>
-                </Button>
-              )
-            ) : (
-              <Button
-                variant="primary"
-                size="sm"
-                className="w-full"
-                onClick={handleOpenModal}
-                disabled={!hasVariantsInStock}
-              >
-                <ShoppingCart className="w-4 h-4 ml-1" />
-                انتخاب سایز و رنگ
-              </Button>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       </Link>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-card max-w-md w-full rounded-xl shadow-xl overflow-hidden animate-fadeIn">
-            <div className="p-4 bg-secondary/50 flex justify-between items-center">
-              <h3 className="font-medium text-lg">{name}</h3>
+      <AnimatePresence>
+        {isModalOpen && (
+          <motion.div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={handleCloseModal}
+          >
+            <motion.div
+              className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 relative shadow-lg"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <button
+                className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 onClick={handleCloseModal}
-                className="p-1 hover:bg-background rounded-full"
               >
-                <X className="h-5 w-5" />
+                <X className="w-5 h-5" />
               </button>
-            </div>
 
-            <div className="p-5">
-              <div className="flex mb-6 gap-4">
-                <div className="w-24 h-24 shrink-0 overflow-hidden rounded-md">
-                  {images && images.length > 0 ? (
-                    <Image
-                      src={images[0]}
-                      alt={name}
-                      width={100}
-                      height={100}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-secondary">
-                      <span className="text-muted-foreground">بدون تصویر</span>
-                    </div>
+              <div className="text-center mb-6">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                  انتخاب رنگ و سایز
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                  لطفاً رنگ و سایز مورد نظر را برای {name} انتخاب کنید
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                    رنگ
+                  </h4>
+                  {selectedColor && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {selectedColor}
+                    </span>
                   )}
                 </div>
-
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">{brand}</p>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="font-semibold text-foreground">
-                      {formatPrice(price)}
-                    </span>
-                    {originalPrice && originalPrice > price && (
-                      <span className="text-muted-foreground line-through text-sm">
-                        {formatPrice(originalPrice)}
-                      </span>
-                    )}
-                  </div>
+                <div className="flex flex-wrap gap-2">
+                  {availableColorsForSelectedSize.map((color) => {
+                    const isAvailable = !selectedSize || availableColorsForSelectedSize.includes(color);
+                    return (
+                      <button
+                        key={color}
+                        className={`px-4 py-2 border rounded-lg text-sm transition-all ${
+                          selectedColor === color
+                            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 font-medium"
+                            : isAvailable
+                            ? "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-blue-300 dark:hover:border-blue-500"
+                            : "border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-600 opacity-50 cursor-not-allowed"
+                        }`}
+                        onClick={() => isAvailable && setSelectedColor(color)}
+                        disabled={!isAvailable}
+                      >
+                        {color}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {availableColors.length > 0 && (
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2">
-                    انتخاب رنگ
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {availableColorsForSelectedSize.map((color) => (
-                      <button
-                        key={color}
-                        onClick={() => setSelectedColor(color)}
-                        className={`w-10 h-10 rounded-full transition-all duration-300 relative ${
-                          isVariantInStock(
-                            selectedSize || availableSizes[0],
-                            color
-                          )
-                            ? ""
-                            : "opacity-30"
-                        } ${
-                          selectedColor === color
-                            ? "ring-2 ring-primary ring-offset-2"
-                            : "hover:scale-110"
-                        }`}
-                        style={{ backgroundColor: color }}
-                        disabled={
-                          !isVariantInStock(
-                            selectedSize || availableSizes[0],
-                            color
-                          )
-                        }
-                        title={color}
-                      >
-                        {selectedColor === color && (
-                          <span className="absolute inset-0 flex items-center justify-center">
-                            <Check
-                              className="h-5 w-5 text-white drop-shadow-md"
-                              strokeWidth={3}
-                            />
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                    سایز
+                  </h4>
+                  {selectedSize && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {selectedSize}
+                    </span>
+                  )}
                 </div>
-              )}
-
-              {availableSizes.length > 0 && (
-                <div className="mb-6">
-                  <label className="block text-sm font-medium mb-2">
-                    انتخاب سایز
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {availableSizesForSelectedColor.map((size) => (
+                <div className="flex flex-wrap gap-2">
+                  {availableSizesForSelectedColor.map((size) => {
+                    const isAvailable = !selectedColor || availableSizesForSelectedColor.includes(size);
+                    return (
                       <button
                         key={size}
-                        onClick={() => setSelectedSize(size)}
-                        className={`min-w-[3rem] h-10 px-2 rounded-md border transition-all duration-300 ${
-                          isVariantInStock(
-                            size,
-                            selectedColor || availableColors[0]
-                          )
-                            ? "border-border hover:border-primary"
-                            : "opacity-30 border-dashed"
-                        } ${
+                        className={`px-4 py-2 border rounded-lg text-sm transition-all ${
                           selectedSize === size
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-card"
+                            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 font-medium"
+                            : isAvailable
+                            ? "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-blue-300 dark:hover:border-blue-500"
+                            : "border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-600 opacity-50 cursor-not-allowed"
                         }`}
-                        disabled={
-                          !isVariantInStock(
-                            size,
-                            selectedColor || availableColors[0]
-                          )
-                        }
+                        onClick={() => isAvailable && setSelectedSize(size)}
+                        disabled={!isAvailable}
                       >
                         {size}
                       </button>
-                    ))}
-                  </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {selectedColor && selectedSize && !isVariantInStock(selectedSize, selectedColor) && (
+                <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg flex items-start">
+                  <AlertCircle className="h-5 w-5 text-yellow-500 dark:text-yellow-400 mt-0.5 ml-2 flex-shrink-0" />
+                  <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                    ترکیب رنگ و سایز انتخابی در حال حاضر ناموجود است. لطفاً ترکیب دیگری را انتخاب کنید.
+                  </p>
                 </div>
               )}
-
-              {!selectedColor || !selectedSize ? (
-                <div className="flex items-center gap-2 text-sm text-amber-500 mb-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>لطفاً رنگ و سایز مورد نظر خود را انتخاب کنید.</span>
-                </div>
-              ) : !isVariantInStock(selectedSize, selectedColor) ? (
-                <div className="flex items-center gap-2 text-sm text-destructive mb-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>این ترکیب رنگ و سایز موجود نیست.</span>
-                </div>
-              ) : null}
 
               <Button
                 variant="primary"
                 size="lg"
-                className="w-full"
+                fullWidth
                 onClick={handleModalAddToCart}
-                disabled={
-                  !selectedColor ||
-                  !selectedSize ||
-                  !isVariantInStock(selectedSize, selectedColor)
-                }
+                disabled={!selectedColor || !selectedSize || !isVariantInStock(selectedSize!, selectedColor!)}
+                className="rounded-xl mt-2"
               >
-                افزودن به سبد خرید
+                تایید و افزودن به سبد
               </Button>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };
