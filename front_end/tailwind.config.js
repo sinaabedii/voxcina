@@ -120,6 +120,19 @@ module.exports = {
           "0%, 100%": { opacity: 1 },
           "50%": { opacity: 0.8 },
         },
+        "shine": {
+          "100%": { left: "125%" }
+        },
+        "gradient-xy": {
+          "0%, 100%": {
+            "background-size": "400% 400%",
+            "background-position": "left top"
+          },
+          "50%": {
+            "background-size": "200% 200%",
+            "background-position": "right bottom"
+          }
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -130,6 +143,8 @@ module.exports = {
         "slide-out": "slide-out 0.3s ease-out",
         "scale-in": "scale-in 0.2s ease-out",
         "pulse-soft": "pulse-soft 2s ease-in-out infinite",
+        "shine": "shine 1.5s ease-in-out infinite",
+        "gradient-xy": "gradient-xy 6s ease infinite",
       },
       transitionProperty: {
         'height': 'height',

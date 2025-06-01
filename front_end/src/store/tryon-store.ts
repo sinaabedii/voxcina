@@ -11,6 +11,11 @@ interface TryOnState {
   isProcessing: boolean;
   error: string | null;
 
+  garmentType: string;           // selected garment type: upper_body, lower_body, dresses
+  steps: number;                 // number of steps for try-on
+  setGarmentType: (type: string) => void;
+  setSteps: (steps: number) => void;
+
   setUploadedFile: (file: File | null) => void;
   clear: () => void;
   startTryOn: (garmentImageUrl: string) => Promise<void>;
@@ -28,6 +33,8 @@ export const useTryOnStore = create<TryOnState>()(
       reloadAttempts: 0,
       isProcessing: false,
       error: null,
+      garmentType: "upper_body",
+      steps: 20,
 
       setUploadedFile: (file) => {
         if (!file) {
@@ -43,6 +50,9 @@ export const useTryOnStore = create<TryOnState>()(
         reader.readAsDataURL(file);
       },
 
+      setGarmentType: (type) => set({ garmentType: type }),
+      setSteps: (steps) => set({ steps }),
+
       clear: () =>
         set({
           uploadedFile: null,
@@ -53,6 +63,8 @@ export const useTryOnStore = create<TryOnState>()(
           reloadAttempts: 0,
           isProcessing: false,
           error: null,
+          garmentType: "upper_body",
+          steps: 20,
         }),
 
       startTryOn: async (garmentImageUrl: string) => {
@@ -72,8 +84,9 @@ export const useTryOnStore = create<TryOnState>()(
           formData.append("person_image", uploadedFile);
           formData.append("garment_image", garmentFile);
           formData.append("model_type", "viton_hd");
-          formData.append("garment_type", "upper_body");
-          formData.append("steps", "20");
+          const { garmentType, steps } = get();
+          formData.append("garment_type", garmentType);
+          formData.append("steps", steps.toString());
 
           const submitRes = await fetch("/viton/submit-tryon-files", {
             method: "POST",

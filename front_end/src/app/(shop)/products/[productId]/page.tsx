@@ -83,6 +83,10 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     setUploadedFile,
     startTryOn,
     resumePending,
+    garmentType,
+    setGarmentType,
+    steps,
+    setSteps,
   } = useTryOnStore();
 
   const isProductFavorite =
@@ -895,7 +899,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
               <div className="flex-grow grid grid-cols-6 gap-2">
                 <motion.div
-                  className="col-span-3"
+                  className="col-span-3 sm:col-span-3"
                   whileHover={{ y: -5 }}
                   whileTap={{ scale: 0.98 }}
                 >
@@ -926,7 +930,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     aria-label="افزودن به علاقه‌مندی‌ها"
                   >
                     <Heart
-                      className="h-5 w-5"
+                      className="h-5 w-5 sm:h-6 sm:w-6"
                       fill={isProductFavorite ? "currentColor" : "none"}
                     />
                   </Button>
@@ -934,19 +938,70 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
                 {/* Try-On Button */}
                 <motion.div
-                  className="col-span-1"
-                  whileHover={{ y: -5 }}
+                  className="col-span-1 relative z-10"
+                  whileHover={{ 
+                    y: -5,
+                    rotate: [0, -5, 5, -5, 0],
+                    transition: { duration: 0.5 }
+                  }}
                   whileTap={{ scale: 0.95 }}
+                  initial={{ scale: 0, rotate: 0 }}
+                  animate={{ 
+                    scale: [0, 1.1, 1],
+                    rotate: [0, -10, 10, -5, 0],
+                    transition: { 
+                      duration: 0.6,
+                      ease: "easeOut"
+                    }
+                  }}
                 >
+                  {/* Animated glow effect */}
+                  {activeProduct.tryOnImage && (
+                    <div className="absolute -inset-1 bg-gradient-to-r from-pink-600 via-purple-500 to-blue-600 rounded-xl opacity-70 blur-lg group-hover:opacity-100 animate-gradient-xy"></div>
+                  )}
+                  
                   <Button
                     variant="outline"
                     size="lg"
-                    className="w-full rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 shadow-sm hover:shadow-md transition-all duration-300 disabled:opacity-40"
+                    className={`w-full rounded-xl border-2 ${
+                      activeProduct.tryOnImage 
+                        ? "border-purple-400 dark:border-purple-300 text-voxcina-blue dark:text-voxcina-cream bg-gradient-to-br from-white/80 via-purple-100/60 to-white/80 dark:from-voxcina-blue/60 dark:via-purple-900/40 dark:to-voxcina-blue/60 shadow-lg hover:shadow-purple-300/50 dark:hover:shadow-purple-500/30 relative overflow-hidden"
+                        : "border-voxcina-blue/20 text-voxcina-blue/60 dark:border-voxcina-blue/30 dark:text-voxcina-cream/60 bg-voxcina-cream/20 dark:bg-voxcina-blue/20"
+                    } transition-all duration-500 disabled:opacity-40 disabled:from-transparent disabled:to-transparent relative group`}
                     disabled={!activeProduct.tryOnImage}
                     onClick={() => setShowTryOnModal(true)}
                     aria-label="آزمایش مجازی"
                   >
-                    <Camera className="h-5 w-5" />
+                    {/* Animated shine effect */}
+                    {activeProduct.tryOnImage && (
+                      <div className="absolute inset-0 w-full h-full overflow-hidden">
+                        <div className="absolute top-0 left-[-100%] h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white/40 dark:to-purple-300/30 opacity-40 animate-shine" />
+                      </div>
+                    )}
+                    
+                    <div className="relative flex items-center justify-center">
+                      {activeProduct.tryOnImage && (
+                        <>
+                          {/* Sparkle elements */}
+                          <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-300 rounded-full animate-ping opacity-75"></span>
+                          <span className="absolute -bottom-1 -left-1 w-1.5 h-1.5 bg-blue-400 rounded-full animate-ping opacity-75" style={{ animationDelay: "0.5s" }}></span>
+                          <span className="absolute -top-1 -left-2 w-1 h-1 bg-pink-400 rounded-full animate-ping opacity-75" style={{ animationDelay: "1s" }}></span>
+                        </>
+                      )}
+                      <motion.div
+                        animate={{
+                          scale: activeProduct.tryOnImage ? [1, 1.2, 1] : 1,
+                          transition: {
+                            repeat: Infinity,
+                            repeatType: "mirror",
+                            duration: 1.5,
+                            ease: "easeInOut"
+                          }
+                        }}
+                      >
+                        <Shirt className="h-5 w-5 sm:h-6 sm:w-6" />
+                      </motion.div>
+                    </div>
                   </Button>
                 </motion.div>
 
@@ -962,7 +1017,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     onClick={handleShareProduct}
                     aria-label="اشتراک‌گذاری محصول"
                   >
-                    <Share2 className="h-5 w-5" />
+                    <Share2 className="h-5 w-5 sm:h-6 sm:w-6" />
                   </Button>
                 </motion.div>
               </div>
@@ -1573,6 +1628,37 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 >
                   شروع آزمایش
                 </motion.button>
+              </div>
+
+              {/* Garment Type Selection */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
+                  نوع لباس
+                </label>
+                <select
+                  value={garmentType}
+                  onChange={(e) => setGarmentType(e.target.value)}
+                  className="w-full border rounded-md p-2"
+                >
+                  <option value="upper_body">بالاتنه</option>
+                  <option value="lower_body">پایین تنه</option>
+                  <option value="dresses">لباس</option>
+                </select>
+              </div>
+
+              {/* Steps Input */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
+                  مراحل (15-60)
+                </label>
+                <input
+                  type="number"
+                  value={steps}
+                  onChange={(e) => setSteps(Math.max(15, Math.min(60, Number(e.target.value))))}
+                  min={15}
+                  max={60}
+                  className="w-full border rounded-md p-2"
+                />
               </div>
             </motion.div>
           </motion.div>
