@@ -377,28 +377,6 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
   return (
     <div className="container py-8 md:py-16">
-      {/* Try-on result section */}
-      {isTryOnLoading && (
-        <div className="flex items-center justify-center mb-6">
-          <RefreshCw className="w-6 h-6 mr-2 animate-spin" />
-          <span>در حال پردازش تصویر واقعیت افزوده...</span>
-        </div>
-      )}
-
-      {!isTryOnLoading && resultImage && (
-        <div className="mb-6 flex flex-col items-center">
-          <h3 className="font-semibold mb-2 flex items-center">
-            <Shirt className="w-5 h-5 ml-1" /> نتیجه واقعیت افزوده
-          </h3>
-          {/* For mock we just show product try-on image; in real case would combine */}
-          <img
-            src={resultImage}
-            alt="نتیجه واقعیت افزوده"
-            className="max-w-xs rounded-lg shadow"
-          />
-        </div>
-      )}
-
       <motion.div
         className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60 mb-6 flex flex-wrap items-center"
         initial={{ opacity: 0, y: -10 }}
@@ -1131,173 +1109,104 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         transition={{ duration: 0.5, delay: 0.2 }}
       >
         <h2 className="text-xl font-bold text-voxcina-blue dark:text-voxcina-cream mb-6">
-          واقعیت افزوده
+          پرو مجازی
         </h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           {/* Try-On Feature */}
           <motion.div 
-            className="col-span-1 md:col-span-1 bg-white/70 dark:bg-voxcina-blue/10 border border-voxcina-cream/30 dark:border-voxcina-blue/30 rounded-xl p-5 shadow-sm backdrop-blur-sm"
+            className="bg-white/70 dark:bg-voxcina-blue/10 border border-voxcina-cream/30 dark:border-voxcina-blue/30 rounded-xl p-5 shadow-sm backdrop-blur-sm"
             whileHover={{ y: -5 }}
             transition={{ duration: 0.3 }}
           >
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-voxcina-cream/50 dark:bg-voxcina-blue/30 rounded-full flex items-center justify-center mb-4 shadow-sm">
-                <Camera className="h-8 w-8 text-voxcina-blue dark:text-voxcina-cream" />
-              </div>
-              <h3 className="font-medium text-voxcina-blue dark:text-voxcina-cream mb-2">
-                آزمایش مجازی لباس
-              </h3>
-              <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4">
-                با آپلود عکس خود، ببینید این محصول چطور به شما می‌آید
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full rounded-xl"
-                disabled={!activeProduct.tryOnImage}
-                onClick={() => setShowTryOnModal(true)}
-              >
-                <Camera className="w-4 h-4 ml-1" />
-                امتحان لباس روی عکس
-              </Button>
-              
-              {!activeProduct.tryOnImage && (
-                <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50 mt-2">
-                  (برای این محصول در دسترس نیست)
-                </span>
-              )}
-              
-              {/* Display the result if available */}
-              {resultImage && (
-                <div className="mt-4 pt-4 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 w-full">
-                  <p className="text-xs text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-2">
-                    نتیجه آخرین آزمایش:
-                  </p>
-                  <img 
-                    src={resultImage} 
-                    alt="نتیجه آزمایش مجازی" 
-                    className="rounded-lg shadow-sm w-full object-cover"
-                  />
+            <div className="flex flex-col sm:flex-row items-center gap-6">
+              <div className="sm:w-1/3 flex flex-col items-center text-center sm:text-right">
+                <div className="w-16 h-16 bg-voxcina-cream/50 dark:bg-voxcina-blue/30 rounded-full flex items-center justify-center mb-4 shadow-sm">
+                  <Camera className="h-8 w-8 text-voxcina-blue dark:text-voxcina-cream" />
                 </div>
-              )}
-            </div>
-          </motion.div>
-          
-          {/* 3D View Feature */}
-          <motion.div 
-            className="col-span-1 md:col-span-1 bg-white/70 dark:bg-voxcina-blue/10 border border-voxcina-cream/30 dark:border-voxcina-blue/30 rounded-xl p-5 shadow-sm backdrop-blur-sm"
-            whileHover={{ y: -5 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-voxcina-cream/50 dark:bg-voxcina-blue/30 rounded-full flex items-center justify-center mb-4 shadow-sm">
-                <Maximize2 className="h-8 w-8 text-voxcina-blue dark:text-voxcina-cream" />
-              </div>
-              <h3 className="font-medium text-voxcina-blue dark:text-voxcina-cream mb-2">
-                نمایش سه‌بعدی
-              </h3>
-              <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4">
-                محصول را از تمام زوایا مشاهده کنید
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full rounded-xl"
-                disabled={true}
-              >
-                <Maximize2 className="w-4 h-4 ml-1" />
-                مشاهده سه‌بعدی
-              </Button>
-              <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50 mt-2">
-                (به زودی)
-              </span>
-            </div>
-          </motion.div>
-          
-          {/* QR Code for AR */}
-          <motion.div 
-            className="col-span-1 md:col-span-1 bg-white/70 dark:bg-voxcina-blue/10 border border-voxcina-cream/30 dark:border-voxcina-blue/30 rounded-xl p-5 shadow-sm backdrop-blur-sm"
-            whileHover={{ y: -5 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-voxcina-cream/50 dark:bg-voxcina-blue/30 rounded-full flex items-center justify-center mb-4 shadow-sm">
-                <Shirt className="h-8 w-8 text-voxcina-blue dark:text-voxcina-cream" />
-              </div>
-              <h3 className="font-medium text-voxcina-blue dark:text-voxcina-cream mb-2">
-                واقعیت افزوده
-              </h3>
-              <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4">
-                کد QR را اسکن کنید و محصول را در فضای واقعی ببینید
-              </p>
-              <div className="w-32 h-32 bg-white p-2 rounded-lg shadow-sm mb-3 flex items-center justify-center">
-                <div className="border-2 border-voxcina-blue/20 dark:border-voxcina-cream/20 w-full h-full flex items-center justify-center">
-                  <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50">
-                    QR Code
+                <h3 className="font-medium text-voxcina-blue dark:text-voxcina-cream mb-2">
+                  پرو مجازی لباس
+                </h3>
+                <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4">
+                  با آپلود عکس خود، ببینید این محصول چطور به شما می‌آید
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full rounded-xl mb-2"
+                  disabled={!activeProduct.tryOnImage}
+                  onClick={() => setShowTryOnModal(true)}
+                >
+                  <Camera className="w-4 h-4 ml-1" />
+                  شروع پرو مجازی
+                </Button>
+                
+                {!activeProduct.tryOnImage && (
+                  <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50 mt-2">
+                    (برای این محصول در دسترس نیست)
                   </span>
-                </div>
+                )}
               </div>
-              <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50">
-                (به زودی)
-              </span>
+              
+              {/* Loading or Result Preview */}
+              <div className="sm:w-2/3">
+                {isTryOnLoading && (
+                  <div className="flex flex-col items-center justify-center p-6 h-full min-h-[200px]">
+                    <div className="w-12 h-12 relative mb-3">
+                      <div className="absolute top-0 right-0 w-full h-full border-4 border-voxcina-cream/30 dark:border-voxcina-blue/30 rounded-full animate-pulse-soft"></div>
+                      <div className="absolute top-0 right-0 w-full h-full border-4 border-t-voxcina-blue dark:border-t-voxcina-cream border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+                    </div>
+                    <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 font-medium">
+                      در حال پردازش تصویر...
+                    </p>
+                  </div>
+                )}
+                
+                {!isTryOnLoading && resultImage && (
+                  <div className="flex flex-col gap-4">
+                    <h4 className="font-medium text-voxcina-blue dark:text-voxcina-cream text-center sm:text-right">
+                      نتیجه پرو مجازی
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {uploadedPreview && (
+                        <div className="aspect-square relative rounded-lg overflow-hidden border border-voxcina-cream/30 dark:border-voxcina-blue/30 shadow-sm">
+                          <img 
+                            src={uploadedPreview} 
+                            alt="تصویر شما" 
+                            className="object-cover w-full h-full"
+                          />
+                          <div className="absolute bottom-2 right-2 bg-white/80 dark:bg-voxcina-blue/80 text-voxcina-blue dark:text-white text-xs px-2 py-1 rounded-lg backdrop-blur-sm">
+                            تصویر اصلی
+                          </div>
+                        </div>
+                      )}
+                      <div className="aspect-square relative rounded-lg overflow-hidden border border-voxcina-cream/30 dark:border-voxcina-blue/30 shadow-sm">
+                        <img 
+                          src={resultImage} 
+                          alt="نتیجه پرو مجازی" 
+                          className="object-cover w-full h-full"
+                        />
+                        <div className="absolute bottom-2 right-2 bg-white/80 dark:bg-voxcina-blue/80 text-voxcina-blue dark:text-white text-xs px-2 py-1 rounded-lg backdrop-blur-sm">
+                          با لباس
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {!isTryOnLoading && !resultImage && (
+                  <div className="flex flex-col items-center justify-center p-6 h-full min-h-[200px] border border-dashed border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-lg">
+                    <Shirt className="h-10 w-10 text-voxcina-blue/30 dark:text-voxcina-cream/30 mb-2" />
+                    <p className="text-sm text-voxcina-blue/50 dark:text-voxcina-cream/50 text-center">
+                      با کلیک روی دکمه پرو مجازی، تصویر خود را آپلود کنید<br />
+                      و ببینید این لباس روی شما چطور به نظر می‌رسد
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </motion.div>
         </div>
-        
-        {/* Loading and Result Preview Row */}
-        {(isTryOnLoading || resultImage) && (
-          <div className="mt-6 p-4 rounded-xl bg-white/70 dark:bg-voxcina-blue/10 border border-voxcina-cream/30 dark:border-voxcina-blue/30 shadow-sm">
-            {isTryOnLoading && (
-              <div className="flex flex-col items-center justify-center p-4">
-                <div className="w-12 h-12 relative mb-3">
-                  <div className="absolute top-0 right-0 w-full h-full border-4 border-voxcina-cream/30 dark:border-voxcina-blue/30 rounded-full animate-pulse-soft"></div>
-                  <div className="absolute top-0 right-0 w-full h-full border-4 border-t-voxcina-blue dark:border-t-voxcina-cream border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
-                </div>
-                <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 font-medium">
-                  در حال پردازش تصویر...
-                </p>
-              </div>
-            )}
-            
-            {!isTryOnLoading && resultImage && (
-              <div className="flex flex-col md:flex-row items-center gap-6">
-                <div className="md:w-1/4">
-                  <h4 className="font-medium text-voxcina-blue dark:text-voxcina-cream mb-2 text-center md:text-right">
-                    نتیجه آزمایش مجازی
-                  </h4>
-                  <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4 text-center md:text-right">
-                    تصویر شما با این محصول
-                  </p>
-                </div>
-                <div className="md:w-3/4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {uploadedPreview && (
-                    <div className="aspect-square relative rounded-lg overflow-hidden border border-voxcina-cream/30 dark:border-voxcina-blue/30 shadow-sm">
-                      <img 
-                        src={uploadedPreview} 
-                        alt="تصویر شما" 
-                        className="object-cover w-full h-full"
-                      />
-                      <div className="absolute bottom-2 right-2 bg-white/80 dark:bg-voxcina-blue/80 text-voxcina-blue dark:text-white text-xs px-2 py-1 rounded-lg backdrop-blur-sm">
-                        تصویر اصلی
-                      </div>
-                    </div>
-                  )}
-                  <div className="aspect-square relative rounded-lg overflow-hidden border border-voxcina-cream/30 dark:border-voxcina-blue/30 shadow-sm">
-                    <img 
-                      src={resultImage} 
-                      alt="نتیجه آزمایش مجازی" 
-                      className="object-cover w-full h-full"
-                    />
-                    <div className="absolute bottom-2 right-2 bg-white/80 dark:bg-voxcina-blue/80 text-voxcina-blue dark:text-white text-xs px-2 py-1 rounded-lg backdrop-blur-sm">
-                      با لباس
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </motion.div>
 
       <AnimatePresence>
