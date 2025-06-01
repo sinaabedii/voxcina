@@ -44,6 +44,8 @@ check_network() {
   return 0
 }
 
+initial_deployment_done=false
+
 while true; do
   # Check basic network connectivity first
   if ! check_network; then
@@ -70,38 +72,66 @@ while true; do
     continue
   fi
 
-  if [[ "$LOCAL" != "$REMOTE" ]]; then
-    printf '\n[%s] New commits detected – redeploying…\n' "$(date +'%F %T')"
+  # Check if there are new commits or if it's the initial deployment phase
+  if [[ "$LOCAL" != "$REMOTE" ]] || [[ "$initial_deployment_done" == "false" ]]; then
     
-    # Pull with timeout and retry logic
-    if ! retry_network_operation "timeout 60 git pull origin '$BRANCH'" "git pull"; then
-      sleep 60
-      continue
+    # --- Log reason for action ---
+    if [[ "$initial_deployment_done" == "false" ]]; then
+      printf '[%s] Performing initial service deployment (or retrying a failed one)...\n' "$(date +'%F %T')"
+      if [[ "$LOCAL" == "$REMOTE" ]]; then
+        printf '[%s] No new commits on %s. Will ensure services are (re)started.\n' "$(date +'%F %T')" "$BRANCH"
+      else # New commits found during initial check
+        printf '[%s] New commits detected on %s during initial check. Will pull and deploy.\n' "$(date +'%F %T')" "$BRANCH"
+      fi
+    else # This means $LOCAL != $REMOTE and initial_deployment_done is true
+      printf '[%s] New commits detected on %s – redeploying…\n' "$(date +'%F %T')" "$BRANCH"
+    fi
+
+    # --- Git Pull (if needed) ---
+    if [[ "$LOCAL" != "$REMOTE" ]]; then
+      printf '[%s] Pulling changes from origin/%s...\n' "$(date +'%F %T')" "$BRANCH"
+      if ! retry_network_operation "timeout 60 git pull origin '$BRANCH'" "git pull"; then
+        sleep 60
+        continue # Retry the whole loop; initial_deployment_done remains false if it was
+      fi
     fi
     
+    # --- Docker Operations ---
+    printf '[%s] Stopping services (if any)...\n' "$(date +'%F %T')"
     if ! docker compose stop; then
       printf '[%s] Warning: Failed to stop services, continuing with build...\n' "$(date +'%F %T')"
     fi
     
+    printf '[%s] Building services...\n' "$(date +'%F %T')"
     if ! docker compose build; then
-      printf '[%s] Error: Failed to build services. Retrying in 60 seconds...\n' "$(date +'%F %T')"
+      printf '[%s] Error: Failed to build services. Retrying full cycle in 60 seconds...\n' "$(date +'%F %T')"
       sleep 60
-      continue
+      continue # Retry; initial_deployment_done remains false if it was
     fi
     
+    printf '[%s] Starting services...\n' "$(date +'%F %T')"
     if ! docker compose up -d --remove-orphans; then
-      printf '[%s] Error: Failed to start services. Retrying in 60 seconds...\n' "$(date +'%F %T')"
+      printf '[%s] Error: Failed to start services. Retrying full cycle in 60 seconds...\n' "$(date +'%F %T')"
       sleep 60
-      continue
+      continue # Retry; initial_deployment_done remains false if it was
     fi
     
+    printf '[%s] Pruning Docker system...\n' "$(date +'%F %T')"
     if ! sudo docker system prune -f; then
       printf '[%s] Warning: Failed to prune docker system, continuing...\n' "$(date +'%F %T')"
     fi
     
-    printf '[%s] Done.\n' "$(date +'%F %T')"
+    # --- Finalize and set flag ---
+    if [[ "$initial_deployment_done" == "false" ]]; then
+      printf '[%s] Initial service deployment successful. Monitoring for changes.\n' "$(date +'%F %T')"
+      initial_deployment_done=true # Crucial: set flag AFTER all operations succeeded
+    else
+      printf '[%s] Service update successful. Monitoring for changes.\n' "$(date +'%F %T')"
+    fi
+
   else
-    printf '[%s] No changes.\n' "$(date +'%F %T')"
+    # This case means $LOCAL == $REMOTE AND initial_deployment_done is true
+    printf '[%s] No changes on %s. Services are confirmed running.\n' "$(date +'%F %T')" "$BRANCH"
   fi
   sleep 60
 done
