@@ -1,19 +1,9 @@
-"use client";
-
-import { useEffect } from "react";
-import { notFound } from "next/navigation";
-import Image from "next/image";
-import Link from "next/link";
-import { blogPosts, getBlogPostBySlug } from "@/data/blog";
-import {
-  CalendarIcon,
-  ClockIcon,
-  ArrowRight as ArrowRightIcon,
-} from "lucide-react";
-import RelatedPosts from "@/components/blog/RelatedPosts";
-import BlogSidebar from "@/components/blog/BlogSidebar";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import { Suspense } from 'react';
+import { notFound } from 'next/navigation';
+import { BlogPost, blogPosts, getBlogPostBySlug } from '@/data/blog';
+import Header from '@/components/layout/Header';
+import Footer from '@/components/layout/Footer';
+import BlogPostClientContent from '@/components/blog/BlogPostClientContent';
 
 export default function BlogPostPage({ params }: { params: { slug: string } }) {
   const post = getBlogPostBySlug(params.slug);
@@ -22,76 +12,41 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
     notFound();
   }
 
-  const formattedDate = new Date(post.publishedAt).toLocaleDateString("fa-IR", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  // Extract all categories for sidebar
+  const categories = Array.from(new Set(blogPosts.map((post) => post.category))).sort();
 
-  const categories = Array.from(
-    new Set(blogPosts.map((post) => post.category))
-  ).sort();
-
-  const tags = Array.from(
-    new Set(blogPosts.flatMap((post) => post.tags))
-  ).sort();
-
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [params.slug]);
+  // Extract all tags for sidebar
+  const tags = Array.from(new Set(blogPosts.flatMap((post) => post.tags))).sort();
 
   return (
     <>
       <Header />
-      <section className="py-10">
+      <Suspense fallback={<BlogPostLoadingSkeleton />}>
+        <BlogPostClientContent
+          post={post}
+          categories={categories}
+          tags={tags}
+        />
+      </Suspense>
+      <Footer />
+    </>
+  );
+}
+
+function BlogPostLoadingSkeleton() {
+  return (
+    <>
+      <section className="bg-secondary-100 py-8 md:py-12 lg:py-16">
         <div className="container px-4 sm:px-6 md:px-8">
           <div className="mx-auto max-w-4xl">
-            <div className="mb-3 md:mb-4 flex flex-wrap items-center gap-2 md:gap-3 text-xs sm:text-sm text-gray-600">
-              <Link
-                href="/blog"
-                className="flex items-center gap-1 hover:text-voxcina-blue"
-              >
-                <ArrowRightIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span>بازگشت به بلاگ</span>
-              </Link>
-              <span className="text-gray-400">•</span>
-              <Link
-                href={`/blog?category=${encodeURIComponent(post.category)}`}
-                className="rounded-full bg-secondary-200 px-2 sm:px-3 py-1 text-xs font-medium text-voxcina-blue hover:bg-secondary-300"
-              >
-                {post.category}
-              </Link>
-            </div>
-
-            <h1 className="mb-3 md:mb-4 text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight text-voxcina-blue">
-              {post.title}
-            </h1>
-
-            <div className="mb-4 md:mb-6 flex flex-wrap items-center gap-3 md:gap-4 text-xs sm:text-sm text-gray-600">
-              <div className="flex items-center gap-2">
-                <div className="relative h-6 w-6 sm:h-8 sm:w-8 overflow-hidden rounded-full">
-                  <Image
-                    src={
-                      post.author.avatar || "/images/avatars/placeholder.jpg"
-                    }
-                    alt={post.author.name}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 640px) 24px, 32px"
-                  />
-                </div>
-                <span>{post.author.name}</span>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span>{formattedDate}</span>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <ClockIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span>{post.readTime} دقیقه مطالعه</span>
-              </div>
+            <div className="mb-3 md:mb-4 flex items-center gap-2 md:gap-3 h-6 w-40 bg-gray-200 animate-pulse rounded-md" />
+            
+            <div className="mb-3 md:mb-4 h-12 w-full bg-gray-200 animate-pulse rounded-md" />
+            
+            <div className="mb-4 md:mb-6 flex flex-wrap items-center gap-3 md:gap-4">
+              <div className="flex items-center gap-2 h-6 w-32 bg-gray-200 animate-pulse rounded-md" />
+              <div className="flex items-center gap-1 h-6 w-24 bg-gray-200 animate-pulse rounded-md" />
+              <div className="flex items-center gap-1 h-6 w-28 bg-gray-200 animate-pulse rounded-md" />
             </div>
           </div>
         </div>
@@ -102,53 +57,43 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
           <div className="grid gap-6 md:gap-8 lg:grid-cols-12">
             <div className="lg:col-span-8">
               <article className="overflow-hidden rounded-xl sm:rounded-2xl bg-white shadow-soft">
-                <div className="relative h-[200px] sm:h-[300px] md:h-[400px] w-full overflow-hidden">
-                  <Image
-                    src={post.coverImage || "/images/blog/placeholder.jpg"}
-                    alt={post.title}
-                    fill
-                    className="object-cover"
-                    priority
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 50vw"
-                  />
-                </div>
-
+                <div className="relative h-[200px] sm:h-[300px] md:h-[400px] w-full bg-gray-200 animate-pulse" />
+                
                 <div className="p-4 sm:p-6 md:p-8 lg:p-10">
-                  <div
-                    className="prose prose-sm sm:prose-base lg:prose-lg prose-blue max-w-none prose-headings:text-voxcina-blue prose-a:text-primary-500 prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl"
-                    dangerouslySetInnerHTML={{ __html: post.content }}
-                  />
-
+                  <div className="space-y-4">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                      <div key={i} className="h-6 bg-gray-200 animate-pulse rounded-md" style={{width: `${Math.random() * 50 + 50}%`}} />
+                    ))}
+                  </div>
+                  
                   <div className="mt-6 sm:mt-8 flex flex-wrap gap-2">
-                    {post.tags.map((tag) => (
-                      <Link
-                        key={tag}
-                        href={`/blog?tag=${encodeURIComponent(tag)}`}
-                        className="rounded-full bg-secondary-200 px-3 py-1 text-xs font-medium text-voxcina-blue transition-colors hover:bg-secondary-300"
-                      >
-                        {tag}
-                      </Link>
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="h-6 w-16 bg-gray-200 animate-pulse rounded-full" />
                     ))}
                   </div>
                 </div>
               </article>
 
-              <RelatedPosts currentPost={post} />
+              <div className="mt-8 md:mt-12 py-6 md:py-8 border-t border-gray-100">
+                <div className="h-8 w-48 bg-gray-200 animate-pulse rounded-md mb-6" />
+                <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-56 bg-gray-200 animate-pulse rounded-xl" />
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="mt-6 lg:mt-0 lg:col-span-4">
-              <div className="sticky top-24">
-                <BlogSidebar
-                  posts={blogPosts}
-                  categories={categories}
-                  tags={tags}
-                />
+              <div className="space-y-6 md:space-y-8">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="rounded-xl sm:rounded-2xl bg-gray-200 h-[200px] animate-pulse" />
+                ))}
               </div>
             </div>
           </div>
         </div>
       </section>
-      <Footer />
     </>
   );
 }
