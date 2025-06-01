@@ -26,6 +26,7 @@ export default function AddProductPage() {
   const [isFlashSale, setIsFlashSale] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [inStock, setInStock] = useState(true);
+  const [tryOnImageFile, setTryOnImageFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
@@ -95,6 +96,9 @@ export default function AddProductPage() {
     formData.append("isFlashSale", isFlashSale ? "true" : "false");
     formData.append("isActive", isActive ? "true" : "false");
     formData.append("inStock", inStock ? "true" : "false");
+    if (tryOnImageFile) {
+      formData.append("tryOnImage", tryOnImageFile);
+    }
     if (images) {
       Array.from(images).forEach((file) => formData.append("mainImages", file));
     }
@@ -163,13 +167,13 @@ export default function AddProductPage() {
                   cat.id ? (
                     <div
                       key={cat.id}
-                      className={`px-3 py-2 cursor-pointer hover:bg-blue-50 flex items-center gap-2 ${categoryIds.includes(cat.id) ? "bg-blue-100" : ""}`}
+                      className={`px-3 py-2 cursor-pointer hover:bg-blue-50 flex items-center gap-2 ${categoryIds.includes(cat.id!) ? "bg-blue-100" : ""}`}
                       onClick={() => {
                         if (!categoryIds.includes(cat.id!)) setCategoryIds([...categoryIds, cat.id!]);
-                        else setCategoryIds(categoryIds.filter(cid => cid !== cat.id));
+                        else setCategoryIds(categoryIds.filter(cid => cid !== cat.id!));
                       }}
                     >
-                      <input type="checkbox" checked={categoryIds.includes(cat.id)} readOnly className="mr-2" />
+                      <input type="checkbox" checked={categoryIds.includes(cat.id!)} readOnly className="mr-2" />
                       {cat.name}
                     </div>
                   ) : null
@@ -190,6 +194,18 @@ export default function AddProductPage() {
         <div>
           <label className="block mb-1">تصاویر محصول</label>
           <input className="input" type="file" multiple accept="image/*" onChange={handleImageChange} />
+        </div>
+        <div>
+          <label className="block mb-1">تصویر واقعیت افزوده (اختیاری)</label>
+          <input
+            className="input"
+            type="file"
+            accept="image/*"
+            onChange={(e) => setTryOnImageFile(e.target.files?.[0] || null)}
+          />
+          {tryOnImageFile && (
+            <span className="text-xs text-voxcina-blue/60">{tryOnImageFile.name}</span>
+          )}
         </div>
         <div>
           <label className="block mb-1">تنوع‌ها (سایز/رنگ/موجودی)</label>

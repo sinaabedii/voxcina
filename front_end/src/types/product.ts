@@ -21,6 +21,11 @@ export interface Product {
   originalPrice: number; // add this property to backend model data 
 
   images: string[]; // Main product images (URLs)
+  /**
+   * Optional image URL used for AR / virtual try-on feature. Present only in the
+   * single-product (detail) response; not returned in product list endpoints.
+   */
+  tryOnImage?: string;
   category_ids: string[]; // Array of category ObjectIDs as strings
   brand_id: string; // Brand ObjectID as string
   brand?: string; // Brand name (added property) ToDo : not returned from API, it should be

@@ -27,6 +27,8 @@ import {
   Check,
   ArrowRight,
   X,
+  Camera,
+  Shirt,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useProductStore } from "@/store/product-store";
@@ -41,6 +43,7 @@ import { Review } from "@/types/product";
 import { useCategoryStore } from "@/store/category-store";
 import { hasAttribute } from "@/lib/utils";
 import Link from "next/link";
+import { useTryOnStore } from "@/store/tryon-store";
 
 interface ProductDetailPageProps {
   params: {
@@ -62,6 +65,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const [showShareModal, setShowShareModal] = useState(false);
   const [recentlyViewedVisible, setRecentlyViewedVisible] = useState(true);
   const [showPopularityStats, setShowPopularityStats] = useState(false);
+  const [showTryOnModal, setShowTryOnModal] = useState(false);
 
   const imageContainerRef = useRef<HTMLDivElement>(null);
 
@@ -79,6 +83,13 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const { reviews, addReview, likeReview, dislikeReview } = useReviewStore();
   const { addToFavorites, isFavorite } = useDashboardStore();
   const { categories, fetchCategories, getCategoryName } = useCategoryStore();
+  const {
+    uploadedImage,
+    resultImage,
+    isProcessing: isTryOnLoading,
+    setUploadedImage,
+    startTryOn,
+  } = useTryOnStore();
 
   const isProductFavorite =
     activeProduct && activeProduct.id ? isFavorite(activeProduct.id) : false;
@@ -346,8 +357,48 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     .filter((p) => p.id !== activeProduct.id)
     .slice(0, 4);
 
+  const handleTryOnSubmit = async () => {
+    if (!activeProduct?.tryOnImage) return;
+    await startTryOn(activeProduct.tryOnImage);
+    setShowTryOnModal(false);
+  };
+
+  const handleUserImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setUploadedImage(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
-    <div className="container py-8 md:py-12">
+    <div className="container py-8 md:py-16">
+      {/* Try-on result section */}
+      {isTryOnLoading && (
+        <div className="flex items-center justify-center mb-6">
+          <RefreshCw className="w-6 h-6 mr-2 animate-spin" />
+          <span>در حال پردازش تصویر واقعیت افزوده...</span>
+        </div>
+      )}
+
+      {!isTryOnLoading && resultImage && (
+        <div className="mb-6 flex flex-col items-center">
+          <h3 className="font-semibold mb-2 flex items-center">
+            <Shirt className="w-5 h-5 ml-1" /> نتیجه واقعیت افزوده
+          </h3>
+          {/* For mock we just show product try-on image; in real case would combine */}
+          <img
+            src={resultImage}
+            alt="نتیجه واقعیت افزوده"
+            className="max-w-xs rounded-lg shadow"
+          />
+        </div>
+      )}
+
       <motion.div
         className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60 mb-6 flex flex-wrap items-center"
         initial={{ opacity: 0, y: -10 }}
@@ -838,7 +889,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 </motion.button>
               </div>
 
-              <div className="flex-grow grid grid-cols-5 gap-2">
+              <div className="flex-grow grid grid-cols-6 gap-2">
                 <motion.div
                   className="col-span-3"
                   whileHover={{ y: -5 }}
@@ -874,6 +925,24 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       className="h-5 w-5"
                       fill={isProductFavorite ? "currentColor" : "none"}
                     />
+                  </Button>
+                </motion.div>
+
+                {/* Try-On Button */}
+                <motion.div
+                  className="col-span-1"
+                  whileHover={{ y: -5 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 shadow-sm hover:shadow-md transition-all duration-300 disabled:opacity-40"
+                    disabled={!activeProduct.tryOnImage}
+                    onClick={() => setShowTryOnModal(true)}
+                    aria-label="آزمایش مجازی"
+                  >
+                    <Camera className="h-5 w-5" />
                   </Button>
                 </motion.div>
 
@@ -1010,6 +1079,25 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               </div>
             </div>
           </motion.div>
+
+          {/* Virtual Try-On Button (moved here for better visibility) */}
+          <div className="mb-6">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl"
+              disabled={!activeProduct.tryOnImage}
+              onClick={() => setShowTryOnModal(true)}
+            >
+              <Camera className="w-4 h-4 ml-1" />
+              آزمایش مجازی
+            </Button>
+            {!activeProduct.tryOnImage && (
+              <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50 ml-2">
+                (در دسترس نیست)
+              </span>
+            )}
+          </div>
         </motion.div>
       </div>
       <AnimatePresence>
@@ -1314,6 +1402,86 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
           </motion.div>
         </div>
       )}
+
+      {/* Try-On Modal */}
+      <AnimatePresence>
+        {showTryOnModal && (
+          <motion.div
+            className="fixed inset-0 bg-voxcina-blue/30 dark:bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowTryOnModal(false)}
+          >
+            <motion.div
+              className="bg-white/95 dark:bg-voxcina-blue/95 rounded-2xl max-w-md w-full p-6 relative shadow-lg backdrop-blur-sm border border-voxcina-cream/30 dark:border-voxcina-blue/50"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="absolute top-4 right-4 text-voxcina-blue/60 hover:text-voxcina-blue dark:text-voxcina-cream/60 dark:hover:text-voxcina-cream transition-colors"
+                onClick={() => setShowTryOnModal(false)}
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-voxcina-cream/50 dark:bg-voxcina-blue/30 rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
+                  <Camera className="h-8 w-8 text-voxcina-blue dark:text-voxcina-cream" />
+                </div>
+                <h3 className="text-lg font-bold text-voxcina-blue dark:text-voxcina-cream">
+                  آزمایش مجازی
+                </h3>
+                <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
+                  تصویر خود را بارگذاری کنید و نتیجه را مشاهده کنید.
+                </p>
+              </div>
+
+              <div className="mb-4 flex flex-col items-center">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleUserImageSelect}
+                  className="mb-4"
+                />
+                {uploadedImage && (
+                  <img
+                    src={uploadedImage}
+                    alt="preview"
+                    className="max-w-xs rounded-lg shadow"
+                  />
+                )}
+              </div>
+
+              <div className="flex justify-end mt-4 space-x-2 space-x-reverse">
+                <motion.button
+                  className="px-4 py-2 text-sm border border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-xl text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/20 dark:hover:bg-voxcina-blue/30 transition-colors shadow-sm"
+                  onClick={() => {
+                    setUploadedImage(null);
+                    setShowTryOnModal(false);
+                  }}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  انصراف
+                </motion.button>
+                <motion.button
+                  className="px-4 py-2 text-sm bg-voxcina-blue hover:bg-voxcina-darkBlue dark:bg-voxcina-cream/90 dark:hover:bg-voxcina-cream dark:text-voxcina-blue text-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 disabled:opacity-50"
+                  onClick={handleTryOnSubmit}
+                  disabled={!uploadedImage}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  شروع آزمایش
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

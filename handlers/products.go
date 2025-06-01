@@ -70,6 +70,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	description := r.FormValue("description")
 	priceStr := r.FormValue("price")
 	originalPriceStr := r.FormValue("originalPrice")
+	tryOnImage := strings.TrimSpace(r.FormValue("tryOnImage"))
 	categoryIDsJSON := r.FormValue("categoryIds")
 	brandIDStr := r.FormValue("brandId")
 	variantsJSON := r.FormValue("variants")
@@ -203,6 +204,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	// --- Main Image Uploads ---
 	var mainImagePaths []string
 	var uploadedFilePaths []string // For cleanup on failure
+	var tryOnServerPath string
 
 	// Get the image files from the multipart form
 	files := r.MultipartForm.File["mainImages"]
@@ -314,6 +316,31 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Added image path to product: %s\n", serverPath)
 	}
 
+	// After processing main images
+	// --- Try-On Image Upload (optional single file) ---
+	if headers, ok := r.MultipartForm.File["tryOnImage"]; ok && len(headers) > 0 {
+		header := headers[0]
+		// Ensure directory exists
+		tryDir := filepath.Join(BaseUploadDir, "products", "tryon")
+		_ = os.MkdirAll(tryDir, 0755)
+		ext := filepath.Ext(header.Filename)
+		filename := fmt.Sprintf("%s-%d%s", productID.Hex(), time.Now().UnixNano(), ext)
+		filePath := filepath.Join(tryDir, filename)
+		file, err := header.Open()
+		if err == nil {
+			dst, err2 := os.Create(filePath)
+			if err2 == nil {
+				_, _ = io.Copy(dst, file)
+				dst.Close()
+				tryOnServerPath = filepath.Join("/uploads/products/tryon", filename)
+				uploadedFilePaths = append(uploadedFilePaths, filePath)
+			}
+			file.Close()
+		}
+	} else {
+		tryOnServerPath = tryOnImage
+	}
+
 	product := models.Product{
 		ID:            productID,
 		Name:          name,
@@ -321,6 +348,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		Price:         price,
 		OriginalPrice: originalPrice,
 		Images:        mainImagePaths,
+		TryOnImage:    tryOnServerPath,
 		CategoryIDs:   categoryIDs,
 		BrandID:       brandID,
 		Brand:         brand.Name,
@@ -383,6 +411,11 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 	if len(products) == 0 {
 		utils.JSONResponse(w, http.StatusOK, []models.Product{})
 		return
+	}
+
+	// Ensure try-on image is not exposed in list
+	for i := range products {
+		products[i].TryOnImage = ""
 	}
 
 	utils.JSONResponse(w, http.StatusOK, products)
@@ -457,6 +490,11 @@ func SearchProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Ensure try-on image is not exposed in list
+	for i := range products {
+		products[i].TryOnImage = ""
+	}
+
 	utils.JSONResponse(w, http.StatusOK, products)
 }
 
@@ -486,6 +524,11 @@ func ProductRecommendations(w http.ResponseWriter, r *http.Request) {
 	if len(products) == 0 {
 		utils.JSONResponse(w, http.StatusOK, []models.Product{})
 		return
+	}
+
+	// Ensure try-on image is not exposed in list
+	for i := range products {
+		products[i].TryOnImage = ""
 	}
 
 	utils.JSONResponse(w, http.StatusOK, products)
@@ -550,6 +593,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 			BrandID       *string                   `json:"brandId"`
 			Variants      []models.ProductVariant   `json:"variants"`
 			Attributes    []models.ProductAttribute `json:"attributes"`
+			TryOnImage    *string                   `json:"tryOnImage"`
 			IsFlashSale   *bool                     `json:"isFlashSale"`
 			IsActive      *bool                     `json:"isActive"`
 			InStock       *bool                     `json:"inStock"`
@@ -578,7 +622,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		if productUpdate.Price != nil {
 			update["price"] = *productUpdate.Price
 			somethingToUpdate = true
-			
+
 			// Update original price if not explicitly provided
 			if productUpdate.OriginalPrice == nil {
 				// Only update original price if it was previously equal to price
@@ -643,6 +687,11 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 
 		if len(productUpdate.Attributes) > 0 {
 			update["attributes"] = productUpdate.Attributes
+			somethingToUpdate = true
+		}
+
+		if productUpdate.TryOnImage != nil {
+			update["try_on_image"] = *productUpdate.TryOnImage
 			somethingToUpdate = true
 		}
 
@@ -832,6 +881,11 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 			somethingToUpdate = true
 		}
 
+		if tryOnImage := r.FormValue("tryOnImage"); tryOnImage != "" {
+			update["try_on_image"] = tryOnImage
+			somethingToUpdate = true
+		}
+
 		// Process existing images to keep
 		existingImagePathsJSON := r.FormValue("existingImagePaths")
 		if existingImagePathsJSON != "" {
@@ -936,6 +990,32 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				if !existingImageMap[oldPath] {
 					imagesToDelete = append(imagesToDelete, "."+oldPath)
 				}
+			}
+		}
+
+		if tryHeaders := r.MultipartForm.File["tryOnImage"]; len(tryHeaders) > 0 {
+			header := tryHeaders[0]
+			tryDir := filepath.Join(BaseUploadDir, "products", "tryon")
+			_ = os.MkdirAll(tryDir, 0755)
+			ext := filepath.Ext(header.Filename)
+			filename := fmt.Sprintf("%s-%d%s", productID.Hex(), time.Now().UnixNano(), ext)
+			filePath := filepath.Join(tryDir, filename)
+			file, err := header.Open()
+			if err == nil {
+				dst, err2 := os.Create(filePath)
+				if err2 == nil {
+					_, _ = io.Copy(dst, file)
+					dst.Close()
+					serverPath := filepath.Join("/uploads/products/tryon", filename)
+					update["try_on_image"] = serverPath
+					newlyUploadedPaths = append(newlyUploadedPaths, filePath)
+					somethingToUpdate = true
+					// mark old image for deletion
+					if existingProduct.TryOnImage != "" {
+						imagesToDelete = append(imagesToDelete, "."+existingProduct.TryOnImage)
+					}
+				}
+				file.Close()
 			}
 		}
 
