@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import {
-  Star,
   Heart,
   Truck,
   RotateCcw,
@@ -11,18 +10,11 @@ import {
   Minus,
   Plus,
   Share2,
-  Info,
   Bell,
   CheckCircle,
   Maximize2,
   ChevronLeft,
   ChevronRight,
-  Tag,
-  Award,
-  Users,
-  Calendar,
-  BarChart,
-  TrendingUp,
   RefreshCw,
   Check,
   ArrowRight,
@@ -111,9 +103,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     return [
       ...new Set(
         activeProduct.variants
-          .filter(v => v.color === color && v.quantity > 0)
-          .map(v => v.size)
-      )
+          .filter((v) => v.color === color && v.quantity > 0)
+          .map((v) => v.size)
+      ),
     ];
   };
 
@@ -123,9 +115,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     return [
       ...new Set(
         activeProduct.variants
-          .filter(v => v.size === size && v.quantity > 0)
-          .map(v => v.color)
-      )
+          .filter((v) => v.size === size && v.quantity > 0)
+          .map((v) => v.color)
+      ),
     ];
   };
 
@@ -133,12 +125,12 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const isVariantInStock = (size: string, color: string) => {
     if (!activeProduct) return false;
     return activeProduct.variants.some(
-      v => v.size === size && v.color === color && v.quantity > 0
+      (v) => v.size === size && v.color === color && v.quantity > 0
     );
   };
 
   // Get available sizes based on selected color
-  const availableSizesForSelectedColor = selectedColor 
+  const availableSizesForSelectedColor = selectedColor
     ? getAvailableSizesForColor(selectedColor)
     : availableSizes;
 
@@ -283,7 +275,11 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     }
 
     // Check if the selected variant is in stock
-    if (selectedSize && selectedColor && !isVariantInStock(selectedSize, selectedColor)) {
+    if (
+      selectedSize &&
+      selectedColor &&
+      !isVariantInStock(selectedSize, selectedColor)
+    ) {
       alert("ترکیب سایز و رنگ انتخابی موجود نیست");
       return;
     }
@@ -584,26 +580,34 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               {activeProduct.name}
             </h1>
             <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4">
-              {activeProduct.brand && <span className="font-medium">{activeProduct.brand}</span>}
+              {activeProduct.brand && (
+                <span className="font-medium">{activeProduct.brand}</span>
+              )}
             </p>
-            
+
             {/* Price Display */}
             <div className="flex items-center gap-3 mb-4">
               <span className="text-2xl font-bold text-voxcina-blue dark:text-voxcina-cream">
                 {formatPrice(activeProduct.price)}
               </span>
-              
-              {activeProduct.originalPrice && activeProduct.originalPrice > activeProduct.price && (
-                <span className="text-lg text-voxcina-blue/50 dark:text-voxcina-cream/50 line-through">
-                  {formatPrice(activeProduct.originalPrice)}
-                </span>
-              )}
-              
-              {activeProduct.originalPrice && activeProduct.originalPrice > activeProduct.price && (
-                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-lg">
-                  {getDiscountPercentage(activeProduct.originalPrice, activeProduct.price)}٪ تخفیف
-                </span>
-              )}
+
+              {activeProduct.originalPrice &&
+                activeProduct.originalPrice > activeProduct.price && (
+                  <span className="text-lg text-voxcina-blue/50 dark:text-voxcina-cream/50 line-through">
+                    {formatPrice(activeProduct.originalPrice)}
+                  </span>
+                )}
+
+              {activeProduct.originalPrice &&
+                activeProduct.originalPrice > activeProduct.price && (
+                  <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-lg">
+                    {getDiscountPercentage(
+                      activeProduct.originalPrice,
+                      activeProduct.price
+                    )}
+                    ٪ تخفیف
+                  </span>
+                )}
             </div>
           </div>
 
@@ -633,7 +637,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               </div>
               <div className="flex flex-wrap gap-2">
                 {availableSizes.map((size) => {
-                  const isAvailable = !selectedColor || availableSizesForSelectedColor.includes(size);
+                  const isAvailable =
+                    !selectedColor ||
+                    availableSizesForSelectedColor.includes(size);
                   return (
                     <motion.button
                       key={size}
@@ -644,7 +650,12 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                           ? "border-voxcina-cream/50 dark:border-voxcina-blue/30 text-voxcina-blue/80 dark:text-voxcina-cream/80 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/50"
                           : "border-voxcina-cream/30 dark:border-voxcina-blue/20 text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed opacity-60"
                       }`}
-                      onClick={() => isAvailable && setSelectedSize(selectedSize === size ? undefined : size)}
+                      onClick={() =>
+                        isAvailable &&
+                        setSelectedSize(
+                          selectedSize === size ? undefined : size
+                        )
+                      }
                       whileHover={isAvailable ? { y: -2 } : {}}
                       whileTap={isAvailable ? { scale: 0.97 } : {}}
                       disabled={!isAvailable}
@@ -765,8 +776,8 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
               <div className="mt-3 text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
                 <p>
-                  روش اندازه‌گیری: لطفاً از متر نواری استفاده کنید و
-                  اندازه‌ها را در حالت ایستاده و بدون کشش اندازه‌گیری کنید.
+                  روش اندازه‌گیری: لطفاً از متر نواری استفاده کنید و اندازه‌ها
+                  را در حالت ایستاده و بدون کشش اندازه‌گیری کنید.
                 </p>
               </div>
             </motion.div>
@@ -786,7 +797,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               </div>
               <div className="flex flex-wrap gap-3">
                 {availableColors.map((color) => {
-                  const isAvailable = !selectedSize || availableColorsForSelectedSize.includes(color);
+                  const isAvailable =
+                    !selectedSize ||
+                    availableColorsForSelectedSize.includes(color);
                   return (
                     <motion.button
                       key={color}
@@ -797,7 +810,12 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                           ? "ring-1 ring-voxcina-cream/50 dark:ring-voxcina-blue/30 hover:ring-voxcina-blue/50 dark:hover:ring-voxcina-cream/50"
                           : "ring-1 ring-voxcina-cream/30 dark:ring-voxcina-blue/20 opacity-40 cursor-not-allowed"
                       }`}
-                      onClick={() => isAvailable && setSelectedColor(selectedColor === color ? undefined : color)}
+                      onClick={() =>
+                        isAvailable &&
+                        setSelectedColor(
+                          selectedColor === color ? undefined : color
+                        )
+                      }
                       title={color}
                       whileHover={isAvailable ? { scale: 1.1 } : {}}
                       whileTap={isAvailable ? { scale: 0.9 } : {}}
@@ -1104,6 +1122,184 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
           </div>
         </motion.div>
       </div>
+
+      {/* Augmented Reality Section - Between Product Details and Recently Viewed */}
+      <motion.div 
+        className="border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 pt-8 mb-12"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        <h2 className="text-xl font-bold text-voxcina-blue dark:text-voxcina-cream mb-6">
+          واقعیت افزوده
+        </h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Try-On Feature */}
+          <motion.div 
+            className="col-span-1 md:col-span-1 bg-white/70 dark:bg-voxcina-blue/10 border border-voxcina-cream/30 dark:border-voxcina-blue/30 rounded-xl p-5 shadow-sm backdrop-blur-sm"
+            whileHover={{ y: -5 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-voxcina-cream/50 dark:bg-voxcina-blue/30 rounded-full flex items-center justify-center mb-4 shadow-sm">
+                <Camera className="h-8 w-8 text-voxcina-blue dark:text-voxcina-cream" />
+              </div>
+              <h3 className="font-medium text-voxcina-blue dark:text-voxcina-cream mb-2">
+                آزمایش مجازی لباس
+              </h3>
+              <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4">
+                با آپلود عکس خود، ببینید این محصول چطور به شما می‌آید
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full rounded-xl"
+                disabled={!activeProduct.tryOnImage}
+                onClick={() => setShowTryOnModal(true)}
+              >
+                <Camera className="w-4 h-4 ml-1" />
+                امتحان لباس روی عکس
+              </Button>
+              
+              {!activeProduct.tryOnImage && (
+                <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50 mt-2">
+                  (برای این محصول در دسترس نیست)
+                </span>
+              )}
+              
+              {/* Display the result if available */}
+              {resultImage && (
+                <div className="mt-4 pt-4 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 w-full">
+                  <p className="text-xs text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-2">
+                    نتیجه آخرین آزمایش:
+                  </p>
+                  <img 
+                    src={resultImage} 
+                    alt="نتیجه آزمایش مجازی" 
+                    className="rounded-lg shadow-sm w-full object-cover"
+                  />
+                </div>
+              )}
+            </div>
+          </motion.div>
+          
+          {/* 3D View Feature */}
+          <motion.div 
+            className="col-span-1 md:col-span-1 bg-white/70 dark:bg-voxcina-blue/10 border border-voxcina-cream/30 dark:border-voxcina-blue/30 rounded-xl p-5 shadow-sm backdrop-blur-sm"
+            whileHover={{ y: -5 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-voxcina-cream/50 dark:bg-voxcina-blue/30 rounded-full flex items-center justify-center mb-4 shadow-sm">
+                <Maximize2 className="h-8 w-8 text-voxcina-blue dark:text-voxcina-cream" />
+              </div>
+              <h3 className="font-medium text-voxcina-blue dark:text-voxcina-cream mb-2">
+                نمایش سه‌بعدی
+              </h3>
+              <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4">
+                محصول را از تمام زوایا مشاهده کنید
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full rounded-xl"
+                disabled={true}
+              >
+                <Maximize2 className="w-4 h-4 ml-1" />
+                مشاهده سه‌بعدی
+              </Button>
+              <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50 mt-2">
+                (به زودی)
+              </span>
+            </div>
+          </motion.div>
+          
+          {/* QR Code for AR */}
+          <motion.div 
+            className="col-span-1 md:col-span-1 bg-white/70 dark:bg-voxcina-blue/10 border border-voxcina-cream/30 dark:border-voxcina-blue/30 rounded-xl p-5 shadow-sm backdrop-blur-sm"
+            whileHover={{ y: -5 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-voxcina-cream/50 dark:bg-voxcina-blue/30 rounded-full flex items-center justify-center mb-4 shadow-sm">
+                <Shirt className="h-8 w-8 text-voxcina-blue dark:text-voxcina-cream" />
+              </div>
+              <h3 className="font-medium text-voxcina-blue dark:text-voxcina-cream mb-2">
+                واقعیت افزوده
+              </h3>
+              <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4">
+                کد QR را اسکن کنید و محصول را در فضای واقعی ببینید
+              </p>
+              <div className="w-32 h-32 bg-white p-2 rounded-lg shadow-sm mb-3 flex items-center justify-center">
+                <div className="border-2 border-voxcina-blue/20 dark:border-voxcina-cream/20 w-full h-full flex items-center justify-center">
+                  <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50">
+                    QR Code
+                  </span>
+                </div>
+              </div>
+              <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50">
+                (به زودی)
+              </span>
+            </div>
+          </motion.div>
+        </div>
+        
+        {/* Loading and Result Preview Row */}
+        {(isTryOnLoading || resultImage) && (
+          <div className="mt-6 p-4 rounded-xl bg-white/70 dark:bg-voxcina-blue/10 border border-voxcina-cream/30 dark:border-voxcina-blue/30 shadow-sm">
+            {isTryOnLoading && (
+              <div className="flex flex-col items-center justify-center p-4">
+                <div className="w-12 h-12 relative mb-3">
+                  <div className="absolute top-0 right-0 w-full h-full border-4 border-voxcina-cream/30 dark:border-voxcina-blue/30 rounded-full animate-pulse-soft"></div>
+                  <div className="absolute top-0 right-0 w-full h-full border-4 border-t-voxcina-blue dark:border-t-voxcina-cream border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+                </div>
+                <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 font-medium">
+                  در حال پردازش تصویر...
+                </p>
+              </div>
+            )}
+            
+            {!isTryOnLoading && resultImage && (
+              <div className="flex flex-col md:flex-row items-center gap-6">
+                <div className="md:w-1/4">
+                  <h4 className="font-medium text-voxcina-blue dark:text-voxcina-cream mb-2 text-center md:text-right">
+                    نتیجه آزمایش مجازی
+                  </h4>
+                  <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4 text-center md:text-right">
+                    تصویر شما با این محصول
+                  </p>
+                </div>
+                <div className="md:w-3/4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {uploadedPreview && (
+                    <div className="aspect-square relative rounded-lg overflow-hidden border border-voxcina-cream/30 dark:border-voxcina-blue/30 shadow-sm">
+                      <img 
+                        src={uploadedPreview} 
+                        alt="تصویر شما" 
+                        className="object-cover w-full h-full"
+                      />
+                      <div className="absolute bottom-2 right-2 bg-white/80 dark:bg-voxcina-blue/80 text-voxcina-blue dark:text-white text-xs px-2 py-1 rounded-lg backdrop-blur-sm">
+                        تصویر اصلی
+                      </div>
+                    </div>
+                  )}
+                  <div className="aspect-square relative rounded-lg overflow-hidden border border-voxcina-cream/30 dark:border-voxcina-blue/30 shadow-sm">
+                    <img 
+                      src={resultImage} 
+                      alt="نتیجه آزمایش مجازی" 
+                      className="object-cover w-full h-full"
+                    />
+                    <div className="absolute bottom-2 right-2 bg-white/80 dark:bg-voxcina-blue/80 text-voxcina-blue dark:text-white text-xs px-2 py-1 rounded-lg backdrop-blur-sm">
+                      با لباس
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </motion.div>
+
       <AnimatePresence>
         {showNotifyModal && (
           <motion.div
@@ -1422,7 +1618,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
             >
               <button
