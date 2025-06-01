@@ -206,5 +206,18 @@ func NewRouter() *mux.Router {
 	// Admin Dashboard Statistics
 	adminRouter.HandleFunc("/dashboard-stats", handlers.DashboardStatsHandler).Methods("GET")
 
+	// --- Blog Post Routes ---
+	// Public blog routes (no authentication required)
+	api.HandleFunc("/blog-posts", handlers.GetBlogPosts).Methods(http.MethodGet)
+	api.HandleFunc("/blog-posts/{slug}", handlers.GetBlogPostBySlug).Methods(http.MethodGet)
+	api.HandleFunc("/blog/categories", handlers.GetBlogCategories).Methods(http.MethodGet)
+	api.HandleFunc("/blog/tags", handlers.GetBlogTags).Methods(http.MethodGet)
+
+	// Admin blog post management routes
+	adminRouter.HandleFunc("/blog-posts", handlers.GetAllBlogPosts).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/blog-posts", handlers.CreateBlogPost).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/blog-posts/{id}", handlers.UpdateBlogPost).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/blog-posts/{id}", handlers.DeleteBlogPost).Methods(http.MethodDelete)
+
 	return router
 }

@@ -39,6 +39,17 @@ func Connect(cfg *config.Config) *mongo.Database {
 		// If index creation failure is critical, consider log.Fatal(err)
 	}
 
+	// Ensure unique index for slug in blog_posts collection
+	blogPostsCollection := Database.Collection("blog_posts")
+	blogSlugIndexModel := mongo.IndexModel{
+		Keys:    bson.D{{Key: "slug", Value: 1}}, // 1 for ascending order
+		Options: options.Index().SetUnique(true),
+	}
+	_, err = blogPostsCollection.Indexes().CreateOne(context.Background(), blogSlugIndexModel)
+	if err != nil {
+		log.Printf("Warning: Could not ensure unique index for blog_posts slug: %v", err)
+	}
+
 	log.Println("Database connected and indexes ensured.")
 	return Database
 }
