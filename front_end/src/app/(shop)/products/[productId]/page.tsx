@@ -365,8 +365,12 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
   const handleTryOnSubmit = async () => {
     if (!activeProduct?.tryOnImage) return;
-    await startTryOn(activeProduct.tryOnImage);
-    setShowTryOnModal(false);
+    setShowTryOnModal(false); // Close modal immediately
+    try {
+      await startTryOn(activeProduct.tryOnImage);
+    } catch (error) {
+      console.error("Error in try-on process:", error);
+    }
   };
 
   const handleUserImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1080,24 +1084,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             </div>
           </motion.div>
 
-          {/* Virtual Try-On Button (moved here for better visibility) */}
-          <div className="mb-6">
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-xl"
-              disabled={!activeProduct.tryOnImage}
-              onClick={() => setShowTryOnModal(true)}
-            >
-              <Camera className="w-4 h-4 ml-1" />
-              آزمایش مجازی
-            </Button>
-            {!activeProduct.tryOnImage && (
-              <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50 ml-2">
-                (در دسترس نیست)
-              </span>
-            )}
-          </div>
+          
         </motion.div>
       </div>
 
@@ -1542,7 +1529,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   <Camera className="h-8 w-8 text-voxcina-blue dark:text-voxcina-cream" />
                 </div>
                 <h3 className="text-lg font-bold text-voxcina-blue dark:text-voxcina-cream">
-                  آزمایش مجازی
+                  پرو مجازی
                 </h3>
                 <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
                   تصویر خود را بارگذاری کنید و نتیجه را مشاهده کنید.
