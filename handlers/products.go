@@ -622,7 +622,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		if productUpdate.Price != nil {
 			update["price"] = *productUpdate.Price
 			somethingToUpdate = true
-
+			
 			// Update original price if not explicitly provided
 			if productUpdate.OriginalPrice == nil {
 				// Only update original price if it was previously equal to price

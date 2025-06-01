@@ -41,7 +41,6 @@ import ProductGrid from "@/components/product/ProductGrid";
 import ProductReviews from "@/components/product/ProductReviews";
 import { Review } from "@/types/product";
 import { useCategoryStore } from "@/store/category-store";
-import { hasAttribute } from "@/lib/utils";
 import Link from "next/link";
 import { useTryOnStore } from "@/store/tryon-store";
 
@@ -84,11 +83,14 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const { addToFavorites, isFavorite } = useDashboardStore();
   const { categories, fetchCategories, getCategoryName } = useCategoryStore();
   const {
-    uploadedImage,
+    uploadedPreview,
+    uploadedFile,
     resultImage,
     isProcessing: isTryOnLoading,
-    setUploadedImage,
+    taskToken,
+    setUploadedFile,
     startTryOn,
+    resumePending,
   } = useTryOnStore();
 
   const isProductFavorite =
@@ -170,6 +172,14 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   useEffect(() => {
     fetchProductById(productId);
   }, [productId, fetchProductById]);
+
+  // resume pending job when token becomes available (after hydration)
+  useEffect(() => {
+    if (taskToken) {
+      resumePending();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskToken]);
 
   const handleImageMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isZoomed || !imageContainerRef.current) return;
@@ -366,13 +376,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const handleUserImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setUploadedImage(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+    setUploadedFile(file);
   };
 
   return (
@@ -1447,9 +1451,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   onChange={handleUserImageSelect}
                   className="mb-4"
                 />
-                {uploadedImage && (
+                {uploadedPreview && (
                   <img
-                    src={uploadedImage}
+                    src={uploadedPreview}
                     alt="preview"
                     className="max-w-xs rounded-lg shadow"
                   />
@@ -1460,7 +1464,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 <motion.button
                   className="px-4 py-2 text-sm border border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-xl text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/20 dark:hover:bg-voxcina-blue/30 transition-colors shadow-sm"
                   onClick={() => {
-                    setUploadedImage(null);
+                    setUploadedFile(null);
                     setShowTryOnModal(false);
                   }}
                   whileHover={{ scale: 1.03 }}
@@ -1471,7 +1475,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 <motion.button
                   className="px-4 py-2 text-sm bg-voxcina-blue hover:bg-voxcina-darkBlue dark:bg-voxcina-cream/90 dark:hover:bg-voxcina-cream dark:text-voxcina-blue text-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 disabled:opacity-50"
                   onClick={handleTryOnSubmit}
-                  disabled={!uploadedImage}
+                  disabled={!uploadedFile}
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
                 >
