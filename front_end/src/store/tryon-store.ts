@@ -106,8 +106,12 @@ export const useTryOnStore = create<TryOnState>()(
 
           const resultRes = await fetch(`/viton/get-result/${token}`);
           if (!resultRes.ok) throw new Error("دریافت نتیجه ناموفق بود");
-          const resultBlob = await resultRes.blob();
-          const resultUrl = URL.createObjectURL(resultBlob);
+          const json = await resultRes.json();
+          const base64: string | undefined = json?.result?.generated_image;
+          if (!base64) throw new Error("تصویر تولید شده در پاسخ وجود ندارد");
+          const resultUrl = base64.startsWith("data:")
+            ? base64
+            : `data:image/png;base64,${base64}`;
 
           set({
             resultImage: resultUrl,
@@ -157,8 +161,10 @@ export const useTryOnStore = create<TryOnState>()(
 
           const resultRes = await fetch(`/viton/get-result/${taskToken}`);
           if (!resultRes.ok) throw new Error("دریافت نتیجه ناموفق بود");
-          const blob = await resultRes.blob();
-          const url = URL.createObjectURL(blob);
+          const json = await resultRes.json();
+          const base64: string | undefined = json?.result?.generated_image;
+          if (!base64) throw new Error("تصویر تولید شده در پاسخ وجود ندارد");
+          const url = base64.startsWith("data:") ? base64 : `data:image/png;base64,${base64}`;
           set({
             resultImage: url,
             isProcessing: false,
