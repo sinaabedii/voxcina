@@ -69,6 +69,10 @@ func NewRouter() *mux.Router {
 		Methods("DELETE")
 		// Soft delete
 
+	// Admin review moderation
+	adminRouter.HandleFunc("/reviews/{reviewId}/status", handlers.UpdateReviewStatusAdmin).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/reviews", handlers.AdminListReviews).Methods(http.MethodGet)
+
 	// Admin Order Management
 	adminRouter.HandleFunc("/orders", handlers.GetAllOrders).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/orders/recent", handlers.GetRecentOrders).Methods(http.MethodGet)
@@ -218,6 +222,9 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/blog-posts", handlers.CreateBlogPost).Methods(http.MethodPost)
 	adminRouter.HandleFunc("/blog-posts/{id}", handlers.UpdateBlogPost).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/blog-posts/{id}", handlers.DeleteBlogPost).Methods(http.MethodDelete)
+
+	// Fetch reviews written by a user (public)
+	api.HandleFunc("/users/{userId}/reviews", handlers.GetUserReviews).Methods(http.MethodGet)
 
 	return router
 }

@@ -35,6 +35,7 @@ import { Review } from "@/types/product";
 import { useCategoryStore } from "@/store/category-store";
 import Link from "next/link";
 import { useTryOnStore } from "@/store/tryon-store";
+import { useAuthStore } from "@/store/auth-store";
 
 interface ProductDetailPageProps {
   params: {
@@ -68,10 +69,11 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     error,
     addRecentlyViewed,
     recentlyViewed,
+    activeProductReviews,
   } = useProductStore();
 
   const { addItem } = useCartStore();
-  const { reviews, addReview, likeReview, dislikeReview } = useReviewStore();
+  const { submitReview, likeReview, dislikeReview } = useReviewStore();
   const { addToFavorites, isFavorite } = useDashboardStore();
   const { categories, fetchCategories, getCategoryName } = useCategoryStore();
   const {
@@ -88,6 +90,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     steps,
     setSteps,
   } = useTryOnStore();
+  const { isAuthenticated, user } = useAuthStore();
 
   const isProductFavorite =
     activeProduct && activeProduct.id ? isFavorite(activeProduct.id) : false;
@@ -149,9 +152,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     setSelectedColor(undefined);
   };
 
-  const productReviews = reviews.filter(
-    (review) => review.productId === productId
-  );
+  const productReviews = activeProductReviews;
 
   const avgRating =
     productReviews.length > 0
@@ -318,7 +319,12 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const handleAddReview = (
     reviewData: Omit<Review, "id" | "date" | "likes" | "dislikes">
   ) => {
-    addReview(reviewData);
+    if (!isAuthenticated || !user) {
+      alert("برای ثبت نظر ابتدا وارد شوید");
+      return;
+    }
+    const token = localStorage.getItem("authToken") || "";
+    submitReview(reviewData.productId, reviewData.rating, reviewData.comment, reviewData.isRecommended ?? true, token);
   };
 
   const handlePrevImage = () => {

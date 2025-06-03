@@ -4,6 +4,7 @@ import { Product, ProductFilter } from "@/types/product";
 import { delay, getBrandName, getCategoryName } from "@/lib/utils";
 import { Brand } from "@/types/brand";
 import { Category } from "@/types/category";
+import { Review } from "@/types/product";
 
 interface ProductState {
   products: Product[];
@@ -12,6 +13,7 @@ interface ProductState {
   isLoading: boolean;
   error: string | null;
   activeProduct: Product | null;
+  activeProductReviews: Review[];
   filter: ProductFilter;
   recentlyViewed: Product[];
   comparedProducts: Product[];
@@ -61,6 +63,7 @@ export const useProductStore = create<ProductState>()(
       isLoading: false,
       error: null,
       activeProduct: null,
+      activeProductReviews: [],
       filter: {},
       recentlyViewed: [],
       comparedProducts: [],
@@ -92,7 +95,7 @@ export const useProductStore = create<ProductState>()(
       },
 
       fetchProductById: async (id: string) => {
-        set({ isLoading: true, error: null, activeProduct: null });
+        set({ isLoading: true, error: null, activeProduct: null, activeProductReviews: [] });
         try {
           await delay(300);
           const response = await fetch(`/api/products/${id}`);
@@ -103,6 +106,15 @@ export const useProductStore = create<ProductState>()(
           
           if (!product) {
             throw new Error("محصول یافت نشد");
+          }
+
+          // Fetch product reviews (only approved ones returned by API)
+          try {
+            const revRes = await fetch(`/api/products/${id}/reviews`);
+            const reviews = revRes.ok ? await revRes.json() : [];
+            set({ activeProductReviews: Array.isArray(reviews) ? reviews : [] });
+          } catch {
+            set({ activeProductReviews: [] });
           }
 
           set({ activeProduct: product, isLoading: false });

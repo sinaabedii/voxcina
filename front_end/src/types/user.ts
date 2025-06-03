@@ -1,3 +1,5 @@
+import { Review } from "@/types/product";
+
 export interface User {
   id: string;
   name: string;
@@ -9,6 +11,7 @@ export interface User {
   createdAt: string;
   updatedAt: string;
   isActive?: boolean;
+  reviews?: Review[];
 }
 
 export interface Address {

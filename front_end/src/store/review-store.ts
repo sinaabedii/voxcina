@@ -3,6 +3,8 @@ import { persist } from "zustand/middleware";
 import { Review } from "@/types/product";
 import { generateId } from "@/lib/utils";
 
+type ReviewStatus = "pending" | "approved" | "rejected";
+
 interface UserAction {
   reviewId: string;
   action: "like" | "dislike";
@@ -12,6 +14,8 @@ interface ReviewState {
   /* --- state --- */
   reviews: Review[];
   userActions: UserAction[];
+  isLoading: boolean;
+  error: string | null;
 
   /* --- CRUD --- */
   addReview: (review: Omit<Review, "id" | "date" | "likes" | "dislikes">) => void;
@@ -32,6 +36,12 @@ interface ReviewState {
     reviewId: string,
     userId: string
   ) => "like" | "dislike" | null;
+
+  /* --- Backend API --- */
+  fetchReviewsByProductId: (productId: string) => Promise<void>;
+  submitReview: (productId: string, rating: number, comment: string, isRecommended: boolean, token: string) => Promise<Review | null>;
+  fetchReviewsByUser: (userId: string) => Promise<void>;
+  updateReviewStatusAdmin: (reviewId: string, status: ReviewStatus, adminToken: string) => Promise<boolean>;
 }
 
 export const useReviewStore = create<ReviewState>()(
@@ -40,6 +50,8 @@ export const useReviewStore = create<ReviewState>()(
       /* ---------- state ---------- */
       reviews: [],
       userActions: [],
+      isLoading: false,
+      error: null,
 
       /* ---------- CRUD ---------- */
       addReview: (reviewData) => {
@@ -106,6 +118,79 @@ export const useReviewStore = create<ReviewState>()(
             r.id === id ? { ...r, dislikes: r.dislikes + 1 } : r
           ),
         }));
+      },
+
+      /* ---------- Backend API ---------- */
+      fetchReviewsByProductId: async (productId) => {
+        set({ isLoading: true, error: null });
+        try {
+          const res = await fetch(`/api/products/${productId}/reviews`);
+          if (!res.ok) throw new Error("Failed to fetch reviews");
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            const normalized = data.map((r: any) => {
+              if (r && !r.userName && r.user_name) {
+                r.userName = r.user_name;
+              }
+              if (r && r.is_recommended !== undefined && r.isRecommended === undefined) {
+                r.isRecommended = r.is_recommended;
+              }
+              return r as Review;
+            });
+            set({ reviews: normalized, isLoading: false });
+          } else {
+            set({ reviews: [], isLoading: false });
+          }
+        } catch (err) {
+          set({ error: (err as Error).message, isLoading: false, reviews: [] });
+        }
+      },
+
+      submitReview: async (productId, rating, comment, isRecommended, token) => {
+        try {
+          const res = await fetch(`/api/products/${productId}/reviews`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ rating, comment, isRecommended }),
+          });
+          if (!res.ok) return null;
+          const review: Review = await res.json();
+          set((s) => ({ reviews: [review, ...s.reviews] }));
+          return review;
+        } catch {
+          return null;
+        }
+      },
+
+      fetchReviewsByUser: async (userId) => {
+        set({ isLoading: true, error: null });
+        try {
+          const res = await fetch(`/api/users/${userId}/reviews`);
+          if (!res.ok) throw new Error("Failed to fetch user reviews");
+          const data = await res.json();
+          set({ reviews: Array.isArray(data) ? data : [], isLoading: false });
+        } catch (err) {
+          set({ error: (err as Error).message, isLoading: false });
+        }
+      },
+
+      updateReviewStatusAdmin: async (reviewId, status, adminToken) => {
+        try {
+          const res = await fetch(`/api/admin/reviews/${reviewId}/status`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${adminToken}`,
+            },
+            body: JSON.stringify({ status }),
+          });
+          return res.ok;
+        } catch {
+          return false;
+        }
       },
     }),
     { name: "digi-style-reviews" }

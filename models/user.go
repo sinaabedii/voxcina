@@ -39,4 +39,5 @@ type User struct {
 	IsActive     bool               `bson:"is_active"           json:"is_active"` // Soft delete flag
 	CreatedAt    time.Time          `bson:"created_at"          json:"created_at"`
 	UpdatedAt    time.Time          `bson:"updated_at"          json:"updated_at"`
+	Reviews      []Review           `bson:"-"               json:"reviews,omitempty"` // Populated programmatically, not stored in MongoDB
 }

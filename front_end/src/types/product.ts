@@ -52,6 +52,7 @@ export interface Review {
   dislikes: number;
   userAvatar?: string;
   verified: boolean;
+  status?: "pending" | "approved" | "rejected";
   images?: string[];
   isRecommended?: boolean;
   replyTo?: string;

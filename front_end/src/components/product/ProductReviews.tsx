@@ -59,11 +59,21 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
     comment: "",
   });
 
+  const getDisplayDate = (r: any) => {
+    const ts = r.createdAt || r.created_at || r.date;
+    return ts ? new Date(ts).toLocaleDateString("fa-IR") : "";
+  };
+
+  const getReviewTimestamp = (r: any) => {
+    const ts = r.createdAt || r.created_at || r.date;
+    return ts ? new Date(ts).getTime() : 0;
+  };
+
   const sortedReviews = [...reviews]
     .sort((a, b) => {
       switch (sortBy) {
         case "newest":
-          return new Date(b.date).getTime() - new Date(a.date).getTime();
+          return getReviewTimestamp(b) - getReviewTimestamp(a);
         case "highest":
           return b.rating - a.rating;
         case "lowest":
@@ -386,29 +396,32 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
               >
                 <div className="flex justify-between mb-2">
                   <div className="flex items-center">
-                    {review.userAvatar ? (
-                      <div className="relative w-10 h-10 rounded-full overflow-hidden mr-3 shadow-soft border border-border/10">
-                        <Image
-                          src={review.userAvatar}
-                          alt={review.userName}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center ml-3 shadow-soft">
-                        {review.userName.charAt(0).toUpperCase()}
-                      </div>
-                    )}
+                    {(() => {
+                      const displayName = (review.userName as string | undefined) || (review as any).user_name || "?";
+                      return review.userAvatar ? (
+                        <div className="relative w-10 h-10 rounded-full overflow-hidden mr-3 shadow-soft border border-border/10">
+                          <Image
+                            src={review.userAvatar}
+                            alt={displayName}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center ml-3 shadow-soft">
+                          {displayName[0].toUpperCase()}
+                        </div>
+                      );
+                    })()}
                     <div>
                       <div className="font-medium flex items-center text-foreground">
-                        {review.userName}
+                        {((review.userName as string | undefined) || (review as any).user_name || "کاربر")}
                         {review.verified && (
                           <CheckCircle2 className="text-success w-4 h-4 mr-1" />
                         )}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {new Date(review.date).toLocaleDateString("fa-IR")}
+                        {getDisplayDate(review)}
                       </div>
                     </div>
                   </div>
