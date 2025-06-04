@@ -1,15 +1,17 @@
 import { Metadata } from 'next';
-import { blogPosts, getBlogPostBySlug } from '@/data/blog';
+import { BlogPost } from '@/types/blog';
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const post = getBlogPostBySlug(params.slug);
+  const res = await fetch(`/api/blog-posts/${params.slug}`);
 
-  if (!post) {
+  if (!res.ok) {
     return {
       title: 'مقاله یافت نشد | وکسینا',
       description: 'متأسفانه مقاله مورد نظر یافت نشد.',
     };
   }
+
+  const post: BlogPost = await res.json();
 
   return {
     title: `${post.title} | وکسینا`,
@@ -31,7 +33,9 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export async function generateStaticParams() {
-  return blogPosts.map((post) => ({
-    slug: post.slug,
-  }));
+  const res = await fetch('/api/blog-posts');
+  if (!res.ok) return [];
+  const json = await res.json();
+  const posts: BlogPost[] = Array.isArray(json) ? json : json.data;
+  return posts.map((post) => ({ slug: post.slug }));
 } 

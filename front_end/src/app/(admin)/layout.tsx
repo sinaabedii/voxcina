@@ -132,10 +132,10 @@ export default function AdminLayout({
       section: "analytics",
     },
     {
-      name: "صفحات",
-      href: "/admin/pages",
+      name: "بلاگ‌ها",
+      href: "/admin/blogs",
       icon: <FileText className="w-5 h-5 ml-3" />,
-      section: "pages",
+      section: "blogs",
     },
     {
       name: "تنظیمات",

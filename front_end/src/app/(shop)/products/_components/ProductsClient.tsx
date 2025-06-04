@@ -3,7 +3,6 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  SlidersHorizontal,
   X,
   Filter,
   ArrowUpDown,
@@ -11,6 +10,10 @@ import {
   Loader2,
   Check,
   RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  MoreHorizontal,
+  Circle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -27,6 +30,8 @@ export default function ProductsClient() {
   const searchParams = useSearchParams();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   const {
     products,
@@ -36,6 +41,7 @@ export default function ProductsClient() {
     getFilteredProducts,
     isLoading: isLoadingProducts,
     fetchProducts,
+    pagination,
   } = useProductStore();
 
   const {
@@ -65,19 +71,20 @@ export default function ProductsClient() {
 
     setFilter(initFilters);
 
-    if (products.length === 0) {
-      fetchProducts();
-    }
-
     // Fetch categories if needed
     fetchCategories();
   }, [
     searchParams,
     setFilter,
-    fetchProducts,
-    products.length,
     fetchCategories,
   ]);
+
+  // Fetch products when page changes or on mount
+  useEffect(() => {
+    fetchProducts(currentPage, PAGE_SIZE);
+    // Scroll to top of product list on page change
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [currentPage, fetchProducts]);
 
   const filteredProducts = getFilteredProducts();
 
@@ -462,6 +469,194 @@ export default function ProductsClient() {
               <motion.div variants={itemVariants}>
                 <ProductGrid products={filteredProducts} columns={3} />
               </motion.div>
+
+              {/* Pagination Controls */}
+              {pagination && pagination.totalPages > 1 && (
+                <motion.div
+                  className="flex flex-col items-center mt-12 space-y-6"
+                  variants={itemVariants}
+                >
+                  {/* Progress Dots */}
+                  <div className="flex items-center space-x-2 space-x-reverse">
+                    {Array.from({ length: Math.min(pagination.totalPages, 7) }).map((_, index) => {
+                      const pageNumber = index + 1;
+                      let actualPage;
+                      
+                      if (pagination.totalPages <= 7) {
+                        actualPage = pageNumber;
+                      } else {
+                        if (currentPage <= 4) {
+                          actualPage = pageNumber;
+                        } else if (currentPage >= pagination.totalPages - 3) {
+                          actualPage = pagination.totalPages - 6 + pageNumber;
+                        } else {
+                          actualPage = currentPage - 3 + pageNumber;
+                        }
+                      }
+
+                      const isActive = actualPage === currentPage;
+                      const isClickable = actualPage >= 1 && actualPage <= pagination.totalPages;
+
+                      return (
+                        <motion.div
+                          key={`dot-${actualPage}`}
+                          className={`relative cursor-pointer transition-all duration-300 ${
+                            isClickable ? 'opacity-100' : 'opacity-50'
+                          }`}
+                          whileHover={isClickable ? { scale: 1.2 } : {}}
+                          whileTap={isClickable ? { scale: 0.9 } : {}}
+                          onClick={() => isClickable && setCurrentPage(actualPage)}
+                        >
+                          <div
+                            className={`w-4 h-4 rounded-full transition-all duration-300 border-2 ${
+                              isActive
+                                ? 'bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-700 border-white dark:border-slate-800 shadow-xl shadow-purple-500/40 dark:shadow-purple-400/30'
+                                : 'bg-gray-300 dark:bg-slate-600 border-gray-400 dark:border-slate-500 hover:bg-blue-400 dark:hover:bg-blue-500 hover:border-blue-500 dark:hover:border-blue-400 shadow-md hover:shadow-lg'
+                            }`}
+                          />
+                          {isActive && (
+                            <motion.div
+                              className="absolute -inset-1.5 rounded-full border-2 border-blue-400/60 dark:border-purple-400/50"
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              transition={{ duration: 0.3 }}
+                            />
+                          )}
+                          {isActive && (
+                            <motion.div
+                              className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-400/20 to-purple-600/20 blur-sm"
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1.5 }}
+                              transition={{ duration: 0.5, repeat: Infinity, repeatType: "reverse" }}
+                            />
+                          )}
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Navigation Controls */}
+                  <div className="flex items-center justify-center">
+                    <motion.div 
+                      className="flex items-center bg-gradient-to-r from-white to-gray-50 dark:from-voxcina-blue/20 dark:to-voxcina-blue/10 rounded-2xl p-2 shadow-lg backdrop-blur-sm border border-voxcina-cream/30 dark:border-voxcina-blue/20"
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 0.1 }}
+                    >
+                      {/* Previous Button */}
+                      <motion.button
+                        className={`relative flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-300 ${
+                          currentPage === 1
+                            ? 'text-voxcina-blue/30 dark:text-voxcina-cream/30 cursor-not-allowed'
+                            : 'text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-cream/10 hover:shadow-md'
+                        }`}
+                        onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        whileHover={currentPage > 1 ? { scale: 1.05 } : {}}
+                        whileTap={currentPage > 1 ? { scale: 0.95 } : {}}
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                        {currentPage > 1 && (
+                          <motion.div
+                            className="absolute inset-0 rounded-xl bg-voxcina-blue/5 dark:bg-voxcina-cream/5"
+                            initial={{ scale: 0 }}
+                            whileHover={{ scale: 1 }}
+                            transition={{ duration: 0.2 }}
+                          />
+                        )}
+                      </motion.button>
+
+                      {/* Page Info */}
+                      <div className="flex items-center mx-4">
+                        <motion.div 
+                          className="text-center min-w-[120px]"
+                          key={currentPage}
+                          initial={{ y: 10, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <div className="text-lg font-bold text-voxcina-blue dark:text-voxcina-cream">
+                            {currentPage}
+                          </div>
+                          <div className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
+                            از {pagination.totalPages} صفحه
+                          </div>
+                        </motion.div>
+                      </div>
+
+                      {/* Next Button */}
+                      <motion.button
+                        className={`relative flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-300 ${
+                          currentPage === pagination.totalPages
+                            ? 'text-voxcina-blue/30 dark:text-voxcina-cream/30 cursor-not-allowed'
+                            : 'text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-cream/10 hover:shadow-md'
+                        }`}
+                        onClick={() => currentPage < pagination.totalPages && setCurrentPage(currentPage + 1)}
+                        disabled={currentPage === pagination.totalPages}
+                        whileHover={currentPage < pagination.totalPages ? { scale: 1.05 } : {}}
+                        whileTap={currentPage < pagination.totalPages ? { scale: 0.95 } : {}}
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                        {currentPage < pagination.totalPages && (
+                          <motion.div
+                            className="absolute inset-0 rounded-xl bg-voxcina-blue/5 dark:bg-voxcina-cream/5"
+                            initial={{ scale: 0 }}
+                            whileHover={{ scale: 1 }}
+                            transition={{ duration: 0.2 }}
+                          />
+                        )}
+                      </motion.button>
+                    </motion.div>
+                  </div>
+
+                  {/* Quick Jump */}
+                  {pagination.totalPages > 7 && (
+                    <motion.div
+                      className="flex items-center space-x-2 space-x-reverse text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      <span>رفتن به:</span>
+                      <div className="flex items-center space-x-1 space-x-reverse">
+                        {/* First Page */}
+                        {currentPage > 4 && (
+                          <>
+                            <motion.button
+                              className="w-8 h-8 rounded-lg bg-voxcina-cream/30 dark:bg-voxcina-blue/20 text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-cream/10 transition-all duration-200 text-xs font-medium"
+                              onClick={() => setCurrentPage(1)}
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              1
+                            </motion.button>
+                            {currentPage > 5 && (
+                              <MoreHorizontal className="h-4 w-4 text-voxcina-blue/40 dark:text-voxcina-cream/40" />
+                            )}
+                          </>
+                        )}
+                        
+                        {/* Last Page */}
+                        {currentPage < pagination.totalPages - 3 && (
+                          <>
+                            {currentPage < pagination.totalPages - 4 && (
+                              <MoreHorizontal className="h-4 w-4 text-voxcina-blue/40 dark:text-voxcina-cream/40" />
+                            )}
+                            <motion.button
+                              className="w-8 h-8 rounded-lg bg-voxcina-cream/30 dark:bg-voxcina-blue/20 text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-cream/10 transition-all duration-200 text-xs font-medium"
+                              onClick={() => setCurrentPage(pagination.totalPages)}
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              {pagination.totalPages}
+                            </motion.button>
+                          </>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </motion.div>
+              )}
             </>
           )}
         </motion.div>

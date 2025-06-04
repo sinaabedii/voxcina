@@ -2,29 +2,34 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { BlogPost } from '@/data/blog';
+import { useBlogStore } from '@/store/blog-store';
 import BlogCard from './BlogCard';
 import BlogCategories from './BlogCategories';
 import BlogSearch from './BlogSearch';
 import BlogSidebar from './BlogSidebar';
 
-interface BlogClientContentProps {
-  blogPosts: BlogPost[];
-  categories: string[];
-  tags: string[];
-}
-
-export default function BlogClientContent({
-  blogPosts,
-  categories,
-  tags,
-}: BlogClientContentProps) {
+export default function BlogClientContent() {
   const searchParams = useSearchParams();
+  const {
+    posts: blogPosts,
+    categories,
+    tags,
+    fetchPosts,
+  } = useBlogStore();
+
   const [filteredPosts, setFilteredPosts] = useState(blogPosts);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
     searchParams.get('category')
   );
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+
+  // Initial fetch when component mounts
+  useEffect(() => {
+    if (blogPosts.length === 0) {
+      fetchPosts();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Filter posts based on category, tag, and search term
   useEffect(() => {
@@ -112,11 +117,7 @@ export default function BlogClientContent({
 
         <div className="mt-8 lg:mt-0 lg:col-span-4">
           <div className="sticky top-24">
-            <BlogSidebar
-              posts={blogPosts}
-              categories={categories}
-              tags={tags}
-            />
+            <BlogSidebar posts={blogPosts} categories={categories} tags={tags} />
           </div>
         </div>
       </div>

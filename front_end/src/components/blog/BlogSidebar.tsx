@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BlogPost } from "@/data/blog";
+import { BlogPost } from "@/types/blog";
 import BlogCard from "./BlogCard";
 
 interface BlogSidebarProps {

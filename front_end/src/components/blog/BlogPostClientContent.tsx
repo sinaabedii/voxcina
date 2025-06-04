@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { BlogPost } from '@/data/blog';
+import { BlogPost } from '@/types/blog';
 import { CalendarIcon, ClockIcon, ArrowRight as ArrowRightIcon } from 'lucide-react';
 import RelatedPosts from '@/components/blog/RelatedPosts';
 import BlogSidebar from '@/components/blog/BlogSidebar';

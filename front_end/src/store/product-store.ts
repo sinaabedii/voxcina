@@ -1,10 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { Product, ProductFilter } from "@/types/product";
+import { Product, ProductFilter, Review, PaginationInfo } from "@/types/product";
 import { delay, getBrandName, getCategoryName } from "@/lib/utils";
 import { Brand } from "@/types/brand";
 import { Category } from "@/types/category";
-import { Review } from "@/types/product";
 
 interface ProductState {
   products: Product[];
@@ -19,14 +18,15 @@ interface ProductState {
   comparedProducts: Product[];
   brands: Brand[];
   categories: Category[];
+  pagination: PaginationInfo | null;
 
 
   fetchBrands: () => Promise<void>;
   fetchCategories: () => Promise<void>;
-  fetchProducts: () => Promise<void>;
+  fetchProducts: (page?: number, limit?: number) => Promise<void>;
   fetchProductById: (id: string) => Promise<void>;
-  fetchFlashSaleProducts: () => Promise<void>;
-  fetchNewProducts: () => Promise<void>;
+  fetchFlashSaleProducts: (limit?: number) => Promise<void>;
+  fetchNewProducts: (limit?: number) => Promise<void>;
   setFilter: (filter: Partial<ProductFilter>) => void;
   clearFilters: () => void;
   getFilteredProducts: () => Product[];
@@ -69,25 +69,30 @@ export const useProductStore = create<ProductState>()(
       comparedProducts: [],
       brands: [],
       categories: [],
+      pagination: null,
 
-      fetchProducts: async () => {
+      fetchProducts: async (page = 1, limit = 20) => {
         set({ isLoading: true, error: null });
         try {
-          await delay(500);
-          const response = await fetch("/api/products");
+          const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+          const response = await fetch(`/api/products?${params.toString()}`);
           if (!response.ok) {
             throw new Error("Failed to fetch products");
           }
           const data = await response.json();
           
           if (Array.isArray(data)) {
-            set({ products: data, isLoading: false });
+            // Legacy support (no pagination)
+            set({ products: data, pagination: null, isLoading: false });
+          } else if (data && data.data) {
+            set({ products: data.data, pagination: data.pagination, isLoading: false });
           } else {
-            set({ products: [], isLoading: false });
+            set({ products: [], pagination: null, isLoading: false });
           }
         } catch (error) {
           set({
             products: [],
+            pagination: null,
             error: "خطا در دریافت محصولات. لطفا دوباره تلاش کنید.",
             isLoading: false,
           });
@@ -130,10 +135,11 @@ export const useProductStore = create<ProductState>()(
         }
       },
 
-      fetchFlashSaleProducts: async () => {
+      fetchFlashSaleProducts: async (limit = 10) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await fetch("/api/products?is_flash_sale=true");
+          const params = new URLSearchParams({ is_flash_sale: "true", limit: String(limit) });
+          const response = await fetch(`/api/products?${params.toString()}`);
           if (!response.ok) {
             throw new Error("Failed to fetch flash sale products");
           }
@@ -141,6 +147,8 @@ export const useProductStore = create<ProductState>()(
           
           if (Array.isArray(data)) {
             set({ featuredProducts: data, isLoading: false });
+          } else if (data && data.data) {
+            set({ featuredProducts: data.data, isLoading: false });
           } else {
             set({ featuredProducts: [], isLoading: false });
           }
@@ -153,10 +161,11 @@ export const useProductStore = create<ProductState>()(
         }
       },
 
-      fetchNewProducts: async () => {
+      fetchNewProducts: async (limit = 10) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await fetch("/api/products?is_new=true");
+          const params = new URLSearchParams({ is_new: "true", limit: String(limit) });
+          const response = await fetch(`/api/products?${params.toString()}`);
           if (!response.ok) {
             throw new Error("Failed to fetch new products");
           }
@@ -164,6 +173,8 @@ export const useProductStore = create<ProductState>()(
           
           if (Array.isArray(data)) {
             set({ newProducts: data, isLoading: false });
+          } else if (data && data.data) {
+            set({ newProducts: data.data, isLoading: false });
           } else {
             set({ newProducts: [], isLoading: false });
           }

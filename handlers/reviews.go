@@ -126,26 +126,6 @@ func AddReview(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	collection := db.Database.Collection("reviews")
 
-	// --- Check for existing review by this user for this product ---
-	filter := bson.M{"user_id": userID, "product_id": productID}
-	count, err := collection.CountDocuments(ctx, filter)
-	if err != nil {
-		utils.ErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"Error checking for existing review: "+err.Error(),
-		)
-		return
-	}
-	if count > 0 {
-		utils.ErrorResponse(
-			w,
-			http.StatusConflict,
-			"You have already reviewed this product",
-		)
-		return
-	}
-
 	// --- Check if Product actually exists (optional but good practice) ---
 	productCollection := db.Database.Collection("products")
 	productCount, err := productCollection.CountDocuments(

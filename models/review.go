@@ -24,4 +24,4 @@ type Review struct {
 // - product_id (For fetching product reviews)
 // - user_id (For fetching reviews written by a specific user)
 // - status (For counting pending reviews moderation)
-// - Compound index: {user_id: 1, product_id: 1} (Prevent duplicate reviews)
+// - Optional compound index: {user_id: 1, product_id: 1} (Can be used for faster lookup of a user's reviews on a product; should NOT be unique to allow multiple reviews)

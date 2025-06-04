@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BlogPost } from '@/data/blog';
+import { BlogPost } from '@/types/blog';
 
 interface BlogCategoriesProps {
   posts: BlogPost[];

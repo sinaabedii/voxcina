@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { BlogPost } from '@/data/blog';
+import { BlogPost } from '@/types/blog';
 import { CalendarIcon, ClockIcon } from 'lucide-react';
 
 interface BlogCardProps {

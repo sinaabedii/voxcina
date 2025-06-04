@@ -1,32 +1,43 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { BlogPost, blogPosts, getBlogPostBySlug } from '@/data/blog';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import BlogPostClientContent from '@/components/blog/BlogPostClientContent';
+import { BlogPost } from '@/types/blog';
 
-export default function BlogPostPage({ params }: { params: { slug: string } }) {
-  const post = getBlogPostBySlug(params.slug);
+export default async function BlogPostPage({ params }: { params: { slug: string } }) {
+  const { slug } = params;
 
-  if (!post) {
+  // Fetch the blog post by slug
+  const postRes = await fetch(`/api/blog-posts/${slug}`, {
+    // Next.js caching: revalidate every 60s
+    next: { revalidate: 60 },
+  });
+
+  if (postRes.status === 404) {
     notFound();
   }
 
-  // Extract all categories for sidebar
-  const categories = Array.from(new Set(blogPosts.map((post) => post.category))).sort();
+  if (!postRes.ok) {
+    throw new Error('Failed to fetch blog post');
+  }
 
-  // Extract all tags for sidebar
-  const tags = Array.from(new Set(blogPosts.flatMap((post) => post.tags))).sort();
+  const post: BlogPost = await postRes.json();
+
+  // Fetch categories and tags (optional)
+  const [catRes, tagRes] = await Promise.all([
+    fetch(`/api/blog/categories`, { next: { revalidate: 300 } }),
+    fetch(`/api/blog/tags`, { next: { revalidate: 300 } }),
+  ]);
+
+  const categories: string[] = catRes.ok ? await catRes.json() : [];
+  const tags: string[] = tagRes.ok ? await tagRes.json() : [];
 
   return (
     <>
       <Header />
       <Suspense fallback={<BlogPostLoadingSkeleton />}>
-        <BlogPostClientContent
-          post={post}
-          categories={categories}
-          tags={tags}
-        />
+        <BlogPostClientContent post={post} categories={categories} tags={tags} />
       </Suspense>
       <Footer />
     </>

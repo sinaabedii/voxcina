@@ -1,18 +1,9 @@
 import { Suspense } from 'react';
-import { blogPosts } from '@/data/blog';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import BlogClientContent from '@/components/blog/BlogClientContent';
 
 export default function BlogPage() {
-  // Extract all categories for metadata
-  const categories = Array.from(new Set(blogPosts.map((post) => post.category))).sort();
-
-  // Extract all tags for metadata
-  const tags = Array.from(
-    new Set(blogPosts.flatMap((post) => post.tags))
-  ).sort();
-
   return (
     <>
       <Header />
@@ -32,11 +23,7 @@ export default function BlogPage() {
       <section className="py-8 md:py-12">
         <div className="container px-4 sm:px-6 md:px-8">
           <Suspense fallback={<BlogLoadingSkeleton />}>
-            <BlogClientContent
-              blogPosts={blogPosts}
-              categories={categories}
-              tags={tags}
-            />
+            <BlogClientContent />
           </Suspense>
         </div>
       </section>

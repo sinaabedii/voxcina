@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -391,25 +392,64 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 
 	collection := db.Database.Collection("products")
 
-	// Only fetch active products
+	// Pagination parameters
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+
+	page := 1
+	if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+		page = p
+	}
+
+	limit := 20 // default page size
+	if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+		limit = l
+	}
+
+	skip := (page - 1) * limit
+
+	// Build base filter (only active products)
 	filter := bson.M{"is_active": true}
-	cursor, err := collection.Find(ctx, filter)
+
+	// Optional filters
+	if r.URL.Query().Get("is_flash_sale") == "true" {
+		filter["is_flash_sale"] = true
+	}
+	if r.URL.Query().Get("is_new") == "true" {
+		// We treat "new" as created in last 30 days or we simply sort by created_at desc later
+		// Add a placeholder flag to sort
+	}
+
+	totalProducts, err := collection.CountDocuments(ctx, filter)
 	if err != nil {
-		// Return empty array instead of error for database connection issues
-		utils.JSONResponse(w, http.StatusOK, []models.Product{})
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error counting products")
+		return
+	}
+
+	// Prepare find options (pagination & optional sorting)
+	opts := options.Find().SetSkip(int64(skip)).SetLimit(int64(limit))
+	if r.URL.Query().Get("is_new") == "true" {
+		opts.SetSort(bson.M{"created_at": -1})
+	}
+
+	cursor, err := collection.Find(ctx, filter, opts)
+	if err != nil {
+		// Return empty array wrapped in pagination structure to preserve contract
+		response := map[string]interface{}{
+			"data":       []models.Product{},
+			"pagination": map[string]interface{}{},
+		}
+		utils.JSONResponse(w, http.StatusOK, response)
 		return
 	}
 
 	var products []models.Product
 	if err := cursor.All(ctx, &products); err != nil {
-		// Return empty array instead of error for decoding issues
-		utils.JSONResponse(w, http.StatusOK, []models.Product{})
-		return
-	}
-
-	// If no products found, return empty array
-	if len(products) == 0 {
-		utils.JSONResponse(w, http.StatusOK, []models.Product{})
+		response := map[string]interface{}{
+			"data":       []models.Product{},
+			"pagination": map[string]interface{}{},
+		}
+		utils.JSONResponse(w, http.StatusOK, response)
 		return
 	}
 
@@ -418,7 +458,45 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 		products[i].TryOnImage = ""
 	}
 
-	utils.JSONResponse(w, http.StatusOK, products)
+	totalPages := int(math.Ceil(float64(totalProducts) / float64(limit)))
+
+	// Determine next/prev pages (use *int for omitempty behaviour)
+	var nextPage *int
+	if page < totalPages {
+		n := page + 1
+		nextPage = &n
+	}
+	var prevPage *int
+	if page > 1 {
+		p := page - 1
+		prevPage = &p
+	}
+
+	type paginationInfo struct {
+		TotalPages    int   `json:"totalPages"`
+		CurrentPage   int   `json:"currentPage"`
+		NextPage      *int  `json:"nextPage,omitempty"`
+		PrevPage      *int  `json:"prevPage,omitempty"`
+		TotalProducts int64 `json:"totalProducts"`
+	}
+
+	type productsResponse struct {
+		Data       []models.Product `json:"data"`
+		Pagination paginationInfo  `json:"pagination"`
+	}
+
+	resp := productsResponse{
+		Data: products,
+		Pagination: paginationInfo{
+			TotalPages:    totalPages,
+			CurrentPage:   page,
+			NextPage:      nextPage,
+			PrevPage:      prevPage,
+			TotalProducts: totalProducts,
+		},
+	}
+
+	utils.JSONResponse(w, http.StatusOK, resp)
 }
 
 // GetProduct handles GET /api/products/{id}

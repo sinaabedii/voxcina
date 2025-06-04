@@ -135,3 +135,19 @@ export interface ProductStats {
   averageRating: number;
   lastUpdated: string;
 }
+
+// ================================================
+// Pagination response helpers
+// ================================================
+export interface PaginationInfo {
+  totalPages: number;
+  currentPage: number;
+  nextPage?: number;
+  prevPage?: number;
+  totalProducts: number;
+}
+
+export interface PaginatedProductsResponse {
+  data: Product[];
+  pagination: PaginationInfo;
+}
