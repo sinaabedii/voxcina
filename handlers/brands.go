@@ -269,6 +269,7 @@ func UpdateBrand(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 	slug := r.FormValue("slug")
 	description := r.FormValue("description")
+	isActiveStr := r.FormValue("isActive")
 
 	// Fetch existing brand to get old logo path for deletion and to update
 	ctx, cancel := context.WithTimeout(
@@ -300,6 +301,11 @@ func UpdateBrand(w http.ResponseWriter, r *http.Request) {
 	if description != "" {
 		update["description"] = description
 		existingBrand.Description = description // Update for response
+	}
+	if isActiveStr != "" {
+		parsedIsActive := isActiveStr == "true"  // Simple conversion for "true" string
+		update["isActive"] = parsedIsActive
+		existingBrand.IsActive = parsedIsActive    // Update for response
 	}
 
 	// Handle logo upload

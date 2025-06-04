@@ -13,7 +13,7 @@ export function formatPrice(price: number) {
     style: "decimal",
   });
 
-  const priceInTomans = Math.floor(price / 10);
+  const priceInTomans = price;
 
   return formatter.format(priceInTomans) + " تومان";
 }

@@ -11,8 +11,6 @@ import {
   Trash2,
   ChevronRight,
   ChevronLeft,
-  ArrowUp,
-  ArrowDown,
   PackageOpen,
   X,
   Building,
@@ -38,11 +36,7 @@ interface Brand {
   updatedAt?: string;
 }
 
-interface ClientBrandsPageProps {
-  initialBrands: Brand[];
-}
-
-export default function ClientBrandsPage({ initialBrands }: ClientBrandsPageProps) {
+export default function ClientBrandsPage() {
   // Use the brand store
   const {
     brands,
@@ -133,11 +127,12 @@ export default function ClientBrandsPage({ initialBrands }: ClientBrandsPageProp
         return;
       }
       const formData = new FormData();
-      Object.entries(editingBrand).forEach(([key, value]) => {
-        if (key !== "logo") {
-          formData.append(key, String(value));
-        }
-      });
+      formData.append("name", editingBrand.name);
+      formData.append("slug", editingBrand.slug);
+      formData.append("isActive", String(editingBrand.isActive));
+      if (editingBrand.description) {
+        formData.append("description", editingBrand.description);
+      }
       if (editingBrand.logo && typeof editingBrand.logo !== "string") {
         formData.append("logo", editingBrand.logo as File);
       }
@@ -170,22 +165,6 @@ export default function ClientBrandsPage({ initialBrands }: ClientBrandsPageProp
     } else if (editingBrand) {
       setEditingBrand({ ...editingBrand, logo: file });
     }
-  };
-
-  // Move brand up/down in order
-  const moveUpDown = (index: number, direction: "up" | "down") => {
-    if (
-      (direction === "up" && index === 0) ||
-      (direction === "down" && index === filteredBrands.length - 1)
-    ) {
-      return;
-    }
-
-    const newIndex = direction === "up" ? index - 1 : index + 1;
-    const brand = filteredBrands[index];
-    const targetBrand = filteredBrands[newIndex];
-    // Update order logic here if needed
-    // No setBrands, as we use the store now
   };
 
   // Animation variants
@@ -360,26 +339,6 @@ export default function ClientBrandsPage({ initialBrands }: ClientBrandsPageProp
                           onClick={() => handleDeleteBrand(brand.id!)}
                         >
                           <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      <div className="flex flex-col space-y-1 mr-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:text-voxcina-blue dark:hover:text-voxcina-cream rounded-lg"
-                          onClick={() => moveUpDown(index, "up")}
-                          disabled={index === 0}
-                        >
-                          <ArrowUp className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:text-voxcina-blue dark:hover:text-voxcina-cream rounded-lg"
-                          onClick={() => moveUpDown(index, "down")}
-                          disabled={index === currentBrands.length - 1}
-                        >
-                          <ArrowDown className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
