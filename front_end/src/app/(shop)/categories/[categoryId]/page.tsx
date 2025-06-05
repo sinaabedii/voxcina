@@ -6,12 +6,7 @@ import ProductGrid from '@/components/product/ProductGrid';
 import { motion } from 'framer-motion';
 import { PackageOpen, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
-
-interface CategoryDetailPageProps {
-  params: {
-    categoryId: string;
-  };
-}
+import { useParams } from 'next/navigation';
 
 // Define a local interface for the category
 interface Category {
@@ -20,8 +15,8 @@ interface Category {
   description?: string;
 }
 
-export default function CategoryDetailPage({ params }: CategoryDetailPageProps) {
-  const { categoryId } = params;
+export default function CategoryDetailPage() {
+  const { categoryId } = useParams() as { categoryId: string };
   const { 
     // Remove activeCategory from here
     // fetchCategoryById, // This doesn't seem to exist in your store

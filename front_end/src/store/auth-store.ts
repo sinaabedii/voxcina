@@ -17,7 +17,49 @@ export interface AuthStore extends AuthState {
   fetchAllUsers: () => Promise<User[]>;
   updateUserAsAdmin: (userId: string, userData: Partial<User>) => Promise<User>;
   deleteUserAsAdmin: (userId: string) => Promise<void>;
+  loginSms: (phone: string) => Promise<User>;
   allUsers: User[];
+}
+
+// Helper to automatically refresh access token on 401 responses
+async function fetchWithAuth(url: string, options: RequestInit = {}) {
+  const token = localStorage.getItem("authToken");
+  const existingHeaders = (options.headers as Record<string, string>) || {};
+  // First attempt with current access token
+  let response = await fetch(url, {
+    ...options,
+    headers: {
+      ...existingHeaders,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (response.status === 401) {
+    const refreshToken = localStorage.getItem("refreshToken");
+    if (refreshToken) {
+      const refreshRes = await fetch("/api/users/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (refreshRes.ok) {
+        const data = await refreshRes.json();
+        localStorage.setItem("authToken", data.accessToken);
+        // Retry original request with new access token
+        response = await fetch(url, {
+          ...options,
+          headers: {
+            ...existingHeaders,
+            Authorization: `Bearer ${data.accessToken}`,
+          },
+        });
+      } else {
+        // Refresh failed; clear tokens
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("refreshToken");
+      }
+    }
+  }
+  return response;
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -36,9 +78,7 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const response = await fetch("/api/users/login", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(credentials),
           });
       
@@ -59,6 +99,7 @@ export const useAuthStore = create<AuthStore>()(
       
           if (data.token) {
             localStorage.setItem("authToken", data.token);
+            if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
             
             // Create a user object from the backend response structure
             const user: User = {
@@ -108,6 +149,7 @@ export const useAuthStore = create<AuthStore>()(
             toast.error(errorMessage);
           }
           localStorage.removeItem("authToken");
+          localStorage.removeItem("refreshToken");
           throw error;
         }
       },
@@ -135,6 +177,7 @@ export const useAuthStore = create<AuthStore>()(
                 name: data.name,
                 email: data.email,
                 password: data.password,
+                phone: data.phone,
               }),
             });
 
@@ -156,12 +199,14 @@ export const useAuthStore = create<AuthStore>()(
             // Extract token from response
             if (userData.token) {
               localStorage.setItem("authToken", userData.token);
+              if (userData.refreshToken) localStorage.setItem("refreshToken", userData.refreshToken);
               
               // Create user object from backend response structure
               const user: User = {
                 id: userData.id || userData._id,
                 name: userData.name,
                 email: userData.email,
+                phone: userData.phone,
                 role: userData.role as "user" | "admin" | "seller" | "customer",
                 createdAt: userData.createdAt || userData.created_at,
                 updatedAt: userData.updatedAt || userData.updated_at
@@ -217,6 +262,7 @@ export const useAuthStore = create<AuthStore>()(
           console.error("Logout error:", error);
         } finally {
           localStorage.removeItem("authToken");
+          localStorage.removeItem("refreshToken");
           set({
             user: null,
             isAuthenticated: false,
@@ -238,12 +284,9 @@ export const useAuthStore = create<AuthStore>()(
             throw new Error(errorMessage);
           }
 
-          const response = await fetch("/api/users/profile", {
+          const response = await fetchWithAuth("/api/users/profile", {
             method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`,
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(userData),
           });
 
@@ -295,11 +338,7 @@ export const useAuthStore = create<AuthStore>()(
             throw new Error(errorMessage);
           }
 
-          const response = await fetch("/api/users/profile", {
-            headers: {
-              "Authorization": `Bearer ${token}`,
-            },
-          });
+          const response = await fetchWithAuth("/api/users/profile");
 
           const data = await response.json();
 
@@ -313,6 +352,7 @@ export const useAuthStore = create<AuthStore>()(
             });
             if (response.status === 401) {
               localStorage.removeItem("authToken");
+              localStorage.removeItem("refreshToken");
               toast.error("جلسه شما منقضی شده است. لطفا مجددا وارد شوید");
             } else {
               toast.error(errorMessage);
@@ -514,6 +554,49 @@ export const useAuthStore = create<AuthStore>()(
           const errorMessage = error instanceof Error ? error.message : "Unknown error deleting user";
           set({ isLoading: false, error: errorMessage });
           toast.error(errorMessage);
+          throw error;
+        }
+      },
+
+      // Login via SMS one-time code
+      loginSms: async (phone) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await fetch("/api/users/login-sms", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone }),
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            const errorMessage = data.error || "خطا در ورود با کد یکبار مصرف";
+            set({ isLoading: false, error: errorMessage });
+            toast.error(errorMessage);
+            throw new Error(errorMessage);
+          }
+          if (data.token) {
+            localStorage.setItem("authToken", data.token);
+            if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
+            const user: User = {
+              id: data.id || data._id,
+              name: data.name,
+              email: data.email,
+              phone: data.phone,
+              role: data.role as any,
+              createdAt: data.createdAt || data.created_at,
+              updatedAt: data.updatedAt || data.updated_at,
+            };
+            set({ user, isAuthenticated: true, isLoading: false, error: null });
+            toast.success(`خوش آمدید، ${user.name}!`);
+            return user;
+          } else {
+            const errorMessage = "فرمت پاسخ سرور نامعتبر است";
+            set({ isLoading: false, error: errorMessage });
+            toast.error(errorMessage);
+            throw new Error(errorMessage);
+          }
+        } catch (error) {
+          set({ isLoading: false });
           throw error;
         }
       },

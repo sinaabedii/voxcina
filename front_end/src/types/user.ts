@@ -57,6 +57,7 @@ export interface RegistrationData {
   email: string;
   password: string;
   confirmPassword: string;
+  phone: string;
 }
 
 export interface AuthState {

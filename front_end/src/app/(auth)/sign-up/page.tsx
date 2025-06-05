@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, Phone } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/input";
@@ -18,10 +18,12 @@ export default function SignUpPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{
     name?: string;
     email?: string;
+    phone?: string;
     password?: string;
     confirmPassword?: string;
   }>({});
@@ -33,6 +35,7 @@ export default function SignUpPage() {
     const newErrors: {
       name?: string;
       email?: string;
+      phone?: string;
       password?: string;
       confirmPassword?: string;
     } = {};
@@ -61,6 +64,12 @@ export default function SignUpPage() {
       newErrors.confirmPassword = "تکرار رمز عبور مطابقت ندارد";
     }
 
+    if (!phone) {
+      newErrors.phone = "شماره تلفن الزامی است";
+    } else if (!/^\+?\d{10,15}$/.test(phone)) {
+      newErrors.phone = "شماره تلفن نامعتبر است";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -74,7 +83,7 @@ export default function SignUpPage() {
     }
 
     try {
-      await register({ name, email, password, confirmPassword });
+      await register({ name, email, password, confirmPassword, phone });
       router.push("/");
     } catch (error) {
       // Error is already handled in the auth store with toast
@@ -216,6 +225,20 @@ export default function SignUpPage() {
                         <Lock className="h-4 w-4 sm:h-5 sm:w-5 text-voxcina-blue/60" />
                       }
                       placeholder="••••••••"
+                      className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5"
+                    />
+                  </motion.div>
+
+                  <motion.div variants={itemVariants}>
+                    <Input
+                      label="شماره تلفن"
+                      type="tel"
+                      id="phone"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      error={errors.phone}
+                      leftElement={<Phone className="h-4 w-4 sm:h-5 sm:w-5 text-voxcina-blue/60" />}
+                      placeholder="09123456789"
                       className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5"
                     />
                   </motion.div>

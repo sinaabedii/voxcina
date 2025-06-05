@@ -14,16 +14,76 @@ import { APP_NAME } from "@/lib/constants";
 import { toast } from "react-toastify";
 
 export default function SignInPage() {
+  const [mode, setMode] = useState<'password' | 'sms'>("password");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [smsCode, setSmsCode] = useState("");
+  const [isSent, setIsSent] = useState(false);
+  const [smsError, setSmsError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>(
     {}
   );
 
-  const { login, isLoading } = useAuthStore();
+  const { login, loginSms, isLoading } = useAuthStore();
   const router = useRouter();
+
+  // Send OTP via SMS
+  const sendCode = async () => {
+    setSmsError(null);
+    try {
+      // Check if phone exists in backend
+      const checkRes = await fetch("/api/users/check-phone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      if (!checkRes.ok) {
+        toast.error("there is no such user with the provided phone, and you should sign up first");
+        return;
+      }
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsSent(true);
+        toast.success("کد ارسال شد");
+      } else {
+        setSmsError(data.error || "خطا در ارسال کد");
+        toast.error(data.error || "خطا در ارسال کد");
+      }
+    } catch (err: any) {
+      setSmsError(err.message);
+      toast.error(err.message);
+    }
+  };
+
+  // Verify OTP code
+  const verifyCode = async () => {
+    try {
+      const res = await fetch("/api/auth/check-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, code: smsCode }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("کد معتبر است، درحال ورود...");
+        // perform SMS login via backend to issue JWT
+        await loginSms(phone);
+        router.push("/");
+      } else {
+        toast.error(data.error || "کد نامعتبر");
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -34,7 +94,7 @@ export default function SignInPage() {
       newErrors.email = "ایمیل نامعتبر است";
     }
 
-    if (!password) {
+    if (mode === 'password' && !password) {
       newErrors.password = "رمز عبور الزامی است";
     }
 
@@ -44,17 +104,32 @@ export default function SignInPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!validateForm()) {
-      toast.error("لطفا اطلاعات فرم را کامل کنید");
-      return;
-    }
-
     try {
-      await login({ email, password });
-      router.push("/");
+      if (mode === 'password') {
+        // Validate email & password
+        if (!validateForm()) {
+          toast.error("لطفا اطلاعات فرم را کامل کنید");
+          return;
+        }
+        await login({ email, password });
+        router.push("/");
+      } else {
+        // SMS mode: phone & code validation
+        if (!phone) {
+          toast.error("شماره تلفن الزامی است");
+          return;
+        }
+        if (!isSent) {
+          await sendCode();
+        } else {
+          if (!smsCode) {
+            toast.error("کد الزامی است");
+            return;
+          }
+          await verifyCode();
+        }
+      }
     } catch (error) {
-      // Error is already handled in the auth store with toast
       console.error("Login error:", error);
     }
   };
@@ -116,54 +191,100 @@ export default function SignInPage() {
               <CardTitle className="text-xl sm:text-2xl font-bold text-voxcina-blue">
                 ورود به حساب کاربری
               </CardTitle>
+
+              {/* Mode Toggle */}
+              <div className="flex justify-center space-x-4 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setMode('password')}
+                  className={`px-4 py-2 rounded ${mode === 'password' ? 'bg-voxcina-blue text-white' : 'bg-white/70'}`}>
+                  رمز عبور
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('sms')}
+                  className={`px-4 py-2 rounded ${mode === 'sms' ? 'bg-voxcina-blue text-white' : 'bg-white/70'}`}>
+                  کد یکبار مصرف
+                </button>
+              </div>
             </CardHeader>
             <CardContent className="pt-2 px-4 sm:px-6 pb-6">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <motion.div className="space-y-4" variants={containerVariants}>
-                  <motion.div variants={itemVariants}>
-                    <Input
-                      label="ایمیل"
-                      type="email"
-                      id="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      error={errors.email}
-                      leftElement={
-                        <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-voxcina-blue/60" />
-                      }
-                      placeholder="example@mail.com"
-                      className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5"
-                    />
-                  </motion.div>
+                  {mode === 'password' ? (
+                    <>
+                      <motion.div variants={itemVariants}>
+                        <Input
+                          label="ایمیل"
+                          type="email"
+                          id="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          error={errors.email}
+                          leftElement={
+                            <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-voxcina-blue/60" />
+                          }
+                          placeholder="example@mail.com"
+                          className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5"
+                        />
+                      </motion.div>
 
-                  <motion.div variants={itemVariants}>
-                    <Input
-                      label="رمز عبور"
-                      type={showPassword ? "text" : "password"}
-                      id="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      error={errors.password}
-                      leftElement={
-                        <Lock className="h-4 w-4 sm:h-5 sm:w-5 text-voxcina-blue/60" />
-                      }
-                      rightElement={
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="text-voxcina-blue/60 hover:text-voxcina-blue transition-colors p-1"
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4 sm:h-5 sm:w-5" />
-                          ) : (
-                            <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
-                          )}
-                        </button>
-                      }
-                      placeholder="••••••••"
-                      className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5"
-                    />
-                  </motion.div>
+                      <motion.div variants={itemVariants}>
+                        <Input
+                          label="رمز عبور"
+                          type={showPassword ? "text" : "password"}
+                          id="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          error={errors.password}
+                          leftElement={
+                            <Lock className="h-4 w-4 sm:h-5 sm:w-5 text-voxcina-blue/60" />
+                          }
+                          rightElement={
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="text-voxcina-blue/60 hover:text-voxcina-blue transition-colors p-1"
+                            >
+                              {showPassword ? (
+                                <EyeOff className="h-4 w-4 sm:h-5 sm:w-5" />
+                              ) : (
+                                <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
+                              )}
+                            </button>
+                          }
+                          placeholder="••••••••"
+                          className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5"
+                        />
+                      </motion.div>
+                    </>
+                  ) : (
+                    <>
+                      <motion.div variants={itemVariants}>
+                        <Input
+                          label="شماره تلفن"
+                          type="tel"
+                          id="phone"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          error={smsError || undefined}
+                          placeholder="09123456789"
+                        />
+                      </motion.div>
+                      {isSent && (
+                        <motion.div variants={itemVariants}>
+                          <Input
+                            label="کد"
+                            type="text"
+                            id="smsCode"
+                            value={smsCode}
+                            onChange={(e) => setSmsCode(e.target.value)}
+                            placeholder="####"
+                          />
+                        </motion.div>
+                      )}
+                    </>
+                  )}
 
                   <motion.div
                     className="flex justify-between items-center mt-4"
@@ -225,7 +346,7 @@ export default function SignInPage() {
                       isLoading={isLoading}
                       className="bg-voxcina-blue hover:bg-voxcina-darkBlue text-white py-3 sm:py-3.5 rounded-xl transition-all duration-300 shadow-soft hover:shadow-medium text-sm sm:text-base font-medium"
                     >
-                      {isLoading ? "در حال ورود..." : "ورود"}
+                      {mode === 'password' ? (isLoading ? 'در حال ورود...' : 'ورود') : (!isSent ? 'ارسال کد' : 'تایید کد')}
                     </Button>
                   </motion.div>
 

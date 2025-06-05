@@ -16,6 +16,7 @@ services:
       - SERVER_PORT=8080
       - RUN_TESTS=false
       # - DEBUG=true
+      - INTERNAL_SECRET=${INTERNAL_SECRET}
     volumes:
       - ./uploads:/app/uploads
     depends_on:
@@ -75,6 +76,10 @@ services:
       - GO_BACKEND_URL=http://server:8080
       - POSTEX_API_KEY=${POSTEX_API_KEY}
       - POSTEX_BASE_URL=https://api.postex.ir
+      - SMSIR_ACCESS_KEY=${SMSIR_ACCESS_KEY}
+      - SMSIR_LINE_NUMBER=${SMSIR_LINE_NUMBER}
+      - SMSIR_TEMPLATE_ID=${SMSIR_TEMPLATE_ID}
+      - INTERNAL_SECRET=${INTERNAL_SECRET}
     volumes:
       - ./uploads:/app/public/uploads
     depends_on:

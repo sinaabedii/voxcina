@@ -65,6 +65,10 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
+	if creds.Phone == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Phone is required")
+		return
+	}
 
 	if !emailRegex.MatchString(creds.Email) {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid email format")
@@ -164,17 +168,31 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return user info (excluding password) and token
+	// Generate a refresh token for long-lived sessions
+	refreshExpirationTime := time.Now().Add(7 * 24 * time.Hour)
+	refreshClaims := &Claims{
+		UserID: user.ID,
+		Email:  user.Email,
+		Role:   user.Role,
+		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(refreshExpirationTime)},
+	}
+	refreshTokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
+	refreshTokenString, err := refreshTokenObj.SignedString(jwtKey)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error generating refresh token: "+err.Error())
+		return
+	}
+
+	// Return user info, access token, and refresh token
 	userResponse := struct {
 		models.User
-		Token string `json:"token"`
+		Token        string `json:"token"`
+		RefreshToken string `json:"refreshToken"`
 	}{
-		User:  user, // User struct already omits PasswordHash via json:"-"
-		Token: tokenString,
+		User:         user,
+		Token:        tokenString,
+		RefreshToken: refreshTokenString,
 	}
-	// Manually ensure PasswordHash is not part of the response structure if User struct didn't handle it
-	// For `userResponse.User.PasswordHash = ""` if needed, but `json:"-"` should suffice.
-
 	utils.JSONResponse(w, http.StatusCreated, userResponse)
 }
 
@@ -249,15 +267,31 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return user info (excluding password) and token
-	userResponse := struct {
-		models.User
-		Token string `json:"token"`
-	}{
-		User:  user,
-		Token: tokenString,
+	// Generate a refresh token for long-lived sessions
+	refreshExpirationTime := time.Now().Add(7 * 24 * time.Hour)
+	refreshClaims := &Claims{
+		UserID: user.ID,
+		Email:  user.Email,
+		Role:   user.Role,
+		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(refreshExpirationTime)},
+	}
+	refreshTokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
+	refreshTokenString, err := refreshTokenObj.SignedString(jwtKey)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error generating refresh token: "+err.Error())
+		return
 	}
 
+	// Return user info, access token, and refresh token
+	userResponse := struct {
+		models.User
+		Token        string `json:"token"`
+		RefreshToken string `json:"refreshToken"`
+	}{
+		User:         user,
+		Token:        tokenString,
+		RefreshToken: refreshTokenString,
+	}
 	utils.JSONResponse(w, http.StatusOK, userResponse)
 }
 
@@ -1307,4 +1341,105 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 		http.StatusOK,
 		map[string]string{"message": "User deactivated successfully"},
 	)
+}
+
+// RefreshToken handles POST /api/users/refresh
+func RefreshToken(w http.ResponseWriter, r *http.Request) {
+	var req struct { RefreshToken string `json:"refreshToken"` }
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid refresh request: "+err.Error())
+		return
+	}
+	token, err := jwt.ParseWithClaims(req.RefreshToken, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		return jwtKey, nil
+	})
+	if err != nil || !token.Valid {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid refresh token")
+		return
+	}
+	claims, ok := token.Claims.(*Claims)
+	if !ok {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid refresh token claims")
+		return
+	}
+	expirationTime := time.Now().Add(15 * time.Minute)
+	newClaims := &Claims{
+		UserID: claims.UserID,
+		Email:  claims.Email,
+		Role:   claims.Role,
+		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(expirationTime)},
+	}
+	accessTokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, newClaims)
+	accessTokenString, err := accessTokenObj.SignedString(jwtKey)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error generating access token: "+err.Error())
+		return
+	}
+	utils.JSONResponse(w, http.StatusOK, map[string]string{"accessToken": accessTokenString})
+}
+
+// CheckPhone handles POST /api/users/check-phone
+func CheckPhone(w http.ResponseWriter, r *http.Request) {
+	var req struct { Phone string `json:"phone"` }
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		return
+	}
+	if req.Phone == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Phone is required")
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	userCollection := db.Database.Collection("users")
+	count, err := userCollection.CountDocuments(ctx, bson.M{"phone": req.Phone})
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error checking phone: "+err.Error())
+		return
+	}
+	if count > 0 {
+		utils.JSONResponse(w, http.StatusOK, map[string]bool{"exists": true})
+	} else {
+		utils.ErrorResponse(w, http.StatusNotFound, "no such user with provided phone")
+	}
+}
+
+// LoginViaSMS handles POST /api/users/login-sms
+func LoginViaSMS(w http.ResponseWriter, r *http.Request) {
+	var req struct { Phone string `json:"phone"` }
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		return
+	}
+	if req.Phone == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Phone is required")
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	userCollection := db.Database.Collection("users")
+	var user models.User
+	if err := userCollection.FindOne(ctx, bson.M{"phone": req.Phone}).Decode(&user); err != nil {
+		utils.ErrorResponse(w, http.StatusNotFound, "no such user with provided phone")
+		return
+	}
+	// Generate JWT access token
+	accessExp := time.Now().Add(24 * time.Hour)
+	accessClaims := &Claims{UserID: user.ID, Email: user.Email, Role: user.Role, RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(accessExp)}}
+	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims).SignedString(jwtKey)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error generating access token: "+err.Error())
+		return
+	}
+	// Generate JWT refresh token
+	refreshExp := time.Now().Add(7 * 24 * time.Hour)
+	refreshClaims := &Claims{UserID: user.ID, Email: user.Email, Role: user.Role, RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(refreshExp)}}
+	refreshToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).SignedString(jwtKey)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error generating refresh token: "+err.Error())
+		return
+	}
+	// Return user and tokens
+	resp := struct { models.User; Token string `json:"token"`; RefreshToken string `json:"refreshToken"` }{User: user, Token: accessToken, RefreshToken: refreshToken}
+	utils.JSONResponse(w, http.StatusOK, resp)
 }

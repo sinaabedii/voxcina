@@ -21,6 +21,9 @@ func NewRouter() *mux.Router {
 	// Public User Auth routes
 	api.HandleFunc("/users/register", handlers.Register).Methods(http.MethodPost)
 	api.HandleFunc("/users/login", handlers.Login).Methods(http.MethodPost)
+	api.HandleFunc("/users/refresh", handlers.RefreshToken).Methods(http.MethodPost)
+	api.HandleFunc("/users/check-phone", handlers.CheckPhone).Methods(http.MethodPost)
+	api.HandleFunc("/users/login-sms", handlers.LoginViaSMS).Methods(http.MethodPost)
 
 	// Authenticated User routes
 	userAuthRouter := api.PathPrefix("/users").Subrouter()
