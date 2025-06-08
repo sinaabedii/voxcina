@@ -1,101 +1,125 @@
-import React from "react";
-import ProductCard from "./ProductCard";
+import { useCallback, useState, useEffect } from "react";
 import { Product } from "@/types/product";
-import { motion } from "framer-motion";
-import { ShoppingBag } from "lucide-react";
+import ProductGridItem from "./ProductGridItem";
+import { useCartStore } from "@/store/cart-store";
+import { useDashboardStore } from "@/store/dashboard-store";
 
 interface ProductGridProps {
-  products: Product[] | null | undefined;
+  products: Product[];
   columns?: 2 | 3 | 4 | 5;
-  className?: string;
   glassEffect?: boolean;
-  ribbonLabel?: string;
   onAddToCart?: (product: Product) => void;
+  ribbonLabel?: string;
 }
 
-const ProductGrid: React.FC<ProductGridProps> = ({
+/**
+ * گرید محصولات بهینه‌سازی شده برای سئو
+ */
+export default function ProductGrid({
   products,
   columns = 4,
-  className = "",
   glassEffect = false,
-  ribbonLabel,
   onAddToCart,
-}) => {
-  // Ensure products is always an array
-  const safeProducts = Array.isArray(products) ? products : [];
-  
+  ribbonLabel,
+}: ProductGridProps) {
+  const { addItem } = useCartStore();
+  const { addToFavorites, isFavorite } = useDashboardStore();
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // شبیه‌سازی زمان بارگذاری
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 2000); // بعد از 2 ثانیه لودینگ را مخفی کن
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleAddToCart = useCallback(
+    (product: Product) => {
+      addItem(product, 1);
+      // نمایش پیام موفقیت‌آمیز بودن عملیات
+      const notification = document.createElement("div");
+      notification.className =
+        "fixed top-20 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-md shadow-lg z-50 animate-fadeOut";
+      notification.textContent = "محصول به سبد خرید اضافه شد";
+      document.body.appendChild(notification);
+
+      setTimeout(() => {
+        document.body.removeChild(notification);
+      }, 2000);
+
+      // اگر onAddToCart از بیرون آمده، آن را هم فراخوانی کن
+      if (onAddToCart) {
+        onAddToCart(product);
+      }
+    },
+    [addItem, onAddToCart]
+  );
+
+  const handleAddToFavorites = useCallback(
+    (productId: string) => {
+      addToFavorites(productId);
+    },
+    [addToFavorites]
+  );
+
+  // تنظیم تعداد ستون‌ها
   const gridCols = {
     2: "grid-cols-1 sm:grid-cols-2",
     3: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
-    4: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4",
+    4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
     5: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
   };
 
-  const staggerContainer = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.08,
-        delayChildren: 0.1,
-      },
-    },
-  };
-
-  const itemVariant = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        type: "spring",
-        stiffness: 300,
-        damping: 20,
-        mass: 0.8,
-        duration: 0.4,
-      },
-    },
-  };
-
-  if (safeProducts.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 px-4 bg-secondary/20 rounded-xl border border-border/10 shadow-soft min-h-[300px] animate-fadeIn">
-        <div className="bg-secondary/40 p-4 rounded-full mb-4">
-          <ShoppingBag className="h-10 w-10 text-primary/60" />
-        </div>
-        <h3 className="text-xl font-medium text-primary mb-2">محصولی یافت نشد</h3>
-        <p className="text-muted-foreground text-center max-w-md">
-          متأسفانه محصولی با معیارهای انتخاب شده پیدا نشد. لطفاً فیلترهای جستجو را تغییر دهید یا بعداً دوباره امتحان کنید.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <motion.div
-      className={`grid ${gridCols[columns]} gap-4 sm:gap-5 md:gap-6 ${className}`}
-      variants={staggerContainer}
-      initial="hidden"
-      animate="visible"
-    >
-      {safeProducts.map((product) => (
-        <motion.div
-          key={product.id}
-          variants={itemVariant}
-          whileHover={{ y: -8, scale: 1.02 }}
-          transition={{ duration: 0.3, type: "spring", stiffness: 300, damping: 20 }}
-          className="h-full"
-        >
-          <ProductCard
+    <div className={`grid ${gridCols[columns]} gap-4 md:gap-6`}>
+      {products.length > 0 ? (
+        products.map((product, index) => (
+          <ProductGridItem
+            key={product.id}
             product={product}
+            index={index}
             glassEffect={glassEffect}
+            onAddToCart={handleAddToCart}
+            onAddToFavorites={handleAddToFavorites}
+            isFavorite={product.id ? isFavorite(product.id) : false}
             ribbonLabel={ribbonLabel}
-            onAddToCart={onAddToCart}
           />
-        </motion.div>
-      ))}
-    </motion.div>
+        ))
+      ) : isLoading ? (
+        <div className="col-span-full h-52 md:h-64 flex items-center justify-center">
+          <div className="relative w-12 h-12 md:w-16 md:h-16">
+            <div className="absolute inset-0 border-4 border-secondary-200 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-t-voxcina-blue rounded-full animate-spin"></div>
+          </div>
+        </div>
+      ) : (
+        <div className="col-span-full py-12 flex flex-col items-center justify-center text-center">
+          <div className="w-20 h-20 bg-voxcina-cream/30 dark:bg-voxcina-blue/20 rounded-full flex items-center justify-center mb-4">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-10 w-10 text-voxcina-blue/50 dark:text-voxcina-cream/50"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+              />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-voxcina-blue dark:text-voxcina-cream mb-2">
+            محصولی یافت نشد
+          </h3>
+          <p className="text-voxcina-blue/60 dark:text-voxcina-cream/60 max-w-md">
+            در حال حاضر محصولی در این دسته‌بندی موجود نیست. لطفاً بعداً دوباره بررسی کنید یا دسته‌بندی دیگری را انتخاب نمایید.
+          </p>
+        </div>
+      )}
+    </div>
   );
-};
-
-export default ProductGrid;
+}
