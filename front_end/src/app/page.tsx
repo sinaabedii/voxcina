@@ -248,7 +248,6 @@ export default function HomePage() {
                 products={featuredProducts}
                 columns={4}
                 glassEffect={true}
-                onAddToCart={handleAddToCart}
               />
             </div>
           )}
@@ -312,8 +311,6 @@ export default function HomePage() {
               <ProductGrid
                 products={newProducts}
                 columns={4}
-                ribbonLabel="جدید"
-                onAddToCart={handleAddToCart}
               />
             </div>
           )}

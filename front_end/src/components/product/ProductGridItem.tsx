@@ -12,7 +12,6 @@ interface ProductGridItemProps {
   onAddToCart?: (product: Product) => void;
   onAddToFavorites?: (productId: string) => void;
   isFavorite?: boolean;
-  ribbonLabel?: string;
 }
 
 /**
@@ -25,7 +24,6 @@ export default function ProductGridItem({
   onAddToCart,
   onAddToFavorites,
   isFavorite = false,
-  ribbonLabel,
 }: ProductGridItemProps) {
   // محاسبه درصد تخفیف
   const hasDiscount = product.originalPrice && product.originalPrice > product.price;
@@ -57,13 +55,6 @@ export default function ProductGridItem({
         </div>
       )}
 
-      {/* نمایش ribbonLabel اگر وجود داشته باشد */}
-      {ribbonLabel && (
-        <div className="absolute top-3 left-3 z-10 bg-voxcina-blue text-white text-xs px-2 py-1 rounded-lg font-medium shadow-sm">
-          {ribbonLabel}
-        </div>
-      )}
-
       {/* علامت موجود نبودن */}
       {!isInStock && (
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-20 flex items-center justify-center">
@@ -80,7 +71,7 @@ export default function ProductGridItem({
           fill
           productName={product.name}
           brand={product.brand}
-          category={product.category_ids?.length > 0 ? product.category_ids[0] : undefined}
+          category={product.category_ids?.[0]}
           className="object-cover transition-transform duration-300 group-hover:scale-105"
           loading="lazy"
         />
