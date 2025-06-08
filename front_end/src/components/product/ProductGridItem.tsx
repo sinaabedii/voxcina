@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { formatPrice, cn, getDiscountPercentage } from "@/lib/utils";
 import { Product } from "@/types/product";
-import ProductImage from "./ProductImage";
+import BackendImage from "@/components/BackendImage";
 import { Eye, ShoppingCart, Heart } from "lucide-react";
 
 interface ProductGridItemProps {
@@ -37,6 +37,9 @@ export default function ProductGridItem({
   // تأخیر برای انیمیشن
   const animationDelay = Math.min(index * 0.1, 0.8);
 
+  // آماده‌سازی آدرس تصویر
+  const imageSrc = product.images?.[0] || "/images/products/placeholder.jpg";
+
   return (
     <motion.div
       className={cn(
@@ -65,16 +68,14 @@ export default function ProductGridItem({
       )}
 
       <Link href={`/products/${product.id}`} className="relative aspect-square overflow-hidden">
-        <ProductImage
-          src={product.images?.[0] || "/images/products/placeholder.jpg"}
-          alt={product.name}
-          fill
-          productName={product.name}
-          brand={product.brand}
-          category={product.category_ids?.[0]}
-          className="object-cover transition-transform duration-300 group-hover:scale-105"
-          loading="lazy"
-        />
+        <div className="relative w-full h-full">
+          <BackendImage
+            src={imageSrc}
+            alt={product.name}
+            className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+            priority={index < 4}
+          />
+        </div>
 
         {/* دکمه‌های اکشن */}
         <div className="absolute bottom-3 right-3 z-10 flex gap-2 transition-opacity duration-200 opacity-0 group-hover:opacity-100">

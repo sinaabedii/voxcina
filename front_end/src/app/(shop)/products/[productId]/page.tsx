@@ -38,7 +38,7 @@ import { useCategoryStore } from "@/store/category-store";
 import Link from "next/link";
 import { useTryOnStore } from "@/store/tryon-store";
 import { useAuthStore } from "@/store/auth-store";
-import ProductImage from "@/components/product/ProductImage";
+import BackendImage from "@/components/BackendImage";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import SocialShare from "@/components/product/SocialShare";
 
@@ -451,27 +451,24 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             >
               {activeProduct.images && activeProduct.images.length > 0 ? (
                 <>
-                  <ProductImage
-                    src={activeProduct.images[selectedImage]}
-                    alt={`${activeProduct.name} - ${activeProduct.brand || ''}`}
-                    fill
-                    productName={activeProduct.name}
-                    brand={activeProduct.brand}
-                    category={getCategoryName(activeProduct.category_ids?.[0])}
-                    color={selectedColor}
-                    className={cn(
-                      "object-cover transition-transform duration-300",
-                      isZoomed && "scale-150"
-                    )}
-                    style={
-                      isZoomed
-                        ? {
-                            transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%`,
-                          }
-                        : undefined
-                    }
-                    priority
-                  />
+                  <div className="relative w-full h-full">
+                    <BackendImage
+                      src={activeProduct.images[selectedImage]}
+                      alt={`${activeProduct.name} - ${activeProduct.brand || ''}`}
+                      className={cn(
+                        "object-cover w-full h-full transition-transform duration-300",
+                        isZoomed && "scale-150"
+                      )}
+                      style={
+                        isZoomed
+                          ? {
+                              transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%`,
+                            }
+                          : undefined
+                      }
+                      priority
+                    />
+                  </div>
                   <motion.div
                     className="absolute bottom-4 right-4 bg-voxcina-blue/70 dark:bg-voxcina-cream/20 text-white dark:text-voxcina-cream rounded-full p-2 backdrop-blur-sm"
                     whileHover={{ scale: 1.1 }}
@@ -531,15 +528,13 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     whileHover={{ y: -3 }}
                     whileTap={{ scale: 0.95 }}
                   >
-                    <ProductImage
-                      src={image}
-                      alt={`${activeProduct.name} - تصویر ${index + 1}`}
-                      width={80}
-                      height={80}
-                      productName={activeProduct.name}
-                      brand={activeProduct.brand}
-                      className="object-cover w-full h-full"
-                    />
+                    <div className="relative w-full h-full">
+                      <BackendImage
+                        src={image}
+                        alt={`${activeProduct.name} - تصویر ${index + 1}`}
+                        className="object-cover w-full h-full"
+                      />
+                    </div>
                   </motion.button>
                 ))}
               </div>

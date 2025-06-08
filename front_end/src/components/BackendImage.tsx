@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, CSSProperties } from 'react';
 
 type BackendImageProps = {
   src: string;
@@ -12,6 +12,7 @@ type BackendImageProps = {
   objectFit?: 'cover' | 'contain' | 'fill' | 'none' | 'scale-down';
   priority?: boolean;
   fallbackSrc?: string;
+  style?: CSSProperties;
 };
 
 /**
@@ -27,6 +28,7 @@ export default function BackendImage({
   objectFit = 'cover',
   priority = false,
   fallbackSrc = '',
+  style = {},
 }: BackendImageProps) {
   const [error, setError] = useState(false);
   
@@ -41,6 +43,12 @@ export default function BackendImage({
   // Use provided fallback or default
   const actualFallback = fallbackSrc || defaultFallback;
   
+  // Combine style objects
+  const combinedStyle = {
+    objectFit,
+    ...style
+  };
+  
   return (
     <Image
       src={error ? actualFallback : imageSrc}
@@ -48,7 +56,7 @@ export default function BackendImage({
       width={width}
       height={height}
       className={className}
-      style={{ objectFit }}
+      style={combinedStyle}
       priority={priority}
       onError={() => setError(true)}
     />
