@@ -37,23 +37,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 
 // Helper to format date strings (assuming backend sends ISO strings)
 const formatDate = (dateString: string | undefined) => {
@@ -91,6 +74,8 @@ export default function AdminUsersPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editedRole, setEditedRole] = useState<User['role'] | ''>('');
+  const [isStatusChangeDialogOpen, setIsStatusChangeDialogOpen] = useState(false);
+  const [userToChangeStatus, setUserToChangeStatus] = useState<User | null>(null);
 
   useEffect(() => {
     fetchAllUsers().catch(err => {
@@ -192,6 +177,25 @@ export default function AdminUsersPage() {
       } catch (err) {
         toast.error(`خطا در حذف کاربر: ${(err as Error).message}`);
         setIsConfirmDeleteDialogOpen(false);
+      }
+    }
+  };
+
+  const confirmStatusChange = (user: User) => {
+    setUserToChangeStatus(user);
+    setIsStatusChangeDialogOpen(true);
+  };
+
+  const handleStatusChangeConfirm = async () => {
+    if (userToChangeStatus) {
+      try {
+        await handleStatusChange(userToChangeStatus.id, userToChangeStatus.isActive);
+        toast.success(`وضعیت کاربر ${userToChangeStatus.name} با موفقیت به‌روزرسانی شد.`);
+        setIsStatusChangeDialogOpen(false);
+        setUserToChangeStatus(null);
+        fetchAllUsers();
+      } catch (err) {
+        toast.error(`خطا در به‌روزرسانی وضعیت کاربر: ${(err as Error).message}`);
       }
     }
   };
@@ -433,48 +437,38 @@ export default function AdminUsersPage() {
                             {formatDate(user.createdAt)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                            <div className="relative inline-block">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="p-2 text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream rounded-lg hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-blue/20 transition-colors"
-                                  >
-                                    <MoreVertical className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent 
-                                  align="end" 
-                                  className="w-48 bg-white dark:bg-voxcina-blue/95 border border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-xl shadow-lg backdrop-blur-sm z-50 mt-1"
-                                >
-                                  <DropdownMenuItem 
-                                    onClick={() => handleEditUser(user)} 
-                                    className="text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-blue/30 rounded-lg mx-1 my-1 px-3 py-2 cursor-pointer flex items-center transition-colors"
-                                  >
-                                    <Edit3 className="mr-2 h-4 w-4" />
-                                    ویرایش نقش
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    onClick={() => handleStatusChange(user.id, user.isActive)} 
-                                    className="text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-blue/30 rounded-lg mx-1 my-1 px-3 py-2 cursor-pointer flex items-center transition-colors"
-                                  >
-                                    {user.isActive === true ? 
-                                      <Ban className="mr-2 h-4 w-4 text-red-500" /> : 
-                                      <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                                    }
-                                    {user.isActive === true ? 'غیرفعال کردن' : 'فعال کردن'}
-                                  </DropdownMenuItem>
-                                  <div className="h-px bg-voxcina-cream/30 dark:bg-voxcina-blue/30 mx-2 my-1"></div>
-                                  <DropdownMenuItem 
-                                    onClick={() => confirmDeleteUser(user)} 
-                                    className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-300 rounded-lg mx-1 my-1 px-3 py-2 cursor-pointer flex items-center transition-colors"
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    حذف کاربر
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                            <div className="flex items-center justify-center space-x-2 space-x-reverse">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleEditUser(user)}
+                                className="p-2 text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream rounded-lg hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-blue/20 transition-colors"
+                                title="ویرایش نقش"
+                              >
+                                <Edit3 className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => confirmStatusChange(user)}
+                                className={`p-2 rounded-lg hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-blue/20 transition-colors ${
+                                  user.isActive === true 
+                                    ? 'text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300' 
+                                    : 'text-green-500 hover:text-green-600 dark:text-green-400 dark:hover:text-green-300'
+                                }`}
+                                title={user.isActive === true ? 'غیرفعال کردن' : 'فعال کردن'}
+                              >
+                                {user.isActive === true ? <Ban className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => confirmDeleteUser(user)}
+                                className="p-2 text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                title="حذف کاربر"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </td>
                         </tr>
@@ -500,42 +494,57 @@ export default function AdminUsersPage() {
                             {user.phone && <p className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50">{user.phone}</p>}
                           </div>
                         </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="p-2">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEditUser(user)}>
-                              <Edit3 className="mr-2 h-4 w-4" />
-                              ویرایش نقش
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleStatusChange(user.id, user.isActive)}>
-                              {user.isActive === true ? <Ban className="mr-2 h-4 w-4 text-red-500" /> : <CheckCircle className="mr-2 h-4 w-4 text-green-500" />}
-                              {user.isActive === true ? 'غیرفعال کردن' : 'فعال کردن'}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => confirmDeleteUser(user)} className="text-red-600 dark:text-red-400 hover:!text-red-700 dark:hover:!text-red-500">
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              حذف کاربر
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
                       </div>
                       
-                      <div className="flex items-center justify-between">
-                        <div className="flex gap-2">
-                          <Badge variant={user.role === 'admin' ? 'destructive' : 'secondary'}>
-                            {user.role === 'admin' ? 'مدیر' : 'مشتری'}
-                          </Badge>
-                          <Badge variant={user.isActive === true ? 'default' : 'outline'}
-                                 className={`${user.isActive === true ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {user.isActive === true ? "فعال" : "غیرفعال"}
-                          </Badge>
+                      <div className="flex flex-col space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex gap-2">
+                            <Badge variant={user.role === 'admin' ? 'destructive' : 'secondary'}>
+                              {user.role === 'admin' ? 'مدیر' : 'مشتری'}
+                            </Badge>
+                            <Badge variant={user.isActive === true ? 'default' : 'outline'}
+                                   className={`${user.isActive === true ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                              {user.isActive === true ? "فعال" : "غیرفعال"}
+                            </Badge>
+                          </div>
+                          <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
+                            {formatDate(user.createdAt)}
+                          </span>
                         </div>
-                        <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                          {formatDate(user.createdAt)}
-                        </span>
+                        
+                        <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleEditUser(user)}
+                            className="text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream rounded-lg hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-blue/20 transition-colors"
+                          >
+                            <Edit3 className="h-4 w-4 ml-1" />
+                            <span className="text-xs">ویرایش</span>
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => confirmStatusChange(user)}
+                            className={`rounded-lg hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-blue/20 transition-colors ${
+                              user.isActive === true 
+                                ? 'text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300' 
+                                : 'text-green-500 hover:text-green-600 dark:text-green-400 dark:hover:text-green-300'
+                            }`}
+                          >
+                            {user.isActive === true ? <Ban className="h-4 w-4 ml-1" /> : <CheckCircle className="h-4 w-4 ml-1" />}
+                            <span className="text-xs">{user.isActive === true ? 'غیرفعال' : 'فعال'}</span>
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => confirmDeleteUser(user)}
+                            className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4 ml-1" />
+                            <span className="text-xs">حذف</span>
+                          </Button>
+                        </div>
                       </div>
                     </motion.div>
                   ))}
@@ -754,6 +763,66 @@ export default function AdminUsersPage() {
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
                   "بله، حذف کن"
+                )}
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Status Change Confirmation Modal */}
+      {isStatusChangeDialogOpen && userToChangeStatus && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-voxcina-blue/40 backdrop-blur-sm dark:bg-black/60">
+          <motion.div
+            className="bg-white dark:bg-voxcina-blue/90 rounded-2xl shadow-lg w-full max-w-md mx-4"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+          >
+            <div className="flex justify-between items-center p-4 border-b border-voxcina-cream/30 dark:border-voxcina-blue/30">
+              <h3 className="font-bold text-lg text-voxcina-blue dark:text-voxcina-cream flex items-center">
+                <AlertTriangle className={`ml-2 h-6 w-6 ${userToChangeStatus.isActive === true ? 'text-red-500' : 'text-green-500'}`} />
+                تایید {userToChangeStatus.isActive === true ? 'غیرفعال‌سازی' : 'فعال‌سازی'} کاربر
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:text-voxcina-blue dark:hover:text-voxcina-cream rounded-lg"
+                onClick={() => setIsStatusChangeDialogOpen(false)}
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            <div className="p-4">
+              <p className="text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                آیا از {userToChangeStatus.isActive === true ? 'غیرفعال‌سازی' : 'فعال‌سازی'} کاربر "{userToChangeStatus.name}" مطمئن هستید؟
+              </p>
+            </div>
+            <div className="p-4 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
+                onClick={() => setIsStatusChangeDialogOpen(false)}
+                disabled={isLoading}
+              >
+                انصراف
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                className={`rounded-xl text-white shadow-sm hover:shadow-md transition-all duration-300 min-w-[80px] ${
+                  userToChangeStatus.isActive === true 
+                    ? 'bg-red-500 hover:bg-red-600' 
+                    : 'bg-green-500 hover:bg-green-600'
+                }`}
+                onClick={handleStatusChangeConfirm}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  userToChangeStatus.isActive === true ? "غیرفعال کن" : "فعال کن"
                 )}
               </Button>
             </div>
