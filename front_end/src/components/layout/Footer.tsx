@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { FOOTER_LINKS, APP_NAME } from "@/lib/constants";
+import Image from "next/image";
 import {
   Instagram,
   Twitter,
@@ -121,7 +122,8 @@ const Footer = () => {
                 <li className="text-xs sm:text-sm md:text-base text-foreground flex items-start group hover:text-primary transition-all duration-200">
                   <MapPin className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 ml-1.5 sm:ml-2 text-primary mt-0.5 flex-shrink-0 group-hover:animate-pulse-once" />
                   <span className="leading-relaxed">
-                  پاسداران بوستان پنجم کوی گلشن پلاک ۱۴                  </span>
+                    پاسداران بوستان پنجم کوی گلشن پلاک ۱۴{" "}
+                  </span>
                 </li>
                 <li className="text-xs sm:text-sm md:text-base text-foreground flex items-center group hover:text-primary transition-all duration-200">
                   <PhoneCall className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 ml-1.5 sm:ml-2 text-primary flex-shrink-0 group-hover:animate-pulse-once" />
@@ -153,6 +155,28 @@ const Footer = () => {
             </div>
           </div>
           <div className="mt-6 sm:mt-8 pt-6 sm:pt-4 border-t border-border/10 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="flex items-center gap-4 order-2 sm:order-1">
+              <div className="flex flex-wrap gap-3 justify-center">
+                <div className="bg-white shadow-soft rounded-md p-1 h-16 w-16 flex items-center justify-center">
+                  <Image
+                    src="/images/enamad.png"
+                    alt="نماد اعتماد الکترونیکی"
+                    width={50}
+                    height={50}
+                    className="object-contain"
+                  />
+                </div>
+                <div className="bg-white shadow-soft rounded-md p-1 h-16 w-16 flex items-center justify-center">
+                  <Image
+                    src="/images/samandehi.png"
+                    alt="نشان ملی ثبت"
+                    width={50}
+                    height={50}
+                    className="object-contain"
+                  />
+                </div>
+              </div>
+            </div>
             <p className="text-muted-foreground mx-auto text-xs sm:text-sm text-center sm:text-left order-1 sm:order-2">
               © {currentYear} {APP_NAME}. تمامی حقوق محفوظ است.
             </p>

@@ -37,6 +37,23 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 // Helper to format date strings (assuming backend sends ISO strings)
 const formatDate = (dateString: string | undefined) => {
@@ -416,27 +433,49 @@ export default function AdminUsersPage() {
                             {formatDate(user.createdAt)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="p-2 text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="bg-white dark:bg-voxcina-blue/90 border-voxcina-cream/50 dark:border-voxcina-blue/30">
-                                <DropdownMenuItem onClick={() => handleEditUser(user)} className="text-voxcina-blue dark:text-voxcina-cream">
-                                  <Edit3 className="mr-2 h-4 w-4" />
-                                  ویرایش نقش
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleStatusChange(user.id, user.isActive)} className="text-voxcina-blue dark:text-voxcina-cream">
-                                  {user.isActive === true ? <Ban className="mr-2 h-4 w-4 text-red-500" /> : <CheckCircle className="mr-2 h-4 w-4 text-green-500" />}
-                                  {user.isActive === true ? 'غیرفعال کردن' : 'فعال کردن'}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => confirmDeleteUser(user)} className="text-red-600 dark:text-red-400 hover:!text-red-700 dark:hover:!text-red-500">
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  حذف کاربر
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <div className="relative inline-block">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="p-2 text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream rounded-lg hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-blue/20 transition-colors"
+                                  >
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent 
+                                  align="end" 
+                                  className="w-48 bg-white dark:bg-voxcina-blue/95 border border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-xl shadow-lg backdrop-blur-sm z-50 mt-1"
+                                >
+                                  <DropdownMenuItem 
+                                    onClick={() => handleEditUser(user)} 
+                                    className="text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-blue/30 rounded-lg mx-1 my-1 px-3 py-2 cursor-pointer flex items-center transition-colors"
+                                  >
+                                    <Edit3 className="mr-2 h-4 w-4" />
+                                    ویرایش نقش
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => handleStatusChange(user.id, user.isActive)} 
+                                    className="text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-blue/30 rounded-lg mx-1 my-1 px-3 py-2 cursor-pointer flex items-center transition-colors"
+                                  >
+                                    {user.isActive === true ? 
+                                      <Ban className="mr-2 h-4 w-4 text-red-500" /> : 
+                                      <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                                    }
+                                    {user.isActive === true ? 'غیرفعال کردن' : 'فعال کردن'}
+                                  </DropdownMenuItem>
+                                  <div className="h-px bg-voxcina-cream/30 dark:bg-voxcina-blue/30 mx-2 my-1"></div>
+                                  <DropdownMenuItem 
+                                    onClick={() => confirmDeleteUser(user)} 
+                                    className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-300 rounded-lg mx-1 my-1 px-3 py-2 cursor-pointer flex items-center transition-colors"
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    حذف کاربر
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           </td>
                         </tr>
                       ))}
