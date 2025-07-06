@@ -1,6 +1,9 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
 import { FOOTER_LINKS, APP_NAME } from "@/lib/constants";
+import { useNavigation } from "@/context/navigation";
 import Image from "next/image";
 import {
   Instagram,
@@ -14,7 +17,47 @@ import {
   Youtube,
 } from "lucide-react";
 
+// Reusable footer section component
+interface FooterLink {
+  label: string;
+  href: string;
+}
+
+interface FooterSectionProps {
+  title: string;
+  items: FooterLink[];
+  animationDelay: string;
+}
+
+const FooterSection: React.FC<FooterSectionProps> = ({ title, items, animationDelay }) => (
+  <div className="animate-slideUp" style={{ animationDelay }}>
+    <h3 className="text-sm sm:text-base md:text-lg font-bold mb-3 sm:mb-4 text-primary border-r-4 border-primary pr-2 sm:pr-3">
+      {title}
+    </h3>
+    <ul className="space-y-1.5 sm:space-y-2">
+      {items.map((link) => (
+        <li key={link.href}>
+          <Link
+            href={link.href}
+            className="text-xs sm:text-sm md:text-base text-foreground hover:text-primary transition-all duration-200 flex items-center group"
+          >
+            <span className="h-1.5 w-1.5 bg-secondary rounded-full ml-2 group-hover:bg-primary transition-colors duration-200 flex-shrink-0"></span>
+            <span className="relative">
+              {link.label}
+              <span className="absolute -bottom-0.5 right-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  </div>
+);
+
 const Footer = () => {
+  // Consume header nav items from context
+  const navItems = useNavigation();
+  // Exclude Home
+  const footerCategories = navItems.filter((item) => item.href !== "/");
   const currentYear = new Date().getFullYear();
 
   const socialIcons: Record<string, React.ReactNode> = {
@@ -45,72 +88,17 @@ const Footer = () => {
       <footer className="w-full bg-white max-w-7xl mx-auto border border-border/10  rounded-2xl md:rounded-3xl">
         <div className="py-6 sm:py-8 md:py-8 px-4 md:px-6">
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
-            <div className="animate-slideUp" style={{ animationDelay: "0.1s" }}>
-              <h3 className="text-sm sm:text-base md:text-lg font-bold mb-3 sm:mb-4 text-primary border-r-4 border-primary pr-2 sm:pr-3">
-                دسته‌بندی‌ها
-              </h3>
-              <ul className="space-y-1.5 sm:space-y-2">
-                {FOOTER_LINKS.categories.map((link) => (
-                  <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="text-xs sm:text-sm md:text-base text-foreground hover:text-primary transition-all duration-200 flex items-center group"
-                    >
-                      <span className="h-1.5 w-1.5 bg-secondary rounded-full ml-2 group-hover:bg-primary transition-colors duration-200 flex-shrink-0"></span>
-                      <span className="relative">
-                        {link.label}
-                        <span className="absolute -bottom-0.5 right-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="animate-slideUp" style={{ animationDelay: "0.2s" }}>
-              <h3 className="text-base sm:text-lg font-bold mb-4 sm:mb-6 text-primary border-r-4 border-primary pr-3">
-                درباره ما
-              </h3>
-              <ul className="space-y-2 sm:space-y-3">
-                {FOOTER_LINKS.aboutUs.map((link) => (
-                  <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="text-sm sm:text-base text-foreground hover:text-primary transition-all duration-200 flex items-center group"
-                    >
-                      <span className="h-1.5 w-1.5 bg-secondary rounded-full ml-2 group-hover:bg-primary transition-colors duration-200 flex-shrink-0"></span>
-                      <span className="relative">
-                        {link.label}
-                        <span className="absolute -bottom-0.5 right-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="animate-slideUp" style={{ animationDelay: "0.3s" }}>
-              <h3 className="text-base sm:text-lg font-bold mb-4 sm:mb-6 text-primary border-r-4 border-primary pr-3">
-                خدمات مشتریان
-              </h3>
-              <ul className="space-y-2 sm:space-y-3">
-                {FOOTER_LINKS.customerService.map((link) => (
-                  <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="text-sm sm:text-base text-foreground hover:text-primary transition-all duration-200 flex items-center group"
-                    >
-                      <span className="h-1.5 w-1.5 bg-secondary rounded-full ml-2 group-hover:bg-primary transition-colors duration-200 flex-shrink-0"></span>
-                      <span className="relative">
-                        {link.label}
-                        <span className="absolute -bottom-0.5 right-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
+            <FooterSection
+              title="دسته‌بندی‌ها"
+              items={footerCategories.map((item) => ({ label: item.label, href: item.href }))}
+              animationDelay="0.1s"
+            />
+            <FooterSection title="درباره ما" items={FOOTER_LINKS.aboutUs} animationDelay="0.2s" />
+            <FooterSection
+              title="خدمات مشتریان"
+              items={FOOTER_LINKS.customerService}
+              animationDelay="0.3s"
+            />
             <div
               className="animate-slideUp col-span-1 sm:col-span-2 lg:col-span-1"
               style={{ animationDelay: "0.4s" }}

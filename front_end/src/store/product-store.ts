@@ -102,7 +102,6 @@ export const useProductStore = create<ProductState>()(
       fetchProductById: async (id: string) => {
         set({ isLoading: true, error: null, activeProduct: null, activeProductReviews: [] });
         try {
-          await delay(300);
           const response = await fetch(`/api/products/${id}`);
           if (!response.ok) {
             throw new Error("Failed to fetch product");

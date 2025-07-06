@@ -16,8 +16,8 @@ interface BlogState {
   reloadPosts: () => Promise<void>; // helper to force re-fetch
 
   // Admin actions
-  createBlog: (data: Partial<BlogPost>) => Promise<BlogPost | null>;
-  updateBlog: (id: string, data: Partial<BlogPost>) => Promise<BlogPost | null>;
+  createBlog: (data: Partial<BlogPost> | FormData) => Promise<BlogPost | null>;
+  updateBlog: (id: string, data: Partial<BlogPost> | FormData) => Promise<BlogPost | null>;
   deleteBlog: (id: string) => Promise<boolean>;
 }
 
@@ -92,19 +92,20 @@ export const useBlogStore = create<BlogState>((set, get) => ({
     }
   },
 
-  createBlog: async (data: Partial<BlogPost>) => {
+  createBlog: async (data: Partial<BlogPost> | FormData) => {
     const { adminToken } = useAuthStore.getState();
     if (!adminToken) {
       return null;
     }
     try {
+      const isFormData = data instanceof FormData;
       const res = await fetch("/api/admin/blog-posts", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          ...(isFormData ? {} : { "Content-Type": "application/json" }),
           Authorization: `Bearer ${adminToken}`,
         },
-        body: JSON.stringify(data),
+        body: isFormData ? data : JSON.stringify(data),
       });
       if (!res.ok) {
         throw new Error("Failed to create blog post");
@@ -118,17 +119,18 @@ export const useBlogStore = create<BlogState>((set, get) => ({
     }
   },
 
-  updateBlog: async (id: string, data: Partial<BlogPost>) => {
+  updateBlog: async (id: string, data: Partial<BlogPost> | FormData) => {
     const { adminToken } = useAuthStore.getState();
     if (!adminToken) return null;
     try {
+      const isFormData = data instanceof FormData;
       const res = await fetch(`/api/admin/blog-posts/${id}`, {
         method: "PUT",
         headers: {
-          "Content-Type": "application/json",
+          ...(isFormData ? {} : { "Content-Type": "application/json" }),
           Authorization: `Bearer ${adminToken}`,
         },
-        body: JSON.stringify(data),
+        body: isFormData ? data : JSON.stringify(data),
       });
       if (!res.ok) throw new Error("Failed to update blog post");
       const updated: BlogPost = await res.json();

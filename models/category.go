@@ -15,6 +15,7 @@ type Category struct {
 	Description string             `bson:"description"          json:"description"`
 	Image       string             `bson:"image"                json:"image"` // URL to category image
 	IsActive    bool               `bson:"is_active"            json:"is_active"`           // Whether the category is active (defaults to true)
+	ShowInHeader bool              `bson:"show_in_header"       json:"show_in_header,omitempty"`
 	CreatedAt   time.Time          `bson:"created_at,omitempty" json:"created_at,omitempty"`
 	UpdatedAt   time.Time          `bson:"updated_at,omitempty" json:"updated_at,omitempty"`
 }
