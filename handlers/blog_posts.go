@@ -18,6 +18,10 @@ import (
 	"backEnd/db"
 	"backEnd/models"
 	"backEnd/utils"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 )
 
 // Utility function to generate a URL-friendly slug from title
@@ -189,49 +193,76 @@ func GetBlogPostBySlug(w http.ResponseWriter, r *http.Request) {
 // CreateBlogPost handles POST /api/admin/blog-posts
 // Creates a new blog post (admin only)
 func CreateBlogPost(w http.ResponseWriter, r *http.Request) {
-	var payload struct {
-		Title      string   `json:"title"`
-		Excerpt    string   `json:"excerpt"`
-		Content    string   `json:"content"`
-		CoverImage string   `json:"coverImage"`
-		Author     struct {
-			Name   string `json:"name"`
-			Avatar string `json:"avatar"`
-		} `json:"author"`
-		Category    string   `json:"category"`
-		Tags        []string `json:"tags"`
-		IsPublished bool     `json:"isPublished"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+	// Parse multipart form (max 5MB)
+	if err := r.ParseMultipartForm(5 << 20); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Error parsing multipart form: "+err.Error())
 		return
 	}
-
-	// Validation
-	if payload.Title == "" {
+	// Extract form fields
+	title := r.FormValue("title")
+	excerpt := r.FormValue("excerpt")
+	content := r.FormValue("content")
+	slug := r.FormValue("slug")
+	if title == "" {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Title is required")
 		return
 	}
-	if payload.Content == "" {
+	if content == "" {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Content is required")
 		return
 	}
-	if payload.Author.Name == "" {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Author name is required")
+	if slug == "" {
+		slug = generateSlug(title)
+		if slug == "" {
+			utils.ErrorResponse(w, http.StatusBadRequest, "Could not generate valid slug from title")
+			return
+		}
+	}
+	// Parse tags JSON
+	var tags []string
+	if tagsJSON := r.FormValue("tags"); tagsJSON != "" {
+		if err := json.Unmarshal([]byte(tagsJSON), &tags); err != nil {
+			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid tags format: "+err.Error())
+			return
+		}
+	}
+	// Parse isPublished flag
+	isPublished := false
+	if val := r.FormValue("isPublished"); val != "" {
+		isPublished, _ = strconv.ParseBool(val)
+	}
+	// Handle coverImage upload
+	var coverImagePath string
+	file, header, err := r.FormFile("coverImage")
+	if err != nil && err != http.ErrMissingFile {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Error retrieving cover image: "+err.Error())
 		return
 	}
-
-	// Generate slug from title
-	slug := generateSlug(payload.Title)
-	if slug == "" {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Could not generate valid slug from title")
-		return
+	if file != nil {
+		defer file.Close()
+		uploadDir := "./uploads/blog"
+		if err := os.MkdirAll(uploadDir, 0755); err != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error creating upload directory: "+err.Error())
+			return
+		}
+		ext := filepath.Ext(header.Filename)
+		filename := fmt.Sprintf("%s-%d%s", slug, time.Now().UnixNano(), ext)
+		filePath := filepath.Join(uploadDir, filename)
+		dst, err := os.Create(filePath)
+		if err != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error creating file: "+err.Error())
+			return
+		}
+		defer dst.Close()
+		if _, err := io.Copy(dst, file); err != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error saving file: "+err.Error())
+			return
+		}
+		coverImagePath = "/uploads/blog/" + filename
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
 	collection := db.Database.Collection("blog_posts")
 
 	// Check if slug already exists
@@ -246,30 +277,27 @@ func CreateBlogPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Calculate read time
-	readTime := estimateReadTime(payload.Content)
+	readTime := estimateReadTime(content)
 
 	// Create blog post
 	now := time.Now()
 	var publishedAt *time.Time
-	if payload.IsPublished {
+	if isPublished {
 		publishedAt = &now
 	}
 
 	blogPost := models.BlogPost{
 		ID:          primitive.NewObjectID(),
-		Title:       payload.Title,
+		Title:       title,
 		Slug:        slug,
-		Excerpt:     payload.Excerpt,
-		Content:     payload.Content,
-		CoverImage:  payload.CoverImage,
-		Author: models.BlogAuthor{
-			Name:   payload.Author.Name,
-			Avatar: payload.Author.Avatar,
-		},
-		Category:    payload.Category,
-		Tags:        payload.Tags,
+		Excerpt:     excerpt,
+		Content:     content,
+		CoverImage:  coverImagePath,
+		Author:      models.BlogAuthor{},
+		Category:    r.FormValue("category"),
+		Tags:        tags,
 		ReadTime:    readTime,
-		IsPublished: payload.IsPublished,
+		IsPublished: isPublished,
 		IsActive:    true,
 		PublishedAt: publishedAt,
 		CreatedAt:   now,
@@ -296,23 +324,9 @@ func UpdateBlogPost(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid blog post ID format")
 		return
 	}
-
-	var payload struct {
-		Title      *string  `json:"title,omitempty"`
-		Excerpt    *string  `json:"excerpt,omitempty"`
-		Content    *string  `json:"content,omitempty"`
-		CoverImage *string  `json:"coverImage,omitempty"`
-		Author     *struct {
-			Name   string `json:"name"`
-			Avatar string `json:"avatar"`
-		} `json:"author,omitempty"`
-		Category    *string   `json:"category,omitempty"`
-		Tags        *[]string `json:"tags,omitempty"`
-		IsPublished *bool     `json:"isPublished,omitempty"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+	// Parse multipart form for updates (max 5MB)
+	if err := r.ParseMultipartForm(5 << 20); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Error parsing multipart form: "+err.Error())
 		return
 	}
 
@@ -335,10 +349,10 @@ func UpdateBlogPost(w http.ResponseWriter, r *http.Request) {
 	// Build update document
 	updateFields := bson.M{}
 
-	if payload.Title != nil && *payload.Title != "" {
-		updateFields["title"] = *payload.Title
+	if val := r.FormValue("title"); val != "" {
+		updateFields["title"] = val
 		// Update slug if title changes
-		newSlug := generateSlug(*payload.Title)
+		newSlug := generateSlug(val)
 		if newSlug != existingPost.Slug {
 			// Check if new slug already exists
 			count, err := collection.CountDocuments(ctx, bson.M{
@@ -351,42 +365,44 @@ func UpdateBlogPost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if payload.Excerpt != nil {
-		updateFields["excerpt"] = *payload.Excerpt
+	if val := r.FormValue("excerpt"); val != "" {
+		updateFields["excerpt"] = val
 	}
 
-	if payload.Content != nil {
-		updateFields["content"] = *payload.Content
+	if val := r.FormValue("content"); val != "" {
+		updateFields["content"] = val
 		// Recalculate read time if content changes
-		updateFields["read_time"] = estimateReadTime(*payload.Content)
+		updateFields["read_time"] = estimateReadTime(val)
 	}
 
-	if payload.CoverImage != nil {
-		updateFields["cover_image"] = *payload.CoverImage
-	}
-
-	if payload.Author != nil {
-		updateFields["author"] = models.BlogAuthor{
-			Name:   payload.Author.Name,
-			Avatar: payload.Author.Avatar,
+	// Handle new cover image upload
+	if file, header, err := r.FormFile("coverImage"); err == nil && file != nil {
+		defer file.Close()
+		uploadDir := "./uploads/blog"
+		if err := os.MkdirAll(uploadDir, 0755); err == nil {
+			ext := filepath.Ext(header.Filename)
+			filename := fmt.Sprintf("%s-%d%s", blogPostID.Hex(), time.Now().UnixNano(), ext)
+			filePath := filepath.Join(uploadDir, filename)
+			if dst, err := os.Create(filePath); err == nil {
+				io.Copy(dst, file)
+				dst.Close()
+				updateFields["cover_image"] = "/uploads/blog/" + filename
+			}
 		}
 	}
 
-	if payload.Category != nil {
-		updateFields["category"] = *payload.Category
+	if val := r.FormValue("category"); val != "" {
+		updateFields["category"] = val
 	}
 
-	if payload.Tags != nil {
-		updateFields["tags"] = *payload.Tags
-	}
-
-	if payload.IsPublished != nil {
-		updateFields["is_published"] = *payload.IsPublished
+	if val := r.FormValue("isPublished"); val != "" {
+		isPub, _ := strconv.ParseBool(val)
+		updateFields["is_published"] = isPub
 		// Set published_at if changing from unpublished to published
-		if *payload.IsPublished && !existingPost.IsPublished {
+		if isPub && !existingPost.IsPublished {
 			now := time.Now()
 			updateFields["published_at"] = now
-		} else if !*payload.IsPublished {
+		} else if !isPub {
 			updateFields["published_at"] = nil
 		}
 	}

@@ -35,6 +35,7 @@ export default function AdminCategoriesPage() {
     description: "",
     parent_id: null,
     is_active: true,
+    show_in_header: false,
   });
   const [newCategoryImage, setNewCategoryImage] = useState<File | null>(null);
   const [editingCategoryImage, setEditingCategoryImage] = useState<File | null>(null);
@@ -104,6 +105,7 @@ export default function AdminCategoriesPage() {
     if (newCategory.description) formData.append("description", newCategory.description);
     if (newCategory.parent_id) formData.append("parent_id", newCategory.parent_id);
     formData.append("is_active", String(newCategory.is_active || true));
+    formData.append("show_in_header", String(newCategory.show_in_header || false));
     if (newCategoryImage) {
       formData.append("image", newCategoryImage);
     }
@@ -116,6 +118,7 @@ export default function AdminCategoriesPage() {
         description: "",
         parent_id: null,
         is_active: true,
+        show_in_header: false,
       });
       setNewCategoryImage(null);
       setIsAddModalOpen(false);
@@ -125,6 +128,7 @@ export default function AdminCategoriesPage() {
 
   // Update category
   const handleUpdateCategory = async () => {
+    console.log("editingCategory", editingCategory);
     if (!editingCategory || !editingCategory.id || !adminToken) return;
 
     const formData = new FormData();
@@ -134,6 +138,7 @@ export default function AdminCategoriesPage() {
     if (editingCategory.parent_id) formData.append("parent_id", editingCategory.parent_id);
     // Ensure is_active is always a string "true" or "false" for FormData
     formData.append("is_active", String(editingCategory.is_active === undefined ? true : editingCategory.is_active));
+    formData.append("show_in_header", String(editingCategory.show_in_header === undefined ? false : editingCategory.show_in_header));
 
     if (editingCategoryImage) {
       formData.append("image", editingCategoryImage);
@@ -169,7 +174,8 @@ export default function AdminCategoriesPage() {
     setEditingCategory({ 
       ...category,
       // Ensure is_active is explicitly a boolean, defaulting to true if undefined from source
-      is_active: category.is_active === undefined ? true : category.is_active 
+      is_active: category.is_active === undefined ? true : category.is_active,
+      show_in_header: category.show_in_header === undefined ? false : category.show_in_header
     }); 
     setNewCategory({}); // Clear newCategory form when opening edit
     setEditingCategoryImage(null); 
@@ -237,7 +243,7 @@ export default function AdminCategoriesPage() {
           className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-sm hover:shadow-md transition-all duration-300"
           onClick={() => {
             setEditingCategory(null); 
-            setNewCategory({ name: "", slug: "", description: "", parent_id: null, is_active: true });
+            setNewCategory({ name: "", slug: "", description: "", parent_id: null, is_active: true, show_in_header: false });
             setNewCategoryImage(null);
             setEditingCategoryImage(null); // Also reset editing image
             setIsAddModalOpen(true);
@@ -620,6 +626,33 @@ export default function AdminCategoriesPage() {
                   className="text-sm text-voxcina-blue/80 dark:text-voxcina-cream/80 cursor-pointer"
                 >
                   دسته‌بندی فعال است
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id={editingCategory ? "showInHeaderEdit" : "showInHeader"}
+                  className="rounded text-voxcina-blue focus:ring-voxcina-blue mr-2 h-4 w-4"
+                  checked={
+                    editingCategory
+                      ? editingCategory.show_in_header === undefined
+                        ? false
+                        : editingCategory.show_in_header
+                      : newCategory.show_in_header === undefined
+                        ? false
+                        : newCategory.show_in_header
+                  }
+                  onChange={(e) =>
+                    editingCategory
+                      ? setEditingCategory({ ...editingCategory, show_in_header: e.target.checked })
+                      : setNewCategory({ ...newCategory, show_in_header: e.target.checked })
+                  }
+                />
+                <label
+                  htmlFor={editingCategory ? "showInHeaderEdit" : "showInHeader"}
+                  className="text-sm text-voxcina-blue/80 dark:text-voxcina-cream/80 cursor-pointer"
+                >
+                  نمایش در هدر سایت
                 </label>
               </div>
             </div>

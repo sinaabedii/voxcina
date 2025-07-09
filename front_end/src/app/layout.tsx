@@ -4,6 +4,51 @@ import "./globals.css";
 import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer } from "react-toastify";
 import ClientLayout from "../components/layout/ClientLayout";
+import { NavigationProvider } from "@/context/navigation";
+import type { NavItem } from "@/components/layout/HeaderClient";
+
+interface CategoryApi {
+  id?: string;
+  name: string;
+  slug: string;
+  parent_id?: string | null;
+  show_in_header?: boolean;
+}
+
+// Helper to build nav items (depth 1-2)
+function buildNavItems(categories: CategoryApi[]): NavItem[] {
+  const map = new Map<string, NavItem>();
+  const roots: NavItem[] = [];
+
+  categories.forEach((cat) => {
+    const key = String(cat.id ?? cat.slug);
+    const item: NavItem = {
+      label: cat.name,
+      href: `/products?category=${key}`,
+      children: [],
+    };
+    map.set(key, item);
+  });
+
+  categories.forEach((cat) => {
+    const parentKey = cat.parent_id ? String(cat.parent_id) : null;
+    const currentKey = String(cat.id ?? cat.slug);
+
+    if (parentKey && map.has(parentKey)) {
+      const parent = map.get(parentKey)!;
+      parent.children = parent.children || [];
+      parent.children.push(map.get(currentKey)!);
+    } else {
+      roots.push(map.get(currentKey)!);
+    }
+  });
+
+  roots.forEach((r) => {
+    if (r.children && r.children.length === 0) delete r.children;
+  });
+
+  return roots;
+}
 
 export const metadata: Metadata = {
   title: {
@@ -69,11 +114,35 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+
+  // Fetch categories for header (server-side)
+  let navItems: NavItem[] = [];
+  try {
+    const baseUrl =
+      process.env.GO_BACKEND_URL ||
+      process.env.NEXT_PUBLIC_API_BASE_URL ||
+      "http://server:8080"; // works inside docker-compose network; fallback to localhost when running locally
+    const res = await fetch(`${baseUrl}/api/categories`, {
+      next: { revalidate: 600 }, // 10-minute revalidation
+      cache: process.env.NODE_ENV === "development" ? "no-store" : "force-cache",
+    });
+    if (res.ok) {
+      const data = (await res.json()) as CategoryApi[];
+      navItems = buildNavItems(data.filter((c) => c.show_in_header));
+    }
+  } catch (err) {
+    console.error("Failed to fetch header categories", err);
+  }
+
+  // Always include Home as the first item
+  const homeItem: NavItem = { label: "خانه", href: "/" };
+  navItems = [homeItem, ...navItems.filter((i) => i.href !== "/")];
+
   return (
     <html lang="fa" dir="rtl" className="scroll-smooth">
       <head>
@@ -128,11 +197,13 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-background text-foreground font-iransans antialiased selection:bg-primary/20 selection:text-primary">
+        <NavigationProvider navItems={navItems}>
         <ClientLayout>
           <div className="page-transition-wrapper">
             <main className="flex flex-col min-h-screen">{children}</main>
           </div>
         </ClientLayout>
+        </NavigationProvider>
 
         <ToastContainer
           position="top-center"

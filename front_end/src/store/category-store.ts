@@ -36,8 +36,6 @@ export const useCategoryStore = create<CategoryState>()((set, get) => ({
   fetchCategories: async () => {
     set({ isLoading: true, error: null });
     try {
-      // await delay(300); // Simulating network delay
-      // set({ categories: mockCategories, isLoading: false }); // Mock data fetching
       const response = await fetch("/api/categories");
       if (!response.ok) {
         throw new Error("Failed to fetch categories");
@@ -63,10 +61,9 @@ export const useCategoryStore = create<CategoryState>()((set, get) => ({
   fetchCategoryById: async (id: string) => {
     set({ isLoading: true, error: null, activeCategory: null });
     try {
-      // await delay(200); // Simulating network delay
       // let category = mockCategories.find((c) => c.id === id); // Mock data fetching
       // if (!category) {
-      //   for (const mainCategory of mockCategories) {
+      //   for (const mainCategory of categories) {
       //     if (mainCategory.children) {
       //       const childCategory = mainCategory.children.find(
       //         (c) => c.id === id

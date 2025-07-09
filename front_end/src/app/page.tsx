@@ -106,20 +106,6 @@ export default function HomePage() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
   };
 
-  const staggerContainer = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
-  };
-
-  const itemVariant = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
-  };
 
   const handleAddToCart = (product: Product) => {
     addItemToCart(product, 1);

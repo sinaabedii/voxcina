@@ -143,6 +143,11 @@ func convertObjectIDsToString(data interface{}) {
 					v["id"] = objID.Hex()
 					delete(v, "_id")
 				}
+			} else if key == "parent_id" {
+				if objID, ok := value.(primitive.ObjectID); ok {
+					// represent as plain hex string; keep the same key name
+					v["parent_id"] = objID.Hex()
+				}
 			} else {
 				// Recursive call for nested objects
 				convertObjectIDsToString(value)
@@ -173,6 +178,11 @@ func CreateCategory(w http.ResponseWriter, r *http.Request) {
 	slug := r.FormValue("slug")
 	description := r.FormValue("description")
 	parentIDStr := r.FormValue("parent_id") // Corrected to snake_case
+	showInHeaderStr := r.FormValue("show_in_header")
+	showInHeader := false
+	if showInHeaderStr == "true" || showInHeaderStr == "1" {
+		showInHeader = true
+	}
 
 	if name == "" {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Category name is required")
@@ -258,6 +268,8 @@ func CreateCategory(w http.ResponseWriter, r *http.Request) {
 		Image:       imagePath,
 		CreatedAt:   now,
 		UpdatedAt:   now,
+		IsActive:    true,
+		ShowInHeader: showInHeader,
 	}
 	if !parentID.IsZero() {
 		category.ParentID = parentID
@@ -345,6 +357,7 @@ func UpdateCategory(w http.ResponseWriter, r *http.Request) {
 	description := r.FormValue("description")
 	parentIDStr := r.FormValue("parent_id")
 	isActiveStr := r.FormValue("is_active") // Get is_active string value
+	showInHeaderStr := r.FormValue("show_in_header")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -417,6 +430,13 @@ func UpdateCategory(w http.ResponseWriter, r *http.Request) {
 		parsedIsActive := isActiveStr == "true" // Simple conversion for "true" string
 		update["is_active"] = parsedIsActive
 		existingCategory.IsActive = parsedIsActive // Update for response
+	}
+
+	// Handle show_in_header
+	if showInHeaderStr != "" {
+		parsedShowInHeader := showInHeaderStr == "true" || showInHeaderStr == "1"
+		update["show_in_header"] = parsedShowInHeader
+		existingCategory.ShowInHeader = parsedShowInHeader // Update for response
 	}
 
 	file, handler, err := r.FormFile("image")

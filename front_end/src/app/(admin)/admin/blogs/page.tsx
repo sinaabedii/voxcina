@@ -33,6 +33,7 @@ export default function AdminBlogsPage() {
     readTime: 5,
     isPublished: false,
   } as any);
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
 
   // Fetch posts on mount
   useEffect(() => {
@@ -62,6 +63,7 @@ export default function AdminBlogsPage() {
       readTime: 5,
       isPublished: false,
     } as any);
+    setCoverImageFile(null);
   };
 
   // Handlers
@@ -71,17 +73,30 @@ export default function AdminBlogsPage() {
       return;
     }
 
-    // Ensure tags field is array
-    let payload: Partial<BlogPost> = {
-      ...formData,
-      tags: typeof formData.tags === "string" ? (formData.tags as unknown as string).split(',').map(t=>t.trim()) : formData.tags,
-    };
+    const tagsArray = typeof formData.tags === "string"
+      ? (formData.tags as unknown as string).split(",").map((t) => t.trim())
+      : (formData.tags as string[]);
+
+    const blogForm = new FormData();
+    blogForm.append("title", formData.title!);
+    blogForm.append("slug", formData.slug || "");
+    blogForm.append("excerpt", formData.excerpt || "");
+    blogForm.append("content", formData.content || "");
+    blogForm.append("category", formData.category || "");
+    blogForm.append("tags", JSON.stringify(tagsArray));
+    blogForm.append("readTime", formData.readTime?.toString() || "5");
+    blogForm.append("isPublished", formData.isPublished ? "true" : "false");
+    if (coverImageFile) {
+      blogForm.append("coverImage", coverImageFile);
+    } else if (editingPost && formData.coverImage) {
+      blogForm.append("coverImage", formData.coverImage);
+    }
 
     let success = null;
     if (editingPost) {
-      success = await updateBlog(editingPost.id || editingPost._id!, payload);
+      success = await updateBlog(editingPost.id || editingPost._id!, blogForm);
     } else {
-      success = await createBlog(payload);
+      success = await createBlog(blogForm);
     }
 
     if (success) {
@@ -100,6 +115,7 @@ export default function AdminBlogsPage() {
       ...post,
       tags: post.tags.join(", "),
     } as any);
+    setCoverImageFile(null);
     setIsModalOpen(true);
   };
 
@@ -237,12 +253,16 @@ export default function AdminBlogsPage() {
                 value={formData.category || ""}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               />
+              <label className="block mb-1">کاور مقاله *</label>
               <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setCoverImageFile(e.target.files?.[0] || null)}
                 className="input w-full"
-                placeholder="کاور (URL)"
-                value={formData.coverImage || ""}
-                onChange={(e) => setFormData({ ...formData, coverImage: e.target.value })}
               />
+              {coverImageFile && (
+                <span className="text-xs text-gray-600">{coverImageFile.name}</span>
+              )}
               <textarea
                 className="input w-full h-24"
                 placeholder="خلاصه"

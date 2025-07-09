@@ -8,4 +8,5 @@ export interface Category {
   created_at?: string;          // ISO 8601 timestamp, optional
   updated_at?: string;          // ISO 8601 timestamp, optional
   is_active?: boolean;          // Whether the category is active
+  show_in_header?: boolean;    // Should this category appear in the site header navigation?
 }
