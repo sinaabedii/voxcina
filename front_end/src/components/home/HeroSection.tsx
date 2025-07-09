@@ -34,7 +34,7 @@ const HeroSection = () => {
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-pink-600/20" />
         </div>
 
-        <div className="absolute inset-0 bg-[url('/images/banners/heroheader.jpeg')] bg-cover bg-center opacity-30" />
+        <div className="absolute inset-0 bg-[url('/images/banners/FinalB1.jpg')] bg-cover bg-center opacity-30" />
       </motion.div>
 
       <div className="absolute inset-0 overflow-hidden">

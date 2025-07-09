@@ -17,7 +17,9 @@ import { FaArrowLeft } from "react-icons/fa";
 import AnimatedBackground from "@/components/ui/AnimatedBackground";
 
 // Lazy load کردن کامپوننت‌های سنگین
-const ColorMatchingTool = lazy(() => import("@/components/home/ColorMatchingTool"));
+const ColorMatchingTool = lazy(
+  () => import("@/components/home/ColorMatchingTool")
+);
 const InstagramFeed = lazy(() => import("@/components/home/InstagramFeed"));
 
 export default function HomePage() {
@@ -106,7 +108,6 @@ export default function HomePage() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
   };
 
-
   const handleAddToCart = (product: Product) => {
     addItemToCart(product, 1);
     console.log(`${product.name} added to cart`);
@@ -169,9 +170,7 @@ export default function HomePage() {
               <div className="relative h-64 sm:h-72 md:h-auto">
                 <div className="absolute inset-0 overflow-hidden rounded-b-3xl md:rounded-r-3xl md:rounded-bl-none">
                   <div className="absolute inset-0 bg-gradient-to-br from-voxcina-blue/20 to-voxcina-blue/30 mix-blend-multiply z-10"></div>
-                  <div
-                    className="absolute inset-0 bg-[url('/images/banners/Ulyana-Sergeenko-New-York-Fashion-Week-Fall-slash-Winter-Feb-12-2013-c-Mode-Pure.jpg')] bg-cover bg-center"
-                  />
+                  <div className="absolute inset-0 bg-[url('/images/banners/FinalB2.jpg')] bg-cover bg-center" />
                 </div>
               </div>
             </div>
@@ -241,7 +240,13 @@ export default function HomePage() {
 
         <ModernSliderSection />
 
-        <Suspense fallback={<div className="h-40 flex items-center justify-center">در حال بارگذاری...</div>}>
+        <Suspense
+          fallback={
+            <div className="h-40 flex items-center justify-center">
+              در حال بارگذاری...
+            </div>
+          }
+        >
           <ColorMatchingTool />
         </Suspense>
 
@@ -294,10 +299,7 @@ export default function HomePage() {
             </div>
           ) : (
             <div>
-              <ProductGrid
-                products={newProducts}
-                columns={4}
-              />
+              <ProductGrid products={newProducts} columns={4} />
             </div>
           )}
         </motion.section>
@@ -393,14 +395,9 @@ export default function HomePage() {
                   description: "درگاه‌های پرداخت معتبر و امن",
                 },
               ].map((benefit, index) => (
-                <div
-                  key={index}
-                  className="text-center relative"
-                >
+                <div key={index} className="text-center relative">
                   <div className="flex justify-center mb-3 md:mb-4">
-                    <div
-                      className="bg-gradient-to-br from-white/20 to-white/5 text-white p-3 md:p-4 rounded-2xl backdrop-blur-sm border border-white/10 shadow-soft"
-                    >
+                    <div className="bg-gradient-to-br from-white/20 to-white/5 text-white p-3 md:p-4 rounded-2xl backdrop-blur-sm border border-white/10 shadow-soft">
                       {benefit.icon}
                     </div>
                   </div>
@@ -416,7 +413,13 @@ export default function HomePage() {
           </div>
         </motion.section>
 
-        <Suspense fallback={<div className="h-40 flex items-center justify-center">در حال بارگذاری...</div>}>
+        <Suspense
+          fallback={
+            <div className="h-40 flex items-center justify-center">
+              در حال بارگذاری...
+            </div>
+          }
+        >
           <InstagramFeed
             username="voxcina"
             postsCount={6}
