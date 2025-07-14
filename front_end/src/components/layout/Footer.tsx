@@ -157,7 +157,7 @@ const Footer = () => {
                       src='https://trustseal.enamad.ir/logo.aspx?id=625947&Code=6W6KblfeR0Ztn1cpWTxurXJRXOS6O2aa' 
                       alt='نماد اعتماد الکترونیکی' 
                       style={{cursor:'pointer'}} 
-                      code='6W6KblfeR0Ztn1cpWTxurXJRXOS6O2aa'
+                      data-code='6W6KblfeR0Ztn1cpWTxurXJRXOS6O2aa'
                       className="object-contain w-12 h-12"
                     />
                   </a>
