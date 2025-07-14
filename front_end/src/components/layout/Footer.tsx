@@ -158,19 +158,11 @@ const Footer = () => {
                       alt='نماد اعتماد الکترونیکی' 
                       style={{cursor:'pointer'}} 
                       data-code='6W6KblfeR0Ztn1cpWTxurXJRXOS6O2aa'
-                      className="object-contain w-12 h-12"
+                      className="object-contain w-14 h-14"
                     />
                   </a>
                 </div>
-                <div className="bg-white shadow-soft rounded-md p-1 h-16 w-16 flex items-center justify-center">
-                  <Image
-                    src="/images/samandehi.png"
-                    alt="نشان ملی ثبت"
-                    width={50}
-                    height={50}
-                    className="object-contain"
-                  />
-                </div>
+                
               </div>
             </div>
             <p className="text-muted-foreground mx-auto text-xs sm:text-sm text-center sm:text-left order-1 sm:order-2">
