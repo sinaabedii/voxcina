@@ -146,13 +146,21 @@ const Footer = () => {
             <div className="flex items-center gap-4 order-2 sm:order-1">
               <div className="flex flex-wrap gap-3 justify-center">
                 <div className="bg-white shadow-soft rounded-md p-1 h-16 w-16 flex items-center justify-center">
-                  <Image
-                    src="/images/enamad.png"
-                    alt="نماد اعتماد الکترونیکی"
-                    width={50}
-                    height={50}
-                    className="object-contain"
-                  />
+                  <a 
+                    referrerPolicy='origin' 
+                    target='_blank' 
+                    href='https://trustseal.enamad.ir/?id=625947&Code=6W6KblfeR0Ztn1cpWTxurXJRXOS6O2aa'
+                    className="block"
+                  >
+                    <img 
+                      referrerPolicy='origin' 
+                      src='https://trustseal.enamad.ir/logo.aspx?id=625947&Code=6W6KblfeR0Ztn1cpWTxurXJRXOS6O2aa' 
+                      alt='نماد اعتماد الکترونیکی' 
+                      style={{cursor:'pointer'}} 
+                      code='6W6KblfeR0Ztn1cpWTxurXJRXOS6O2aa'
+                      className="object-contain w-12 h-12"
+                    />
+                  </a>
                 </div>
                 <div className="bg-white shadow-soft rounded-md p-1 h-16 w-16 flex items-center justify-center">
                   <Image
