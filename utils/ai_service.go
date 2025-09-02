@@ -16,7 +16,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"backEnd/db"
-	"backEnd/models"
 )
 
 // OpenRouterRequest represents the request structure for OpenRouter API
@@ -167,7 +166,11 @@ func (ai *AIService) semanticProductSearch(ctx context.Context, query string) ([
 	}
 	defer cursor.Close(ctx)
 
-	var products []models.Product
+	type SimpleProduct struct {
+		ID primitive.ObjectID `bson:"_id"`
+	}
+
+	var products []SimpleProduct
 	if err := cursor.All(ctx, &products); err != nil {
 		return nil, err
 	}
@@ -184,10 +187,21 @@ func (ai *AIService) semanticProductSearch(ctx context.Context, query string) ([
 	return productIDs, nil
 }
 
+// ProductData represents minimal product information for AI processing
+type ProductData struct {
+	ID          string  `bson:"_id" json:"id"`
+	Name        string  `bson:"name" json:"name"`
+	Description string  `bson:"description" json:"description"`
+	Price       float64 `bson:"price" json:"price"`
+	Brand       string  `bson:"brand" json:"brand"`
+	IsActive    bool    `bson:"is_active" json:"is_active"`
+	InStock     bool    `bson:"in_stock" json:"in_stock"`
+}
+
 // getProductsByIDs retrieves products by their IDs
-func (ai *AIService) getProductsByIDs(ctx context.Context, productIDs []string) ([]models.Product, error) {
+func (ai *AIService) getProductsByIDs(ctx context.Context, productIDs []string) ([]ProductData, error) {
 	if len(productIDs) == 0 {
-		return []models.Product{}, nil
+		return []ProductData{}, nil
 	}
 
 	var objectIDs []primitive.ObjectID
@@ -211,7 +225,7 @@ func (ai *AIService) getProductsByIDs(ctx context.Context, productIDs []string) 
 	}
 	defer cursor.Close(ctx)
 
-	var products []models.Product
+	var products []ProductData
 	if err := cursor.All(ctx, &products); err != nil {
 		return nil, err
 	}
@@ -220,7 +234,7 @@ func (ai *AIService) getProductsByIDs(ctx context.Context, productIDs []string) 
 }
 
 // buildProductsContext creates a formatted string of products for LLM context
-func (ai *AIService) buildProductsContext(products []models.Product) string {
+func (ai *AIService) buildProductsContext(products []ProductData) string {
 	if len(products) == 0 {
 		return "No products available."
 	}
@@ -238,7 +252,7 @@ func (ai *AIService) buildProductsContext(products []models.Product) string {
 			}
 			context.WriteString(fmt.Sprintf("   توضیحات: %s\n", desc))
 		}
-		context.WriteString(fmt.Sprintf("   شناسه محصول: %s\n\n", product.ID.Hex()))
+		context.WriteString(fmt.Sprintf("   شناسه محصول: %s\n\n", product.ID))
 	}
 
 	return context.String()
@@ -314,7 +328,7 @@ func (ai *AIService) getFallbackRecommendation(ctx context.Context, userMessage 
 		}
 		
 		for _, product := range products {
-			productIDs = append(productIDs, product.ID.Hex())
+			productIDs = append(productIDs, product.ID)
 		}
 	}
 
@@ -336,7 +350,7 @@ func (ai *AIService) getFallbackRecommendation(ctx context.Context, userMessage 
 }
 
 // getPopularProducts gets popular products as fallback
-func (ai *AIService) getPopularProducts(ctx context.Context, limit int) ([]models.Product, error) {
+func (ai *AIService) getPopularProducts(ctx context.Context, limit int) ([]ProductData, error) {
 	collection := db.Database.Collection("products")
 	filter := bson.M{
 		"is_active": true,
@@ -349,10 +363,10 @@ func (ai *AIService) getPopularProducts(ctx context.Context, limit int) ([]model
 	}
 	defer cursor.Close(ctx)
 
-	var products []models.Product
+	var products []ProductData
 	count := 0
 	for cursor.Next(ctx) && count < limit {
-		var product models.Product
+		var product ProductData
 		if err := cursor.Decode(&product); err != nil {
 			continue
 		}
