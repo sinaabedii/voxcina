@@ -47,6 +47,13 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/products/search", handlers.SearchProducts).Methods(http.MethodGet)
 	api.HandleFunc("/products/recommendations", handlers.ProductRecommendations).
 		Methods(http.MethodGet)
+	api.HandleFunc("/products/smart-recommendations", handlers.EnhancedProductRecommendations).
+		Methods(http.MethodGet)
+
+	// AI-Powered Search and Chat endpoints
+	api.HandleFunc("/search/smart", handlers.SmartSearch).Methods(http.MethodPost)
+	api.HandleFunc("/search/suggestions/smart", handlers.GetSearchSuggestions).Methods(http.MethodGet)
+	api.HandleFunc("/chat/recommend", handlers.ChatRecommendation).Methods(http.MethodPost)
 
 	// **Admin Product Management**
 	adminRouter := api.PathPrefix("/admin").Subrouter()
