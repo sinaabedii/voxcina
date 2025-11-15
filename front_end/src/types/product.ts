@@ -1,9 +1,11 @@
 export interface ProductVariant {
-  size: string; // e.g., "S", "M", "L"
-  color: string; // e.g., "Red", "Blue"
+  size: string; // e.g., "S", "M", "L", "XL", "XXL"
+  color: string; // e.g., "Red", "Blue", "#FF5733" (supports color names or hex codes)
+  colorName?: string; // Display name for color (e.g., "قرمز", "آبی")
   sku: string; // Unique per variant (e.g., "TSHIRT-RED-M")
   quantity: number; // Available stock
-  images: string[]; // Optional variant-specific images
+  images: string[]; // Color-specific product images (multiple angles)
+  tryOnImage?: string; // Color-specific try-on image for AR/virtual try-on
 }
 
 export interface ProductAttribute {

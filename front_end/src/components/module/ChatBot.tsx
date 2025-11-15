@@ -20,6 +20,14 @@ interface Message {
   sender: "user" | "bot";
   time: string;
   emoji?: string;
+  products?: Array<{
+    id: string;
+    name: string;
+    price: number;
+    images?: string[];
+    brand?: string;
+  }>;
+  isAIGenerated?: boolean;
 }
 
 const emojis = {
@@ -180,6 +188,21 @@ export default function ChatBot() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedEmoji, setSelectedEmoji] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [chatId, setChatId] = useState(() => {
+    // Get from localStorage or create new
+    const stored = localStorage.getItem('currentChatId');
+    if (stored) return stored;
+    
+    const newId = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('currentChatId', newId);
+    return newId;
+  });
+  const [useAI, setUseAI] = useState(true); // Toggle AI on/off
+  const [savingEnabled, setSavingEnabled] = useState(true); // Toggle message saving
+  const [chatHistory, setChatHistory] = useState<Array<{id: string, title: string, last_message: string}>>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [user, setUser] = useState<{id: string, name: string} | null>(null); // Get from auth context
 
   const emojiList = [
     "😊",
@@ -200,11 +223,297 @@ export default function ChatBot() {
     }
   }, [messages]);
 
-  const simulateResponse = (userMessage: string) => {
+  // Load chat history on mount
+  useEffect(() => {
+    loadCurrentChat();
+    checkUserAuth();
+  }, []);
+
+  // Sync chats when user logs in/out
+  useEffect(() => {
+    if (user) {
+      syncAnonymousChatsToUser();
+      loadUserChatHistory();
+    } else {
+      // User logged out - clear localStorage history
+      clearLocalChatHistory();
+    }
+  }, [user]);
+
+  // Check if user is authenticated
+  const checkUserAuth = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setUser(null);
+        return;
+      }
+
+      // Verify token and get user info
+      const response = await fetch('/api/users/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser({ id: data.user_id || data.id, name: data.name || data.username });
+      } else {
+        setUser(null);
+        localStorage.removeItem('token');
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      setUser(null);
+    }
+  };
+
+  // Load current chat from database
+  const loadCurrentChat = async () => {
+    try {
+      const response = await fetch(`/api/chat/history/${chatId}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.messages && data.messages.length > 0) {
+          // Convert backend messages to frontend format
+          const loadedMessages = data.messages.map((msg: any, index: number) => ({
+            id: index + 1,
+            text: msg.text,
+            sender: msg.sender,
+            time: new Date(msg.timestamp).toLocaleTimeString('fa-IR', {
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            products: msg.product_ids || [],
+            isAIGenerated: msg.is_ai_generated || false
+          }));
+          setMessages(loadedMessages);
+        }
+      }
+    } catch (error) {
+      console.log('No previous chat found, starting fresh');
+    }
+  };
+
+  // Sync anonymous chats to user account on login
+  const syncAnonymousChatsToUser = async () => {
+    if (!user) return;
+
+    try {
+      // Get all localStorage chat IDs
+      const localChatIds: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith('chat_')) {
+          localChatIds.push(key);
+        }
+      }
+
+      // Link each anonymous chat to user
+      for (const chatId of localChatIds) {
+        await fetch('/api/chat/link-to-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            chat_id: chatId,
+            user_id: user.id
+          })
+        });
+      }
+
+      console.log('Anonymous chats synced to user account');
+    } catch (error) {
+      console.error('Failed to sync chats:', error);
+    }
+  };
+
+  // Load user's chat history
+  const loadUserChatHistory = async () => {
+    if (!user) return;
+
+    setIsLoadingHistory(true);
+    try {
+      const response = await fetch(`/api/chat/sessions?user_id=${user.id}&limit=50`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setChatHistory(data.sessions || []);
+      }
+    } catch (error) {
+      console.error('Failed to load chat history:', error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  // Clear local chat history on logout
+  const clearLocalChatHistory = () => {
+    // Remove all chat-related items from localStorage
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('chat_') || key === 'currentChatId') {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    
+    // Start fresh chat
+    startNewChat();
+  };
+
+  // Start a new chat
+  const startNewChat = () => {
+    const newId = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('currentChatId', newId);
+    setChatId(newId);
+    setMessages([
+      {
+        id: 1,
+        text: "سلام! چطور می‌تونم کمکتون کنم؟",
+        sender: "bot",
+        time: new Date().toLocaleTimeString("fa-IR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      },
+    ]);
+  };
+
+  // Resume a previous chat
+  const resumeChat = async (selectedChatId: string) => {
+    setChatId(selectedChatId);
+    localStorage.setItem('currentChatId', selectedChatId);
+    setShowHistory(false);
+    
+    // Load messages
+    try {
+      const response = await fetch(`/api/chat/history/${selectedChatId}`, {
+        headers: user ? {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        } : {}
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.messages && data.messages.length > 0) {
+          const loadedMessages = data.messages.map((msg: any, index: number) => ({
+            id: index + 1,
+            text: msg.text,
+            sender: msg.sender,
+            time: new Date(msg.timestamp).toLocaleTimeString('fa-IR', {
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            products: msg.product_ids || [],
+            isAIGenerated: msg.is_ai_generated || false
+          }));
+          setMessages(loadedMessages);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load chat:', error);
+    }
+  };
+
+  // Function to save message to database
+  const saveMessageToDB = async (message: Message) => {
+    if (!savingEnabled) return;
+
+    try {
+      await fetch("/api/chat/save", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          chat_id: chatId,
+          user_id: user?.id || null, // Link to user if authenticated
+          message: {
+            id: message.id.toString(),
+            text: message.text,
+            sender: message.sender,
+            timestamp: new Date().toISOString(),
+            is_ai_generated: message.isAIGenerated || false,
+            product_ids: message.products?.map(p => p.id) || [],
+          },
+          session_id: chatId,
+          metadata: {
+            device_type: /Mobile|Android|iPhone/i.test(navigator.userAgent) ? "mobile" : "desktop",
+            browser: navigator.userAgent,
+          },
+        }),
+      });
+    } catch (error) {
+      // Silently fail - don't disrupt user experience
+      console.error("Failed to save message:", error);
+    }
+  };
+
+  const simulateResponse = async (userMessage: string) => {
     setIsTyping(true);
 
-    const typingTime = Math.random() * 1000 + 1000;
+    // Try AI-powered response first
+    if (useAI) {
+      try {
+        const response = await fetch("/api/chat/recommend", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message: userMessage,
+            chat_id: chatId,
+            // Include recent conversation context (last 5 messages)
+            context: messages
+              .slice(-5)
+              .map((m) => ({
+                role: m.sender === "user" ? "user" : "assistant",
+                content: m.text,
+              })),
+          }),
+        });
 
+        if (response.ok) {
+          const data = await response.json();
+
+          const newBotMessage: Message = {
+            id: messages.length + 2,
+            text: data.response || "متأسفم، در حال حاضر نمی‌توانم پاسخ دهم.",
+            sender: "bot",
+            time: new Date().toLocaleTimeString("fa-IR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            products: data.products || [],
+            isAIGenerated: data.is_ai_generated || false,
+          };
+
+          setMessages((prev) => [...prev, newBotMessage]);
+          setIsTyping(false);
+          setShowSuggestions(data.products && data.products.length > 0);
+          
+          // Save bot message to database
+          saveMessageToDB(newBotMessage);
+          
+          return;
+        }
+      } catch (error) {
+        console.error("AI chat error:", error);
+        // Fall through to fallback
+      }
+    }
+
+    // Fallback to rule-based responses
+    const typingTime = Math.random() * 1000 + 1000;
     setTimeout(() => {
       const botResponse = getRandomResponse(userMessage);
 
@@ -216,11 +525,15 @@ export default function ChatBot() {
           hour: "2-digit",
           minute: "2-digit",
         }),
+        isAIGenerated: false,
       };
 
       setMessages((prev) => [...prev, newBotMessage]);
       setIsTyping(false);
       setShowSuggestions(true);
+      
+      // Save fallback bot message to database
+      saveMessageToDB(newBotMessage);
     }, typingTime);
   };
 
@@ -246,6 +559,10 @@ export default function ChatBot() {
     setSelectedEmoji("");
     setShowEmojiPicker(false);
     setShowSuggestions(false);
+    
+    // Save user message to database
+    saveMessageToDB(newUserMessage);
+    
     simulateResponse(inputMessage);
   };
 
@@ -269,6 +586,10 @@ export default function ChatBot() {
 
     setMessages((prev) => [...prev, newUserMessage]);
     setShowSuggestions(false);
+    
+    // Save quick response message to database
+    saveMessageToDB(newUserMessage);
+    
     simulateResponse(response);
   };
 
@@ -386,6 +707,38 @@ export default function ChatBot() {
               </div>
 
               <div className="flex gap-1 md:gap-2 relative z-10">
+                {/* New Chat Button */}
+                <button
+                  onClick={startNewChat}
+                  className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-[#15325a] transition-colors"
+                  title="گفتگوی جدید"
+                >
+                  <svg className="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+
+                {/* Chat History Button (only for logged-in users) */}
+                {user && (
+                  <button
+                    onClick={() => {
+                      setShowHistory(!showHistory);
+                      if (!showHistory) loadUserChatHistory();
+                    }}
+                    className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-[#15325a] transition-colors relative"
+                    title="تاریخچه گفتگو"
+                  >
+                    <svg className="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {chatHistory.length > 0 && (
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full text-[8px] flex items-center justify-center text-white">
+                        {chatHistory.length > 9 ? '9+' : chatHistory.length}
+                      </span>
+                    )}
+                  </button>
+                )}
+
                 <button
                   onClick={() => setMinimized(!minimized)}
                   className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-[#15325a] transition-colors"
@@ -419,12 +772,73 @@ export default function ChatBot() {
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div
-                    className="h-72 md:h-96 overflow-y-auto bg-[#f4f1ec] dark:bg-gray-800/80 p-3 md:p-4 overflow-x-hidden scroll-smooth"
-                    style={{ scrollBehavior: "smooth" }}
-                  >
-                    <div className="flex flex-col space-y-3">
-                      {messages.map((message) => (
+                  {/* Chat History Panel */}
+                  {showHistory ? (
+                    <div className="h-72 md:h-96 overflow-y-auto bg-[#f4f1ec] dark:bg-gray-800/80 p-3 md:p-4">
+                      <div className="mb-3">
+                        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                          تاریخچه گفتگوها
+                          {user && <span className="text-xs text-gray-500 mr-2">({user.name})</span>}
+                        </h3>
+                      </div>
+                      
+                      {isLoadingHistory ? (
+                        <div className="flex items-center justify-center h-32">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1A3C69]"></div>
+                        </div>
+                      ) : chatHistory.length === 0 ? (
+                        <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                          <svg className="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                          </svg>
+                          <p className="text-sm">هنوز گفتگویی ندارید</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {chatHistory.map((chat) => (
+                            <motion.button
+                              key={chat.id}
+                              onClick={() => resumeChat(chat.id)}
+                              className={`w-full text-right p-3 rounded-lg transition-colors ${
+                                chat.id === chatId 
+                                  ? 'bg-[#1A3C69] text-white' 
+                                  : 'bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
+                              }`}
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm font-medium truncate ${
+                                    chat.id === chatId ? 'text-white' : 'text-gray-900 dark:text-gray-100'
+                                  }`}>
+                                    {chat.title || 'گفتگو'}
+                                  </p>
+                                  <p className={`text-xs mt-1 truncate ${
+                                    chat.id === chatId ? 'text-gray-200' : 'text-gray-500 dark:text-gray-400'
+                                  }`}>
+                                    {chat.last_message}
+                                  </p>
+                                </div>
+                                {chat.id === chatId && (
+                                  <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                              </div>
+                            </motion.button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Messages View */
+                    <div
+                      className="h-72 md:h-96 overflow-y-auto bg-[#f4f1ec] dark:bg-gray-800/80 p-3 md:p-4 overflow-x-hidden scroll-smooth"
+                      style={{ scrollBehavior: "smooth" }}
+                    >
+                      <div className="flex flex-col space-y-3">
+                        {messages.map((message) => (
                         <motion.div
                           key={message.id}
                           initial={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -436,34 +850,87 @@ export default function ChatBot() {
                               : "justify-start"
                           }`}
                         >
-                          <div
-                            className={`max-w-[80%] rounded-xl p-2.5 md:p-3 ${
-                              message.sender === "user"
-                                ? "bg-[#1A3C69] text-white rounded-tr-none shadow-md"
-                                : "bg-white dark:bg-gray-700 dark:text-gray-100 rounded-tl-none shadow-md"
-                            }`}
-                            style={{
-                              boxShadow:
-                                message.sender === "user"
-                                  ? "0 4px 15px -3px rgba(26, 60, 105, 0.3)"
-                                  : "0 4px 15px -3px rgba(0, 0, 0, 0.1)",
-                            }}
-                          >
+                          <div className="flex flex-col gap-2 max-w-[85%]">
                             <div
-                              className="text-xs md:text-sm"
-                              dangerouslySetInnerHTML={{
-                                __html: message.text.replace(/\n/g, "<br>"),
-                              }}
-                            ></div>
-                            <div
-                              className={`text-[10px] md:text-xs mt-1 ${
+                              className={`rounded-xl p-2.5 md:p-3 ${
                                 message.sender === "user"
-                                  ? "text-right text-blue-200"
-                                  : "text-left text-gray-400 dark:text-gray-400"
+                                  ? "bg-[#1A3C69] text-white rounded-tr-none shadow-md"
+                                  : "bg-white dark:bg-gray-700 dark:text-gray-100 rounded-tl-none shadow-md"
                               }`}
+                              style={{
+                                boxShadow:
+                                  message.sender === "user"
+                                    ? "0 4px 15px -3px rgba(26, 60, 105, 0.3)"
+                                    : "0 4px 15px -3px rgba(0, 0, 0, 0.1)",
+                              }}
                             >
-                              {message.time}
+                              <div
+                                className="text-xs md:text-sm"
+                                dangerouslySetInnerHTML={{
+                                  __html: message.text.replace(/\n/g, "<br>"),
+                                }}
+                              ></div>
+                              <div
+                                className={`text-[10px] md:text-xs mt-1 flex items-center gap-1 ${
+                                  message.sender === "user"
+                                    ? "text-right text-blue-200 justify-end"
+                                    : "text-left text-gray-400 dark:text-gray-400"
+                                }`}
+                              >
+                                {message.time}
+                                {message.isAIGenerated && message.sender === "bot" && (
+                                  <span className="flex items-center gap-0.5 text-primary-500">
+                                    <Bot className="w-2.5 h-2.5" />
+                                    <span className="text-[9px]">AI</span>
+                                  </span>
+                                )}
+                              </div>
                             </div>
+
+                            {/* Product Recommendations */}
+                            {message.products && message.products.length > 0 && (
+                              <div className="flex flex-col gap-1.5">
+                                {message.products.slice(0, 3).map((product, idx) => (
+                                  <motion.a
+                                    key={product.id}
+                                    href={`/products/${product.id}`}
+                                    target="_blank"
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: idx * 0.1 }}
+                                    className="flex items-center gap-2 p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-gray-600 hover:border-primary-300 dark:hover:border-primary-500"
+                                  >
+                                    {product.images?.[0] && (
+                                      <div className="w-10 h-10 md:w-12 md:h-12 bg-gray-100 dark:bg-gray-600 rounded overflow-hidden flex-shrink-0">
+                                        <img
+                                          src={product.images[0]}
+                                          alt={product.name}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                    )}
+                                    <div className="flex-1 min-w-0 text-right">
+                                      <p className="text-[10px] md:text-xs font-medium text-gray-900 dark:text-gray-100 truncate">
+                                        {product.name}
+                                      </p>
+                                      {product.brand && (
+                                        <p className="text-[9px] md:text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                                          {product.brand}
+                                        </p>
+                                      )}
+                                      <p className="text-[10px] md:text-xs font-semibold text-primary-600 dark:text-primary-400 mt-0.5">
+                                        {product.price.toLocaleString()} تومان
+                                      </p>
+                                    </div>
+                                  </motion.a>
+                                ))}
+                                {message.products.length > 3 && (
+                                  <p className="text-[9px] md:text-[10px] text-gray-500 dark:text-gray-400 text-center">
+                                    + {message.products.length - 3} محصول دیگر
+                                  </p>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </motion.div>
                       ))}
@@ -562,6 +1029,7 @@ export default function ChatBot() {
                       <div ref={endOfMessagesRef} />
                     </div>
                   </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

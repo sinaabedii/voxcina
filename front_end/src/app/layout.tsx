@@ -128,8 +128,7 @@ export default async function RootLayout({
       process.env.NEXT_PUBLIC_API_BASE_URL ||
       "http://server:8080"; // works inside docker-compose network; fallback to localhost when running locally
     const res = await fetch(`${baseUrl}/api/categories`, {
-      next: { revalidate: 600 }, // 10-minute revalidation
-      cache: process.env.NODE_ENV === "development" ? "no-store" : "force-cache",
+      next: { revalidate: process.env.NODE_ENV === "development" ? 0 : 600 }, // 10-minute revalidation in production, no cache in dev
     });
     if (res.ok) {
       const data = (await res.json()) as CategoryApi[];

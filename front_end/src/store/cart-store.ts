@@ -178,53 +178,39 @@ export const useCartStore = create<CartStore>()(
             console.log('Found existing backend cart with', backendCart.items?.length || 0, 'items');
             
             if (hasLocalItems) {
-              // Check which local items need to be added to backend
-              const itemsToAdd = [];
+              // ✅ Use merge endpoint - send ALL local items to POST /api/cart
+              // Backend will intelligently merge: increment quantities for duplicates, add new items
+              console.log(`Merging ${localCartItems.length} local items with existing backend cart...`);
               
-              for (const localItem of localCartItems) {
-                const existsInBackend = backendCart.items?.some((backendItem: any) => 
-                  backendItem.product.id === localItem.productId &&
-                  backendItem.variant.size === localItem.size &&
-                  backendItem.variant.color === localItem.color
-                );
-                
-                if (!existsInBackend) {
-                  itemsToAdd.push(localItem);
-                }
-              }
-              
-              if (itemsToAdd.length > 0) {
-                console.log(`Adding ${itemsToAdd.length} new local items to backend cart...`);
-                needsItemAddition = true;
-                
-                // Add only the items that don't exist in backend
-                for (const localItem of itemsToAdd) {
-                  try {
-                    const addItemResponse = await fetch('/api/cart/item', { 
-                      method: 'POST',
-                      headers: { 
-                        'Content-Type': 'application/json', 
-                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-                      },
-                      body: JSON.stringify({ 
-                        productId: localItem.productId, 
-                        quantity: localItem.quantity,
-                        variant: { size: localItem.size, color: localItem.color }
-                      })
-                    });
+              const localCartItemsForBackend = localCartItems.map(item => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                variant: { size: item.size, color: item.color }
+              }));
 
-                    if (!addItemResponse.ok) {
-                      const errorData = await addItemResponse.json().catch(() => ({ message: 'Failed to add item to backend' }));
-                      console.warn(`Failed to add item ${localItem.productId} to backend:`, errorData.message);
-                      // Continue with other items even if one fails
-                    }
-                  } catch (itemError) {
-                    console.warn(`Error adding item ${localItem.productId} to backend:`, itemError);
-                    // Continue with other items even if one fails
-                  }
+              try {
+                const mergeResponse = await fetch('/api/cart', {
+                  method: 'POST',
+                  headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                  },
+                  body: JSON.stringify({ items: localCartItemsForBackend })
+                });
+
+                if (mergeResponse.ok) {
+                  // Backend has merged carts, get the final result
+                  backendCart = await mergeResponse.json();
+                  console.log('✅ Cart merge completed - backend cart now has', backendCart.items?.length || 0, 'items');
+                  needsItemAddition = false; // Already have final merged cart
+                } else {
+                  const errorData = await mergeResponse.json().catch(() => ({ message: 'Failed to merge carts' }));
+                  console.warn('Failed to merge carts:', errorData.message);
+                  // Fall through to use existing backend cart
                 }
-              } else {
-                console.log('All local items already exist in backend cart, no addition needed');
+              } catch (mergeError) {
+                console.warn('Error during cart merge:', mergeError);
+                // Fall through to use existing backend cart
               }
             }
           } else if (response.status === 404) {
@@ -735,13 +721,34 @@ const initializeAuthSubscription = () => {
           }
         }, 200); // Slightly longer delay to ensure auth token is set
       } 
-      // User logged out - clear cart
+      // User logged out - clear LOCAL cart only (preserve backend cart)
       else if (!state.isAuthenticated && prevState.isAuthenticated) {
-        console.log('User logged out, clearing cart from local storage.');
+        console.log('User logged out, clearing LOCAL cart from localStorage (backend cart preserved).');
         try {
-          useCartStore.getState().clearCart();
+          // ✅ Clear localStorage only - DO NOT delete backend cart
+          // User's incomplete cart in database will be available when they log back in
+          useCartStore.setState({
+            cart: {
+              id: generateId(),
+              userId: null,
+              items: [],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+            summary: {
+              subtotal: 0,
+              shipping: 0,
+              tax: 0,
+              discount: 0,
+              total: 0,
+            },
+            promoCode: null,
+            error: null,
+            isLoading: false,
+          });
+          console.log('✅ Local cart cleared from localStorage, backend cart preserved for next login');
         } catch (error) {
-          console.error('Error clearing cart on logout:', error);
+          console.error('Error clearing local cart on logout:', error);
         }
       }
     });

@@ -1,76 +1,23 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Slider } from "@/types/slider";
+import { fallbackSliders } from "@/lib/constants";
 
-export const ModernSliderSection = () => {
+interface ModernSliderSectionProps {
+  sliders: Slider[];
+}
+
+export const ModernSliderSection = ({ sliders }: ModernSliderSectionProps) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
 
-  const sliderData = [
-    {
-      id: 1,
-      title: "کالکشن پاییز 2025",
-      subtitle: "رنگ‌های گرم و طراحی‌های منحصربفرد",
-      description: "با الهام از طبیعت پاییز، مجموعه‌ای از پوشاک با کیفیت عالی",
-      image: "/images/slider/slider_autumn.avif",
-      buttonText: "کاوش کنید",
-      buttonLink: "/collections/autumn-2025",
-      badge: "جدید",
-      bgColor: "from-amber-900 via-orange-800 to-red-900",
-      accentColor: "from-amber-400 to-orange-500",
-      discount: "-30%",
-      features: ["ارسال رایگان", "ضمانت اصالت", "بازگشت آسان"],
-      stats: { items: "250+", brands: "15", reviews: "4.9" },
-    },
-    {
-      id: 2,
-      title: "تخفیف ویژه برندها",
-      subtitle: "تا 70% تخفیف روی محبوب‌ترین برندها",
-      description: "فرصت استثنایی برای خرید از برندهای معتبر جهانی",
-      image: "/images/slider/special-offers-and-discounts.webp",
-      buttonText: "خرید کنید",
-      buttonLink: "/sales/brands",
-      badge: "فروش ویژه",
-      bgColor: "from-rose-900 via-pink-800 to-purple-900",
-      accentColor: "from-rose-400 to-pink-500",
-      discount: "-70%",
-      features: ["محدودیت زمانی", "برندهای اصل", "تنوع بالا"],
-      stats: { items: "500+", brands: "30", reviews: "4.8" },
-    },
-    {
-      id: 3,
-      title: "استایل اداری شیک",
-      subtitle: "برای روزهای کاری پرانرژی",
-      description: "ترکیب زیبایی و حرفه‌ای بودن در یک مجموعه",
-      image: "/images/slider/office-wear-for-men.webp",
-      buttonText: "مشاهده استایل‌ها",
-      buttonLink: "/collections/office",
-      badge: "ترند",
-      bgColor: "from-slate-900 via-gray-800 to-zinc-900",
-      accentColor: "from-slate-400 to-gray-500",
-      discount: "NEW",
-      features: ["طراحی مدرن", "راحتی کامل", "کیفیت عالی"],
-      stats: { items: "150+", brands: "10", reviews: "4.7" },
-    },
-    {
-      id: 4,
-      title: "لوازم جانبی لوکس",
-      subtitle: "کیف، کفش و جواهرات برندهای معتبر",
-      description: "تکمیل کننده استایل شما با محصولات لوکس",
-      image: "/images/slider/acces-loxs.jpg",
-      buttonText: "مجموعه لوکس",
-      buttonLink: "/collections/luxury",
-      badge: "پریمیوم",
-      bgColor: "from-indigo-900 via-purple-800 to-pink-900",
-      accentColor: "from-indigo-400 to-purple-500",
-      discount: "VIP",
-      features: ["برندهای لوکس", "گارانتی اصالت", "بسته‌بندی ویژه"],
-      stats: { items: "100+", brands: "20", reviews: "5.0" },
-    },
-  ];
+  const sliderData = sliders && sliders.length > 0 ? sliders : fallbackSliders;
 
   useEffect(() => {
+    if (!sliderData || sliderData.length === 0) return;
+
     let interval: NodeJS.Timeout;
     let progressInterval: NodeJS.Timeout;
 
@@ -89,9 +36,10 @@ export const ModernSliderSection = () => {
       clearInterval(interval);
       clearInterval(progressInterval);
     };
-  }, [currentSlide, isAutoPlaying]);
+  }, [currentSlide, isAutoPlaying, sliderData]);
 
   const handleNext = () => {
+    if (!sliderData || sliderData.length === 0) return;
     setIsAutoPlaying(false);
     setCurrentSlide((prev) => (prev + 1) % sliderData.length);
     setProgress(0);
@@ -99,6 +47,7 @@ export const ModernSliderSection = () => {
   };
 
   const handlePrev = () => {
+    if (!sliderData || sliderData.length === 0) return;
     setIsAutoPlaying(false);
     setCurrentSlide(
       (prev) => (prev - 1 + sliderData.length) % sliderData.length
@@ -108,6 +57,7 @@ export const ModernSliderSection = () => {
   };
 
   const handleGoToSlide = (index: number) => {
+    if (!sliderData || sliderData.length === 0) return;
     setIsAutoPlaying(false);
     setCurrentSlide(index);
     setProgress(0);
@@ -118,6 +68,16 @@ export const ModernSliderSection = () => {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { duration: 0.4 } },
   };
+
+  if (!sliderData || sliderData.length === 0) {
+    return (
+      <section className="container px-4 md:px-8 mb-16 md:mb-24">
+        <div className="relative h-[400px] sm:h-[450px] md:h-[500px] lg:h-[600px] xl:h-[700px] rounded-2xl md:rounded-3xl overflow-hidden flex justify-center items-center bg-gray-200">
+          <p>Loading Slides...</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="container px-4 md:px-8 mb-16 md:mb-24">
@@ -223,7 +183,9 @@ export const ModernSliderSection = () => {
                       </Link>
 
                       <Link
-                        href={`/products?tag=${sliderData[currentSlide].badge.toLowerCase()}`}
+                        href={`/products?tag=${sliderData[
+                          currentSlide
+                        ].badge.toLowerCase()}`}
                         className="inline-flex items-center justify-center bg-white/10 text-white backdrop-blur-sm px-4 py-2.5 md:px-8 md:py-4 rounded-full font-medium md:font-semibold text-sm md:text-base hover:bg-white/20 border border-white/30 transition-colors"
                       >
                         <span>محصولات بیشتر</span>
@@ -259,7 +221,7 @@ export const ModernSliderSection = () => {
                           <div className="text-white text-xl font-bold">
                             {sliderData[currentSlide].stats.reviews}
                           </div>
-                          <div className="text-white/70 text-xs">امتیاز</div>
+                          <div className="text-white/70 text-xs">رضایت</div>
                         </div>
                       </div>
                     </div>
@@ -270,76 +232,70 @@ export const ModernSliderSection = () => {
           </motion.div>
         </AnimatePresence>
 
-        {/* Navigation arrows */}
-        <button
-          onClick={handlePrev}
-          className="absolute left-4 top-1/2 transform -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-colors z-10"
-          aria-label="Previous slide"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-4 w-4 md:h-6 md:w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+        {/* Navigation Arrows */}
+        <div className="absolute bottom-4 left-4 flex gap-2">
+          <button
+            onClick={handlePrev}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-colors"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-        </button>
-
-        <button
-          onClick={handleNext}
-          className="absolute right-4 top-1/2 transform -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-colors z-10"
-          aria-label="Next slide"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-4 w-4 md:h-6 md:w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+          </button>
+          <button
+            onClick={handleNext}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-colors"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </button>
+        </div>
+
+        {/* Progress Bar and Dots */}
+        <div className="absolute bottom-6 right-4 md:right-auto md:left-1/2 md:-translate-x-1/2 flex items-center gap-2">
+          {sliderData.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => handleGoToSlide(index)}
+              className={`w-2 h-2 rounded-full transition-colors ${
+                currentSlide === index ? "bg-white" : "bg-white/50"
+              }`}
             />
-          </svg>
-        </button>
+          ))}
+        </div>
 
-        {/* Pagination dots & progress bar */}
-        <div className="absolute bottom-4 left-0 right-0 z-10">
-          <div className="container px-4 md:px-8">
-            <div className="flex items-center gap-2 justify-center">
-              <div className="w-16 md:w-24 h-1 bg-white/30 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-white rounded-full transition-all duration-100"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-
-              <div className="flex gap-2">
-                {sliderData.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleGoToSlide(index)}
-                    className={`w-2 h-2 md:w-3 md:h-3 rounded-full transition-colors ${
-                      currentSlide === index ? "bg-white" : "bg-white/30"
-                    }`}
-                    aria-label={`Go to slide ${index + 1}`}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
+        <div className="absolute bottom-0 left-0 w-full h-1 bg-white/20">
+          <motion.div
+            className="h-full bg-white"
+            initial={{ width: "0%" }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.1, ease: "linear" }}
+          />
         </div>
       </div>
     </section>
   );
-};
+}; 

@@ -12,6 +12,7 @@ import (
 
 	"backEnd/db"
 	"backEnd/models"
+	"backEnd/services"
 	"backEnd/utils"
 )
 
@@ -55,30 +56,30 @@ func SmartSearch(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// Initialize AI service
-	aiService := utils.NewAIService()
+	aiService, err := services.NewCustomerAIService(db.Database)
+	if err != nil {
+		log.Printf("Error initializing AI service: %v", err)
+		utils.ErrorResponse(w, http.StatusInternalServerError, "AI service not available")
+		return
+	}
 
 	// Get AI recommendations
-	aiResponse, err := aiService.GetRecommendation(ctx, searchReq.Query)
+	searchResponse, err := aiService.SearchProducts(ctx, services.CustomerSearchRequest{
+		Query:  searchReq.Query,
+		UserID: searchReq.UserID,
+	})
 	if err != nil {
 		log.Printf("Error getting AI recommendations: %v", err)
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to get recommendations")
 		return
 	}
 
-	// Get product details
-	products, err := getProductsByIDs(ctx, aiResponse.ProductIDs)
-	if err != nil {
-		log.Printf("Error getting recommended products: %v", err)
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to get product details")
-		return
-	}
-
 	// Build response
 	response := AISearchResponse{
-		AIResponse:    aiResponse.Response,
-		Products:      products,
-		Success:       true,
-		IsAIGenerated: aiResponse.Success,
+		AIResponse:    searchResponse.Response,
+		Products:      searchResponse.Products,
+		Success:       searchResponse.Success,
+		IsAIGenerated: searchResponse.IsAIGenerated,
 		SearchQuery:   searchReq.Query,
 	}
 
@@ -114,20 +115,21 @@ func ChatRecommendation(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// Initialize AI service
-	aiService := utils.NewAIService()
-
-	// Get AI recommendations
-	aiResponse, err := aiService.GetRecommendation(ctx, chatReq.Message)
+	aiService, err := services.NewCustomerAIService(db.Database)
 	if err != nil {
-		log.Printf("Error getting chat recommendations: %v", err)
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to get recommendations")
+		log.Printf("Error initializing AI service: %v", err)
+		utils.ErrorResponse(w, http.StatusInternalServerError, "AI service not available")
 		return
 	}
 
-	// Get product details
-	products, err := getProductsByIDs(ctx, aiResponse.ProductIDs)
+	// Get AI recommendations
+	searchResponse, err := aiService.SearchProducts(ctx, services.CustomerSearchRequest{
+		Query:  chatReq.Message,
+		UserID: chatReq.UserID,
+	})
 	if err != nil {
-		log.Printf("Error getting recommended products: %v", err)
+		log.Printf("Error getting chat recommendations: %v", err)
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to get recommendations")
 		return
 	}
 
@@ -139,10 +141,10 @@ func ChatRecommendation(w http.ResponseWriter, r *http.Request) {
 		IsAIGenerated bool             `json:"is_ai_generated"`
 		ChatID        string           `json:"chat_id,omitempty"`
 	}{
-		Response:      aiResponse.Response,
-		Products:      products,
-		Success:       true,
-		IsAIGenerated: aiResponse.Success,
+		Response:      searchResponse.Response,
+		Products:      searchResponse.Products,
+		Success:       searchResponse.Success,
+		IsAIGenerated: searchResponse.IsAIGenerated,
 		ChatID:        chatReq.ChatID,
 	}
 
@@ -163,21 +165,21 @@ func EnhancedProductRecommendations(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// Initialize AI service
-	aiService := utils.NewAIService()
-
-	// Get AI recommendations
-	aiResponse, err := aiService.GetRecommendation(ctx, query)
+	aiService, err := services.NewCustomerAIService(db.Database)
 	if err != nil {
-		log.Printf("Error getting enhanced recommendations: %v", err)
+		log.Printf("Error initializing AI service: %v", err)
 		// Fall back to regular recommendations
 		ProductRecommendations(w, r)
 		return
 	}
 
-	// Get product details
-	products, err := getProductsByIDs(ctx, aiResponse.ProductIDs)
+	// Get AI recommendations
+	searchResponse, err := aiService.SearchProducts(ctx, services.CustomerSearchRequest{
+		Query:  query,
+		UserID: "",
+	})
 	if err != nil {
-		log.Printf("Error getting recommended products: %v", err)
+		log.Printf("Error getting enhanced recommendations: %v", err)
 		// Fall back to regular recommendations
 		ProductRecommendations(w, r)
 		return
@@ -190,9 +192,9 @@ func EnhancedProductRecommendations(w http.ResponseWriter, r *http.Request) {
 		IsAIGenerated bool             `json:"is_ai_generated"`
 		Query         string           `json:"query"`
 	}{
-		Products:      products,
-		AIResponse:    aiResponse.Response,
-		IsAIGenerated: aiResponse.Success,
+		Products:      searchResponse.Products,
+		AIResponse:    searchResponse.Response,
+		IsAIGenerated: searchResponse.IsAIGenerated,
 		Query:         query,
 	}
 

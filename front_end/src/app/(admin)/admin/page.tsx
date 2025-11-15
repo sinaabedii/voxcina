@@ -252,17 +252,31 @@ export default function AdminDashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{dashboardStats.totalProducts}</div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
-                    محصول در فروشگاه
-                  </p>
-                  <Link href="/admin/products">
-                    <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
-                      <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
-                    </div>
-                  </Link>
-                </div>
+                <Link href="/admin/products">
+                  <div className="text-2xl font-bold">{dashboardStats.totalProducts}</div>
+                  <p className="text-xs text-muted-foreground">مدیریت محصولات</p>
+                </Link>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div 
+            variants={itemVariants}
+            whileHover={{ y: -5 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-voxcina-cream">
+                  <FileText className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
+                  اسلایدر
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Link href="/admin/sliders">
+                  <div className="text-2xl font-bold">{dashboardStats.totalProducts}</div>
+                  <p className="text-xs text-muted-foreground">مدیریت اسلایدر</p>
+                </Link>
               </CardContent>
             </Card>
           </motion.div>

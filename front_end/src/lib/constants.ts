@@ -1,3 +1,5 @@
+import { Slider } from "@/types/slider";
+
 export const APP_NAME = "وکسینا | Voxcina";
 export const APP_DESCRIPTION = "وکسینا، فروشگاه آنلاین پوشاک و مد | جدیدترین لباس‌های مردانه، زنانه و بچگانه با تخفیف ویژه و ارسال سریع";
 
@@ -207,5 +209,68 @@ export const PAYMENT_METHODS = [
     id: "cod",
     title: "پرداخت در محل",
     description: "پرداخت هنگام تحویل سفارش",
+  },
+];
+
+export const fallbackSliders: Slider[] = [
+  {
+    id: "1",
+    title: "کالکشن پاییز 2025",
+    subtitle: "رنگ‌های گرم و طراحی‌های منحصربفرد",
+    description: "با الهام از طبیعت پاییز، مجموعه‌ای از پوشاک با کیفیت عالی",
+    image: "/images/slider/slider_autumn.avif",
+    buttonText: "کاوش کنید",
+    buttonLink: "/collections/autumn-2025",
+    badge: "جدید",
+    bgColor: "from-amber-900 via-orange-800 to-red-900",
+    accentColor: "from-amber-400 to-orange-500",
+    discount: "-30%",
+    features: ["ارسال رایگان", "ضمانت اصالت", "بازگشت آسان"],
+    stats: { items: "250+", brands: "15", reviews: "4.9" },
+  },
+  {
+    id: "2",
+    title: "تخفیف ویژه برندها",
+    subtitle: "تا 70% تخفیف روی محبوب‌ترین برندها",
+    description: "فرصت استثنایی برای خرید از برندهای معتبر جهانی",
+    image: "/images/slider/special-offers-and-discounts.webp",
+    buttonText: "خرید کنید",
+    buttonLink: "/sales/brands",
+    badge: "فروش ویژه",
+    bgColor: "from-rose-900 via-pink-800 to-purple-900",
+    accentColor: "from-rose-400 to-pink-500",
+    discount: "-70%",
+    features: ["محدودیت زمانی", "برندهای اصل", "تنوع بالا"],
+    stats: { items: "500+", brands: "30", reviews: "4.8" },
+  },
+  {
+    id: "3",
+    title: "استایل اداری شیک",
+    subtitle: "برای روزهای کاری پرانرژی",
+    description: "ترکیب زیبایی و حرفه‌ای بودن در یک مجموعه",
+    image: "/images/slider/office-wear-for-men.webp",
+    buttonText: "مشاهده استایل‌ها",
+    buttonLink: "/collections/office",
+    badge: "ترند",
+    bgColor: "from-slate-900 via-gray-800 to-zinc-900",
+    accentColor: "from-slate-400 to-gray-500",
+    discount: "NEW",
+    features: ["طراحی مدرن", "راحتی کامل", "کیفیت عالی"],
+    stats: { items: "150+", brands: "10", reviews: "4.7" },
+  },
+  {
+    id: "4",
+    title: "لوازم جانبی لوکس",
+    subtitle: "کیف، کفش و جواهرات برندهای معتبر",
+    description: "تکمیل کننده استایل شما با محصولات لوکس",
+    image: "/images/slider/acces-loxs.jpg",
+    buttonText: "مجموعه لوکس",
+    buttonLink: "/collections/luxury",
+    badge: "پریمیوم",
+    bgColor: "from-indigo-900 via-purple-800 to-pink-900",
+    accentColor: "from-indigo-400 to-purple-500",
+    discount: "VIP",
+    features: ["برندهای لوکس", "گارانتی اصالت", "بسته‌بندی ویژه"],
+    stats: { items: "100+", brands: "20", reviews: "5.0" },
   },
 ];

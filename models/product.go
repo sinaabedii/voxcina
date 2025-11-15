@@ -8,11 +8,13 @@ import (
 
 // ProductVariant represents a size/color variant of a product
 type ProductVariant struct {
-	Size     string   `bson:"size"     json:"size"`     // e.g., "S", "M", "L"
-	Color    string   `bson:"color"    json:"color"`    // e.g., "Red", "Blue"
-	SKU      string   `bson:"sku"      json:"sku"`      // Unique per variant (e.g., "TSHIRT-RED-M")
-	Quantity int      `bson:"quantity" json:"quantity"` // Available stock
-	Images   []string `bson:"images"   json:"images"`   // Optional variant-specific images
+	Size       string   `bson:"size"                 json:"size"`                 // e.g., "S", "M", "L", "XL", "XXL"
+	Color      string   `bson:"color"                json:"color"`                // e.g., "Red", "Blue", "#FF5733" (supports color names or hex codes)
+	ColorName  string   `bson:"color_name,omitempty" json:"colorName,omitempty"`  // Display name for color (e.g., "قرمز", "آبی")
+	SKU        string   `bson:"sku"                  json:"sku"`                  // Unique per variant (e.g., "TSHIRT-RED-M")
+	Quantity   int      `bson:"quantity"             json:"quantity"`             // Available stock
+	Images     []string `bson:"images"               json:"images"`               // Color-specific product images (multiple angles)
+	TryOnImage string   `bson:"try_on_image,omitempty" json:"tryOnImage,omitempty"` // Color-specific try-on image for AR/virtual try-on
 }
 
 // ProductAttribute represents product-wide metadata (non-variant)
@@ -43,4 +45,7 @@ type Product struct {
 	AverageRating float64              `bson:"average_rating,omitempty" json:"average_rating,omitempty"` // Average rating calculated from reviews
 	ReviewCount   int                  `bson:"review_count,omitempty"   json:"review_count,omitempty"`   // Total number of reviews
 	Reviews       []Review             `bson:"-"                        json:"reviews,omitempty"`        // Populated programmatically, not stored in MongoDB
+	
+	// AI Agent Search Optimization (embedded for fast retrieval)
+	SearchMetadata *ProductSearchMetadata `bson:"search_metadata,omitempty" json:"searchMetadata,omitempty"` // AI-optimized search fields
 }

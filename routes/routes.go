@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -55,9 +56,31 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/search/suggestions/smart", handlers.GetSearchSuggestions).Methods(http.MethodGet)
 	api.HandleFunc("/chat/recommend", handlers.ChatRecommendation).Methods(http.MethodPost)
 
+	// Chat Management & History endpoints
+	api.HandleFunc("/chat/save", handlers.SaveChatMessage).Methods(http.MethodPost)
+	api.HandleFunc("/chat/history/{chatId}", handlers.GetChatHistory).Methods(http.MethodGet)
+	api.HandleFunc("/chat/sessions", handlers.ListUserChats).Methods(http.MethodGet)
+	api.HandleFunc("/chat/search", handlers.SearchChats).Methods(http.MethodPost)
+	api.HandleFunc("/chat/link-to-user", handlers.LinkChatToUser).Methods(http.MethodPost)
+	api.HandleFunc("/chat/{chatId}", handlers.DeleteChat).Methods(http.MethodDelete)
+	api.HandleFunc("/chat/{chatId}/archive", handlers.ArchiveChat).Methods(http.MethodPut)
+	api.HandleFunc("/chat/{chatId}/click", handlers.TrackProductClick).Methods(http.MethodPost)
+	api.HandleFunc("/chat/{chatId}/conversion", handlers.TrackConversion).Methods(http.MethodPost)
+
 	// **Admin Product Management**
 	adminRouter := api.PathPrefix("/admin").Subrouter()
 	adminRouter.Use(middlewares.AdminAuthMiddleware) // Assuming an admin auth middleware
+
+	// AI Metadata Generation Routes (Admin)
+	aiMetadataHandler, err := handlers.NewAIMetadataHandler()
+	if err != nil {
+		// Log error but don't fail - AI features are optional
+		log.Printf("Warning: AI metadata handler initialization failed: %v", err)
+	} else {
+		adminRouter.HandleFunc("/ai/generate-metadata", aiMetadataHandler.GenerateProductMetadata).Methods("POST")
+		adminRouter.HandleFunc("/ai/models", aiMetadataHandler.GetAvailableModels).Methods("GET")
+		adminRouter.HandleFunc("/ai/field-descriptions", aiMetadataHandler.GetFieldDescriptions).Methods("GET")
+	}
 
 	// Discount Management Routes (Admin)
 	adminRouter.HandleFunc("/discounts", handlers.CreateDiscount).Methods("POST")
@@ -102,6 +125,9 @@ func NewRouter() *mux.Router {
 	// Public Product Routes
 	api.HandleFunc("/products", handlers.ListProducts).Methods("GET")
 
+	// Vocabulary Mappings (Public for frontend dropdowns)
+	api.HandleFunc("/vocabulary-mappings", handlers.GetVocabularyMappings).Methods(http.MethodGet)
+
 	// Categories & Navigation (Public Read-Only Access)
 	api.HandleFunc("/categories", handlers.GetCategories).Methods(http.MethodGet)
 	api.HandleFunc("/categories/{id}", handlers.GetCategoryByID).Methods(http.MethodGet)
@@ -121,6 +147,13 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/promotions/home", handlers.GetHomePromotions).Methods(http.MethodGet)
 	api.HandleFunc("/promotions/{campaignId}", handlers.GetPromotionByID).
 		Methods(http.MethodGet)
+
+	// Slider routes
+	api.HandleFunc("/sliders", handlers.GetSliders).Methods(http.MethodGet)
+	api.HandleFunc("/sliders/{id}", handlers.GetSliderByID).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/sliders", handlers.CreateSlider).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/sliders/{id}", handlers.UpdateSlider).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/sliders/{id}", handlers.DeleteSlider).Methods(http.MethodDelete)
 
 	// --- Authenticated Cart Routes ---
 	cartRouter := api.PathPrefix("/cart").Subrouter()
@@ -204,6 +237,18 @@ func NewRouter() *mux.Router {
 		Methods(http.MethodPost)
 	api.HandleFunc("/analytics/track", handlers.TrackAnalytics).Methods(http.MethodPost)
 
+	// User Activity Tracking (Public - works for both anonymous and authenticated users)
+	api.HandleFunc("/activity/track", handlers.TrackActivity).Methods(http.MethodPost)
+	api.HandleFunc("/activity/track/batch", handlers.TrackBatchActivities).Methods(http.MethodPost)
+	
+	// User Activity Retrieval (Authenticated users only)
+	activityRouter := api.PathPrefix("/activity").Subrouter()
+	activityRouter.Use(middlewares.AuthMiddleware) // Requires authentication
+	activityRouter.HandleFunc("/user", handlers.GetUserActivities).Methods(http.MethodGet)
+	activityRouter.HandleFunc("/recently-viewed", handlers.GetRecentlyViewed).Methods(http.MethodGet)
+	activityRouter.HandleFunc("/summary", handlers.GetUserActivitySummary).Methods(http.MethodGet)
+	activityRouter.HandleFunc("/session/{sessionId}", handlers.GetSessionAnalytics).Methods(http.MethodGet)
+
 	// Pages & Footer
 	api.HandleFunc("/pages/{slug}", handlers.GetPage).Methods(http.MethodGet)
 	api.HandleFunc("/footer", handlers.GetFooter).Methods(http.MethodGet)
@@ -219,6 +264,13 @@ func NewRouter() *mux.Router {
 
 	// Admin Dashboard Statistics
 	adminRouter.HandleFunc("/dashboard-stats", handlers.DashboardStatsHandler).Methods("GET")
+
+	// Admin Chat Analytics & Export
+	adminRouter.HandleFunc("/chat/analytics", handlers.GetChatAnalytics).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/chat/export", handlers.ExportChats).Methods(http.MethodPost)
+
+	// Admin User Activity Analytics
+	adminRouter.HandleFunc("/activity/funnel", handlers.GetConversionFunnel).Methods(http.MethodGet)
 
 	// --- Blog Post Routes ---
 	// Public blog routes (no authentication required)

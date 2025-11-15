@@ -7,6 +7,7 @@ import (
 
 	"backEnd/config"
 	"backEnd/db"
+	"backEnd/handlers"
 	"backEnd/mongo_data"
 	"backEnd/routes"
 )
@@ -20,7 +21,11 @@ func main() {
 	cfg := config.LoadConfig()
 
 	// Connect to database
-	_ = db.Connect(cfg)
+	database := db.Connect(cfg)
+
+	// Initialize chat service
+	handlers.InitChatService(database)
+	log.Println("Chat service initialized")
 
 	// Seed database if requested
 	if *seedDB {

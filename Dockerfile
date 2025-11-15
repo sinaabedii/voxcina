@@ -39,9 +39,6 @@ COPY --from=builder /build/main .
 RUN mkdir -p admin uploads/products/main uploads/categories && \
     chmod -R 777 uploads
 
-# Copy test files for testing
-COPY test/test_files /app/test/test_files/
-
 # If you have admin files, copy them in a separate step
 # COPY admin/ admin/
 

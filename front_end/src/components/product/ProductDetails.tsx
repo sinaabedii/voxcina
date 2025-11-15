@@ -32,6 +32,37 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
 
   const { addToCart } = useCart();
 
+  // Get images to display based on selected color
+  const displayImages = (() => {
+    if (selectedColor && product.variants?.length > 0) {
+      // Find variants matching the selected color
+      const colorVariants = product.variants.filter(v => v.color === selectedColor);
+      if (colorVariants.length > 0 && colorVariants[0].images?.length > 0) {
+        return colorVariants[0].images;
+      }
+    }
+    // Fallback to main product images
+    return product.images || [];
+  })();
+
+  // Get try-on image based on selected color
+  const displayTryOnImage = (() => {
+    if (selectedColor && product.variants?.length > 0) {
+      const colorVariants = product.variants.filter(v => v.color === selectedColor);
+      if (colorVariants.length > 0 && colorVariants[0].tryOnImage) {
+        return colorVariants[0].tryOnImage;
+      }
+    }
+    // Fallback to main product try-on image
+    return product.tryOnImage;
+  })();
+
+  // Reset selected image index when color changes
+  const handleColorChange = (color: string) => {
+    setSelectedColor(color);
+    setSelectedImage(0); // Reset to first image when color changes
+  };
+
   /* ---------- dynamic rating / review-count ---------- */
   // Product.id is optional in the interface; handle undefined defensively
   const productIdSafe = product.id ?? "";
@@ -58,10 +89,15 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
       {/* ---------- images ---------- */}
       <div className="animate-fadeIn">
         <div className="product-zoom mb-4 aspect-square relative rounded-xl overflow-hidden border border-border/10 shadow-soft">
-          {product.images && product.images.length > 0 ? (
+          {displayImages && displayImages.length > 0 ? (
             <div className="relative h-full w-full bg-secondary/30">
               <span className="absolute inset-0 flex items-center justify-center text-muted-foreground">
                 تصویر محصول
+                {selectedColor && (
+                  <span className="absolute bottom-2 right-2 text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                    {selectedColor}
+                  </span>
+                )}
               </span>
             </div>
           ) : (
@@ -72,9 +108,9 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
         </div>
 
         {/* thumbnails */}
-        {product.images && product.images.length > 1 && (
+        {displayImages && displayImages.length > 1 && (
           <div className="flex space-x-2 space-x-reverse">
-            {product.images.map((_, index) => (
+            {displayImages.map((_, index) => (
               <motion.button
                 key={index}
                 whileHover={{ scale: 1.05 }}
@@ -169,25 +205,36 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
         {/* colors */}
         {product.variants?.length > 0 && (
           <div className="mb-6">
-            <h3 className="text-sm font-medium mb-2 text-foreground">رنگ</h3>
+            <h3 className="text-sm font-medium mb-2 text-foreground">
+              رنگ
+              {selectedColor && (
+                <span className="mr-2 text-xs text-muted-foreground">
+                  ({Array.from(
+                    new Map(
+                      product.variants.map((v) => [v.color, v.colorName || v.color])
+                    ).entries()
+                  ).find(([color]) => color === selectedColor)?.[1] || selectedColor})
+                </span>
+              )}
+            </h3>
             <div className="flex flex-wrap gap-2">
               {Array.from(
                 new Map(
-                  product.variants.map((v) => [v.color, v.color])
+                  product.variants.map((v) => [v.color, v])
                 ).values()
-              ).map((colorCode) => (
+              ).map((variant) => (
                 <motion.button
-                  key={colorCode}
+                  key={variant.color}
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
                   className={`w-8 h-8 rounded-full border-2 shadow-soft transition-all duration-200 ${
-                    selectedColor === colorCode
+                    selectedColor === variant.color
                       ? "border-primary ring-2 ring-primary/30"
                       : "border-transparent hover:border-primary/20"
                   }`}
-                  style={{ backgroundColor: colorCode }}
-                  onClick={() => setSelectedColor(colorCode)}
-                  title={colorCode}
+                  style={{ backgroundColor: variant.color }}
+                  onClick={() => handleColorChange(variant.color)}
+                  title={variant.colorName || variant.color}
                 />
               ))}
             </div>

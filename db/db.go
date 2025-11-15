@@ -50,6 +50,18 @@ func Connect(cfg *config.Config) *mongo.Database {
 		log.Printf("Warning: Could not ensure unique index for blog_posts slug: %v", err)
 	}
 
+	// Ensure AI search indexes for agent-driven product retrieval
+	if err := EnsureAISearchIndexes(Database); err != nil {
+		log.Printf("Warning: Could not ensure AI search indexes: %v", err)
+		// Non-critical, continue anyway
+	}
+
+	// Create user activity tracking indexes
+	if err := CreateUserActivityIndexes(); err != nil {
+		log.Printf("Warning: Could not ensure user activity indexes: %v", err)
+		// Non-critical, continue anyway
+	}
+
 	log.Println("Database connected and indexes ensured.")
 	return Database
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useProductStore } from "@/store/product-store";
 import { useCategoryStore } from "@/store/category-store";
 import { useCartStore } from "@/store/cart-store";
+import { useSliderStore } from "@/store/slider-store";
 import { Product } from "@/types/product";
 import ProductGrid from "@/components/product/ProductGrid";
 import { motion } from "framer-motion";
@@ -39,68 +40,19 @@ export default function HomePage() {
     error: categoriesError,
   } = useCategoryStore();
 
+  const { sliders, fetchSliders, isLoading: isLoadingSliders } = useSliderStore();
+
   const { addItem: addItemToCart } = useCartStore();
 
   const [isVisible, setIsVisible] = useState(false);
-  const [currentSlide, setCurrentSlide] = useState(0);
-
-  const sliderData = [
-    {
-      id: 1,
-      title: "کالکشن پاییز 2025",
-      subtitle: "رنگ‌های گرم و طراحی‌های منحصربفرد",
-      image: "/images/slider/autumn-collection.jpg",
-      buttonText: "کاوش کنید",
-      buttonLink: "/collections/autumn-2025",
-      badge: "جدید",
-      bgColor: "from-amber-500 to-orange-600",
-    },
-    {
-      id: 2,
-      title: "تخفیف ویژه برندها",
-      subtitle: "تا 70% تخفیف روی محبوب‌ترین برندها",
-      image: "/images/slider/brand-sale.jpg",
-      buttonText: "خرید کنید",
-      buttonLink: "/sales/brands",
-      badge: "فروش ویژه",
-      bgColor: "from-red-500 to-pink-600",
-    },
-    {
-      id: 3,
-      title: "استایل اداری شیک",
-      subtitle: "برای روزهای کاری پرانرژی",
-      image: "/images/slider/office-style.jpg",
-      buttonText: "مشاهده استایل‌ها",
-      buttonLink: "/collections/office",
-      badge: "ترند",
-      bgColor: "from-slate-500 to-gray-600",
-    },
-    {
-      id: 4,
-      title: "لوازم جانبی لوکس",
-      subtitle: "کیف، کفش و جواهرات برندهای معتبر",
-      image: "/images/slider/luxury-accessories.jpg",
-      buttonText: "مجموعه لوکس",
-      buttonLink: "/collections/luxury",
-      badge: "پریمیوم",
-      bgColor: "from-purple-500 to-indigo-600",
-    },
-  ];
 
   useEffect(() => {
     fetchFlashSaleProducts();
     fetchNewProducts();
     fetchCategories();
+    fetchSliders();
     setIsVisible(true);
-
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % sliderData.length);
-    }, 4000);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [fetchFlashSaleProducts, fetchNewProducts, fetchCategories]);
+  }, [fetchFlashSaleProducts, fetchNewProducts, fetchCategories, fetchSliders]);
 
   // انیمیشن‌های ساده‌تر با عملکرد بهتر
   const fadeIn = {
@@ -238,7 +190,7 @@ export default function HomePage() {
           )}
         </motion.section>
 
-        <ModernSliderSection />
+        <ModernSliderSection sliders={sliders} />
 
         <Suspense
           fallback={

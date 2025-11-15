@@ -14,9 +14,13 @@ services:
       - MONGODB_URI=mongodb://admin:password@mongo:27017/admin?authSource=admin
       - JWT_SECRET=137888
       - SERVER_PORT=8080
-      - RUN_TESTS=false
       # - DEBUG=true
       - INTERNAL_SECRET=${INTERNAL_SECRET}
+      # OpenRouter AI Configuration
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - APP_URL=${APP_URL}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL}
+      - OPENROUTER_EMBEDDING_MODEL=${OPENROUTER_EMBEDDING_MODEL}
     volumes:
       - ./uploads:/app/uploads
     depends_on:
@@ -43,25 +47,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-
-  # Test service that runs when RUN_TESTS=true
-  test:
-    build:
-      context: .
-      dockerfile: Dockerfile.test
-    container_name: api-test
-    environment:
-      - MONGODB_URI=mongodb://admin:password@mongo:27017/admin?authSource=admin
-      - JWT_SECRET=137888
-      - API_URL=http://server:8080/api
-      - RUN_TESTS=true
-    depends_on:
-      server:
-        condition: service_started
-      mongo:
-        condition: service_healthy
-    networks:
-      - backend-network
 
   front_end:
     container_name: voxcina_frontend
