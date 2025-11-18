@@ -131,7 +131,6 @@ class ActivityTracker {
         const duration = Date.now() - this.pageLoadTime;
         this.track({
           activityType: ActivityType.PAGE_VIEW,
-          sessionId: this.sessionId,
           pagePath: window.location.pathname,
           pageTitle: document.title,
           duration,
