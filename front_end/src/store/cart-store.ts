@@ -624,51 +624,37 @@ export const useCartStore = create<CartStore>()(
         if (hydratedState) {
           console.log("Cart state rehydrated successfully");
           
-          try {
-            // Ensure persisted cart items are properly structured for Product type if needed
-            // This is a good place for potential data migration if Product type changes
-            if (hydratedState.cart && Array.isArray(hydratedState.cart.items)) {
-              hydratedState.cart.items = hydratedState.cart.items.map(item => {
-                try {
-                  return {
-                    ...item,
-                    product: item.product ? transformBackendCartItemProduct(item.product) : undefined as unknown as Product,
-                  };
-                } catch (transformError) {
-                  console.error('Error transforming cart item during rehydration:', transformError, item);
-                  return item; // Return original item if transformation fails
-                }
-              });
-              
-              // Safely update the store with potentially transformed items from rehydration
-              useCartStore.setState({ 
-                cart: hydratedState.cart, 
-                summary: hydratedState.summary || { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 }, 
-                promoCode: hydratedState.promoCode 
-              });
-            }
+          // Wrap in setTimeout to ensure useCartStore is fully initialized before access
+          setTimeout(() => {
+            try {
+              // Ensure persisted cart items are properly structured for Product type if needed
+              if (hydratedState.cart && Array.isArray(hydratedState.cart.items)) {
+                hydratedState.cart.items = hydratedState.cart.items.map(item => {
+                  try {
+                    return {
+                      ...item,
+                      product: item.product ? transformBackendCartItemProduct(item.product) : undefined as unknown as Product,
+                    };
+                  } catch (transformError) {
+                    console.error('Error transforming cart item during rehydration:', transformError, item);
+                    return item;
+                  }
+                });
+                
+                // Safely update the store
+                useCartStore.setState({ 
+                  cart: hydratedState.cart, 
+                  summary: hydratedState.summary || { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 }, 
+                  promoCode: hydratedState.promoCode 
+                });
+              }
 
-            // DON'T access auth store during rehydration - let the auth subscription handle sync
-            // Just calculate summary for the rehydrated cart
-            setTimeout(() => {
-              try {
-                useCartStore.getState().calculateSummary();
-              } catch (calcError) {
-                console.error('Error calculating summary after rehydration:', calcError);
-              }
-            }, 50);
-            
-          } catch (rehydrationError) {
-            console.error('Error during cart rehydration processing:', rehydrationError);
-            // Fallback to calculating summary
-            setTimeout(() => {
-              try {
-                useCartStore.getState().calculateSummary();
-              } catch (calcError) {
-                console.error('Error calculating summary during rehydration error recovery:', calcError);
-              }
-            }, 0);
-          }
+              useCartStore.getState().calculateSummary();
+            } catch (rehydrationError) {
+              console.error('Error during cart rehydration processing:', rehydrationError);
+            }
+          }, 0);
+
         } else {
             // If hydratedState is null (e.g. nothing in storage or version mismatch), calculate summary for initial empty cart.
             console.log("No persisted cart state found or rehydration returned null, using initial state.");

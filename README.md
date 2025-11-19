@@ -543,3 +543,128 @@ For detailed documentation, see the docs listed above. For issues:
 ---
 
 Built with ❤️ using Go, React, MongoDB, and AI
+
+---
+
+## 🚀 Deployment & Configuration
+
+### **1. First-Time VPS Setup**
+
+Run these commands on your fresh Ubuntu/Debian VPS:
+
+```bash
+# 1. Update & Install Dependencies
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y docker.io docker-compose-v2 nginx certbot python3-certbot-nginx git
+
+# 2. Enable Docker
+sudo systemctl enable --now docker
+```
+
+### **2. Project Setup**
+
+```bash
+# 1. Clone Repository
+git clone <your-repo-url> shop
+cd shop
+
+# 2. Configure Environment
+cp .env.example .env
+nano .env  # Fill in your API keys and secrets
+```
+
+### **3. SSL Certificate Setup (First Run)**
+
+Before starting Nginx, you need to generate the SSL certificates, otherwise Nginx will fail to start.
+
+```bash
+# 1. Stop Nginx to free port 80
+sudo systemctl stop nginx
+
+# 2. Generate Certificates (Replace with your domain)
+sudo certbot certonly --standalone -d voxcina.com -d www.voxcina.com
+
+# 3. Verify Certificates exist
+ls -l /etc/letsencrypt/live/voxcina.com/
+```
+
+### **4. Nginx Configuration**
+
+Create the Nginx configuration file:
+
+```bash
+sudo nano /etc/nginx/sites-available/voxcina
+```
+
+Paste the following configuration:
+
+```nginx
+# HTTP -> HTTPS Redirect
+server {
+    listen 80;
+    server_name voxcina.com www.voxcina.com;
+    return 301 https://$host$request_uri;
+}
+
+# Main HTTPS Block
+server {
+    listen 443 ssl;
+    server_name voxcina.com www.voxcina.com;
+
+    # SSL Certificates
+    ssl_certificate /etc/letsencrypt/live/voxcina.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/voxcina.com/privkey.pem;
+    
+    # SSL Security Settings
+    include /etc/letsencrypt/options-ssl-nginx.conf; 
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # Proxy to Next.js
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        
+        # Timeouts
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+    }
+}
+```
+
+**Activate Configuration:**
+```bash
+sudo ln -s /etc/nginx/sites-available/voxcina /etc/nginx/sites-enabled/
+sudo rm /etc/nginx/sites-enabled/default  # Remove default config
+sudo systemctl start nginx
+```
+
+### **5. Start Application**
+
+```bash
+# Make the update script executable
+chmod +x scripts/update_front_end.sh
+
+# Run the deployment script
+./scripts/update_front_end.sh
+```
+
+### **6. SSL Security Optimization**
+
+Ensure `/etc/letsencrypt/options-ssl-nginx.conf` contains modern security settings:
+
+```nginx
+ssl_session_cache shared:le_nginx_SSL:10m;
+ssl_session_timeout 1440m;
+ssl_session_tickets off;
+ssl_protocols TLSv1.2 TLSv1.3;
+ssl_prefer_server_ciphers off;
+ssl_ciphers "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384";
+```
