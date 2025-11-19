@@ -693,6 +693,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 			IsFlashSale   *bool                     `json:"isFlashSale"`
 			IsActive      *bool                     `json:"isActive"`
 			InStock       *bool                     `json:"inStock"`
+			SearchMetadata *models.ProductSearchMetadata `json:"searchMetadata"`
 		}
 
 		// Parse JSON request body
@@ -803,6 +804,12 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 
 		if productUpdate.InStock != nil {
 			update["in_stock"] = *productUpdate.InStock
+			somethingToUpdate = true
+		}
+
+		if productUpdate.SearchMetadata != nil {
+			productUpdate.SearchMetadata.UpdatedAt = time.Now()
+			update["search_metadata"] = productUpdate.SearchMetadata
 			somethingToUpdate = true
 		}
 
@@ -944,6 +951,21 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			update["attributes"] = attributes
+			somethingToUpdate = true
+		}
+
+		if searchMetadataJSON := r.FormValue("searchMetadata"); searchMetadataJSON != "" {
+			var meta models.ProductSearchMetadata
+			if err := json.Unmarshal([]byte(searchMetadataJSON), &meta); err != nil {
+				utils.ErrorResponse(
+					w,
+					http.StatusBadRequest,
+					"Invalid searchMetadata JSON format: "+err.Error(),
+				)
+				return
+			}
+			meta.UpdatedAt = time.Now()
+			update["search_metadata"] = &meta
 			somethingToUpdate = true
 		}
 

@@ -14,6 +14,24 @@ export interface ProductAttribute {
   shownName?: string; // Display name, e.g., "Material" (optional)
 }
 
+export interface ProductSearchMetadata {
+  namePersian: string;
+  descriptionPersian: string;
+  keywords: string[];
+  tags: string[];
+  materialPersian: string;
+  materialEnglish: string;
+  materialTags: string[];
+  stylePersian: string;
+  styleEnglish: string;
+  occasionTags: string[];
+  season: string[];
+  sizeSystem: string;
+  fitType: string;
+  gender: string;
+  ageGroup: string;
+}
+
 export interface Product {
   id: string; // MongoDB ObjectID, can be absent if not yet created
   name: string;
@@ -38,7 +56,8 @@ export interface Product {
   is_active: boolean; // Soft delete flag
   created_at: string; // ISO 8601 timestamp
   updated_at: string; // ISO 8601 timestamp
-  inStock: boolean
+  inStock: boolean;
+  searchMetadata?: ProductSearchMetadata;
 }
 
 export interface Review {

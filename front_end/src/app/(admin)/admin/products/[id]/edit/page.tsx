@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useProductStore } from "@/store/product-store";
 import { useCategoryStore } from "@/store/category-store";
 import { useAuthStore } from "@/store/auth-store";
-import { ProductVariant, ProductAttribute, Product } from "@/types/product";
+import { ProductVariant, ProductAttribute } from "@/types/product";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
@@ -35,6 +35,25 @@ export default function EditProductPage() {
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const [categorySearch, setCategorySearch] = useState("");
 
+  const [gender, setGender] = useState("مردانه");
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiMetadata, setAiMetadata] = useState({
+    namePersian: "",
+    descriptionPersian: "",
+    keywords: [] as string[],
+    tags: [] as string[],
+    materialPersian: "",
+    stylePersian: "",
+    occasionTags: [] as string[],
+    season: [] as string[],
+    fitType: "معمولی",
+    ageGroup: "بزرگسال",
+  });
+  const [keywordsInput, setKeywordsInput] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
+  const [occasionInput, setOccasionInput] = useState("");
+  const [seasonInput, setSeasonInput] = useState("");
+
   useEffect(() => {
     fetchBrands();
     fetchCategories();
@@ -56,6 +75,35 @@ export default function EditProductPage() {
       setIsFlashSale(activeProduct.is_flash_sale);
       setIsActive(activeProduct.is_active);
       setInStock(activeProduct.inStock);
+      if ((activeProduct as any).searchMetadata) {
+        const sm = (activeProduct as any).searchMetadata;
+        setAiMetadata(prev => ({
+          ...prev,
+          namePersian: sm.namePersian || "",
+          descriptionPersian: sm.descriptionPersian || "",
+          keywords: Array.isArray(sm.keywords) ? sm.keywords : [],
+          tags: Array.isArray(sm.tags) ? sm.tags : [],
+          materialPersian: sm.materialPersian || "",
+          stylePersian: sm.stylePersian || "",
+          occasionTags: Array.isArray(sm.occasionTags) ? sm.occasionTags : [],
+          season: Array.isArray(sm.season) ? sm.season : [],
+          fitType: sm.fitType || "معمولی",
+          ageGroup: sm.ageGroup || "بزرگسال",
+        }));
+        if (Array.isArray(sm.keywords)) {
+          setKeywordsInput(sm.keywords.join(", "));
+        }
+        if (Array.isArray(sm.tags)) {
+          setTagsInput(sm.tags.join(", "));
+        }
+        if (Array.isArray(sm.occasionTags)) {
+          setOccasionInput(sm.occasionTags.join(", "));
+        }
+        if (Array.isArray(sm.season)) {
+          setSeasonInput(sm.season.join(", "));
+        }
+        setGender(sm.gender || "مردانه");
+      }
       setLoaded(true);
     }
   }, [activeProduct, loaded]);
@@ -71,6 +119,13 @@ export default function EditProductPage() {
   }, []);
 
   const filteredCategories = categories.filter(cat => cat.name.toLowerCase().includes(categorySearch.toLowerCase()));
+
+  const canGenerateAiMetadata =
+    !!name &&
+    !!description &&
+    price > 0 &&
+    categoryIds.length > 0 &&
+    !!brandId;
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setImages(e.target.files);
@@ -96,6 +151,106 @@ export default function EditProductPage() {
     setAttributes(attributes.filter((_, i) => i !== idx));
   };
 
+  const handleKeywordsChange = (value: string) => {
+    setKeywordsInput(value);
+    const parts = value.split(",").map(k => k.trim()).filter(k => k);
+    setAiMetadata(prev => ({ ...prev, keywords: parts }));
+  };
+
+  const handleTagsChange = (value: string) => {
+    setTagsInput(value);
+    const parts = value.split(",").map(t => t.trim()).filter(t => t);
+    setAiMetadata(prev => ({ ...prev, tags: parts }));
+  };
+
+  const handleOccasionChange = (value: string) => {
+    setOccasionInput(value);
+    const parts = value.split(",").map(t => t.trim()).filter(t => t);
+    setAiMetadata(prev => ({ ...prev, occasionTags: parts }));
+  };
+
+  const handleSeasonChange = (value: string) => {
+    setSeasonInput(value);
+    const parts = value.split(",").map(t => t.trim()).filter(t => t);
+    setAiMetadata(prev => ({ ...prev, season: parts }));
+  };
+
+  const handleGenerateAiMetadata = async () => {
+    if (!canGenerateAiMetadata || aiGenerating) return;
+
+    const primaryCategory = categories.find(c => c.id === categoryIds[0])?.name || "";
+    const brandName = brands.find(b => b.id === brandId)?.name || "";
+
+    setAiGenerating(true);
+    try {
+      const response = await fetch("/api/admin/ai/generate-metadata", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          description,
+          category: primaryCategory,
+          brand: brandName,
+          price,
+          gender,
+          images: [] as string[],
+          model: "",
+        }),
+      });
+
+      if (!response.ok) {
+        let message = "خطا در تولید خودکار اطلاعات محصول";
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.message) {
+            message = errorData.message;
+          }
+        } catch {
+        }
+        toast.error(message);
+        return;
+      }
+
+      const data = await response.json();
+      const generated = data?.data || data;
+
+      setAiMetadata(prev => ({
+        ...prev,
+        namePersian: generated.namePersian || prev.namePersian,
+        descriptionPersian: generated.descriptionPersian || prev.descriptionPersian,
+        keywords: Array.isArray(generated.keywords) ? generated.keywords : prev.keywords,
+        tags: Array.isArray(generated.tags) ? generated.tags : prev.tags,
+        materialPersian: generated.materialPersian || prev.materialPersian,
+        stylePersian: generated.stylePersian || prev.stylePersian,
+        occasionTags: Array.isArray(generated.occasionTags) ? generated.occasionTags : prev.occasionTags,
+        season: Array.isArray(generated.season) ? generated.season : prev.season,
+        fitType: generated.fitType || prev.fitType,
+        ageGroup: generated.ageGroup || prev.ageGroup,
+      }));
+
+      if (Array.isArray(generated.keywords)) {
+        setKeywordsInput(generated.keywords.join(", "));
+      }
+      if (Array.isArray(generated.tags)) {
+        setTagsInput(generated.tags.join(", "));
+      }
+      if (Array.isArray(generated.occasionTags)) {
+        setOccasionInput(generated.occasionTags.join(", "));
+      }
+      if (Array.isArray(generated.season)) {
+        setSeasonInput(generated.season.join(", "));
+      }
+
+      toast.success("فیلدهای AI با موفقیت تولید شدند. لطفاً آن‌ها را بررسی و در صورت نیاز ویرایش کنید.");
+    } catch (err) {
+      toast.error("خطا در ارتباط با سرویس هوش مصنوعی");
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!adminToken) {
@@ -116,11 +271,31 @@ export default function EditProductPage() {
     formData.append("brandId", brandId);
     formData.append("variants", JSON.stringify(variants));
     formData.append("attributes", JSON.stringify(attributes));
+    if (aiMetadata.namePersian || aiMetadata.descriptionPersian || aiMetadata.keywords.length || aiMetadata.tags.length) {
+      const searchMetadata = {
+        namePersian: aiMetadata.namePersian,
+        descriptionPersian: aiMetadata.descriptionPersian,
+        keywords: aiMetadata.keywords,
+        tags: aiMetadata.tags,
+        materialPersian: aiMetadata.materialPersian,
+        materialEnglish: "",
+        materialTags: [] as string[],
+        stylePersian: aiMetadata.stylePersian,
+        styleEnglish: "",
+        occasionTags: aiMetadata.occasionTags,
+        season: aiMetadata.season,
+        sizeSystem: "",
+        fitType: aiMetadata.fitType,
+        gender,
+        ageGroup: aiMetadata.ageGroup,
+      };
+      formData.append("searchMetadata", JSON.stringify(searchMetadata));
+    }
     formData.append("isFlashSale", isFlashSale ? "true" : "false");
     formData.append("isActive", isActive ? "true" : "false");
     formData.append("inStock", inStock ? "true" : "false");
     if (images) {
-      Array.from(images).forEach((file) => formData.append("images", file));
+      Array.from(images).forEach((file) => formData.append("mainImages", file));
     }
     if (tryOnImageFile) {
       formData.append("tryOnImage", tryOnImageFile);
@@ -160,6 +335,14 @@ export default function EditProductPage() {
             <label className="block mb-1">قیمت اصلی</label>
             <input className="input" type="number" value={originalPrice} onChange={e => setOriginalPrice(Number(e.target.value))} />
           </div>
+        </div>
+        <div>
+          <label className="block mb-1">جنسیت *</label>
+          <select className="input" value={gender} onChange={e => setGender(e.target.value)}>
+            <option value="مردانه">مردانه</option>
+            <option value="زنانه">زنانه</option>
+            <option value="یونیسکس">یونیسکس</option>
+          </select>
         </div>
         <div>
           <label className="block mb-1">دسته‌بندی *</label>
@@ -257,6 +440,123 @@ export default function EditProductPage() {
             </div>
           ))}
           <Button type="button" variant="outline" size="sm" onClick={handleAddAttribute}>+ ویژگی جدید</Button>
+        </div>
+        <div className="space-y-3 border-t pt-4">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="font-semibold">فیلدهای هوش مصنوعی برای جستجوی بهتر</h2>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!canGenerateAiMetadata || aiGenerating || submitting || isLoading}
+              onClick={handleGenerateAiMetadata}
+            >
+              {aiGenerating ? "در حال تولید..." : "تکمیل خودکار با AI"}
+            </Button>
+          </div>
+          <p className="text-xs text-gray-500">
+            پس از پر کردن نام، توضیحات، قیمت، دسته‌بندی و برند، می‌توانید با دکمه بالا فیلدهای کمکی برای چت‌بات و جستجوی هوشمند را به صورت خودکار تولید کنید و در صورت نیاز ویرایش نمایید.
+          </p>
+          <div>
+            <label className="block mb-1">نام فارسی محصول</label>
+            <input
+              className="input"
+              dir="rtl"
+              value={aiMetadata.namePersian}
+              onChange={e => setAiMetadata(prev => ({ ...prev, namePersian: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="block mb-1">توضیحات فارسی محصول</label>
+            <textarea
+              className="input"
+              dir="rtl"
+              value={aiMetadata.descriptionPersian}
+              onChange={e => setAiMetadata(prev => ({ ...prev, descriptionPersian: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="block mb-1">کلمات کلیدی (با کاما جدا شوند)</label>
+            <input
+              className="input"
+              dir="rtl"
+              value={keywordsInput}
+              onChange={e => handleKeywordsChange(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block mb-1">برچسب‌ها (با کاما جدا شوند)</label>
+            <input
+              className="input"
+              dir="rtl"
+              value={tagsInput}
+              onChange={e => handleTagsChange(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="block mb-1">جنس (فارسی)</label>
+              <input
+                className="input"
+                dir="rtl"
+                value={aiMetadata.materialPersian}
+                onChange={e => setAiMetadata(prev => ({ ...prev, materialPersian: e.target.value }))}
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block mb-1">استایل (فارسی)</label>
+              <input
+                className="input"
+                dir="rtl"
+                value={aiMetadata.stylePersian}
+                onChange={e => setAiMetadata(prev => ({ ...prev, stylePersian: e.target.value }))}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block mb-1">موقعیت‌های استفاده (با کاما جدا شوند)</label>
+            <input
+              className="input"
+              dir="rtl"
+              value={occasionInput}
+              onChange={e => handleOccasionChange(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block mb-1">فصل‌های مناسب (با کاما جدا شوند)</label>
+            <input
+              className="input"
+              dir="rtl"
+              value={seasonInput}
+              onChange={e => handleSeasonChange(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="block mb-1">نوع برازش</label>
+              <select
+                className="input"
+                value={aiMetadata.fitType}
+                onChange={e => setAiMetadata(prev => ({ ...prev, fitType: e.target.value }))}
+              >
+                <option value="معمولی">معمولی (Regular)</option>
+                <option value="تنگ">تنگ (Slim)</option>
+                <option value="گشاد">گشاد (Oversized)</option>
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="block mb-1">گروه سنی</label>
+              <select
+                className="input"
+                value={aiMetadata.ageGroup}
+                onChange={e => setAiMetadata(prev => ({ ...prev, ageGroup: e.target.value }))}
+              >
+                <option value="بزرگسال">بزرگسال</option>
+                <option value="نوجوان">نوجوان</option>
+                <option value="کودک">کودک</option>
+              </select>
+            </div>
+          </div>
         </div>
         <div className="flex gap-4">
           <label className="flex items-center gap-2">
