@@ -35,10 +35,19 @@ const nextConfig = {
     localeDetection: false,
   },
   async rewrites() {
+    const backendUrl = process.env.GO_BACKEND_URL || 'http://localhost:8080';
     return [
       {
         source: '/uploads/:path*',
-        destination: 'http://localhost:8080/uploads/:path*',
+        destination: `${backendUrl}/uploads/:path*`,
+      },
+      {
+        source: '/api/:path*',
+        destination: `${backendUrl}/api/:path*`,
+      },
+      {
+        source: '/admin/:path*',
+        destination: `${backendUrl}/admin/:path*`,
       }
     ];
   },
