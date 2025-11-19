@@ -221,6 +221,7 @@ export default function SignInPage() {
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           error={errors.email}
+                          autoComplete="email"
                           leftElement={
                             <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-voxcina-blue/60" />
                           }
@@ -254,6 +255,7 @@ export default function SignInPage() {
                             </button>
                           }
                           placeholder="••••••••"
+                          autoComplete="current-password"
                           className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5"
                         />
                       </motion.div>
@@ -269,6 +271,7 @@ export default function SignInPage() {
                           onChange={(e) => setPhone(e.target.value)}
                           error={smsError || undefined}
                           placeholder="09123456789"
+                          autoComplete="tel"
                         />
                       </motion.div>
                       {isSent && (
@@ -280,6 +283,7 @@ export default function SignInPage() {
                             value={smsCode}
                             onChange={(e) => setSmsCode(e.target.value)}
                             placeholder="####"
+                            autoComplete="one-time-code"
                           />
                         </motion.div>
                       )}
