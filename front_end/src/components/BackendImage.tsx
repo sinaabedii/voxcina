@@ -33,9 +33,7 @@ export default function BackendImage({
   const [error, setError] = useState(false);
   
   // If it's a backend image (starts with /uploads/), use the API route
-  const imageSrc = src.startsWith('/uploads/') 
-    ? `/api/uploads/${src.replace('/uploads/', '')}`
-    : src;
+  const imageSrc = src;
   
   // Default fallback image - data URI for a simple gray placeholder with image icon
   const defaultFallback = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect width='400' height='400' fill='%23f0f0f0'/%3E%3Cpath d='M160 140 L160 260 L240 260 L240 140 Z' fill='%23d0d0d0'/%3E%3Ccircle cx='200' cy='180' r='20' fill='%23a0a0a0'/%3E%3Cpath d='M160 220 L180 200 L200 220 L220 200 L240 220 L240 260 L160 260 Z' fill='%23a0a0a0'/%3E%3C/svg%3E";
