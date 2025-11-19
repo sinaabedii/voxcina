@@ -199,7 +199,7 @@ export default function ChatBot() {
   });
   const [useAI, setUseAI] = useState(true); // Toggle AI on/off
   const [savingEnabled, setSavingEnabled] = useState(true); // Toggle message saving
-  const [chatHistory, setChatHistory] = useState<Array<{id: string, title: string, last_message: string}>>([]);
+  const [chatHistory, setChatHistory] = useState<Array<{id: string; chat_id?: string; title: string; last_message: string}>>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [user, setUser] = useState<{id: string, name: string} | null>(null); // Get from auth context
@@ -272,6 +272,11 @@ export default function ChatBot() {
   // Load current chat from database
   const loadCurrentChat = async () => {
     try {
+      // Only query backend if we know this chat was previously saved
+      if (!localStorage.getItem(`chat_has_backend_${chatId}`)) {
+        return;
+      }
+
       const response = await fetch(`/api/chat/history/${chatId}`);
       if (response.ok) {
         const data = await response.json();
@@ -301,17 +306,18 @@ export default function ChatBot() {
     if (!user) return;
 
     try {
-      // Get all localStorage chat IDs
-      const localChatIds: string[] = [];
+      // Find all chats that we know were saved to backend
+      const backendChatIds: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key?.startsWith('chat_')) {
-          localChatIds.push(key);
+        if (key?.startsWith('chat_has_backend_')) {
+          const id = key.replace('chat_has_backend_', '');
+          if (id) backendChatIds.push(id);
         }
       }
 
       // Link each anonymous chat to user
-      for (const chatId of localChatIds) {
+      for (const chatId of backendChatIds) {
         await fetch('/api/chat/link-to-user', {
           method: 'POST',
           headers: {
@@ -429,7 +435,7 @@ export default function ChatBot() {
     if (!savingEnabled) return;
 
     try {
-      await fetch("/api/chat/save", {
+      const response = await fetch("/api/chat/save", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -452,6 +458,9 @@ export default function ChatBot() {
           },
         }),
       });
+      if (response.ok) {
+        localStorage.setItem(`chat_has_backend_${chatId}`, "1");
+      }
     } catch (error) {
       // Silently fail - don't disrupt user experience
       console.error("Failed to save message:", error);
@@ -795,39 +804,42 @@ export default function ChatBot() {
                         </div>
                       ) : (
                         <div className="space-y-2">
-                          {chatHistory.map((chat) => (
-                            <motion.button
-                              key={chat.id}
-                              onClick={() => resumeChat(chat.id)}
-                              className={`w-full text-right p-3 rounded-lg transition-colors ${
-                                chat.id === chatId 
-                                  ? 'bg-[#1A3C69] text-white' 
-                                  : 'bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
-                              }`}
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.98 }}
-                            >
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <p className={`text-sm font-medium truncate ${
-                                    chat.id === chatId ? 'text-white' : 'text-gray-900 dark:text-gray-100'
-                                  }`}>
-                                    {chat.title || 'گفتگو'}
-                                  </p>
-                                  <p className={`text-xs mt-1 truncate ${
-                                    chat.id === chatId ? 'text-gray-200' : 'text-gray-500 dark:text-gray-400'
-                                  }`}>
-                                    {chat.last_message}
-                                  </p>
+                          {chatHistory.map((chat) => {
+                            const sessionChatId = chat.chat_id || chat.id;
+                            return (
+                              <motion.button
+                                key={chat.id}
+                                onClick={() => resumeChat(sessionChatId)}
+                                className={`w-full text-right p-3 rounded-lg transition-colors ${
+                                  sessionChatId === chatId
+                                    ? 'bg-[#1A3C69] text-white'
+                                    : 'bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
+                                }`}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <p className={`text-sm font-medium truncate ${
+                                      sessionChatId === chatId ? 'text-white' : 'text-gray-900 dark:text-gray-100'
+                                    }`}>
+                                      {chat.title || 'گفتگو'}
+                                    </p>
+                                    <p className={`text-xs mt-1 truncate ${
+                                      sessionChatId === chatId ? 'text-gray-200' : 'text-gray-500 dark:text-gray-400'
+                                    }`}>
+                                      {chat.last_message}
+                                    </p>
+                                  </div>
+                                  {sessionChatId === chatId && (
+                                    <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                  )}
                                 </div>
-                                {chat.id === chatId && (
-                                  <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                  </svg>
-                                )}
-                              </div>
-                            </motion.button>
-                          ))}
+                              </motion.button>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
