@@ -76,6 +76,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	brandIDStr := r.FormValue("brandId")
 	variantsJSON := r.FormValue("variants")
 	attributesJSON := r.FormValue("attributes")
+	searchMetadataJSON := r.FormValue("searchMetadata")
 	isFlashSaleStr := r.FormValue("isFlashSale")
 	isActiveStr := r.FormValue("isActive")
 	inStockStr := r.FormValue("inStock")
@@ -168,6 +169,22 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 			)
 			return
 		}
+	}
+
+	// Optional AI search metadata (for chatbot/recommender)
+	var searchMetadata *models.ProductSearchMetadata
+	if searchMetadataJSON != "" {
+		var meta models.ProductSearchMetadata
+		if err := json.Unmarshal([]byte(searchMetadataJSON), &meta); err != nil {
+			utils.ErrorResponse(
+				w,
+				http.StatusBadRequest,
+				"Invalid searchMetadata JSON format: "+err.Error(),
+			)
+			return
+		}
+		meta.UpdatedAt = time.Now()
+		searchMetadata = &meta
 	}
 
 	isFlashSale, _ := strconv.ParseBool(isFlashSaleStr)
@@ -360,6 +377,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		InStock:       inStock,
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
+		SearchMetadata: searchMetadata,
 	}
 
 	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)

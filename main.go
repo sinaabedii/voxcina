@@ -27,6 +27,10 @@ func main() {
 	handlers.InitChatService(database)
 	log.Println("Chat service initialized")
 
+	// Initialize user activity service
+	handlers.InitUserActivityService(database)
+	log.Println("User activity service initialized")
+
 	// Seed database if requested
 	if *seedDB {
 		log.Println("Seeding database...")

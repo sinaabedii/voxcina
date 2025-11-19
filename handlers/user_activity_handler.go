@@ -10,13 +10,19 @@ import (
 
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 
 	"backEnd/models"
 	"backEnd/services"
 	"backEnd/utils"
 )
 
-var activityService = services.NewUserActivityService()
+var activityService *services.UserActivityService
+
+// InitUserActivityService initializes the user activity service
+func InitUserActivityService(db *mongo.Database) {
+	activityService = services.NewUserActivityService(db)
+}
 
 // TrackActivity handles POST /api/activity/track
 // Tracks a single user activity event
@@ -108,7 +114,11 @@ func TrackBatchActivities(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	if err := activityService.TrackBatch(ctx, activities); err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to track activities")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Failed to track activities",
+		)
 		return
 	}
 
@@ -196,7 +206,11 @@ func GetRecentlyViewed(w http.ResponseWriter, r *http.Request) {
 	products, err := activityService.GetRecentlyViewedProducts(ctx, userID, limit)
 	if err != nil {
 		log.Printf("Error getting recently viewed products: %v", err)
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to get recently viewed products")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Failed to get recently viewed products",
+		)
 		return
 	}
 
@@ -237,7 +251,11 @@ func GetUserActivitySummary(w http.ResponseWriter, r *http.Request) {
 	summary, err := activityService.GetUserActivitySummary(ctx, userID, fromDate, toDate)
 	if err != nil {
 		log.Printf("Error getting activity summary: %v", err)
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to get activity summary")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Failed to get activity summary",
+		)
 		return
 	}
 
@@ -277,7 +295,11 @@ func GetConversionFunnel(w http.ResponseWriter, r *http.Request) {
 	funnel, err := activityService.GetConversionFunnel(ctx, fromDate, toDate)
 	if err != nil {
 		log.Printf("Error getting conversion funnel: %v", err)
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to get conversion funnel")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Failed to get conversion funnel",
+		)
 		return
 	}
 
@@ -313,7 +335,11 @@ func GetSessionAnalytics(w http.ResponseWriter, r *http.Request) {
 	analytics, err := activityService.GetSessionAnalytics(ctx, sessionID)
 	if err != nil {
 		log.Printf("Error getting session analytics: %v", err)
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to get session analytics")
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Failed to get session analytics",
+		)
 		return
 	}
 
@@ -356,7 +382,8 @@ func getClientIP(r *http.Request) string {
 func detectDeviceType(userAgent string) string {
 	ua := strings.ToLower(userAgent)
 
-	if strings.Contains(ua, "mobile") || strings.Contains(ua, "android") || strings.Contains(ua, "iphone") {
+	if strings.Contains(ua, "mobile") || strings.Contains(ua, "android") ||
+		strings.Contains(ua, "iphone") {
 		return "mobile"
 	}
 	if strings.Contains(ua, "tablet") || strings.Contains(ua, "ipad") {

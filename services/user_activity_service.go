@@ -10,7 +10,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"backEnd/db"
 	"backEnd/models"
 )
 
@@ -20,9 +19,9 @@ type UserActivityService struct {
 }
 
 // NewUserActivityService creates a new UserActivityService instance
-func NewUserActivityService() *UserActivityService {
+func NewUserActivityService(database *mongo.Database) *UserActivityService {
 	return &UserActivityService{
-		collection: db.Database.Collection("user_activities"),
+		collection: database.Collection("user_activities"),
 	}
 }
 
