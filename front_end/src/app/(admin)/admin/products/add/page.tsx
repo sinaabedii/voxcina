@@ -50,6 +50,14 @@ export default function AddProductPage() {
   const [tagsInput, setTagsInput] = useState("");
   const [occasionInput, setOccasionInput] = useState("");
   const [seasonInput, setSeasonInput] = useState("");
+  const [priceInput, setPriceInput] = useState("");
+  const [originalPriceInput, setOriginalPriceInput] = useState("");
+
+  const hasDiscount = originalPrice > 0 && originalPrice > price;
+  const discountPercent = hasDiscount
+    ? Math.round(((originalPrice - price) / originalPrice) * 100)
+    : 0;
+  const hasInvalidDiscount = originalPrice > 0 && originalPrice < price;
 
   useEffect(() => {
     fetchBrands();
@@ -121,6 +129,55 @@ export default function AddProductPage() {
     setSeasonInput(value);
     const parts = value.split(",").map(t => t.trim()).filter(t => t);
     setAiMetadata(prev => ({ ...prev, season: parts }));
+  };
+
+  const formatPrice = (value: number) => {
+    if (!value) return "";
+    try {
+      return value.toLocaleString("en-US");
+    } catch {
+      return String(value);
+    }
+  };
+
+  const handlePriceInputChange = (e: any) => {
+    const raw = String(e.target.value)
+      .replace(/,/g, "")
+      .replace(/[^0-9]/g, "");
+
+    if (raw === "") {
+      setPrice(0);
+      setPriceInput("");
+      return;
+    }
+
+    const numeric = Number(raw);
+    if (Number.isNaN(numeric)) {
+      return;
+    }
+
+    setPrice(numeric);
+    setPriceInput(formatPrice(numeric));
+  };
+
+  const handleOriginalPriceInputChange = (e: any) => {
+    const raw = String(e.target.value)
+      .replace(/,/g, "")
+      .replace(/[^0-9]/g, "");
+
+    if (raw === "") {
+      setOriginalPrice(0);
+      setOriginalPriceInput("");
+      return;
+    }
+
+    const numeric = Number(raw);
+    if (Number.isNaN(numeric)) {
+      return;
+    }
+
+    setOriginalPrice(numeric);
+    setOriginalPriceInput(formatPrice(numeric));
   };
 
   const handleGenerateAiMetadata = async () => {
@@ -271,15 +328,50 @@ export default function AddProductPage() {
           <label className="block mb-1">توضیحات</label>
           <textarea className="input" value={description} onChange={e => setDescription(e.target.value)} />
         </div>
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <label className="block mb-1">قیمت *</label>
-            <input className="input" type="number" value={price} onChange={e => setPrice(Number(e.target.value))} required />
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="block mb-1">قیمت نهایی (تومان) *</label>
+              <input
+                className="input"
+                type="text"
+                inputMode="numeric"
+                dir="ltr"
+                placeholder="مثال: 450000"
+                value={priceInput}
+                onChange={handlePriceInputChange}
+                required
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                قیمتی که خریدار در سایت مشاهده و پرداخت می‌کند.
+              </p>
+            </div>
+            <div className="flex-1">
+              <label className="block mb-1">قیمت اصلی (تومان)</label>
+              <input
+                className="input"
+                type="text"
+                inputMode="numeric"
+                dir="ltr"
+                placeholder="مثال: 550000"
+                value={originalPriceInput}
+                onChange={handleOriginalPriceInputChange}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                در صورت ثبت تخفیف، قیمت اصلی قبل از تخفیف را اینجا وارد کنید.
+              </p>
+            </div>
           </div>
-          <div className="flex-1">
-            <label className="block mb-1">قیمت اصلی</label>
-            <input className="input" type="number" value={originalPrice} onChange={e => setOriginalPrice(Number(e.target.value))} />
-          </div>
+          {hasDiscount && (
+            <p className="text-xs text-green-600">
+              تخفیف فعلی: {discountPercent}%
+            </p>
+          )}
+          {!hasDiscount && hasInvalidDiscount && (
+            <p className="text-xs text-red-600">
+              هشدار: قیمت اصلی کمتر از قیمت نهایی است. در صورت نداشتن تخفیف، قیمت اصلی را خالی بگذارید یا بزرگ‌تر از قیمت نهایی تنظیم کنید.
+            </p>
+          )}
         </div>
         <div>
           <label className="block mb-1">جنسیت *</label>

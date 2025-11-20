@@ -40,7 +40,8 @@ func getProductsCountForBrand(ctx context.Context, brandID primitive.ObjectID) i
 func getFeaturedProductForBrand(ctx context.Context, brandID primitive.ObjectID) string {
 	productCollection := db.Database.Collection("products")
 	var product models.Product
-	err := productCollection.FindOne(ctx, bson.M{"brand_id": brandID}, options.FindOne().SetSort(bson.D{{"created_at", -1}})).Decode(&product)
+	err := productCollection.FindOne(ctx, bson.M{"brand_id": brandID}, options.FindOne().SetSort(bson.D{{"created_at", -1}})).
+		Decode(&product)
 	if err != nil {
 		return ""
 	}
@@ -75,8 +76,8 @@ func GetBrands(w http.ResponseWriter, r *http.Request) {
 	var brandsWithExtras []BrandWithExtras
 	for _, brand := range brands {
 		brandsWithExtras = append(brandsWithExtras, BrandWithExtras{
-			Brand:          brand,
-			ProductsCount:  getProductsCountForBrand(ctx, brand.ID),
+			Brand:           brand,
+			ProductsCount:   getProductsCountForBrand(ctx, brand.ID),
 			FeaturedProduct: getFeaturedProductForBrand(ctx, brand.ID),
 		})
 	}
@@ -232,8 +233,8 @@ func GetBrandByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	brandWithExtras := BrandWithExtras{
-		Brand:          brand,
-		ProductsCount:  getProductsCountForBrand(ctx, brand.ID),
+		Brand:           brand,
+		ProductsCount:   getProductsCountForBrand(ctx, brand.ID),
 		FeaturedProduct: getFeaturedProductForBrand(ctx, brand.ID),
 	}
 
@@ -303,9 +304,9 @@ func UpdateBrand(w http.ResponseWriter, r *http.Request) {
 		existingBrand.Description = description // Update for response
 	}
 	if isActiveStr != "" {
-		parsedIsActive := isActiveStr == "true"  // Simple conversion for "true" string
+		parsedIsActive := isActiveStr == "true" // Simple conversion for "true" string
 		update["isActive"] = parsedIsActive
-		existingBrand.IsActive = parsedIsActive    // Update for response
+		existingBrand.IsActive = parsedIsActive // Update for response
 	}
 
 	// Handle logo upload

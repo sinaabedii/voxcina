@@ -21,6 +21,7 @@ import (
 
 	"backEnd/db"
 	"backEnd/models"
+	"backEnd/services"
 	"backEnd/utils"
 )
 
@@ -45,7 +46,6 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-
 	// Log the form values for debugging
 	fmt.Println("Form values:")
 	for key, values := range r.Form {
@@ -65,7 +65,6 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 			)
 		}
 	}
-
 	// --- Form Data ---
 	name := r.FormValue("name")
 	description := r.FormValue("description")
@@ -185,6 +184,24 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		}
 		meta.UpdatedAt = time.Now()
 		searchMetadata = &meta
+	}
+
+	// Generate embedding for AI search (best-effort, non-fatal on error)
+	embeddingCtx, embedCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer embedCancel()
+
+	embeddingText := services.BuildProductEmbeddingText(name, description, brand.Name, searchMetadata)
+	if strings.TrimSpace(embeddingText) != "" {
+		if vec, modelName, err := services.GenerateEmbedding(embeddingCtx, embeddingText); err != nil {
+			fmt.Printf("Warning: failed to generate product embedding: %v\n", err)
+		} else {
+			if searchMetadata == nil {
+				searchMetadata = &models.ProductSearchMetadata{}
+			}
+			searchMetadata.EmbeddingVector = vec
+			searchMetadata.EmbeddingModel = modelName
+			searchMetadata.UpdatedAt = time.Now()
+		}
 	}
 
 	isFlashSale, _ := strconv.ParseBool(isFlashSaleStr)
@@ -398,6 +415,26 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("Error adding product to database: %v", err),
 		)
 		return
+	}
+
+	// Best-effort: upsert embedding into FAISS vector index
+	if product.SearchMetadata != nil && len(product.SearchMetadata.EmbeddingVector) > 0 {
+		faissClient := services.NewFaissClientFromEnv()
+		if faissClient != nil {
+			faissCtx, faissCancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer faissCancel()
+			if faissErr := faissClient.UpsertProductEmbedding(
+				faissCtx,
+				product.ID.Hex(),
+				product.SearchMetadata.EmbeddingVector,
+			); faissErr != nil {
+				fmt.Printf(
+					"Warning: failed to upsert FAISS embedding for product %s: %v\n",
+					product.ID.Hex(),
+					faissErr,
+				)
+			}
+		}
 	}
 
 	utils.JSONResponse(w, http.StatusCreated, product)
@@ -1183,6 +1220,26 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 			"Error fetching updated product: "+err.Error(),
 		)
 		return
+	}
+
+	// Best-effort: upsert (or refresh) embedding in FAISS vector index
+	if updatedProduct.SearchMetadata != nil && len(updatedProduct.SearchMetadata.EmbeddingVector) > 0 {
+		faissClient := services.NewFaissClientFromEnv()
+		if faissClient != nil {
+			faissCtx, faissCancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer faissCancel()
+			if faissErr := faissClient.UpsertProductEmbedding(
+				faissCtx,
+				updatedProduct.ID.Hex(),
+				updatedProduct.SearchMetadata.EmbeddingVector,
+			); faissErr != nil {
+				fmt.Printf(
+					"Warning: failed to upsert FAISS embedding for product %s: %v\n",
+					updatedProduct.ID.Hex(),
+					faissErr,
+				)
+			}
+		}
 	}
 
 	utils.JSONResponse(w, http.StatusOK, updatedProduct)

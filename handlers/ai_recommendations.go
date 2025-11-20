@@ -3,8 +3,10 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -86,6 +88,117 @@ func SmartSearch(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, http.StatusOK, response)
 }
 
+// ChatSupport handles POST /api/chat/support
+// This endpoint provides agentic LLM-powered support replies and optional ticket creation
+func ChatSupport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.ErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	var chatReq struct {
+		Message string `json:"message"`
+		UserID  string `json:"user_id,omitempty"`
+		ChatID  string `json:"chat_id,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&chatReq); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if strings.TrimSpace(chatReq.Message) == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Message is required")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	aiService, err := services.NewCustomerAIService(db.Database)
+	if err != nil {
+		log.Printf("Error initializing AI service for support: %v", err)
+		fallback := "در حال حاضر پشتیبانی هوشمند در دسترس نیست. لطفاً در صورت نیاز از بخش تیکت‌ها یا فرم تماس با ما استفاده کنید."
+		utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+			"response":       fallback,
+			"ticket_created": false,
+			"ticket_number":  "",
+		})
+		return
+	}
+
+	agentResult := aiService.RunSupportAgent(ctx, services.SupportAgentRequest{
+		Query:  chatReq.Message,
+		UserID: chatReq.UserID,
+		ChatID: chatReq.ChatID,
+	})
+
+	replyText := agentResult.Reply
+	ticketCreated := false
+	ticketNumber := ""
+	ticketID := ""
+
+	if agentResult.ShouldCreateTicket && chatReq.UserID != "" {
+		userID, err := primitive.ObjectIDFromHex(chatReq.UserID)
+		if err == nil {
+			collection := db.Database.Collection("tickets")
+			now := time.Now()
+			subject := strings.TrimSpace(agentResult.TicketSubject)
+			if subject == "" {
+				trimmed := strings.TrimSpace(chatReq.Message)
+				if len([]rune(trimmed)) > 60 {
+					subject = string([]rune(trimmed)[:60])
+				} else {
+					subject = trimmed
+				}
+			}
+			body := strings.TrimSpace(agentResult.TicketBody)
+			if body == "" {
+				body = chatReq.Message
+			}
+
+			initialMsg := models.TicketMessage{
+				ID:        primitive.NewObjectID(),
+				Sender:    "user",
+				Body:      body,
+				CreatedAt: now,
+			}
+
+			ticketNum := getNextTicketNumber()
+			ticket := models.Ticket{
+				ID:           primitive.NewObjectID(),
+				TicketNumber: fmt.Sprintf("TCK-%05d", ticketNum),
+				UserID:       userID,
+				Subject:      subject,
+				Category:     "support",
+				Priority:     "medium",
+				Status:       "open",
+				Messages:     []models.TicketMessage{initialMsg},
+				CreatedAt:    now,
+				UpdatedAt:    now,
+			}
+
+			if _, err := collection.InsertOne(ctx, ticket); err != nil {
+				log.Printf("Error creating support ticket: %v", err)
+			} else {
+				ticketCreated = true
+				ticketNumber = ticket.TicketNumber
+				ticketID = ticket.ID.Hex()
+				if !strings.Contains(replyText, ticketNumber) {
+					replyText = fmt.Sprintf("%s\n\nتیکت شما با شماره %s ثبت شد و تیم پشتیبانی Voxcina آن را بررسی خواهد کرد.", replyText, ticketNumber)
+				}
+			}
+		}
+	}
+
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+		"response":       replyText,
+		"ticket_created": ticketCreated,
+		"ticket_number":  ticketNumber,
+		"ticket_id":      ticketID,
+	})
+}
+
 // ChatRecommendation handles POST /api/chat/recommend
 // This endpoint provides conversational AI recommendations
 func ChatRecommendation(w http.ResponseWriter, r *http.Request) {
@@ -122,10 +235,34 @@ func ChatRecommendation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	shouldClarify, question := aiService.MaybeAskClarification(ctx, services.CustomerSearchRequest{
+		Query:  chatReq.Message,
+		UserID: chatReq.UserID,
+		ChatID: chatReq.ChatID,
+	})
+	if shouldClarify {
+		response := struct {
+			Response      string           `json:"response"`
+			Products      []models.Product `json:"products"`
+			Success       bool             `json:"success"`
+			IsAIGenerated bool             `json:"is_ai_generated"`
+			ChatID        string           `json:"chat_id,omitempty"`
+		}{
+			Response:      question,
+			Products:      []models.Product{},
+			Success:       false,
+			IsAIGenerated: true,
+			ChatID:        chatReq.ChatID,
+		}
+		utils.JSONResponse(w, http.StatusOK, response)
+		return
+	}
+
 	// Get AI recommendations
 	searchResponse, err := aiService.SearchProducts(ctx, services.CustomerSearchRequest{
 		Query:  chatReq.Message,
 		UserID: chatReq.UserID,
+		ChatID: chatReq.ChatID,
 	})
 	if err != nil {
 		log.Printf("Error getting chat recommendations: %v", err)

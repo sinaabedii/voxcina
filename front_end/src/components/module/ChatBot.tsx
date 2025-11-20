@@ -10,6 +10,7 @@ import {
   SmileIcon,
   ChevronUp,
   Bot,
+  Trash2,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { LuCircleHelp } from "react-icons/lu";
@@ -28,6 +29,19 @@ interface Message {
     brand?: string;
   }>;
   isAIGenerated?: boolean;
+  ticketId?: string;
+  ticketNumber?: string;
+}
+
+interface ChatSession {
+  id: string;
+  chat_id?: string;
+  title: string;
+  last_message: string;
+  message_count?: number;
+  status?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 const emojis = {
@@ -48,7 +62,7 @@ const emojis = {
 const initialMessages: Message[] = [
   {
     id: 1,
-    text: `سلام ${emojis.greeting} به پشتیبانی هوشمند Voxcina خوش آمدید. چطور می‌توانم امروز به شما کمک کنم؟`,
+    text: `سلام ${emojis.greeting} من دستیار هوشمند ووکسینا هستم؛ امروز در چه موردی می‌تونم کمکتون کنم؟`,
     sender: "bot",
     time: new Date().toLocaleTimeString("fa-IR", {
       hour: "2-digit",
@@ -153,7 +167,7 @@ const botResponses = [
     responses: [
       `${emojis.delivery} فروشگاه‌های حضوری ما در تهران، مشهد، اصفهان و شیراز واقع شده‌اند. آدرس دقیق و ساعات کاری در بخش «درباره ما» سایت قابل مشاهده است.`,
       `${emojis.shipping} برای خرید حضوری می‌توانید به شعب ما در مراکز خرید اصلی چند شهر بزرگ مراجعه کنید. آدرس دقیق و ساعات کاری در بخش «تماس با ما» قابل مشاهده است.`,
-      `${emojis.alert} علاوه بر فروشگاه آنلاین، شعب حضوری ما در چندین شهر آماده خدمت به شما هستند. برای اطلاع از نزدیک‌ترین شعبه به محل سکونت خود، به بخش «شعب ما» در سایت مراجعه کنید.`,
+      `${emojis.alert} علاقه بر این که از فروشگاه آنلاین ما خرید کنید، اما اگر ترجیح می‌دهید حضوری خرید کنید، می‌توانید به شعب ما در چندین شهر مراجعه کنید. برای اطلاع از نزدیک‌ترین شعبه به محل سکونت خود، به بخش «شعب ما» در سایت مراجعه کنید.`,
     ],
   },
 ];
@@ -173,8 +187,6 @@ const getRandomResponse = (input: string): string => {
 
   return selectedResponse;
 };
-
-
 
 export default function ChatBot() {
   const [isOpen, setIsOpen] = useState(false);
@@ -197,9 +209,9 @@ export default function ChatBot() {
     localStorage.setItem('currentChatId', newId);
     return newId;
   });
-  const [useAI, setUseAI] = useState(true); // Toggle AI on/off
+  const [useAI, setUseAI] = useState(false); // Disable AI for simple support chatbot
   const [savingEnabled, setSavingEnabled] = useState(true); // Toggle message saving
-  const [chatHistory, setChatHistory] = useState<Array<{id: string; chat_id?: string; title: string; last_message: string}>>([]);
+  const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [user, setUser] = useState<{id: string, name: string} | null>(null); // Get from auth context
@@ -239,6 +251,16 @@ export default function ChatBot() {
       clearLocalChatHistory();
     }
   }, [user]);
+
+  // When the widget opens for a logged-in user, show chat list by default
+  useEffect(() => {
+    if (isOpen && user) {
+      setShowHistory(true);
+      if (chatHistory.length === 0) {
+        loadUserChatHistory();
+      }
+    }
+  }, [isOpen, user]);
 
   // Check if user is authenticated
   const checkUserAuth = async () => {
@@ -351,7 +373,8 @@ export default function ChatBot() {
 
       if (response.ok) {
         const data = await response.json();
-        setChatHistory(data.sessions || []);
+        const sessions: ChatSession[] = (data.sessions || []) as ChatSession[];
+        setChatHistory(sessions);
       }
     } catch (error) {
       console.error('Failed to load chat history:', error);
@@ -372,6 +395,10 @@ export default function ChatBot() {
     }
     keysToRemove.forEach(key => localStorage.removeItem(key));
     
+    // Clear in-memory history and UI state
+    setChatHistory([]);
+    setShowHistory(false);
+
     // Start fresh chat
     startNewChat();
   };
@@ -384,7 +411,7 @@ export default function ChatBot() {
     setMessages([
       {
         id: 1,
-        text: "سلام! چطور می‌تونم کمکتون کنم؟",
+        text: "سلام 👋 من دستیار هوشمند ووکسینا هستم؛ امروز در چه موردی می‌تونم کمکتون کنم؟",
         sender: "bot",
         time: new Date().toLocaleTimeString("fa-IR", {
           hour: "2-digit",
@@ -392,6 +419,9 @@ export default function ChatBot() {
         }),
       },
     ]);
+
+    // When starting a new chat from the history view, switch to messages view
+    setShowHistory(false);
   };
 
   // Resume a previous chat
@@ -427,6 +457,39 @@ export default function ChatBot() {
       }
     } catch (error) {
       console.error('Failed to load chat:', error);
+    }
+  };
+
+  // Soft delete a chat and refresh list
+  const deleteChat = async (targetChatId: string) => {
+    if (!user) return;
+
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      const response = await fetch(`/api/chat/${targetChatId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        console.error("Failed to delete chat", await response.text().catch(() => ""));
+        return;
+      }
+
+      setChatHistory((prev) =>
+        prev.filter((chat) => (chat.chat_id || chat.id) !== targetChatId)
+      );
+
+      if (chatId === targetChatId) {
+        startNewChat();
+        setShowHistory(false);
+      }
+    } catch (error) {
+      console.error("Failed to delete chat:", error);
     }
   };
 
@@ -470,65 +533,82 @@ export default function ChatBot() {
   const simulateResponse = async (userMessage: string) => {
     setIsTyping(true);
 
-    // Try AI-powered response first
-    if (useAI) {
-      try {
-        const response = await fetch("/api/chat/recommend", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            message: userMessage,
-            chat_id: chatId,
-            // Include recent conversation context (last 5 messages)
-            context: messages
-              .slice(-5)
-              .map((m) => ({
-                role: m.sender === "user" ? "user" : "assistant",
-                content: m.text,
-              })),
-          }),
-        });
+    const typingTime = Math.random() * 700 + 800;
 
-        if (response.ok) {
-          const data = await response.json();
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
 
-          const newBotMessage: Message = {
-            id: messages.length + 2,
-            text: data.response || "متأسفم، در حال حاضر نمی‌توانم پاسخ دهم.",
-            sender: "bot",
-            time: new Date().toLocaleTimeString("fa-IR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            products: data.products || [],
-            isAIGenerated: data.is_ai_generated || false,
-          };
+      const response = await fetch("/api/chat/support", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          user_id: user?.id || "",
+          chat_id: chatId,
+        }),
+        signal: controller.signal,
+      });
 
-          setMessages((prev) => [...prev, newBotMessage]);
-          setIsTyping(false);
-          setShowSuggestions(data.products && data.products.length > 0);
-          
-          // Save bot message to database
-          saveMessageToDB(newBotMessage);
-          
-          return;
+      clearTimeout(timeoutId);
+
+      let botText = getRandomResponse(userMessage);
+      let isAI = false;
+      let ticketCreated = false;
+      let createdTicketNumber = "";
+      let createdTicketId = "";
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data && typeof data.response === "string" && data.response.trim()) {
+          botText = data.response;
         }
-      } catch (error) {
-        console.error("AI chat error:", error);
-        // Fall through to fallback
-      }
-    }
+        isAI = true;
 
-    // Fallback to rule-based responses
-    const typingTime = Math.random() * 1000 + 1000;
-    setTimeout(() => {
-      const botResponse = getRandomResponse(userMessage);
+        if (data.ticket_created) {
+          ticketCreated = true;
+          createdTicketNumber = data.ticket_number || "";
+          createdTicketId = data.ticket_id || "";
+
+          if (createdTicketId) {
+            try {
+              localStorage.setItem("last_support_ticket_id", createdTicketId);
+            } catch {
+              // ignore storage errors
+            }
+          }
+        }
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, typingTime));
 
       const newBotMessage: Message = {
-        id: messages.length + 2,
-        text: botResponse,
+        id: Date.now(),
+        text: botText,
+        sender: "bot",
+        time: new Date().toLocaleTimeString("fa-IR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        isAIGenerated: isAI,
+        ...(ticketCreated && createdTicketId
+          ? { ticketId: createdTicketId, ticketNumber: createdTicketNumber }
+          : {}),
+      };
+
+      setMessages((prev) => [...prev, newBotMessage]);
+      setShowSuggestions(true);
+      
+      // Save bot message to database
+      saveMessageToDB(newBotMessage);
+    } catch (error) {
+      console.error("Support chatbot error:", error);
+
+      const fallbackBotMessage: Message = {
+        id: Date.now(),
+        text: getRandomResponse(userMessage),
         sender: "bot",
         time: new Date().toLocaleTimeString("fa-IR", {
           hour: "2-digit",
@@ -537,13 +617,12 @@ export default function ChatBot() {
         isAIGenerated: false,
       };
 
-      setMessages((prev) => [...prev, newBotMessage]);
-      setIsTyping(false);
+      setMessages((prev) => [...prev, fallbackBotMessage]);
       setShowSuggestions(true);
-      
-      // Save fallback bot message to database
-      saveMessageToDB(newBotMessage);
-    }, typingTime);
+      saveMessageToDB(fallbackBotMessage);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const handleSendMessage = () => {
@@ -572,7 +651,7 @@ export default function ChatBot() {
     // Save user message to database
     saveMessageToDB(newUserMessage);
     
-    simulateResponse(inputMessage);
+    simulateResponse(messageText);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -806,38 +885,66 @@ export default function ChatBot() {
                         <div className="space-y-2">
                           {chatHistory.map((chat) => {
                             const sessionChatId = chat.chat_id || chat.id;
+                            const isActive = sessionChatId === chatId;
                             return (
-                              <motion.button
+                              <motion.div
                                 key={chat.id}
                                 onClick={() => resumeChat(sessionChatId)}
-                                className={`w-full text-right p-3 rounded-lg transition-colors ${
-                                  sessionChatId === chatId
+                                className={`w-full text-right p-3 rounded-lg transition-colors cursor-pointer flex items-start justify-between ${
+                                  isActive
                                     ? 'bg-[#1A3C69] text-white'
                                     : 'bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
                                 }`}
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                               >
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1 min-w-0">
-                                    <p className={`text-sm font-medium truncate ${
-                                      sessionChatId === chatId ? 'text-white' : 'text-gray-900 dark:text-gray-100'
-                                    }`}>
-                                      {chat.title || 'گفتگو'}
-                                    </p>
-                                    <p className={`text-xs mt-1 truncate ${
-                                      sessionChatId === chatId ? 'text-gray-200' : 'text-gray-500 dark:text-gray-400'
-                                    }`}>
-                                      {chat.last_message}
-                                    </p>
-                                  </div>
-                                  {sessionChatId === chatId && (
-                                    <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                <div className="flex-1 min-w-0">
+                                  <p
+                                    className={`text-sm font-medium truncate ${
+                                      isActive ? 'text-white' : 'text-gray-900 dark:text-gray-100'
+                                    }`}
+                                  >
+                                    {chat.title || 'گفتگو'}
+                                  </p>
+                                  <p
+                                    className={`text-xs mt-1 truncate ${
+                                      isActive ? 'text-gray-200' : 'text-gray-500 dark:text-gray-400'
+                                    }`}
+                                  >
+                                    {chat.last_message}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                                  {isActive && (
+                                    <svg
+                                      className="w-4 h-4 flex-shrink-0"
+                                      fill="currentColor"
+                                      viewBox="0 0 20 20"
+                                    >
+                                      <path
+                                        fillRule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clipRule="evenodd"
+                                      />
                                     </svg>
                                   )}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteChat(sessionChatId);
+                                    }}
+                                    className={`p-1 rounded-full transition-colors ${
+                                      isActive
+                                        ? 'text-red-100 hover:text-red-50 hover:bg-white/10'
+                                        : 'text-red-500 hover:text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/30'
+                                    }`}
+                                    title="حذف گفتگو"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
                                 </div>
-                              </motion.button>
+                              </motion.div>
                             );
                           })}
                         </div>
@@ -897,6 +1004,20 @@ export default function ChatBot() {
                                   </span>
                                 )}
                               </div>
+
+                              {message.ticketId && message.ticketNumber && message.sender === "bot" && (
+                                <div className="mt-1 flex justify-between items-center text-[10px] md:text-xs">
+                                  <a
+                                    href={`/dashboard/tickets/${message.ticketId}`}
+                                    className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-800 transition-colors"
+                                  >
+                                    <span className="ml-1">🎧</span>
+                                    <span>
+                                      تیکت پشتیبانی ایجاد شد - {message.ticketNumber}
+                                    </span>
+                                  </a>
+                                </div>
+                              )}
                             </div>
 
                             {/* Product Recommendations */}

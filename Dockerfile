@@ -35,6 +35,9 @@ WORKDIR /app
 # Copy the binary from the builder stage
 COPY --from=builder /build/main .
 
+# Copy configuration files needed at runtime (e.g., AI prompts)
+COPY --from=builder /build/config ./config
+
 # Create necessary directories with proper permissions
 RUN mkdir -p admin uploads/products/main uploads/categories && \
     chmod -R 777 uploads

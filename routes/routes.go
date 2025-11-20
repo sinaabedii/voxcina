@@ -55,6 +55,7 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/search/smart", handlers.SmartSearch).Methods(http.MethodPost)
 	api.HandleFunc("/search/suggestions/smart", handlers.GetSearchSuggestions).Methods(http.MethodGet)
 	api.HandleFunc("/chat/recommend", handlers.ChatRecommendation).Methods(http.MethodPost)
+	api.HandleFunc("/chat/support", handlers.ChatSupport).Methods(http.MethodPost)
 
 	// Chat Management & History endpoints
 	api.HandleFunc("/chat/save", handlers.SaveChatMessage).Methods(http.MethodPost)
@@ -66,6 +67,14 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/chat/{chatId}/archive", handlers.ArchiveChat).Methods(http.MethodPut)
 	api.HandleFunc("/chat/{chatId}/click", handlers.TrackProductClick).Methods(http.MethodPost)
 	api.HandleFunc("/chat/{chatId}/conversion", handlers.TrackConversion).Methods(http.MethodPost)
+
+	// Support ticket endpoints (authenticated users)
+	ticketRouter := api.PathPrefix("/tickets").Subrouter()
+	ticketRouter.Use(middlewares.AuthMiddleware)
+	ticketRouter.HandleFunc("", handlers.GetUserTickets).Methods(http.MethodGet)
+	ticketRouter.HandleFunc("", handlers.CreateTicket).Methods(http.MethodPost)
+	ticketRouter.HandleFunc("/{ticketId}", handlers.GetTicketByID).Methods(http.MethodGet)
+	ticketRouter.HandleFunc("/{ticketId}/messages", handlers.AddTicketMessage).Methods(http.MethodPost)
 
 	// **Admin Product Management**
 	adminRouter := api.PathPrefix("/admin").Subrouter()
@@ -112,6 +121,10 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/orders/{orderId}", handlers.UpdateOrderStatusAdmin).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/orders/{orderId}", handlers.DeleteOrder).Methods("DELETE")
 
+	// Admin Ticket Management
+	adminRouter.HandleFunc("/tickets", handlers.AdminListTickets).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/tickets/{ticketId}/status", handlers.AdminUpdateTicketStatus).Methods(http.MethodPut)
+
 	// Admin Cart Management
 	adminRouter.HandleFunc("/carts/{cartId}", handlers.DeleteCart).
 		Methods("DELETE")
@@ -154,6 +167,12 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/sliders", handlers.CreateSlider).Methods(http.MethodPost)
 	adminRouter.HandleFunc("/sliders/{id}", handlers.UpdateSlider).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/sliders/{id}", handlers.DeleteSlider).Methods(http.MethodDelete)
+
+	// Admin FAQ Management
+	adminRouter.HandleFunc("/faqs", handlers.AdminListFaqs).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/faqs", handlers.CreateFaq).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/faqs/{id}", handlers.UpdateFaq).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/faqs/{id}", handlers.DeleteFaq).Methods(http.MethodDelete)
 
 	// --- Authenticated Cart Routes ---
 	cartRouter := api.PathPrefix("/cart").Subrouter()
@@ -249,9 +268,10 @@ func NewRouter() *mux.Router {
 	activityRouter.HandleFunc("/summary", handlers.GetUserActivitySummary).Methods(http.MethodGet)
 	activityRouter.HandleFunc("/session/{sessionId}", handlers.GetSessionAnalytics).Methods(http.MethodGet)
 
-	// Pages & Footer
+	// Pages, Footer & FAQs
 	api.HandleFunc("/pages/{slug}", handlers.GetPage).Methods(http.MethodGet)
 	api.HandleFunc("/footer", handlers.GetFooter).Methods(http.MethodGet)
+	api.HandleFunc("/faqs", handlers.GetFaqs).Methods(http.MethodGet)
 
 	// Discount Coupon Routes
 	api.HandleFunc("/discounts", handlers.CreateDiscount).Methods(http.MethodPost)

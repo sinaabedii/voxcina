@@ -23,6 +23,8 @@ import {
   BarChart3,
   FileText,
   Settings,
+  Headphones,
+  HelpCircle,
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -108,6 +110,12 @@ export default function AdminLayout({
       section: "orders",
     },
     {
+      name: "تیکت‌ها",
+      href: "/admin/tickets",
+      icon: <Headphones className="w-5 h-5 ml-3" />,
+      section: "tickets",
+    },
+    {
       name: "کاربران",
       href: "/admin/users",
       icon: <Users className="w-5 h-5 ml-3" />,
@@ -136,6 +144,12 @@ export default function AdminLayout({
       href: "/admin/blogs",
       icon: <FileText className="w-5 h-5 ml-3" />,
       section: "blogs",
+    },
+    {
+      name: "سوالات متداول",
+      href: "/admin/faqs",
+      icon: <HelpCircle className="w-5 h-5 ml-3" />,
+      section: "faqs",
     },
     {
       name: "تنظیمات",

@@ -197,7 +197,12 @@ export const useProductStore = create<ProductState>()(
         try {
           const response = await fetch("/api/brands");
           const data = await response.json();
-          set({ brands: data });
+          const brands = Array.isArray(data)
+            ? data
+            : Array.isArray((data as any)?.data)
+            ? (data as any).data
+            : [];
+          set({ brands });
         } catch {
           set({ brands: [] });
         }
@@ -206,7 +211,12 @@ export const useProductStore = create<ProductState>()(
         try {
           const response = await fetch("/api/categories");
           const data = await response.json();
-          set({ categories: data });
+          const categories = Array.isArray(data)
+            ? data
+            : Array.isArray((data as any)?.data)
+            ? (data as any).data
+            : [];
+          set({ categories });
         } catch {
           set({ categories: [] });
         }
