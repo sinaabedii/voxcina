@@ -110,7 +110,7 @@ export default function HomePage() {
 
                 <motion.div variants={fadeIn}>
                   <Link
-                    href="/collections/season"
+                    href="/collection/بهار"
                     className="inline-flex gap-2 items-center font-medium text-voxcina-blue hover:text-voxcina-darkBlue transition-colors group"
                   >
                     <span>مشاهده کالکشن</span>

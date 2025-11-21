@@ -23,22 +23,13 @@ import { useCategoryStore } from "@/store/category-store";
 import { useAuthStore } from "@/store/auth-store";
 import { Category } from "@/types/category";
 import { toast } from "react-hot-toast";
+import CategoryModal from "@/components/admin/CategoryModal";
 
 export default function AdminCategoriesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [newCategory, setNewCategory] = useState<Partial<Category>>({
-    name: "",
-    slug: "",
-    description: "",
-    parent_id: null,
-    is_active: true,
-    show_in_header: false,
-  });
-  const [newCategoryImage, setNewCategoryImage] = useState<File | null>(null);
-  const [editingCategoryImage, setEditingCategoryImage] = useState<File | null>(null);
 
   const {
     categories,
@@ -96,63 +87,32 @@ export default function AdminCategoriesPage() {
   };
 
   // Add new category
-  const handleAddCategory = async () => {
-    if (!newCategory.name || !adminToken) return;
-
-    const formData = new FormData();
-    formData.append("name", newCategory.name);
-    if (newCategory.slug) formData.append("slug", newCategory.slug);
-    if (newCategory.description) formData.append("description", newCategory.description);
-    if (newCategory.parent_id) formData.append("parent_id", newCategory.parent_id);
-    formData.append("is_active", String(newCategory.is_active || true));
-    formData.append("show_in_header", String(newCategory.show_in_header || false));
-    if (newCategoryImage) {
-      formData.append("image", newCategoryImage);
+  const handleAddCategory = async (formData: FormData) => {
+    if (!adminToken) {
+      toast.error("دسترسی ادمین ندارید");
+      return;
     }
-
     const result = await createCategory(formData, adminToken);
     if (result) {
-      setNewCategory({
-        name: "",
-        slug: "",
-        description: "",
-        parent_id: null,
-        is_active: true,
-        show_in_header: false,
-      });
-      setNewCategoryImage(null);
       setIsAddModalOpen(false);
+      setEditingCategory(null);
       fetchCategories(); // Re-fetch to update list
     }
   };
 
   // Update category
-  const handleUpdateCategory = async () => {
-    console.log("editingCategory", editingCategory);
-    if (!editingCategory || !editingCategory.id || !adminToken) return;
-
-    const formData = new FormData();
-    formData.append("name", editingCategory.name);
-    if (editingCategory.slug) formData.append("slug", editingCategory.slug);
-    if (editingCategory.description) formData.append("description", editingCategory.description);
-    if (editingCategory.parent_id) formData.append("parent_id", editingCategory.parent_id);
-    // Ensure is_active is always a string "true" or "false" for FormData
-    formData.append("is_active", String(editingCategory.is_active === undefined ? true : editingCategory.is_active));
-    formData.append("show_in_header", String(editingCategory.show_in_header === undefined ? false : editingCategory.show_in_header));
-
-    if (editingCategoryImage) {
-      formData.append("image", editingCategoryImage);
+  const handleUpdateCategory = async (formData: FormData) => {
+    if (!editingCategory || !editingCategory.id) return;
+    if (!adminToken) {
+      toast.error("دسترسی ادمین ندارید");
+      return;
     }
-    // Note: If the backend expects the image field to be explicitly nulled or handled
-    // when not sending a new image, that logic might need to be added here or in the backend.
-    // For now, we only append the image if a new one is selected.
 
     const result = await updateCategory(editingCategory.id, formData, adminToken);
     if (result) {
       setEditingCategory(null);
-      setEditingCategoryImage(null);
-      setIsAddModalOpen(false); 
-      fetchCategories(); 
+      setIsAddModalOpen(false);
+      fetchCategories();
       toast.success("دسته‌بندی با موفقیت به‌روزرسانی شد.");
     } else {
       toast.error(error || "خطا در به‌روزرسانی دسته‌بندی.");
@@ -177,8 +137,6 @@ export default function AdminCategoriesPage() {
       is_active: category.is_active === undefined ? true : category.is_active,
       show_in_header: category.show_in_header === undefined ? false : category.show_in_header
     }); 
-    setNewCategory({}); // Clear newCategory form when opening edit
-    setEditingCategoryImage(null); 
     setIsAddModalOpen(true); 
   };
 
@@ -243,9 +201,6 @@ export default function AdminCategoriesPage() {
           className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-sm hover:shadow-md transition-all duration-300"
           onClick={() => {
             setEditingCategory(null); 
-            setNewCategory({ name: "", slug: "", description: "", parent_id: null, is_active: true, show_in_header: false });
-            setNewCategoryImage(null);
-            setEditingCategoryImage(null); // Also reset editing image
             setIsAddModalOpen(true);
           }}
         >
@@ -460,239 +415,17 @@ export default function AdminCategoriesPage() {
       </motion.div>
 
       {/* Add/Edit Category Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-voxcina-blue/40 backdrop-blur-sm dark:bg-black/60">
-          <motion.div
-            className="bg-white dark:bg-voxcina-blue/90 rounded-2xl shadow-lg w-full max-w-md mx-4"
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-          >
-            <div className="flex justify-between items-center p-4 border-b border-voxcina-cream/30 dark:border-voxcina-blue/30">
-              <h3 className="font-bold text-lg text-voxcina-blue dark:text-voxcina-cream">
-                {editingCategory ? "ویرایش دسته‌بندی" : "افزودن دسته‌بندی جدید"}
-              </h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:text-voxcina-blue dark:hover:text-voxcina-cream rounded-lg"
-                onClick={() => {
-                  setIsAddModalOpen(false);
-                  setEditingCategory(null);
-                  setNewCategoryImage(null);
-                  setEditingCategoryImage(null);
-                }}
-              >
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
-            <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  نام دسته‌بندی <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
-                  value={editingCategory ? editingCategory.name : newCategory.name || ""}
-                  onChange={(e) =>
-                    editingCategory
-                      ? setEditingCategory({ ...editingCategory, name: e.target.value })
-                      : setNewCategory({ ...newCategory, name: e.target.value })
-                  }
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  نامک (Slug)
-                </label>
-                <input
-                  type="text"
-                  className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
-                  value={editingCategory ? editingCategory.slug || "" : newCategory.slug || ""}
-                  onChange={(e) =>
-                    editingCategory
-                      ? setEditingCategory({ ...editingCategory, slug: e.target.value })
-                      : setNewCategory({ ...newCategory, slug: e.target.value })
-                  }
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  توضیحات
-                </label>
-                <textarea
-                  className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
-                  rows={3}
-                  value={
-                    editingCategory
-                      ? editingCategory.description || ""
-                      : newCategory.description || ""
-                  }
-                  onChange={(e) =>
-                    editingCategory
-                      ? setEditingCategory({ ...editingCategory, description: e.target.value })
-                      : setNewCategory({ ...newCategory, description: e.target.value })
-                  }
-                ></textarea>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  دسته‌بندی والد
-                </label>
-                <select
-                  className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
-                  value={
-                    editingCategory
-                      ? editingCategory.parent_id || ""
-                      : newCategory.parent_id || ""
-                  }
-                  onChange={(e) =>
-                    editingCategory
-                      ? setEditingCategory({
-                          ...editingCategory,
-                          parent_id: e.target.value || null,
-                        })
-                      : setNewCategory({ ...newCategory, parent_id: e.target.value || null })
-                  }
-                >
-                  <option value="">بدون والد (دسته‌بندی اصلی)</option>
-                  {isLoading ? (
-                    <option value="" disabled>در حال بارگذاری دسته‌بندی‌ها...</option>
-                  ) : (
-                    categories
-                      .filter((cat) => !editingCategory || cat.id !== editingCategory.id)
-                      .map((cat) => (
-                        <option key={cat.id} value={cat.id!}>
-                          {cat.name}
-                        </option>
-                      ))
-                  )}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  تصویر دسته‌بندی
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="block w-full text-sm text-voxcina-blue dark:text-voxcina-cream file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-voxcina-cream/50 dark:file:bg-voxcina-blue/50 file:text-voxcina-blue dark:file:text-voxcina-cream hover:file:bg-voxcina-cream dark:hover:file:bg-voxcina-blue cursor-pointer"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      if (editingCategory) {
-                        setEditingCategoryImage(e.target.files[0]);
-                      } else {
-                        setNewCategoryImage(e.target.files[0]);
-                      }
-                    }
-                  }}
-                />
-                {(editingCategory?.image && !editingCategoryImage) && (
-                  <div className="mt-2">
-                    <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">تصویر فعلی:</p>
-                    <img src={editingCategory.image} alt="Current category" className="w-20 h-20 rounded-md object-cover mt-1" />
-                  </div>
-                )}
-                 {(editingCategoryImage || newCategoryImage) && (
-                    <div className="mt-2">
-                    <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">پیش‌نمایش تصویر جدید:</p>
-                    <img 
-                        src={URL.createObjectURL(editingCategoryImage || newCategoryImage!)} 
-                        alt="New category preview" 
-                        className="w-20 h-20 rounded-md object-cover mt-1" 
-                    />
-                    </div>
-                )}
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id={editingCategory ? "isActiveEdit" : "isActive"}
-                  className="rounded text-voxcina-blue focus:ring-voxcina-blue mr-2 h-4 w-4"
-                  checked={
-                    editingCategory
-                      ? editingCategory.is_active === undefined ? true : editingCategory.is_active 
-                      : newCategory.is_active === undefined ? true : newCategory.is_active 
-                  }
-                  onChange={(e) =>
-                    editingCategory
-                      ? setEditingCategory({ ...editingCategory, is_active: e.target.checked })
-                      : setNewCategory({ ...newCategory, is_active: e.target.checked })
-                  }
-                />
-                <label
-                  htmlFor={editingCategory ? "isActiveEdit" : "isActive"}
-                  className="text-sm text-voxcina-blue/80 dark:text-voxcina-cream/80 cursor-pointer"
-                >
-                  دسته‌بندی فعال است
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id={editingCategory ? "showInHeaderEdit" : "showInHeader"}
-                  className="rounded text-voxcina-blue focus:ring-voxcina-blue mr-2 h-4 w-4"
-                  checked={
-                    editingCategory
-                      ? editingCategory.show_in_header === undefined
-                        ? false
-                        : editingCategory.show_in_header
-                      : newCategory.show_in_header === undefined
-                        ? false
-                        : newCategory.show_in_header
-                  }
-                  onChange={(e) =>
-                    editingCategory
-                      ? setEditingCategory({ ...editingCategory, show_in_header: e.target.checked })
-                      : setNewCategory({ ...newCategory, show_in_header: e.target.checked })
-                  }
-                />
-                <label
-                  htmlFor={editingCategory ? "showInHeaderEdit" : "showInHeader"}
-                  className="text-sm text-voxcina-blue/80 dark:text-voxcina-cream/80 cursor-pointer"
-                >
-                  نمایش در هدر سایت
-                </label>
-              </div>
-            </div>
-            <div className="p-4 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 flex justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
-                onClick={() => {
-                  setIsAddModalOpen(false);
-                  setEditingCategory(null);
-                  setNewCategoryImage(null);
-                  setEditingCategoryImage(null);
-                }}
-                disabled={isLoading}
-              >
-                انصراف
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-sm hover:shadow-md transition-all duration-300 min-w-[80px]"
-                onClick={editingCategory ? handleUpdateCategory : handleAddCategory}
-                disabled={
-                  isLoading ||
-                  (editingCategory ? !editingCategory.name : !(newCategory.name))
-                }
-              >
-                {isLoading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : editingCategory ? (
-                  "به‌روزرسانی"
-                ) : (
-                  "افزودن"
-                )}
-              </Button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+      <CategoryModal
+        isOpen={isAddModalOpen}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setEditingCategory(null);
+        }}
+        editingCategory={editingCategory}
+        onSubmit={editingCategory ? handleUpdateCategory : handleAddCategory}
+        categories={categories}
+        isLoading={isLoading}
+      />
     </div>
   );
 } 

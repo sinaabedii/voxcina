@@ -2,6 +2,12 @@
 FROM docker.arvancloud.ir/node:20-alpine AS builder
 WORKDIR /app
 
+# Set environment variables to skip API calls during build
+ENV NODE_ENV=production \
+    NEXT_PUBLIC_API_URL="" \
+    GO_BACKEND_URL="" \
+    NEXT_PUBLIC_API_BASE_URL=""
+
 # 1️⃣ install deps first for better Docker cache
 COPY package*.json ./
 RUN npm i

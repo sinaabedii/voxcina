@@ -123,19 +123,25 @@ export default async function RootLayout({
   // Fetch categories for header (server-side)
   let navItems: NavItem[] = [];
   try {
-    const baseUrl =
-      process.env.GO_BACKEND_URL ||
-      process.env.NEXT_PUBLIC_API_BASE_URL ||
-      "http://server:8080"; // works inside docker-compose network; fallback to localhost when running locally
-    const res = await fetch(`${baseUrl}/api/categories`, {
-      next: { revalidate: process.env.NODE_ENV === "development" ? 0 : 600 }, // 10-minute revalidation in production, no cache in dev
-    });
-    if (res.ok) {
-      const data = (await res.json()) as CategoryApi[];
-      navItems = buildNavItems(data.filter((c) => c.show_in_header));
+    // Skip API calls during build/static generation if no API URL is available
+    const shouldSkipApiCall = !process.env.GO_BACKEND_URL && !process.env.NEXT_PUBLIC_API_BASE_URL;
+
+    if (!shouldSkipApiCall) {
+      const baseUrl =
+        process.env.GO_BACKEND_URL ||
+        process.env.NEXT_PUBLIC_API_BASE_URL ||
+        "http://server:8080"; // works inside docker-compose network; fallback to localhost when running locally
+      const res = await fetch(`${baseUrl}/api/categories`, {
+        next: { revalidate: process.env.NODE_ENV === "development" ? 0 : 600 }, // 10-minute revalidation in production, no cache in dev
+      });
+      if (res.ok) {
+        const data = (await res.json()) as CategoryApi[];
+        navItems = buildNavItems(data.filter((c) => c.show_in_header));
+      }
     }
   } catch (err) {
     console.error("Failed to fetch header categories", err);
+    // Continue with empty navItems - will use fallback navigation
   }
 
   // Always include Home as the first item

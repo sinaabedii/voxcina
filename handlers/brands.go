@@ -40,7 +40,7 @@ func getProductsCountForBrand(ctx context.Context, brandID primitive.ObjectID) i
 func getFeaturedProductForBrand(ctx context.Context, brandID primitive.ObjectID) string {
 	productCollection := db.Database.Collection("products")
 	var product models.Product
-	err := productCollection.FindOne(ctx, bson.M{"brand_id": brandID}, options.FindOne().SetSort(bson.D{{"created_at", -1}})).
+	err := productCollection.FindOne(ctx, bson.M{"brand_id": brandID}, options.FindOne().SetSort(bson.D{{Key: "created_at", Value: -1}})).
 		Decode(&product)
 	if err != nil {
 		return ""

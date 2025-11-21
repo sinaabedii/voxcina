@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"mime/multipart"
+
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -27,8 +29,172 @@ import (
 
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024 // 10 MB
 const MAX_MAIN_IMAGES = 10
+const MAX_VARIANT_IMAGES = 5 // Maximum images per variant
 
 const BaseUploadDir = "./uploads"
+
+// processVariantImages handles uploading multiple images for a specific variant
+func processVariantImages(
+	files []*multipart.FileHeader,
+	productID primitive.ObjectID,
+	variantIndex int,
+	imageType string,
+	uploadedFilePaths *[]string,
+) ([]string, error) {
+	if len(files) > MAX_VARIANT_IMAGES {
+		return nil, fmt.Errorf(
+			"too many variant images. Maximum is %d",
+			MAX_VARIANT_IMAGES,
+		)
+	}
+
+	var imagePaths []string
+
+	// Create variant-specific upload directory
+	uploadDir := filepath.Join(
+		BaseUploadDir,
+		"products",
+		"variants",
+		productID.Hex(),
+		fmt.Sprintf("variant_%d", variantIndex),
+		imageType,
+	)
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		return nil, fmt.Errorf(
+			"error creating variant upload directory %s: %v",
+			uploadDir,
+			err,
+		)
+	}
+
+	for i, handler := range files {
+		file, err := handler.Open()
+		if err != nil {
+			return nil, fmt.Errorf(
+				"error opening variant image file %s: %v",
+				handler.Filename,
+				err,
+			)
+		}
+		defer file.Close()
+
+		// Create unique filename
+		ext := filepath.Ext(handler.Filename)
+		filename := fmt.Sprintf(
+			"%s-%d-%d-%d%s",
+			productID.Hex(),
+			variantIndex,
+			time.Now().UnixNano(),
+			i,
+			ext,
+		)
+		filePath := filepath.Join(uploadDir, filename)
+
+		// Create and save file
+		dst, err := os.Create(filePath)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"error creating variant image file %s: %v",
+				filePath,
+				err,
+			)
+		}
+
+		bytesCopied, err := io.Copy(dst, file)
+		dst.Close()
+		if err != nil {
+			_ = os.Remove(filePath) // Clean up
+			return nil, fmt.Errorf(
+				"error saving variant image file %s: %v",
+				filePath,
+				err,
+			)
+		}
+
+		// Convert to web path
+		webPath := strings.Replace(filePath, ".", "", 1)
+		imagePaths = append(imagePaths, webPath)
+		*uploadedFilePaths = append(*uploadedFilePaths, filePath)
+
+		fmt.Printf("Uploaded variant image: %s (%d bytes)\n", webPath, bytesCopied)
+	}
+
+	return imagePaths, nil
+}
+
+// processVariantTryOnImage handles uploading a try-on image for a specific variant
+func processVariantTryOnImage(
+	handler *multipart.FileHeader,
+	productID primitive.ObjectID,
+	variantIndex int,
+	uploadedFilePaths *[]string,
+) (string, error) {
+	file, err := handler.Open()
+	if err != nil {
+		return "", fmt.Errorf(
+			"error opening variant try-on image file %s: %v",
+			handler.Filename,
+			err,
+		)
+	}
+	defer file.Close()
+
+	// Create variant-specific upload directory for try-on images
+	uploadDir := filepath.Join(
+		BaseUploadDir,
+		"products",
+		"variants",
+		productID.Hex(),
+		fmt.Sprintf("variant_%d", variantIndex),
+		"tryon",
+	)
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		return "", fmt.Errorf(
+			"error creating variant try-on upload directory %s: %v",
+			uploadDir,
+			err,
+		)
+	}
+
+	// Create unique filename
+	ext := filepath.Ext(handler.Filename)
+	filename := fmt.Sprintf(
+		"%s-%d-tryon-%d%s",
+		productID.Hex(),
+		variantIndex,
+		time.Now().UnixNano(),
+		ext,
+	)
+	filePath := filepath.Join(uploadDir, filename)
+
+	// Create and save file
+	dst, err := os.Create(filePath)
+	if err != nil {
+		return "", fmt.Errorf(
+			"error creating variant try-on image file %s: %v",
+			filePath,
+			err,
+		)
+	}
+
+	bytesCopied, err := io.Copy(dst, file)
+	dst.Close()
+	if err != nil {
+		_ = os.Remove(filePath) // Clean up
+		return "", fmt.Errorf(
+			"error saving variant try-on image file %s: %v",
+			filePath,
+			err,
+		)
+	}
+
+	// Convert to web path
+	webPath := strings.Replace(filePath, ".", "", 1)
+	*uploadedFilePaths = append(*uploadedFilePaths, filePath)
+
+	fmt.Printf("Uploaded variant try-on image: %s (%d bytes)\n", webPath, bytesCopied)
+	return webPath, nil
+}
 
 // AddProduct handles POST /api/admin/products
 func AddProduct(w http.ResponseWriter, r *http.Request) {
@@ -70,15 +236,47 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	description := r.FormValue("description")
 	priceStr := r.FormValue("price")
 	originalPriceStr := r.FormValue("originalPrice")
-	tryOnImage := strings.TrimSpace(r.FormValue("tryOnImage"))
 	categoryIDsJSON := r.FormValue("categoryIds")
 	brandIDStr := r.FormValue("brandId")
+	collection := strings.TrimSpace(r.FormValue("collection"))
 	variantsJSON := r.FormValue("variants")
 	attributesJSON := r.FormValue("attributes")
 	searchMetadataJSON := r.FormValue("searchMetadata")
 	isFlashSaleStr := r.FormValue("isFlashSale")
 	isActiveStr := r.FormValue("isActive")
 	inStockStr := r.FormValue("inStock")
+
+	// Extract name from searchMetadata if name field is empty
+	if name == "" && searchMetadataJSON != "" {
+		var meta models.ProductSearchMetadata
+		if err := json.Unmarshal([]byte(searchMetadataJSON), &meta); err == nil {
+			name = meta.NamePersian
+			// Also extract description if missing
+			if description == "" && meta.DescriptionPersian != "" {
+				description = meta.DescriptionPersian
+			}
+		}
+	}
+
+	// Validate collection is one of the allowed seasons
+	validCollections := []string{"بهار", "تابستان", "پاییز", "زمستان"}
+	if collection != "" {
+		valid := false
+		for _, validCol := range validCollections {
+			if collection == validCol {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			utils.ErrorResponse(
+				w,
+				http.StatusBadRequest,
+				"Invalid collection. Must be one of: بهار, تابستان, پاییز, زمستان",
+			)
+			return
+		}
+	}
 
 	if name == "" || priceStr == "" || categoryIDsJSON == "" || brandIDStr == "" {
 		utils.ErrorResponse(
@@ -146,18 +344,6 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var variants []models.ProductVariant
-	if variantsJSON != "" {
-		if err := json.Unmarshal([]byte(variantsJSON), &variants); err != nil {
-			utils.ErrorResponse(
-				w,
-				http.StatusBadRequest,
-				"Invalid variants JSON format: "+err.Error(),
-			)
-			return
-		}
-	}
-
 	var attributes []models.ProductAttribute
 	if attributesJSON != "" {
 		if err := json.Unmarshal([]byte(attributesJSON), &attributes); err != nil {
@@ -190,7 +376,12 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	embeddingCtx, embedCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer embedCancel()
 
-	embeddingText := services.BuildProductEmbeddingText(name, description, brand.Name, searchMetadata)
+	embeddingText := services.BuildProductEmbeddingText(
+		name,
+		description,
+		brand.Name,
+		searchMetadata,
+	)
 	if strings.TrimSpace(embeddingText) != "" {
 		if vec, modelName, err := services.GenerateEmbedding(embeddingCtx, embeddingText); err != nil {
 			fmt.Printf("Warning: failed to generate product embedding: %v\n", err)
@@ -239,7 +430,6 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	// --- Main Image Uploads ---
 	var mainImagePaths []string
 	var uploadedFilePaths []string // For cleanup on failure
-	var tryOnServerPath string
 
 	// Get the image files from the multipart form
 	files := r.MultipartForm.File["mainImages"]
@@ -351,57 +541,84 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Added image path to product: %s\n", serverPath)
 	}
 
-	// After processing main images
-	// --- Try-On Image Upload (optional single file) ---
-	if headers, ok := r.MultipartForm.File["tryOnImage"]; ok && len(headers) > 0 {
-		header := headers[0]
-		// Ensure directory exists
-		tryDir := filepath.Join(BaseUploadDir, "products", "tryon")
-		_ = os.MkdirAll(tryDir, 0755)
-		ext := filepath.Ext(header.Filename)
-		filename := fmt.Sprintf("%s-%d%s", productID.Hex(), time.Now().UnixNano(), ext)
-		filePath := filepath.Join(tryDir, filename)
-		file, err := header.Open()
-		if err == nil {
-			dst, err2 := os.Create(filePath)
-			if err2 == nil {
-				_, _ = io.Copy(dst, file)
-				dst.Close()
-				tryOnServerPath = filepath.Join("/uploads/products/tryon", filename)
-				uploadedFilePaths = append(uploadedFilePaths, filePath)
-			}
-			file.Close()
+	// Process variant images and try-on images
+	var variants []models.ProductVariant
+	if variantsJSON != "" {
+		if err := json.Unmarshal([]byte(variantsJSON), &variants); err != nil {
+			utils.ErrorResponse(
+				w,
+				http.StatusBadRequest,
+				"Invalid variants JSON format: "+err.Error(),
+			)
+			return
 		}
-	} else {
-		tryOnServerPath = tryOnImage
+	}
+
+	// Process variant images and try-on images
+	for i := range variants {
+		variant := &variants[i]
+
+		// Process variant images (e.g., variantImages_0, variantImages_1, etc.)
+		variantImageKey := fmt.Sprintf("variantImages_%d", i)
+		if files, exists := r.MultipartForm.File[variantImageKey]; exists {
+			variantImagePaths, err := processVariantImages(
+				files,
+				productID,
+				i,
+				"images",
+				&uploadedFilePaths,
+			)
+			if err != nil {
+				utils.ErrorResponse(w, http.StatusBadRequest, err.Error())
+				return
+			}
+			variant.Images = append(variant.Images, variantImagePaths...)
+		}
+
+		// Process variant try-on image (e.g., variantTryOnImage_0, variantTryOnImage_1, etc.)
+		variantTryOnKey := fmt.Sprintf("variantTryOnImage_%d", i)
+		if files, exists := r.MultipartForm.File[variantTryOnKey]; exists &&
+			len(files) > 0 {
+			tryOnPath, err := processVariantTryOnImage(
+				files[0],
+				productID,
+				i,
+				&uploadedFilePaths,
+			)
+			if err != nil {
+				utils.ErrorResponse(w, http.StatusBadRequest, err.Error())
+				return
+			}
+			variant.TryOnImage = tryOnPath
+		}
 	}
 
 	product := models.Product{
-		ID:            productID,
-		Name:          name,
-		Description:   description,
-		Price:         price,
-		OriginalPrice: originalPrice,
-		Images:        mainImagePaths,
-		TryOnImage:    tryOnServerPath,
-		CategoryIDs:   categoryIDs,
-		BrandID:       brandID,
-		Brand:         brand.Name,
-		Variants:      variants,
-		Attributes:    attributes,
-		IsFlashSale:   isFlashSale,
-		IsActive:      isActive,
-		InStock:       inStock,
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
+		ID:             productID,
+		Name:           name,
+		Description:    description,
+		Price:          price,
+		OriginalPrice:  originalPrice,
+		Images:         mainImagePaths,
+		CategoryIDs:    categoryIDs,
+		BrandID:        brandID,
+		Brand:          brand.Name,
+		Collection:     collection,
+		Variants:       variants,
+		Attributes:     attributes,
+		IsFlashSale:    isFlashSale,
+		IsActive:       isActive,
+		InStock:        inStock,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 		SearchMetadata: searchMetadata,
 	}
 
 	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	collection := db.Database.Collection("products")
-	_, err = collection.InsertOne(ctx, product)
+	productsCollection := db.Database.Collection("products")
+	_, err = productsCollection.InsertOne(ctx, product)
 	if err != nil {
 		// Clean up uploaded files if DB insert fails
 		for _, p := range uploadedFilePaths {
@@ -421,7 +638,10 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	if product.SearchMetadata != nil && len(product.SearchMetadata.EmbeddingVector) > 0 {
 		faissClient := services.NewFaissClientFromEnv()
 		if faissClient != nil {
-			faissCtx, faissCancel := context.WithTimeout(context.Background(), 3*time.Second)
+			faissCtx, faissCancel := context.WithTimeout(
+				context.Background(),
+				3*time.Second,
+			)
 			defer faissCancel()
 			if faissErr := faissClient.UpsertProductEmbedding(
 				faissCtx,
@@ -537,7 +757,7 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 
 	type productsResponse struct {
 		Data       []models.Product `json:"data"`
-		Pagination paginationInfo  `json:"pagination"`
+		Pagination paginationInfo   `json:"pagination"`
 	}
 
 	resp := productsResponse{
@@ -718,18 +938,19 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	if strings.Contains(contentType, "application/json") {
 		// Handle JSON request
 		var productUpdate struct {
-			Name          *string                   `json:"name"`
-			Description   *string                   `json:"description"`
-			Price         *float64                  `json:"price"`
-			OriginalPrice *float64                  `json:"originalPrice"`
-			CategoryIDs   []string                  `json:"categoryIds"`
-			BrandID       *string                   `json:"brandId"`
-			Variants      []models.ProductVariant   `json:"variants"`
-			Attributes    []models.ProductAttribute `json:"attributes"`
-			TryOnImage    *string                   `json:"tryOnImage"`
-			IsFlashSale   *bool                     `json:"isFlashSale"`
-			IsActive      *bool                     `json:"isActive"`
-			InStock       *bool                     `json:"inStock"`
+			Name           *string                       `json:"name"`
+			Description    *string                       `json:"description"`
+			Price          *float64                      `json:"price"`
+			OriginalPrice  *float64                      `json:"originalPrice"`
+			CategoryIDs    []string                      `json:"categoryIds"`
+			BrandID        *string                       `json:"brandId"`
+			Collection     *string                       `json:"collection"`
+			Variants       []models.ProductVariant       `json:"variants"`
+			Attributes     []models.ProductAttribute     `json:"attributes"`
+			TryOnImage     *string                       `json:"tryOnImage"`
+			IsFlashSale    *bool                         `json:"isFlashSale"`
+			IsActive       *bool                         `json:"isActive"`
+			InStock        *bool                         `json:"inStock"`
 			SearchMetadata *models.ProductSearchMetadata `json:"searchMetadata"`
 		}
 
@@ -756,7 +977,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		if productUpdate.Price != nil {
 			update["price"] = *productUpdate.Price
 			somethingToUpdate = true
-			
+
 			// Update original price if not explicitly provided
 			if productUpdate.OriginalPrice == nil {
 				// Only update original price if it was previously equal to price
@@ -811,6 +1032,28 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 			}
 			update["brand"] = brand.Name
 
+			somethingToUpdate = true
+		}
+
+		if productUpdate.Collection != nil {
+			// Validate collection is one of the allowed seasons
+			validCollections := []string{"بهار", "تابستان", "پاییز", "زمستان"}
+			valid := false
+			for _, validCol := range validCollections {
+				if *productUpdate.Collection == validCol {
+					valid = true
+					break
+				}
+			}
+			if !valid {
+				utils.ErrorResponse(
+					w,
+					http.StatusBadRequest,
+					"Invalid collection. Must be one of: بهار, تابستان, پاییز, زمستان",
+				)
+				return
+			}
+			update["collection"] = *productUpdate.Collection
 			somethingToUpdate = true
 		}
 
@@ -960,6 +1203,28 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 			}
 			update["brand"] = brand.Name
 
+			somethingToUpdate = true
+		}
+
+		if collectionStr := r.FormValue("collection"); collectionStr != "" {
+			// Validate collection is one of the allowed seasons
+			validCollections := []string{"بهار", "تابستان", "پاییز", "زمستان"}
+			valid := false
+			for _, validCol := range validCollections {
+				if collectionStr == validCol {
+					valid = true
+					break
+				}
+			}
+			if !valid {
+				utils.ErrorResponse(
+					w,
+					http.StatusBadRequest,
+					"Invalid collection. Must be one of: بهار, تابستان, پاییز, زمستان",
+				)
+				return
+			}
+			update["collection"] = collectionStr
 			somethingToUpdate = true
 		}
 
@@ -1223,10 +1488,14 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Best-effort: upsert (or refresh) embedding in FAISS vector index
-	if updatedProduct.SearchMetadata != nil && len(updatedProduct.SearchMetadata.EmbeddingVector) > 0 {
+	if updatedProduct.SearchMetadata != nil &&
+		len(updatedProduct.SearchMetadata.EmbeddingVector) > 0 {
 		faissClient := services.NewFaissClientFromEnv()
 		if faissClient != nil {
-			faissCtx, faissCancel := context.WithTimeout(context.Background(), 3*time.Second)
+			faissCtx, faissCancel := context.WithTimeout(
+				context.Background(),
+				3*time.Second,
+			)
 			defer faissCancel()
 			if faissErr := faissClient.UpsertProductEmbedding(
 				faissCtx,
@@ -1347,4 +1616,113 @@ func DeleteProduct(w http.ResponseWriter, r *http.Request) {
 			"message": "Product deactivated and associated images marked for deletion",
 		},
 	)
+}
+
+// GetProductsByCollection handles GET /api/products/collection/{collectionValue}
+func GetProductsByCollection(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	collectionValue := vars["collectionValue"]
+
+	if collectionValue == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Collection value is required")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	productsCollection := db.Database.Collection("products")
+
+	// Pagination parameters
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+
+	page := 1
+	if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+		page = p
+	}
+
+	limit := 20 // default page size
+	if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+		limit = l
+	}
+
+	skip := (page - 1) * limit
+
+	// Build filter for collection and active products
+	filter := bson.M{
+		"collection": collectionValue,
+		"is_active":  true,
+	}
+
+	totalProducts, err := productsCollection.CountDocuments(ctx, filter)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error counting products")
+		return
+	}
+
+	// Prepare find options (pagination & sorting by newest)
+	opts := options.Find().
+		SetSkip(int64(skip)).
+		SetLimit(int64(limit)).
+		SetSort(bson.M{"created_at": -1})
+
+	cursor, err := productsCollection.Find(ctx, filter, opts)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching products")
+		return
+	}
+
+	var products []models.Product
+	if err := cursor.All(ctx, &products); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding products")
+		return
+	}
+
+	// Ensure try-on image is not exposed
+	for i := range products {
+		products[i].TryOnImage = ""
+	}
+
+	totalPages := int(math.Ceil(float64(totalProducts) / float64(limit)))
+
+	// Determine next/prev pages
+	var nextPage *int
+	if page < totalPages {
+		n := page + 1
+		nextPage = &n
+	}
+	var prevPage *int
+	if page > 1 {
+		p := page - 1
+		prevPage = &p
+	}
+
+	type paginationInfo struct {
+		TotalPages    int   `json:"totalPages"`
+		CurrentPage   int   `json:"currentPage"`
+		NextPage      *int  `json:"nextPage,omitempty"`
+		PrevPage      *int  `json:"prevPage,omitempty"`
+		TotalProducts int64 `json:"totalProducts"`
+	}
+
+	type collectionResponse struct {
+		Data       []models.Product `json:"data"`
+		Pagination paginationInfo   `json:"pagination"`
+		Collection string           `json:"collection"`
+	}
+
+	resp := collectionResponse{
+		Data: products,
+		Pagination: paginationInfo{
+			TotalPages:    totalPages,
+			CurrentPage:   page,
+			NextPage:      nextPage,
+			PrevPage:      prevPage,
+			TotalProducts: totalProducts,
+		},
+		Collection: collectionValue,
+	}
+
+	utils.JSONResponse(w, http.StatusOK, resp)
 }

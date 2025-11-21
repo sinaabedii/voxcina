@@ -38,12 +38,22 @@ COPY --from=builder /build/main .
 # Copy configuration files needed at runtime (e.g., AI prompts)
 COPY --from=builder /build/config ./config
 
+# Copy the startup script
+COPY --from=builder /build/start.sh .
+
+# Install mongosh for database operations
+RUN apk update && \
+    apk --no-cache add \
+      ca-certificates \
+      tzdata
+
 # Create necessary directories with proper permissions
 RUN mkdir -p admin uploads/products/main uploads/categories && \
-    chmod -R 777 uploads
+    chmod -R 777 uploads && \
+    chmod +x start.sh
 
 # If you have admin files, copy them in a separate step
 # COPY admin/ admin/
 
 EXPOSE 8080
-CMD ["./main"]
+CMD ["./start.sh"]

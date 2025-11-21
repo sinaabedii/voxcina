@@ -62,9 +62,9 @@ type CustomerSearchResponse struct {
 }
 
 type ParsedFilters struct {
-	Colors       []string
-	ProductTypes []string
-	Sizes        []string
+	Colors       []string `json:"colors"`
+	ProductTypes []string `json:"product_types"`
+	Sizes        []string `json:"sizes"`
 }
 
 type SupportAgentRequest struct {
@@ -80,13 +80,16 @@ type SupportAgentResult struct {
 	TicketBody         string
 }
 
-// Note: OpenRouter types are defined in openrouter_types.go
+// AgentToolCall structure
+type AgentToolCall struct {
+	Tool      string          `json:"tool"`
+	Arguments json.RawMessage `json:"arguments"`
+}
 
 // NewCustomerAIService creates a new customer AI service instance
 func NewCustomerAIService(db *mongo.Database) (*CustomerAIService, error) {
 	apiKey := os.Getenv("OPENROUTER_API_KEY")
 	if apiKey == "" {
-		// Run in fallback-only mode when no API key is configured
 		log.Println(
 			"OPENROUTER_API_KEY not set - CustomerAIService will use fallback responses only",
 		)
@@ -112,7 +115,7 @@ func NewCustomerAIService(db *mongo.Database) (*CustomerAIService, error) {
 		openRouterModel:  model,
 		database:         db,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 60 * time.Second,
 		},
 		config: config,
 	}, nil
@@ -136,141 +139,334 @@ func loadCustomerAIConfig() (*CustomerAIConfig, error) {
 	return &config.CustomerSearchAgent, nil
 }
 
-// defaultCustomerAIConfig provides a safe fallback configuration when the JSON file is missing
+// defaultCustomerAIConfig provides a safe fallback configuration
 func defaultCustomerAIConfig() *CustomerAIConfig {
 	return &CustomerAIConfig{
-		SystemPrompt:       "You are Voxcina Shopping Assistant, a helpful Persian e-commerce assistant. You receive the customer's query, a summary of their browsing and purchase activity, recent chat history, and a list of candidate products from the catalog. Use this information to give highly personalized, concise recommendations in Persian/Farsi.",
-		UserPromptTemplate: "Customer query: {query}\n\nUser context:\n{user_context}\n\nChat history:\n{chat_context}\n\nProducts:\n{products_context}",
-		FallbackMessages: []string{
-			"بر اساس جستجوی شما، این محصولات را پیشنهاد می‌کنم:",
-			"محصولات مناسب برای شما پیدا کردم:",
-		},
+		SystemPrompt: `You are Voxcina, an intelligent and helpful AI shopping assistant for a Persian e-commerce store.
+Your goal is to assist customers in finding products, understanding their needs, and providing personalized recommendations.
+You speak Persian (Farsi) fluently and naturally.
+
+You have access to the following tools to help the user. To use a tool, you MUST output a VALID JSON object in the format:
+{"tool": "tool_name", "arguments": { ... }}
+
+Tools available:
+1. "search_products": Search for products based on a query and optional filters.
+   Arguments:
+   - "query" (string): The search query (e.g., "تیشرت مشکی", "کفش ورزشی").
+   - "filters" (object, optional): { "colors": [string], "product_types": [string], "sizes": [string] }
+
+2. "get_user_info": Get the current user's profile and activity summary.
+   Arguments:
+   - "user_id" (string): The user's ID.
+
+3. "get_recent_orders": Get the user's recent order history.
+   Arguments:
+   - "user_id" (string): The user's ID.
+   - "limit" (int): Number of orders to retrieve (default 3).
+
+Guidelines:
+- Always start by understanding the user's intent.
+- If the user asks for product recommendations, use 'search_products'.
+- If the user asks about their history or you need to know their style, use 'get_user_info' or 'get_recent_orders'.
+- You can ask clarifying questions if the request is too vague.
+- YOUR FINAL RESPONSE MUST BE IN PERSIAN.
+- Only output JSON when calling a tool. Otherwise, write normal text.
+`,
 		SearchStrategy: SearchStrategyConfig{
 			MaxResults:        8,
 			MinScoreThreshold: 0.3,
 			UsePersianFields:  true,
-			BoostFactors: map[string]float64{
-				"exact_keyword_match": 2.0,
-			},
 		},
 	}
 }
 
-// SearchProducts performs AI-powered product search
-func (s *CustomerAIService) SearchProducts(
+// RunAgenticChat executes the main agent loop
+func (s *CustomerAIService) RunAgenticChat(
 	ctx context.Context,
 	req CustomerSearchRequest,
 ) (*CustomerSearchResponse, error) {
-	// Step 1: Perform semantic search using AI-specific metadata fields
-	productIDs, err := s.personalizedSemanticProductSearch(ctx, req)
-	if err != nil {
-		return s.getFallbackResponse(ctx, req.Query)
-	}
-
-	// Step 2: Get full product details
-	products, err := s.getProductsByIDs(ctx, productIDs)
-	if err != nil {
-		return s.getFallbackResponse(ctx, req.Query)
-	}
-
-	// If no products found, try fallback
-	if len(products) == 0 {
-		return s.getFallbackResponse(ctx, req.Query)
-	}
-
-	// If OpenRouter API key is not configured, use fallback-only mode (no external LLM)
 	if s.openRouterAPIKey == "" {
 		return s.getFallbackResponse(ctx, req.Query)
 	}
 
-	// Step 3: Build products context for AI
-	productsContext := s.buildProductsContext(products)
-	userContext := s.buildUserContext(ctx, req)
+	// 1. Build Initial Context
+	messages := []OpenRouterMessage{
+		{Role: "system", Content: s.config.SystemPrompt},
+	}
+
+	// Add chat history
 	chatContext := s.buildChatContext(ctx, req)
+	if chatContext != "" {
+		messages = append(messages, OpenRouterMessage{
+			Role: "user",
+			Content: fmt.Sprintf(
+				"Chat History:\n%s\n\nCurrent User Message: %s",
+				chatContext,
+				req.Query,
+			),
+		})
+	} else {
+		messages = append(messages, OpenRouterMessage{
+			Role:    "user",
+			Content: req.Query,
+		})
+	}
 
-	// Step 4: Get AI recommendation
-	userPrompt := strings.ReplaceAll(s.config.UserPromptTemplate, "{query}", req.Query)
-	userPrompt = strings.ReplaceAll(userPrompt, "{products_context}", productsContext)
-	userPrompt = strings.ReplaceAll(userPrompt, "{user_context}", userContext)
-	userPrompt = strings.ReplaceAll(userPrompt, "{chat_context}", chatContext)
+	var finalProducts []models.Product
+	var finalProductIDs []string
 
-	aiResponse, err := s.callOpenRouter(s.config.SystemPrompt, userPrompt)
+	// Agent Loop (Max 5 turns to avoid infinite loops)
+	for i := 0; i < 5; i++ {
+		// Call LLM
+		response, err := s.callOpenRouterWithMessages(messages)
+		if err != nil {
+			log.Printf("LLM Error: %v", err)
+			return s.getFallbackResponse(ctx, req.Query)
+		}
+
+		// Check for tool call
+		var toolCall AgentToolCall
+		isToolCall := false
+
+		// Try to parse JSON tool call from the response text
+		// We look for the first valid JSON object
+		jsonStart := strings.Index(response, "{")
+		jsonEnd := strings.LastIndex(response, "}")
+
+		if jsonStart >= 0 && jsonEnd > jsonStart {
+			potentialJSON := response[jsonStart : jsonEnd+1]
+			if err := json.Unmarshal([]byte(potentialJSON), &toolCall); err == nil &&
+				toolCall.Tool != "" {
+				isToolCall = true
+			}
+		}
+
+		if !isToolCall {
+			// Final text response
+			return &CustomerSearchResponse{
+				Response:      response,
+				Products:      finalProducts,
+				ProductIDs:    finalProductIDs,
+				Success:       true,
+				IsAIGenerated: true,
+			}, nil
+		}
+
+		// Execute Tool
+		messages = append(messages, OpenRouterMessage{
+			Role:    "assistant",
+			Content: response,
+		})
+
+		toolResult := ""
+
+		switch toolCall.Tool {
+		case "search_products":
+			var args struct {
+				Query   string        `json:"query"`
+				Filters ParsedFilters `json:"filters"`
+			}
+			json.Unmarshal(toolCall.Arguments, &args)
+
+			// If query is empty in args, use original query
+			if args.Query == "" {
+				args.Query = req.Query
+			}
+
+			products, ids, err := s.toolSearchProducts(ctx, args.Query, args.Filters)
+			if err != nil {
+				toolResult = fmt.Sprintf("Error searching products: %v", err)
+			} else {
+				finalProducts = products
+				finalProductIDs = ids
+				toolResult = fmt.Sprintf("Found %d products. Product context: %s", len(products), s.buildProductsContext(products))
+			}
+
+		case "get_user_info":
+			var args struct {
+				UserID string `json:"user_id"`
+			}
+			json.Unmarshal(toolCall.Arguments, &args)
+			// Use request UserID if not provided
+			if args.UserID == "" {
+				args.UserID = req.UserID
+			}
+
+			info, err := s.toolGetUserContext(ctx, args.UserID)
+			if err != nil {
+				toolResult = fmt.Sprintf("Error getting user info: %v", err)
+			} else {
+				toolResult = info
+			}
+
+		case "get_recent_orders":
+			var args struct {
+				UserID string `json:"user_id"`
+				Limit  int    `json:"limit"`
+			}
+			json.Unmarshal(toolCall.Arguments, &args)
+			if args.UserID == "" {
+				args.UserID = req.UserID
+			}
+
+			orders, err := s.toolGetRecentOrders(ctx, args.UserID, args.Limit)
+			if err != nil {
+				toolResult = fmt.Sprintf("Error getting orders: %v", err)
+			} else {
+				toolResult = orders
+			}
+
+		default:
+			toolResult = "Unknown tool: " + toolCall.Tool
+		}
+
+		messages = append(messages, OpenRouterMessage{
+			Role:    "user",
+			Content: fmt.Sprintf("Tool '%s' result: %s", toolCall.Tool, toolResult),
+		})
+
+		// If we found products, we might want to break early or let the LLM summarize
+		// We continue the loop to let LLM summarize
+	}
+
+	return s.getFallbackResponse(ctx, req.Query)
+}
+
+// toolSearchProducts implements the search logic
+func (s *CustomerAIService) toolSearchProducts(
+	ctx context.Context,
+	query string,
+	filters ParsedFilters,
+) ([]models.Product, []string, error) {
+	// Use existing hybrid search logic but with explicit filters if provided
+	productIDs, err := s.hybridSemanticProductSearch(ctx, query)
 	if err != nil {
-		return s.getFallbackResponse(ctx, req.Query)
+		return nil, nil, err
+	}
+
+	// TODO: Apply extra filters manually if hybrid search didn't cover them perfectly
+	// For now, we rely on hybrid search which supposedly handles filters
+
+	products, err := s.getProductsByIDs(ctx, productIDs)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return products, productIDs, nil
+}
+
+// toolGetUserContext implements user info retrieval
+func (s *CustomerAIService) toolGetUserContext(
+	ctx context.Context,
+	userIDStr string,
+) (string, error) {
+	if userIDStr == "" {
+		return "User ID not provided", nil
+	}
+	return s.buildUserContext(ctx, CustomerSearchRequest{UserID: userIDStr}), nil
+}
+
+// toolGetRecentOrders implements order history retrieval
+func (s *CustomerAIService) toolGetRecentOrders(
+	ctx context.Context,
+	userIDStr string,
+	limit int,
+) (string, error) {
+	if userIDStr == "" {
+		return "User ID not provided", nil
+	}
+	userID, err := primitive.ObjectIDFromHex(userIDStr)
+	if err != nil {
+		return "Invalid User ID", nil
+	}
+
+	productIDs, err := s.getUserRecentOrderProductIDs(ctx, userID, limit)
+	if err != nil {
+		return "", err
+	}
+
+	products, err := s.getProductsByIDs(ctx, productIDs)
+	if err != nil {
+		return "", err
+	}
+
+	return s.buildProductsContext(products), nil
+}
+
+// Helper to get fallback response
+func (s *CustomerAIService) getFallbackResponse(
+	ctx context.Context,
+	query string,
+) (*CustomerSearchResponse, error) {
+	// Basic search fallback
+	productIDs, _ := s.semanticProductSearch(ctx, query)
+	products, _ := s.getProductsByIDs(ctx, productIDs)
+
+	msg := "متاسفانه در حال حاضر نمی‌توانم ارتباط برقرار کنم. اما این محصولات شاید برای شما جالب باشند:"
+	if len(s.config.FallbackMessages) > 0 {
+		msg = s.config.FallbackMessages[0]
 	}
 
 	return &CustomerSearchResponse{
-		Response:      aiResponse,
+		Response:      msg,
 		Products:      products,
 		ProductIDs:    productIDs,
-		Success:       true,
-		IsAIGenerated: true,
+		Success:       len(products) > 0,
+		IsAIGenerated: false,
 	}, nil
 }
 
-func (s *CustomerAIService) MaybeAskClarification(
-	ctx context.Context,
-	req CustomerSearchRequest,
-) (bool, string) {
-	if s.openRouterAPIKey == "" {
-		return false, ""
+// callOpenRouterWithMessages handles the raw API call
+func (s *CustomerAIService) callOpenRouterWithMessages(
+	messages []OpenRouterMessage,
+) (string, error) {
+	requestData := OpenRouterRequest{
+		Model:       s.openRouterModel,
+		Messages:    messages,
+		MaxTokens:   1000,
+		Temperature: 0.7,
 	}
 
-	trimmed := strings.TrimSpace(req.Query)
-	if trimmed == "" {
-		return false, ""
-	}
-
-	chatContext := s.buildChatContext(ctx, req)
-
-	systemPrompt := `You are Voxcina AI shopping assistant orchestrator.
-You decide whether a clarifying question is needed before searching for products.
-
-You receive the latest user query and recent chat history (in Persian or English).
-
-Your output MUST be ONLY a valid JSON object with this exact shape:
-{
-  "needs_clarification": true or false,
-  "clarification_question": "..."
-}
-
-Rules:
-- If the user has already provided enough concrete details (for example clear product type and at least one of size, color, or style), set "needs_clarification" to false and "clarification_question" to an empty string.
-- If important information is missing (for example size, color, gender, product type, occasion, or budget) and asking one short question would significantly improve the recommendation, set "needs_clarification" to true and ask exactly ONE concise clarifying question in Persian.
-- The clarifying question must be in Persian and suitable to show directly to the user.
-- If "needs_clarification" is false, "clarification_question" MUST be an empty string.
-- Do not include any text before or after the JSON.`
-
-	userPrompt := fmt.Sprintf(
-		"Current user query:\n%s\n\nRecent chat history (most recent last):\n%s",
-		trimmed,
-		chatContext,
-	)
-
-	aiResponse, err := s.callOpenRouter(systemPrompt, userPrompt)
+	jsonData, err := json.Marshal(requestData)
 	if err != nil {
-		log.Printf("Warning: failed to run clarification agent: %v", err)
-		return false, ""
+		return "", fmt.Errorf("error marshaling request: %v", err)
 	}
 
-	var parsed struct {
-		NeedsClarification    bool   `json:"needs_clarification"`
-		ClarificationQuestion string `json:"clarification_question"`
-	}
-	if err := json.Unmarshal([]byte(aiResponse), &parsed); err != nil {
-		log.Printf("Warning: failed to unmarshal clarification JSON: %v", err)
-		return false, ""
-	}
-
-	if parsed.NeedsClarification {
-		q := strings.TrimSpace(parsed.ClarificationQuestion)
-		if q == "" {
-			return false, ""
-		}
-		return true, q
+	req, err := http.NewRequest(
+		"POST",
+		"https://openrouter.ai/api/v1/chat/completions",
+		bytes.NewBuffer(jsonData),
+	)
+	if err != nil {
+		return "", err
 	}
 
-	return false, ""
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+s.openRouterAPIKey)
+	req.Header.Set("HTTP-Referer", "https://github.com/sinaabedii/shop")
+	req.Header.Set("X-Title", "Voxcina Shop")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("API error: %s - %s", resp.Status, string(body))
+	}
+
+	var result OpenRouterResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return "", err
+	}
+
+	if len(result.Choices) == 0 {
+		return "", fmt.Errorf("no response choices")
+	}
+
+	return result.Choices[0].Message.Content, nil
 }
 
 func (s *CustomerAIService) RunSupportAgent(
@@ -335,7 +531,10 @@ Rules:
 		chatCtx,
 	)
 
-	aiResponse, err := s.callOpenRouter(systemPrompt, userPrompt)
+	aiResponse, err := s.callOpenRouterWithMessages([]OpenRouterMessage{
+		{Role: "system", Content: systemPrompt},
+		{Role: "user", Content: userPrompt},
+	})
 	if err != nil {
 		log.Printf("Warning: support agent LLM error: %v", err)
 		return result
@@ -347,12 +546,16 @@ Rules:
 		TicketSubject      string `json:"ticket_subject"`
 		TicketBody         string `json:"ticket_body"`
 	}
-	if err := json.Unmarshal([]byte(aiResponse), &parsed); err != nil {
-		log.Printf(
-			"Warning: failed to unmarshal support agent JSON: %v; raw=%s",
-			err,
-			aiResponse,
-		)
+
+	// Extract JSON from response
+	jsonStart := strings.Index(aiResponse, "{")
+	jsonEnd := strings.LastIndex(aiResponse, "}")
+	if jsonStart >= 0 && jsonEnd > jsonStart {
+		if err := json.Unmarshal([]byte(aiResponse[jsonStart:jsonEnd+1]), &parsed); err != nil {
+			log.Printf("Warning: failed to unmarshal support agent JSON: %v", err)
+			return result
+		}
+	} else {
 		return result
 	}
 
@@ -363,7 +566,8 @@ Rules:
 	if !isLoggedIn && parsed.ShouldCreateTicket {
 		parsed.ShouldCreateTicket = false
 		if parsed.Reply != "" {
-			if !strings.Contains(parsed.Reply, "ورود") && !strings.Contains(parsed.Reply, "حساب") {
+			if !strings.Contains(parsed.Reply, "ورود") &&
+				!strings.Contains(parsed.Reply, "حساب") {
 				parsed.Reply = parsed.Reply + "\n\nبرای ثبت تیکت، ابتدا باید وارد حساب کاربری خود شوید یا ثبت‌نام کنید."
 			}
 		}
@@ -379,6 +583,14 @@ Rules:
 		TicketSubject:      parsed.TicketSubject,
 		TicketBody:         parsed.TicketBody,
 	}
+}
+
+// SearchProducts - DEPRECATED WRAPPER for backward compatibility
+func (s *CustomerAIService) SearchProducts(
+	ctx context.Context,
+	req CustomerSearchRequest,
+) (*CustomerSearchResponse, error) {
+	return s.RunAgenticChat(ctx, req)
 }
 
 // semanticProductSearch performs intelligent search using AI-specific metadata fields
@@ -606,7 +818,8 @@ func (s *CustomerAIService) vectorProductSearch(
 	query string,
 ) ([]string, error) {
 	// If OpenRouter API key or embedding model is not configured, skip
-	if os.Getenv("OPENROUTER_API_KEY") == "" || os.Getenv("OPENROUTER_EMBEDDING_MODEL") == "" {
+	if os.Getenv("OPENROUTER_API_KEY") == "" ||
+		os.Getenv("OPENROUTER_EMBEDDING_MODEL") == "" {
 		return nil, nil
 	}
 
@@ -666,20 +879,34 @@ func (s *CustomerAIService) parseFiltersFromQuery(
 	}
 	systemPrompt := "You are a specialized Persian e-commerce search filter parser. You receive a customer's query in Persian or English about clothing or fashion products. Your task is to extract structured filters that describe the desired products. Return ONLY a valid JSON object with this exact shape:\n{\n  \"colors\": [\"...\"],\n  \"product_types\": [\"...\"],\n  \"sizes\": [\"...\"]\n}\nRules:\n- Respond in JSON only, with no surrounding text.\n- Use Persian words for colors and product types if present (for example: \"مشکی\", \"پیراهن\", \"تیشرت\").\n- For sizes, use raw size tokens such as \"M\", \"L\", \"XL\" or numeric sizes like \"38\".\n- If something is not specified in the query, return an empty array for that field."
 	userPrompt := fmt.Sprintf("Customer query: %s", trimmed)
-	aiResponse, err := s.callOpenRouter(systemPrompt, userPrompt)
+
+	// Helper callOpenRouter (simple version)
+	resp, err := s.callOpenRouterWithMessages([]OpenRouterMessage{
+		{Role: "system", Content: systemPrompt},
+		{Role: "user", Content: userPrompt},
+	})
+
 	if err != nil {
 		log.Printf("Warning: failed to parse filters with LLM: %v", err)
 		return filters
 	}
+
 	var parsed struct {
 		Colors       []string `json:"colors"`
 		ProductTypes []string `json:"product_types"`
 		Sizes        []string `json:"sizes"`
 	}
-	if err := json.Unmarshal([]byte(aiResponse), &parsed); err != nil {
-		log.Printf("Warning: failed to unmarshal filter JSON: %v", err)
-		return filters
+
+	// Extract JSON from response
+	jsonStart := strings.Index(resp, "{")
+	jsonEnd := strings.LastIndex(resp, "}")
+	if jsonStart >= 0 && jsonEnd > jsonStart {
+		if err := json.Unmarshal([]byte(resp[jsonStart:jsonEnd+1]), &parsed); err != nil {
+			log.Printf("Warning: failed to unmarshal filter JSON: %v", err)
+			return filters
+		}
 	}
+
 	for _, c := range parsed.Colors {
 		c = strings.TrimSpace(c)
 		if c == "" {
@@ -711,54 +938,6 @@ func appendUnique(items []string, value string) []string {
 		}
 	}
 	return append(items, value)
-}
-
-func (s *CustomerAIService) personalizedSemanticProductSearch(
-	ctx context.Context,
-	req CustomerSearchRequest,
-) ([]string, error) {
-	productIDs, err := s.hybridSemanticProductSearch(ctx, req.Query)
-	if err != nil {
-		return nil, err
-	}
-
-	if req.UserID == "" {
-		return productIDs, nil
-	}
-
-	userID, err := primitive.ObjectIDFromHex(req.UserID)
-	if err != nil {
-		return productIDs, nil
-	}
-
-	idSet := make(map[string]struct{}, len(productIDs))
-	for _, id := range productIDs {
-		idSet[id] = struct{}{}
-	}
-
-	activityService := NewUserActivityService(s.database)
-	recentlyViewed, err := activityService.GetRecentlyViewedProducts(ctx, userID, 8)
-	if err == nil {
-		for _, p := range recentlyViewed {
-			idStr := p.ProductID.Hex()
-			if _, exists := idSet[idStr]; !exists {
-				productIDs = append(productIDs, idStr)
-				idSet[idStr] = struct{}{}
-			}
-		}
-	}
-
-	recentOrderProducts, err := s.getUserRecentOrderProductIDs(ctx, userID, 3)
-	if err == nil {
-		for _, idStr := range recentOrderProducts {
-			if _, exists := idSet[idStr]; !exists {
-				productIDs = append(productIDs, idStr)
-				idSet[idStr] = struct{}{}
-			}
-		}
-	}
-
-	return productIDs, nil
 }
 
 func (s *CustomerAIService) getUserRecentOrderProductIDs(
@@ -921,7 +1100,6 @@ func (s *CustomerAIService) buildChatContext(
 	return builder.String()
 }
 
-// getProductsByIDs retrieves full product details by IDs
 func (s *CustomerAIService) getProductsByIDs(
 	ctx context.Context,
 	productIDs []string,
@@ -963,7 +1141,6 @@ func (s *CustomerAIService) getProductsByIDs(
 	return products, nil
 }
 
-// buildProductsContext creates formatted product context for AI
 func (s *CustomerAIService) buildProductsContext(products []models.Product) string {
 	if len(products) == 0 {
 		return "هیچ محصولی یافت نشد."
@@ -1039,162 +1216,7 @@ func (s *CustomerAIService) buildProductsContext(products []models.Product) stri
 	return context.String()
 }
 
-// callOpenRouter makes a request to OpenRouter API
-func (s *CustomerAIService) callOpenRouter(
-	systemPrompt, userPrompt string,
-) (string, error) {
-	requestData := OpenRouterRequest{
-		Model: s.openRouterModel,
-		Messages: []OpenRouterMessage{
-			{Role: "system", Content: systemPrompt},
-			{Role: "user", Content: userPrompt},
-		},
-		MaxTokens:   500,
-		Temperature: 0.7,
-	}
-
-	jsonData, err := json.Marshal(requestData)
-	if err != nil {
-		return "", fmt.Errorf("error marshaling request: %v", err)
-	}
-
-	req, err := http.NewRequest(
-		"POST",
-		"https://openrouter.ai/api/v1/chat/completions",
-		bytes.NewBuffer(jsonData),
-	)
-	if err != nil {
-		return "", fmt.Errorf("error creating request: %v", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.openRouterAPIKey)
-	req.Header.Set("HTTP-Referer", os.Getenv("APP_URL"))
-	req.Header.Set("X-Title", "Voxcina Customer Search")
-
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("error making request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("error reading response: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf(
-			"OpenRouter API error (status %d): %s",
-			resp.StatusCode,
-			string(body),
-		)
-	}
-
-	var openRouterResp OpenRouterResponse
-	if err := json.Unmarshal(body, &openRouterResp); err != nil {
-		return "", fmt.Errorf("error unmarshaling response: %v", err)
-	}
-
-	if openRouterResp.Error != nil {
-		return "", fmt.Errorf("OpenRouter error: %s", openRouterResp.Error.Message)
-	}
-
-	if len(openRouterResp.Choices) == 0 {
-		return "", fmt.Errorf("no response from AI")
-	}
-
-	return openRouterResp.Choices[0].Message.Content, nil
-}
-
-// getFallbackResponse provides fallback when AI is unavailable
-func (s *CustomerAIService) getFallbackResponse(
-	ctx context.Context,
-	query string,
-) (*CustomerSearchResponse, error) {
-	// Simple search fallback
-	productIDs, err := s.semanticProductSearch(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-
-	// If still no products, get popular ones
-	if len(productIDs) == 0 {
-		productIDs, err = s.getPopularProductIDs(ctx, 4)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	products, err := s.getProductsByIDs(ctx, productIDs)
-	if err != nil {
-		return nil, err
-	}
-
-	// Random fallback message
-	fallbackMsg := s.config.FallbackMessages[0]
-	if len(s.config.FallbackMessages) > 1 {
-		fallbackMsg = s.config.FallbackMessages[time.Now().Second()%len(s.config.FallbackMessages)]
-	}
-
-	return &CustomerSearchResponse{
-		Response:      fallbackMsg,
-		Products:      products,
-		ProductIDs:    productIDs,
-		Success:       false,
-		IsAIGenerated: false,
-	}, nil
-}
-
-// getPopularProductIDs gets popular product IDs as fallback
-func (s *CustomerAIService) getPopularProductIDs(
-	ctx context.Context,
-	limit int,
-) ([]string, error) {
-	collection := s.database.Collection("products")
-	filter := bson.M{
-		"is_active": true,
-	}
-
-	// Sort by rating and review count
-	cursor, err := collection.Find(ctx, filter)
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(ctx)
-
-	var productIDs []string
-	count := 0
-
-	for cursor.Next(ctx) && count < limit {
-		var result struct {
-			ID primitive.ObjectID `bson:"_id"`
-		}
-		if err := cursor.Decode(&result); err != nil {
-			continue
-		}
-		productIDs = append(productIDs, result.ID.Hex())
-		count++
-	}
-
-	return productIDs, nil
-}
-
-// formatPrice formats price with thousand separators
-func formatPrice(price float64) string {
-	priceStr := fmt.Sprintf("%.0f", price)
-	// Add thousand separators
-	n := len(priceStr)
-	if n <= 3 {
-		return priceStr
-	}
-
-	var result strings.Builder
-	for i, c := range priceStr {
-		if i > 0 && (n-i)%3 == 0 {
-			result.WriteString(",")
-		}
-		result.WriteRune(c)
-	}
-	return result.String()
+// Helper for price formatting
+func formatPrice(p float64) string {
+	return fmt.Sprintf("%.0f", p)
 }

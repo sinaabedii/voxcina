@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
+
+	"go.mongodb.org/mongo-driver/bson"
 
 	"backEnd/config"
 	"backEnd/db"
@@ -15,6 +20,8 @@ import (
 func main() {
 	// Parse command line flags
 	seedDB := flag.Bool("seed", false, "Seed the database with initial data")
+	healthCheck := flag.Bool("healthcheck", false, "Check MongoDB connection")
+	checkVocab := flag.Bool("check-vocab", false, "Check vocabulary mappings count")
 	flag.Parse()
 
 	// Load configuration
@@ -22,6 +29,33 @@ func main() {
 
 	// Connect to database
 	database := db.Connect(cfg)
+
+	// Handle special commands
+	if *healthCheck {
+		// Simple health check - if we can connect, exit with code 0
+		if database != nil {
+			os.Exit(0)
+		} else {
+			os.Exit(1)
+		}
+	}
+
+	if *checkVocab {
+		// Check vocabulary mappings count
+		if database == nil {
+			fmt.Println("0")
+			os.Exit(1)
+		}
+
+		collection := database.Collection("vocabulary_mappings")
+		count, err := collection.CountDocuments(context.Background(), bson.M{})
+		if err != nil {
+			fmt.Println("0")
+			os.Exit(1)
+		}
+		fmt.Printf("%d\n", count)
+		os.Exit(0)
+	}
 
 	// Initialize chat service
 	handlers.InitChatService(database)

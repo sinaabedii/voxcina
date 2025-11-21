@@ -6,6 +6,7 @@ import { useDashboardStore } from "@/store/dashboard-store";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import { X, AlertCircle } from "lucide-react";
+import { toast } from "react-toastify";
 
 interface ProductGridProps {
   products: Product[];
@@ -72,17 +73,7 @@ export default function ProductGrid({
   }, []);
 
   const showNotification = (message: string) => {
-    const notification = document.createElement("div");
-    notification.className =
-      "fixed top-20 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-md shadow-lg z-50 animate-fadeOut";
-    notification.textContent = message;
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-      if (document.body.contains(notification)) {
-        document.body.removeChild(notification);
-      }
-    }, 2000);
+    toast.success(message);
   };
 
   // Get available sizes based on selected color

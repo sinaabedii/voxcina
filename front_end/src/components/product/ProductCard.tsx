@@ -8,6 +8,7 @@ import { Product } from "@/types/product";
 import { formatPrice, getDiscountPercentage, hasAttribute } from "@/lib/utils";
 import { useCartStore } from "@/store/cart-store";
 import Button from "@/components/ui/Button";
+import { toast } from "react-toastify";
 import { useDashboardStore } from "@/store/dashboard-store";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -125,17 +126,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   };
 
   const showNotification = (message: string) => {
-    const notification = document.createElement("div");
-    notification.className =
-      "fixed top-20 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-md shadow-lg z-50 animate-fadeOut";
-    notification.textContent = message;
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-      if (document.body.contains(notification)) {
-        document.body.removeChild(notification);
-      }
-    }, 3000); // Increased timeout slightly for visibility
+    toast.success(message);
   };
 
   const handleModalAddToCart = () => {

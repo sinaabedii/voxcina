@@ -27,22 +27,40 @@ export async function GET() {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voxcina.com';
 
-    // دریافت اطلاعات صفحات پویا (محصولات، دسته‌بندی‌ها، مقالات)
-    const [productsRes, categoriesRes, blogPostsRes] = await Promise.all([
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/products?limit=1000`),
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/categories`),
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/blog-posts?limit=100`),
-    ]);
+    // Check if we should skip API calls during build
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    const shouldSkipApiCall = !apiUrl;
 
-    // بررسی پاسخ‌ها
-    if (!productsRes.ok || !categoriesRes.ok || !blogPostsRes.ok) {
-      throw new Error('خطا در دریافت داده‌ها برای نقشه سایت');
+    let products: Product[] | ApiResponse<Product> = [];
+    let categories: Category[] | ApiResponse<Category> = [];
+    let blogPosts: BlogPost[] | ApiResponse<BlogPost> = [];
+
+    if (!shouldSkipApiCall) {
+      try {
+        // دریافت اطلاعات صفحات پویا (محصولات، دسته‌بندی‌ها، مقالات)
+        const [productsRes, categoriesRes, blogPostsRes] = await Promise.all([
+          fetch(`${apiUrl}/api/products?limit=1000`),
+          fetch(`${apiUrl}/api/categories`),
+          fetch(`${apiUrl}/api/blog-posts?limit=100`),
+        ]);
+
+        // پردازش داده‌ها
+        if (productsRes.ok) {
+          products = await productsRes.json() as Product[] | ApiResponse<Product>;
+        }
+
+        if (categoriesRes.ok) {
+          categories = await categoriesRes.json() as Category[] | ApiResponse<Category>;
+        }
+
+        if (blogPostsRes.ok) {
+          blogPosts = await blogPostsRes.json() as BlogPost[] | ApiResponse<BlogPost>;
+        }
+      } catch (fetchError) {
+        console.warn('Failed to fetch dynamic data for sitemap, using fallback:', fetchError);
+        // Continue with empty arrays - will generate basic sitemap
+      }
     }
-
-    // پردازش داده‌ها
-    const products: Product[] | ApiResponse<Product> = await productsRes.json();
-    const categories: Category[] | ApiResponse<Category> = await categoriesRes.json();
-    const blogPosts: BlogPost[] | ApiResponse<BlogPost> = await blogPostsRes.json();
 
     // صفحات استاتیک سایت
     const staticPages: { url: string; changefreq: string; priority: string }[] = [
@@ -79,7 +97,8 @@ export async function GET() {
       xml += `    <loc>${baseUrl}/products/${product.id || product._id}</loc>\n`;
       xml += '    <changefreq>weekly</changefreq>\n';
       xml += '    <priority>0.8</priority>\n';
-      xml += `    <lastmod>${product.updatedAt ? new Date(product.updatedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}</lastmod>\n`;
+      const productLastmod = product.updatedAt ? new Date(product.updatedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+      xml += `    <lastmod>${productLastmod}</lastmod>\n`;
       xml += '  </url>\n';
     });
 
@@ -90,7 +109,8 @@ export async function GET() {
       xml += `    <loc>${baseUrl}/blog/${post.slug}</loc>\n`;
       xml += '    <changefreq>monthly</changefreq>\n';
       xml += '    <priority>0.7</priority>\n';
-      xml += `    <lastmod>${post.updatedAt ? new Date(post.updatedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}</lastmod>\n`;
+      const blogLastmod = post.updatedAt ? new Date(post.updatedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+      xml += `    <lastmod>${blogLastmod}</lastmod>\n`;
       xml += '  </url>\n';
     });
 
@@ -99,10 +119,11 @@ export async function GET() {
     categoryItems.forEach((category: Category) => {
       const slug = category.slug || category.name.toLowerCase().replace(/\s+/g, '-');
       xml += '  <url>\n';
-      xml += `    <loc>${baseUrl}/categories/${slug}</loc>\n`;
+      xml += '    <loc>' + baseUrl + '/categories/' + slug + '</loc>\n';
       xml += '    <changefreq>weekly</changefreq>\n';
       xml += '    <priority>0.8</priority>\n';
-      xml += `    <lastmod>${category.updatedAt ? new Date(category.updatedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}</lastmod>\n`;
+      const lastmod = category.updatedAt ? new Date(category.updatedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+      xml += '    <lastmod>' + lastmod + '</lastmod>\n';
       xml += '  </url>\n';
     });
 

@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { toast } from "react-toastify";
 import {
   Heart,
   Truck,
@@ -47,6 +48,27 @@ interface ProductDetailPageProps {
     productId: string;
   };
 }
+
+// Helper function to determine if a color is light or dark
+const isLightColor = (color: string): boolean => {
+  // Convert hex to RGB
+  let hex = color.replace('#', '');
+  if (hex.length === 3) {
+    hex = hex.split('').map(c => c + c).join('');
+  }
+  if (hex.length === 6) {
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    // Calculate luminance (perceived brightness)
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5; // Return true if color is light
+  }
+  
+  // For named colors, create a lookup for common light colors
+  const lightColors = ['white', 'yellow', 'pink', 'lightblue', 'lightgreen', 'orange', 'cream', 'beige', 'سفید', 'زرد', 'صورتی', 'آبی روشن', 'سبز روشن', 'نارنجی', 'کرم', 'بژ'];
+  return lightColors.includes(color.toLowerCase());
+};
 
 export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const { productId } = params;
@@ -98,15 +120,14 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   } = useTryOnStore();
   const { isAuthenticated, user } = useAuthStore();
 
-  const isProductFavorite =
-    activeProduct && activeProduct.id ? isFavorite(activeProduct.id) : false;
+  const isProductFavorite = activeProduct?.id ? isFavorite(activeProduct.id) : false;
 
   // Extract available sizes and colors from variants
-  const availableSizes = activeProduct
+  const availableSizes = activeProduct?.variants 
     ? [...new Set(activeProduct.variants.map((variant) => variant.size))]
     : [];
 
-  const availableColors = activeProduct
+  const availableColors = activeProduct?.variants
     ? [...new Set(activeProduct.variants.map((variant) => variant.color))]
     : [];
 
@@ -201,7 +222,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
       if (e.key === "ArrowLeft") {
         setSelectedImage((prev) =>
-          prev < activeProduct.images.length - 1 ? prev + 1 : prev
+          prev < (activeProduct.images?.length || 1) - 1 ? prev + 1 : prev
         );
       } else if (e.key === "ArrowRight") {
         setSelectedImage((prev) => (prev > 0 ? prev - 1 : prev));
@@ -211,6 +232,19 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeProduct]);
+
+  // Create complete product URL for structured data (moved before early returns)
+  const productUrl = useMemo(() => {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}${pathname}`;
+    }
+    return '';
+  }, [pathname]);
+
+  // Pre-compute category name to avoid hook issues (moved before early returns)
+  const categoryName = activeProduct?.category_ids?.[0] 
+    ? getCategoryName(activeProduct.category_ids[0]) 
+    : '';
 
   if (isLoading) {
     return (
@@ -297,15 +331,8 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
     addItem(activeProduct, quantity, selectedSize, selectedColor);
 
-    const notification = document.createElement("div");
-    notification.className =
-      "fixed top-20 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-md shadow-lg z-50 animate-fadeOut";
-    notification.textContent = "محصول به سبد خرید اضافه شد";
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-      document.body.removeChild(notification);
-    }, 2000);
+    // Use react-hot-toast instead of manual DOM manipulation
+    toast.success("محصول به سبد خرید اضافه شد");
   };
 
   const handleToggleFavorite = () => {
@@ -340,7 +367,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const handleNextImage = () => {
     if (!activeProduct.images) return;
     setSelectedImage((prev) =>
-      prev < activeProduct.images.length - 1 ? prev + 1 : prev
+      prev < (activeProduct.images?.length || 1) - 1 ? prev + 1 : prev
     );
   };
 
@@ -348,8 +375,8 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     if (navigator.share) {
       navigator
         .share({
-          title: activeProduct.name,
-          text: activeProduct.description,
+          title: activeProduct?.name,
+          text: activeProduct?.description,
           url: window.location.href,
         })
         .catch((err) => {
@@ -395,14 +422,6 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     setUploadedFile(file);
   };
 
-  // Create complete product URL for structured data
-  const productUrl = useMemo(() => {
-    if (typeof window !== 'undefined') {
-      return `${window.location.origin}${pathname}`;
-    }
-    return '';
-  }, [pathname]);
-
   return (
     <>
       {activeProduct && <ProductJsonLd product={activeProduct} url={productUrl} />}
@@ -422,8 +441,8 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 ...(activeProduct.category_ids && activeProduct.category_ids.length > 0
                   ? [
                       {
-                        title: getCategoryName(activeProduct.category_ids[0]),
-                        href: `/categories/${activeProduct.category_ids[0]}`,
+                        title: categoryName,
+                        href: `/categories/${activeProduct.category_ids?.[0] || ''}`,
                       },
                     ]
                   : []),
@@ -453,8 +472,8 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 <>
                   <div className="relative w-full h-full">
                     <BackendImage
-                      src={activeProduct.images[selectedImage]}
-                      alt={`${activeProduct.name} - ${activeProduct.brand || ''}`}
+                      src={activeProduct.images?.[selectedImage] || ''}
+                      alt={`${activeProduct?.name || ''} - ${activeProduct?.brand || ''}`}
                       className={cn(
                         "object-cover w-full h-full transition-transform duration-300",
                         isZoomed && "scale-150"
@@ -502,7 +521,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   </motion.button>
 
                   <div className="absolute bottom-4 left-4 bg-voxcina-blue/70 dark:bg-voxcina-cream/20 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-sm">
-                    {selectedImage + 1} / {activeProduct.images.length}
+                    {selectedImage + 1} / {activeProduct.images?.length || 1}
                   </div>
                 </>
               ) : (
@@ -531,7 +550,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     <div className="relative w-full h-full">
                       <BackendImage
                         src={image}
-                        alt={`${activeProduct.name} - تصویر ${index + 1}`}
+                        alt={`${activeProduct?.name || ''} - تصویر ${index + 1}`}
                         className="object-cover w-full h-full"
                       />
                     </div>
@@ -823,7 +842,12 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                           style={{ backgroundColor: color }}
                         />
                         {selectedColor === color && (
-                          <CheckCircle className="absolute h-4 w-4 text-white drop-shadow-md" />
+                          <CheckCircle className="absolute h-4 w-4 drop-shadow-md" 
+                            style={{ 
+                              color: isLightColor(color) ? '#000' : '#fff',
+                              filter: isLightColor(color) ? 'drop-shadow(0 0 2px rgba(255,255,255,0.8))' : 'drop-shadow(0 0 2px rgba(0,0,0,0.8))'
+                            }} 
+                          />
                         )}
                       </motion.button>
                     );

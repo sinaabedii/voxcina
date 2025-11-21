@@ -235,31 +235,8 @@ func ChatRecommendation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shouldClarify, question := aiService.MaybeAskClarification(ctx, services.CustomerSearchRequest{
-		Query:  chatReq.Message,
-		UserID: chatReq.UserID,
-		ChatID: chatReq.ChatID,
-	})
-	if shouldClarify {
-		response := struct {
-			Response      string           `json:"response"`
-			Products      []models.Product `json:"products"`
-			Success       bool             `json:"success"`
-			IsAIGenerated bool             `json:"is_ai_generated"`
-			ChatID        string           `json:"chat_id,omitempty"`
-		}{
-			Response:      question,
-			Products:      []models.Product{},
-			Success:       false,
-			IsAIGenerated: true,
-			ChatID:        chatReq.ChatID,
-		}
-		utils.JSONResponse(w, http.StatusOK, response)
-		return
-	}
-
-	// Get AI recommendations
-	searchResponse, err := aiService.SearchProducts(ctx, services.CustomerSearchRequest{
+	// Get Agentic AI recommendations
+	searchResponse, err := aiService.RunAgenticChat(ctx, services.CustomerSearchRequest{
 		Query:  chatReq.Message,
 		UserID: chatReq.UserID,
 		ChatID: chatReq.ChatID,

@@ -35,11 +35,22 @@ const nextConfig = {
     localeDetection: false,
   },
   async rewrites() {
-    const backendUrl = process.env.GO_BACKEND_URL || 'http://localhost:8080';
+    const isProduction = process.env.NODE_ENV === 'production';
+    const backendUrl = process.env.GO_BACKEND_URL || (isProduction ? 'http://server:8080' : 'http://localhost:8080');
+    console.log('---------------------------------------------------');
+    console.log('Next.js Rewrites Configuration:');
+    console.log('GO_BACKEND_URL env:', process.env.GO_BACKEND_URL);
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+    console.log('Resolved backendUrl:', backendUrl);
+    console.log('---------------------------------------------------');
     return [
       {
         source: '/uploads/:path*',
         destination: `${backendUrl}/uploads/:path*`,
+      },
+      {
+        source: '/api/:path*',
+        destination: `${backendUrl}/api/:path*`,
       }
     ];
   },

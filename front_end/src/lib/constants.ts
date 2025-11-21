@@ -89,13 +89,12 @@ export const FOOTER_LINKS = {
   aboutUs: [
     { label: "درباره ما", href: "/about" },
     { label: "تماس با ما", href: "/contact" },
-    { label: "همکاری با ما", href: "/careers" },
-    { label: "فرصت‌های شغلی", href: "/jobs" },
+    { label: "فرصت‌های شغلی", href: "/careers" },
   ],
   customerService: [
-    { label: "راهنمای خرید", href: "/guide" },
+    { label: "راهنمای خرید", href: "/shoppingGuide" }, // Changed from /guide to /shoppingGuide
     { label: "نحوه ارسال", href: "/shipping" },
-    { label: "پیگیری سفارش", href: "/tracking" },
+    { label: "پیگیری سفارش", href: "/orderTracking" }, // Changed from /tracking to /orderTracking
     { label: "شرایط بازگشت", href: "/returns" },
     { label: "پرسش‌های متداول", href: "/faq" },
   ],

@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"log"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -117,14 +118,22 @@ func EnsureAISearchIndexes(database *mongo.Database) error {
 			SetName("ai_brand_filter"),
 	}
 
-	// 10. Season/occasion compound index
+	// 10. Season index (individual, not compound)
 	seasonIndex := mongo.IndexModel{
 		Keys: bson.D{
 			{Key: "search_metadata.season", Value: 1},
+		},
+		Options: options.Index().
+			SetName("ai_season"),
+	}
+
+	// 11. Occasion tags index (individual, not compound)
+	occasionTagsIndex := mongo.IndexModel{
+		Keys: bson.D{
 			{Key: "search_metadata.occasion_tags", Value: 1},
 		},
 		Options: options.Index().
-			SetName("ai_season_occasion"),
+			SetName("ai_occasion_tags"),
 	}
 
 	// Create all product indexes
@@ -139,9 +148,23 @@ func EnsureAISearchIndexes(database *mongo.Database) error {
 		popularityIndex,
 		brandIndex,
 		seasonIndex,
+		occasionTagsIndex,
 	}
 
-	_, err := productsCollection.Indexes().CreateMany(ctx, productIndexes)
+	// First, try to drop the problematic compound index if it exists
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	
+	// Drop the old problematic index if it exists
+	_, err := productsCollection.Indexes().DropOne(ctx, "ai_season_occasion")
+	if err != nil {
+		// Ignore error if index doesn't exist
+		log.Printf("Note: ai_season_occasion index may not exist or already dropped: %v", err)
+	} else {
+		log.Println("✓ Dropped problematic ai_season_occasion index")
+	}
+
+	_, err = productsCollection.Indexes().CreateMany(ctx, productIndexes)
 	if err != nil {
 		log.Printf("Warning: Could not create AI search indexes for products: %v", err)
 		return err

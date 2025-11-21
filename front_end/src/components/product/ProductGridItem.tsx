@@ -79,13 +79,16 @@ export default function ProductGridItem({
 
         {/* دکمه‌های اکشن */}
         <div className="absolute bottom-3 right-3 z-10 flex gap-2 transition-opacity duration-200 opacity-0 group-hover:opacity-100">
-          <Link
-            href={`/products/${product.id}`}
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              window.location.href = `/products/${product.id}`;
+            }}
             className="bg-white/90 dark:bg-voxcina-blue/90 text-voxcina-blue dark:text-white p-2 rounded-full shadow-md hover:bg-white dark:hover:bg-voxcina-blue transition-colors"
             title="مشاهده محصول"
           >
             <Eye className="w-4 h-4" />
-          </Link>
+          </button>
           {onAddToCart && (
             <button
               onClick={(e) => {

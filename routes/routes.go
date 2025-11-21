@@ -50,6 +50,8 @@ func NewRouter() *mux.Router {
 		Methods(http.MethodGet)
 	api.HandleFunc("/products/smart-recommendations", handlers.EnhancedProductRecommendations).
 		Methods(http.MethodGet)
+	api.HandleFunc("/products/collection/{collectionValue}", handlers.GetProductsByCollection).
+		Methods(http.MethodGet)
 
 	// AI-Powered Search and Chat endpoints
 	api.HandleFunc("/search/smart", handlers.SmartSearch).Methods(http.MethodPost)

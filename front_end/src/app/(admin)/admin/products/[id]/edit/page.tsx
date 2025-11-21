@@ -36,6 +36,7 @@ export default function EditProductPage() {
   const [categorySearch, setCategorySearch] = useState("");
 
   const [gender, setGender] = useState("مردانه");
+  const [collection, setCollection] = useState("");
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiMetadata, setAiMetadata] = useState({
     namePersian: "",
@@ -75,6 +76,9 @@ export default function EditProductPage() {
       setIsFlashSale(activeProduct.is_flash_sale);
       setIsActive(activeProduct.is_active);
       setInStock(activeProduct.inStock);
+      if ((activeProduct as any).collection) {
+        setCollection((activeProduct as any).collection);
+      }
       if ((activeProduct as any).searchMetadata) {
         const sm = (activeProduct as any).searchMetadata;
         setAiMetadata(prev => ({
@@ -271,6 +275,9 @@ export default function EditProductPage() {
     formData.append("brandId", brandId);
     formData.append("variants", JSON.stringify(variants));
     formData.append("attributes", JSON.stringify(attributes));
+    if (collection) {
+      formData.append("collection", collection);
+    }
     if (aiMetadata.namePersian || aiMetadata.descriptionPersian || aiMetadata.keywords.length || aiMetadata.tags.length) {
       const searchMetadata = {
         namePersian: aiMetadata.namePersian,
@@ -342,6 +349,16 @@ export default function EditProductPage() {
             <option value="مردانه">مردانه</option>
             <option value="زنانه">زنانه</option>
             <option value="یونیسکس">یونیسکس</option>
+          </select>
+        </div>
+        <div>
+          <label className="block mb-1">کلکسیون</label>
+          <select className="input" value={collection} onChange={e => setCollection(e.target.value)}>
+            <option value="">انتخاب کلکسیون</option>
+            <option value="بهار">بهار</option>
+            <option value="تابستان">تابستان</option>
+            <option value="پاییز">پاییز</option>
+            <option value="زمستان">زمستان</option>
           </select>
         </div>
         <div>

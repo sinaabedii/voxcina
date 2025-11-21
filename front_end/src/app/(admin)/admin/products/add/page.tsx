@@ -9,11 +9,14 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import toast from "react-hot-toast";
+import CategoryModal from "@/components/admin/CategoryModal";
+import AddBrandModal from "@/components/admin/AddBrandModal";
 
 export default function AddProductPage() {
   const router = useRouter();
   const { adminToken } = useAuthStore();
   const { brands, categories, fetchBrands, fetchCategories, createProduct, isLoading, error } = useProductStore();
+  const { createCategory } = useCategoryStore();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState(0);
@@ -22,17 +25,21 @@ export default function AddProductPage() {
   const [brandId, setBrandId] = useState("");
   const [images, setImages] = useState<FileList | null>(null);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [variantImageFiles, setVariantImageFiles] = useState<{ [key: number]: File[] }>({});
+  const [variantTryOnFiles, setVariantTryOnFiles] = useState<{ [key: number]: File }>({});
   const [attributes, setAttributes] = useState<ProductAttribute[]>([]);
   const [isFlashSale, setIsFlashSale] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [inStock, setInStock] = useState(true);
-  const [tryOnImageFile, setTryOnImageFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const [categorySearch, setCategorySearch] = useState("");
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
 
   const [gender, setGender] = useState("مردانه");
+  const [collection, setCollection] = useState("");
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiMetadata, setAiMetadata] = useState({
     namePersian: "",
@@ -76,6 +83,19 @@ export default function AddProductPage() {
 
   const filteredCategories = categories.filter(cat => cat.name.toLowerCase().includes(categorySearch.toLowerCase()));
 
+  const handleCreateCategory = async (formData: FormData) => {
+    if (!adminToken) {
+      toast.error("دسترسی ادمین ندارید");
+      return;
+    }
+    const result = await createCategory(formData, adminToken);
+    if (result) {
+      setIsCategoryModalOpen(false);
+      fetchCategories(); // Refresh categories list
+      toast.success("دسته‌بندی جدید با موفقیت ایجاد شد");
+    }
+  };
+
   const canGenerateAiMetadata =
     !!name &&
     !!description &&
@@ -88,10 +108,25 @@ export default function AddProductPage() {
   };
 
   const handleAddVariant = () => {
-    setVariants([...variants, { size: "", color: "", sku: "", quantity: 0, images: [] }]);
+    setVariants([...variants, { size: "", color: "", sku: "", quantity: 0, images: [], tryOnImage: "" }]);
   };
   const handleVariantChange = (idx: number, field: keyof ProductVariant, value: any) => {
     setVariants(variants.map((v, i) => i === idx ? { ...v, [field]: value } : v));
+  };
+  const handleVariantImagesChange = (idx: number, files: FileList | null) => {
+    if (files) {
+      setVariantImageFiles(prev => ({ ...prev, [idx]: Array.from(files) }));
+      // Also update preview URLs
+      const imageUrls = Array.from(files).map(file => URL.createObjectURL(file));
+      setVariants(variants.map((v, i) => i === idx ? { ...v, images: imageUrls } : v));
+    }
+  };
+  const handleVariantTryOnChange = (idx: number, file: File | null) => {
+    if (file) {
+      setVariantTryOnFiles(prev => ({ ...prev, [idx]: file }));
+      // Update preview URL
+      setVariants(variants.map((v, i) => i === idx ? { ...v, tryOnImage: URL.createObjectURL(file) } : v));
+    }
   };
   const handleRemoveVariant = (idx: number) => {
     setVariants(variants.filter((_, i) => i !== idx));
@@ -192,6 +227,7 @@ export default function AddProductPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${adminToken}`,
         },
         body: JSON.stringify({
           name,
@@ -269,7 +305,10 @@ export default function AddProductPage() {
     }
     setSubmitting(true);
     const formData = new FormData();
-    formData.append("name", name);
+    formData.append("gender", gender);
+    if (collection) {
+      formData.append("collection", collection);
+    }
     formData.append("description", description);
     formData.append("price", price.toString());
     formData.append("originalPrice", originalPrice ? originalPrice.toString() : price.toString());
@@ -300,12 +339,25 @@ export default function AddProductPage() {
     formData.append("isFlashSale", isFlashSale ? "true" : "false");
     formData.append("isActive", isActive ? "true" : "false");
     formData.append("inStock", inStock ? "true" : "false");
-    if (tryOnImageFile) {
-      formData.append("tryOnImage", tryOnImageFile);
-    }
     if (images) {
       Array.from(images).forEach((file) => formData.append("mainImages", file));
     }
+    
+    // Add variant images and try-on images
+    variants.forEach((variant, idx) => {
+      // Add variant images
+      const variantImages = variantImageFiles[idx];
+      if (variantImages) {
+        variantImages.forEach((file) => formData.append(`variantImages_${idx}`, file));
+      }
+      
+      // Add variant try-on image
+      const variantTryOnFile = variantTryOnFiles[idx];
+      if (variantTryOnFile) {
+        formData.append(`variantTryOnImage_${idx}`, variantTryOnFile);
+      }
+    });
+    
     const result = await createProduct(formData, adminToken);
     setSubmitting(false);
     if (result) {
@@ -382,6 +434,16 @@ export default function AddProductPage() {
           </select>
         </div>
         <div>
+          <label className="block mb-1">کلکسیون</label>
+          <select className="input" value={collection} onChange={e => setCollection(e.target.value)}>
+            <option value="">انتخاب کلکسیون</option>
+            <option value="بهار">بهار</option>
+            <option value="تابستان">تابستان</option>
+            <option value="پاییز">پاییز</option>
+            <option value="زمستان">زمستان</option>
+          </select>
+        </div>
+        <div>
           <label className="block mb-1">دسته‌بندی *</label>
           <div className="relative" ref={categoryDropdownRef}>
             <div
@@ -428,7 +490,15 @@ export default function AddProductPage() {
               </div>
             )}
           </div>
-          <Link href="/admin/categories/add" className="text-blue-600 text-sm">+ دسته‌بندی جدید</Link>
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="text-blue-600 text-sm p-0 h-auto"
+            onClick={() => setIsCategoryModalOpen(true)}
+          >
+            + دسته‌بندی جدید
+          </Button>
         </div>
         <div>
           <label className="block mb-1">برند *</label>
@@ -436,33 +506,66 @@ export default function AddProductPage() {
             <option value="">انتخاب برند</option>
             {brands.map(brand => <option key={brand.id} value={brand.id}>{brand.name}</option>)}
           </select>
-          <Link href="/admin/brands/add" className="text-blue-600 text-sm">+ برند جدید</Link>
+          <button
+            type="button"
+            onClick={() => setIsBrandModalOpen(true)}
+            className="text-blue-600 text-sm hover:text-blue-800 transition-colors mt-1"
+          >
+            + برند جدید
+          </button>
         </div>
         <div>
           <label className="block mb-1">تصاویر محصول</label>
           <input className="input" type="file" multiple accept="image/*" onChange={handleImageChange} />
         </div>
         <div>
-          <label className="block mb-1">تصویر واقعیت افزوده (اختیاری)</label>
-          <input
-            className="input"
-            type="file"
-            accept="image/*"
-            onChange={(e) => setTryOnImageFile(e.target.files?.[0] || null)}
-          />
-          {tryOnImageFile && (
-            <span className="text-xs text-voxcina-blue/60">{tryOnImageFile.name}</span>
-          )}
-        </div>
-        <div>
           <label className="block mb-1">تنوع‌ها (سایز/رنگ/موجودی)</label>
           {variants.map((variant, idx) => (
-            <div key={idx} className="flex gap-2 mb-2 items-center">
-              <input className="input w-16" placeholder="سایز" value={variant.size} onChange={e => handleVariantChange(idx, "size", e.target.value)} />
-              <input className="input w-16" placeholder="رنگ" value={variant.color} onChange={e => handleVariantChange(idx, "color", e.target.value)} />
-              <input className="input w-24" placeholder="SKU" value={variant.sku} onChange={e => handleVariantChange(idx, "sku", e.target.value)} />
-              <input className="input w-20" type="number" placeholder="موجودی" value={variant.quantity} onChange={e => handleVariantChange(idx, "quantity", Number(e.target.value))} />
-              <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveVariant(idx)}>حذف</Button>
+            <div key={idx} className="border rounded p-4 mb-4 space-y-3">
+              <div className="flex gap-2 mb-2 items-center">
+                <input className="input w-16" placeholder="سایز" value={variant.size} onChange={e => handleVariantChange(idx, "size", e.target.value)} />
+                <input className="input w-16" placeholder="رنگ" value={variant.color} onChange={e => handleVariantChange(idx, "color", e.target.value)} />
+                <input className="input w-24" placeholder="SKU" value={variant.sku} onChange={e => handleVariantChange(idx, "sku", e.target.value)} />
+                <input className="input w-20" type="number" placeholder="موجودی" value={variant.quantity} onChange={e => handleVariantChange(idx, "quantity", Number(e.target.value))} />
+                <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveVariant(idx)}>حذف</Button>
+              </div>
+              
+              {/* Variant Images */}
+              <div className="space-y-2">
+                <label className="block text-sm">تصاویر تنوع (اختیاری)</label>
+                <input 
+                  className="input text-sm" 
+                  type="file" 
+                  multiple 
+                  accept="image/*" 
+                  onChange={(e) => handleVariantImagesChange(idx, e.target.files)} 
+                />
+                {variant.images.length > 0 && (
+                  <div className="flex gap-2 mt-2">
+                    {variant.images.map((img, imgIdx) => (
+                      <div key={imgIdx} className="w-12 h-12 border rounded overflow-hidden">
+                        <img src={img} alt={`Variant ${idx} image ${imgIdx}`} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Variant Try-On Image */}
+              <div className="space-y-2">
+                <label className="block text-sm">تصویر واقعیت افزوده تنوع (اختیاری)</label>
+                <input 
+                  className="input text-sm" 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={(e) => handleVariantTryOnChange(idx, e.target.files?.[0] || null)} 
+                />
+                {variant.tryOnImage && (
+                  <div className="w-12 h-12 border rounded overflow-hidden mt-2">
+                    <img src={variant.tryOnImage} alt={`Variant ${idx} try-on`} className="w-full h-full object-cover" />
+                  </div>
+                )}
+              </div>
             </div>
           ))}
           <Button type="button" variant="outline" size="sm" onClick={handleAddVariant}>+ تنوع جدید</Button>
@@ -612,6 +715,23 @@ export default function AddProductPage() {
         <Button type="submit" variant="primary" disabled={submitting || isLoading}>{submitting ? "در حال ثبت..." : "ثبت محصول"}</Button>
         {error && <div className="text-red-500">{error}</div>}
       </form>
+
+      {/* Category Modal */}
+      <CategoryModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        editingCategory={null}
+        onSubmit={handleCreateCategory}
+        categories={categories}
+        isLoading={isLoading}
+      />
+
+      {/* Brand Modal */}
+      <AddBrandModal
+        isOpen={isBrandModalOpen}
+        onClose={() => setIsBrandModalOpen(false)}
+        onSuccess={() => fetchBrands()}
+      />
     </div>
   );
-} 
+}

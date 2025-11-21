@@ -416,6 +416,286 @@ func SeedBlogPosts(database *mongo.Database) error {
 	return nil
 }
 
+// SeedVocabularyMappings seeds the database with Persian-English vocabulary mappings
+func SeedVocabularyMappings(database *mongo.Database) error {
+	log.Println("Seeding vocabulary mappings...")
+
+	collection := database.Collection("vocabulary_mappings")
+
+	// Clear existing vocabulary mappings
+	_, err := collection.DeleteMany(context.Background(), bson.M{})
+	if err != nil {
+		return fmt.Errorf("failed to clear vocabulary_mappings collection: %w", err)
+	}
+
+	now := time.Now()
+
+	// Material mappings
+	materialMappings := []interface{}{
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "material",
+			"persian_terms":  []string{"پشم", "پشمی", "کشمیر", "موهر"},
+			"english_terms":  []string{"wool", "cashmere", "mohair"},
+			"standard_value": "wool",
+			"category":       "natural_fabric",
+			"related_terms":  []string{"گرم", "زمستانی"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "material",
+			"persian_terms":  []string{"پنبه", "نخی", "کتان", "پنبه‌ای"},
+			"english_terms":  []string{"cotton", "cotton blend"},
+			"standard_value": "cotton",
+			"category":       "natural_fabric",
+			"related_terms":  []string{"نخ", "طبیعی"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "material",
+			"persian_terms":  []string{"پلی استر", "سنتتیک", "مصنوعی"},
+			"english_terms":  []string{"polyester", "synthetic"},
+			"standard_value": "polyester",
+			"category":       "synthetic_fabric",
+			"related_terms":  []string{"ورزشی", "سریع خشک"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "material",
+			"persian_terms":  []string{"جین", "دنیم", "جین کشی"},
+			"english_terms":  []string{"denim", "jeans", "jean"},
+			"standard_value": "denim",
+			"category":       "heavy_fabric",
+			"related_terms":  []string{"پنبه", "محکم"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "material",
+			"persian_terms":  []string{"ابریشم", "ابریشمی", "ساتن"},
+			"english_terms":  []string{"silk", "satin", "silky"},
+			"standard_value": "silk",
+			"category":       "luxury_fabric",
+			"related_terms":  []string{"لوکس", "نرم"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "material",
+			"persian_terms":  []string{"چرم", "چرمی", "چرم مصنوعی", "پوست"},
+			"english_terms":  []string{"leather", "faux leather", "PU leather"},
+			"standard_value": "leather",
+			"category":       "leather_fabric",
+			"related_terms":  []string{"جیر", "کیف"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "material",
+			"persian_terms":  []string{"کشباف", "بافت", "نایلون کشی"},
+			"english_terms":  []string{"knit", "stretch", "elastic"},
+			"standard_value": "knit",
+			"category":       "stretchy_fabric",
+			"related_terms":  []string{"راحت", "ورزشی"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "material",
+			"persian_terms":  []string{"مخمل", "ولور", "کروماژ"},
+			"english_terms":  []string{"velvet", "velour"},
+			"standard_value": "velvet",
+			"category":       "luxury_fabric",
+			"related_terms":  []string{"لوکس", "نرم"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+	}
+
+	// Style mappings
+	styleMappings := []interface{}{
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "style",
+			"persian_terms":  []string{"اسپرت", "ورزشی", "راحتی"},
+			"english_terms":  []string{"sport", "sporty", "athletic", "casual"},
+			"standard_value": "sport",
+			"category":       "casual_style",
+			"related_terms":  []string{"کژوال", "روزمره"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "style",
+			"persian_terms":  []string{"رسمی", "کلاسیک", "اداری", "مجلسی"},
+			"english_terms":  []string{"formal", "classic", "office", "business"},
+			"standard_value": "formal",
+			"category":       "formal_style",
+			"related_terms":  []string{"شیک", "رسمی"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "style",
+			"persian_terms":  []string{"کژوال", "روزمره", "معمولی", "ساده"},
+			"english_terms":  []string{"casual", "everyday", "simple"},
+			"standard_value": "casual",
+			"category":       "casual_style",
+			"related_terms":  []string{"راحت", "اسپرت"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "style",
+			"persian_terms":  []string{"مدرن", "جدید", "ترند", "مد روز"},
+			"english_terms":  []string{"modern", "trendy", "contemporary", "fashionable"},
+			"standard_value": "modern",
+			"category":       "trendy_style",
+			"related_terms":  []string{"شیک", "جوان"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "style",
+			"persian_terms":  []string{"سنتی", "کلاسیک", "قدیمی", "محافظه کار"},
+			"english_terms":  []string{"traditional", "classic", "vintage", "conservative"},
+			"standard_value": "traditional",
+			"category":       "classic_style",
+			"related_terms":  []string{"رسمی", "قدیمی"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "style",
+			"persian_terms":  []string{"لوکس", "شیک", "گران قیمت", "لاکچری"},
+			"english_terms":  []string{"luxury", "elegant", "premium", "high-end"},
+			"standard_value": "luxury",
+			"category":       "luxury_style",
+			"related_terms":  []string{"مجلسی", "رسمی"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "style",
+			"persian_terms":  []string{"اور سایز", "گشاد", "بزرگ", "فری سایز"},
+			"english_terms":  []string{"oversized", "loose", "baggy", "free size"},
+			"standard_value": "oversized",
+			"category":       "fit_style",
+			"related_terms":  []string{"راحت", "کژوال"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+	}
+
+	// Occasion mappings
+	occasionMappings := []interface{}{
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "occasion",
+			"persian_terms":  []string{"روزمره", "روزانه", "همه روزه"},
+			"english_terms":  []string{"everyday", "daily", "casual wear"},
+			"standard_value": "everyday",
+			"category":       "casual_occasion",
+			"related_terms":  []string{"کژوال", "راحت"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "occasion",
+			"persian_terms":  []string{"اداری", "محل کار", "سر کار"},
+			"english_terms":  []string{"office", "work", "business"},
+			"standard_value": "office",
+			"category":       "formal_occasion",
+			"related_terms":  []string{"رسمی", "کلاسیک"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "occasion",
+			"persian_terms":  []string{"مهمانی", "جشن", "مجلسی"},
+			"english_terms":  []string{"party", "celebration", "formal event"},
+			"standard_value": "party",
+			"category":       "formal_occasion",
+			"related_terms":  []string{"رسمی", "شیک"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "occasion",
+			"persian_terms":  []string{"ورزشی", "باشگاه", "ورزش"},
+			"english_terms":  []string{"sport", "gym", "workout", "athletic"},
+			"standard_value": "sport",
+			"category":       "active_occasion",
+			"related_terms":  []string{"اسپرت", "فعالیت"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+		bson.M{
+			"_id":            primitive.NewObjectID(),
+			"type":           "occasion",
+			"persian_terms":  []string{"سفر", "گردش", "تفریح"},
+			"english_terms":  []string{"travel", "vacation", "leisure"},
+			"standard_value": "travel",
+			"category":       "casual_occasion",
+			"related_terms":  []string{"راحت", "کژوال"},
+			"usage_count":    0,
+			"created_at":     now,
+			"updated_at":     now,
+		},
+	}
+
+	// Combine all mappings
+	allMappings := append(materialMappings, styleMappings...)
+	allMappings = append(allMappings, occasionMappings...)
+
+	// Insert all mappings
+	_, err = collection.InsertMany(context.Background(), allMappings)
+	if err != nil {
+		return fmt.Errorf("failed to insert vocabulary mappings: %w", err)
+	}
+
+	log.Printf("Successfully seeded %d vocabulary mappings", len(allMappings))
+	return nil
+}
+
 // SeedDatabase seeds the database with initial data
 func SeedDatabase() error {
 	// Load configuration
@@ -427,19 +707,25 @@ func SeedDatabase() error {
 		return fmt.Errorf("failed to connect to database")
 	}
 
-	// Seed categories
-	err := SeedCategories(database)
+	// Seed vocabulary mappings first (this should always work)
+	err := SeedVocabularyMappings(database)
 	if err != nil {
-		return fmt.Errorf("category seeding failed: %w", err)
+		return fmt.Errorf("vocabulary mappings seeding failed: %w", err)
 	}
 
-	// Seed products
+	// Seed categories (optional - may fail if data files don't exist)
+	err = SeedCategories(database)
+	if err != nil {
+		log.Printf("Warning: Category seeding skipped: %v", err)
+	}
+
+	// Seed products (optional - may fail if data files don't exist)
 	err = SeedProducts(database)
 	if err != nil {
-		return fmt.Errorf("product seeding failed: %w", err)
+		log.Printf("Warning: Product seeding skipped: %v", err)
 	}
 
-	// Seed blog posts
+	// Seed blog posts (this should always work)
 	err = SeedBlogPosts(database)
 	if err != nil {
 		return fmt.Errorf("blog post seeding failed: %w", err)
