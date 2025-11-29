@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { Plus, Edit, Trash2, Search, FileText } from "lucide-react";
-import { useBlogStore } from "@/store/blog-store";
+import { useBlogStore } from "../../../../store/blog-store";
 import { BlogPost } from "@/types/blog";
 import { toast } from "react-hot-toast";
 
@@ -212,9 +212,8 @@ export default function AdminBlogsPage() {
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
                 <button
                   key={num}
-                  className={`px-3 py-1 rounded ${
-                    num === currentPage ? "bg-voxcina-blue text-white" : "bg-gray-200"
-                  }`}
+                  className={`px-3 py-1 rounded ${num === currentPage ? "bg-voxcina-blue text-white" : "bg-gray-200"
+                    }`}
                   onClick={() => setCurrentPage(num)}
                 >
                   {num}
