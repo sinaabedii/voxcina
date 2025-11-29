@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { Plus, Edit, Trash2, Search, FileText } from "lucide-react";
-import { useBlogStore } from "../../../../store/blog-store";
+import { useBlogStore } from "@/store/blog-store";
 import { BlogPost } from "@/types/blog";
 import { toast } from "react-hot-toast";
 

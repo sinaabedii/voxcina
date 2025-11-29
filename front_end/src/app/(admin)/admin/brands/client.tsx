@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent } from "../../../../components/ui/Card";
+import { Card, CardContent } from "@/components/ui/Card";
 import { motion } from "framer-motion";
 import {
   BadgePercent,
@@ -15,7 +15,7 @@ import {
   X,
   Building,
 } from "lucide-react";
-import Button from "../../../../components/ui/Button";
+import Button from "@/components/ui/Button";
 import { adminApi } from "@/services/admin-api";
 import toast from "react-hot-toast";
 import AddBrandModal from "@/components/admin/AddBrandModal";
@@ -257,8 +257,8 @@ export default function ClientBrandsPage() {
                           <div className="flex items-center space-x-1 space-x-reverse">
                             <span
                               className={`text-xs px-2 py-0.5 rounded-full ${brand.isActive
-                                  ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
-                                  : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
+                                ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
+                                : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
                                 }`}
                             >
                               {brand.isActive ? "فعال" : "غیرفعال"}
@@ -338,8 +338,8 @@ export default function ClientBrandsPage() {
                 variant="ghost"
                 size="sm"
                 className={`rounded-lg ${currentPage === 1
-                    ? "text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed"
-                    : "text-voxcina-blue dark:text-voxcina-cream"
+                  ? "text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed"
+                  : "text-voxcina-blue dark:text-voxcina-cream"
                   }`}
                 onClick={() => paginate(currentPage - 1)}
                 disabled={currentPage === 1}
@@ -354,8 +354,8 @@ export default function ClientBrandsPage() {
                     variant={currentPage === number ? "primary" : "ghost"}
                     size="sm"
                     className={`rounded-lg ${currentPage === number
-                        ? "bg-voxcina-blue text-white dark:bg-voxcina-cream dark:text-voxcina-blue"
-                        : "text-voxcina-blue dark:text-voxcina-cream"
+                      ? "bg-voxcina-blue text-white dark:bg-voxcina-cream dark:text-voxcina-blue"
+                      : "text-voxcina-blue dark:text-voxcina-cream"
                       }`}
                     onClick={() => paginate(number)}
                   >
@@ -368,8 +368,8 @@ export default function ClientBrandsPage() {
                 variant="ghost"
                 size="sm"
                 className={`rounded-lg ${currentPage === totalPages
-                    ? "text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed"
-                    : "text-voxcina-blue dark:text-voxcina-cream"
+                  ? "text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed"
+                  : "text-voxcina-blue dark:text-voxcina-cream"
                   }`}
                 onClick={() => paginate(currentPage + 1)}
                 disabled={currentPage === totalPages}
