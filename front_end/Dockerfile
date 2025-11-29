@@ -10,7 +10,10 @@ ENV NODE_ENV=production \
 
 # 1️⃣ install deps first for better Docker cache
 COPY package*.json ./
-RUN npm install
+# Temporarily unset NODE_ENV to install devDependencies
+RUN NODE_ENV= npm install
+# Restore production environment
+ENV NODE_ENV=production
 
 # 2️⃣ copy source and build
 COPY . ./

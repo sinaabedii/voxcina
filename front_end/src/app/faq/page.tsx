@@ -11,6 +11,9 @@ export const metadata: Metadata = {
   },
 };
 
+// Force this page to be dynamic (not statically generated at build time)
+export const dynamic = 'force-dynamic';
+
 interface FaqPageData {
   faqs: Faq[];
   error?: string;

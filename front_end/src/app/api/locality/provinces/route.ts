@@ -5,6 +5,9 @@ const POSTEX_BASE_URL = process.env.POSTEX_BASE_URL || "https://api.postex.ir";
 // API key for Postex, provided via Docker / .env as POSTEX_API_KEY
 const API_KEY = process.env.POSTEX_API_KEY || "";
 
+// Force this route to be dynamic (not statically generated)
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const { search } = request.nextUrl;
