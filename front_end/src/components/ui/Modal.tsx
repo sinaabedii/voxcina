@@ -79,7 +79,7 @@ const Modal: React.FC<ModalProps> = ({
             initial={{ scale: 0.95, opacity: 0, y: 10 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 10 }}
-            transition={{ type: "spring", damping: 30, stiffness: 400 }}
+            transition={{ type: "spring" as const, damping: 30, stiffness: 400 }}
             className={cn(
               "w-full max-w-md max-h-[90vh] overflow-auto bg-card rounded-xl shadow-medium border border-border/10",
               contentClassName

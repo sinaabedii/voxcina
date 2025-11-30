@@ -175,7 +175,7 @@ export default function DashboardLayout({
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
                     transition={{
                       duration: 0.2,
-                      type: "spring",
+                      type: "spring" as const,
                       stiffness: 300,
                       damping: 25,
                     }}
@@ -231,7 +231,7 @@ export default function DashboardLayout({
                 initial={{ x: "100%" }}
                 animate={{ x: 0 }}
                 exit={{ x: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                transition={{ type: "spring" as const, damping: 25, stiffness: 300 }}
               >
                 <div className="p-4 border-b border-voxcina-cream/30 dark:border-voxcina-blue/30 flex items-center justify-between">
                   <h2 className="font-bold text-lg text-voxcina-blue dark:text-voxcina-cream">

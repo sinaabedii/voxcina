@@ -269,7 +269,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
           className="w-20 h-20 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center mb-6 border border-red-100 dark:border-red-800/30 shadow-sm"
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 300, damping: 25 }}
+          transition={{ type: "spring" as const, stiffness: 300, damping: 25 }}
         >
           <X className="h-10 w-10 text-red-500 dark:text-red-400" />
         </motion.div>
@@ -1300,7 +1300,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                transition={{ type: "spring" as const, damping: 25, stiffness: 300 }}
                 onClick={(e) => e.stopPropagation()}
               >
                 <button
@@ -1414,7 +1414,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                transition={{ type: "spring" as const, damping: 25, stiffness: 300 }}
                 onClick={(e) => e.stopPropagation()}
               >
                 <button
@@ -1524,7 +1524,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                transition={{ type: "spring" as const, damping: 25, stiffness: 300 }}
                 onClick={(e) => e.stopPropagation()}
               >
                 <button

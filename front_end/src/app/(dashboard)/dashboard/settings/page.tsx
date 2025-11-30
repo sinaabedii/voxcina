@@ -641,7 +641,7 @@ export default function SettingsPage() {
                         }`}
                         onClick={() => setActiveTab("profile")}
                         whileHover={{ x: activeTab === "profile" ? 0 : 5 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                        transition={{ type: "spring" as const, stiffness: 300, damping: 20 }}
                       >
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ml-3 ${
                             activeTab === "profile"
@@ -668,7 +668,7 @@ export default function SettingsPage() {
                         }`}
                         onClick={() => setActiveTab("security")}
                         whileHover={{ x: activeTab === "security" ? 0 : 5 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                        transition={{ type: "spring" as const, stiffness: 300, damping: 20 }}
                       >
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ml-3 ${
                             activeTab === "security"

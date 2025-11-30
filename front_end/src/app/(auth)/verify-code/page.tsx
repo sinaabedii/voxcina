@@ -175,7 +175,7 @@ export default function VerifyCodePage() {
               <motion.div
                 className="flex justify-center mb-4"
                 whileHover={{ scale: 1.05 }}
-                transition={{ type: "spring", stiffness: 300 }}
+                transition={{ type: "spring" as const, stiffness: 300 }}
               >
                 <div className="relative">
                   <Link href="/" className="flex items-center group">
@@ -337,7 +337,7 @@ export default function VerifyCodePage() {
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{
-                        type: "spring",
+                        type: "spring" as const,
                         stiffness: 300,
                         damping: 20,
                       }}

@@ -705,7 +705,7 @@ export default function ChatBot() {
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{
-          type: "spring",
+          type: "spring" as const,
           stiffness: 260,
           damping: 20,
           delay: 0.5,
@@ -764,7 +764,7 @@ export default function ChatBot() {
               scale: 0.95,
               transition: { duration: 0.2 },
             }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            transition={{ type: "spring" as const, stiffness: 300, damping: 30 }}
             style={{
               boxShadow: "0 25px 50px -12px rgba(26, 60, 105, 0.25)",
             }}

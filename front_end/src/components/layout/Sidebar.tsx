@@ -56,7 +56,7 @@ const Sidebar = () => {
     hidden: { x: "-100%" },
     visible: {
       x: 0,
-      transition: { type: "spring", damping: 25, stiffness: 300 },
+      transition: { type: "spring" as const, damping: 25, stiffness: 300 },
     },
   };
 

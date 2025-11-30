@@ -125,7 +125,7 @@ export default function ProductsClient() {
     visible: {
       opacity: 1,
       y: 0,
-      transition: { type: "spring", stiffness: 300, damping: 30 },
+      transition: { type: "spring" as const, stiffness: 300, damping: 30 },
     },
   };
 
@@ -677,7 +677,7 @@ export default function ProductsClient() {
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              transition={{ type: "spring" as const, damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-6">

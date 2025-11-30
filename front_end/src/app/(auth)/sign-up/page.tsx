@@ -120,7 +120,7 @@ export default function SignUpPage() {
               <motion.div
                 className="flex justify-center mb-4"
                 whileHover={{ scale: 1.05 }}
-                transition={{ type: "spring", stiffness: 300 }}
+                transition={{ type: "spring" as const, stiffness: 300 }}
               >
                 <div className="relative">
                   <Link href="/" className="flex items-center group">

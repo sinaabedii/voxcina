@@ -49,7 +49,7 @@ const MobileNav: React.FC<MobileNavProps> = ({ navItems, onClose }) => {
     hidden: { x: "100%" },
     visible: {
       x: 0,
-      transition: { type: "spring", damping: 25, stiffness: 300 },
+      transition: { type: "spring" as const, damping: 25, stiffness: 300 },
     },
   };
 
@@ -59,7 +59,7 @@ const MobileNav: React.FC<MobileNavProps> = ({ navItems, onClose }) => {
       height: "auto",
       opacity: 1,
       transition: {
-        height: { type: "spring", stiffness: 300, damping: 30 },
+        height: { type: "spring" as const, stiffness: 300, damping: 30 },
         opacity: { duration: 0.3 },
       },
     },
