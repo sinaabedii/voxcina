@@ -178,17 +178,18 @@ const HeaderClient: React.FC<HeaderClientProps> = ({ navItems }) => {
               </motion.div>
             </div>
           </div>
-
-          <AnimatePresence>
-            {isMobileMenuOpen && (
-              <MobileNav
-                navItems={navItems}
-                onClose={() => setIsMobileMenuOpen(false)}
-              />
-            )}
-          </AnimatePresence>
         </header>
       </div>
+
+      {/* Mobile Navigation Menu */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <MobileNav
+            navItems={navItems}
+            onClose={() => setIsMobileMenuOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Search Modal Overlay */}
       <SmartSearch
