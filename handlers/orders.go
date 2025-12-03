@@ -82,8 +82,11 @@ func newOrderAPIResponse(
 			)
 		}
 		productImage := ""
-		if len(product.Images) > 0 { // Assuming models.Product has Images []string
-			productImage = product.Images[0]
+		// Get image from MainImages or first ColorVariant
+		if len(product.MainImages) > 0 {
+			productImage = product.MainImages[0]
+		} else if len(product.ColorVariants) > 0 && len(product.ColorVariants[0].Images) > 0 {
+			productImage = product.ColorVariants[0].Images[0]
 		}
 
 		populatedItems = append(populatedItems, OrderItemAPIResponse{

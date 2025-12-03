@@ -134,8 +134,11 @@ func prepareCartResponse(ctx context.Context, cart models.Cart) (CartResponse, e
 		}
 
 		productImage := "" // Default image path
-		if len(product.Images) > 0 {
-			productImage = product.Images[0] // Assuming models.Product.Images is []string
+		// Get image from MainImages or first ColorVariant
+		if len(product.MainImages) > 0 {
+			productImage = product.MainImages[0]
+		} else if len(product.ColorVariants) > 0 && len(product.ColorVariants[0].Images) > 0 {
+			productImage = product.ColorVariants[0].Images[0]
 		}
 
 		responseItems = append(responseItems, CartItemResponse{

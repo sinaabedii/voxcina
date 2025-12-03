@@ -984,9 +984,8 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 			CategoryIDs    []string                      `json:"categoryIds"`
 			BrandID        *string                       `json:"brandId"`
 			Collection     *string                       `json:"collection"`
-			Variants       []models.ProductVariant       `json:"variants"`
+			ColorVariants  []models.ColorVariant         `json:"colorVariants"`
 			Attributes     []models.ProductAttribute     `json:"attributes"`
-			TryOnImage     *string                       `json:"tryOnImage"`
 			IsFlashSale    *bool                         `json:"isFlashSale"`
 			IsActive       *bool                         `json:"isActive"`
 			InStock        *bool                         `json:"inStock"`
@@ -1096,18 +1095,13 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 			somethingToUpdate = true
 		}
 
-		if len(productUpdate.Variants) > 0 {
-			update["variants"] = productUpdate.Variants
+		if len(productUpdate.ColorVariants) > 0 {
+			update["color_variants"] = productUpdate.ColorVariants
 			somethingToUpdate = true
 		}
 
 		if len(productUpdate.Attributes) > 0 {
 			update["attributes"] = productUpdate.Attributes
-			somethingToUpdate = true
-		}
-
-		if productUpdate.TryOnImage != nil {
-			update["try_on_image"] = *productUpdate.TryOnImage
 			somethingToUpdate = true
 		}
 
@@ -1267,17 +1261,17 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 			somethingToUpdate = true
 		}
 
-		if variantsJSON := r.FormValue("variants"); variantsJSON != "" {
-			var variants []models.ProductVariant
-			if err := json.Unmarshal([]byte(variantsJSON), &variants); err != nil {
+		if colorVariantsJSON := r.FormValue("colorVariants"); colorVariantsJSON != "" {
+			var colorVariants []models.ColorVariant
+			if err := json.Unmarshal([]byte(colorVariantsJSON), &colorVariants); err != nil {
 				utils.ErrorResponse(
 					w,
 					http.StatusBadRequest,
-					"Invalid variants JSON format: "+err.Error(),
+					"Invalid colorVariants JSON format: "+err.Error(),
 				)
 				return
 			}
-			update["variants"] = variants
+			update["color_variants"] = colorVariants
 			somethingToUpdate = true
 		}
 
@@ -1438,45 +1432,22 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 			somethingToUpdate = true
 		}
 
-		// Determine images to delete
+		// Determine main images to delete
 		if existingImagePathsJSON != "" || len(files) > 0 {
-			update["images"] = finalImagePaths
+			update["main_images"] = finalImagePaths
 			existingImageMap := make(map[string]bool)
 			for _, p := range finalImagePaths {
 				existingImageMap[p] = true
 			}
-			for _, oldPath := range existingProduct.Images {
+			for _, oldPath := range existingProduct.MainImages {
 				if !existingImageMap[oldPath] {
 					imagesToDelete = append(imagesToDelete, "."+oldPath)
 				}
 			}
 		}
 
-		if tryHeaders := r.MultipartForm.File["tryOnImage"]; len(tryHeaders) > 0 {
-			header := tryHeaders[0]
-			tryDir := filepath.Join(BaseUploadDir, "products", "tryon")
-			_ = os.MkdirAll(tryDir, 0755)
-			ext := filepath.Ext(header.Filename)
-			filename := fmt.Sprintf("%s-%d%s", productID.Hex(), time.Now().UnixNano(), ext)
-			filePath := filepath.Join(tryDir, filename)
-			file, err := header.Open()
-			if err == nil {
-				dst, err2 := os.Create(filePath)
-				if err2 == nil {
-					_, _ = io.Copy(dst, file)
-					dst.Close()
-					serverPath := filepath.Join("/uploads/products/tryon", filename)
-					update["try_on_image"] = serverPath
-					newlyUploadedPaths = append(newlyUploadedPaths, filePath)
-					somethingToUpdate = true
-					// mark old image for deletion
-					if existingProduct.TryOnImage != "" {
-						imagesToDelete = append(imagesToDelete, "."+existingProduct.TryOnImage)
-					}
-				}
-				file.Close()
-			}
-		}
+		// Handle color variant images - tryOnImage is now per color variant
+		// This is handled through colorVariants JSON update above
 
 	} else {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Unsupported Content-Type. Use application/json or multipart/form-data")
@@ -1624,9 +1595,7 @@ func DeleteProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete associated main images from the filesystem
-	// Note: Variant images are not handled here yet. If variants have their own images stored on the server,
-	// that logic would need to be added.
-	for _, imagePath := range productToDeactivate.Images {
+	for _, imagePath := range productToDeactivate.MainImages {
 		serverFilePath := "." + imagePath // Assuming imagePath is like /uploads/products/main/image.jpg
 		if err := os.Remove(serverFilePath); err != nil {
 			// Log this error, but don't fail the entire request as the product is already deactivated.
@@ -1638,15 +1607,22 @@ func DeleteProduct(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Optionally, if variant images were stored on the server and their paths were in productToDeactivate.Variants[*].Images:
-	// for _, variant := range productToDeactivate.Variants {
-	// 	for _, vImagePath := range variant.Images {
-	// 		serverVFilePath := "." + vImagePath
-	// 		if err := os.Remove(serverVFilePath); err != nil {
-	// 			fmt.Printf("WARN: Failed to delete variant image %s: %v\n", serverVFilePath, err)
-	// 		}
-	// 	}
-	// }
+	// Delete color variant images
+	for _, colorVariant := range productToDeactivate.ColorVariants {
+		for _, vImagePath := range colorVariant.Images {
+			serverVFilePath := "." + vImagePath
+			if err := os.Remove(serverVFilePath); err != nil {
+				fmt.Printf("WARN: Failed to delete color variant image %s: %v\n", serverVFilePath, err)
+			}
+		}
+		// Delete try-on image for this color variant
+		if colorVariant.TryOnImage != "" {
+			serverTryOnPath := "." + colorVariant.TryOnImage
+			if err := os.Remove(serverTryOnPath); err != nil {
+				fmt.Printf("WARN: Failed to delete try-on image %s: %v\n", serverTryOnPath, err)
+			}
+		}
+	}
 
 	utils.JSONResponse(
 		w,
