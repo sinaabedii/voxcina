@@ -807,6 +807,43 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, http.StatusOK, resp)
 }
 
+// AdminListProducts handles GET /api/admin/products
+// Returns full Product objects (not color variant list items) for admin dashboard
+func AdminListProducts(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	collection := db.Database.Collection("products")
+
+	// For admin, show all products including inactive ones
+	filter := bson.M{}
+	
+	// Optional: filter by active status if requested
+	if activeOnly := r.URL.Query().Get("active_only"); activeOnly == "true" {
+		filter["is_active"] = true
+	}
+
+	cursor, err := collection.Find(ctx, filter)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching products")
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var products []models.Product
+	if err := cursor.All(ctx, &products); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding products")
+		return
+	}
+
+	// Return empty array instead of null
+	if products == nil {
+		products = []models.Product{}
+	}
+
+	utils.JSONResponse(w, http.StatusOK, products)
+}
+
 // GetProduct handles GET /api/products/{id}
 func GetProduct(w http.ResponseWriter, r *http.Request) {
 	// Get ID from URL parameters or query string

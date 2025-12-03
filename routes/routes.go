@@ -101,6 +101,7 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/discounts/{id}", handlers.DeleteDiscount).Methods("DELETE")
 
 	// Product Management Routes (Admin)
+	adminRouter.HandleFunc("/products", handlers.AdminListProducts).Methods("GET")
 	adminRouter.HandleFunc("/products", handlers.AddProduct).Methods("POST")
 	adminRouter.HandleFunc("/products/{id}", handlers.UpdateProduct).Methods("PUT")
 	adminRouter.HandleFunc("/products/{id}", handlers.DeleteProduct).Methods("DELETE")
@@ -136,9 +137,6 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/categories", handlers.CreateCategory).
 		Methods(http.MethodPost)
 		// Moved to admin router
-
-	// Public Product Routes
-	api.HandleFunc("/products", handlers.ListProducts).Methods("GET")
 
 	// Vocabulary Mappings (Public for frontend dropdowns)
 	api.HandleFunc("/vocabulary-mappings", handlers.GetVocabularyMappings).Methods(http.MethodGet)
