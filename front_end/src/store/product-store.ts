@@ -11,6 +11,7 @@ import {
 import { delay, getBrandName, getCategoryName } from "@/lib/utils";
 import { Brand } from "@/types/brand";
 import { Category } from "@/types/category";
+import { useAuthStore } from "./auth-store";
 
 interface ProductState {
   // Product lists now store ColorVariantListItem (color variants as separate items)
@@ -33,7 +34,7 @@ interface ProductState {
   fetchBrands: () => Promise<void>;
   fetchCategories: () => Promise<void>;
   fetchProducts: (page?: number, limit?: number) => Promise<void>;
-  fetchAdminProducts: () => Promise<void>; // Fetch full products for admin
+  fetchAdminProducts: (adminToken?: string) => Promise<void>; // Fetch full products for admin
   fetchProductById: (id: string) => Promise<void>;
   fetchFlashSaleProducts: (limit?: number) => Promise<void>;
   fetchNewProducts: (limit?: number) => Promise<void>;
@@ -83,11 +84,15 @@ export const useProductStore = create<ProductState>()(
       pagination: null,
 
       // Fetch full products for admin dashboard (not color variant list items)
-      fetchAdminProducts: async () => {
+      fetchAdminProducts: async (adminToken?: string) => {
         set({ isLoading: true, error: null });
         try {
+          // Get token from parameter or from auth store
+          const token = adminToken || useAuthStore.getState().adminToken;
           const response = await fetch("/api/admin/products", {
-            credentials: "include", // Include cookies for authentication
+            headers: {
+              Authorization: token ? `Bearer ${token}` : "",
+            },
           });
           if (!response.ok) {
             throw new Error("Failed to fetch admin products");
