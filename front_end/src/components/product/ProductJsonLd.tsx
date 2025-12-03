@@ -12,8 +12,8 @@ export default function ProductJsonLd({ product, url }: ProductJsonLdProps) {
   // محاسبه قیمت - use price directly since discountPrice doesn't exist
   const price = product.price;
   
-  // وضعیت موجودی
-  const inStock = product.variants.some(v => v.quantity > 0);
+  // وضعیت موجودی - check colorVariants for inventory
+  const inStock = product.colorVariants?.some(cv => cv.sizes?.some(s => s.quantity > 0)) ?? false;
   const availability = inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock';
   
   // امتیاز و تعداد نظرات - ratings property doesn't exist, use default values
@@ -23,8 +23,10 @@ export default function ProductJsonLd({ product, url }: ProductJsonLdProps) {
   // نوع محصول - use category_ids instead of categories
   const productCategory = product.category_ids?.[0] || 'پوشاک';
   
-  // تصاویر محصول
-  const images = product.images || [];
+  // تصاویر محصول - use mainImages or first colorVariant images
+  const images = product.mainImages || 
+    (product.colorVariants?.[0]?.images) || 
+    [];
   
   // ساخت داده ساختاریافته
   const jsonLd = {

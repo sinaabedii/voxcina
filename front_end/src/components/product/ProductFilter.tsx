@@ -48,22 +48,25 @@ const ProductFilter: React.FC<ProductFilterProps> = ({
     new Set(products.map((product) => product.brand).filter(Boolean))
   ).sort() as string[];
 
-  // Extract all unique colors from product variants
-  const allColorCodes = products.flatMap((product) => 
-    product.variants.map(variant => variant.color)
-  );
+  // Extract all unique colors from product color variants
+  const allColors = products.map((product) => ({
+    code: product.colorVariant.color,
+    name: product.colorVariant.colorName || product.colorVariant.color
+  }));
   
-  // Create unique color objects (assuming we'll need to map color codes to names)
-  // Note: This is an approximation since the original data had color objects with code and name
-  const uniqueColorCodes = Array.from(new Set(allColorCodes));
-  const uniqueColors: ColorOption[] = uniqueColorCodes.map(colorCode => ({
-    code: colorCode,
-    name: colorCode, // Using code as name since we don't have a mapping
-  })).sort((a, b) => a.name.localeCompare(b.name));
+  // Create unique color objects
+  const uniqueColorCodes = Array.from(new Set(allColors.map(c => c.code)));
+  const uniqueColors: ColorOption[] = uniqueColorCodes.map(colorCode => {
+    const found = allColors.find(c => c.code === colorCode);
+    return {
+      code: colorCode,
+      name: found?.name || colorCode,
+    };
+  }).sort((a, b) => a.name.localeCompare(b.name));
 
-  // Extract all unique sizes from product variants
+  // Extract all unique sizes from product color variants
   const allSizes = products.flatMap((product) => 
-    product.variants.map(variant => variant.size)
+    product.colorVariant.sizes.map(s => s.size)
   );
   const uniqueSizes = Array.from(new Set(allSizes)).sort();
 

@@ -14,7 +14,7 @@ import {
   User,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
-import { Product } from "@/types/product";
+import { Product, ColorVariant } from "@/types/product";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface AISmartSearchProps {
@@ -319,15 +319,18 @@ const AISmartSearch: React.FC<AISmartSearchProps> = ({
                         className="block p-4 hover:bg-gray-50 rounded-xl transition-colors group"
                       >
                         <div className="flex items-center gap-4">
-                          {product.images?.[0] && (
-                            <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                              <img
-                                src={product.images[0]}
-                                alt={product.name}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          )}
+                          {(() => {
+                            const imageSrc = product.mainImages?.[0] || product.colorVariants?.[0]?.images?.[0];
+                            return imageSrc ? (
+                              <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                                <img
+                                  src={imageSrc}
+                                  alt={product.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : null;
+                          })()}
                           <div className="flex-1 min-w-0 text-right">
                             <h5 className="text-sm font-medium text-gray-900 truncate">
                               {highlightText(product.name)}

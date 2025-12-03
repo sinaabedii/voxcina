@@ -182,7 +182,7 @@ export default function HomePage() {
           ) : (
             <div>
               <ProductGrid
-                products={featuredProducts}
+                items={featuredProducts}
                 columns={4}
                 glassEffect={true}
               />
@@ -251,7 +251,7 @@ export default function HomePage() {
             </div>
           ) : (
             <div>
-              <ProductGrid products={newProducts} columns={4} />
+              <ProductGrid items={newProducts} columns={4} />
             </div>
           )}
         </motion.section>

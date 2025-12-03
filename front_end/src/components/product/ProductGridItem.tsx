@@ -1,15 +1,15 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { formatPrice, cn, getDiscountPercentage } from "@/lib/utils";
-import { Product } from "@/types/product";
+import { ColorVariantListItem } from "@/types/product";
 import BackendImage from "@/components/BackendImage";
 import { Eye, ShoppingCart, Heart } from "lucide-react";
 
 interface ProductGridItemProps {
-  product: Product;
+  item: ColorVariantListItem;
   index?: number;
   glassEffect?: boolean;
-  onAddToCart?: (product: Product) => void;
+  onAddToCart?: (item: ColorVariantListItem) => void;
   onAddToFavorites?: (productId: string) => void;
   isFavorite?: boolean;
 }
@@ -18,7 +18,7 @@ interface ProductGridItemProps {
  * آیتم محصول در گرید با بهینه‌سازی لود تصاویر و نشانه‌گذاری ساختاری
  */
 export default function ProductGridItem({
-  product,
+  item,
   index = 0,
   glassEffect = false,
   onAddToCart,
@@ -26,19 +26,19 @@ export default function ProductGridItem({
   isFavorite = false,
 }: ProductGridItemProps) {
   // محاسبه درصد تخفیف
-  const hasDiscount = product.originalPrice && product.originalPrice > product.price;
+  const hasDiscount = item.originalPrice && item.originalPrice > item.price;
   const discountPercentage = hasDiscount
-    ? getDiscountPercentage(product.originalPrice as number, product.price)
+    ? getDiscountPercentage(item.originalPrice as number, item.price)
     : 0;
 
   // آیا موجود است؟
-  const isInStock = product.inStock !== false;
+  const isInStock = item.inStock !== false;
 
   // تأخیر برای انیمیشن
   const animationDelay = Math.min(index * 0.1, 0.8);
 
-  // آماده‌سازی آدرس تصویر
-  const imageSrc = product.images?.[0] || "/images/products/placeholder.jpg";
+  // آماده‌سازی آدرس تصویر - use colorVariant images
+  const imageSrc = item.colorVariant.images?.[0] || "/images/products/placeholder.jpg";
 
   return (
     <motion.div
@@ -67,11 +67,11 @@ export default function ProductGridItem({
         </div>
       )}
 
-      <Link href={`/products/${product.id}`} className="relative aspect-square overflow-hidden">
+      <Link href={`/products/${item.productId}?color=${encodeURIComponent(item.colorVariant.color)}`} className="relative aspect-square overflow-hidden">
         <div className="relative w-full h-full">
           <BackendImage
             src={imageSrc}
-            alt={product.name}
+            alt={item.name}
             className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
             priority={index < 4}
           />
@@ -82,7 +82,7 @@ export default function ProductGridItem({
           <button
             onClick={(e) => {
               e.preventDefault();
-              window.location.href = `/products/${product.id}`;
+              window.location.href = `/products/${item.productId}?color=${encodeURIComponent(item.colorVariant.color)}`;
             }}
             className="bg-white/90 dark:bg-voxcina-blue/90 text-voxcina-blue dark:text-white p-2 rounded-full shadow-md hover:bg-white dark:hover:bg-voxcina-blue transition-colors"
             title="مشاهده محصول"
@@ -93,7 +93,7 @@ export default function ProductGridItem({
             <button
               onClick={(e) => {
                 e.preventDefault();
-                onAddToCart(product);
+                onAddToCart(item);
               }}
               className="bg-white/90 dark:bg-voxcina-blue/90 text-voxcina-blue dark:text-white p-2 rounded-full shadow-md hover:bg-white dark:hover:bg-voxcina-blue transition-colors"
               title="افزودن به سبد خرید"
@@ -106,7 +106,7 @@ export default function ProductGridItem({
             <button
               onClick={(e) => {
                 e.preventDefault();
-                onAddToFavorites(product.id);
+                onAddToFavorites(item.productId);
               }}
               className={`${
                 isFavorite
@@ -122,29 +122,29 @@ export default function ProductGridItem({
       </Link>
 
       <div className="p-4 flex flex-col flex-grow">
-        <Link href={`/products/${product.id}`}>
+        <Link href={`/products/${item.productId}?color=${encodeURIComponent(item.colorVariant.color)}`}>
           <h3 className="text-voxcina-blue dark:text-voxcina-cream font-medium mb-1 truncate hover:text-voxcina-darkBlue dark:hover:text-white transition-colors">
-            {product.name}
+            {item.name}
           </h3>
         </Link>
 
-        {product.brand && (
+        {item.brand && (
           <Link
-            href={`/brands/${product.brand.toLowerCase().replace(/\s+/g, "-")}`}
+            href={`/brands/${item.brand.toLowerCase().replace(/\s+/g, "-")}`}
             className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 mb-2 hover:text-voxcina-blue dark:hover:text-voxcina-cream transition-colors"
           >
-            {product.brand}
+            {item.brand}
           </Link>
         )}
 
         <div className="mt-auto pt-2 flex items-center justify-between">
           <div className="flex flex-col">
             <span className="font-bold text-voxcina-blue dark:text-voxcina-cream">
-              {formatPrice(product.price)}
+              {formatPrice(item.price)}
             </span>
             {hasDiscount && (
               <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50 line-through">
-                {formatPrice(product.originalPrice as number)}
+                {formatPrice(item.originalPrice as number)}
               </span>
             )}
           </div>

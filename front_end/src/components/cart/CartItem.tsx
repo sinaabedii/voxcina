@@ -37,27 +37,41 @@ const CartItem: React.FC<CartItemProps> = ({ item }) => {
       layout
     >
       <div className="w-full sm:w-24 h-24 mb-4 sm:mb-0">
-        {item.product.images && item.product.images.length > 0 ? (
-          <motion.div 
-            className="relative h-24 w-24 rounded-xl overflow-hidden shadow-soft border border-border/10 group"
-            whileHover={{ scale: 1.05 }}
-            transition={{ duration: 0.2 }}
-          >
-            <div className="h-full w-full bg-secondary/30 flex items-center justify-center overflow-hidden">
-              <Image 
-                src={item.product.images[0]} 
-                alt={item.product.name}
-                width={96}
-                height={96}
-                className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500"
-              />
+        {(() => {
+          // Get image from mainImages or colorVariants based on selected color
+          const getProductImage = () => {
+            if (item.color && item.product.colorVariants) {
+              const colorVariant = item.product.colorVariants.find(cv => cv.color === item.color);
+              if (colorVariant?.images?.[0]) return colorVariant.images[0];
+            }
+            if (item.product.mainImages?.[0]) return item.product.mainImages[0];
+            if (item.product.colorVariants?.[0]?.images?.[0]) return item.product.colorVariants[0].images[0];
+            return null;
+          };
+          const imageSrc = getProductImage();
+          
+          return imageSrc ? (
+            <motion.div 
+              className="relative h-24 w-24 rounded-xl overflow-hidden shadow-soft border border-border/10 group"
+              whileHover={{ scale: 1.05 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="h-full w-full bg-secondary/30 flex items-center justify-center overflow-hidden">
+                <Image 
+                  src={imageSrc} 
+                  alt={item.product.name}
+                  width={96}
+                  height={96}
+                  className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500"
+                />
+              </div>
+            </motion.div>
+          ) : (
+            <div className="h-24 w-24 bg-secondary/30 rounded-xl flex items-center justify-center shadow-soft border border-border/10">
+              <Package className="h-8 w-8 text-primary/40" />
             </div>
-          </motion.div>
-        ) : (
-          <div className="h-24 w-24 bg-secondary/30 rounded-xl flex items-center justify-center shadow-soft border border-border/10">
-            <Package className="h-8 w-8 text-primary/40" />
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       <div className="flex-grow sm:mr-4">

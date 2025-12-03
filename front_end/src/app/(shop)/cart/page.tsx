@@ -187,23 +187,36 @@ export default function CartPage() {
                       layout
                     >
                       <div className="w-full sm:w-24 h-24 mb-4 sm:mb-0">
-                        {item.product.images &&
-                        item.product.images.length > 0 ? (
-                          <div className="relative h-24 w-24 rounded-xl overflow-hidden bg-voxcina-cream/30 dark:bg-voxcina-blue/20 border border-voxcina-cream/50 dark:border-voxcina-blue/40 shadow-sm">
-                            <Image
-                              src={item.product.images[0]}
-                              alt={item.product.name || 'Product image'}
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <div className="h-24 w-24 bg-voxcina-cream/30 dark:bg-voxcina-blue/20 rounded-xl flex items-center justify-center border border-voxcina-cream/50 dark:border-voxcina-blue/40">
-                            <span className="text-voxcina-blue/50 dark:text-voxcina-cream/50 text-xs">
-                              بدون تصویر
-                            </span>
-                          </div>
-                        )}
+                        {(() => {
+                          // Get image from colorVariants based on selected color or mainImages
+                          const getProductImage = () => {
+                            if (item.color && item.product.colorVariants) {
+                              const colorVariant = item.product.colorVariants.find(cv => cv.color === item.color);
+                              if (colorVariant?.images?.[0]) return colorVariant.images[0];
+                            }
+                            if (item.product.mainImages?.[0]) return item.product.mainImages[0];
+                            if (item.product.colorVariants?.[0]?.images?.[0]) return item.product.colorVariants[0].images[0];
+                            return null;
+                          };
+                          const imageSrc = getProductImage();
+                          
+                          return imageSrc ? (
+                            <div className="relative h-24 w-24 rounded-xl overflow-hidden bg-voxcina-cream/30 dark:bg-voxcina-blue/20 border border-voxcina-cream/50 dark:border-voxcina-blue/40 shadow-sm">
+                              <Image
+                                src={imageSrc}
+                                alt={item.product.name || 'Product image'}
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="h-24 w-24 bg-voxcina-cream/30 dark:bg-voxcina-blue/20 rounded-xl flex items-center justify-center border border-voxcina-cream/50 dark:border-voxcina-blue/40">
+                              <span className="text-voxcina-blue/50 dark:text-voxcina-cream/50 text-xs">
+                                بدون تصویر
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       <div className="flex-grow sm:mr-4">

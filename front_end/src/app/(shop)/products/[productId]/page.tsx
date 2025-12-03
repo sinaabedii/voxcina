@@ -32,6 +32,7 @@ import { useDashboardStore } from "@/store/dashboard-store";
 import { formatPrice, cn, getDiscountPercentage } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import ProductGrid from "@/components/product/ProductGrid";
+import ProductCard from "@/components/product/ProductCard";
 import ProductReviews from "@/components/product/ProductReviews";
 import ProductJsonLd from "@/components/product/ProductJsonLd";
 import { Review } from "@/types/product";
@@ -122,45 +123,74 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
   const isProductFavorite = activeProduct?.id ? isFavorite(activeProduct.id) : false;
 
-  // Extract available sizes and colors from variants
-  const availableSizes = activeProduct?.variants 
-    ? [...new Set(activeProduct.variants.map((variant) => variant.size))]
+  // Helper function to get product images based on selected color
+  const getProductImages = () => {
+    if (!activeProduct) return [];
+    
+    // If a color is selected, get images for that color
+    if (selectedColor) {
+      const colorVariant = activeProduct.colorVariants?.find(cv => cv.color === selectedColor);
+      if (colorVariant?.images?.length) {
+        // Combine color-specific images with main images
+        return [...colorVariant.images, ...(activeProduct.mainImages || [])];
+      }
+    }
+    
+    // Default: combine main images with first color variant images
+    const mainImages = activeProduct.mainImages || [];
+    const firstColorImages = activeProduct.colorVariants?.[0]?.images || [];
+    return [...mainImages, ...firstColorImages];
+  };
+
+  // Helper function to get try-on image based on selected color
+  const getTryOnImage = () => {
+    if (!activeProduct) return null;
+    
+    // If a color is selected, get try-on image for that color
+    if (selectedColor) {
+      const colorVariant = activeProduct.colorVariants?.find(cv => cv.color === selectedColor);
+      if (colorVariant?.tryOnImage) return colorVariant.tryOnImage;
+    }
+    
+    // Default: get first color variant's try-on image
+    return activeProduct.colorVariants?.[0]?.tryOnImage || null;
+  };
+
+  // Get current product images
+  const productImages = getProductImages();
+  const tryOnImage = getTryOnImage();
+
+  // Extract available sizes and colors from colorVariants
+  const availableSizes = activeProduct?.colorVariants 
+    ? [...new Set(activeProduct.colorVariants.flatMap((cv) => cv.sizes.map(s => s.size)))]
     : [];
 
-  const availableColors = activeProduct?.variants
-    ? [...new Set(activeProduct.variants.map((variant) => variant.color))]
+  const availableColors = activeProduct?.colorVariants
+    ? activeProduct.colorVariants.map((cv) => ({ color: cv.color, colorName: cv.colorName }))
     : [];
 
   // Get available sizes based on selected color
   const getAvailableSizesForColor = (color: string | undefined) => {
     if (!activeProduct || !color) return availableSizes;
-    return [
-      ...new Set(
-        activeProduct.variants
-          .filter((v) => v.color === color && v.quantity > 0)
-          .map((v) => v.size)
-      ),
-    ];
+    const colorVariant = activeProduct.colorVariants.find(cv => cv.color === color);
+    if (!colorVariant) return [];
+    return colorVariant.sizes.filter(s => s.quantity > 0).map(s => s.size);
   };
 
   // Get available colors based on selected size
   const getAvailableColorsForSize = (size: string | undefined) => {
     if (!activeProduct || !size) return availableColors;
-    return [
-      ...new Set(
-        activeProduct.variants
-          .filter((v) => v.size === size && v.quantity > 0)
-          .map((v) => v.color)
-      ),
-    ];
+    return activeProduct.colorVariants
+      .filter(cv => cv.sizes.some(s => s.size === size && s.quantity > 0))
+      .map(cv => ({ color: cv.color, colorName: cv.colorName }));
   };
 
   // Check if a specific variant is in stock
   const isVariantInStock = (size: string, color: string) => {
     if (!activeProduct) return false;
-    return activeProduct.variants.some(
-      (v) => v.size === size && v.color === color && v.quantity > 0
-    );
+    const colorVariant = activeProduct.colorVariants.find(cv => cv.color === color);
+    if (!colorVariant) return false;
+    return colorVariant.sizes.some(s => s.size === size && s.quantity > 0);
   };
 
   // Get available sizes based on selected color
@@ -218,11 +248,11 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!activeProduct?.images) return;
+      if (!productImages.length) return;
 
       if (e.key === "ArrowLeft") {
         setSelectedImage((prev) =>
-          prev < (activeProduct.images?.length || 1) - 1 ? prev + 1 : prev
+          prev < productImages.length - 1 ? prev + 1 : prev
         );
       } else if (e.key === "ArrowRight") {
         setSelectedImage((prev) => (prev > 0 ? prev - 1 : prev));
@@ -231,7 +261,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeProduct]);
+  }, [productImages]);
 
   // Create complete product URL for structured data (moved before early returns)
   const productUrl = useMemo(() => {
@@ -365,9 +395,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   };
 
   const handleNextImage = () => {
-    if (!activeProduct.images) return;
+    if (!productImages) return;
     setSelectedImage((prev) =>
-      prev < (activeProduct.images?.length || 1) - 1 ? prev + 1 : prev
+      prev < (productImages?.length || 1) - 1 ? prev + 1 : prev
     );
   };
 
@@ -388,6 +418,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     }
   };
 
+  // products is ColorVariantListItem[], filter by productId
   const similarProducts = products
     .filter(
       (p) =>
@@ -398,19 +429,20 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         p.category_ids.some((catId) =>
           activeProduct.category_ids.includes(catId)
         ) &&
-        p.id !== activeProduct.id
+        p.productId !== activeProduct.id
     )
     .slice(0, 4);
 
+  // recentlyViewed is Product[], filter by id
   const otherRecentlyViewed = recentlyViewed
     .filter((p) => p.id !== activeProduct.id)
     .slice(0, 4);
 
   const handleTryOnSubmit = async () => {
-    if (!activeProduct?.tryOnImage) return;
+    if (!tryOnImage) return;
     setShowTryOnModal(false); // Close modal immediately
     try {
-      await startTryOn(activeProduct.tryOnImage);
+      await startTryOn(tryOnImage);
     } catch (error) {
       console.error("Error in try-on process:", error);
     }
@@ -468,11 +500,11 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               onMouseMove={handleImageMouseMove}
               onMouseLeave={() => setIsZoomed(false)}
             >
-              {activeProduct.images && activeProduct.images.length > 0 ? (
+              {productImages && productImages.length > 0 ? (
                 <>
                   <div className="relative w-full h-full">
                     <BackendImage
-                      src={activeProduct.images?.[selectedImage] || ''}
+                      src={productImages?.[selectedImage] || ''}
                       alt={`${activeProduct?.name || ''} - ${activeProduct?.brand || ''}`}
                       className={cn(
                         "object-cover w-full h-full transition-transform duration-300",
@@ -521,7 +553,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   </motion.button>
 
                   <div className="absolute bottom-4 left-4 bg-voxcina-blue/70 dark:bg-voxcina-cream/20 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-sm">
-                    {selectedImage + 1} / {activeProduct.images?.length || 1}
+                    {selectedImage + 1} / {productImages?.length || 1}
                   </div>
                 </>
               ) : (
@@ -533,9 +565,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               )}
             </div>
 
-            {activeProduct.images && activeProduct.images.length > 1 && (
+            {productImages && productImages.length > 1 && (
               <div className="flex space-x-2 space-x-reverse overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-voxcina-blue/20 scrollbar-track-voxcina-cream/50 dark:scrollbar-thumb-voxcina-cream/30 dark:scrollbar-track-voxcina-blue/20">
-                {activeProduct.images.map((image, index) => (
+                {productImages.map((image, index) => (
                   <motion.button
                     key={index}
                     className={`w-20 h-20 min-w-[5rem] border rounded-xl overflow-hidden ${
@@ -807,20 +839,20 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   </h3>
                   <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
                     {selectedColor
-                      ? availableColors.find((c) => c === selectedColor)
+                      ? availableColors.find((c) => c.color === selectedColor)?.colorName || selectedColor
                       : "لطفاً رنگ را انتخاب کنید"}
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  {availableColors.map((color) => {
+                  {availableColors.map((colorObj) => {
                     const isAvailable =
                       !selectedSize ||
-                      availableColorsForSelectedSize.includes(color);
+                      availableColorsForSelectedSize.some(c => c.color === colorObj.color);
                     return (
                       <motion.button
-                        key={color}
+                        key={colorObj.color}
                         className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                          selectedColor === color
+                          selectedColor === colorObj.color
                             ? "ring-2 ring-voxcina-blue dark:ring-voxcina-cream ring-offset-2 dark:ring-offset-voxcina-blue/80"
                             : isAvailable
                             ? "ring-1 ring-voxcina-cream/50 dark:ring-voxcina-blue/30 hover:ring-voxcina-blue/50 dark:hover:ring-voxcina-cream/50"
@@ -829,23 +861,23 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                         onClick={() =>
                           isAvailable &&
                           setSelectedColor(
-                            selectedColor === color ? undefined : color
+                            selectedColor === colorObj.color ? undefined : colorObj.color
                           )
                         }
-                        title={color}
+                        title={colorObj.colorName || colorObj.color}
                         whileHover={isAvailable ? { scale: 1.1 } : {}}
                         whileTap={isAvailable ? { scale: 0.9 } : {}}
                         disabled={!isAvailable}
                       >
                         <span
                           className="w-8 h-8 rounded-full block"
-                          style={{ backgroundColor: color }}
+                          style={{ backgroundColor: colorObj.color }}
                         />
-                        {selectedColor === color && (
+                        {selectedColor === colorObj.color && (
                           <CheckCircle className="absolute h-4 w-4 drop-shadow-md" 
                             style={{ 
-                              color: isLightColor(color) ? '#000' : '#fff',
-                              filter: isLightColor(color) ? 'drop-shadow(0 0 2px rgba(255,255,255,0.8))' : 'drop-shadow(0 0 2px rgba(0,0,0,0.8))'
+                              color: isLightColor(colorObj.color) ? '#000' : '#fff',
+                              filter: isLightColor(colorObj.color) ? 'drop-shadow(0 0 2px rgba(255,255,255,0.8))' : 'drop-shadow(0 0 2px rgba(0,0,0,0.8))'
                             }} 
                           />
                         )}
@@ -991,7 +1023,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     }}
                   >
                     {/* Animated glow effect */}
-                    {activeProduct.tryOnImage && (
+                    {tryOnImage && (
                       <div className="absolute -inset-1 bg-gradient-to-r from-pink-600 via-purple-500 to-blue-600 rounded-xl opacity-70 blur-lg group-hover:opacity-100 animate-gradient-xy"></div>
                     )}
                     
@@ -999,23 +1031,23 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       variant="outline"
                       size="lg"
                       className={`w-full rounded-xl border-2 ${
-                        activeProduct.tryOnImage 
+                        tryOnImage 
                           ? "border-purple-400 dark:border-purple-300 text-voxcina-blue dark:text-voxcina-cream bg-gradient-to-br from-white/80 via-purple-100/60 to-white/80 dark:from-voxcina-blue/60 dark:via-purple-900/40 dark:to-voxcina-blue/60 shadow-lg hover:shadow-purple-300/50 dark:hover:shadow-purple-500/30 relative overflow-hidden"
                           : "border-voxcina-blue/20 text-voxcina-blue/60 dark:border-voxcina-blue/30 dark:text-voxcina-cream/60 bg-voxcina-cream/20 dark:bg-voxcina-blue/20"
                       } transition-all duration-500 disabled:opacity-40 disabled:from-transparent disabled:to-transparent relative group`}
-                      disabled={!activeProduct.tryOnImage}
+                      disabled={!tryOnImage}
                       onClick={() => setShowTryOnModal(true)}
                       aria-label="آزمایش مجازی"
                     >
                       {/* Animated shine effect */}
-                      {activeProduct.tryOnImage && (
+                      {tryOnImage && (
                         <div className="absolute inset-0 w-full h-full overflow-hidden">
                           <div className="absolute top-0 left-[-100%] h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white/40 dark:to-purple-300/30 opacity-40 animate-shine" />
                         </div>
                       )}
                       
                       <div className="relative flex items-center justify-center">
-                        {activeProduct.tryOnImage && (
+                        {tryOnImage && (
                           <>
                             {/* Sparkle elements */}
                             <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-300 rounded-full animate-ping opacity-75"></span>
@@ -1025,7 +1057,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                         )}
                         <motion.div
                           animate={{
-                            scale: activeProduct.tryOnImage ? [1, 1.2, 1] : 1,
+                            scale: tryOnImage ? [1, 1.2, 1] : 1,
                             transition: {
                               repeat: Infinity,
                               repeatType: "mirror",
@@ -1211,14 +1243,14 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     variant="outline"
                     size="sm"
                     className="w-full rounded-xl mb-2"
-                    disabled={!activeProduct.tryOnImage}
+                    disabled={!tryOnImage}
                     onClick={() => setShowTryOnModal(true)}
                   >
                     <Camera className="w-4 h-4 ml-1" />
                     شروع پرو مجازی
                   </Button>
                   
-                  {!activeProduct.tryOnImage && (
+                  {!tryOnImage && (
                     <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50 mt-2">
                       (برای این محصول در دسترس نیست)
                     </span>
@@ -1438,7 +1470,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   url={productUrl} 
                   title={activeProduct.name} 
                   description={activeProduct.description} 
-                  imageUrl={activeProduct.images?.[0]} 
+                  imageUrl={productImages?.[0]} 
                 />
 
                 <div className="flex justify-end mt-8">
@@ -1474,7 +1506,38 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <ProductGrid products={otherRecentlyViewed} columns={4} />
+              {/* Recently viewed needs conversion from Product[] to ColorVariantListItem[] - showing first color variant */}
+              {otherRecentlyViewed.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                  {otherRecentlyViewed.map((product) => {
+                    const firstColorVariant = product.colorVariants?.[0];
+                    if (!firstColorVariant) return null;
+                    const totalInventory = firstColorVariant.sizes.reduce((sum, s) => sum + s.quantity, 0);
+                    const item: import("@/types/product").ColorVariantListItem = {
+                      productId: product.id,
+                      name: product.name,
+                      description: product.description,
+                      price: product.price,
+                      originalPrice: product.originalPrice,
+                      brand: product.brand || "",
+                      brand_id: product.brand_id,
+                      category_ids: product.category_ids,
+                      inStock: product.inStock,
+                      is_flash_sale: product.is_flash_sale,
+                      colorVariant: firstColorVariant,
+                      created_at: product.created_at,
+                      totalInventory: totalInventory,
+                    };
+                    return (
+                      <ProductCard
+                        key={`${item.productId}-${item.colorVariant.color}`}
+                        item={item}
+                        glassEffect={false}
+                      />
+                    );
+                  })}
+                </div>
+              )}
             </motion.div>
           </div>
         )}
@@ -1504,7 +1567,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <ProductGrid products={similarProducts} columns={4} />
+              <ProductGrid items={similarProducts} columns={4} />
             </motion.div>
           </div>
         )}

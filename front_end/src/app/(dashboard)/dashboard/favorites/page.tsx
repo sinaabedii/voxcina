@@ -5,7 +5,7 @@ import { useProductStore } from '@/store/product-store';
 import { useDashboardStore } from '@/store/dashboard-store';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Heart, ShoppingCart, Trash2, Search, Clock, Filter, ArrowRight } from 'lucide-react';
-import { Product } from '@/types/product';
+import { ColorVariantListItem } from '@/types/product';
 import { motion } from 'framer-motion';
 import Button from '@/components/ui/Button';
 import { useRouter } from 'next/navigation';
@@ -14,7 +14,7 @@ import { getBrandName, getCategoryName } from "@/lib/utils";
 export default function FavoritesPage() {
   const { products, isLoading, brands, categories} = useProductStore();
   const { favorites, removeFromFavorites } = useDashboardStore();
-  const [favoriteProducts, setFavoriteProducts] = useState<Product[]>([]);
+  const [favoriteProducts, setFavoriteProducts] = useState<ColorVariantListItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('newest');
   const [isRemoving, setIsRemoving] = useState<string | null>(null);
@@ -22,8 +22,9 @@ export default function FavoritesPage() {
   
   useEffect(() => {
     if (!isLoading && products.length > 0) {
-      const favoriteProductsList = products.filter(product => 
-        favorites.some(fav => fav.productId === product.id)
+      // products is ColorVariantListItem[], filter by productId
+      const favoriteProductsList = products.filter(item => 
+        favorites.some(fav => fav.productId === item.productId)
       );
       
       let filteredProducts = favoriteProductsList;
@@ -251,25 +252,25 @@ export default function FavoritesPage() {
           >
             {favoriteProducts.map((product) => (
               <motion.div 
-                key={product.id} 
+                key={`${product.productId}-${product.colorVariant.color}`} 
                 variants={itemVariants}
-                className={isRemoving === product.id ? 'scale-95 opacity-50' : ''}
+                className={isRemoving === product.productId ? 'scale-95 opacity-50' : ''}
                 transition={{ duration: 0.3 }}
               >
                 <Card className="group border border-secondary-200 dark:border-voxcina-darkBlue/30 shadow-soft hover:shadow-medium transition-all overflow-hidden rounded-2xl bg-white/90 dark:bg-voxcina-blue/10 backdrop-blur-sm">
                   <CardContent className="p-0 relative">
                     <div className="aspect-square bg-secondary-100 dark:bg-voxcina-darkBlue/30 relative overflow-hidden rounded-t-2xl">
-                      {product.images && product.images[0] && (
+                      {product.colorVariant?.images?.[0] && (
                         <img 
-                          src={product.images[0]} 
+                          src={product.colorVariant.images[0]} 
                           alt={product.name}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       )}
                       
                       <button
-                        disabled={!product.id}
-                        onClick={() => product.id && handleRemoveFavorite(product.id)}
+                        disabled={!product.productId}
+                        onClick={() => product.productId && handleRemoveFavorite(product.productId)}
                         className="absolute top-3 left-3 p-2 bg-white/80 dark:bg-voxcina-darkBlue/60 backdrop-blur-sm rounded-full shadow-soft opacity-0 group-hover:opacity-100 transition-opacity hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/30"
                         aria-label="حذف از علاقه‌مندی‌ها"
                         title="حذف از علاقه‌مندی‌ها"
@@ -299,7 +300,7 @@ export default function FavoritesPage() {
                           variant="ghost" 
                           size="sm" 
                           className="p-2 text-voxcina-blue hover:text-voxcina-darkBlue hover:bg-voxcina-blue/5 dark:text-secondary-200 dark:hover:bg-voxcina-blue/20 rounded-full"
-                          onClick={() => router.push(`/products/${product.id}`)}
+                          onClick={() => router.push(`/products/${product.productId}?color=${encodeURIComponent(product.colorVariant.color)}`)}
                         >
                           <ArrowRight className="w-4 h-4" />
                         </Button>

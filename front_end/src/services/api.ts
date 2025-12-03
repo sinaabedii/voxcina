@@ -12,11 +12,21 @@ export const api = {
 
   addToCart: async (productId: string, quantity: number, options: any) => {
     const { products } = useProductStore.getState();
-    const product = products.find((p) => p.id === productId);
-    if (product) {
-      useCartStore
-        .getState()
-        .addItem(product, quantity, options.size, options.color);
+    // products is ColorVariantListItem[], find by productId
+    const item = products.find((p) => p.productId === productId);
+    if (item) {
+      // Need to fetch full product for cart - use activeProduct or fetch
+      const { activeProduct, fetchProductById } = useProductStore.getState();
+      let product = activeProduct;
+      if (!product || product.id !== productId) {
+        await fetchProductById(productId);
+        product = useProductStore.getState().activeProduct;
+      }
+      if (product) {
+        useCartStore
+          .getState()
+          .addItem(product, quantity, options.size, options.color);
+      }
     }
     return { success: true };
   },
@@ -54,8 +64,9 @@ export const api = {
     const { favorites } = useDashboardStore.getState();
     const { products } = useProductStore.getState();
 
-    return products.filter((product) =>
-      favorites.some((fav) => fav.productId === product.id)
+    // products is ColorVariantListItem[], filter by productId
+    return products.filter((item) =>
+      favorites.some((fav) => fav.productId === item.productId)
     );
   },
   toggleFavorite: async (productId: string) => {

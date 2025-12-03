@@ -467,7 +467,7 @@ export default function ProductsClient() {
                 محصول یافت شد
               </motion.p>
               <motion.div variants={itemVariants}>
-                <ProductGrid products={filteredProducts} columns={3} />
+                <ProductGrid items={filteredProducts} columns={3} />
               </motion.div>
 
               {/* Pagination Controls */}

@@ -14,7 +14,7 @@ import {
 import { getBrandName, getCategoryName } from "@/lib/utils";
 import { useProductStore } from "@/store/product-store";
 import { formatPrice } from "@/lib/utils";
-import { Product } from "@/types/product";
+import { ColorVariantListItem } from "@/types/product";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface SmartSearchProps {
@@ -35,7 +35,7 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
   onChange,
 }) => {
   const [internalSearchTerm, setInternalSearchTerm] = useState("");
-  const [results, setResults] = useState<Product[]>([]);
+  const [results, setResults] = useState<ColorVariantListItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const { products, brands, categories } = useProductStore();
@@ -92,23 +92,26 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
 
       const trimmedSearchTerm = searchTerm.trim().toLowerCase();
       const filteredProducts = products
-        .filter((product) => {
-          const inStock = product.variants.some((v) => v.quantity > 0);
+        .filter((item) => {
+          // Check if in stock using colorVariant sizes
+          const inStock = item.colorVariant.sizes?.some((s) => s.quantity > 0) ?? false;
           if (!inStock) return false;
 
-          const name = product.name.toLowerCase();
-          const description = product.description.toLowerCase();
-          const brandName = getBrandName(product.brand_id, brands) || "";
+          const name = item.name.toLowerCase();
+          const description = item.description.toLowerCase();
+          const brandName = getBrandName(item.brand_id, brands) || "";
           const brand = brandName.toLowerCase();
           const categoryName =
-            getCategoryName(product.category_ids, categories) || "";
+            getCategoryName(item.category_ids, categories) || "";
           const category = categoryName.toLowerCase();
+          const colorName = item.colorVariant.colorName?.toLowerCase() || "";
 
           return (
             name.includes(trimmedSearchTerm) ||
             description.includes(trimmedSearchTerm) ||
             brand.includes(trimmedSearchTerm) ||
-            category.includes(trimmedSearchTerm)
+            category.includes(trimmedSearchTerm) ||
+            colorName.includes(trimmedSearchTerm)
           );
         })
         .sort((a, b) => {
@@ -122,8 +125,8 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
           if (aStartsWith && !bStartsWith) return -1;
           if (!aStartsWith && bStartsWith) return 1;
 
-          const aFeatured = "isFeatured" in a ? a.isFeatured : a.is_flash_sale;
-          const bFeatured = "isFeatured" in b ? b.isFeatured : b.is_flash_sale;
+          const aFeatured = a.is_flash_sale;
+          const bFeatured = b.is_flash_sale;
 
           if (aFeatured && !bFeatured) return -1;
           if (!aFeatured && bFeatured) return 1;
@@ -444,25 +447,25 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
 
                         <div className="max-h-64 sm:max-h-80 md:max-h-96 overflow-y-auto">
                           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 p-3 sm:p-4 md:p-6">
-                            {results.map((product, index) => {
+                            {results.map((item, index) => {
                               const brandName = getBrandName(
-                                product.brand_id,
+                                item.brand_id,
                                 brands
                               );
                               const categoryName = getCategoryName(
-                                product.category_ids,
+                                item.category_ids,
                                 categories
                               );
 
                               return (
                                 <motion.div
-                                  key={product.id}
+                                  key={`${item.productId}-${item.colorVariant.color}`}
                                   initial={{ opacity: 0, y: 20 }}
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ delay: index * 0.1 }}
                                 >
                                   <Link
-                                    href={`/products/${product.id}`}
+                                    href={`/products/${item.productId}?color=${encodeURIComponent(item.colorVariant.color)}`}
                                     className="group block p-2 sm:p-3 md:p-4 rounded-lg sm:rounded-xl md:rounded-2xl hover:bg-gradient-to-br hover:from-voxcina-lightCream hover:to-primary-50 transition-all duration-300 border border-transparent hover:border-primary-200 hover:shadow-medium"
                                     onClick={onClose}
                                   >
@@ -474,7 +477,7 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
                                         <Search className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-voxcina-blue" />
                                       </motion.div>
                                       <h4 className="font-semibold text-gray-900 mb-1 text-xs sm:text-sm truncate group-hover:text-voxcina-blue transition-colors leading-tight">
-                                        {highlightText(product.name)}
+                                        {highlightText(item.name)}
                                       </h4>
                                       <p className="text-[10px] sm:text-xs text-gray-500 mb-1 sm:mb-2 truncate">
                                         {brandName}{" "}
@@ -482,12 +485,12 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
                                       </p>
                                       <div className="text-xs sm:text-sm">
                                         <span className="font-bold bg-gradient-to-r from-voxcina-blue to-primary-700 bg-clip-text text-transparent">
-                                          {formatPrice(product.price)}
+                                          {formatPrice(item.price)}
                                         </span>
-                                        {product.originalPrice &&
-                                          product.originalPrice > product.price && (
+                                        {item.originalPrice &&
+                                          item.originalPrice > item.price && (
                                             <span className="block text-[10px] sm:text-xs text-gray-400 line-through mt-0.5 sm:mt-1">
-                                              {formatPrice(product.originalPrice)}
+                                              {formatPrice(item.originalPrice)}
                                             </span>
                                           )}
                                       </div>

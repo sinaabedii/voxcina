@@ -459,19 +459,22 @@ export default function AssistantPage() {
                     rel="noreferrer"
                   >
                     <div className="relative h-28 sm:h-32 overflow-hidden">
-                      {product.images && product.images[0] ? (
-                        <Image
-                          src={product.images[0]}
-                          alt={product.name}
-                          fill
-                          sizes="(max-width: 768px) 50vw, 25vw"
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-slate-800 text-[10px] text-slate-400">
-                          بدون تصویر
-                        </div>
-                      )}
+                      {(() => {
+                        const imageSrc = product.mainImages?.[0] || product.colorVariants?.[0]?.images?.[0];
+                        return imageSrc ? (
+                          <Image
+                            src={imageSrc}
+                            alt={product.name}
+                            fill
+                            sizes="(max-width: 768px) 50vw, 25vw"
+                            className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-slate-800 text-[10px] text-slate-400">
+                            بدون تصویر
+                          </div>
+                        );
+                      })()}
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
                     </div>
                     <div className="p-2.5 flex-1 flex flex-col justify-between">
