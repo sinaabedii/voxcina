@@ -25,7 +25,7 @@ import { formatPrice } from "@/lib/utils";
 import { useProductStore } from "@/store/product-store";
 import { useCategoryStore } from "@/store/category-store";
 import { useAuthStore } from "@/store/auth-store";
-import { Product } from "@/types/product";
+import { Product, ColorVariant } from "@/types/product";
 import { Category } from "@/types/category";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -39,8 +39,8 @@ export default function AdminProductsPage() {
   const [stockFilter, setStockFilter] = useState("all");
 
   const {
-    products,
-    fetchProducts,
+    adminProducts,
+    fetchAdminProducts,
     deleteProduct,
     isLoading: isLoadingProducts,
     error: productsError,
@@ -60,11 +60,11 @@ export default function AdminProductsPage() {
 
   useEffect(() => {
     if (adminToken) {
-      fetchProducts();
+      fetchAdminProducts();
       fetchCategories();
       fetchBrands();
     }
-  }, [adminToken, fetchProducts, fetchCategories, fetchBrands]);
+  }, [adminToken, fetchAdminProducts, fetchCategories, fetchBrands]);
 
   const getBrandNameById = (brandId: string | undefined): string => {
     if (!brandId) return "N/A";
@@ -72,7 +72,7 @@ export default function AdminProductsPage() {
     return brand ? brand.name : "N/A";
   };
 
-  const filteredProducts = products.filter((product: Product) => {
+  const filteredProducts = adminProducts.filter((product: Product) => {
     const matchesSearch = product.name
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
@@ -89,6 +89,28 @@ export default function AdminProductsPage() {
     return matchesSearch && matchesCategory && matchesStock;
   });
 
+  // Helper function to calculate total inventory from color variants
+  const getTotalInventory = (product: Product): number => {
+    if (!product.colorVariants || product.colorVariants.length === 0) return 0;
+    return product.colorVariants.reduce((total, cv) => {
+      return total + (cv.sizes?.reduce((sum, s) => sum + s.quantity, 0) || 0);
+    }, 0);
+  };
+
+  // Helper function to get display image (mainImages first, then first color's image)
+  const getDisplayImage = (product: Product): string | null => {
+    if (product.mainImages && product.mainImages.length > 0) {
+      return product.mainImages[0];
+    }
+    if (product.colorVariants && product.colorVariants.length > 0) {
+      const firstColorWithImage = product.colorVariants.find(cv => cv.images && cv.images.length > 0);
+      if (firstColorWithImage) {
+        return firstColorWithImage.images[0];
+      }
+    }
+    return null;
+  };
+
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     switch (sortBy) {
       case "priceAsc":
@@ -98,8 +120,7 @@ export default function AdminProductsPage() {
       case "name":
         return a.name.localeCompare(b.name);
       case "stock":
-        return (a.variants?.reduce((sum, v) => sum + v.quantity, 0) || 0) - 
-               (b.variants?.reduce((sum, v) => sum + v.quantity, 0) || 0);
+        return getTotalInventory(a) - getTotalInventory(b);
       case "newest":
       default:
         return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
@@ -127,7 +148,7 @@ export default function AdminProductsPage() {
       const success = await deleteProduct(productId, adminToken);
       if (success) {
         toast.success("محصول با موفقیت حذف شد.");
-        fetchProducts();
+        fetchAdminProducts();
       } else {
         toast.error(productsError || "خطا در حذف محصول.");
       }
@@ -148,7 +169,7 @@ export default function AdminProductsPage() {
     visible: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 300, damping: 30 } },
   };
 
-  if ((isLoadingProducts || isLoadingCategories) && products.length === 0) {
+  if ((isLoadingProducts || isLoadingCategories) && adminProducts.length === 0) {
       return (
           <div className="flex justify-center items-center h-screen">
               <Loader2 className="w-12 h-12 animate-spin text-voxcina-blue dark:text-voxcina-cream" />
@@ -200,7 +221,7 @@ export default function AdminProductsPage() {
         >
             {productsError && <p>خطا در بارگذاری محصولات: {productsError}</p>}
             {categoriesError && <p>خطا در بارگذاری دسته‌بندی‌ها: {categoriesError}</p>}
-            <Button onClick={() => { fetchProducts(); fetchCategories(); fetchBrands(); }} variant="ghost" size="sm" className="mr-2">
+            <Button onClick={() => { fetchAdminProducts(); fetchCategories(); fetchBrands(); }} variant="ghost" size="sm" className="mr-2">
                 تلاش مجدد
             </Button>
         </motion.div>
@@ -483,9 +504,9 @@ export default function AdminProductsPage() {
                     <CardContent className="p-4">
                       <div className="flex items-start">
                         <div className="w-16 h-16 rounded-lg overflow-hidden bg-voxcina-cream/50 dark:bg-voxcina-blue/20 flex-shrink-0 flex items-center justify-center">
-                          {product.images && product.images.length > 0 ? (
+                          {getDisplayImage(product) ? (
                             <img
-                              src={product.images[0]}
+                              src={getDisplayImage(product)!}
                               alt={product.name}
                               className="w-full h-full object-cover"
                             />
@@ -508,6 +529,27 @@ export default function AdminProductsPage() {
                            <div className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 mt-1">
                                 برند: {getBrandNameById(product.brand_id)}
                             </div>
+                          {/* Color Swatches */}
+                          {product.colorVariants && product.colorVariants.length > 0 && (
+                            <div className="flex items-center gap-1 mt-2">
+                              <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 ml-1">
+                                {product.colorVariants.length} رنگ:
+                              </span>
+                              <div className="flex gap-0.5">
+                                {product.colorVariants.slice(0, 5).map((cv: ColorVariant, idx: number) => (
+                                  <div
+                                    key={idx}
+                                    className="w-4 h-4 rounded-full border border-gray-300 dark:border-gray-600"
+                                    style={{ backgroundColor: cv.color || '#ccc' }}
+                                    title={cv.colorName || cv.color}
+                                  />
+                                ))}
+                                {product.colorVariants.length > 5 && (
+                                  <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">+{product.colorVariants.length - 5}</span>
+                                )}
+                              </div>
+                            </div>
+                          )}
                           <div className="flex items-center justify-between mt-2">
                             <span
                               className={`text-xs px-2 py-0.5 rounded-full ${
@@ -517,7 +559,7 @@ export default function AdminProductsPage() {
                               }`}
                             >
                               {product.inStock
-                                ? `${product.variants?.reduce((sum, v) => sum + v.quantity, 0) || 0} عدد`
+                                ? `${getTotalInventory(product)} عدد`
                                 : "ناموجود"}
                             </span>
                             <span

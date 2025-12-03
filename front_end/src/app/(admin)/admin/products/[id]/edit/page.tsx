@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useProductStore } from "@/store/product-store";
 import { useCategoryStore } from "@/store/category-store";
 import { useAuthStore } from "@/store/auth-store";
-import { ProductVariant, ProductAttribute } from "@/types/product";
+import { ColorVariant, SizeVariant, ProductAttribute } from "@/types/product";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
@@ -22,13 +22,14 @@ export default function EditProductPage() {
   const [originalPrice, setOriginalPrice] = useState(0);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [brandId, setBrandId] = useState("");
-  const [images, setImages] = useState<FileList | null>(null);
-  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [mainImages, setMainImages] = useState<FileList | null>(null);
+  const [colorVariants, setColorVariants] = useState<ColorVariant[]>([]);
+  const [colorImageFiles, setColorImageFiles] = useState<{ [key: number]: File[] }>({});
+  const [colorTryOnFiles, setColorTryOnFiles] = useState<{ [key: number]: File }>({});
   const [attributes, setAttributes] = useState<ProductAttribute[]>([]);
   const [isFlashSale, setIsFlashSale] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [inStock, setInStock] = useState(true);
-  const [tryOnImageFile, setTryOnImageFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
@@ -71,7 +72,7 @@ export default function EditProductPage() {
       setOriginalPrice(activeProduct.originalPrice);
       setCategoryIds(activeProduct.category_ids || []);
       setBrandId(activeProduct.brand_id || "");
-      setVariants(activeProduct.variants || []);
+      setColorVariants(activeProduct.colorVariants || []);
       setAttributes(activeProduct.attributes || []);
       setIsFlashSale(activeProduct.is_flash_sale);
       setIsActive(activeProduct.is_active);
@@ -131,18 +132,71 @@ export default function EditProductPage() {
     categoryIds.length > 0 &&
     !!brandId;
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setImages(e.target.files);
+  const handleMainImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMainImages(e.target.files);
   };
 
-  const handleAddVariant = () => {
-    setVariants([...variants, { size: "", color: "", sku: "", quantity: 0, images: [] }]);
+  // Color Variant Handlers
+  const handleAddColorVariant = () => {
+    setColorVariants([...colorVariants, {
+      color: "",
+      colorName: "",
+      images: [],
+      sizes: []
+    }]);
   };
-  const handleVariantChange = (idx: number, field: keyof ProductVariant, value: any) => {
-    setVariants(variants.map((v, i) => i === idx ? { ...v, [field]: value } : v));
+
+  const handleColorVariantChange = (colorIdx: number, field: keyof ColorVariant, value: any) => {
+    setColorVariants(colorVariants.map((cv, i) => i === colorIdx ? { ...cv, [field]: value } : cv));
   };
-  const handleRemoveVariant = (idx: number) => {
-    setVariants(variants.filter((_, i) => i !== idx));
+
+  const handleColorImagesChange = (colorIdx: number, files: FileList | null) => {
+    if (files) {
+      setColorImageFiles(prev => ({ ...prev, [colorIdx]: Array.from(files) }));
+      const imageUrls = Array.from(files).map(file => URL.createObjectURL(file));
+      setColorVariants(colorVariants.map((cv, i) => i === colorIdx ? { ...cv, images: imageUrls } : cv));
+    }
+  };
+
+  const handleColorTryOnChange = (colorIdx: number, file: File | null) => {
+    if (file) {
+      setColorTryOnFiles(prev => ({ ...prev, [colorIdx]: file }));
+      setColorVariants(colorVariants.map((cv, i) =>
+        i === colorIdx ? { ...cv, tryOnImage: URL.createObjectURL(file) } : cv
+      ));
+    }
+  };
+
+  const handleRemoveColorVariant = (colorIdx: number) => {
+    setColorVariants(colorVariants.filter((_, i) => i !== colorIdx));
+    const newColorImageFiles = { ...colorImageFiles };
+    const newColorTryOnFiles = { ...colorTryOnFiles };
+    delete newColorImageFiles[colorIdx];
+    delete newColorTryOnFiles[colorIdx];
+    setColorImageFiles(newColorImageFiles);
+    setColorTryOnFiles(newColorTryOnFiles);
+  };
+
+  // Size Handlers (nested within color variants)
+  const handleAddSize = (colorIdx: number) => {
+    const updatedVariants = [...colorVariants];
+    updatedVariants[colorIdx].sizes.push({ size: "", sku: "", quantity: 0 });
+    setColorVariants(updatedVariants);
+  };
+
+  const handleSizeChange = (colorIdx: number, sizeIdx: number, field: keyof SizeVariant, value: any) => {
+    const updatedVariants = [...colorVariants];
+    updatedVariants[colorIdx].sizes[sizeIdx] = {
+      ...updatedVariants[colorIdx].sizes[sizeIdx],
+      [field]: value
+    };
+    setColorVariants(updatedVariants);
+  };
+
+  const handleRemoveSize = (colorIdx: number, sizeIdx: number) => {
+    const updatedVariants = [...colorVariants];
+    updatedVariants[colorIdx].sizes = updatedVariants[colorIdx].sizes.filter((_, i) => i !== sizeIdx);
+    setColorVariants(updatedVariants);
   };
 
   const handleAddAttribute = () => {
@@ -273,11 +327,20 @@ export default function EditProductPage() {
     formData.append("originalPrice", originalPrice ? originalPrice.toString() : price.toString());
     formData.append("categoryIds", JSON.stringify(categoryIds));
     formData.append("brandId", brandId);
-    formData.append("variants", JSON.stringify(variants));
-    formData.append("attributes", JSON.stringify(attributes));
     if (collection) {
       formData.append("collection", collection);
     }
+
+    // Send color variants as JSON (without images/tryOn - those are sent as files)
+    const colorVariantsData = colorVariants.map(cv => ({
+      color: cv.color,
+      colorName: cv.colorName,
+      sizes: cv.sizes
+      // images and tryOnImage will be uploaded separately
+    }));
+    formData.append("colorVariants", JSON.stringify(colorVariantsData));
+
+    formData.append("attributes", JSON.stringify(attributes));
     if (aiMetadata.namePersian || aiMetadata.descriptionPersian || aiMetadata.keywords.length || aiMetadata.tags.length) {
       const searchMetadata = {
         namePersian: aiMetadata.namePersian,
@@ -301,12 +364,26 @@ export default function EditProductPage() {
     formData.append("isFlashSale", isFlashSale ? "true" : "false");
     formData.append("isActive", isActive ? "true" : "false");
     formData.append("inStock", inStock ? "true" : "false");
-    if (images) {
-      Array.from(images).forEach((file) => formData.append("mainImages", file));
+
+    // Add main product images
+    if (mainImages) {
+      Array.from(mainImages).forEach((file) => formData.append("mainImages", file));
     }
-    if (tryOnImageFile) {
-      formData.append("tryOnImage", tryOnImageFile);
-    }
+
+    // Add color variant images and try-on images
+    colorVariants.forEach((cv, idx) => {
+      // Add color-specific images
+      const colorImages = colorImageFiles[idx];
+      if (colorImages) {
+        colorImages.forEach((file: File) => formData.append(`colorImages_${idx}`, file));
+      }
+
+      // Add color-specific try-on image
+      const colorTryOnFile = colorTryOnFiles[idx];
+      if (colorTryOnFile) {
+        formData.append(`colorTryOn_${idx}`, colorTryOnFile);
+      }
+    });
     const result = await updateProduct(productId, formData, adminToken);
     setSubmitting(false);
     if (result) {
@@ -418,34 +495,207 @@ export default function EditProductPage() {
           </select>
           <Link href="/admin/brands/add" className="text-blue-600 text-sm">+ برند جدید</Link>
         </div>
+        {/* Main Product Images */}
         <div>
-          <label className="block mb-1">تصاویر محصول (برای افزودن تصاویر جدید انتخاب کنید)</label>
-          <input className="input" type="file" multiple accept="image/*" onChange={handleImageChange} />
-        </div>
-        <div>
-          <label className="block mb-1">تصویر واقعیت افزوده جدید (اختیاری)</label>
-          <input
-            className="input"
-            type="file"
-            accept="image/*"
-            onChange={(e) => setTryOnImageFile(e.target.files?.[0] || null)}
+          <label className="block mb-1 font-medium">تصاویر اصلی محصول (برای افزودن تصاویر جدید انتخاب کنید)</label>
+          <p className="text-xs text-gray-500 mb-2">این تصاویر برای همه رنگ‌ها نمایش داده می‌شوند</p>
+          <input 
+            className="input" 
+            type="file" 
+            multiple 
+            accept="image/*" 
+            onChange={handleMainImagesChange} 
           />
-          {tryOnImageFile && (
-            <span className="text-xs text-voxcina-blue/60">{tryOnImageFile.name}</span>
+          {mainImages && mainImages.length > 0 && (
+            <div className="flex gap-2 mt-2 flex-wrap">
+              {Array.from(mainImages).map((file, idx) => (
+                <div key={idx} className="w-16 h-16 border rounded overflow-hidden">
+                  <img src={URL.createObjectURL(file)} alt={`Main ${idx}`} className="w-full h-full object-cover" />
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Show existing main images */}
+          {activeProduct?.mainImages && activeProduct.mainImages.length > 0 && (
+            <div className="mt-2">
+              <p className="text-xs text-gray-500 mb-1">تصاویر فعلی:</p>
+              <div className="flex gap-2 flex-wrap">
+                {activeProduct.mainImages.map((img, idx) => (
+                  <div key={idx} className="w-16 h-16 border rounded overflow-hidden">
+                    <img src={img} alt={`Existing ${idx}`} className="w-full h-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
-        <div>
-          <label className="block mb-1">تنوع‌ها (سایز/رنگ/موجودی)</label>
-          {variants.map((variant, idx) => (
-            <div key={idx} className="flex gap-2 mb-2 items-center">
-              <input className="input w-16" placeholder="سایز" value={variant.size} onChange={e => handleVariantChange(idx, "size", e.target.value)} />
-              <input className="input w-16" placeholder="رنگ" value={variant.color} onChange={e => handleVariantChange(idx, "color", e.target.value)} />
-              <input className="input w-24" placeholder="SKU" value={variant.sku} onChange={e => handleVariantChange(idx, "sku", e.target.value)} />
-              <input className="input w-20" type="number" placeholder="موجودی" value={variant.quantity} onChange={e => handleVariantChange(idx, "quantity", Number(e.target.value))} />
-              <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveVariant(idx)}>حذف</Button>
+
+        {/* Color Variants Section */}
+        <div className="border-t pt-4">
+          <label className="block mb-2 font-medium text-lg">تنوع رنگ‌ها</label>
+          <p className="text-xs text-gray-500 mb-4">هر رنگ می‌تواند تصاویر و سایزهای مختلف داشته باشد</p>
+          
+          {colorVariants.map((colorVariant, colorIdx) => (
+            <div key={colorIdx} className="border rounded-lg p-4 mb-4 bg-gray-50">
+              {/* Color Header */}
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-medium">رنگ {colorIdx + 1}</h3>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-red-500 hover:text-red-700"
+                  onClick={() => handleRemoveColorVariant(colorIdx)}
+                >
+                  حذف رنگ
+                </Button>
+              </div>
+
+              {/* Color Info */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm mb-1">کد رنگ (Hex)</label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="color"
+                      className="w-10 h-10 rounded cursor-pointer border"
+                      value={colorVariant.color || "#000000"}
+                      onChange={e => handleColorVariantChange(colorIdx, "color", e.target.value)}
+                    />
+                    <input
+                      className="input flex-1"
+                      placeholder="#FF5733"
+                      value={colorVariant.color}
+                      onChange={e => handleColorVariantChange(colorIdx, "color", e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm mb-1">نام رنگ (فارسی)</label>
+                  <input
+                    className="input"
+                    placeholder="مثال: قرمز"
+                    value={colorVariant.colorName}
+                    onChange={e => handleColorVariantChange(colorIdx, "colorName", e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Color Images */}
+              <div className="mb-4">
+                <label className="block text-sm mb-1">تصاویر این رنگ (برای جایگزینی انتخاب کنید)</label>
+                <input
+                  className="input text-sm"
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={(e) => handleColorImagesChange(colorIdx, e.target.files)}
+                />
+                {/* Show new uploaded images */}
+                {colorImageFiles[colorIdx] && colorImageFiles[colorIdx].length > 0 && (
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    <span className="text-xs text-green-600">تصاویر جدید:</span>
+                    {colorImageFiles[colorIdx].map((file, imgIdx) => (
+                      <div key={imgIdx} className="w-12 h-12 border rounded overflow-hidden">
+                        <img src={URL.createObjectURL(file)} alt={`New ${imgIdx}`} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* Show existing color images */}
+                {colorVariant.images.length > 0 && !colorImageFiles[colorIdx] && (
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    <span className="text-xs text-gray-500">تصاویر فعلی:</span>
+                    {colorVariant.images.map((img, imgIdx) => (
+                      <div key={imgIdx} className="w-12 h-12 border rounded overflow-hidden">
+                        <img src={img} alt={`Color ${colorIdx} image ${imgIdx}`} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Try-On Image */}
+              <div className="mb-4">
+                <label className="block text-sm mb-1">تصویر واقعیت افزوده (Try-On)</label>
+                <input
+                  className="input text-sm"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleColorTryOnChange(colorIdx, e.target.files?.[0] || null)}
+                />
+                {colorTryOnFiles[colorIdx] && (
+                  <div className="w-12 h-12 border rounded overflow-hidden mt-2">
+                    <img src={URL.createObjectURL(colorTryOnFiles[colorIdx])} alt={`New try-on`} className="w-full h-full object-cover" />
+                  </div>
+                )}
+                {colorVariant.tryOnImage && !colorTryOnFiles[colorIdx] && (
+                  <div className="mt-2">
+                    <span className="text-xs text-gray-500">تصویر فعلی:</span>
+                    <div className="w-12 h-12 border rounded overflow-hidden mt-1">
+                      <img src={colorVariant.tryOnImage} alt={`Color ${colorIdx} try-on`} className="w-full h-full object-cover" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Sizes for this Color */}
+              <div className="border-t pt-4">
+                <label className="block text-sm font-medium mb-2">سایزها و موجودی</label>
+                {colorVariant.sizes.map((sizeVariant, sizeIdx) => (
+                  <div key={sizeIdx} className="flex gap-2 mb-2 items-center bg-white p-2 rounded">
+                    <input
+                      className="input w-20"
+                      placeholder="سایز"
+                      value={sizeVariant.size}
+                      onChange={e => handleSizeChange(colorIdx, sizeIdx, "size", e.target.value)}
+                    />
+                    <input
+                      className="input w-32"
+                      placeholder="SKU"
+                      value={sizeVariant.sku}
+                      onChange={e => handleSizeChange(colorIdx, sizeIdx, "sku", e.target.value)}
+                    />
+                    <input
+                      className="input w-24"
+                      type="number"
+                      placeholder="موجودی"
+                      min="0"
+                      value={sizeVariant.quantity}
+                      onChange={e => handleSizeChange(colorIdx, sizeIdx, "quantity", Number(e.target.value))}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-500"
+                      onClick={() => handleRemoveSize(colorIdx, sizeIdx)}
+                    >
+                      حذف
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleAddSize(colorIdx)}
+                >
+                  + افزودن سایز
+                </Button>
+              </div>
             </div>
           ))}
-          <Button type="button" variant="outline" size="sm" onClick={handleAddVariant}>+ تنوع جدید</Button>
+          
+          <Button 
+            type="button" 
+            variant="outline" 
+            size="sm" 
+            onClick={handleAddColorVariant}
+            className="w-full border-dashed"
+          >
+            + افزودن رنگ جدید
+          </Button>
         </div>
         <div>
           <label className="block mb-1">ویژگی‌ها</label>

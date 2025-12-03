@@ -239,7 +239,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	categoryIDsJSON := r.FormValue("categoryIds")
 	brandIDStr := r.FormValue("brandId")
 	collection := strings.TrimSpace(r.FormValue("collection"))
-	variantsJSON := r.FormValue("variants")
+	colorVariantsJSON := r.FormValue("colorVariants") // Changed from variantsJSON
 	attributesJSON := r.FormValue("attributes")
 	searchMetadataJSON := r.FormValue("searchMetadata")
 	isFlashSaleStr := r.FormValue("isFlashSale")
@@ -541,27 +541,27 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Added image path to product: %s\n", serverPath)
 	}
 
-	// Process variant images and try-on images
-	var variants []models.ProductVariant
-	if variantsJSON != "" {
-		if err := json.Unmarshal([]byte(variantsJSON), &variants); err != nil {
+	// Process color variant images and try-on images
+	var colorVariants []models.ColorVariant
+	if colorVariantsJSON != "" {
+		if err := json.Unmarshal([]byte(colorVariantsJSON), &colorVariants); err != nil {
 			utils.ErrorResponse(
 				w,
 				http.StatusBadRequest,
-				"Invalid variants JSON format: "+err.Error(),
+				"Invalid colorVariants JSON format: "+err.Error(),
 			)
 			return
 		}
 	}
 
-	// Process variant images and try-on images
-	for i := range variants {
-		variant := &variants[i]
+	// Process color variant images and try-on images
+	for i := range colorVariants {
+		colorVariant := &colorVariants[i]
 
-		// Process variant images (e.g., variantImages_0, variantImages_1, etc.)
-		variantImageKey := fmt.Sprintf("variantImages_%d", i)
-		if files, exists := r.MultipartForm.File[variantImageKey]; exists {
-			variantImagePaths, err := processVariantImages(
+		// Process color variant images (e.g., colorImages_0, colorImages_1, etc.)
+		colorImageKey := fmt.Sprintf("colorImages_%d", i)
+		if files, exists := r.MultipartForm.File[colorImageKey]; exists {
+			colorImagePaths, err := processVariantImages(
 				files,
 				productID,
 				i,
@@ -572,12 +572,12 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 				utils.ErrorResponse(w, http.StatusBadRequest, err.Error())
 				return
 			}
-			variant.Images = append(variant.Images, variantImagePaths...)
+			colorVariant.Images = append(colorVariant.Images, colorImagePaths...)
 		}
 
-		// Process variant try-on image (e.g., variantTryOnImage_0, variantTryOnImage_1, etc.)
-		variantTryOnKey := fmt.Sprintf("variantTryOnImage_%d", i)
-		if files, exists := r.MultipartForm.File[variantTryOnKey]; exists &&
+		// Process color variant try-on image (e.g., colorTryOn_0, colorTryOn_1, etc.)
+		colorTryOnKey := fmt.Sprintf("colorTryOn_%d", i)
+		if files, exists := r.MultipartForm.File[colorTryOnKey]; exists &&
 			len(files) > 0 {
 			tryOnPath, err := processVariantTryOnImage(
 				files[0],
@@ -589,7 +589,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 				utils.ErrorResponse(w, http.StatusBadRequest, err.Error())
 				return
 			}
-			variant.TryOnImage = tryOnPath
+			colorVariant.TryOnImage = tryOnPath
 		}
 	}
 
@@ -599,12 +599,12 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		Description:    description,
 		Price:          price,
 		OriginalPrice:  originalPrice,
-		Images:         mainImagePaths,
+		MainImages:     mainImagePaths, // Changed from Images
 		CategoryIDs:    categoryIDs,
 		BrandID:        brandID,
 		Brand:          brand.Name,
 		Collection:     collection,
-		Variants:       variants,
+		ColorVariants:  colorVariants, // Changed from Variants
 		Attributes:     attributes,
 		IsFlashSale:    isFlashSale,
 		IsActive:       isActive,
@@ -661,6 +661,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListProducts handles GET /api/products
+// Returns paginated color variants as separate items (not full products)
 func ListProducts(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -681,8 +682,6 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 		limit = l
 	}
 
-	skip := (page - 1) * limit
-
 	// Build base filter (only active products)
 	filter := bson.M{"is_active": true}
 
@@ -690,28 +689,12 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("is_flash_sale") == "true" {
 		filter["is_flash_sale"] = true
 	}
-	if r.URL.Query().Get("is_new") == "true" {
-		// We treat "new" as created in last 30 days or we simply sort by created_at desc later
-		// Add a placeholder flag to sort
-	}
 
-	totalProducts, err := collection.CountDocuments(ctx, filter)
+	// Fetch all active products (no pagination yet - we'll paginate color variants)
+	cursor, err := collection.Find(ctx, filter)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error counting products")
-		return
-	}
-
-	// Prepare find options (pagination & optional sorting)
-	opts := options.Find().SetSkip(int64(skip)).SetLimit(int64(limit))
-	if r.URL.Query().Get("is_new") == "true" {
-		opts.SetSort(bson.M{"created_at": -1})
-	}
-
-	cursor, err := collection.Find(ctx, filter, opts)
-	if err != nil {
-		// Return empty array wrapped in pagination structure to preserve contract
 		response := map[string]interface{}{
-			"data":       []models.Product{},
+			"data":       []models.ColorVariantListItem{},
 			"pagination": map[string]interface{}{},
 		}
 		utils.JSONResponse(w, http.StatusOK, response)
@@ -721,21 +704,71 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 	var products []models.Product
 	if err := cursor.All(ctx, &products); err != nil {
 		response := map[string]interface{}{
-			"data":       []models.Product{},
+			"data":       []models.ColorVariantListItem{},
 			"pagination": map[string]interface{}{},
 		}
 		utils.JSONResponse(w, http.StatusOK, response)
 		return
 	}
 
-	// Ensure try-on image is not exposed in list
-	for i := range products {
-		products[i].TryOnImage = ""
+	// Expand products into color variant list items
+	var colorVariantItems []models.ColorVariantListItem
+	for _, product := range products {
+		for _, colorVariant := range product.ColorVariants {
+			// Calculate total inventory for this color
+			totalInventory := 0
+			for _, size := range colorVariant.Sizes {
+				totalInventory += size.Quantity
+			}
+
+			// Convert ObjectIDs to strings
+			categoryIDStrs := make([]string, len(product.CategoryIDs))
+			for i, id := range product.CategoryIDs {
+				categoryIDStrs[i] = id.Hex()
+			}
+
+			// Create list item for this color variant
+			item := models.ColorVariantListItem{
+				ProductID:      product.ID.Hex(),
+				ColorVariant:   colorVariant,
+				Name:           product.Name,
+				Description:    product.Description,
+				Price:          product.Price,
+				OriginalPrice:  product.OriginalPrice,
+				Brand:          product.Brand,
+				BrandID:        product.BrandID.Hex(),
+				CategoryIDs:    categoryIDStrs,
+				Collection:     product.Collection,
+				IsFlashSale:    product.IsFlashSale,
+				AverageRating:  product.AverageRating,
+				ReviewCount:    product.ReviewCount,
+				CreatedAt:      product.CreatedAt,
+				TotalInventory: totalInventory,
+				InStock:        totalInventory > 0,
+			}
+			colorVariantItems = append(colorVariantItems, item)
+		}
 	}
 
-	totalPages := int(math.Ceil(float64(totalProducts) / float64(limit)))
+	// Apply pagination to color variants
+	totalItems := len(colorVariantItems)
+	totalPages := int(math.Ceil(float64(totalItems) / float64(limit)))
 
-	// Determine next/prev pages (use *int for omitempty behaviour)
+	// Calculate skip and end indices
+	skip := (page - 1) * limit
+	start := skip
+	end := skip + limit
+	if start > totalItems {
+		start = totalItems
+	}
+	if end > totalItems {
+		end = totalItems
+	}
+
+	// Get paginated slice
+	paginatedItems := colorVariantItems[start:end]
+
+	// Determine next/prev pages
 	var nextPage *int
 	if page < totalPages {
 		n := page + 1
@@ -748,26 +781,26 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type paginationInfo struct {
-		TotalPages    int   `json:"totalPages"`
-		CurrentPage   int   `json:"currentPage"`
-		NextPage      *int  `json:"nextPage,omitempty"`
-		PrevPage      *int  `json:"prevPage,omitempty"`
-		TotalProducts int64 `json:"totalProducts"`
+		TotalPages  int  `json:"totalPages"`
+		CurrentPage int  `json:"currentPage"`
+		NextPage    *int `json:"nextPage,omitempty"`
+		PrevPage    *int `json:"prevPage,omitempty"`
+		TotalItems  int  `json:"totalItems"` // Total color variants, not products
 	}
 
-	type productsResponse struct {
-		Data       []models.Product `json:"data"`
-		Pagination paginationInfo   `json:"pagination"`
+	type colorVariantsResponse struct {
+		Data       []models.ColorVariantListItem `json:"data"`
+		Pagination paginationInfo                `json:"pagination"`
 	}
 
-	resp := productsResponse{
-		Data: products,
+	resp := colorVariantsResponse{
+		Data: paginatedItems,
 		Pagination: paginationInfo{
-			TotalPages:    totalPages,
-			CurrentPage:   page,
-			NextPage:      nextPage,
-			PrevPage:      prevPage,
-			TotalProducts: totalProducts,
+			TotalPages:  totalPages,
+			CurrentPage: page,
+			NextPage:    nextPage,
+			PrevPage:    prevPage,
+			TotalItems:  totalItems,
 		},
 	}
 
@@ -809,6 +842,20 @@ func GetProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Calculate InStock based on all color variants
+	product.InStock = false
+	for _, colorVariant := range product.ColorVariants {
+		for _, size := range colorVariant.Sizes {
+			if size.Quantity > 0 {
+				product.InStock = true
+				break
+			}
+		}
+		if product.InStock {
+			break
+		}
+	}
+
 	utils.JSONResponse(w, http.StatusOK, product)
 }
 
@@ -843,10 +890,7 @@ func SearchProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ensure try-on image is not exposed in list
-	for i := range products {
-		products[i].TryOnImage = ""
-	}
+	// Try-on images are now in ColorVariants, no need to hide them here
 
 	utils.JSONResponse(w, http.StatusOK, products)
 }
@@ -877,11 +921,6 @@ func ProductRecommendations(w http.ResponseWriter, r *http.Request) {
 	if len(products) == 0 {
 		utils.JSONResponse(w, http.StatusOK, []models.Product{})
 		return
-	}
-
-	// Ensure try-on image is not exposed in list
-	for i := range products {
-		products[i].TryOnImage = ""
 	}
 
 	utils.JSONResponse(w, http.StatusOK, products)
@@ -1677,11 +1716,6 @@ func GetProductsByCollection(w http.ResponseWriter, r *http.Request) {
 	if err := cursor.All(ctx, &products); err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding products")
 		return
-	}
-
-	// Ensure try-on image is not exposed
-	for i := range products {
-		products[i].TryOnImage = ""
 	}
 
 	totalPages := int(math.Ceil(float64(totalProducts) / float64(limit)))

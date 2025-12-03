@@ -1,11 +1,41 @@
-export interface ProductVariant {
-  size: string; // e.g., "S", "M", "L", "XL", "XXL"
-  color: string; // e.g., "Red", "Blue", "#FF5733" (supports color names or hex codes)
-  colorName?: string; // Display name for color (e.g., "قرمز", "آبی")
-  sku: string; // Unique per variant (e.g., "TSHIRT-RED-M")
-  quantity: number; // Available stock
-  images: string[]; // Color-specific product images (multiple angles)
-  tryOnImage?: string; // Color-specific try-on image for AR/virtual try-on
+// Updated types for hierarchical color → size variant structure
+
+export interface SizeVariant {
+  size: string;           // e.g., "S", "M", "L", "XL", "XXL"
+  sku: string;           // Unique SKU for color+size combination
+  quantity: number;      // Available inventory for this specific size
+}
+
+export interface ColorVariant {
+  color: string;         // Hex code or color name (e.g., "#FF5733", "Red")
+  colorName: string;     // Display name in Persian/English (e.g., "قرمز", "Red")
+  images: string[];      // Multiple product images for this color (different angles)
+  tryOnImage?: string;   // Virtual try-on image for this color
+  sizes: SizeVariant[];  // Available sizes for this color with inventory
+}
+
+// For product list API - each color variant is returned as a separate item
+export interface ColorVariantListItem {
+  productId: string;
+  colorVariant: ColorVariant;
+
+  // Product-level fields (duplicated for each color in the list)
+  name: string;
+  description: string;
+  price: number;
+  originalPrice: number;
+  brand: string;
+  brand_id: string;
+  category_ids: string[];
+  collection?: string;
+  is_flash_sale: boolean;
+  average_rating?: number;
+  review_count?: number;
+  created_at: string;
+
+  // Calculated fields
+  totalInventory: number; // Sum of all sizes for this color
+  inStock: boolean;        // True if totalInventory > 0
 }
 
 export interface ProductAttribute {
@@ -24,7 +54,8 @@ export interface ProductSearchMetadata {
   materialTags: string[];
   stylePersian: string;
   styleEnglish: string;
-  occasionTags: string[];
+  occasionTags: string[]
+  ;
   season: string[];
   sizeSystem: string;
   fitType: string;
@@ -33,30 +64,30 @@ export interface ProductSearchMetadata {
 }
 
 export interface Product {
-  id: string; // MongoDB ObjectID, can be absent if not yet created
+  id: string; // MongoDB ObjectID
   name: string;
   description: string;
-  price: number; // Base price //
-  
-  originalPrice: number; // add this property to backend model data 
+  price: number; // Base price
+  originalPrice: number; // Original price before discounts
 
-  images: string[]; // Main product images (URLs)
-  /**
-   * Optional image URL used for AR / virtual try-on feature. Present only in the
-   * single-product (detail) response; not returned in product list endpoints.
-   */
-  tryOnImage?: string;
+  // Main product images (shared across all colors, shown in gallery alongside color-specific images)
+  mainImages?: string[];
+
+  // Color variants with their own images and size inventory
+  colorVariants: ColorVariant[];
+
   category_ids: string[]; // Array of category ObjectIDs as strings
   brand_id: string; // Brand ObjectID as string
-  brand?: string; // Brand name (added property) ToDo : not returned from API, it should be
-
-  variants: ProductVariant[]; // Size/color-specific data
+  brand?: string; // Brand name
+  collection?: string; // e.g., بهار, تابستان, پاییز, زمستان
   attributes: ProductAttribute[]; // Product-wide metadata
   is_flash_sale: boolean; // Part of flash-sale campaign?
   is_active: boolean; // Soft delete flag
+  inStock: boolean; // Calculated: true if any color+size has quantity > 0
   created_at: string; // ISO 8601 timestamp
   updated_at: string; // ISO 8601 timestamp
-  inStock: boolean;
+  average_rating?: number;
+  review_count?: number;
   searchMetadata?: ProductSearchMetadata;
 }
 
@@ -91,8 +122,6 @@ export interface Brand {
   createdAt?: string; // ISO 8601 timestamp, optional
   updatedAt?: string; // ISO 8601 timestamp, optional
 }
-
-// Update this in your types/product.ts file
 
 export interface ProductFilter {
   categories?: string[];
@@ -165,9 +194,16 @@ export interface PaginationInfo {
   currentPage: number;
   nextPage?: number;
   prevPage?: number;
-  totalProducts: number;
+  totalItems: number; // Changed from totalProducts to totalItems (color variants count)
 }
 
+// Paginated response for color variant list
+export interface PaginatedColorVariantsResponse {
+  data: ColorVariantListItem[];
+  pagination: PaginationInfo;
+}
+
+// Legacy - kept for any existing code that might still use it
 export interface PaginatedProductsResponse {
   data: Product[];
   pagination: PaginationInfo;

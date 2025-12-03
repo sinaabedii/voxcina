@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import {
   Star,
@@ -16,55 +17,71 @@ import { formatPrice, getDiscountPercentage } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import { useCart } from "@/hooks/useCart";
 import { motion } from "framer-motion";
-
-/* NEW ➜ ratings / reviews live data */
-import { useReviewStore } from "@/store/review-store"; // adjust path to your project
+import { useReviewStore } from "@/store/review-store";
 
 interface ProductDetailsProps {
   product: Product;
 }
 
 const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
+  const searchParams = useSearchParams();
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState<string | undefined>();
-  const [selectedColor, setSelectedColor] = useState<string | undefined>();
+  const [selectedColorIndex, setSelectedColorIndex] = useState<number>(0);
 
   const { addToCart } = useCart();
 
-  // Get images to display based on selected color
-  const displayImages = (() => {
-    if (selectedColor && product.variants?.length > 0) {
-      // Find variants matching the selected color
-      const colorVariants = product.variants.filter(v => v.color === selectedColor);
-      if (colorVariants.length > 0 && colorVariants[0].images?.length > 0) {
-        return colorVariants[0].images;
+  // Pre-select color from URL parameter on mount
+  useEffect(() => {
+    const colorParam = searchParams?.get("color");
+    if (colorParam && product.colorVariants) {
+      const colorIndex = product.colorVariants.findIndex(
+        cv => cv.color === colorParam || cv.colorName === colorParam
+      );
+      if (colorIndex !== -1) {
+        setSelectedColorIndex(colorIndex);
       }
     }
-    // Fallback to main product images
-    return product.images || [];
+  }, [searchParams, product.colorVariants]);
+
+  const selectedColorVariant = product.colorVariants?.[selectedColorIndex];
+
+  // Build combined image gallery: mainImages + selected color's images
+  const displayImages = (() => {
+    const images: string[] = [];
+
+    // Add main images first (shared across all colors)
+    if (product.mainImages && product.mainImages.length > 0) {
+      images.push(...product.mainImages);
+    }
+
+    // Add selected color's images
+    if (selectedColorVariant?.images && selectedColorVariant.images.length > 0) {
+      images.push(...selectedColorVariant.images);
+    }
+
+    return images.length > 0 ? images : []; // Fallback to empty array
   })();
 
-  // Get try-on image based on selected color
-  const displayTryOnImage = (() => {
-    if (selectedColor && product.variants?.length > 0) {
-      const colorVariants = product.variants.filter(v => v.color === selectedColor);
-      if (colorVariants.length > 0 && colorVariants[0].tryOnImage) {
-        return colorVariants[0].tryOnImage;
-      }
-    }
-    // Fallback to main product try-on image
-    return product.tryOnImage;
-  })();
+  const displayTryOnImage = selectedColorVariant?.tryOnImage;
+
+  // Get available sizes for the selected color
+  const availableSizes = selectedColorVariant?.sizes || [];
 
   // Reset selected image index when color changes
-  const handleColorChange = (color: string) => {
-    setSelectedColor(color);
-    setSelectedImage(0); // Reset to first image when color changes
+  const handleColorChange = (colorIndex: number) => {
+    setSelectedColorIndex(colorIndex);
+    setSelectedImage(0);
+    setSelectedSize(undefined); // Reset size when color changes
   };
 
+  // Get quantity for selected size
+  const selectedSizeQuantity = selectedSize
+    ? availableSizes.find(s => s.size === selectedSize)?.quantity || 0
+    : 0;
+
   /* ---------- dynamic rating / review-count ---------- */
-  // Product.id is optional in the interface; handle undefined defensively
   const productIdSafe = product.id ?? "";
   const averageRating = useReviewStore(
     (s) => s.getAverageRatingByProductId(productIdSafe)
@@ -78,257 +95,253 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
     : 0;
 
   const handleAddToCart = () => {
-    addToCart(product, quantity, selectedSize, selectedColor);
+    if (!selectedSize) {
+      alert("لطفاً سایز را انتخاب کنید");
+      return;
+    }
+    if (!selectedColorVariant) {
+      alert("لطفاً رنگ را انتخاب کنید");
+      return;
+    }
+    if (selectedSizeQuantity === 0) {
+      alert("این سایز موجود نیست");
+      return;
+    }
+
+    addToCart(
+      product,
+      quantity,
+      selectedSize,
+      selectedColorVariant.color
+    );
   };
 
-  const incrementQuantity = () => setQuantity((prev) => prev + 1);
-  const decrementQuantity = () => setQuantity((prev) => (prev > 1 ? prev - 1 : 1));
+  const handleQuantityChange = (delta: number) => {
+    setQuantity((prev) => Math.max(1, Math.min(prev + delta, selectedSizeQuantity)));
+  };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-      {/* ---------- images ---------- */}
-      <div className="animate-fadeIn">
-        <div className="product-zoom mb-4 aspect-square relative rounded-xl overflow-hidden border border-border/10 shadow-soft">
-          {displayImages && displayImages.length > 0 ? (
-            <div className="relative h-full w-full bg-secondary/30">
-              <span className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                تصویر محصول
-                {selectedColor && (
-                  <span className="absolute bottom-2 right-2 text-xs bg-primary/10 text-primary px-2 py-1 rounded">
-                    {selectedColor}
-                  </span>
-                )}
-              </span>
-            </div>
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-secondary/30">
-              <span className="text-muted-foreground">بدون تصویر</span>
-            </div>
-          )}
-        </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="grid md:grid-cols-2 gap-8">
+        {/* image gallery */}
+        <div>
+          <div className="mb-4 rounded-xl overflow-hidden bg-secondary/30 aspect-square relative">
+            {displayImages.length > 0 ? (
+              <Image
+                src={displayImages[selectedImage]}
+                alt={product.name}
+                fill
+                className="object-cover"
+                priority
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <span className="text-muted-foreground">بدون تصویر</span>
+              </div>
+            )}
 
-        {/* thumbnails */}
-        {displayImages && displayImages.length > 1 && (
-          <div className="flex space-x-2 space-x-reverse">
-            {displayImages.map((_, index) => (
-              <motion.button
-                key={index}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.98 }}
-                className={`w-20 h-20 border rounded-lg overflow-hidden transition-all duration-200 ${
-                  selectedImage === index
-                    ? "border-primary shadow-soft"
-                    : "border-border/10"
-                }`}
-                onClick={() => setSelectedImage(index)}
+            {/* try-on image overlay button */}
+            {displayTryOnImage && (
+              <button className="absolute top-4 right-4 bg-primary text-primary-foreground px-3 py-1 rounded-md text-sm">
+                پرو کردن مجازی
+              </button>
+            )}
+          </div>
+
+          {/* thumbnails */}
+          <div className="flex gap-2 overflow-x-auto">
+            {displayImages.map((img, idx) => (
+              <button
+                key={idx}
+                className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${selectedImage === idx
+                  ? "border-primary"
+                  : "border-transparent hover:border-primary/30"
+                  }`}
+                onClick={() => setSelectedImage(idx)}
               >
-                <div className="h-full w-full bg-secondary/30 flex items-center justify-center">
-                  <span className="text-muted-foreground text-xs">{index + 1}</span>
-                </div>
-              </motion.button>
+                <Image
+                  src={img}
+                  alt={`${product.name} ${idx + 1}`}
+                  width={80}
+                  height={80}
+                  className="object-cover w-full h-full"
+                />
+              </button>
             ))}
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* ---------- details ---------- */}
-      <div className="animate-slideInRight">
-        {/* brand + rating row */}
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-muted-foreground">{product.brand}</span>
+        {/* product info */}
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold mb-4 text-primary">
+            {product.name}
+          </h1>
 
-          <div className="flex items-center">
-            <Star className="h-4 w-4 text-warning fill-warning ml-1" />
-            <span className="text-sm font-medium">
-              {averageRating.toFixed(1)}
+          {/* rating */}
+          {averageRating > 0 && (
+            <div className="flex items-center mb-4">
+              <div className="flex items-center">
+                {[...Array(5)].map((_, i) => (
+                  <Star
+                    key={i}
+                    className={`h-4 w-4 ${i < Math.floor(averageRating)
+                      ? "text-warning fill-warning"
+                      : "text-muted-foreground"
+                      }`}
+                  />
+                ))}
+              </div>
+              <span className="mr-2 text-sm text-muted-foreground">
+                {averageRating.toFixed(1)} ({reviewCount} نظر)
+              </span>
+            </div>
+          )}
+
+          {/* price / discount */}
+          <div className="flex items-center mb-6">
+            <span className="text-2xl font-bold text-primary">
+              {formatPrice(product.price)}
             </span>
-            <span className="text-xs text-muted-foreground mr-1">
-              ({reviewCount} نظر)
-            </span>
+
+            {product.originalPrice && product.originalPrice > product.price && (
+              <span className="text-base text-muted-foreground line-through mr-2">
+                {formatPrice(product.originalPrice)}
+              </span>
+            )}
+
+            {discount > 0 && (
+              <span className="mr-2 px-2 py-1 bg-destructive/10 text-destructive text-xs rounded-md">
+                {discount}% تخفیف
+              </span>
+            )}
           </div>
-        </div>
 
-        <h1 className="text-2xl md:text-3xl font-bold mb-4 text-primary">
-          {product.name}
-        </h1>
-
-        {/* price / discount */}
-        <div className="flex items-center mb-6">
-          <span className="text-2xl font-bold text-primary">
-            {formatPrice(product.price)}
-          </span>
-
-          {product.originalPrice && product.originalPrice > product.price && (
-            <span className="text-base text-muted-foreground line-through mr-2">
-              {formatPrice(product.originalPrice)}
-            </span>
-          )}
-
-          {discount > 0 && (
-            <span className="mr-2 px-2 py-1 bg-destructive/10 text-destructive text-xs rounded-md">
-              {discount}% تخفیف
-            </span>
-          )}
-        </div>
-
-        {/* description */}
-        <div className="mb-6">
-          <p className="text-foreground leading-relaxed">{product.description}</p>
-        </div>
-
-        {/* sizes */}
-        {product.variants?.length > 0 && (
+          {/* description */}
           <div className="mb-6">
-            <h3 className="text-sm font-medium mb-2 text-foreground">سایز</h3>
-            <div className="flex flex-wrap gap-2">
-              {Array.from(new Set(product.variants.map((v) => v.size))).map(
-                (size) => (
+            <p className="text-foreground leading-relaxed">{product.description}</p>
+          </div>
+
+          {/* colors */}
+          {product.colorVariants && product.colorVariants.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-sm font-medium mb-2 text-foreground">
+                رنگ
+                {selectedColorVariant && (
+                  <span className="mr-2 text-xs text-muted-foreground">
+                    ({selectedColorVariant.colorName})
+                  </span>
+                )}
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {product.colorVariants.map((colorVariant, idx) => {
+                  // Check if this color has any inventory
+                  const hasStock = colorVariant.sizes.some(s => s.quantity > 0);
+
+                  return (
+                    <motion.button
+                      key={colorVariant.color}
+                      whileHover={{ scale: hasStock ? 1.1 : 1 }}
+                      whileTap={{ scale: hasStock ? 0.95 : 1 }}
+                      disabled={!hasStock}
+                      className={`w-8 h-8 rounded-full border-2 shadow-soft transition-all duration-200 ${selectedColorIndex === idx
+                          ? "border-primary ring-2 ring-primary/30"
+                          : "border-transparent hover:border-primary/20"
+                        } ${!hasStock ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      style={{ backgroundColor: colorVariant.color }}
+                      onClick={() => hasStock && handleColorChange(idx)}
+                      title={`${colorVariant.colorName}${!hasStock ? ' (ناموجود)' : ''}`}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* sizes */}
+          {availableSizes.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-sm font-medium mb-2 text-foreground">سایز</h3>
+              <div className="flex flex-wrap gap-2">
+                {availableSizes.map((sizeVariant) => (
                   <motion.button
-                    key={size}
+                    key={sizeVariant.size}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.98 }}
-                    className={`px-4 py-2 border rounded-md text-sm transition-all duration-200 ${
-                      selectedSize === size
-                        ? "border-primary bg-primary/10 text-primary shadow-soft"
-                        : "border-border/20 text-foreground hover:border-primary/30"
-                    }`}
-                    onClick={() => setSelectedSize(size)}
+                    disabled={sizeVariant.quantity === 0}
+                    className={`px-4 py-2 border rounded-md text-sm transition-all duration-200 ${selectedSize === sizeVariant.size
+                      ? "border-primary bg-primary/10 text-primary shadow-soft"
+                      : sizeVariant.quantity > 0
+                        ? "border-border/20 text-foreground hover:border-primary/30"
+                        : "border-border/10 text-muted-foreground opacity-50 cursor-not-allowed"
+                      }`}
+                    onClick={() => setSelectedSize(sizeVariant.size)}
                   >
-                    {size}
+                    {sizeVariant.size}
+                    {sizeVariant.quantity === 0 && (
+                      <span className="block text-xs">ناموجود</span>
+                    )}
                   </motion.button>
-                )
-              )}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* colors */}
-        {product.variants?.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-sm font-medium mb-2 text-foreground">
-              رنگ
-              {selectedColor && (
-                <span className="mr-2 text-xs text-muted-foreground">
-                  ({Array.from(
-                    new Map(
-                      product.variants.map((v) => [v.color, v.colorName || v.color])
-                    ).entries()
-                  ).find(([color]) => color === selectedColor)?.[1] || selectedColor})
+          {/* quantity */}
+          {selectedSize && selectedSizeQuantity > 0 && (
+            <div className="mb-6">
+              <h3 className="text-sm font-medium mb-2 text-foreground">تعداد</h3>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleQuantityChange(-1)}
+                  disabled={quantity <= 1}
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <span className="px-4 py-2 border rounded-md min-w-[60px] text-center">
+                  {quantity}
                 </span>
-              )}
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {Array.from(
-                new Map(
-                  product.variants.map((v) => [v.color, v])
-                ).values()
-              ).map((variant) => (
-                <motion.button
-                  key={variant.color}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
-                  className={`w-8 h-8 rounded-full border-2 shadow-soft transition-all duration-200 ${
-                    selectedColor === variant.color
-                      ? "border-primary ring-2 ring-primary/30"
-                      : "border-transparent hover:border-primary/20"
-                  }`}
-                  style={{ backgroundColor: variant.color }}
-                  onClick={() => handleColorChange(variant.color)}
-                  title={variant.colorName || variant.color}
-                />
-              ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleQuantityChange(1)}
+                  disabled={quantity >= selectedSizeQuantity}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+                <span className="text-sm text-muted-foreground mr-2">
+                  ({selectedSizeQuantity} عدد موجود)
+                </span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* quantity + add-to-cart */}
-        <div className="flex items-center mb-8">
-          <div className="flex items-center border border-border/20 rounded-lg mr-4 shadow-soft overflow-hidden">
-            <motion.button
-              whileHover={{ backgroundColor: "rgba(26, 60, 105, 0.05)" }}
-              whileTap={{ scale: 0.98 }}
-              className="px-3 py-2 text-muted-foreground hover:text-primary transition-colors duration-200"
-              onClick={decrementQuantity}
+          {/* add to cart button */}
+          <div className="mb-6">
+            <Button
+              variant="primary"
+              fullWidth
+              onClick={handleAddToCart}
+              disabled={!selectedSize || selectedSizeQuantity === 0}
             >
-              <Minus className="h-4 w-4" />
-            </motion.button>
-
-            <span className="px-4 py-2 border-x border-border/10 font-medium">
-              {quantity}
-            </span>
-
-            <motion.button
-              whileHover={{ backgroundColor: "rgba(26, 60, 105, 0.05)" }}
-              whileTap={{ scale: 0.98 }}
-              className="px-3 py-2 text-muted-foreground hover:text-primary transition-colors duration-200"
-              onClick={incrementQuantity}
-            >
-              <Plus className="h-4 w-4" />
-            </motion.button>
+              افزودن به سبد خرید
+            </Button>
           </div>
 
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={handleAddToCart}
-            className="flex-grow"
-          >
-            افزودن به سبد خرید
-          </Button>
-
-          <Button
-            variant="outline"
-            size="lg"
-            className="mr-2 hover:bg-secondary"
-            aria-label="افزودن به علاقه‌مندی‌ها"
-          >
-            <Heart className="h-5 w-5" />
-          </Button>
-        </div>
-
-        {/* features */}
-        <div className="bg-secondary/50 rounded-xl p-4 mb-6 shadow-soft border border-border/5">
-          <h3 className="text-sm font-medium mb-3 text-primary">ویژگی‌ها</h3>
-          <ul className="space-y-2">
-            {product.attributes?.length ? (
-              product.attributes.map((attr) => (
-                <li key={attr.name} className="text-sm flex items-start group">
-                  <span className="ml-2 text-primary group-hover:text-primary/80 transition-colors duration-200">
-                    •
-                  </span>
-                  <span className="group-hover:text-primary/90 transition-colors duration-200">
-                    {attr.shownName ?? attr.name}: {attr.value}
-                  </span>
-                </li>
-              ))
-            ) : (
-              <li className="text-sm text-muted-foreground">
-                ویژگی خاصی درج نشده است
-              </li>
-            )}
-          </ul>
-        </div>
-
-        {/* guarantees */}
-        <div className="border-t border-border/10 pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="flex items-center p-3 rounded-lg hover:bg-secondary/50 transition-colors duration-200 group">
-              <Truck className="h-5 w-5 ml-2 text-primary group-hover:text-primary/80 transition-colors duration-200" />
-              <span className="text-sm group-hover:text-primary/90 transition-colors duration-200">
-                ارسال سریع
-              </span>
+          {/* features */}
+          <div className="space-y-3 pt-6 border-t border-border/20">
+            <div className="flex items-center gap-3">
+              <Truck className="h-5 w-5 text-primary" />
+              <span className="text-sm">ارسال رایگان برای خریدهای بالای 500 هزار تومان</span>
             </div>
-            <div className="flex items-center p-3 rounded-lg hover:bg-secondary/50 transition-colors duration-200 group">
-              <RotateCcw className="h-5 w-5 ml-2 text-primary group-hover:text-primary/80 transition-colors duration-200" />
-              <span className="text-sm group-hover:text-primary/90 transition-colors duration-200">
-                بازگشت تا ۷ روز
-              </span>
+            <div className="flex items-center gap-3">
+              <RotateCcw className="h-5 w-5 text-primary" />
+              <span className="text-sm">امکان بازگشت کالا تا 7 روز</span>
             </div>
-            <div className="flex items-center p-3 rounded-lg hover:bg-secondary/50 transition-colors duration-200 group">
-              <ShieldCheck className="h-5 w-5 ml-2 text-primary group-hover:text-primary/80 transition-colors duration-200" />
-              <span className="text-sm group-hover:text-primary/90 transition-colors duration-200">
-                ضمانت اصالت
-              </span>
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              <span className="text-sm">گارانتی اصالت کالا</span>
             </div>
           </div>
         </div>

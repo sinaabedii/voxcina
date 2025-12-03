@@ -1,21 +1,30 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { Product, ProductFilter, Review, PaginationInfo } from "@/types/product";
+import {
+  Product,
+  ProductFilter,
+  Review,
+  PaginationInfo,
+  ColorVariantListItem,
+  PaginatedColorVariantsResponse
+} from "@/types/product";
 import { delay, getBrandName, getCategoryName } from "@/lib/utils";
 import { Brand } from "@/types/brand";
 import { Category } from "@/types/category";
 
 interface ProductState {
-  products: Product[];
-  featuredProducts: Product[];
-  newProducts: Product[];
+  // Product lists now store ColorVariantListItem (color variants as separate items)
+  products: ColorVariantListItem[];
+  featuredProducts: ColorVariantListItem[];
+  newProducts: ColorVariantListItem[];
+  adminProducts: Product[]; // Full products for admin dashboard
   isLoading: boolean;
   error: string | null;
-  activeProduct: Product | null;
+  activeProduct: Product | null; // Detail view still returns full Product
   activeProductReviews: Review[];
   filter: ProductFilter;
-  recentlyViewed: Product[];
-  comparedProducts: Product[];
+  recentlyViewed: Product[]; // Keep as Product for full details
+  comparedProducts: Product[]; // Keep as Product for full details
   brands: Brand[];
   categories: Category[];
   pagination: PaginationInfo | null;
@@ -24,12 +33,13 @@ interface ProductState {
   fetchBrands: () => Promise<void>;
   fetchCategories: () => Promise<void>;
   fetchProducts: (page?: number, limit?: number) => Promise<void>;
+  fetchAdminProducts: () => Promise<void>; // Fetch full products for admin
   fetchProductById: (id: string) => Promise<void>;
   fetchFlashSaleProducts: (limit?: number) => Promise<void>;
   fetchNewProducts: (limit?: number) => Promise<void>;
   setFilter: (filter: Partial<ProductFilter>) => void;
   clearFilters: () => void;
-  getFilteredProducts: () => Product[];
+  getFilteredProducts: () => ColorVariantListItem[]; // Changed from Product[]
   addRecentlyViewed: (product: Product) => void;
   removeRecentlyViewed: (productId: string) => void;
   clearRecentlyViewed: () => void;
@@ -60,6 +70,7 @@ export const useProductStore = create<ProductState>()(
       products: [],
       featuredProducts: [],
       newProducts: [],
+      adminProducts: [],
       isLoading: false,
       error: null,
       activeProduct: null,
@@ -71,6 +82,26 @@ export const useProductStore = create<ProductState>()(
       categories: [],
       pagination: null,
 
+      // Fetch full products for admin dashboard (not color variant list items)
+      fetchAdminProducts: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await fetch("/api/admin/products");
+          if (!response.ok) {
+            throw new Error("Failed to fetch admin products");
+          }
+          const data = await response.json();
+          const products = Array.isArray(data) ? data : (data?.data || []);
+          set({ adminProducts: products, isLoading: false });
+        } catch (error) {
+          set({
+            adminProducts: [],
+            error: "خطا در دریافت محصولات. لطفا دوباره تلاش کنید.",
+            isLoading: false,
+          });
+        }
+      },
+
       fetchProducts: async (page = 1, limit = 20) => {
         set({ isLoading: true, error: null });
         try {
@@ -80,7 +111,7 @@ export const useProductStore = create<ProductState>()(
             throw new Error("Failed to fetch products");
           }
           const data = await response.json();
-          
+
           if (Array.isArray(data)) {
             // Legacy support (no pagination)
             set({ products: data, pagination: null, isLoading: false });
@@ -107,7 +138,7 @@ export const useProductStore = create<ProductState>()(
             throw new Error("Failed to fetch product");
           }
           const product = await response.json();
-          
+
           if (!product) {
             throw new Error("محصول یافت نشد");
           }
@@ -143,7 +174,7 @@ export const useProductStore = create<ProductState>()(
             throw new Error("Failed to fetch flash sale products");
           }
           const data = await response.json();
-          
+
           if (Array.isArray(data)) {
             set({ featuredProducts: data, isLoading: false });
           } else if (data && data.data) {
@@ -169,7 +200,7 @@ export const useProductStore = create<ProductState>()(
             throw new Error("Failed to fetch new products");
           }
           const data = await response.json();
-          
+
           if (Array.isArray(data)) {
             set({ newProducts: data, isLoading: false });
           } else if (data && data.data) {
@@ -200,8 +231,8 @@ export const useProductStore = create<ProductState>()(
           const brands = Array.isArray(data)
             ? data
             : Array.isArray((data as any)?.data)
-            ? (data as any).data
-            : [];
+              ? (data as any).data
+              : [];
           set({ brands });
         } catch {
           set({ brands: [] });
@@ -214,8 +245,8 @@ export const useProductStore = create<ProductState>()(
           const categories = Array.isArray(data)
             ? data
             : Array.isArray((data as any)?.data)
-            ? (data as any).data
-            : [];
+              ? (data as any).data
+              : [];
           set({ categories });
         } catch {
           set({ categories: [] });
@@ -224,60 +255,61 @@ export const useProductStore = create<ProductState>()(
 
       getFilteredProducts: () => {
         const { products, filter, brands, categories } = get();
-      
-        return products.filter((product) => {
+
+        return products.filter((item) => {
           // In-stock filter
-          if (filter.inStockOnly && product.inStock === false) return false;
-      
+          if (filter.inStockOnly && item.inStock === false) return false;
+
           // Category
           if (filter.categories && filter.categories.length > 0) {
-            if (!product.category_ids.some(id => filter.categories!.includes(id))) {
+            if (!item.category_ids.some(id => filter.categories!.includes(id))) {
               return false;
             }
           }
-      
+
           // Brand
           if (filter.brands && filter.brands.length > 0) {
-            if (!filter.brands.includes(product.brand_id)) {
+            if (!filter.brands.includes(item.brand_id)) {
               return false;
             }
           }
-      
+
           // Price
           if (filter.priceRange) {
-            if (product.price < filter.priceRange.min || product.price > filter.priceRange.max) {
+            if (item.price < filter.priceRange.min || item.price > filter.priceRange.max) {
               return false;
             }
           }
-      
-          // Color - Updated to check variants
+
+          // Color - Check the colorVariant of this item
           if (filter.colors && filter.colors.length > 0) {
-            if (!product.variants.some((v) => filter.colors!.includes(v.color))) {
+            if (!filter.colors.includes(item.colorVariant.color)) {
               return false;
             }
           }
-      
-          // Size - Updated to check variants
+
+          // Size - Check available sizes in the color variant
           if (filter.sizes && filter.sizes.length > 0) {
-            if (!product.variants.some((v) => filter.sizes!.includes(v.size))) {
+            if (!item.colorVariant.sizes.some((s) => filter.sizes!.includes(s.size))) {
               return false;
             }
           }
-      
+
           // Search
           if (filter.search && filter.search.trim() !== "") {
             const searchTerm = filter.search.toLowerCase();
-            const brandName = getBrandName(product.brand_id, brands);
-            const categoryName = getCategoryName(product.category_ids, categories);
-      
+            const brandName = getBrandName(item.brand_id, brands);
+            const categoryName = getCategoryName(item.category_ids, categories);
+
             return (
-              product.name.toLowerCase().includes(searchTerm) ||
-              product.description.toLowerCase().includes(searchTerm) ||
+              item.name.toLowerCase().includes(searchTerm) ||
+              item.description.toLowerCase().includes(searchTerm) ||
               brandName.toLowerCase().includes(searchTerm) ||
-              categoryName.toLowerCase().includes(searchTerm)
+              categoryName.toLowerCase().includes(searchTerm) ||
+              item.colorVariant.colorName.toLowerCase().includes(searchTerm)
             );
           }
-      
+
           return true;
         });
       },
@@ -473,8 +505,8 @@ export const useProductStore = create<ProductState>()(
           }
           const updatedProduct = await response.json();
           set((state) => ({
-            products: state.products.map((p) =>
-              p.id === id ? updatedProduct : p
+            products: state.products.map((item) =>
+              item.productId === id ? { ...item, ...updatedProduct } : item
             ),
             activeProduct: state.activeProduct?.id === id ? updatedProduct : state.activeProduct,
             isLoading: false,
@@ -503,7 +535,7 @@ export const useProductStore = create<ProductState>()(
             throw new Error(errorData.message || "Failed to delete product");
           }
           set((state) => ({
-            products: state.products.filter((p) => p.id !== id),
+            products: state.products.filter((item) => item.productId !== id),
             isLoading: false,
           }));
           return true;
