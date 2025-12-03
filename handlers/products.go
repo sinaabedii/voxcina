@@ -1587,18 +1587,26 @@ func DeleteProduct(w http.ResponseWriter, r *http.Request) {
 
 	// Fetch the product to get its image paths before marking as inactive
 	var productToDeactivate models.Product
-	err = collection.FindOne(ctx, bson.M{"_id": productID, "is_active": true}).
+	err = collection.FindOne(ctx, bson.M{"_id": productID}).
 		Decode(&productToDeactivate)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			utils.ErrorResponse(
 				w,
 				http.StatusNotFound,
-				"Active product not found or already inactive",
+				"Product not found",
 			)
 		} else {
 			utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching product: "+err.Error())
 		}
+		return
+	}
+	
+	// Check if already inactive
+	if !productToDeactivate.IsActive {
+		utils.JSONResponse(w, http.StatusOK, map[string]string{
+			"message": "Product is already inactive",
+		})
 		return
 	}
 
@@ -1731,6 +1739,45 @@ func GetProductsByCollection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Expand products into color variant list items (same as ListProducts)
+	var colorVariantItems []models.ColorVariantListItem
+	for _, product := range products {
+		for _, colorVariant := range product.ColorVariants {
+			// Calculate total inventory for this color
+			totalInventory := 0
+			for _, size := range colorVariant.Sizes {
+				totalInventory += size.Quantity
+			}
+
+			// Convert ObjectIDs to strings
+			categoryIDStrs := make([]string, len(product.CategoryIDs))
+			for i, id := range product.CategoryIDs {
+				categoryIDStrs[i] = id.Hex()
+			}
+
+			// Create list item for this color variant
+			item := models.ColorVariantListItem{
+				ProductID:      product.ID.Hex(),
+				ColorVariant:   colorVariant,
+				Name:           product.Name,
+				Description:    product.Description,
+				Price:          product.Price,
+				OriginalPrice:  product.OriginalPrice,
+				Brand:          product.Brand,
+				BrandID:        product.BrandID.Hex(),
+				CategoryIDs:    categoryIDStrs,
+				Collection:     product.Collection,
+				IsFlashSale:    product.IsFlashSale,
+				AverageRating:  product.AverageRating,
+				ReviewCount:    product.ReviewCount,
+				CreatedAt:      product.CreatedAt,
+				TotalInventory: totalInventory,
+				InStock:        totalInventory > 0,
+			}
+			colorVariantItems = append(colorVariantItems, item)
+		}
+	}
+
 	totalPages := int(math.Ceil(float64(totalProducts) / float64(limit)))
 
 	// Determine next/prev pages
@@ -1754,13 +1801,13 @@ func GetProductsByCollection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type collectionResponse struct {
-		Data       []models.Product `json:"data"`
-		Pagination paginationInfo   `json:"pagination"`
-		Collection string           `json:"collection"`
+		Data       []models.ColorVariantListItem `json:"data"`
+		Pagination paginationInfo                `json:"pagination"`
+		Collection string                        `json:"collection"`
 	}
 
 	resp := collectionResponse{
-		Data: products,
+		Data: colorVariantItems,
 		Pagination: paginationInfo{
 			TotalPages:    totalPages,
 			CurrentPage:   page,
