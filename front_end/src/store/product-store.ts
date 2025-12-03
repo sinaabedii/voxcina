@@ -86,7 +86,9 @@ export const useProductStore = create<ProductState>()(
       fetchAdminProducts: async () => {
         set({ isLoading: true, error: null });
         try {
-          const response = await fetch("/api/admin/products");
+          const response = await fetch("/api/admin/products", {
+            credentials: "include", // Include cookies for authentication
+          });
           if (!response.ok) {
             throw new Error("Failed to fetch admin products");
           }
