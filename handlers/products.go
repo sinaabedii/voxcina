@@ -111,8 +111,8 @@ func processVariantImages(
 			)
 		}
 
-		// Convert to web path
-		webPath := strings.Replace(filePath, ".", "", 1)
+		// Convert to web path - ensure it starts with /uploads/
+		webPath := "/" + filePath
 		imagePaths = append(imagePaths, webPath)
 		*uploadedFilePaths = append(*uploadedFilePaths, filePath)
 
@@ -188,8 +188,8 @@ func processVariantTryOnImage(
 		)
 	}
 
-	// Convert to web path
-	webPath := strings.Replace(filePath, ".", "", 1)
+	// Convert to web path - ensure it starts with /uploads/
+	webPath := "/" + filePath
 	*uploadedFilePaths = append(*uploadedFilePaths, filePath)
 
 	fmt.Printf("Uploaded variant try-on image: %s (%d bytes)\n", webPath, bytesCopied)
