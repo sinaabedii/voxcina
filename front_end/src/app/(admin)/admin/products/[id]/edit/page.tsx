@@ -9,6 +9,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import toast from "react-hot-toast";
+import ImageUploader, { ImageItem, getNewImageFiles, getExistingImagePaths, getImageOrderInfo, createImageItemFromUrl } from "@/components/admin/ImageUploader";
 
 export default function EditProductPage() {
   const router = useRouter();
@@ -22,9 +23,9 @@ export default function EditProductPage() {
   const [originalPrice, setOriginalPrice] = useState(0);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [brandId, setBrandId] = useState("");
-  const [mainImages, setMainImages] = useState<FileList | null>(null);
+  const [mainImageItems, setMainImageItems] = useState<ImageItem[]>([]);
   const [colorVariants, setColorVariants] = useState<ColorVariant[]>([]);
-  const [colorImageFiles, setColorImageFiles] = useState<{ [key: number]: File[] }>({});
+  const [colorImageItems, setColorImageItems] = useState<{ [key: number]: ImageItem[] }>({});
   const [colorTryOnFiles, setColorTryOnFiles] = useState<{ [key: number]: File }>({});
   const [attributes, setAttributes] = useState<ProductAttribute[]>([]);
   const [isFlashSale, setIsFlashSale] = useState(false);
@@ -74,6 +75,22 @@ export default function EditProductPage() {
       setBrandId(activeProduct.brand_id || "");
       setColorVariants(activeProduct.colorVariants || []);
       setAttributes(activeProduct.attributes || []);
+      
+      // Load existing main images into ImageItems
+      if (activeProduct.mainImages && activeProduct.mainImages.length > 0) {
+        setMainImageItems(activeProduct.mainImages.map(url => createImageItemFromUrl(url)));
+      }
+      
+      // Load existing color variant images into ImageItems
+      if (activeProduct.colorVariants && activeProduct.colorVariants.length > 0) {
+        const colorImgs: { [key: number]: ImageItem[] } = {};
+        activeProduct.colorVariants.forEach((cv, idx) => {
+          if (cv.images && cv.images.length > 0) {
+            colorImgs[idx] = cv.images.map(url => createImageItemFromUrl(url));
+          }
+        });
+        setColorImageItems(colorImgs);
+      }
       setIsFlashSale(activeProduct.is_flash_sale);
       setIsActive(activeProduct.is_active);
       setInStock(activeProduct.inStock);
@@ -132,8 +149,8 @@ export default function EditProductPage() {
     categoryIds.length > 0 &&
     !!brandId;
 
-  const handleMainImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setMainImages(e.target.files);
+  const handleMainImagesChange = (newImages: ImageItem[]) => {
+    setMainImageItems(newImages);
   };
 
   // Color Variant Handlers
@@ -150,12 +167,10 @@ export default function EditProductPage() {
     setColorVariants(colorVariants.map((cv, i) => i === colorIdx ? { ...cv, [field]: value } : cv));
   };
 
-  const handleColorImagesChange = (colorIdx: number, files: FileList | null) => {
-    if (files) {
-      setColorImageFiles(prev => ({ ...prev, [colorIdx]: Array.from(files) }));
-      const imageUrls = Array.from(files).map(file => URL.createObjectURL(file));
-      setColorVariants(colorVariants.map((cv, i) => i === colorIdx ? { ...cv, images: imageUrls } : cv));
-    }
+  const handleColorImagesChange = (colorIdx: number, newImages: ImageItem[]) => {
+    setColorImageItems(prev => ({ ...prev, [colorIdx]: newImages }));
+    const imageUrls = newImages.map(img => img.url);
+    setColorVariants(colorVariants.map((cv, i) => i === colorIdx ? { ...cv, images: imageUrls } : cv));
   };
 
   const handleColorTryOnChange = (colorIdx: number, file: File | null) => {
@@ -169,11 +184,11 @@ export default function EditProductPage() {
 
   const handleRemoveColorVariant = (colorIdx: number) => {
     setColorVariants(colorVariants.filter((_, i) => i !== colorIdx));
-    const newColorImageFiles = { ...colorImageFiles };
+    const newColorImageItems = { ...colorImageItems };
     const newColorTryOnFiles = { ...colorTryOnFiles };
-    delete newColorImageFiles[colorIdx];
+    delete newColorImageItems[colorIdx];
     delete newColorTryOnFiles[colorIdx];
-    setColorImageFiles(newColorImageFiles);
+    setColorImageItems(newColorImageItems);
     setColorTryOnFiles(newColorTryOnFiles);
   };
 
@@ -365,18 +380,24 @@ export default function EditProductPage() {
     formData.append("isActive", isActive ? "true" : "false");
     formData.append("inStock", inStock ? "true" : "false");
 
-    // Add main product images
-    if (mainImages) {
-      Array.from(mainImages).forEach((file) => formData.append("mainImages", file));
-    }
+    // Send main images order info (includes both existing paths and new file positions)
+    const mainImageOrder = getImageOrderInfo(mainImageItems);
+    formData.append("mainImageOrder", JSON.stringify(mainImageOrder));
+
+    // Add new main product images (in order they appear in the array)
+    const mainImageFiles = getNewImageFiles(mainImageItems);
+    mainImageFiles.forEach((file) => formData.append("mainImages", file));
 
     // Add color variant images and try-on images
     colorVariants.forEach((cv, idx) => {
-      // Add color-specific images
-      const colorImages = colorImageFiles[idx];
-      if (colorImages) {
-        colorImages.forEach((file: File) => formData.append(`colorImages_${idx}`, file));
-      }
+      // Send color images order info
+      const colorImages = colorImageItems[idx] || [];
+      const colorImageOrder = getImageOrderInfo(colorImages);
+      formData.append(`colorImageOrder_${idx}`, JSON.stringify(colorImageOrder));
+      
+      // Add new color-specific images
+      const colorImageFiles = getNewImageFiles(colorImages);
+      colorImageFiles.forEach((file: File) => formData.append(`colorImages_${idx}`, file));
 
       // Add color-specific try-on image
       const colorTryOnFile = colorTryOnFiles[idx];
@@ -496,38 +517,14 @@ export default function EditProductPage() {
           <Link href="/admin/brands/add" className="text-blue-600 text-sm">+ برند جدید</Link>
         </div>
         {/* Main Product Images */}
-        <div>
-          <label className="block mb-1 font-medium">تصاویر اصلی محصول (برای افزودن تصاویر جدید انتخاب کنید)</label>
-          <p className="text-xs text-gray-500 mb-2">این تصاویر برای همه رنگ‌ها نمایش داده می‌شوند</p>
-          <input 
-            className="input" 
-            type="file" 
-            multiple 
-            accept="image/*" 
-            onChange={handleMainImagesChange} 
+        <div className="border rounded-lg p-4 bg-blue-50">
+          <ImageUploader
+            images={mainImageItems}
+            onChange={handleMainImagesChange}
+            maxImages={10}
+            label="تصاویر اصلی محصول"
+            description="این تصاویر برای همه رنگ‌ها نمایش داده می‌شوند. تصویر اول به عنوان تصویر اصلی استفاده می‌شود."
           />
-          {mainImages && mainImages.length > 0 && (
-            <div className="flex gap-2 mt-2 flex-wrap">
-              {Array.from(mainImages).map((file, idx) => (
-                <div key={idx} className="w-16 h-16 border rounded overflow-hidden">
-                  <img src={URL.createObjectURL(file)} alt={`Main ${idx}`} className="w-full h-full object-cover" />
-                </div>
-              ))}
-            </div>
-          )}
-          {/* Show existing main images */}
-          {activeProduct?.mainImages && activeProduct.mainImages.length > 0 && (
-            <div className="mt-2">
-              <p className="text-xs text-gray-500 mb-1">تصاویر فعلی:</p>
-              <div className="flex gap-2 flex-wrap">
-                {activeProduct.mainImages.map((img, idx) => (
-                  <div key={idx} className="w-16 h-16 border rounded overflow-hidden">
-                    <img src={img} alt={`Existing ${idx}`} className="w-full h-full object-cover" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Color Variants Section */}
@@ -582,37 +579,14 @@ export default function EditProductPage() {
               </div>
 
               {/* Color Images */}
-              <div className="mb-4">
-                <label className="block text-sm mb-1">تصاویر این رنگ (برای جایگزینی انتخاب کنید)</label>
-                <input
-                  className="input text-sm"
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={(e) => handleColorImagesChange(colorIdx, e.target.files)}
+              <div className="mb-4 bg-white rounded-lg p-3">
+                <ImageUploader
+                  images={colorImageItems[colorIdx] || []}
+                  onChange={(newImages) => handleColorImagesChange(colorIdx, newImages)}
+                  maxImages={5}
+                  label={`تصاویر رنگ ${colorVariant.colorName || colorIdx + 1}`}
+                  description="تصاویر مختص این رنگ (زوایای مختلف)"
                 />
-                {/* Show new uploaded images */}
-                {colorImageFiles[colorIdx] && colorImageFiles[colorIdx].length > 0 && (
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    <span className="text-xs text-green-600">تصاویر جدید:</span>
-                    {colorImageFiles[colorIdx].map((file, imgIdx) => (
-                      <div key={imgIdx} className="w-12 h-12 border rounded overflow-hidden">
-                        <img src={URL.createObjectURL(file)} alt={`New ${imgIdx}`} className="w-full h-full object-cover" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {/* Show existing color images */}
-                {colorVariant.images.length > 0 && !colorImageFiles[colorIdx] && (
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    <span className="text-xs text-gray-500">تصاویر فعلی:</span>
-                    {colorVariant.images.map((img, imgIdx) => (
-                      <div key={imgIdx} className="w-12 h-12 border rounded overflow-hidden">
-                        <img src={img} alt={`Color ${colorIdx} image ${imgIdx}`} className="w-full h-full object-cover" />
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
 
               {/* Try-On Image */}

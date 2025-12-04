@@ -1298,19 +1298,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 			somethingToUpdate = true
 		}
 
-		if colorVariantsJSON := r.FormValue("colorVariants"); colorVariantsJSON != "" {
-			var colorVariants []models.ColorVariant
-			if err := json.Unmarshal([]byte(colorVariantsJSON), &colorVariants); err != nil {
-				utils.ErrorResponse(
-					w,
-					http.StatusBadRequest,
-					"Invalid colorVariants JSON format: "+err.Error(),
-				)
-				return
-			}
-			update["color_variants"] = colorVariants
-			somethingToUpdate = true
-		}
+		// Note: colorVariants is handled later with image ordering support
 
 		if attributesJSON := r.FormValue("attributes"); attributesJSON != "" {
 			var attributes []models.ProductAttribute
@@ -1376,102 +1364,121 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 			somethingToUpdate = true
 		}
 
-		// Process existing images to keep
-		existingImagePathsJSON := r.FormValue("existingImagePaths")
-		if existingImagePathsJSON != "" {
-			var existingPathsToKeep []string
-			if err := json.Unmarshal([]byte(existingImagePathsJSON), &existingPathsToKeep); err != nil {
+		// Process main image order (supports reordering, adding, and removing)
+		mainImageOrderJSON := r.FormValue("mainImageOrder")
+		files := r.MultipartForm.File["mainImages"]
+		
+		if mainImageOrderJSON != "" || len(files) > 0 {
+			// Parse image order info
+			type ImageOrderItem struct {
+				IsExisting bool   `json:"isExisting"`
+				Path       string `json:"path,omitempty"`
+				NewIndex   int    `json:"newIndex"`
+			}
+			var imageOrder []ImageOrderItem
+			
+			if mainImageOrderJSON != "" {
+				if err := json.Unmarshal([]byte(mainImageOrderJSON), &imageOrder); err != nil {
+					utils.ErrorResponse(
+						w,
+						http.StatusBadRequest,
+						"Invalid mainImageOrder JSON format: "+err.Error(),
+					)
+					return
+				}
+			}
+			
+			// Upload new files first
+			var newFilePaths []string
+			uploadDir := "./uploads/products/main"
+			if len(files) > 0 {
+				if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+					utils.ErrorResponse(
+						w,
+						http.StatusInternalServerError,
+						"Error creating main product uploads directory: "+err.Error(),
+					)
+					return
+				}
+				
+				for _, handler := range files {
+					file, err := handler.Open()
+					if err != nil {
+						utils.ErrorResponse(
+							w,
+							http.StatusInternalServerError,
+							"Error opening new main image file: "+err.Error(),
+						)
+						return
+					}
+					defer file.Close()
+
+					ext := filepath.Ext(handler.Filename)
+					filename := fmt.Sprintf(
+						"%s-%d-%s%s",
+						productID.Hex(),
+						time.Now().UnixNano(),
+						strings.ReplaceAll(filepath.Base(handler.Filename), ext, ""),
+						ext,
+					)
+					filePath := filepath.Join(uploadDir, filename)
+
+					dst, err := os.Create(filePath)
+					if err != nil {
+						utils.ErrorResponse(
+							w,
+							http.StatusInternalServerError,
+							"Error creating new main image file on server: "+err.Error(),
+						)
+						return
+					}
+					defer dst.Close()
+
+					if _, err := io.Copy(dst, file); err != nil {
+						_ = os.Remove(filePath)
+						utils.ErrorResponse(
+							w,
+							http.StatusInternalServerError,
+							"Error saving new main image file: "+err.Error(),
+						)
+						return
+					}
+					serverPath := "/uploads/products/main/" + filename
+					newFilePaths = append(newFilePaths, serverPath)
+					newlyUploadedPaths = append(newlyUploadedPaths, filePath)
+				}
+			}
+			
+			// Build final image paths in the specified order
+			newFileIdx := 0
+			for _, item := range imageOrder {
+				if item.IsExisting && item.Path != "" {
+					finalImagePaths = append(finalImagePaths, item.Path)
+				} else if !item.IsExisting && newFileIdx < len(newFilePaths) {
+					finalImagePaths = append(finalImagePaths, newFilePaths[newFileIdx])
+					newFileIdx++
+				}
+			}
+			
+			// If no order info provided but files uploaded, just append new files
+			if len(imageOrder) == 0 && len(newFilePaths) > 0 {
+				finalImagePaths = append(existingProduct.MainImages, newFilePaths...)
+			}
+			
+			// Validate total count
+			if len(finalImagePaths) > MAX_MAIN_IMAGES {
 				utils.ErrorResponse(
 					w,
 					http.StatusBadRequest,
-					"Invalid existingImagePaths JSON format: "+err.Error(),
+					fmt.Sprintf("Total main images cannot exceed %d.", MAX_MAIN_IMAGES),
 				)
 				return
 			}
-			for _, p := range existingPathsToKeep {
-				if strings.HasPrefix(p, "/uploads/products/main/") {
-					finalImagePaths = append(finalImagePaths, p)
-				}
-			}
-		}
-
-		// Process new image uploads
-		files := r.MultipartForm.File["mainImages"]
-		if len(finalImagePaths)+len(files) > MAX_MAIN_IMAGES {
-			utils.ErrorResponse(
-				w,
-				http.StatusBadRequest,
-				fmt.Sprintf(
-					"Total main images (existing + new) cannot exceed %d.",
-					MAX_MAIN_IMAGES,
-				),
-			)
-			return
-		}
-
-		uploadDir := "./uploads/products/main"
-		if len(files) > 0 {
-			if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
-				utils.ErrorResponse(
-					w,
-					http.StatusInternalServerError,
-					"Error creating main product uploads directory: "+err.Error(),
-				)
-				return
-			}
-		}
-
-		for _, handler := range files {
-			file, err := handler.Open()
-			if err != nil {
-				utils.ErrorResponse(
-					w,
-					http.StatusInternalServerError,
-					"Error opening new main image file: "+err.Error(),
-				)
-				return
-			}
-			defer file.Close()
-
-			ext := filepath.Ext(handler.Filename)
-			filename := fmt.Sprintf(
-				"%s-%d-%s%s",
-				productID.Hex(),
-				time.Now().UnixNano(),
-				strings.ReplaceAll(filepath.Base(handler.Filename), ext, ""),
-				ext,
-			)
-			filePath := filepath.Join(uploadDir, filename)
-
-			dst, err := os.Create(filePath)
-			if err != nil {
-				utils.ErrorResponse(
-					w,
-					http.StatusInternalServerError,
-					"Error creating new main image file on server: "+err.Error(),
-				)
-				return
-			}
-			defer dst.Close()
-
-			if _, err := io.Copy(dst, file); err != nil {
-				_ = os.Remove(filePath)
-				utils.ErrorResponse(
-					w,
-					http.StatusInternalServerError,
-					"Error saving new main image file: "+err.Error(),
-				)
-				return
-			}
-			serverPath := "/uploads/products/main/" + filename
-			finalImagePaths = append(finalImagePaths, serverPath)
-			newlyUploadedPaths = append(newlyUploadedPaths, filePath)
-			somethingToUpdate = true
-		}
-
-		// Determine main images to delete
-		if existingImagePathsJSON != "" || len(files) > 0 {
+			
 			update["main_images"] = finalImagePaths
+			somethingToUpdate = true
+			
+			// Determine images to delete
 			existingImageMap := make(map[string]bool)
 			for _, p := range finalImagePaths {
 				existingImageMap[p] = true
@@ -1483,8 +1490,95 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Handle color variant images - tryOnImage is now per color variant
-		// This is handled through colorVariants JSON update above
+		// Handle color variant images with ordering
+		if colorVariantsJSON := r.FormValue("colorVariants"); colorVariantsJSON != "" {
+			var colorVariants []models.ColorVariant
+			if err := json.Unmarshal([]byte(colorVariantsJSON), &colorVariants); err == nil {
+				// Process each color variant's images
+				for idx := range colorVariants {
+					colorImageOrderJSON := r.FormValue(fmt.Sprintf("colorImageOrder_%d", idx))
+					colorFiles := r.MultipartForm.File[fmt.Sprintf("colorImages_%d", idx)]
+					
+					if colorImageOrderJSON != "" || len(colorFiles) > 0 {
+						type ImageOrderItem struct {
+							IsExisting bool   `json:"isExisting"`
+							Path       string `json:"path,omitempty"`
+							NewIndex   int    `json:"newIndex"`
+						}
+						var colorImageOrder []ImageOrderItem
+						
+						if colorImageOrderJSON != "" {
+							json.Unmarshal([]byte(colorImageOrderJSON), &colorImageOrder)
+						}
+						
+						// Upload new color variant files
+						var newColorFilePaths []string
+						if len(colorFiles) > 0 {
+							uploadedPaths, err := processVariantImages(
+								colorFiles,
+								productID,
+								idx,
+								"images",
+								&newlyUploadedPaths,
+							)
+							if err != nil {
+								utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())
+								return
+							}
+							newColorFilePaths = uploadedPaths
+						}
+						
+						// Build final color image paths in order
+						var finalColorPaths []string
+						newColorFileIdx := 0
+						for _, item := range colorImageOrder {
+							if item.IsExisting && item.Path != "" {
+								finalColorPaths = append(finalColorPaths, item.Path)
+							} else if !item.IsExisting && newColorFileIdx < len(newColorFilePaths) {
+								finalColorPaths = append(finalColorPaths, newColorFilePaths[newColorFileIdx])
+								newColorFileIdx++
+							}
+						}
+						
+						// If no order but files uploaded, append to existing
+						if len(colorImageOrder) == 0 && len(newColorFilePaths) > 0 {
+							if idx < len(existingProduct.ColorVariants) {
+								finalColorPaths = append(existingProduct.ColorVariants[idx].Images, newColorFilePaths...)
+							} else {
+								finalColorPaths = newColorFilePaths
+							}
+						}
+						
+						colorVariants[idx].Images = finalColorPaths
+					} else if idx < len(existingProduct.ColorVariants) {
+						// Keep existing images if no changes
+						colorVariants[idx].Images = existingProduct.ColorVariants[idx].Images
+					}
+					
+					// Handle try-on image
+					tryOnFiles := r.MultipartForm.File[fmt.Sprintf("colorTryOn_%d", idx)]
+					if len(tryOnFiles) > 0 {
+						tryOnPath, err := processVariantTryOnImage(
+							tryOnFiles[0],
+							productID,
+							idx,
+							&newlyUploadedPaths,
+						)
+						if err != nil {
+							utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())
+							return
+						}
+						colorVariants[idx].TryOnImage = tryOnPath
+					} else if idx < len(existingProduct.ColorVariants) {
+						// Keep existing try-on image
+						colorVariants[idx].TryOnImage = existingProduct.ColorVariants[idx].TryOnImage
+					}
+				}
+				
+				update["color_variants"] = colorVariants
+				somethingToUpdate = true
+			}
+		}
 
 	} else {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Unsupported Content-Type. Use application/json or multipart/form-data")
