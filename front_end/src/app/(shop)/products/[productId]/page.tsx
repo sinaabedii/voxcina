@@ -87,6 +87,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const [recentlyViewedVisible, setRecentlyViewedVisible] = useState(true);
   const [showPopularityStats, setShowPopularityStats] = useState(false);
   const [showTryOnModal, setShowTryOnModal] = useState(false);
+  const [showSelectColorMessage, setShowSelectColorMessage] = useState(false);
 
   const imageContainerRef = useRef<HTMLDivElement>(null);
 
@@ -143,17 +144,24 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   };
 
   // Helper function to get try-on image based on selected color
+  // Returns null if no color is selected - user must select a color first
   const getTryOnImage = () => {
     if (!activeProduct) return null;
     
-    // If a color is selected, get try-on image for that color
+    // Only return try-on image if a color is selected
     if (selectedColor) {
       const colorVariant = activeProduct.colorVariants?.find(cv => cv.color === selectedColor);
       if (colorVariant?.tryOnImage) return colorVariant.tryOnImage;
     }
     
-    // Default: get first color variant's try-on image
-    return activeProduct.colorVariants?.[0]?.tryOnImage || null;
+    // No color selected - return null to require color selection
+    return null;
+  };
+
+  // Check if any color variant has a try-on image available
+  const hasTryOnAvailable = () => {
+    if (!activeProduct?.colorVariants) return false;
+    return activeProduct.colorVariants.some(cv => cv.tryOnImage);
   };
 
   // Get current product images
@@ -446,6 +454,17 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     } catch (error) {
       console.error("Error in try-on process:", error);
     }
+  };
+
+  // Handle try-on button click - show message if no color selected
+  const handleTryOnClick = () => {
+    if (!selectedColor && hasTryOnAvailable()) {
+      setShowSelectColorMessage(true);
+      // Auto-hide the message after 3 seconds
+      setTimeout(() => setShowSelectColorMessage(false), 3000);
+      return;
+    }
+    setShowTryOnModal(true);
   };
 
   const handleUserImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1023,7 +1042,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     }}
                   >
                     {/* Animated glow effect */}
-                    {tryOnImage && (
+                    {hasTryOnAvailable() && (
                       <div className="absolute -inset-1 bg-gradient-to-r from-pink-600 via-purple-500 to-blue-600 rounded-xl opacity-70 blur-lg group-hover:opacity-100 animate-gradient-xy"></div>
                     )}
                     
@@ -1031,23 +1050,23 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       variant="outline"
                       size="lg"
                       className={`w-full rounded-xl border-2 ${
-                        tryOnImage 
+                        hasTryOnAvailable() 
                           ? "border-purple-400 dark:border-purple-300 text-voxcina-blue dark:text-voxcina-cream bg-gradient-to-br from-white/80 via-purple-100/60 to-white/80 dark:from-voxcina-blue/60 dark:via-purple-900/40 dark:to-voxcina-blue/60 shadow-lg hover:shadow-purple-300/50 dark:hover:shadow-purple-500/30 relative overflow-hidden"
                           : "border-voxcina-blue/20 text-voxcina-blue/60 dark:border-voxcina-blue/30 dark:text-voxcina-cream/60 bg-voxcina-cream/20 dark:bg-voxcina-blue/20"
                       } transition-all duration-500 disabled:opacity-40 disabled:from-transparent disabled:to-transparent relative group`}
-                      disabled={!tryOnImage}
-                      onClick={() => setShowTryOnModal(true)}
+                      disabled={!hasTryOnAvailable()}
+                      onClick={handleTryOnClick}
                       aria-label="آزمایش مجازی"
                     >
                       {/* Animated shine effect */}
-                      {tryOnImage && (
+                      {hasTryOnAvailable() && (
                         <div className="absolute inset-0 w-full h-full overflow-hidden">
                           <div className="absolute top-0 left-[-100%] h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white/40 dark:to-purple-300/30 opacity-40 animate-shine" />
                         </div>
                       )}
                       
                       <div className="relative flex items-center justify-center">
-                        {tryOnImage && (
+                        {hasTryOnAvailable() && (
                           <>
                             {/* Sparkle elements */}
                             <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-300 rounded-full animate-ping opacity-75"></span>
@@ -1057,7 +1076,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                         )}
                         <motion.div
                           animate={{
-                            scale: tryOnImage ? [1, 1.2, 1] : 1,
+                            scale: hasTryOnAvailable() ? [1, 1.2, 1] : 1,
                             transition: {
                               repeat: Infinity,
                               repeatType: "mirror",
@@ -1243,14 +1262,28 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     variant="outline"
                     size="sm"
                     className="w-full rounded-xl mb-2"
-                    disabled={!tryOnImage}
-                    onClick={() => setShowTryOnModal(true)}
+                    disabled={!hasTryOnAvailable()}
+                    onClick={handleTryOnClick}
                   >
                     <Camera className="w-4 h-4 ml-1" />
                     شروع پرو مجازی
                   </Button>
                   
-                  {!tryOnImage && (
+                  {/* Message to select color first */}
+                  <AnimatePresence>
+                    {showSelectColorMessage && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="text-xs text-orange-600 dark:text-orange-400 mt-2 bg-orange-50 dark:bg-orange-900/20 px-3 py-2 rounded-lg border border-orange-200 dark:border-orange-800"
+                      >
+                        لطفاً ابتدا یک رنگ انتخاب کنید
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  
+                  {!hasTryOnAvailable() && (
                     <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50 mt-2">
                       (برای این محصول در دسترس نیست)
                     </span>
