@@ -19,6 +19,9 @@ export interface AuthStore extends AuthState {
   deleteUserAsAdmin: (userId: string) => Promise<void>;
   loginSms: (phone: string) => Promise<User>;
   allUsers: User[];
+  // Direct setters for OTP signup flow
+  setUser: (user: User | null) => void;
+  setIsAuthenticated: (isAuthenticated: boolean) => void;
 }
 
 // Helper to automatically refresh access token on 401 responses
@@ -72,6 +75,10 @@ export const useAuthStore = create<AuthStore>()(
       adminToken: null,
       allUsers: [],
 
+      // Direct setters for OTP signup flow
+      setUser: (user) => set({ user }),
+      setIsAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
+
       login: async (credentials) => {
         set({ isLoading: true, error: null });
       
@@ -106,6 +113,7 @@ export const useAuthStore = create<AuthStore>()(
               id: data.id || data._id,
               name: data.name,
               email: data.email,
+              phone: data.phone,
               role: data.role as "user" | "admin" | "seller" | "customer",
               createdAt: data.createdAt || data.created_at,
               updatedAt: data.updatedAt || data.updated_at
@@ -175,9 +183,9 @@ export const useAuthStore = create<AuthStore>()(
               },
               body: JSON.stringify({
                 name: data.name,
-                email: data.email,
-                password: data.password,
                 phone: data.phone,
+                password: data.password,
+                email: data.email, // Optional
               }),
             });
 
@@ -482,6 +490,7 @@ export const useAuthStore = create<AuthStore>()(
             id: updatedUserBE.id || updatedUserBE._id,
             name: updatedUserBE.name,
             email: updatedUserBE.email,
+            phone: updatedUserBE.phone,
             role: updatedUserBE.role,
             createdAt: updatedUserBE.created_at || updatedUserBE.createdAt,
             updatedAt: updatedUserBE.updated_at || updatedUserBE.updatedAt,

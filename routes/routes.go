@@ -26,6 +26,11 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/users/check-phone", handlers.CheckPhone).Methods(http.MethodPost)
 	api.HandleFunc("/users/login-sms", handlers.LoginViaSMS).Methods(http.MethodPost)
 
+	// OTP-based signup routes
+	api.HandleFunc("/auth/signup/send-otp", handlers.SendSignupOTP).Methods(http.MethodPost)
+	api.HandleFunc("/auth/signup/verify-otp", handlers.VerifySignupOTP).Methods(http.MethodPost)
+	api.HandleFunc("/auth/signup/resend-otp", handlers.ResendSignupOTP).Methods(http.MethodPost)
+
 	// Authenticated User routes
 	userAuthRouter := api.PathPrefix("/users").Subrouter()
 	userAuthRouter.Use(middlewares.AuthMiddleware)

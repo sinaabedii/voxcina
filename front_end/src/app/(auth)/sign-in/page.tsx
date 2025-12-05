@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { Eye, EyeOff, Phone, Lock } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/input";
@@ -13,9 +13,11 @@ import Image from "next/image";
 import { APP_NAME } from "@/lib/constants";
 import { toast } from "react-toastify";
 
+// IR phone number validation regex: 09xxxxxxxxx (11 digits starting with 09)
+const irPhoneRegex = /^09[0-9]{9}$/;
+
 export default function SignInPage() {
   const [mode, setMode] = useState<'password' | 'sms'>("password");
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [smsCode, setSmsCode] = useState("");
@@ -23,7 +25,7 @@ export default function SignInPage() {
   const [smsError, setSmsError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
+  const [errors, setErrors] = useState<{ phone?: string; password?: string }>(
     {}
   );
 
@@ -86,12 +88,12 @@ export default function SignInPage() {
   };
 
   const validateForm = () => {
-    const newErrors: { email?: string; password?: string } = {};
+    const newErrors: { phone?: string; password?: string } = {};
 
-    if (!email) {
-      newErrors.email = "ایمیل الزامی است";
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = "ایمیل نامعتبر است";
+    if (!phone) {
+      newErrors.phone = "شماره تلفن الزامی است";
+    } else if (!irPhoneRegex.test(phone)) {
+      newErrors.phone = "شماره تلفن نامعتبر است (فرمت: 09xxxxxxxxx)";
     }
 
     if (mode === 'password' && !password) {
@@ -106,17 +108,21 @@ export default function SignInPage() {
     e.preventDefault();
     try {
       if (mode === 'password') {
-        // Validate email & password
+        // Validate phone & password
         if (!validateForm()) {
           toast.error("لطفا اطلاعات فرم را کامل کنید");
           return;
         }
-        await login({ email, password });
+        await login({ phone, password });
         router.push("/");
       } else {
         // SMS mode: phone & code validation
         if (!phone) {
           toast.error("شماره تلفن الزامی است");
+          return;
+        }
+        if (!irPhoneRegex.test(phone)) {
+          toast.error("شماره تلفن نامعتبر است (فرمت: 09xxxxxxxxx)");
           return;
         }
         if (!isSent) {
@@ -215,17 +221,17 @@ export default function SignInPage() {
                     <>
                       <motion.div variants={itemVariants}>
                         <Input
-                          label="ایمیل"
-                          type="email"
-                          id="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          error={errors.email}
-                          autoComplete="email"
+                          label="شماره تلفن"
+                          type="tel"
+                          id="phone"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          error={errors.phone}
+                          autoComplete="tel"
                           leftElement={
-                            <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-voxcina-blue/60" />
+                            <Phone className="h-4 w-4 sm:h-5 sm:w-5 text-voxcina-blue/60" />
                           }
-                          placeholder="example@mail.com"
+                          placeholder="09123456789"
                           className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5"
                         />
                       </motion.div>

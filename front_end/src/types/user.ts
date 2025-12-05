@@ -3,9 +3,9 @@ import { Review } from "@/types/product";
 export interface User {
   id: string;
   name: string;
-  email: string;
+  email?: string; // Optional
   avatar?: string;
-  phone?: string;
+  phone: string; // Required - IR phone number (09xxxxxxxxx)
   role: "user" | "admin" | "seller" | "customer";
   addresses?: Address[];
   createdAt: string;
@@ -48,16 +48,16 @@ export interface BackendAddress {
 }
 
 export interface LoginCredentials {
-  email: string;
+  phone: string;
   password: string;
 }
 
 export interface RegistrationData {
   name: string;
-  email: string;
+  phone: string;
   password: string;
   confirmPassword: string;
-  phone: string;
+  email?: string; // Optional
 }
 
 export interface AuthState {

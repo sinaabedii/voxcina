@@ -35,16 +35,19 @@ const (
 // Password validation regex: at least 8 characters, one uppercase, one lowercase, one digit, one special character
 var passwordRegex = regexp.MustCompile(`^(.{0,7}|[^0-9]*|[^A-Z]*|[^a-z]*|[a-zA-Z0-9]*)$`)
 
-// Email validation regex
+// Email validation regex (optional)
 var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+
+// IR phone number validation regex: 09xxxxxxxxx (11 digits starting with 09)
+var irPhoneRegex = regexp.MustCompile(`^09[0-9]{9}$`)
 
 // Register handles POST /api/users/register
 func Register(w http.ResponseWriter, r *http.Request) {
 	var creds struct {
 		Name     string `json:"name"`
-		Email    string `json:"email"`
+		Email    string `json:"email,omitempty"` // Optional
 		Password string `json:"password"`
-		Phone    string `json:"phone,omitempty"` // Optional
+		Phone    string `json:"phone"` // Required - IR phone number (09xxxxxxxxx)
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
@@ -57,11 +60,11 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// --- Input Validation ---
-	if creds.Name == "" || creds.Email == "" || creds.Password == "" {
+	if creds.Name == "" || creds.Password == "" {
 		utils.ErrorResponse(
 			w,
 			http.StatusBadRequest,
-			"Name, Email, and Password are required",
+			"Name and Password are required",
 		)
 		return
 	}
@@ -70,7 +73,14 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !emailRegex.MatchString(creds.Email) {
+	// Validate IR phone number format (09xxxxxxxxx)
+	if !irPhoneRegex.MatchString(creds.Phone) {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid phone number format. Use IR format: 09xxxxxxxxx")
+		return
+	}
+
+	// Validate email format if provided (optional)
+	if creds.Email != "" && !emailRegex.MatchString(creds.Email) {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid email format")
 		return
 	}
@@ -85,24 +95,27 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	creds.Email = strings.ToLower(creds.Email) // Normalize email
+	// Normalize email if provided
+	if creds.Email != "" {
+		creds.Email = strings.ToLower(creds.Email)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	userCollection := db.Database.Collection("users")
 
-	// --- Check if email already exists ---
-	count, err := userCollection.CountDocuments(ctx, bson.M{"email": creds.Email})
+	// --- Check if phone already exists ---
+	count, err := userCollection.CountDocuments(ctx, bson.M{"phone": creds.Phone})
 	if err != nil {
 		utils.ErrorResponse(
 			w,
 			http.StatusInternalServerError,
-			"Error checking email existence: "+err.Error(),
+			"Error checking phone existence: "+err.Error(),
 		)
 		return
 	}
 	if count > 0 {
-		utils.ErrorResponse(w, http.StatusConflict, "Email already registered")
+		utils.ErrorResponse(w, http.StatusConflict, "Phone number already registered")
 		return
 	}
 
@@ -207,7 +220,7 @@ type Claims struct {
 // Login handles POST /api/users/login
 func Login(w http.ResponseWriter, r *http.Request) {
 	var creds struct {
-		Email    string `json:"email"`
+		Phone    string `json:"phone"`
 		Password string `json:"password"`
 	}
 
@@ -220,29 +233,33 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if creds.Email == "" || creds.Password == "" {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Email and Password are required")
+	if creds.Phone == "" || creds.Password == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Phone and Password are required")
 		return
 	}
 
-	normalizedEmail := strings.ToLower(creds.Email)
+	// Validate IR phone number format
+	if !irPhoneRegex.MatchString(creds.Phone) {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid phone number format. Use IR format: 09xxxxxxxxx")
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	userCollection := db.Database.Collection("users")
 
 	var user models.User
-	if err := userCollection.FindOne(ctx, bson.M{"email": normalizedEmail}).Decode(&user); err != nil {
+	if err := userCollection.FindOne(ctx, bson.M{"phone": creds.Phone}).Decode(&user); err != nil {
 		// Important: Distinguish between "not found" and other errors to avoid user enumeration.
 		// For "not found", return a generic invalid credentials error.
-		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid email or password")
+		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid phone number or password")
 		return
 	}
 
 	// --- Compare the stored hashed password with the submitted password ---
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(creds.Password)); err != nil {
 		// Password does not match
-		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid email or password")
+		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid phone number or password")
 		return
 	}
 

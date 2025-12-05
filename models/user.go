@@ -31,9 +31,9 @@ type Address struct {
 type User struct {
 	ID           primitive.ObjectID `bson:"_id,omitempty"       json:"id,omitempty"`
 	Name         string             `bson:"name"                json:"name"`
-	Email        string             `bson:"email"               json:"email"`           // Unique
+	Email        string             `bson:"email,omitempty"     json:"email,omitempty"` // Optional
 	PasswordHash string             `bson:"password_hash"       json:"-"`               // Don't include in JSON responses
-	Phone        string             `bson:"phone,omitempty"     json:"phone,omitempty"` // Optional
+	Phone        string             `bson:"phone"               json:"phone"`           // Required, Unique - IR phone number (09xxxxxxxxx)
 	Addresses    []Address          `bson:"addresses,omitempty" json:"addresses,omitempty"`
 	Role         string             `bson:"role"                json:"role"`      // Values: "customer", "admin"
 	IsActive     bool               `bson:"is_active"           json:"is_active"` // Soft delete flag
