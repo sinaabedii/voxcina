@@ -78,7 +78,7 @@ func (s *SMSService) SendOTP(phone, code, firstName string) error {
 		Mobile:     mobile,
 		TemplateID: templateID,
 		Parameters: []SMSParameter{
-			{Name: "CODE", Value: code},
+			{Name: "OTPCODE", Value: code},
 			{Name: "USER", Value: firstName},
 		},
 	}
