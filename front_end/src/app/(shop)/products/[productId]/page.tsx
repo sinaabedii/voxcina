@@ -528,9 +528,10 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             <div
               ref={imageContainerRef}
               className={cn(
-                "mb-4 aspect-square relative rounded-2xl overflow-hidden border border-voxcina-cream/30 dark:border-voxcina-blue/30 cursor-pointer shadow-sm bg-white dark:bg-zinc-900 group",
+                "mb-4 relative rounded-2xl overflow-hidden border border-voxcina-cream/30 dark:border-voxcina-blue/30 cursor-pointer shadow-sm bg-white dark:bg-zinc-900 group flex items-center justify-center",
                 isZoomed && "cursor-zoom-out"
               )}
+              style={{ aspectRatio: '4/3', minHeight: '300px', maxHeight: '500px' }}
               onMouseMove={handleImageMouseMove}
               onMouseLeave={() => setIsZoomed(false)}
             >
@@ -554,41 +555,35 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       priority
                     />
                   </div>
-                  <motion.button
+                  <button
                     className="absolute bottom-4 right-4 bg-voxcina-blue/70 dark:bg-voxcina-cream/20 text-white dark:text-voxcina-cream rounded-full p-2 backdrop-blur-sm z-20 hover:bg-voxcina-blue dark:hover:bg-voxcina-cream/40 transition-colors"
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowLightbox(true);
                     }}
                   >
                     <Maximize2 className="h-5 w-5" />
-                  </motion.button>
+                  </button>
 
                   {/* Image Navigation Arrows */}
-                  <motion.button
+                  <button
                     className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 dark:bg-voxcina-blue/50 rounded-full p-3 shadow-md hover:bg-white dark:hover:bg-voxcina-blue/70 transition-colors z-20 md:opacity-0 md:group-hover:opacity-100 duration-300"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleNextImage();
                     }}
-                    whileHover={{ scale: 1.1, x: -3 }}
-                    whileTap={{ scale: 0.9 }}
                   >
                     <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-white" />
-                  </motion.button>
-                  <motion.button
+                  </button>
+                  <button
                     className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 dark:bg-voxcina-blue/50 rounded-full p-3 shadow-md hover:bg-white dark:hover:bg-voxcina-blue/70 transition-colors z-20 md:opacity-0 md:group-hover:opacity-100 duration-300"
                     onClick={(e) => {
                       e.stopPropagation();
                       handlePrevImage();
                     }}
-                    whileHover={{ scale: 1.1, x: 3 }}
-                    whileTap={{ scale: 0.9 }}
                   >
                     <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-white" />
-                  </motion.button>
+                  </button>
 
                   <div className="absolute bottom-4 left-4 bg-voxcina-blue/70 dark:bg-voxcina-cream/20 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-sm z-10 pointer-events-none">
                     {selectedImage + 1} / {productImages?.length || 1}
@@ -606,15 +601,13 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             {productImages && productImages.length > 1 && (
               <div className="flex space-x-2 space-x-reverse overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-voxcina-blue/20 scrollbar-track-voxcina-cream/50 dark:scrollbar-thumb-voxcina-cream/30 dark:scrollbar-track-voxcina-blue/20">
                 {productImages.map((image, index) => (
-                  <motion.button
+                  <button
                     key={index}
-                    className={`w-20 h-20 min-w-[5rem] border rounded-xl overflow-hidden ${selectedImage === index
+                    className={`w-20 h-20 min-w-[5rem] border rounded-xl overflow-hidden transition-colors ${selectedImage === index
                       ? "border-voxcina-blue dark:border-voxcina-cream ring-2 ring-voxcina-blue/30 dark:ring-voxcina-cream/30 shadow-sm"
-                      : "border-voxcina-cream/50 dark:border-voxcina-blue/30 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/50 transition-colors bg-white dark:bg-zinc-900"
+                      : "border-voxcina-cream/50 dark:border-voxcina-blue/30 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/50 bg-white dark:bg-zinc-900"
                       }`}
                     onClick={() => setSelectedImage(index)}
-                    whileHover={{ y: -3 }}
-                    whileTap={{ scale: 0.95 }}
                   >
                     <div className="relative w-full h-full">
                       <BackendImage
@@ -623,7 +616,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                         className="object-contain w-full h-full"
                       />
                     </div>
-                  </motion.button>
+                  </button>
                 ))}
               </div>
             )}
