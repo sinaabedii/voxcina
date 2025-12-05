@@ -525,27 +525,30 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
+            {/* Main Product Image */}
             <div
               ref={imageContainerRef}
               className={cn(
                 "mb-4 relative rounded-2xl overflow-hidden border border-voxcina-cream/30 dark:border-voxcina-blue/30 cursor-pointer shadow-sm bg-white dark:bg-zinc-900 group",
                 isZoomed && "cursor-zoom-out"
               )}
-              style={{ height: '400px' }}
+              style={{ height: '450px' }}
               onMouseMove={handleImageMouseMove}
               onMouseLeave={() => setIsZoomed(false)}
             >
               {productImages && productImages.length > 0 ? (
                 <>
                   <div
-                    className="w-full h-full flex items-center justify-center"
+                    className="relative w-full h-full"
                     onClick={() => setIsZoomed(!isZoomed)}
                   >
-                    <BackendImage
+                    <Image
                       src={productImages?.[selectedImage] || ''}
                       alt={`${activeProduct?.name || ''} - ${activeProduct?.brand || ''}`}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 50vw"
                       className={cn(
-                        "max-w-full max-h-full object-contain transition-transform duration-300",
+                        "object-contain transition-transform duration-300",
                         isZoomed && "scale-150"
                       )}
                       style={
@@ -556,6 +559,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                           : undefined
                       }
                       priority
+                      unoptimized={productImages?.[selectedImage]?.startsWith('/uploads/')}
                     />
                   </div>
                   <button
@@ -613,10 +617,13 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     onClick={() => setSelectedImage(index)}
                   >
                     <div className="relative w-full h-full">
-                      <BackendImage
+                      <Image
                         src={image}
                         alt={`${activeProduct?.name || ''} - تصویر ${index + 1}`}
-                        className="object-contain w-full h-full"
+                        fill
+                        sizes="80px"
+                        className="object-contain"
+                        unoptimized={image?.startsWith('/uploads/')}
                       />
                     </div>
                   </button>
