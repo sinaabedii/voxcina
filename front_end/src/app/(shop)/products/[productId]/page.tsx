@@ -88,6 +88,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const [showPopularityStats, setShowPopularityStats] = useState(false);
   const [showTryOnModal, setShowTryOnModal] = useState(false);
   const [showSelectColorMessage, setShowSelectColorMessage] = useState(false);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
 
   const imageContainerRef = useRef<HTMLDivElement>(null);
 
@@ -232,7 +233,10 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   }, [activeProduct, addRecentlyViewed]);
 
   useEffect(() => {
-    fetchProductById(productId);
+    setHasAttemptedLoad(false);
+    fetchProductById(productId).finally(() => {
+      setHasAttemptedLoad(true);
+    });
   }, [productId, fetchProductById]);
 
   // resume pending job when token becomes available (after hydration)
@@ -284,9 +288,10 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     ? getCategoryName(activeProduct.category_ids[0]) 
     : '';
 
-  if (isLoading) {
+  // Show loading state while fetching or before fetch attempt completes
+  if (isLoading || !hasAttemptedLoad) {
     return (
-      <div className="container py-16 flex items-center justify-center">
+      <div className="container py-16 flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center">
           <div className="relative w-16 h-16 mb-4">
             <div className="absolute top-0 right-0 w-full h-full border-4 border-voxcina-cream/30 dark:border-voxcina-blue/30 rounded-full animate-pulse-soft"></div>
@@ -300,6 +305,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     );
   }
 
+  // Only show error after load attempt has completed
   if (error || !activeProduct) {
     return (
       <div className="container py-16 flex flex-col items-center justify-center">
