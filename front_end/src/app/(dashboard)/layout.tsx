@@ -189,6 +189,12 @@ export default function DashboardLayout({
                       </p>
                     </div>
                     <Link
+                      href="/"
+                      className="block px-4 py-2 text-sm text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
+                    >
+                      صفحه اصلی
+                    </Link>
+                    <Link
                       href="/dashboard"
                       className="block px-4 py-2 text-sm text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
                     >

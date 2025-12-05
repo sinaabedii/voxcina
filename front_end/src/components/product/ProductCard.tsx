@@ -113,16 +113,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           )}
 
-          {/* Badges */}
+          {/* Badges - Right side (New, Out of stock) */}
           <div className="absolute top-2 right-2 flex flex-col gap-1.5">
             {(isNew || ribbonLabel) && (
               <span className="px-2 py-1 text-xs font-medium rounded-md bg-warning text-warning-foreground shadow-soft">
                 {ribbonLabel || "جدید"}
-              </span>
-            )}
-            {discount > 0 && (
-              <span className="px-2 py-1 text-xs font-medium rounded-md bg-destructive text-destructive-foreground shadow-soft">
-                {discount}٪ تخفیف
               </span>
             )}
             {!inStock && (
@@ -131,6 +126,15 @@ const ProductCard: React.FC<ProductCardProps> = ({
               </span>
             )}
           </div>
+
+          {/* Discount badge - Left side */}
+          {discount > 0 && (
+            <div className="absolute top-2 left-2">
+              <span className="px-2 py-1 text-xs font-medium rounded-md bg-destructive text-destructive-foreground shadow-soft">
+                {discount}٪ تخفیف
+              </span>
+            </div>
+          )}
 
           {/* Color indicator badge */}
           <div className="absolute bottom-3 left-3 flex gap-1">
@@ -143,7 +147,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
           {/* Favorite button */}
           <button
-            className={`absolute top-3 left-3 p-2 backdrop-blur-sm rounded-full z-10 transition-all duration-300 ${isProductFavorite
+            className={`absolute ${discount > 0 ? 'top-12' : 'top-2'} left-2 p-2 backdrop-blur-sm rounded-full z-10 transition-all duration-300 ${isProductFavorite
                 ? "bg-destructive/10 text-destructive"
                 : "bg-black/10 text-white hover:bg-white/20"
               }`}
@@ -171,7 +175,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
         <div className="product-card-content p-4">
           <div className="flex justify-between items-start">
             <div>
-              <h3 className="product-card-title font-medium text-foreground group-hover:text-primary transition-colors duration-300 line-clamp-2">
+              <h3 className="product-card-title text-sm font-medium text-foreground group-hover:text-primary transition-colors duration-300 line-clamp-1">
                 {name}
               </h3>
               <p className="text-sm text-muted-foreground">{colorName} - {brand}</p>
