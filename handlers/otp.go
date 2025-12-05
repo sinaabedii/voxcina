@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -22,9 +21,6 @@ import (
 	"backEnd/services"
 	"backEnd/utils"
 )
-
-// Persian character validation regex
-var persianNameRegex = regexp.MustCompile(`^[\u0600-\u06FF\s]+$`)
 
 // Persian to English digit mapping
 var persianDigits = map[rune]rune{
