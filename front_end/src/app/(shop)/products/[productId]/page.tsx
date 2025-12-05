@@ -528,21 +528,24 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             <div
               ref={imageContainerRef}
               className={cn(
-                "mb-4 relative rounded-2xl overflow-hidden border border-voxcina-cream/30 dark:border-voxcina-blue/30 cursor-pointer shadow-sm bg-white dark:bg-zinc-900 group flex items-center justify-center",
+                "mb-4 relative rounded-2xl overflow-hidden border border-voxcina-cream/30 dark:border-voxcina-blue/30 cursor-pointer shadow-sm bg-white dark:bg-zinc-900 group",
                 isZoomed && "cursor-zoom-out"
               )}
-              style={{ aspectRatio: '4/3', minHeight: '300px', maxHeight: '500px' }}
+              style={{ height: '400px' }}
               onMouseMove={handleImageMouseMove}
               onMouseLeave={() => setIsZoomed(false)}
             >
               {productImages && productImages.length > 0 ? (
                 <>
-                  <div className="relative w-full h-full" onClick={() => setIsZoomed(!isZoomed)}>
+                  <div
+                    className="w-full h-full flex items-center justify-center"
+                    onClick={() => setIsZoomed(!isZoomed)}
+                  >
                     <BackendImage
                       src={productImages?.[selectedImage] || ''}
                       alt={`${activeProduct?.name || ''} - ${activeProduct?.brand || ''}`}
                       className={cn(
-                        "object-contain w-full h-full transition-transform duration-300",
+                        "max-w-full max-h-full object-contain transition-transform duration-300",
                         isZoomed && "scale-150"
                       )}
                       style={
