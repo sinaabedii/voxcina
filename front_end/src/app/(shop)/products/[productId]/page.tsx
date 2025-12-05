@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { toast } from "react-toastify";
 import {
   Heart,
@@ -75,6 +75,8 @@ const isLightColor = (color: string): boolean => {
 export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const { productId } = params;
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlColor = searchParams.get('color'); // Get color from URL query parameter
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState<string | undefined>();
@@ -248,6 +250,20 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
       fetchBrandById(activeProduct.brand_id);
     }
   }, [activeProduct, fetchBrandById]);
+
+  // Pre-select color from URL query parameter when product loads
+  useEffect(() => {
+    if (activeProduct && urlColor && !selectedColor) {
+      // Check if the URL color exists in this product's color variants
+      const matchingVariant = activeProduct.colorVariants?.find(
+        cv => cv.color === urlColor || cv.colorName === urlColor
+      );
+      if (matchingVariant) {
+        setSelectedColor(matchingVariant.color);
+        setSelectedImage(0); // Reset to first image of the color variant
+      }
+    }
+  }, [activeProduct, urlColor, selectedColor]);
 
   // resume pending job when token becomes available (after hydration)
   useEffect(() => {
