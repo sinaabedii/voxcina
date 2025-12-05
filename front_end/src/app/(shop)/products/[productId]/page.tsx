@@ -40,6 +40,7 @@ import { useCategoryStore } from "@/store/category-store";
 import Link from "next/link";
 import { useTryOnStore } from "@/store/tryon-store";
 import { useAuthStore } from "@/store/auth-store";
+import { useBrandStore } from "@/store/brand-store";
 import BackendImage from "@/components/BackendImage";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import SocialShare from "@/components/product/SocialShare";
@@ -65,7 +66,7 @@ const isLightColor = (color: string): boolean => {
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
     return luminance > 0.5; // Return true if color is light
   }
-  
+
   // For named colors, create a lookup for common light colors
   const lightColors = ['white', 'yellow', 'pink', 'lightblue', 'lightgreen', 'orange', 'cream', 'beige', 'سفید', 'زرد', 'صورتی', 'آبی روشن', 'سبز روشن', 'نارنجی', 'کرم', 'بژ'];
   return lightColors.includes(color.toLowerCase());
@@ -79,6 +80,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const [selectedSize, setSelectedSize] = useState<string | undefined>();
   const [selectedColor, setSelectedColor] = useState<string | undefined>();
   const [isZoomed, setIsZoomed] = useState(false);
+  const [showLightbox, setShowLightbox] = useState(false);
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 });
   const [showSizeGuide, setShowSizeGuide] = useState(false);
   const [showNotifyModal, setShowNotifyModal] = useState(false);
@@ -122,13 +124,14 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     setSteps,
   } = useTryOnStore();
   const { isAuthenticated, user } = useAuthStore();
+  const { activeBrand, fetchBrandById } = useBrandStore();
 
   const isProductFavorite = activeProduct?.id ? isFavorite(activeProduct.id) : false;
 
   // Helper function to get product images based on selected color
   const getProductImages = () => {
     if (!activeProduct) return [];
-    
+
     // If a color is selected, get images for that color
     if (selectedColor) {
       const colorVariant = activeProduct.colorVariants?.find(cv => cv.color === selectedColor);
@@ -137,7 +140,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         return [...colorVariant.images, ...(activeProduct.mainImages || [])];
       }
     }
-    
+
     // Default: combine main images with first color variant images
     const mainImages = activeProduct.mainImages || [];
     const firstColorImages = activeProduct.colorVariants?.[0]?.images || [];
@@ -148,13 +151,13 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   // Returns null if no color is selected - user must select a color first
   const getTryOnImage = () => {
     if (!activeProduct) return null;
-    
+
     // Only return try-on image if a color is selected
     if (selectedColor) {
       const colorVariant = activeProduct.colorVariants?.find(cv => cv.color === selectedColor);
       if (colorVariant?.tryOnImage) return colorVariant.tryOnImage;
     }
-    
+
     // No color selected - return null to require color selection
     return null;
   };
@@ -170,7 +173,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const tryOnImage = getTryOnImage();
 
   // Extract available sizes and colors from colorVariants
-  const availableSizes = activeProduct?.colorVariants 
+  const availableSizes = activeProduct?.colorVariants
     ? [...new Set(activeProduct.colorVariants.flatMap((cv) => cv.sizes.map(s => s.size)))]
     : [];
 
@@ -223,7 +226,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const avgRating =
     productReviews.length > 0
       ? productReviews.reduce((sum, review) => sum + review.rating, 0) /
-        productReviews.length
+      productReviews.length
       : 0;
 
   useEffect(() => {
@@ -238,6 +241,13 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
       setHasAttemptedLoad(true);
     });
   }, [productId, fetchProductById]);
+
+  // Fetch brand detail when product is loaded
+  useEffect(() => {
+    if (activeProduct?.brand_id) {
+      fetchBrandById(activeProduct.brand_id);
+    }
+  }, [activeProduct, fetchBrandById]);
 
   // resume pending job when token becomes available (after hydration)
   useEffect(() => {
@@ -284,8 +294,8 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   }, [pathname]);
 
   // Pre-compute category name to avoid hook issues (moved before early returns)
-  const categoryName = activeProduct?.category_ids?.[0] 
-    ? getCategoryName(activeProduct.category_ids[0]) 
+  const categoryName = activeProduct?.category_ids?.[0]
+    ? getCategoryName(activeProduct.category_ids[0])
     : '';
 
   // Show loading state while fetching or before fetch attempt completes
@@ -482,7 +492,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   return (
     <>
       {activeProduct && <ProductJsonLd product={activeProduct} url={productUrl} />}
-      
+
       <div className="container py-8 md:py-16">
         <motion.div
           className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60 mb-6 flex flex-wrap items-center"
@@ -497,11 +507,11 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 { title: "محصولات", href: "/products" },
                 ...(activeProduct.category_ids && activeProduct.category_ids.length > 0
                   ? [
-                      {
-                        title: categoryName,
-                        href: `/categories/${activeProduct.category_ids?.[0] || ''}`,
-                      },
-                    ]
+                    {
+                      title: categoryName,
+                      href: `/categories/${activeProduct.category_ids?.[0] || ''}`,
+                    },
+                  ]
                   : []),
                 { title: activeProduct.name, href: pathname },
               ]}
@@ -518,44 +528,47 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             <div
               ref={imageContainerRef}
               className={cn(
-                "mb-4 aspect-square relative rounded-2xl overflow-hidden border border-voxcina-cream/30 dark:border-voxcina-blue/30 cursor-pointer shadow-sm bg-white/90 dark:bg-voxcina-blue/10",
-                isZoomed && "overflow-hidden"
+                "mb-4 aspect-square relative rounded-2xl overflow-hidden border border-voxcina-cream/30 dark:border-voxcina-blue/30 cursor-pointer shadow-sm bg-white dark:bg-zinc-900 group",
+                isZoomed && "cursor-zoom-out"
               )}
-              onClick={() => setIsZoomed(!isZoomed)}
               onMouseMove={handleImageMouseMove}
               onMouseLeave={() => setIsZoomed(false)}
             >
               {productImages && productImages.length > 0 ? (
                 <>
-                  <div className="relative w-full h-full">
+                  <div className="relative w-full h-full" onClick={() => setIsZoomed(!isZoomed)}>
                     <BackendImage
                       src={productImages?.[selectedImage] || ''}
                       alt={`${activeProduct?.name || ''} - ${activeProduct?.brand || ''}`}
                       className={cn(
-                        "object-cover w-full h-full transition-transform duration-300",
+                        "object-contain w-full h-full transition-transform duration-300",
                         isZoomed && "scale-150"
                       )}
                       style={
                         isZoomed
                           ? {
-                              transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%`,
-                            }
+                            transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%`,
+                          }
                           : undefined
                       }
                       priority
                     />
                   </div>
-                  <motion.div
-                    className="absolute bottom-4 right-4 bg-voxcina-blue/70 dark:bg-voxcina-cream/20 text-white dark:text-voxcina-cream rounded-full p-2 backdrop-blur-sm"
+                  <motion.button
+                    className="absolute bottom-4 right-4 bg-voxcina-blue/70 dark:bg-voxcina-cream/20 text-white dark:text-voxcina-cream rounded-full p-2 backdrop-blur-sm z-20 hover:bg-voxcina-blue dark:hover:bg-voxcina-cream/40 transition-colors"
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowLightbox(true);
+                    }}
                   >
                     <Maximize2 className="h-5 w-5" />
-                  </motion.div>
+                  </motion.button>
 
                   {/* Image Navigation Arrows */}
                   <motion.button
-                    className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 dark:bg-voxcina-blue/50 rounded-full p-2 shadow-md hover:bg-white dark:hover:bg-voxcina-blue/70 transition-colors"
+                    className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 dark:bg-voxcina-blue/50 rounded-full p-3 shadow-md hover:bg-white dark:hover:bg-voxcina-blue/70 transition-colors z-20 md:opacity-0 md:group-hover:opacity-100 duration-300"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleNextImage();
@@ -566,7 +579,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-white" />
                   </motion.button>
                   <motion.button
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 dark:bg-voxcina-blue/50 rounded-full p-2 shadow-md hover:bg-white dark:hover:bg-voxcina-blue/70 transition-colors"
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 dark:bg-voxcina-blue/50 rounded-full p-3 shadow-md hover:bg-white dark:hover:bg-voxcina-blue/70 transition-colors z-20 md:opacity-0 md:group-hover:opacity-100 duration-300"
                     onClick={(e) => {
                       e.stopPropagation();
                       handlePrevImage();
@@ -577,7 +590,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-white" />
                   </motion.button>
 
-                  <div className="absolute bottom-4 left-4 bg-voxcina-blue/70 dark:bg-voxcina-cream/20 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-sm">
+                  <div className="absolute bottom-4 left-4 bg-voxcina-blue/70 dark:bg-voxcina-cream/20 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-sm z-10 pointer-events-none">
                     {selectedImage + 1} / {productImages?.length || 1}
                   </div>
                 </>
@@ -595,11 +608,10 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 {productImages.map((image, index) => (
                   <motion.button
                     key={index}
-                    className={`w-20 h-20 min-w-[5rem] border rounded-xl overflow-hidden ${
-                      selectedImage === index
-                        ? "border-voxcina-blue dark:border-voxcina-cream ring-2 ring-voxcina-blue/30 dark:ring-voxcina-cream/30 shadow-sm"
-                        : "border-voxcina-cream/50 dark:border-voxcina-blue/30 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/50 transition-colors"
-                    }`}
+                    className={`w-20 h-20 min-w-[5rem] border rounded-xl overflow-hidden ${selectedImage === index
+                      ? "border-voxcina-blue dark:border-voxcina-cream ring-2 ring-voxcina-blue/30 dark:ring-voxcina-cream/30 shadow-sm"
+                      : "border-voxcina-cream/50 dark:border-voxcina-blue/30 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/50 transition-colors bg-white dark:bg-zinc-900"
+                      }`}
                     onClick={() => setSelectedImage(index)}
                     whileHover={{ y: -3 }}
                     whileTap={{ scale: 0.95 }}
@@ -608,7 +620,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       <BackendImage
                         src={image}
                         alt={`${activeProduct?.name || ''} - تصویر ${index + 1}`}
-                        className="object-cover w-full h-full"
+                        className="object-contain w-full h-full"
                       />
                     </div>
                   </motion.button>
@@ -649,14 +661,37 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
           >
             {/* Product Name and Price Section */}
             <div className="mb-6">
-              <h1 className="text-2xl font-bold text-voxcina-blue dark:text-voxcina-cream mb-2">
-                {activeProduct.name}
-              </h1>
-              <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4">
-                {activeProduct.brand && (
-                  <span className="font-medium">{activeProduct.brand}</span>
-                )}
-              </p>
+              <div className="flex items-start justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-voxcina-blue dark:text-voxcina-cream mb-2">
+                    {activeProduct.name}
+                  </h1>
+
+                  {activeBrand ? (
+                    <Link
+                      href={`/brands/${activeBrand.slug || activeBrand.id}`}
+                      className="flex items-center gap-2 group"
+                    >
+                      {activeBrand.logo && (
+                        <div className="w-6 h-6 relative rounded-full overflow-hidden border border-voxcina-cream/50">
+                          <BackendImage
+                            src={activeBrand.logo}
+                            alt={activeBrand.name}
+                            className="object-cover w-full h-full"
+                          />
+                        </div>
+                      )}
+                      <span className="text-sm font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 group-hover:text-voxcina-blue dark:group-hover:text-voxcina-cream transition-colors">
+                        {activeBrand.name}
+                      </span>
+                    </Link>
+                  ) : activeProduct.brand ? (
+                    <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                      <span className="font-medium">{activeProduct.brand}</span>
+                    </p>
+                  ) : null}
+                </div>
+              </div>
 
               {/* Price Display */}
               <div className="flex items-center gap-3 mb-4">
@@ -716,13 +751,12 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     return (
                       <motion.button
                         key={size}
-                        className={`px-4 py-2 border rounded-lg text-sm transition-all ${
-                          selectedSize === size
-                            ? "border-voxcina-blue dark:border-voxcina-cream bg-voxcina-blue/10 dark:bg-voxcina-cream/10 text-voxcina-blue dark:text-voxcina-cream font-medium shadow-sm"
-                            : isAvailable
+                        className={`px-4 py-2 border rounded-lg text-sm transition-all ${selectedSize === size
+                          ? "border-voxcina-blue dark:border-voxcina-cream bg-voxcina-blue/10 dark:bg-voxcina-cream/10 text-voxcina-blue dark:text-voxcina-cream font-medium shadow-sm"
+                          : isAvailable
                             ? "border-voxcina-cream/50 dark:border-voxcina-blue/30 text-voxcina-blue/80 dark:text-voxcina-cream/80 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/50"
                             : "border-voxcina-cream/30 dark:border-voxcina-blue/20 text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed opacity-60"
-                        }`}
+                          }`}
                         onClick={() =>
                           isAvailable &&
                           setSelectedSize(
@@ -876,13 +910,12 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     return (
                       <motion.button
                         key={colorObj.color}
-                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                          selectedColor === colorObj.color
-                            ? "ring-2 ring-voxcina-blue dark:ring-voxcina-cream ring-offset-2 dark:ring-offset-voxcina-blue/80"
-                            : isAvailable
+                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${selectedColor === colorObj.color
+                          ? "ring-2 ring-voxcina-blue dark:ring-voxcina-cream ring-offset-2 dark:ring-offset-voxcina-blue/80"
+                          : isAvailable
                             ? "ring-1 ring-voxcina-cream/50 dark:ring-voxcina-blue/30 hover:ring-voxcina-blue/50 dark:hover:ring-voxcina-cream/50"
                             : "ring-1 ring-voxcina-cream/30 dark:ring-voxcina-blue/20 opacity-40 cursor-not-allowed"
-                        }`}
+                          }`}
                         onClick={() =>
                           isAvailable &&
                           setSelectedColor(
@@ -899,11 +932,11 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                           style={{ backgroundColor: colorObj.color }}
                         />
                         {selectedColor === colorObj.color && (
-                          <CheckCircle className="absolute h-4 w-4 drop-shadow-md" 
-                            style={{ 
+                          <CheckCircle className="absolute h-4 w-4 drop-shadow-md"
+                            style={{
                               color: isLightColor(colorObj.color) ? '#000' : '#fff',
                               filter: isLightColor(colorObj.color) ? 'drop-shadow(0 0 2px rgba(255,255,255,0.8))' : 'drop-shadow(0 0 2px rgba(0,0,0,0.8))'
-                            }} 
+                            }}
                           />
                         )}
                       </motion.button>
@@ -1013,11 +1046,10 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     <Button
                       variant={isProductFavorite ? "primary" : "outline"}
                       size="lg"
-                      className={`w-full rounded-xl ${
-                        isProductFavorite
-                          ? "bg-red-500 hover:bg-red-600 text-white dark:bg-red-500 dark:hover:bg-red-600"
-                          : "border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30"
-                      } shadow-sm hover:shadow-md transition-all duration-300`}
+                      className={`w-full rounded-xl ${isProductFavorite
+                        ? "bg-red-500 hover:bg-red-600 text-white dark:bg-red-500 dark:hover:bg-red-600"
+                        : "border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30"
+                        } shadow-sm hover:shadow-md transition-all duration-300`}
                       onClick={handleToggleFavorite}
                       aria-label="افزودن به علاقه‌مندی‌ها"
                     >
@@ -1031,17 +1063,17 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   {/* Try-On Button */}
                   <motion.div
                     className="col-span-1 relative z-10"
-                    whileHover={{ 
+                    whileHover={{
                       y: -5,
                       rotate: [0, -5, 5, -5, 0],
                       transition: { duration: 0.5 }
                     }}
                     whileTap={{ scale: 0.95 }}
                     initial={{ scale: 0, rotate: 0 }}
-                    animate={{ 
+                    animate={{
                       scale: [0, 1.1, 1],
                       rotate: [0, -10, 10, -5, 0],
-                      transition: { 
+                      transition: {
                         duration: 0.6,
                         ease: "easeOut"
                       }
@@ -1051,15 +1083,14 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     {hasTryOnAvailable() && (
                       <div className="absolute -inset-1 bg-gradient-to-r from-pink-600 via-purple-500 to-blue-600 rounded-xl opacity-70 blur-lg group-hover:opacity-100 animate-gradient-xy"></div>
                     )}
-                    
+
                     <Button
                       variant="outline"
                       size="lg"
-                      className={`w-full rounded-xl border-2 ${
-                        hasTryOnAvailable() 
-                          ? "border-purple-400 dark:border-purple-300 text-voxcina-blue dark:text-voxcina-cream bg-gradient-to-br from-white/80 via-purple-100/60 to-white/80 dark:from-voxcina-blue/60 dark:via-purple-900/40 dark:to-voxcina-blue/60 shadow-lg hover:shadow-purple-300/50 dark:hover:shadow-purple-500/30 relative overflow-hidden"
-                          : "border-voxcina-blue/20 text-voxcina-blue/60 dark:border-voxcina-blue/30 dark:text-voxcina-cream/60 bg-voxcina-cream/20 dark:bg-voxcina-blue/20"
-                      } transition-all duration-500 disabled:opacity-40 disabled:from-transparent disabled:to-transparent relative group`}
+                      className={`w-full rounded-xl border-2 ${hasTryOnAvailable()
+                        ? "border-purple-400 dark:border-purple-300 text-voxcina-blue dark:text-voxcina-cream bg-gradient-to-br from-white/80 via-purple-100/60 to-white/80 dark:from-voxcina-blue/60 dark:via-purple-900/40 dark:to-voxcina-blue/60 shadow-lg hover:shadow-purple-300/50 dark:hover:shadow-purple-500/30 relative overflow-hidden"
+                        : "border-voxcina-blue/20 text-voxcina-blue/60 dark:border-voxcina-blue/30 dark:text-voxcina-cream/60 bg-voxcina-cream/20 dark:bg-voxcina-blue/20"
+                        } transition-all duration-500 disabled:opacity-40 disabled:from-transparent disabled:to-transparent relative group`}
                       disabled={!hasTryOnAvailable()}
                       onClick={handleTryOnClick}
                       aria-label="آزمایش مجازی"
@@ -1070,7 +1101,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                           <div className="absolute top-0 left-[-100%] h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white/40 dark:to-purple-300/30 opacity-40 animate-shine" />
                         </div>
                       )}
-                      
+
                       <div className="relative flex items-center justify-center">
                         {hasTryOnAvailable() && (
                           <>
@@ -1152,10 +1183,10 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       attr.value.toLowerCase() !== "false" &&
                       attr.value !== "0"
                   )) && (
-                  <li className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                    ویژگی خاصی درج نشده است
-                  </li>
-                )}
+                    <li className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60">
+                      ویژگی خاصی درج نشده است
+                    </li>
+                  )}
               </ul>
             </motion.div>
             <motion.div
@@ -1231,12 +1262,12 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               </div>
             </motion.div>
 
-            
+
           </motion.div>
         </div>
 
         {/* Augmented Reality Section - Between Product Details and Recently Viewed */}
-        <motion.div 
+        <motion.div
           className="border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 pt-8 mb-12"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1245,10 +1276,10 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
           <h2 className="text-xl font-bold text-voxcina-blue dark:text-voxcina-cream mb-6">
             پرو مجازی
           </h2>
-          
+
           <div className="grid grid-cols-1 gap-6">
             {/* Try-On Feature */}
-            <motion.div 
+            <motion.div
               className="bg-white/70 dark:bg-voxcina-blue/10 border border-voxcina-cream/30 dark:border-voxcina-blue/30 rounded-xl p-5 shadow-sm backdrop-blur-sm"
               whileHover={{ y: -5 }}
               transition={{ duration: 0.3 }}
@@ -1274,7 +1305,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     <Camera className="w-4 h-4 ml-1" />
                     شروع پرو مجازی
                   </Button>
-                  
+
                   {/* Message to select color first */}
                   <AnimatePresence>
                     {showSelectColorMessage && (
@@ -1288,14 +1319,14 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       </motion.div>
                     )}
                   </AnimatePresence>
-                  
+
                   {!hasTryOnAvailable() && (
                     <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50 mt-2">
                       (برای این محصول در دسترس نیست)
                     </span>
                   )}
                 </div>
-                
+
                 {/* Loading or Result Preview */}
                 <div className="sm:w-2/3">
                   {isTryOnLoading && (
@@ -1309,7 +1340,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       </p>
                     </div>
                   )}
-                  
+
                   {!isTryOnLoading && resultImage && (
                     <div className="flex flex-col gap-4">
                       <h4 className="font-medium text-voxcina-blue dark:text-voxcina-cream text-center sm:text-right">
@@ -1318,9 +1349,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {uploadedPreview && (
                           <div className="aspect-square relative rounded-lg overflow-hidden border border-voxcina-cream/30 dark:border-voxcina-blue/30 shadow-sm">
-                            <img 
-                              src={uploadedPreview} 
-                              alt="تصویر شما" 
+                            <img
+                              src={uploadedPreview}
+                              alt="تصویر شما"
                               className="object-cover w-full h-full"
                             />
                             <div className="absolute bottom-2 right-2 bg-white/80 dark:bg-voxcina-blue/80 text-voxcina-blue dark:text-white text-xs px-2 py-1 rounded-lg backdrop-blur-sm">
@@ -1329,9 +1360,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                           </div>
                         )}
                         <div className="aspect-square relative rounded-lg overflow-hidden border border-voxcina-cream/30 dark:border-voxcina-blue/30 shadow-sm">
-                          <img 
-                            src={resultImage} 
-                            alt="نتیجه پرو مجازی" 
+                          <img
+                            src={resultImage}
+                            alt="نتیجه پرو مجازی"
                             className="object-cover w-full h-full"
                           />
                           <div className="absolute bottom-2 right-2 bg-white/80 dark:bg-voxcina-blue/80 text-voxcina-blue dark:text-white text-xs px-2 py-1 rounded-lg backdrop-blur-sm">
@@ -1341,7 +1372,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       </div>
                     </div>
                   )}
-                  
+
                   {!isTryOnLoading && !resultImage && (
                     <div className="flex flex-col items-center justify-center p-6 h-full min-h-[200px] border border-dashed border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-lg">
                       <Shirt className="h-10 w-10 text-voxcina-blue/30 dark:text-voxcina-cream/30 mb-2" />
@@ -1505,11 +1536,11 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   </svg>
                 </button>
 
-                <SocialShare 
-                  url={productUrl} 
-                  title={activeProduct.name} 
-                  description={activeProduct.description} 
-                  imageUrl={productImages?.[0]} 
+                <SocialShare
+                  url={productUrl}
+                  title={activeProduct.name}
+                  description={activeProduct.description}
+                  imageUrl={productImages?.[0]}
                 />
 
                 <div className="flex justify-end mt-8">
@@ -1597,19 +1628,74 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         </div>
 
         {similarProducts.length > 0 && (
-          <div className="border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 pt-12">
-            <h2 className="text-2xl font-bold mb-8 text-voxcina-blue dark:text-voxcina-cream">
+          <div className="items-center py-6">
+            <h2 className="text-2xl font-bold text-voxcina-blue dark:text-voxcina-cream mb-6">
               محصولات مشابه
             </h2>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <ProductGrid items={similarProducts} columns={4} />
-            </motion.div>
+            <ProductGrid items={similarProducts} />
           </div>
         )}
+
+        <AnimatePresence>
+          {showLightbox && (
+            <motion.div
+              className="fixed inset-0 z-[60] bg-black/90 flex flex-col items-center justify-center p-4 backdrop-blur-md"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowLightbox(false)}
+            >
+              <button
+                className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors"
+                onClick={() => setShowLightbox(false)}
+              >
+                <X className="h-8 w-8" />
+              </button>
+
+              <div className="relative w-full max-w-5xl h-[80vh] flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                <BackendImage
+                  src={productImages?.[selectedImage] || ''}
+                  alt={activeProduct?.name || ''}
+                  className="object-contain max-w-full max-h-full"
+                  priority
+                />
+
+                <button
+                  className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-sm transition-colors"
+                  onClick={() => handleNextImage()}
+                >
+                  <ChevronLeft className="h-8 w-8" />
+                </button>
+
+                <button
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-sm transition-colors"
+                  onClick={() => handlePrevImage()}
+                >
+                  <ChevronRight className="h-8 w-8" />
+                </button>
+              </div>
+
+              <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-2 overflow-x-auto px-4">
+                {productImages?.map((img, idx) => (
+                  <button
+                    key={idx}
+                    className={cn(
+                      "w-16 h-16 rounded-lg overflow-hidden border-2 transition-all relative shrink-0",
+                      selectedImage === idx ? "border-white scale-110" : "border-white/30 opacity-60 hover:opacity-100"
+                    )}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedImage(idx);
+                    }}
+                  >
+                    <BackendImage src={img} alt="" className="object-cover w-full h-full" />
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
 
         {/* Try-On Modal */}
         <AnimatePresence>
@@ -1721,7 +1807,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </div >
     </>
   );
 }
