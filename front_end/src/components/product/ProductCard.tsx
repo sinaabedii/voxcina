@@ -113,8 +113,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           )}
 
-          {/* Badges - Right side in RTL (New, Out of stock) - use start for RTL */}
-          <div className="absolute top-2 end-2 flex flex-col gap-1.5">
+          {/* Badges - جدید on RIGHT side */}
+          <div className="absolute top-2 right-2 flex flex-col gap-1.5">
             {(isNew || ribbonLabel) && (
               <span className="px-2 py-1 text-xs font-medium rounded-md bg-warning text-warning-foreground shadow-soft">
                 {ribbonLabel || "جدید"}
@@ -127,9 +127,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
             )}
           </div>
 
-          {/* Discount badge - Left side in RTL (use start for RTL) */}
+          {/* Discount badge - تخفیف on LEFT side */}
           {discount > 0 && (
-            <div className="absolute top-2 start-2">
+            <div className="absolute top-2 left-2">
               <span className="px-2 py-1 text-xs font-medium rounded-md bg-destructive text-destructive-foreground shadow-soft">
                 {discount}٪ تخفیف
               </span>
@@ -137,7 +137,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
           )}
 
           {/* Color indicator badge */}
-          <div className="absolute bottom-3 end-3 flex gap-1">
+          <div className="absolute bottom-3 right-3 flex gap-1">
             <div
               className="w-7 h-7 rounded-full border-2 border-white shadow-md"
               style={{ backgroundColor: color }}
@@ -145,9 +145,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
             />
           </div>
 
-          {/* Favorite button */}
+          {/* Favorite button - on LEFT side */}
           <button
-            className={`absolute ${discount > 0 ? 'top-12' : 'top-2'} start-2 p-2 backdrop-blur-sm rounded-full z-10 transition-all duration-300 ${isProductFavorite
+            className={`absolute ${discount > 0 ? 'top-12' : 'top-2'} left-2 p-2 backdrop-blur-sm rounded-full z-10 transition-all duration-300 ${isProductFavorite
                 ? "bg-destructive/10 text-destructive"
                 : "bg-black/10 text-white hover:bg-white/20"
               }`}
