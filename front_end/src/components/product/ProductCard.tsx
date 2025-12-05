@@ -97,14 +97,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
             : "bg-card border border-border/10"
           } hover:shadow-medium`}
       >
-        <div className="product-card-image relative aspect-square overflow-hidden bg-secondary/30">
+        <div className="product-card-image relative aspect-[3/4] overflow-hidden bg-secondary/30">
           {displayImage ? (
             <Image
               src={displayImage}
               alt={`${name} - ${colorName}`}
               width={300}
               height={300}
-              className="object-contain w-full h-full group-hover:scale-105 transition-transform duration-700"
+              className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700"
               priority
             />
           ) : (
@@ -114,19 +114,19 @@ const ProductCard: React.FC<ProductCardProps> = ({
           )}
 
           {/* Badges */}
-          <div className="absolute top-3 right-3 flex flex-col gap-2">
+          <div className="absolute top-2 right-2 flex flex-col gap-1.5">
             {(isNew || ribbonLabel) && (
-              <span className="product-tag bg-warning text-warning-foreground shadow-soft">
+              <span className="px-2 py-1 text-xs font-medium rounded-md bg-warning text-warning-foreground shadow-soft">
                 {ribbonLabel || "جدید"}
               </span>
             )}
             {discount > 0 && (
-              <span className="product-tag bg-destructive text-destructive-foreground shadow-soft">
+              <span className="px-2 py-1 text-xs font-medium rounded-md bg-destructive text-destructive-foreground shadow-soft">
                 {discount}٪ تخفیف
               </span>
             )}
             {!inStock && (
-              <span className="product-tag bg-neutral-700 text-white shadow-soft">
+              <span className="px-2 py-1 text-xs font-medium rounded-md bg-neutral-700 text-white shadow-soft">
                 ناموجود
               </span>
             )}
@@ -171,7 +171,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
         <div className="product-card-content p-4">
           <div className="flex justify-between items-start">
             <div>
-              <h3 className="product-card-title font-medium text-foreground group-hover:text-primary transition-colors duration-300 line-clamp-1">
+              <h3 className="product-card-title font-medium text-foreground group-hover:text-primary transition-colors duration-300 line-clamp-2">
                 {name}
               </h3>
               <p className="text-sm text-muted-foreground">{colorName} - {brand}</p>
