@@ -3,11 +3,10 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Phone, Lock, ArrowRight, CheckCircle } from "lucide-react";
+import { Eye, EyeOff, Phone, Lock, ArrowRight, Shield } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/input";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { APP_NAME } from "@/lib/constants";
@@ -114,7 +113,7 @@ export default function SignInPage() {
     setIsLoading(true);
     try {
       const normalizedPhone = persianToEnglishDigits(phone);
-      
+
       // Check if phone exists
       const checkRes = await fetch("/api/users/check-phone", {
         method: "POST",
@@ -123,7 +122,7 @@ export default function SignInPage() {
       });
 
       if (!checkRes.ok) {
-        toast.error("کاربری با این شماره تلفن وجود ندارد. لطفاً ثبتنام کنید");
+        toast.error("کاربری با این شماره تلفن وجود ندارد. لطفاً ثبت نام کنید");
         return;
       }
 
@@ -258,394 +257,271 @@ export default function SignInPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.08,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1, transition: { duration: 0.5 } },
-  };
-
-  const slideVariants = {
-    enter: (direction: number) => ({
-      x: direction > 0 ? 300 : -300,
-      opacity: 0,
-    }),
-    center: {
-      x: 0,
-      opacity: 1,
-    },
-    exit: (direction: number) => ({
-      x: direction < 0 ? 300 : -300,
-      opacity: 0,
-    }),
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 overflow-x-hidden">
+    <div className="h-screen w-screen flex items-center justify-center p-4 sm:p-6 overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50">
+      {/* Subtle background decoration */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-bl from-voxcina-blue/5 to-transparent rounded-full blur-3xl" />
+        <div className="absolute -bottom-1/2 -left-1/2 w-full h-full bg-gradient-to-tr from-voxcina-blue/5 to-transparent rounded-full blur-3xl" />
+      </div>
+
       <motion.div
-        className="w-full max-w-md mx-auto relative z-10"
-        initial="hidden"
-        animate="visible"
-        variants={containerVariants}
+        className="w-full max-w-md relative z-10"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
       >
-        <motion.div variants={itemVariants}>
-          <Card className="w-full bg-white/80 backdrop-blur-md border border-white/20 shadow-medium rounded-2xl sm:rounded-3xl overflow-hidden">
-            <CardHeader className="text-center pb-2 pt-6 px-4 sm:px-6">
-              <motion.div
-                className="flex justify-center mb-4"
-                whileHover={{ scale: 1.05 }}
-                transition={{ type: "spring" as const, stiffness: 300 }}
-              >
-                <div className="relative">
-                  <Link href="/" className="flex items-center group">
-                    <div className="relative w-24 sm:w-28 md:w-32 h-10 sm:h-12 md:h-12 transition-all duration-300">
-                      <Image
-                        alt={APP_NAME}
-                        priority
-                        quality={100}
-                        src={"/images/Logo/BlueXTransparent.png"}
-                        fill
-                        className="object-contain"
-                        sizes="(max-width: 640px) 6rem, (max-width: 768px) 7rem, 8rem"
-                      />
-                    </div>
-                  </Link>
-                </div>
-              </motion.div>
-
-              <CardTitle className="text-xl sm:text-2xl font-bold text-voxcina-blue">
-                ورود به حساب کاربری
-              </CardTitle>
-
-              {/* Mode Toggle */}
-              <div className="flex justify-center gap-2 mt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('password');
-                    setIsSent(false);
-                    setSmsCode("");
-                    setErrors({});
-                  }}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    mode === 'password'
-                      ? 'bg-voxcina-blue text-white shadow-soft'
-                      : 'bg-white/70 text-voxcina-blue/70 hover:bg-white/90'
-                  }`}
-                >
-                  رمز عبور
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('sms');
-                    setPassword("");
-                    setErrors({});
-                  }}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    mode === 'sms'
-                      ? 'bg-voxcina-blue text-white shadow-soft'
-                      : 'bg-white/70 text-voxcina-blue/70 hover:bg-white/90'
-                  }`}
-                >
-                  کد یکبار مصرف
-                </button>
+        {/* Card Container */}
+        <div className="bg-white/90 backdrop-blur-xl border border-white/60 shadow-xl rounded-2xl overflow-hidden">
+          {/* Header */}
+          <div className="px-6 pt-6 pb-4 text-center border-b border-gray-100/80">
+            <Link href="/" className="inline-block mb-2">
+              <div className="relative w-24 h-10 mx-auto">
+                <Image
+                  alt={APP_NAME}
+                  priority
+                  quality={100}
+                  src="/images/Logo/BlueXTransparent.png"
+                  fill
+                  className="object-contain"
+                />
               </div>
-            </CardHeader>
-
-            <CardContent className="pt-2 px-4 sm:px-6 pb-6">
-              <AnimatePresence mode="wait">
-                {mode === 'password' ? (
-                  <motion.form
-                    key="password-mode"
-                    onSubmit={handlePasswordLogin}
-                    className="space-y-4"
-                    initial="hidden"
-                    animate="visible"
-                    exit={{ opacity: 0, y: -20 }}
-                    variants={containerVariants}
-                  >
-                    <div className="space-y-4">
-                      <motion.div variants={itemVariants}>
-                        <Input
-                          label="شماره تلفن"
-                          type="tel"
-                          id="phone"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          error={errors.phone}
-                          autoComplete="tel"
-                          leftElement={
-                            <Phone className="h-4 w-4 sm:h-5 sm:w-5 text-voxcina-blue/60" />
-                          }
-                          placeholder="09123456789"
-                          className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5"
-                        />
-                      </motion.div>
-
-                      <motion.div variants={itemVariants}>
-                        <Input
-                          label="رمز عبور"
-                          type={showPassword ? "text" : "password"}
-                          id="password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          error={errors.password}
-                          leftElement={
-                            <Lock className="h-4 w-4 sm:h-5 sm:w-5 text-voxcina-blue/60" />
-                          }
-                          rightElement={
-                            <button
-                              type="button"
-                              onClick={() => setShowPassword(!showPassword)}
-                              className="text-voxcina-blue/60 hover:text-voxcina-blue transition-colors p-1"
-                            >
-                              {showPassword ? (
-                                <EyeOff className="h-4 w-4 sm:h-5 sm:w-5" />
-                              ) : (
-                                <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
-                              )}
-                            </button>
-                          }
-                          placeholder="••••••••"
-                          autoComplete="current-password"
-                          className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5"
-                        />
-                      </motion.div>
-
-                      <motion.div
-                        className="flex justify-between items-center mt-4"
-                        variants={itemVariants}
-                      >
-                        <div className="flex items-start space-x-3 space-x-reverse">
-                          <div className="relative flex items-center">
-                            <input
-                              type="checkbox"
-                              id="remember"
-                              className="sr-only"
-                              checked={rememberMe}
-                              onChange={(e) => setRememberMe(e.target.checked)}
-                            />
-                            <label
-                              htmlFor="remember"
-                              className="relative flex items-center cursor-pointer"
-                            >
-                              <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-secondary-300 rounded-lg bg-white/70 transition-all duration-200 hover:border-voxcina-blue/50 peer-checked:border-voxcina-blue peer-checked:bg-voxcina-blue">
-                                <svg
-                                  className={`w-3 h-3 sm:w-4 sm:h-4 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 transition-opacity duration-200 ${
-                                    rememberMe ? "opacity-100" : "opacity-0"
-                                  }`}
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={3}
-                                    d="M5 13l4 4L19 7"
-                                  />
-                                </svg>
-                              </div>
-                            </label>
-                          </div>
-                          <label
-                            htmlFor="remember"
-                            className="text-xs sm:text-sm text-voxcina-blue/80 leading-relaxed cursor-pointer select-none"
-                          >
-                            مرا به خاطر بسپار
-                          </label>
-                        </div>
-
-                        <Link
-                          href="/forgot-password"
-                          className="text-xs sm:text-sm text-voxcina-blue font-medium hover:text-voxcina-darkBlue transition-colors underline underline-offset-2"
-                        >
-                          فراموشی رمز عبور
-                        </Link>
-                      </motion.div>
-
-                      <motion.div className="pt-3" variants={itemVariants}>
-                        <Button
-                          variant="primary"
-                          fullWidth
-                          type="submit"
-                          isLoading={isLoading}
-                          className="bg-voxcina-blue hover:bg-voxcina-darkBlue text-white py-3 sm:py-3.5 rounded-xl transition-all duration-300 shadow-soft hover:shadow-medium text-sm sm:text-base font-medium"
-                        >
-                          {isLoading ? "درحال ورود..." : "ورود"}
-                        </Button>
-                      </motion.div>
-
-                      <motion.div className="text-center mt-4" variants={itemVariants}>
-                        <p className="text-xs sm:text-sm text-voxcina-blue/70">
-                          حساب کاربری ندارید؟{" "}
-                          <Link
-                            href="/sign-up"
-                            className="text-voxcina-blue font-medium hover:text-voxcina-darkBlue transition-colors underline underline-offset-2"
-                          >
-                            ثبتنام کنید
-                          </Link>
-                        </p>
-                      </motion.div>
-                    </div>
-                  </motion.form>
-                ) : (
-                  <motion.form
-                    key="sms-mode"
-                    onSubmit={isSent ? handleVerifyOTP : handleSendOTP}
-                    className="space-y-4"
-                    initial="hidden"
-                    animate="visible"
-                    exit={{ opacity: 0, y: -20 }}
-                    variants={containerVariants}
-                  >
-                    <div className="space-y-4">
-                      {!isSent ? (
-                        <>
-                          <motion.div variants={itemVariants}>
-                            <Input
-                              label="شماره تلفن"
-                              type="tel"
-                              id="phone-sms"
-                              value={phone}
-                              onChange={(e) => setPhone(e.target.value)}
-                              error={errors.phone}
-                              autoComplete="tel"
-                              leftElement={
-                                <Phone className="h-4 w-4 sm:h-5 sm:w-5 text-voxcina-blue/60" />
-                              }
-                              placeholder="09123456789"
-                              className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5"
-                            />
-                          </motion.div>
-
-                          <motion.div className="pt-3" variants={itemVariants}>
-                            <Button
-                              variant="primary"
-                              fullWidth
-                              type="submit"
-                              isLoading={isLoading}
-                              className="bg-voxcina-blue hover:bg-voxcina-darkBlue text-white py-3 sm:py-3.5 rounded-xl transition-all duration-300 shadow-soft hover:shadow-medium text-sm sm:text-base font-medium"
-                            >
-                              {isLoading ? "درحال ارسال کد..." : "ارسال کد تأیید"}
-                            </Button>
-                          </motion.div>
-                        </>
-                      ) : (
-                        <>
-                          <motion.div variants={itemVariants}>
-                            <button
-                              type="button"
-                              onClick={handleGoBack}
-                              className="flex items-center gap-1 text-sm text-voxcina-blue/70 hover:text-voxcina-blue transition-colors"
-                            >
-                              <ArrowRight className="w-4 h-4" />
-                              بازگشت
-                            </button>
-                          </motion.div>
-
-                          <motion.div variants={itemVariants} className="bg-voxcina-blue/5 rounded-xl p-3 text-center">
-                            <p className="text-sm text-voxcina-blue/70">کد تأیید به شماره زیر ارسال شد:</p>
-                            <p className="text-lg font-medium text-voxcina-blue mt-1 direction-ltr">
-                              {persianToEnglishDigits(phone)}
-                            </p>
-                          </motion.div>
-
-                          <motion.div variants={itemVariants}>
-                            <Input
-                              label="کد تأیید (۵ رقم)"
-                              type="text"
-                              id="smsCode"
-                              value={smsCode}
-                              onChange={(e) => setSmsCode(e.target.value)}
-                              error={errors.smsCode}
-                              maxLength={5}
-                              placeholder="۱۲۳۴۵"
-                              autoComplete="one-time-code"
-                              className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5 text-center tracking-widest"
-                            />
-                            <div className="flex justify-between items-center mt-2">
-                              <span className="text-xs text-voxcina-blue/50">
-                                {countdown > 0 ? `${formatCountdown(countdown)} تا ارسال مجدد` : ''}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={handleResendOTP}
-                                disabled={!canResend || isLoading}
-                                className={`text-xs ${canResend ? 'text-voxcina-blue hover:underline' : 'text-gray-400'} transition-colors`}
-                              >
-                                ارسال مجدد کد
-                              </button>
-                            </div>
-                          </motion.div>
-
-                          <motion.div className="pt-3" variants={itemVariants}>
-                            <Button
-                              variant="primary"
-                              fullWidth
-                              type="submit"
-                              isLoading={isLoading}
-                              className="bg-voxcina-blue hover:bg-voxcina-darkBlue text-white py-3 sm:py-3.5 rounded-xl transition-all duration-300 shadow-soft hover:shadow-medium text-sm sm:text-base font-medium"
-                            >
-                              {isLoading ? "درحال تأیید..." : "تأیید کد"}
-                            </Button>
-                          </motion.div>
-                        </>
-                      )}
-
-                      <motion.div className="text-center mt-4" variants={itemVariants}>
-                        <p className="text-xs sm:text-sm text-voxcina-blue/70">
-                          حساب کاربری ندارید؟{" "}
-                          <Link
-                            href="/sign-up"
-                            className="text-voxcina-blue font-medium hover:text-voxcina-darkBlue transition-colors underline underline-offset-2"
-                          >
-                            ثبتنام کنید
-                          </Link>
-                        </p>
-                      </motion.div>
-                    </div>
-                  </motion.form>
-                )}
-              </AnimatePresence>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div variants={itemVariants} className="mt-4 text-center">
-          <div className="inline-flex items-center justify-center space-x-2 space-x-reverse bg-white/50 backdrop-blur-sm rounded-full px-3 sm:px-4 py-2 border border-white/20 shadow-soft">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-3 w-3 sm:h-4 sm:w-4 text-voxcina-blue/60 flex-shrink-0"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-              />
-            </svg>
-            <span className="text-xs sm:text-sm text-voxcina-blue/60">
-              با ورود به سایت،{" "}
-              <Link href="/terms" className="text-voxcina-blue hover:underline">
-                قوانین و مقررات
-              </Link>{" "}
-              وکسینا را میپذیرید
-            </span>
+            </Link>
+            <h1 className="text-xl font-bold text-gray-800">ورود به حساب</h1>
+            
+            {/* Mode Toggle - Compact */}
+            <div className="flex justify-center gap-1 mt-4 bg-gray-100 rounded-lg p-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('password');
+                  setIsSent(false);
+                  setSmsCode("");
+                  setErrors({});
+                }}
+                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  mode === 'password'
+                    ? 'bg-white text-voxcina-blue shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                رمز عبور
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('sms');
+                  setPassword("");
+                  setErrors({});
+                }}
+                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  mode === 'sms'
+                    ? 'bg-white text-voxcina-blue shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                کد یکبار مصرف
+              </button>
+            </div>
           </div>
-        </motion.div>
+
+          {/* Form Content */}
+          <div className="p-6">
+            <AnimatePresence mode="wait">
+              {mode === 'password' ? (
+                <motion.form
+                  key="password-mode"
+                  onSubmit={handlePasswordLogin}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.2 }}
+                  className="space-y-4"
+                >
+                  <Input
+                    label="شماره موبایل"
+                    type="tel"
+                    id="phone"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    error={errors.phone}
+                    autoComplete="tel"
+                    leftElement={<Phone className="h-5 w-5 text-gray-400" />}
+                    placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                    className="text-base h-11"
+                  />
+
+                  <Input
+                    label="رمز عبور"
+                    type={showPassword ? "text" : "password"}
+                    id="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    error={errors.password}
+                    leftElement={<Lock className="h-5 w-5 text-gray-400" />}
+                    rightElement={
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    }
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    className="text-base h-11"
+                  />
+
+                  {/* Remember & Forgot */}
+                  <div className="flex justify-between items-center text-sm">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-gray-500">
+                      <input
+                        type="checkbox"
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-300 text-voxcina-blue focus:ring-voxcina-blue/20"
+                      />
+                      مرا به خاطر بسپار
+                    </label>
+                    <Link href="/forgot-password" className="text-voxcina-blue hover:underline">
+                      فراموشی رمز
+                    </Link>
+                  </div>
+
+                  <Button
+                    variant="primary"
+                    fullWidth
+                    type="submit"
+                    isLoading={isLoading}
+                    className="h-12 text-base font-medium mt-3"
+                  >
+                    {isLoading ? "درحال ورود..." : "ورود"}
+                  </Button>
+
+                  <p className="text-center text-sm text-gray-500 pt-2">
+                    حساب ندارید؟{" "}
+                    <Link href="/sign-up" className="text-voxcina-blue font-medium hover:underline">
+                      ثبت‌نام کنید
+                    </Link>
+                  </p>
+                </motion.form>
+              ) : (
+                <motion.form
+                  key="sms-mode"
+                  onSubmit={isSent ? handleVerifyOTP : handleSendOTP}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.2 }}
+                  className="space-y-4"
+                >
+                  {!isSent ? (
+                    <>
+                      <Input
+                        label="شماره موبایل"
+                        type="tel"
+                        id="phone-sms"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        error={errors.phone}
+                        autoComplete="tel"
+                        leftElement={<Phone className="h-5 w-5 text-gray-400" />}
+                        placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                        className="text-base h-11"
+                      />
+
+                      <Button
+                        variant="primary"
+                        fullWidth
+                        type="submit"
+                        isLoading={isLoading}
+                        className="h-12 text-base font-medium mt-3"
+                      >
+                        {isLoading ? "درحال ارسال..." : "ارسال کد تأیید"}
+                      </Button>
+
+                      <p className="text-center text-sm text-gray-500 pt-2">
+                        حساب ندارید؟{" "}
+                        <Link href="/sign-up" className="text-voxcina-blue font-medium hover:underline">
+                          ثبت‌نام کنید
+                        </Link>
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      {/* Back button & Phone display */}
+                      <div className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2.5">
+                        <button
+                          type="button"
+                          onClick={handleGoBack}
+                          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-voxcina-blue transition-colors"
+                        >
+                          <ArrowRight className="w-4 h-4" />
+                          <span>بازگشت</span>
+                        </button>
+                        <span className="text-sm font-medium text-gray-700 direction-ltr">
+                          {persianToEnglishDigits(phone)}
+                        </span>
+                      </div>
+
+                      {/* OTP Input */}
+                      <div>
+                        <Input
+                          label="کد تأیید"
+                          type="text"
+                          id="smsCode"
+                          value={smsCode}
+                          onChange={(e) => setSmsCode(e.target.value)}
+                          error={errors.smsCode}
+                          maxLength={5}
+                          placeholder="_ _ _ _ _"
+                          autoComplete="one-time-code"
+                          className="text-base h-11 text-center tracking-[0.5em] font-medium"
+                        />
+                        <div className="flex justify-between items-center mt-2 text-sm">
+                          <span className="text-gray-400">
+                            {countdown > 0 && formatCountdown(countdown)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleResendOTP}
+                            disabled={!canResend || isLoading}
+                            className={`${canResend ? 'text-voxcina-blue hover:underline' : 'text-gray-300'} transition-colors`}
+                          >
+                            ارسال مجدد
+                          </button>
+                        </div>
+                      </div>
+
+                      <Button
+                        variant="primary"
+                        fullWidth
+                        type="submit"
+                        isLoading={isLoading}
+                        className="h-12 text-base font-medium mt-3"
+                      >
+                        {isLoading ? "درحال تأیید..." : "تأیید و ورود"}
+                      </Button>
+                    </>
+                  )}
+                </motion.form>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* Footer badge */}
+        <div className="flex items-center justify-center gap-2 mt-4 text-sm text-gray-400">
+          <Shield className="w-4 h-4" />
+          <span>
+            با ورود،{" "}
+            <Link href="/terms" className="text-voxcina-blue hover:underline">
+              قوانین
+            </Link>{" "}
+            را می‌پذیرید
+          </span>
+        </div>
       </motion.div>
     </div>
   );
