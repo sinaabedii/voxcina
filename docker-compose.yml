@@ -43,6 +43,8 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=password
     volumes:
       - mongodb-data:/data/db
+      - /root/voxcina-backups:/backups
+      - ./uploads:/app/uploads:ro
     networks:
       - backend-network
     healthcheck:
