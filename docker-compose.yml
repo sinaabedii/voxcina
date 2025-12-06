@@ -2,10 +2,18 @@
 # │ docker-compose.yml                                              │
 # └──────────────────────────────────────────────────────────────────┘
 services:
+  scheduler:
+    image: mcuadros/ofelia:latest
+    container_name: backup-scheduler
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: daemon --docker
+    networks:
+      - backend-network
+
   server:
     build:
       context: .
-      # use host networking for the build step so DNS resolution works
       network: host
     container_name: api-server
     ports:
@@ -14,14 +22,11 @@ services:
       - MONGODB_URI=mongodb://admin:password@mongo:27017/admin?authSource=admin
       - JWT_SECRET=137888
       - SERVER_PORT=8080
-      # - DEBUG=true
       - INTERNAL_SECRET=${INTERNAL_SECRET}
-      # OpenRouter AI Configuration
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - APP_URL=${APP_URL}
       - OPENROUTER_MODEL=${OPENROUTER_MODEL}
       - OPENROUTER_EMBEDDING_MODEL=${OPENROUTER_EMBEDDING_MODEL}
-      # SMS.ir Configuration
       - SMSIR_ACCESS_KEY=${SMSIR_ACCESS_KEY}
       - SMSIR_URL=${SMSIR_URL}
       - SMSIR_TEMPLATE_ID=${SMSIR_TEMPLATE_ID}
@@ -53,6 +58,10 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    labels:
+      ofelia.enabled: "true"
+      ofelia.job-exec.backup.schedule: "@daily"
+      ofelia.job-exec.backup.command: "bash -c 'BACKUP_DIR=/backups && TIMESTAMP=$$(date +%Y%m%d_%H%M%S) && RETENTION_DAYS=7 && mkdir -p $$BACKUP_DIR && mongodump --out $$BACKUP_DIR/db_$$TIMESTAMP --username admin --password password --authenticationDatabase admin && tar -czf $$BACKUP_DIR/db_$$TIMESTAMP.tar.gz -C $$BACKUP_DIR db_$$TIMESTAMP && rm -rf $$BACKUP_DIR/db_$$TIMESTAMP && tar -czf $$BACKUP_DIR/images_$$TIMESTAMP.tar.gz -C /app uploads && find $$BACKUP_DIR -name \"*.tar.gz\" -mtime +$$RETENTION_DAYS -delete'"
 
   front_end:
     container_name: voxcina_frontend
