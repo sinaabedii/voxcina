@@ -117,8 +117,8 @@ export default function SignUpPage() {
       newErrors.password = "رمز عبور الزامی است";
     } else if (password.length < 8) {
       newErrors.password = "رمز عبور باید حداقل ۸ کاراکتر باشد";
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(password)) {
-      newErrors.password = "رمز عبور باید شامل حروف کوچک، بزرگ، عدد و کاراکتر خاص باشد";
+    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+      newErrors.password = "رمز عبور باید شامل حروف کوچک، بزرگ و عدد باشد";
     }
 
     if (!confirmPassword) {
@@ -461,7 +461,7 @@ export default function SignUpPage() {
                     }
                     placeholder="••••••••"
                     className="text-base h-11"
-                    helperText="حداقل ۸ کاراکتر شامل حروف بزرگ، کوچک، عدد و کاراکتر خاص"
+                    helperText="حداقل ۸ کاراکتر شامل حروف بزرگ، کوچک و عدد"
                   />
 
                   <Input

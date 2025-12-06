@@ -243,7 +243,7 @@ func VerifySignupOTP(w http.ResponseWriter, r *http.Request) {
 	// Validate password strength
 	if len(req.Password) < 8 || passwordRegex.MatchString(req.Password) {
 		utils.ErrorResponse(w, http.StatusBadRequest, 
-			"رمز عبور باید حداقل ۸ کاراکتر و شامل حروف بزرگ، کوچک، عدد و کاراکتر خاص باشد")
+			"رمز عبور باید حداقل ۸ کاراکتر و شامل حروف بزرگ، کوچک و عدد باشد")
 		return
 	}
 
