@@ -373,7 +373,7 @@ export default function SignInPage() {
                     exit={{ opacity: 0, y: -20 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <motion.div className="space-y-4" variants={containerVariants}>
+                    <motion.div className="space-y-4" initial="hidden" animate="visible" variants={containerVariants}>
                       <motion.div variants={itemVariants}>
                         <Input
                           label="شماره تلفن"
@@ -508,7 +508,7 @@ export default function SignInPage() {
                     exit={{ opacity: 0, y: -20 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <motion.div className="space-y-4" variants={containerVariants}>
+                    <motion.div className="space-y-4" initial="hidden" animate="visible" variants={containerVariants}>
                       {!isSent ? (
                         <>
                           <motion.div variants={itemVariants}>
