@@ -368,12 +368,12 @@ export default function SignInPage() {
                     key="password-mode"
                     onSubmit={handlePasswordLogin}
                     className="space-y-4"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial="hidden"
+                    animate="visible"
                     exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.3 }}
+                    variants={containerVariants}
                   >
-                    <motion.div className="space-y-4" initial="hidden" animate="visible" variants={containerVariants}>
+                    <div className="space-y-4">
                       <motion.div variants={itemVariants}>
                         <Input
                           label="شماره تلفن"
@@ -496,19 +496,19 @@ export default function SignInPage() {
                           </Link>
                         </p>
                       </motion.div>
-                    </motion.div>
+                    </div>
                   </motion.form>
                 ) : (
                   <motion.form
                     key="sms-mode"
                     onSubmit={isSent ? handleVerifyOTP : handleSendOTP}
                     className="space-y-4"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial="hidden"
+                    animate="visible"
                     exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.3 }}
+                    variants={containerVariants}
                   >
-                    <motion.div className="space-y-4" initial="hidden" animate="visible" variants={containerVariants}>
+                    <div className="space-y-4">
                       {!isSent ? (
                         <>
                           <motion.div variants={itemVariants}>
@@ -613,7 +613,7 @@ export default function SignInPage() {
                           </Link>
                         </p>
                       </motion.div>
-                    </motion.div>
+                    </div>
                   </motion.form>
                 )}
               </AnimatePresence>
