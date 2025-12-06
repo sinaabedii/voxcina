@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Phone, Lock } from "lucide-react";
+import { Eye, EyeOff, Phone, Lock, ArrowRight, CheckCircle } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { APP_NAME } from "@/lib/constants";
 import { toast } from "react-toastify";
@@ -16,128 +16,246 @@ import { toast } from "react-toastify";
 // IR phone number validation regex: 09xxxxxxxxx (11 digits starting with 09)
 const irPhoneRegex = /^09[0-9]{9}$/;
 
+// Convert Persian digits to English
+const persianToEnglishDigits = (str: string): string => {
+  const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+  let result = str;
+  for (let i = 0; i < 10; i++) {
+    result = result.replace(new RegExp(persianDigits[i], 'g'), i.toString());
+  }
+  return result;
+};
+
 export default function SignInPage() {
   const [mode, setMode] = useState<'password' | 'sms'>("password");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [smsCode, setSmsCode] = useState("");
   const [isSent, setIsSent] = useState(false);
-  const [smsError, setSmsError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [errors, setErrors] = useState<{ phone?: string; password?: string }>(
+  const [isLoading, setIsLoading] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [canResend, setCanResend] = useState(false);
+  const [errors, setErrors] = useState<{ phone?: string; password?: string; smsCode?: string }>(
     {}
   );
 
-  const { login, loginSms, isLoading } = useAuthStore();
+  const { login, loginSms } = useAuthStore();
   const router = useRouter();
 
-  // Send OTP via SMS
-  const sendCode = async () => {
-    setSmsError(null);
-    try {
-      // Check if phone exists in backend
-      const checkRes = await fetch("/api/users/check-phone", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone }),
-      });
-      if (!checkRes.ok) {
-        toast.error("there is no such user with the provided phone, and you should sign up first");
-        return;
-      }
-      const res = await fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setIsSent(true);
-        toast.success("کد ارسال شد");
-      } else {
-        setSmsError(data.error || "خطا در ارسال کد");
-        toast.error(data.error || "خطا در ارسال کد");
-      }
-    } catch (err: any) {
-      setSmsError(err.message);
-      toast.error(err.message);
+  // Countdown timer for resend OTP
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    } else if (isSent && countdown === 0) {
+      setCanResend(true);
     }
-  };
+  }, [countdown, isSent]);
 
-  // Verify OTP code
-  const verifyCode = async () => {
-    try {
-      const res = await fetch("/api/auth/check-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, code: smsCode }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success("کد معتبر است، درحال ورود...");
-        // perform SMS login via backend to issue JWT
-        await loginSms(phone);
-        router.push("/");
-      } else {
-        toast.error(data.error || "کد نامعتبر");
-      }
-    } catch (err: any) {
-      toast.error(err.message);
-    }
-  };
+  // Validate phone
+  const validatePhone = useCallback(() => {
+    const newErrors: typeof errors = {};
+    const normalizedPhone = persianToEnglishDigits(phone);
 
-  const validateForm = () => {
-    const newErrors: { phone?: string; password?: string } = {};
-
-    if (!phone) {
+    if (!phone.trim()) {
       newErrors.phone = "شماره تلفن الزامی است";
-    } else if (!irPhoneRegex.test(phone)) {
+    } else if (!irPhoneRegex.test(normalizedPhone) && !/^09[0-9]{9}$/.test(normalizedPhone)) {
       newErrors.phone = "شماره تلفن نامعتبر است (فرمت: 09xxxxxxxxx)";
     }
 
-    if (mode === 'password' && !password) {
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }, [phone]);
+
+  // Validate password mode
+  const validatePasswordMode = useCallback(() => {
+    const newErrors: typeof errors = {};
+    const normalizedPhone = persianToEnglishDigits(phone);
+
+    if (!phone.trim()) {
+      newErrors.phone = "شماره تلفن الزامی است";
+    } else if (!irPhoneRegex.test(normalizedPhone) && !/^09[0-9]{9}$/.test(normalizedPhone)) {
+      newErrors.phone = "شماره تلفن نامعتبر است (فرمت: 09xxxxxxxxx)";
+    }
+
+    if (!password) {
       newErrors.password = "رمز عبور الزامی است";
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  }, [phone, password]);
+
+  // Validate SMS code
+  const validateSmsCode = useCallback(() => {
+    const newErrors: typeof errors = {};
+
+    if (!smsCode.trim()) {
+      newErrors.smsCode = "کد تأیید الزامی است";
+    } else if (!/^[0-9۰-۹]{5}$/.test(smsCode)) {
+      newErrors.smsCode = "کد تأیید باید ۵ رقم باشد";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }, [smsCode]);
+
+  // Send OTP via SMS
+  const handleSendOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validatePhone()) {
+      toast.error("لطفاً شماره تلفن را صحیح وارد کنید");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const normalizedPhone = persianToEnglishDigits(phone);
+      
+      // Check if phone exists
+      const checkRes = await fetch("/api/users/check-phone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: normalizedPhone }),
+      });
+
+      if (!checkRes.ok) {
+        toast.error("کاربری با این شماره تلفن وجود ندارد. لطفاً ثبتنام کنید");
+        return;
+      }
+
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: normalizedPhone }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || "خطا در ارسال کد تأیید");
+        return;
+      }
+
+      toast.success("کد تأیید به شماره تلفن شما ارسال شد");
+      setIsSent(true);
+      setCountdown(120);
+      setCanResend(false);
+    } catch (error) {
+      console.error("Send OTP error:", error);
+      toast.error("خطا در ارسال کد تأیید");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Resend OTP
+  const handleResendOTP = async () => {
+    if (!canResend) return;
+
+    setIsLoading(true);
     try {
-      if (mode === 'password') {
-        // Validate phone & password
-        if (!validateForm()) {
-          toast.error("لطفا اطلاعات فرم را کامل کنید");
-          return;
-        }
-        await login({ phone, password });
-        router.push("/");
-      } else {
-        // SMS mode: phone & code validation
-        if (!phone) {
-          toast.error("شماره تلفن الزامی است");
-          return;
-        }
-        if (!irPhoneRegex.test(phone)) {
-          toast.error("شماره تلفن نامعتبر است (فرمت: 09xxxxxxxxx)");
-          return;
-        }
-        if (!isSent) {
-          await sendCode();
-        } else {
-          if (!smsCode) {
-            toast.error("کد الزامی است");
-            return;
-          }
-          await verifyCode();
-        }
+      const normalizedPhone = persianToEnglishDigits(phone);
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: normalizedPhone }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || "خطا در ارسال مجدد کد");
+        return;
       }
+
+      toast.success("کد تأیید جدید ارسال شد");
+      setCountdown(120);
+      setCanResend(false);
+    } catch (error) {
+      console.error("Resend OTP error:", error);
+      toast.error("خطا در ارسال مجدد کد");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Verify OTP code
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateSmsCode()) {
+      toast.error("لطفاً کد تأیید را صحیح وارد کنید");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const normalizedPhone = persianToEnglishDigits(phone);
+      const normalizedCode = persianToEnglishDigits(smsCode);
+
+      const res = await fetch("/api/auth/check-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: normalizedPhone, code: normalizedCode }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || "کد نامعتبر است");
+        return;
+      }
+
+      toast.success("کد معتبر است، درحال ورود...");
+      await loginSms(normalizedPhone);
+      router.push("/");
+    } catch (error) {
+      console.error("Verify OTP error:", error);
+      toast.error("خطا در تأیید کد");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Password mode login
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validatePasswordMode()) {
+      toast.error("لطفاً اطلاعات را صحیح وارد کنید");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const normalizedPhone = persianToEnglishDigits(phone);
+      await login({ phone: normalizedPhone, password });
+      router.push("/");
     } catch (error) {
       console.error("Login error:", error);
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  // Go back to phone input
+  const handleGoBack = () => {
+    setIsSent(false);
+    setSmsCode("");
+    setCountdown(0);
+    setCanResend(false);
+    setErrors({});
+  };
+
+  // Format countdown as MM:SS
+  const formatCountdown = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const containerVariants = {
@@ -153,6 +271,21 @@ export default function SignInPage() {
   const itemVariants = {
     hidden: { y: 20, opacity: 0 },
     visible: { y: 0, opacity: 1, transition: { duration: 0.5 } },
+  };
+
+  const slideVariants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? 300 : -300,
+      opacity: 0,
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+    },
+    exit: (direction: number) => ({
+      x: direction < 0 ? 300 : -300,
+      opacity: 0,
+    }),
   };
 
   return (
@@ -185,12 +318,6 @@ export default function SignInPage() {
                       />
                     </div>
                   </Link>
-                  <div
-                    className="hidden h-12 sm:h-14 md:h-16 items-center justify-center bg-gradient-to-r from-voxcina-blue to-primary-400 text-white font-bold text-lg sm:text-xl md:text-2xl px-4 rounded-xl shadow-medium"
-                    style={{ display: "none" }}
-                  >
-                    وکسینا
-                  </div>
                 </div>
               </motion.div>
 
@@ -199,26 +326,54 @@ export default function SignInPage() {
               </CardTitle>
 
               {/* Mode Toggle */}
-              <div className="flex justify-center space-x-4 mb-4">
+              <div className="flex justify-center gap-2 mt-4">
                 <button
                   type="button"
-                  onClick={() => setMode('password')}
-                  className={`px-4 py-2 rounded ${mode === 'password' ? 'bg-voxcina-blue text-white' : 'bg-white/70'}`}>
+                  onClick={() => {
+                    setMode('password');
+                    setIsSent(false);
+                    setSmsCode("");
+                    setErrors({});
+                  }}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    mode === 'password'
+                      ? 'bg-voxcina-blue text-white shadow-soft'
+                      : 'bg-white/70 text-voxcina-blue/70 hover:bg-white/90'
+                  }`}
+                >
                   رمز عبور
                 </button>
                 <button
                   type="button"
-                  onClick={() => setMode('sms')}
-                  className={`px-4 py-2 rounded ${mode === 'sms' ? 'bg-voxcina-blue text-white' : 'bg-white/70'}`}>
+                  onClick={() => {
+                    setMode('sms');
+                    setPassword("");
+                    setErrors({});
+                  }}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    mode === 'sms'
+                      ? 'bg-voxcina-blue text-white shadow-soft'
+                      : 'bg-white/70 text-voxcina-blue/70 hover:bg-white/90'
+                  }`}
+                >
                   کد یکبار مصرف
                 </button>
               </div>
             </CardHeader>
+
             <CardContent className="pt-2 px-4 sm:px-6 pb-6">
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <motion.div className="space-y-4" variants={containerVariants}>
-                  {mode === 'password' ? (
-                    <>
+              <AnimatePresence mode="wait">
+                {mode === 'password' ? (
+                  <motion.form
+                    key="password-mode"
+                    onSubmit={handlePasswordLogin}
+                    className="space-y-4"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <motion.div className="space-y-4" variants={containerVariants}>
                       <motion.div variants={itemVariants}>
                         <Input
                           label="شماره تلفن"
@@ -265,117 +420,203 @@ export default function SignInPage() {
                           className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5"
                         />
                       </motion.div>
-                    </>
-                  ) : (
-                    <>
-                      <motion.div variants={itemVariants}>
-                        <Input
-                          label="شماره تلفن"
-                          type="tel"
-                          id="phone"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          error={smsError || undefined}
-                          placeholder="09123456789"
-                          autoComplete="tel"
-                        />
-                      </motion.div>
-                      {isSent && (
-                        <motion.div variants={itemVariants}>
-                          <Input
-                            label="کد"
-                            type="text"
-                            id="smsCode"
-                            value={smsCode}
-                            onChange={(e) => setSmsCode(e.target.value)}
-                            placeholder="####"
-                            autoComplete="one-time-code"
-                          />
-                        </motion.div>
-                      )}
-                    </>
-                  )}
 
-                  <motion.div
-                    className="flex justify-between items-center mt-4"
-                    variants={itemVariants}
-                  >
-                    <div className="flex items-start space-x-3 space-x-reverse">
-                      <div className="relative flex items-center">
-                        <input
-                          type="checkbox"
-                          id="remember"
-                          className="sr-only"
-                          checked={rememberMe}
-                          onChange={(e) => setRememberMe(e.target.checked)}
-                        />
-                        <label
-                          htmlFor="remember"
-                          className="relative flex items-center cursor-pointer"
-                        >
-                          <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-secondary-300 rounded-lg bg-white/70 transition-all duration-200 hover:border-voxcina-blue/50 peer-checked:border-voxcina-blue peer-checked:bg-voxcina-blue">
-                            <svg
-                              className={`w-3 h-3 sm:w-4 sm:h-4 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 transition-opacity duration-200 ${
-                                rememberMe ? "opacity-100" : "opacity-0"
-                              }`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                      <motion.div
+                        className="flex justify-between items-center mt-4"
+                        variants={itemVariants}
+                      >
+                        <div className="flex items-start space-x-3 space-x-reverse">
+                          <div className="relative flex items-center">
+                            <input
+                              type="checkbox"
+                              id="remember"
+                              className="sr-only"
+                              checked={rememberMe}
+                              onChange={(e) => setRememberMe(e.target.checked)}
+                            />
+                            <label
+                              htmlFor="remember"
+                              className="relative flex items-center cursor-pointer"
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={3}
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
+                              <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-secondary-300 rounded-lg bg-white/70 transition-all duration-200 hover:border-voxcina-blue/50 peer-checked:border-voxcina-blue peer-checked:bg-voxcina-blue">
+                                <svg
+                                  className={`w-3 h-3 sm:w-4 sm:h-4 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 transition-opacity duration-200 ${
+                                    rememberMe ? "opacity-100" : "opacity-0"
+                                  }`}
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={3}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                              </div>
+                            </label>
                           </div>
-                        </label>
-                      </div>
-                      <label
-                        htmlFor="remember"
-                        className="text-xs sm:text-sm text-voxcina-blue/80 leading-relaxed cursor-pointer select-none"
-                      >
-                        مرا به خاطر بسپار
-                      </label>
-                    </div>
+                          <label
+                            htmlFor="remember"
+                            className="text-xs sm:text-sm text-voxcina-blue/80 leading-relaxed cursor-pointer select-none"
+                          >
+                            مرا به خاطر بسپار
+                          </label>
+                        </div>
 
-                    <Link
-                      href="/forgot-password"
-                      className="text-xs sm:text-sm text-voxcina-blue font-medium hover:text-voxcina-darkBlue transition-colors underline underline-offset-2"
-                    >
-                      فراموشی رمز عبور
-                    </Link>
-                  </motion.div>
+                        <Link
+                          href="/forgot-password"
+                          className="text-xs sm:text-sm text-voxcina-blue font-medium hover:text-voxcina-darkBlue transition-colors underline underline-offset-2"
+                        >
+                          فراموشی رمز عبور
+                        </Link>
+                      </motion.div>
 
-                  <motion.div className="pt-3" variants={itemVariants}>
-                    <Button
-                      variant="primary"
-                      fullWidth
-                      type="submit"
-                      isLoading={isLoading}
-                      className="bg-voxcina-blue hover:bg-voxcina-darkBlue text-white py-3 sm:py-3.5 rounded-xl transition-all duration-300 shadow-soft hover:shadow-medium text-sm sm:text-base font-medium"
-                    >
-                      {mode === 'password' ? (isLoading ? 'در حال ورود...' : 'ورود') : (!isSent ? 'ارسال کد' : 'تایید کد')}
-                    </Button>
-                  </motion.div>
+                      <motion.div className="pt-3" variants={itemVariants}>
+                        <Button
+                          variant="primary"
+                          fullWidth
+                          type="submit"
+                          isLoading={isLoading}
+                          className="bg-voxcina-blue hover:bg-voxcina-darkBlue text-white py-3 sm:py-3.5 rounded-xl transition-all duration-300 shadow-soft hover:shadow-medium text-sm sm:text-base font-medium"
+                        >
+                          {isLoading ? "درحال ورود..." : "ورود"}
+                        </Button>
+                      </motion.div>
 
-                  <motion.div
-                    className="text-center mt-4"
-                    variants={itemVariants}
+                      <motion.div className="text-center mt-4" variants={itemVariants}>
+                        <p className="text-xs sm:text-sm text-voxcina-blue/70">
+                          حساب کاربری ندارید؟{" "}
+                          <Link
+                            href="/sign-up"
+                            className="text-voxcina-blue font-medium hover:text-voxcina-darkBlue transition-colors underline underline-offset-2"
+                          >
+                            ثبتنام کنید
+                          </Link>
+                        </p>
+                      </motion.div>
+                    </motion.div>
+                  </motion.form>
+                ) : (
+                  <motion.form
+                    key="sms-mode"
+                    onSubmit={isSent ? handleVerifyOTP : handleSendOTP}
+                    className="space-y-4"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
                   >
-                    <p className="text-xs sm:text-sm text-voxcina-blue/70 mb-2">
-                      حساب کاربری ندارید؟{" "}
-                      <Link
-                        href="/sign-up"
-                        className="text-voxcina-blue font-medium hover:text-voxcina-darkBlue transition-colors underline underline-offset-2"
-                      >
-                        ثبت‌نام کنید
-                      </Link>
-                    </p>
-                  </motion.div>
-                </motion.div>
-              </form>
+                    <motion.div className="space-y-4" variants={containerVariants}>
+                      {!isSent ? (
+                        <>
+                          <motion.div variants={itemVariants}>
+                            <Input
+                              label="شماره تلفن"
+                              type="tel"
+                              id="phone-sms"
+                              value={phone}
+                              onChange={(e) => setPhone(e.target.value)}
+                              error={errors.phone}
+                              autoComplete="tel"
+                              leftElement={
+                                <Phone className="h-4 w-4 sm:h-5 sm:w-5 text-voxcina-blue/60" />
+                              }
+                              placeholder="09123456789"
+                              className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5"
+                            />
+                          </motion.div>
+
+                          <motion.div className="pt-3" variants={itemVariants}>
+                            <Button
+                              variant="primary"
+                              fullWidth
+                              type="submit"
+                              isLoading={isLoading}
+                              className="bg-voxcina-blue hover:bg-voxcina-darkBlue text-white py-3 sm:py-3.5 rounded-xl transition-all duration-300 shadow-soft hover:shadow-medium text-sm sm:text-base font-medium"
+                            >
+                              {isLoading ? "درحال ارسال کد..." : "ارسال کد تأیید"}
+                            </Button>
+                          </motion.div>
+                        </>
+                      ) : (
+                        <>
+                          <motion.div variants={itemVariants}>
+                            <button
+                              type="button"
+                              onClick={handleGoBack}
+                              className="flex items-center gap-1 text-sm text-voxcina-blue/70 hover:text-voxcina-blue transition-colors"
+                            >
+                              <ArrowRight className="w-4 h-4" />
+                              بازگشت
+                            </button>
+                          </motion.div>
+
+                          <motion.div variants={itemVariants} className="bg-voxcina-blue/5 rounded-xl p-3 text-center">
+                            <p className="text-sm text-voxcina-blue/70">کد تأیید به شماره زیر ارسال شد:</p>
+                            <p className="text-lg font-medium text-voxcina-blue mt-1 direction-ltr">
+                              {persianToEnglishDigits(phone)}
+                            </p>
+                          </motion.div>
+
+                          <motion.div variants={itemVariants}>
+                            <Input
+                              label="کد تأیید (۵ رقم)"
+                              type="text"
+                              id="smsCode"
+                              value={smsCode}
+                              onChange={(e) => setSmsCode(e.target.value)}
+                              error={errors.smsCode}
+                              maxLength={5}
+                              placeholder="۱۲۳۴۵"
+                              autoComplete="one-time-code"
+                              className="bg-white/70 border-secondary-300 focus:border-voxcina-blue focus:ring-voxcina-blue/20 rounded-xl text-sm sm:text-base py-2.5 text-center tracking-widest"
+                            />
+                            <div className="flex justify-between items-center mt-2">
+                              <span className="text-xs text-voxcina-blue/50">
+                                {countdown > 0 ? `${formatCountdown(countdown)} تا ارسال مجدد` : ''}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={handleResendOTP}
+                                disabled={!canResend || isLoading}
+                                className={`text-xs ${canResend ? 'text-voxcina-blue hover:underline' : 'text-gray-400'} transition-colors`}
+                              >
+                                ارسال مجدد کد
+                              </button>
+                            </div>
+                          </motion.div>
+
+                          <motion.div className="pt-3" variants={itemVariants}>
+                            <Button
+                              variant="primary"
+                              fullWidth
+                              type="submit"
+                              isLoading={isLoading}
+                              className="bg-voxcina-blue hover:bg-voxcina-darkBlue text-white py-3 sm:py-3.5 rounded-xl transition-all duration-300 shadow-soft hover:shadow-medium text-sm sm:text-base font-medium"
+                            >
+                              {isLoading ? "درحال تأیید..." : "تأیید کد"}
+                            </Button>
+                          </motion.div>
+                        </>
+                      )}
+
+                      <motion.div className="text-center mt-4" variants={itemVariants}>
+                        <p className="text-xs sm:text-sm text-voxcina-blue/70">
+                          حساب کاربری ندارید؟{" "}
+                          <Link
+                            href="/sign-up"
+                            className="text-voxcina-blue font-medium hover:text-voxcina-darkBlue transition-colors underline underline-offset-2"
+                          >
+                            ثبتنام کنید
+                          </Link>
+                        </p>
+                      </motion.div>
+                    </motion.div>
+                  </motion.form>
+                )}
+              </AnimatePresence>
             </CardContent>
           </Card>
         </motion.div>
@@ -401,7 +642,7 @@ export default function SignInPage() {
               <Link href="/terms" className="text-voxcina-blue hover:underline">
                 قوانین و مقررات
               </Link>{" "}
-              وکسینا را می‌پذیرید
+              وکسینا را میپذیرید
             </span>
           </div>
         </motion.div>

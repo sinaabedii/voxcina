@@ -97,7 +97,7 @@ func NewCustomerAIService(db *mongo.Database) (*CustomerAIService, error) {
 
 	model := os.Getenv("OPENROUTER_MODEL")
 	if model == "" {
-		model = "deepseek/deepseek-r1:free" // Default model
+		model = "openai/gpt-oss-20b:free" // Default model
 	}
 
 	// Load configuration
