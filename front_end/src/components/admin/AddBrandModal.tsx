@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { useBrandStore } from "@/store/brand-store";
@@ -15,7 +15,7 @@ interface AddBrandModalProps {
 
 export default function AddBrandModal({ isOpen, onClose, onSuccess }: AddBrandModalProps) {
   const { createBrand, isLoading } = useBrandStore();
-  
+
   const [newBrand, setNewBrand] = useState({
     name: "",
     slug: "",
@@ -51,13 +51,13 @@ export default function AddBrandModal({ isOpen, onClose, onSuccess }: AddBrandMo
       formData.append("description", newBrand.description);
       formData.append("website", newBrand.website);
       formData.append("isActive", String(newBrand.isActive));
-      
+
       if (newBrand.logo) {
         formData.append("logo", newBrand.logo);
       }
-      
+
       const result = await createBrand(formData);
-      
+
       if (result) {
         onClose();
         if (onSuccess) {
