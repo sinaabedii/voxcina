@@ -19,7 +19,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - MONGODB_URI=mongodb://admin:password@mongo:27017/admin?authSource=admin
+      - MONGODB_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/admin?authSource=admin
       - JWT_SECRET=137888
       - SERVER_PORT=8080
       - INTERNAL_SECRET=${INTERNAL_SECRET}
@@ -44,8 +44,8 @@ services:
     ports:
       - "27017:27017"
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
       - mongodb-data:/data/db
       - /root/voxcina-backups:/backups
@@ -61,7 +61,7 @@ services:
     labels:
       ofelia.enabled: "true"
       ofelia.job-exec.backup.schedule: "@daily"
-      ofelia.job-exec.backup.command: "bash -c 'BACKUP_DIR=/backups && TIMESTAMP=$$(date +%Y%m%d_%H%M%S) && RETENTION_DAYS=7 && mkdir -p $$BACKUP_DIR && mongodump --out $$BACKUP_DIR/db_$$TIMESTAMP --username admin --password password --authenticationDatabase admin && tar -czf $$BACKUP_DIR/db_$$TIMESTAMP.tar.gz -C $$BACKUP_DIR db_$$TIMESTAMP && rm -rf $$BACKUP_DIR/db_$$TIMESTAMP && tar -czf $$BACKUP_DIR/images_$$TIMESTAMP.tar.gz -C /app uploads && find $$BACKUP_DIR -name \"*.tar.gz\" -mtime +$$RETENTION_DAYS -delete'"
+      ofelia.job-exec.backup.command: "bash -c 'BACKUP_DIR=/backups && TIMESTAMP=$$(date +%Y%m%d_%H%M%S) && RETENTION_DAYS=7 && mkdir -p $$BACKUP_DIR && mongodump --out $$BACKUP_DIR/db_$$TIMESTAMP --username ${MONGO_INITDB_ROOT_USERNAME} --password ${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin && tar -czf $$BACKUP_DIR/db_$$TIMESTAMP.tar.gz -C $$BACKUP_DIR db_$$TIMESTAMP && rm -rf $$BACKUP_DIR/db_$$TIMESTAMP && tar -czf $$BACKUP_DIR/images_$$TIMESTAMP.tar.gz -C /app uploads && find $$BACKUP_DIR -name \"*.tar.gz\" -mtime +$$RETENTION_DAYS -delete && echo \"Backup completed at $$(date)\"'"
 
   front_end:
     container_name: voxcina_frontend
