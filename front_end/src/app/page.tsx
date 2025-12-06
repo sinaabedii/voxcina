@@ -22,6 +22,7 @@ const ColorMatchingTool = lazy(
   () => import("@/components/home/ColorMatchingTool")
 );
 const InstagramFeed = lazy(() => import("@/components/home/InstagramFeed"));
+const AIAssistantPromo = lazy(() => import("@/components/home/AIAssistantPromo"));
 
 export default function HomePage() {
   const {
@@ -190,7 +191,17 @@ export default function HomePage() {
           )}
         </motion.section>
 
+        <Suspense
+          fallback={
+            <div className="h-40 flex items-center justify-center">
+              در حال بارگذاری...
+            </div>
+          }
+        >
+          <AIAssistantPromo />
+        </Suspense>
         <ModernSliderSection sliders={sliders} />
+
 
         <Suspense
           fallback={
