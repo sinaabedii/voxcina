@@ -221,6 +221,7 @@ func NewRouter() *mux.Router {
 	orderAuthRouter := api.PathPrefix("/orders").Subrouter()
 	orderAuthRouter.Use(middlewares.AuthMiddleware) // Apply general auth here
 	orderAuthRouter.HandleFunc("/{orderId}", handlers.GetOrder).Methods(http.MethodGet)
+	orderAuthRouter.HandleFunc("/{orderId}/confirm-payment", handlers.ConfirmPayment).Methods(http.MethodPost)
 
 	// Wishlist
 	api.HandleFunc("/wishlist", handlers.GetWishlist).Methods(http.MethodGet)

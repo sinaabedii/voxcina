@@ -616,17 +616,29 @@ func AddItemToExistingCart(w http.ResponseWriter, r *http.Request) {
 
 	// Check if item (product + variant) already exists in cart
 	itemIndex := -1
+	existingQuantity := 0
 	for i, item := range cart.Items {
 		if item.ProductID == productID && item.Variant.Size == enrichedVariant.Size &&
 			item.Variant.Color == enrichedVariant.Color {
 			itemIndex = i
+			existingQuantity = item.Quantity
 			break
 		}
 	}
 
+	// Check if total quantity (existing + new) exceeds available stock
+	totalQuantity := existingQuantity + requestData.Quantity
+	if totalQuantity > availableStock {
+		utils.ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf(
+			"موجودی کافی نیست. موجودی انبار: %d، در سبد خرید: %d، درخواست جدید: %d",
+			availableStock, existingQuantity, requestData.Quantity,
+		))
+		return
+	}
+
 	if itemIndex > -1 {
 		// Update quantity of existing item
-		cart.Items[itemIndex].Quantity += requestData.Quantity
+		cart.Items[itemIndex].Quantity = totalQuantity
 		// Also update ColorName and SKU in case they were missing before
 		cart.Items[itemIndex].Variant.ColorName = enrichedVariant.ColorName
 		cart.Items[itemIndex].Variant.SKU = enrichedVariant.SKU
@@ -730,6 +742,52 @@ func UpdateCart(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	// Validate inventory if quantity > 0
+	if requestData.Quantity > 0 {
+		productsCollection := db.Database.Collection("products")
+		var product models.Product
+		if err := productsCollection.FindOne(ctx, bson.M{"_id": productID}).Decode(&product); err != nil {
+			if err == mongo.ErrNoDocuments {
+				utils.ErrorResponse(w, http.StatusNotFound, "Product not found")
+			} else {
+				utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching product: "+err.Error())
+			}
+			return
+		}
+
+		// Find available stock for the variant
+		availableStock := 0
+		variantFound := false
+		for _, colorVariant := range product.ColorVariants {
+			if colorVariant.Color == requestData.Variant.Color {
+				for _, sizeVariant := range colorVariant.Sizes {
+					if sizeVariant.Size == requestData.Variant.Size {
+						availableStock = sizeVariant.Quantity
+						variantFound = true
+						break
+					}
+				}
+				break
+			}
+		}
+
+		if !variantFound {
+			utils.ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf(
+				"تنوع انتخاب شده (رنگ: %s، سایز: %s) یافت نشد",
+				requestData.Variant.Color, requestData.Variant.Size,
+			))
+			return
+		}
+
+		if requestData.Quantity > availableStock {
+			utils.ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf(
+				"موجودی کافی نیست. موجودی انبار: %d، درخواست: %d",
+				availableStock, requestData.Quantity,
+			))
+			return
+		}
+	}
 
 	cartCollection := db.Database.Collection("carts")
 	var cart models.Cart

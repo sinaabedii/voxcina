@@ -217,6 +217,41 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     return colorVariant.sizes.some(s => s.size === size && s.quantity > 0);
   };
 
+  // Get inventory count for selected variant
+  const getSelectedVariantInventory = (): number => {
+    if (!activeProduct) return 0;
+    
+    // If product has no color variants, return a default high value
+    if (!activeProduct.colorVariants?.length) return 99;
+    
+    // If no color/size selection needed (single variant)
+    const needsColorSelection = availableColors.length > 0;
+    const needsSizeSelection = availableSizes.length > 0;
+    
+    if (!needsColorSelection && !needsSizeSelection) {
+      // Single variant product - get first variant's inventory
+      const firstVariant = activeProduct.colorVariants[0];
+      if (firstVariant?.sizes?.[0]) {
+        return firstVariant.sizes[0].quantity;
+      }
+      return 99;
+    }
+    
+    if (!selectedColor || !selectedSize) return 0;
+    const colorVariant = activeProduct.colorVariants.find(cv => cv.color === selectedColor);
+    if (!colorVariant) return 0;
+    const sizeVariant = colorVariant.sizes.find(s => s.size === selectedSize);
+    return sizeVariant?.quantity || 0;
+  };
+
+  const selectedVariantInventory = getSelectedVariantInventory();
+  
+  // Check if variant selection is required
+  const needsColorSelection = availableColors.length > 0;
+  const needsSizeSelection = availableSizes.length > 0;
+  const isVariantSelected = (!needsColorSelection || !!selectedColor) && (!needsSizeSelection || !!selectedSize);
+  const canModifyQuantity = isVariantSelected && selectedVariantInventory > 0;
+
   // Get available sizes based on selected color
   const availableSizesForSelectedColor = selectedColor
     ? getAvailableSizesForColor(selectedColor)
@@ -274,6 +309,11 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
       }
     }
   }, [activeProduct, urlColor, selectedColor]);
+
+  // Reset quantity when variant selection changes
+  useEffect(() => {
+    setQuantity(1);
+  }, [selectedColor, selectedSize]);
 
   // resume pending job when token becomes available (after hydration)
   useEffect(() => {
@@ -764,12 +804,29 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
             {activeProduct.inStock && (
               <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8">
-                <QuantitySelector
-                  value={quantity}
-                  onChange={setQuantity}
-                  min={1}
-                  max={99}
-                />
+                <div className="flex flex-col gap-1">
+                  <QuantitySelector
+                    value={quantity}
+                    onChange={setQuantity}
+                    min={1}
+                    max={canModifyQuantity ? selectedVariantInventory : 1}
+                    disabled={!canModifyQuantity}
+                  />
+                  {!isVariantSelected && (needsSizeSelection || needsColorSelection) && (
+                    <span className="text-xs text-amber-600 dark:text-amber-400">
+                      {needsColorSelection && needsSizeSelection 
+                        ? "ابتدا رنگ و سایز را انتخاب کنید"
+                        : needsColorSelection 
+                          ? "ابتدا رنگ را انتخاب کنید"
+                          : "ابتدا سایز را انتخاب کنید"}
+                    </span>
+                  )}
+                  {isVariantSelected && selectedVariantInventory > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      موجودی: {selectedVariantInventory} عدد
+                    </span>
+                  )}
+                </div>
 
                 <div className="flex-grow grid grid-cols-6 gap-2">
                   <motion.div
