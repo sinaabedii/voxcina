@@ -312,7 +312,7 @@ export default function AboutPage() {
                 {
                   icon: Phone,
                   title: "تلفن",
-                  content: ["021-22325593", "09128930115"],
+                  content: ["021-22325653", "09128930115"],
                   delay: 0.6,
                 },
               ].map((item, index) => (

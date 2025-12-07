@@ -20,13 +20,20 @@ import (
 )
 
 // ProductResponse is used to structure product details within the cart response.
+// Updated to include colorVariants for the new product structure
 type ProductResponse struct {
-	ID          primitive.ObjectID `json:"id"`
-	Name        string             `json:"name"`
-	Description string             `json:"description"`
-	Price       float64            `json:"price"`
-	Image       string             `json:"image"` // URL of the main product image
-	// Add other fields from models.Product that are needed in cart response
+	ID            primitive.ObjectID    `json:"id"`
+	Name          string                `json:"name"`
+	Description   string                `json:"description"`
+	Price         float64               `json:"price"`
+	OriginalPrice float64               `json:"originalPrice"`
+	MainImages    []string              `json:"mainImages,omitempty"`
+	ColorVariants []models.ColorVariant `json:"colorVariants"`
+	Brand         string                `json:"brand,omitempty"`
+	BrandID       primitive.ObjectID    `json:"brand_id,omitempty"`
+	InStock       bool                  `json:"inStock"`
+	// Legacy field for backward compatibility
+	Image string `json:"image,omitempty"`
 }
 
 // CartItemResponse represents an item in a user's cart for API responses.
@@ -133,8 +140,8 @@ func prepareCartResponse(ctx context.Context, cart models.Cart) (CartResponse, e
 			)
 		}
 
-		productImage := "" // Default image path
-		// Get image from MainImages or first ColorVariant
+		// Get legacy image from MainImages or first ColorVariant for backward compatibility
+		productImage := ""
 		if len(product.MainImages) > 0 {
 			productImage = product.MainImages[0]
 		} else if len(product.ColorVariants) > 0 && len(product.ColorVariants[0].Images) > 0 {
@@ -143,11 +150,17 @@ func prepareCartResponse(ctx context.Context, cart models.Cart) (CartResponse, e
 
 		responseItems = append(responseItems, CartItemResponse{
 			Product: ProductResponse{
-				ID:          product.ID,
-				Name:        product.Name,
-				Description: product.Description,
-				Price:       product.Price,
-				Image:       productImage,
+				ID:            product.ID,
+				Name:          product.Name,
+				Description:   product.Description,
+				Price:         product.Price,
+				OriginalPrice: product.OriginalPrice,
+				MainImages:    product.MainImages,
+				ColorVariants: product.ColorVariants,
+				Brand:         product.Brand,
+				BrandID:       product.BrandID,
+				InStock:       product.InStock,
+				Image:         productImage, // Legacy field
 			},
 			Variant:  item.Variant,
 			Quantity: item.Quantity,
@@ -352,7 +365,7 @@ func CreateOrReplaceCart(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Validate product exists
+		// Validate product exists and get variant details
 		var productCheck models.Product
 		if prodErr := productsCollection.FindOne(ctx, bson.M{"_id": productIDObj}).Decode(&productCheck); prodErr != nil {
 			if prodErr == mongo.ErrNoDocuments {
@@ -367,6 +380,30 @@ func CreateOrReplaceCart(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Find ColorName and SKU for the variant
+		colorName := ""
+		sku := ""
+		for _, colorVariant := range productCheck.ColorVariants {
+			if colorVariant.Color == reqItem.Variant.Color {
+				colorName = colorVariant.ColorName
+				for _, sizeVariant := range colorVariant.Sizes {
+					if sizeVariant.Size == reqItem.Variant.Size {
+						sku = sizeVariant.SKU
+						break
+					}
+				}
+				break
+			}
+		}
+
+		// Create enriched variant
+		enrichedVariant := models.CartVariant{
+			Size:      reqItem.Variant.Size,
+			Color:     reqItem.Variant.Color,
+			ColorName: colorName,
+			SKU:       sku,
+		}
+
 		k := itemKey{
 			ProductID: productIDObj,
 			Size:      reqItem.Variant.Size,
@@ -374,10 +411,13 @@ func CreateOrReplaceCart(w http.ResponseWriter, r *http.Request) {
 		}
 		if existing, ok := mergeMap[k]; ok {
 			existing.Quantity += reqItem.Quantity // increment quantity
+			// Update ColorName and SKU
+			existing.Variant.ColorName = colorName
+			existing.Variant.SKU = sku
 		} else {
 			mergeMap[k] = &models.CartItem{
 				ProductID: productIDObj,
-				Variant:   reqItem.Variant,
+				Variant:   enrichedVariant,
 				Quantity:  reqItem.Quantity,
 			}
 		}
@@ -498,7 +538,7 @@ func AddItemToExistingCart(w http.ResponseWriter, r *http.Request) {
 	) // Increased timeout
 	defer cancel()
 
-	// Fetch product to ensure it exists (optional, but good for validation)
+	// Fetch product to ensure it exists and validate variant
 	productsCollection := db.Database.Collection("products")
 	var product models.Product
 	err = productsCollection.FindOne(ctx, bson.M{"_id": productID}).Decode(&product)
@@ -511,11 +551,49 @@ func AddItemToExistingCart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check stock if applicable (models.Product needs a Stock field)
-	// if product.Stock < requestData.Quantity {
-	//    utils.ErrorResponse(w, http.StatusBadRequest, "Not enough stock")
-	//    return
-	// }
+	// Validate that the requested color+size combination exists and has stock
+	variantValid := false
+	availableStock := 0
+	colorName := ""
+	sku := ""
+	for _, colorVariant := range product.ColorVariants {
+		if colorVariant.Color == requestData.Variant.Color {
+			colorName = colorVariant.ColorName
+			for _, sizeVariant := range colorVariant.Sizes {
+				if sizeVariant.Size == requestData.Variant.Size {
+					variantValid = true
+					availableStock = sizeVariant.Quantity
+					sku = sizeVariant.SKU
+					break
+				}
+			}
+			break
+		}
+	}
+
+	if !variantValid {
+		utils.ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf(
+			"Invalid variant: color '%s' with size '%s' not found for this product",
+			requestData.Variant.Color, requestData.Variant.Size,
+		))
+		return
+	}
+
+	if availableStock < requestData.Quantity {
+		utils.ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf(
+			"Not enough stock. Available: %d, Requested: %d",
+			availableStock, requestData.Quantity,
+		))
+		return
+	}
+
+	// Enrich variant with ColorName and SKU
+	enrichedVariant := models.CartVariant{
+		Size:      requestData.Variant.Size,
+		Color:     requestData.Variant.Color,
+		ColorName: colorName,
+		SKU:       sku,
+	}
 
 	cartCollection := db.Database.Collection("carts")
 	var cart models.Cart
@@ -539,8 +617,8 @@ func AddItemToExistingCart(w http.ResponseWriter, r *http.Request) {
 	// Check if item (product + variant) already exists in cart
 	itemIndex := -1
 	for i, item := range cart.Items {
-		if item.ProductID == productID && item.Variant.Size == requestData.Variant.Size &&
-			item.Variant.Color == requestData.Variant.Color {
+		if item.ProductID == productID && item.Variant.Size == enrichedVariant.Size &&
+			item.Variant.Color == enrichedVariant.Color {
 			itemIndex = i
 			break
 		}
@@ -549,11 +627,14 @@ func AddItemToExistingCart(w http.ResponseWriter, r *http.Request) {
 	if itemIndex > -1 {
 		// Update quantity of existing item
 		cart.Items[itemIndex].Quantity += requestData.Quantity
+		// Also update ColorName and SKU in case they were missing before
+		cart.Items[itemIndex].Variant.ColorName = enrichedVariant.ColorName
+		cart.Items[itemIndex].Variant.SKU = enrichedVariant.SKU
 	} else {
-		// Add new item
+		// Add new item with enriched variant
 		cart.Items = append(cart.Items, models.CartItem{
 			ProductID: productID,
-			Variant:   requestData.Variant,
+			Variant:   enrichedVariant,
 			Quantity:  requestData.Quantity,
 		})
 	}

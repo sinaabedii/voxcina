@@ -405,7 +405,7 @@ export default function ContactPage() {
                       پشتیبانی فروش:
                     </p>
                     <p className="text-sm sm:text-base text-voxcina-blue dark:text-secondary-200 font-bold ltr py-1 px-3 sm:px-4 bg-white/70 dark:bg-voxcina-blue/20 rounded-lg sm:rounded-xl inline-block">
-                      021-22325593
+                      021-22325653
                     </p>
                   </div>
                   <div className="text-center">
@@ -413,7 +413,7 @@ export default function ContactPage() {
                       پشتیبانی فنی:
                     </p>
                     <p className="text-sm sm:text-base text-voxcina-blue dark:text-secondary-200 font-bold ltr py-1 px-3 sm:px-4 bg-white/70 dark:bg-voxcina-blue/20 rounded-lg sm:rounded-xl inline-block">
-                      021-22325593
+                      021-22325653
                     </p>
                   </div>
                 </div>
@@ -543,7 +543,7 @@ export default function ContactPage() {
                 </p>
                 <div className="flex items-center text-sm sm:text-base text-gray-600 dark:text-secondary-300 pr-10 sm:pr-12 relative z-10">
                   <Phone className="w-4 h-4 sm:w-5 sm:h-5 ml-2 text-voxcina-blue/60 dark:text-secondary-300" />
-                  <span className="ltr">021-22325593</span>
+                  <span className="ltr">021-22325653</span>
                 </div>
               </motion.div>
 

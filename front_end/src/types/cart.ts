@@ -1,5 +1,12 @@
 import { Product } from "./product";
 
+export interface CartItemVariant {
+  size?: string;
+  color?: string;
+  colorName?: string; // Display name for the color (e.g., "قرمز")
+  sku?: string;       // Unique SKU for this color+size combination
+}
+
 export interface CartItem {
   id: string;
   productId: string;
@@ -7,6 +14,8 @@ export interface CartItem {
   quantity: number;
   size?: string;
   color?: string;
+  colorName?: string; // Display name for the color
+  sku?: string;       // Unique SKU for this variant
   price: number;
 }
 

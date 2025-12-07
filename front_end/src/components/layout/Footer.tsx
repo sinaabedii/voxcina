@@ -115,7 +115,7 @@ const Footer = () => {
                 </li>
                 <li className="text-xs sm:text-sm md:text-base text-foreground flex items-center group hover:text-primary transition-all duration-200">
                   <PhoneCall className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 ml-1.5 sm:ml-2 text-primary flex-shrink-0 group-hover:animate-pulse-once" />
-                  <span>021-22325593</span>
+                  <span>021-22325653</span>
                 </li>
                 <li className="text-xs sm:text-sm md:text-base text-foreground flex items-center group hover:text-primary transition-all duration-200">
                   <Mail className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 ml-1.5 sm:ml-2 text-primary flex-shrink-0 group-hover:animate-pulse-once" />

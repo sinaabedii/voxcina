@@ -77,9 +77,9 @@ const CartItem: React.FC<CartItemProps> = ({ item }) => {
       <div className="flex-grow sm:mr-4">
         <h3 className="font-medium text-foreground hover:text-primary transition-colors duration-200">{item.product.name}</h3>
 
-        <div className="text-sm text-muted-foreground mt-1 flex flex-wrap">
+        <div className="text-sm text-muted-foreground mt-1 flex flex-wrap gap-2">
           {item.size && (
-            <span className="ml-4 bg-secondary/50 px-2 py-0.5 rounded-md text-xs">
+            <span className="bg-secondary/50 px-2 py-0.5 rounded-md text-xs">
               سایز: {item.size}
             </span>
           )}
@@ -90,6 +90,12 @@ const CartItem: React.FC<CartItemProps> = ({ item }) => {
                 className="inline-block w-3 h-3 rounded-full mr-1 ml-1 border border-border/20"
                 style={{ backgroundColor: item.color }}
               />
+              {/* Display color name - prefer from cart item, fallback to colorVariants */}
+              {(item.colorName || item.product.colorVariants?.find(cv => cv.color === item.color)?.colorName) && (
+                <span className="mr-1">
+                  {item.colorName || item.product.colorVariants?.find(cv => cv.color === item.color)?.colorName}
+                </span>
+              )}
             </span>
           )}
         </div>

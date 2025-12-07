@@ -224,20 +224,25 @@ export default function CartPage() {
                           {item.product.name}
                         </h3>
 
-                        <div className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60 mt-1">
+                        <div className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60 mt-1 flex flex-wrap gap-2">
                           {item.size && (
-                            <span className="ml-4">سایز: {item.size}</span>
+                            <span className="bg-voxcina-cream/30 dark:bg-voxcina-blue/20 px-2 py-0.5 rounded-md">
+                              سایز: {item.size}
+                            </span>
                           )}
                           {item.color && (
-                            <span>
-                              رنگ:{" "}
+                            <span className="bg-voxcina-cream/30 dark:bg-voxcina-blue/20 px-2 py-0.5 rounded-md flex items-center">
+                              رنگ:
                               <span
-                                className="inline-block w-4 h-4 rounded-full ml-1 border border-voxcina-cream dark:border-voxcina-blue/40"
-                                style={{
-                                  backgroundColor: item.color,
-                                  verticalAlign: "middle",
-                                }}
+                                className="inline-block w-3 h-3 rounded-full mr-1 ml-1 border border-voxcina-cream dark:border-voxcina-blue/40"
+                                style={{ backgroundColor: item.color }}
                               />
+                              {/* Display color name - prefer from cart item, fallback to colorVariants */}
+                              {(item.colorName || item.product.colorVariants?.find(cv => cv.color === item.color)?.colorName) && (
+                                <span className="mr-1">
+                                  {item.colorName || item.product.colorVariants?.find(cv => cv.color === item.color)?.colorName}
+                                </span>
+                              )}
                             </span>
                           )}
                         </div>

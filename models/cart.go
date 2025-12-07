@@ -8,8 +8,10 @@ import (
 
 // CartVariant represents product variant details in a cart
 type CartVariant struct {
-	Size  string `bson:"size"  json:"size"`
-	Color string `bson:"color" json:"color"`
+	Size      string `bson:"size"                json:"size"`
+	Color     string `bson:"color"               json:"color"`
+	ColorName string `bson:"color_name,omitempty" json:"colorName,omitempty"` // Display name for the color
+	SKU       string `bson:"sku,omitempty"        json:"sku,omitempty"`       // Unique SKU for this color+size combination
 }
 
 // CartItem represents an item in a user's cart

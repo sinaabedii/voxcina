@@ -68,30 +68,50 @@ interface CartStore {
 
 // Helper function to transform backend cart items to frontend structure if needed
 const transformBackendCartItemProduct = (backendProduct: any): Product => {
-  // Ensure all properties from backendProduct are spread, then specifically handle id and images.
-  // This assumes backendProduct is a superset or matches most of Product type from @/types/product
-  // and ProductResponse from cart.go which should contain: Name, Description, Price, Image, ID.
+  // Handle the new color variant structure
+  const id = backendProduct.id || backendProduct.ID;
+  const name = backendProduct.name || backendProduct.Name;
+  const description = backendProduct.description || backendProduct.Description;
+  const price = backendProduct.price || backendProduct.Price;
+  const originalPrice = backendProduct.originalPrice || backendProduct.original_price || price;
+  
+  // Handle colorVariants - new structure
+  let colorVariants = backendProduct.colorVariants || backendProduct.color_variants || [];
+  
+  // If no colorVariants but has legacy image field, create a default colorVariant
+  if (colorVariants.length === 0 && backendProduct.image) {
+    colorVariants = [{
+      color: '#000000',
+      colorName: 'پیش‌فرض',
+      images: [backendProduct.image],
+      sizes: [{ size: 'فری', sku: `${id}-default`, quantity: 1 }]
+    }];
+  }
+  
+  // Handle mainImages
+  const mainImages = backendProduct.mainImages || backendProduct.main_images || [];
+  
   return {
-    ...(backendProduct as Omit<Product, 'id' | 'images'>), // Spread all other properties, assuming they match
-    id: backendProduct.id || backendProduct.ID, // Handle potential casing difference for id
-    name: backendProduct.name || backendProduct.Name, // Handle potential casing for name
-    description: backendProduct.description || backendProduct.Description, // Handle potential casing for description
-    price: backendProduct.price || backendProduct.Price, // Handle potential casing for price
-    images: backendProduct.image ? [backendProduct.image] : (backendProduct.images || []),
-    // Add other mandatory Product fields with defaults if not in backendProduct
-    // For example, if Product requires originalPrice and it might not be in backendProduct:
-    // originalPrice: backendProduct.originalPrice || backendProduct.Price || 0,
-    // category: backendProduct.category || { id: 'unknown', name: 'Unknown' },
-    // brand: backendProduct.brand || { id: 'unknown', name: 'Unknown' },
-    // stock: backendProduct.stock !== undefined ? backendProduct.stock : 0,
-    // ratings: backendProduct.ratings || 0,
-    // reviews: backendProduct.reviews || [],
-    // variants: backendProduct.variants || [],
-    // isFeatured: backendProduct.isFeatured || false,
-    // isNew: backendProduct.isNew || false,
-    // discount: backendProduct.discount || null,
-    // slug: backendProduct.slug || (backendProduct.name || backendProduct.Name || 'product').toLowerCase().replace(/\s+/g, '-'),
-  } as Product; // Assert as Product to satisfy the return type
+    id,
+    name,
+    description,
+    price,
+    originalPrice,
+    mainImages,
+    colorVariants,
+    category_ids: backendProduct.category_ids || backendProduct.categoryIds || [],
+    brand_id: backendProduct.brand_id || backendProduct.brandId || '',
+    brand: backendProduct.brand || '',
+    collection: backendProduct.collection || '',
+    attributes: backendProduct.attributes || [],
+    is_flash_sale: backendProduct.is_flash_sale || backendProduct.isFlashSale || false,
+    is_active: backendProduct.is_active !== false,
+    inStock: backendProduct.inStock !== false,
+    created_at: backendProduct.created_at || backendProduct.createdAt || new Date().toISOString(),
+    updated_at: backendProduct.updated_at || backendProduct.updatedAt || new Date().toISOString(),
+    average_rating: backendProduct.average_rating || backendProduct.averageRating,
+    review_count: backendProduct.review_count || backendProduct.reviewCount,
+  } as Product;
 };
 
 // Helper function to process the cart data from backend
@@ -113,6 +133,8 @@ const processBackendCartData = (backendCartData: any): { cart: Cart; summary: Ca
     productId: item.product ? (item.product.id || item.product.ID) : item.productId,
     size: item.variant?.size,
     color: item.variant?.color,
+    colorName: item.variant?.colorName || item.variant?.color_name,
+    sku: item.variant?.sku || item.variant?.SKU,
   }));
 
   return {

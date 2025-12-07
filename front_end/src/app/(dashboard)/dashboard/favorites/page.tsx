@@ -3,21 +3,25 @@
 import { useEffect, useState } from 'react';
 import { useProductStore } from '@/store/product-store';
 import { useDashboardStore } from '@/store/dashboard-store';
+import { useCartStore } from '@/store/cart-store';
 import { Card, CardContent } from '@/components/ui/Card';
-import { Heart, ShoppingCart, Trash2, Search, Clock, Filter, ArrowRight } from 'lucide-react';
-import { ColorVariantListItem } from '@/types/product';
+import { Heart, ShoppingCart, Trash2, Search, Clock, Filter, ArrowRight, Check } from 'lucide-react';
+import { ColorVariantListItem, Product } from '@/types/product';
 import { motion } from 'framer-motion';
 import Button from '@/components/ui/Button';
 import { useRouter } from 'next/navigation';
 import { getBrandName, getCategoryName } from "@/lib/utils";
+import { toast } from 'react-toastify';
 
 export default function FavoritesPage() {
-  const { products, isLoading, brands, categories} = useProductStore();
+  const { products, isLoading, brands, categories } = useProductStore();
   const { favorites, removeFromFavorites } = useDashboardStore();
+  const { addItem } = useCartStore();
   const [favoriteProducts, setFavoriteProducts] = useState<ColorVariantListItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('newest');
   const [isRemoving, setIsRemoving] = useState<string | null>(null);
+  const [addingToCart, setAddingToCart] = useState<string | null>(null);
   const router = useRouter();
   
   useEffect(() => {
@@ -71,6 +75,43 @@ export default function FavoritesPage() {
       removeFromFavorites(productId);
       setIsRemoving(null);
     }, 300);
+  };
+
+  const handleAddToCart = async (item: ColorVariantListItem) => {
+    const itemKey = `${item.productId}-${item.colorVariant.color}`;
+    setAddingToCart(itemKey);
+    
+    try {
+      // Convert ColorVariantListItem to Product format for cart
+      const product: Product = {
+        id: item.productId,
+        name: item.name,
+        description: item.description,
+        price: item.price,
+        originalPrice: item.originalPrice,
+        colorVariants: [item.colorVariant],
+        category_ids: item.category_ids,
+        brand_id: item.brand_id,
+        brand: item.brand,
+        collection: item.collection,
+        attributes: [],
+        is_flash_sale: item.is_flash_sale,
+        is_active: true,
+        inStock: item.inStock,
+        created_at: item.created_at,
+        updated_at: item.created_at,
+      };
+
+      // Get first available size for this color
+      const firstAvailableSize = item.colorVariant.sizes.find(s => s.quantity > 0)?.size;
+      
+      await addItem(product, 1, firstAvailableSize, item.colorVariant.color);
+      toast.success(`${item.name} به سبد خرید اضافه شد`);
+    } catch (error) {
+      toast.error('خطا در افزودن به سبد خرید');
+    } finally {
+      setTimeout(() => setAddingToCart(null), 500);
+    }
   };
 
   const handleNavigateToShop = () => {
@@ -311,9 +352,20 @@ export default function FavoritesPage() {
                           variant="outline" 
                           size="sm" 
                           className="w-full rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-secondary-200 hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20 transition-colors"
+                          onClick={() => handleAddToCart(product)}
+                          disabled={!product.inStock || addingToCart === `${product.productId}-${product.colorVariant.color}`}
                         >
-                          <ShoppingCart className="w-4 h-4 ml-2" />
-                          افزودن به سبد خرید
+                          {addingToCart === `${product.productId}-${product.colorVariant.color}` ? (
+                            <>
+                              <Check className="w-4 h-4 ml-2" />
+                              اضافه شد
+                            </>
+                          ) : (
+                            <>
+                              <ShoppingCart className="w-4 h-4 ml-2" />
+                              {product.inStock ? 'افزودن به سبد خرید' : 'ناموجود'}
+                            </>
+                          )}
                         </Button>
                       </div>
                     </div>

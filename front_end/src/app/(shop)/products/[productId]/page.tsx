@@ -9,32 +9,42 @@ import {
   Truck,
   RotateCcw,
   ShieldCheck,
-  Minus,
-  Plus,
   Share2,
   Bell,
   CheckCircle,
   Maximize2,
   ChevronLeft,
   ChevronRight,
-  RefreshCw,
   Check,
   ArrowRight,
   X,
   Camera,
   Shirt,
+  Minus,
+  Plus,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useProductStore } from "@/store/product-store";
 import { useCartStore } from "@/store/cart-store";
 import { useReviewStore } from "@/store/review-store";
 import { useDashboardStore } from "@/store/dashboard-store";
-import { formatPrice, cn, getDiscountPercentage } from "@/lib/utils";
+import { cn, formatPrice, getDiscountPercentage } from "@/lib/utils";
 import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
+import QuantitySelector from "@/components/ui/QuantitySelector";
+import ColorSelector from "@/components/ui/ColorSelector";
+import SizeSelector from "@/components/ui/SizeSelector";
+import PriceDisplay from "@/components/ui/PriceDisplay";
+import StockStatus from "@/components/ui/StockStatus";
+import SectionTitle from "@/components/ui/SectionTitle";
+import { FeatureGrid } from "@/components/ui/FeatureCard";
 import ProductGrid from "@/components/product/ProductGrid";
 import ProductCard from "@/components/product/ProductCard";
 import ProductReviews from "@/components/product/ProductReviews";
 import ProductJsonLd from "@/components/product/ProductJsonLd";
+import ImageGallery from "@/components/product/ImageGallery";
+import SizeGuideTable from "@/components/product/SizeGuideTable";
+import ProductAttributes from "@/components/product/ProductAttributes";
 import { Review } from "@/types/product";
 import { useCategoryStore } from "@/store/category-store";
 import Link from "next/link";
@@ -713,333 +723,53 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               </div>
 
               {/* Price Display */}
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-2xl font-bold text-voxcina-blue dark:text-voxcina-cream">
-                  {formatPrice(activeProduct.price)}
-                </span>
-
-                {activeProduct.originalPrice &&
-                  activeProduct.originalPrice > activeProduct.price && (
-                    <span className="text-lg text-voxcina-blue/50 dark:text-voxcina-cream/50 line-through">
-                      {formatPrice(activeProduct.originalPrice)}
-                    </span>
-                  )}
-
-                {activeProduct.originalPrice &&
-                  activeProduct.originalPrice > activeProduct.price && (
-                    <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-lg">
-                      {getDiscountPercentage(
-                        activeProduct.originalPrice,
-                        activeProduct.price
-                      )}
-                      ٪ تخفیف
-                    </span>
-                  )}
-              </div>
+              <PriceDisplay
+                price={activeProduct.price}
+                originalPrice={activeProduct.originalPrice}
+                className="mb-4"
+              />
             </div>
 
             {availableSizes.length > 0 && (
-              <div className="mb-6">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">
-                    سایز
-                  </h3>
-                  <div className="flex items-center gap-4">
-                    <button
-                      className="text-xs text-voxcina-blue dark:text-voxcina-cream hover:text-voxcina-blue/70 dark:hover:text-voxcina-cream/70 transition-colors"
-                      onClick={() => setShowSizeGuide(!showSizeGuide)}
-                    >
-                      راهنمای سایز
-                    </button>
-                    {(selectedSize || selectedColor) && (
-                      <button
-                        className="text-xs text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors flex items-center"
-                        onClick={handleClearSelection}
-                      >
-                        <X className="h-3 w-3 ml-1" />
-                        حذف انتخاب
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {availableSizes.map((size) => {
-                    const isAvailable =
-                      !selectedColor ||
-                      availableSizesForSelectedColor.includes(size);
-                    return (
-                      <motion.button
-                        key={size}
-                        className={`px-4 py-2 border rounded-lg text-sm transition-all ${selectedSize === size
-                          ? "border-voxcina-blue dark:border-voxcina-cream bg-voxcina-blue/10 dark:bg-voxcina-cream/10 text-voxcina-blue dark:text-voxcina-cream font-medium shadow-sm"
-                          : isAvailable
-                            ? "border-voxcina-cream/50 dark:border-voxcina-blue/30 text-voxcina-blue/80 dark:text-voxcina-cream/80 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/50"
-                            : "border-voxcina-cream/30 dark:border-voxcina-blue/20 text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed opacity-60"
-                          }`}
-                        onClick={() =>
-                          isAvailable &&
-                          setSelectedSize(
-                            selectedSize === size ? undefined : size
-                          )
-                        }
-                        whileHover={isAvailable ? { y: -2 } : {}}
-                        whileTap={isAvailable ? { scale: 0.97 } : {}}
-                        disabled={!isAvailable}
-                      >
-                        {size}
-                      </motion.button>
-                    );
-                  })}
-                </div>
-              </div>
+              <SizeSelector
+                sizes={availableSizes}
+                selectedSize={selectedSize}
+                onSizeChange={setSelectedSize}
+                availableSizes={selectedColor ? availableSizesForSelectedColor : undefined}
+                showSizeGuide
+                onSizeGuideClick={() => setShowSizeGuide(!showSizeGuide)}
+                showClearButton={!!(selectedSize || selectedColor)}
+                onClear={handleClearSelection}
+              />
             )}
 
-            {showSizeGuide && (
-              <motion.div
-                className="mt-2 p-4 border border-voxcina-cream/30 dark:border-voxcina-blue/30 rounded-xl bg-white/90 dark:bg-voxcina-blue/10 shadow-sm backdrop-blur-sm mb-6"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                transition={{ duration: 0.3 }}
-              >
-                <h4 className="font-medium mb-3 text-voxcina-blue dark:text-voxcina-cream">
-                  راهنمای سایز
-                </h4>
-
-                <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-voxcina-blue/20 scrollbar-track-voxcina-cream/50 dark:scrollbar-thumb-voxcina-cream/30 dark:scrollbar-track-voxcina-blue/20">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-voxcina-cream/30 dark:border-voxcina-blue/30">
-                        <th className="p-2 text-right text-voxcina-blue dark:text-voxcina-cream">
-                          سایز
-                        </th>
-                        <th className="p-2 text-right text-voxcina-blue dark:text-voxcina-cream">
-                          سینه (cm)
-                        </th>
-                        <th className="p-2 text-right text-voxcina-blue dark:text-voxcina-cream">
-                          کمر (cm)
-                        </th>
-                        <th className="p-2 text-right text-voxcina-blue dark:text-voxcina-cream">
-                          باسن (cm)
-                        </th>
-                        <th className="p-2 text-right text-voxcina-blue dark:text-voxcina-cream">
-                          قد (cm)
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b border-voxcina-cream/20 dark:border-voxcina-blue/20 hover:bg-voxcina-cream/10 dark:hover:bg-voxcina-blue/20 transition-colors">
-                        <td className="p-2 text-voxcina-blue dark:text-voxcina-cream">
-                          S
-                        </td>
-                        <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          88-90
-                        </td>
-                        <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          76-78
-                        </td>
-                        <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          94-96
-                        </td>
-                        <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          160-165
-                        </td>
-                      </tr>
-                      <tr className="border-b border-voxcina-cream/20 dark:border-voxcina-blue/20 hover:bg-voxcina-cream/10 dark:hover:bg-voxcina-blue/20 transition-colors">
-                        <td className="p-2 text-voxcina-blue dark:text-voxcina-cream">
-                          M
-                        </td>
-                        <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          90-94
-                        </td>
-                        <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          78-82
-                        </td>
-                        <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          96-100
-                        </td>
-                        <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          165-170
-                        </td>
-                      </tr>
-                      <tr className="border-b border-voxcina-cream/20 dark:border-voxcina-blue/20 hover:bg-voxcina-cream/10 dark:hover:bg-voxcina-blue/20 transition-colors">
-                        <td className="p-2 text-voxcina-blue dark:text-voxcina-cream">
-                          L
-                        </td>
-                        <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          94-98
-                        </td>
-                        <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          82-86
-                        </td>
-                        <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          100-104
-                        </td>
-                        <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          170-175
-                        </td>
-                      </tr>
-                      <tr className="hover:bg-voxcina-cream/10 dark:hover:bg-voxcina-blue/20 transition-colors">
-                        <td className="p-2 text-voxcina-blue dark:text-voxcina-cream">
-                          XL
-                        </td>
-                        <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          98-102
-                        </td>
-                        <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          86-90
-                        </td>
-                        <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          104-108
-                        </td>
-                        <td className="p-2 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          175-180
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="mt-3 text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                  <p>
-                    روش اندازه‌گیری: لطفاً از متر نواری استفاده کنید و اندازه‌ها
-                    را در حالت ایستاده و بدون کشش اندازه‌گیری کنید.
-                  </p>
-                </div>
-              </motion.div>
-            )}
+            <SizeGuideTable isOpen={showSizeGuide} />
 
             {availableColors.length > 0 && (
-              <div className="mb-6">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">
-                    رنگ
-                  </h3>
-                  <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                    {selectedColor
-                      ? availableColors.find((c) => c.color === selectedColor)?.colorName || selectedColor
-                      : "لطفاً رنگ را انتخاب کنید"}
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  {availableColors.map((colorObj) => {
-                    const isAvailable =
-                      !selectedSize ||
-                      availableColorsForSelectedSize.some(c => c.color === colorObj.color);
-                    return (
-                      <motion.button
-                        key={colorObj.color}
-                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${selectedColor === colorObj.color
-                          ? "ring-2 ring-voxcina-blue dark:ring-voxcina-cream ring-offset-2 dark:ring-offset-voxcina-blue/80"
-                          : isAvailable
-                            ? "ring-1 ring-voxcina-cream/50 dark:ring-voxcina-blue/30 hover:ring-voxcina-blue/50 dark:hover:ring-voxcina-cream/50"
-                            : "ring-1 ring-voxcina-cream/30 dark:ring-voxcina-blue/20 opacity-40 cursor-not-allowed"
-                          }`}
-                        onClick={() =>
-                          isAvailable &&
-                          setSelectedColor(
-                            selectedColor === colorObj.color ? undefined : colorObj.color
-                          )
-                        }
-                        title={colorObj.colorName || colorObj.color}
-                        whileHover={isAvailable ? { scale: 1.1 } : {}}
-                        whileTap={isAvailable ? { scale: 0.9 } : {}}
-                        disabled={!isAvailable}
-                      >
-                        <span
-                          className="w-8 h-8 rounded-full block"
-                          style={{ backgroundColor: colorObj.color }}
-                        />
-                        {selectedColor === colorObj.color && (
-                          <CheckCircle className="absolute h-4 w-4 drop-shadow-md"
-                            style={{
-                              color: isLightColor(colorObj.color) ? '#000' : '#fff',
-                              filter: isLightColor(colorObj.color) ? 'drop-shadow(0 0 2px rgba(255,255,255,0.8))' : 'drop-shadow(0 0 2px rgba(0,0,0,0.8))'
-                            }}
-                          />
-                        )}
-                      </motion.button>
-                    );
-                  })}
-                </div>
-              </div>
+              <ColorSelector
+                colors={availableColors.map(c => ({
+                  ...c,
+                  isAvailable: !selectedSize || availableColorsForSelectedSize.some(ac => ac.color === c.color)
+                }))}
+                selectedColor={selectedColor}
+                onColorChange={setSelectedColor}
+              />
             )}
-            <div className="mb-6">
-              {activeProduct.inStock ? (
-                <div className="flex items-center text-green-600 dark:text-green-400">
-                  <CheckCircle className="h-5 w-5 ml-2" />
-                  <span className="font-medium">موجود در انبار</span>
-                  <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 mr-2 bg-voxcina-cream/30 dark:bg-voxcina-blue/20 px-2 py-1 rounded-lg">
-                    ارسال طی ۲-۳ روز کاری
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <div className="text-red-500 dark:text-red-400 font-medium flex items-center">
-                    <svg
-                      className="h-5 w-5 ml-2"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="8" y1="8" x2="16" y2="16" />
-                      <line x1="16" y1="8" x2="8" y2="16" />
-                    </svg>
-                    ناموجود
-                  </div>
-                  <motion.button
-                    className={cn(
-                      "text-sm px-3 py-1.5 rounded-xl transition-all flex items-center",
-                      isStockNotifyEnabled
-                        ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                        : "bg-voxcina-cream/30 dark:bg-voxcina-blue/20 text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:bg-voxcina-cream/50 dark:hover:bg-voxcina-blue/30 hover:text-voxcina-blue dark:hover:text-voxcina-cream"
-                    )}
-                    onClick={() => setShowNotifyModal(true)}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                  >
-                    {isStockNotifyEnabled ? (
-                      <>
-                        <CheckCircle className="h-4 w-4 ml-1" />
-                        به من اطلاع بده
-                      </>
-                    ) : (
-                      <>
-                        <Bell className="h-4 w-4 ml-1" />
-                        موجود شد، خبرم کن
-                      </>
-                    )}
-                  </motion.button>
-                </div>
-              )}
-            </div>
+            <StockStatus
+              inStock={activeProduct.inStock}
+              isNotifyEnabled={isStockNotifyEnabled}
+              onNotifyClick={() => setShowNotifyModal(true)}
+              className="mb-6"
+            />
 
             {activeProduct.inStock && (
               <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8">
-                <div className="flex items-center justify-between border border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-xl overflow-hidden bg-white/80 dark:bg-voxcina-blue/20 shadow-sm">
-                  <motion.button
-                    className="px-3 py-2 text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:text-voxcina-blue dark:hover:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
-                    onClick={decrementQuantity}
-                    disabled={quantity <= 1}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <Minus className="h-4 w-4" />
-                  </motion.button>
-                  <span className="px-4 py-2 border-x border-voxcina-cream/50 dark:border-voxcina-blue/30 text-voxcina-blue dark:text-voxcina-cream font-medium">
-                    {quantity}
-                  </span>
-                  <motion.button
-                    className="px-3 py-2 text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:text-voxcina-blue dark:hover:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
-                    onClick={incrementQuantity}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </motion.button>
-                </div>
+                <QuantitySelector
+                  value={quantity}
+                  onChange={setQuantity}
+                  min={1}
+                  max={99}
+                />
 
                 <div className="flex-grow grid grid-cols-6 gap-2">
                   <motion.div
@@ -1166,48 +896,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               </div>
             )}
 
-            <motion.div
-              className="bg-voxcina-cream/30 dark:bg-voxcina-blue/20 rounded-xl p-4 mb-6 shadow-sm backdrop-blur-sm"
-              whileHover={{ y: -3 }}
-              transition={{ duration: 0.3 }}
-            >
-              <h3 className="text-sm font-medium mb-3 text-voxcina-blue dark:text-voxcina-cream">
-                ویژگی‌های محصول
-              </h3>
-              <ul className="space-y-2">
-                {activeProduct.attributes &&
-                  activeProduct.attributes
-                    .filter(
-                      (attr) =>
-                        attr.value &&
-                        attr.value.trim() !== "" &&
-                        attr.value.toLowerCase() !== "false" &&
-                        attr.value !== "0"
-                    )
-                    .map((attribute, index) => (
-                      <li key={index} className="text-sm flex items-start">
-                        <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400 mt-0.5 ml-2 flex-shrink-0" />
-                        <span className="text-voxcina-blue/80 dark:text-voxcina-cream/80">
-                          {/* Use shownName if available, otherwise fallback to name */}
-                          {attribute.shownName || attribute.name}:{" "}
-                          {attribute.value}
-                        </span>
-                      </li>
-                    ))}
-                {(!activeProduct.attributes ||
-                  !activeProduct.attributes.some(
-                    (attr) =>
-                      attr.value &&
-                      attr.value.trim() !== "" &&
-                      attr.value.toLowerCase() !== "false" &&
-                      attr.value !== "0"
-                  )) && (
-                    <li className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                      ویژگی خاصی درج نشده است
-                    </li>
-                  )}
-              </ul>
-            </motion.div>
+            <ProductAttributes attributes={activeProduct.attributes} />
             <motion.div
               className="border border-voxcina-cream/30 dark:border-voxcina-blue/30 rounded-xl mb-6 overflow-hidden shadow-sm backdrop-blur-sm"
               whileHover={{ y: -3 }}
@@ -1239,47 +928,26 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               </div>
             </motion.div>
 
-            <motion.div
-              className="border border-voxcina-cream/30 dark:border-voxcina-blue/30 rounded-xl overflow-hidden shadow-sm backdrop-blur-sm"
-              whileHover={{ y: -3 }}
-              transition={{ duration: 0.3 }}
-            >
-              <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x sm:divide-x-reverse divide-voxcina-cream/30 dark:divide-voxcina-blue/30">
-                <div className="flex flex-col items-center p-4 hover:bg-voxcina-cream/20 dark:hover:bg-voxcina-blue/20 transition-colors">
-                  <Truck className="h-6 w-6 text-voxcina-blue dark:text-voxcina-cream mb-2" />
-                  <h4 className="font-medium text-sm text-voxcina-blue dark:text-voxcina-cream">
-                    ارسال سریع
-                  </h4>
-                  <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 text-center mt-1">
-                    ارسال به سراسر کشور
-                    <br />
-                    طی ۲-۳ روز کاری
-                  </p>
-                </div>
-                <div className="flex flex-col items-center p-4 hover:bg-voxcina-cream/20 dark:hover:bg-voxcina-blue/20 transition-colors">
-                  <RotateCcw className="h-6 w-6 text-voxcina-blue dark:text-voxcina-cream mb-2" />
-                  <h4 className="font-medium text-sm text-voxcina-blue dark:text-voxcina-cream">
-                    ۷ روز ضمانت بازگشت
-                  </h4>
-                  <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 text-center mt-1">
-                    در صورت عدم رضایت
-                    <br />
-                    بدون قید و شرط
-                  </p>
-                </div>
-                <div className="flex flex-col items-center p-4 hover:bg-voxcina-cream/20 dark:hover:bg-voxcina-blue/20 transition-colors">
-                  <ShieldCheck className="h-6 w-6 text-voxcina-blue dark:text-voxcina-cream mb-2" />
-                  <h4 className="font-medium text-sm text-voxcina-blue dark:text-voxcina-cream">
-                    ضمانت اصالت کالا
-                  </h4>
-                  <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 text-center mt-1">
-                    تضمین اصالت و کیفیت
-                    <br />
-                    تمامی محصولات
-                  </p>
-                </div>
-              </div>
-            </motion.div>
+            <FeatureGrid
+              features={[
+                {
+                  icon: Truck,
+                  title: "ارسال سریع",
+                  description: <>ارسال به سراسر کشور<br />طی ۲-۳ روز کاری</>,
+                },
+                {
+                  icon: RotateCcw,
+                  title: "۷ روز ضمانت بازگشت",
+                  description: <>در صورت عدم رضایت<br />بدون قید و شرط</>,
+                },
+                {
+                  icon: ShieldCheck,
+                  title: "ضمانت اصالت کالا",
+                  description: <>تضمین اصالت و کیفیت<br />تمامی محصولات</>,
+                },
+              ]}
+              columns={3}
+            />
 
 
           </motion.div>
@@ -1407,189 +1075,94 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
           </div>
         </motion.div>
 
-        <AnimatePresence>
-          {showNotifyModal && (
-            <motion.div
-              className="fixed inset-0 bg-voxcina-blue/30 dark:bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowNotifyModal(false)}
+        {/* Stock Notify Modal */}
+        <Modal
+          isOpen={showNotifyModal}
+          onClose={() => setShowNotifyModal(false)}
+          title="اطلاع از موجود شدن کالا"
+        >
+          <div className="text-center mb-4">
+            <div className="w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center mx-auto mb-3 shadow-soft">
+              <Bell className="h-8 w-8 text-primary" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              به محض موجود شدن {activeProduct.name} به شما اطلاع خواهیم داد.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1 text-foreground">ایمیل</label>
+              <input
+                type="email"
+                className="w-full px-3 py-2 border border-border/30 rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
+                placeholder="ایمیل خود را وارد کنید"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1 text-foreground">شماره موبایل</label>
+              <input
+                type="tel"
+                className="w-full px-3 py-2 border border-border/30 rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
+                placeholder="شماره موبایل خود را وارد کنید"
+              />
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer text-sm text-foreground/80">
+              <input type="checkbox" className="w-4 h-4 rounded border-border/30" />
+              فقط در صورت موجود شدن سایز {selectedSize || "انتخاب شده"} به من اطلاع بده
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-2 mt-6">
+            <Button variant="outline" onClick={() => setShowNotifyModal(false)}>
+              انصراف
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setIsStockNotifyEnabled(true);
+                setShowNotifyModal(false);
+              }}
             >
-              <motion.div
-                className="bg-white/95 dark:bg-voxcina-blue/95 rounded-2xl max-w-md w-full p-6 relative shadow-lg backdrop-blur-sm border border-voxcina-cream/30 dark:border-voxcina-blue/50"
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                transition={{ type: "spring" as const, damping: 25, stiffness: 300 }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  className="absolute top-4 right-4 text-voxcina-blue/60 hover:text-voxcina-blue dark:text-voxcina-cream/60 dark:hover:text-voxcina-cream transition-colors"
-                  onClick={() => setShowNotifyModal(false)}
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
+              ثبت درخواست
+            </Button>
+          </div>
+        </Modal>
 
-                <div className="text-center mb-6">
-                  <div className="w-16 h-16 bg-voxcina-cream/50 dark:bg-voxcina-blue/30 rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
-                    <Bell className="h-8 w-8 text-voxcina-blue dark:text-voxcina-cream" />
-                  </div>
-                  <h3 className="text-lg font-bold text-voxcina-blue dark:text-voxcina-cream">
-                    اطلاع از موجود شدن کالا
-                  </h3>
-                  <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
-                    به محض موجود شدن {activeProduct.name} به شما اطلاع خواهیم داد.
-                  </p>
-                </div>
-
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1 text-voxcina-blue dark:text-voxcina-cream">
-                    ایمیل
-                  </label>
-                  <input
-                    type="email"
-                    className="w-full px-3 py-2 border border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-xl bg-white/70 dark:bg-voxcina-blue/20 focus:outline-none focus:ring-2 focus:ring-voxcina-blue/30 dark:focus:ring-voxcina-cream/30 text-voxcina-blue dark:text-voxcina-cream shadow-inner-soft"
-                    placeholder="ایمیل خود را وارد کنید"
-                  />
-                </div>
-
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1 text-voxcina-blue dark:text-voxcina-cream">
-                    شماره موبایل
-                  </label>
-                  <input
-                    type="tel"
-                    className="w-full px-3 py-2 border border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-xl bg-white/70 dark:bg-voxcina-blue/20 focus:outline-none focus:ring-2 focus:ring-voxcina-blue/30 dark:focus:ring-voxcina-cream/30 text-voxcina-blue dark:text-voxcina-cream shadow-inner-soft"
-                    placeholder="شماره موبایل خود را وارد کنید"
-                  />
-                </div>
-
-                <div className="flex items-center mb-6">
-                  <div className="relative flex items-center">
-                    <input
-                      type="checkbox"
-                      id="notify-size"
-                      className="opacity-0 absolute h-5 w-5 cursor-pointer"
-                    />
-                    <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border border-voxcina-cream/50 dark:border-voxcina-blue/40 bg-white/50 dark:bg-voxcina-blue/20 mr-2">
-                      <Check className="h-3 w-3 text-voxcina-blue dark:text-voxcina-cream invisible peer-checked:visible" />
-                    </div>
-                    <label
-                      htmlFor="notify-size"
-                      className="text-sm cursor-pointer text-voxcina-blue/80 dark:text-voxcina-cream/80"
-                    >
-                      فقط در صورت موجود شدن سایز {selectedSize || "انتخاب شده"} به
-                      من اطلاع بده
-                    </label>
-                  </div>
-                </div>
-
-                <div className="flex justify-end space-x-2 space-x-reverse">
-                  <motion.button
-                    className="px-4 py-2 text-sm border border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-xl text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/20 dark:hover:bg-voxcina-blue/30 transition-colors shadow-sm"
-                    onClick={() => setShowNotifyModal(false)}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                  >
-                    انصراف
-                  </motion.button>
-                  <motion.button
-                    className="px-4 py-2 text-sm bg-voxcina-blue hover:bg-voxcina-darkBlue dark:bg-voxcina-cream/90 dark:hover:bg-voxcina-cream dark:text-voxcina-blue text-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300"
-                    onClick={() => {
-                      setIsStockNotifyEnabled(true);
-                      setShowNotifyModal(false);
-                    }}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                  >
-                    ثبت درخواست
-                  </motion.button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {showShareModal && (
-            <motion.div
-              className="fixed inset-0 bg-voxcina-blue/30 dark:bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowShareModal(false)}
-            >
-              <motion.div
-                className="bg-white/95 dark:bg-voxcina-blue/95 rounded-2xl max-w-md w-full p-6 relative shadow-lg backdrop-blur-sm border border-voxcina-cream/30 dark:border-voxcina-blue/50"
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                transition={{ type: "spring" as const, damping: 25, stiffness: 300 }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  className="absolute top-4 right-4 text-voxcina-blue/60 hover:text-voxcina-blue dark:text-voxcina-cream/60 dark:hover:text-voxcina-cream transition-colors"
-                  onClick={() => setShowShareModal(false)}
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-
-                <SocialShare
-                  url={productUrl}
-                  title={activeProduct.name}
-                  description={activeProduct.description}
-                  imageUrl={productImages?.[0]}
-                />
-
-                <div className="flex justify-end mt-8">
-                  <motion.button
-                    className="px-4 py-2 text-sm bg-voxcina-blue hover:bg-voxcina-darkBlue dark:bg-voxcina-cream/90 dark:hover:bg-voxcina-cream dark:text-voxcina-blue text-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300"
-                    onClick={() => setShowShareModal(false)}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                  >
-                    بستن
-                  </motion.button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Share Modal */}
+        <Modal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          title="اشتراک‌گذاری محصول"
+        >
+          <SocialShare
+            url={productUrl}
+            title={activeProduct.name}
+            description={activeProduct.description}
+            imageUrl={productImages?.[0]}
+          />
+          <div className="flex justify-end mt-6">
+            <Button variant="primary" onClick={() => setShowShareModal(false)}>
+              بستن
+            </Button>
+          </div>
+        </Modal>
 
         {otherRecentlyViewed.length > 0 && recentlyViewedVisible && (
           <div className="border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 pt-12 mb-16">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-voxcina-blue dark:text-voxcina-cream">
-                محصولاتی که اخیراً دیده‌اید
-              </h2>
-              <button
-                className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:text-voxcina-blue dark:hover:text-voxcina-cream transition-colors"
-                onClick={() => setRecentlyViewedVisible(false)}
-              >
-                مخفی کردن
-              </button>
-            </div>
+            <SectionTitle
+              title="محصولاتی که اخیراً دیده‌اید"
+              action={
+                <button
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setRecentlyViewedVisible(false)}
+                >
+                  مخفی کردن
+                </button>
+              }
+            />
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1648,9 +1221,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
         {similarProducts.length > 0 && (
           <div className="items-center py-6">
-            <h2 className="text-2xl font-bold text-voxcina-blue dark:text-voxcina-cream mb-6">
-              محصولات مشابه
-            </h2>
+            <SectionTitle title="محصولات مشابه" size="lg" />
             <ProductGrid items={similarProducts} />
           </div>
         )}
@@ -1717,129 +1288,95 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
 
         {/* Try-On Modal */}
-        <AnimatePresence>
-          {showTryOnModal && (
-            <motion.div
-              className="fixed inset-0 bg-voxcina-blue/30 dark:bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowTryOnModal(false)}
-            >
-              <motion.div
-                className="bg-white/95 dark:bg-voxcina-blue/95 rounded-2xl w-full max-w-[95vw] sm:max-w-sm p-4 sm:p-5 relative shadow-lg backdrop-blur-sm border border-voxcina-cream/30 dark:border-voxcina-blue/50 max-h-[95vh] sm:max-h-[90vh] flex flex-col"
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                transition={{ type: "spring" as const, damping: 25, stiffness: 300 }}
-                onClick={(e) => e.stopPropagation()}
+        <Modal
+          isOpen={showTryOnModal}
+          onClose={() => setShowTryOnModal(false)}
+          title="پرو مجازی"
+          contentClassName="max-w-sm"
+        >
+          <div className="text-center mb-4">
+            <div className="w-12 h-12 bg-secondary/50 rounded-full flex items-center justify-center mx-auto mb-2 shadow-soft">
+              <Camera className="h-6 w-6 text-primary" />
+            </div>
+            <p className="text-sm text-muted-foreground">تصویر خود را بارگذاری کنید</p>
+          </div>
+
+          {/* Image Upload Section */}
+          <label className="block cursor-pointer mb-4">
+            <div className={cn(
+              "border-2 border-dashed rounded-xl p-4 text-center transition-colors",
+              uploadedPreview ? "border-primary/30" : "border-border/30 hover:border-primary/40"
+            )}>
+              {uploadedPreview ? (
+                <img
+                  src={uploadedPreview}
+                  alt="preview"
+                  className="max-h-[30vh] w-auto mx-auto rounded-lg shadow object-contain"
+                />
+              ) : (
+                <div className="py-6">
+                  <Camera className="h-10 w-10 mx-auto text-muted-foreground/40 mb-2" />
+                  <p className="text-sm text-muted-foreground">برای انتخاب تصویر کلیک کنید</p>
+                </div>
+              )}
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleUserImageSelect}
+              className="hidden"
+            />
+          </label>
+
+          {/* Settings */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div>
+              <label className="block text-xs font-medium text-foreground mb-1">نوع لباس</label>
+              <select
+                value={garmentType}
+                onChange={(e) => setGarmentType(e.target.value)}
+                className="w-full border border-border/30 rounded-lg p-2 text-sm bg-card text-foreground"
               >
-                <button
-                  className="absolute top-3 right-3 text-voxcina-blue/60 hover:text-voxcina-blue dark:text-voxcina-cream/60 dark:hover:text-voxcina-cream transition-colors z-10"
-                  onClick={() => setShowTryOnModal(false)}
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <option value="upper_body">بالاتنه</option>
+                <option value="lower_body">پایین تنه</option>
+                <option value="dresses">لباس</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-foreground mb-1">کیفیت (15-60)</label>
+              <input
+                type="number"
+                value={steps}
+                onChange={(e) => setSteps(Math.max(15, Math.min(60, Number(e.target.value))))}
+                min={15}
+                max={60}
+                className="w-full border border-border/30 rounded-lg p-2 text-sm bg-card text-foreground"
+              />
+            </div>
+          </div>
 
-                {/* Header - Compact */}
-                <div className="text-center mb-3 sm:mb-4 flex-shrink-0">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-voxcina-cream/50 dark:bg-voxcina-blue/30 rounded-full flex items-center justify-center mx-auto mb-2 shadow-sm">
-                    <Camera className="h-5 w-5 sm:h-6 sm:w-6 text-voxcina-blue dark:text-voxcina-cream" />
-                  </div>
-                  <h3 className="text-base sm:text-lg font-bold text-voxcina-blue dark:text-voxcina-cream">
-                    پرو مجازی
-                  </h3>
-                  <p className="text-xs sm:text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-0.5">
-                    تصویر خود را بارگذاری کنید
-                  </p>
-                </div>
-
-                {/* Image Upload Section */}
-                <div className="flex-1 min-h-0 flex flex-col items-center justify-center mb-3">
-                  <label className="w-full cursor-pointer">
-                    <div className={`border-2 border-dashed rounded-xl p-3 sm:p-4 text-center transition-colors ${uploadedPreview ? 'border-voxcina-blue/30 dark:border-voxcina-cream/30' : 'border-voxcina-blue/20 dark:border-voxcina-cream/20 hover:border-voxcina-blue/40 dark:hover:border-voxcina-cream/40'}`}>
-                      {uploadedPreview ? (
-                        <img
-                          src={uploadedPreview}
-                          alt="preview"
-                          className="max-h-[25vh] sm:max-h-[30vh] w-auto mx-auto rounded-lg shadow object-contain"
-                        />
-                      ) : (
-                        <div className="py-4 sm:py-6">
-                          <Camera className="h-8 w-8 sm:h-10 sm:w-10 mx-auto text-voxcina-blue/40 dark:text-voxcina-cream/40 mb-2" />
-                          <p className="text-xs sm:text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                            برای انتخاب تصویر کلیک کنید
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleUserImageSelect}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-
-                {/* Settings - Compact Grid */}
-                <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3 flex-shrink-0">
-                  <div>
-                    <label className="block text-xs font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                      نوع لباس
-                    </label>
-                    <select
-                      value={garmentType}
-                      onChange={(e) => setGarmentType(e.target.value)}
-                      className="w-full border border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-lg p-2 text-xs sm:text-sm bg-white dark:bg-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream"
-                    >
-                      <option value="upper_body">بالاتنه</option>
-                      <option value="lower_body">پایین تنه</option>
-                      <option value="dresses">لباس</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                      کیفیت (15-60)
-                    </label>
-                    <input
-                      type="number"
-                      value={steps}
-                      onChange={(e) => setSteps(Math.max(15, Math.min(60, Number(e.target.value))))}
-                      min={15}
-                      max={60}
-                      className="w-full border border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-lg p-2 text-xs sm:text-sm bg-white dark:bg-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream"
-                    />
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2 flex-shrink-0">
-                  <motion.button
-                    className="flex-1 px-3 py-2 text-xs sm:text-sm border border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-xl text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/20 dark:hover:bg-voxcina-blue/30 transition-colors shadow-sm"
-                    onClick={() => {
-                      setUploadedFile(null);
-                      setShowTryOnModal(false);
-                    }}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    انصراف
-                  </motion.button>
-                  <motion.button
-                    className="flex-1 px-3 py-2 text-xs sm:text-sm bg-voxcina-blue hover:bg-voxcina-darkBlue dark:bg-voxcina-cream/90 dark:hover:bg-voxcina-cream dark:text-voxcina-blue text-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 disabled:opacity-50"
-                    onClick={handleTryOnSubmit}
-                    disabled={!uploadedFile}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    شروع آزمایش
-                  </motion.button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => {
+                setUploadedFile(null);
+                setShowTryOnModal(false);
+              }}
+            >
+              انصراف
+            </Button>
+            <Button
+              variant="primary"
+              className="flex-1"
+              onClick={handleTryOnSubmit}
+              disabled={!uploadedFile}
+            >
+              شروع آزمایش
+            </Button>
+          </div>
+        </Modal>
       </div >
     </>
   );
