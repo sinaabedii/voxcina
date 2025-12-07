@@ -465,3 +465,236 @@ func ResendSignupOTP(w http.ResponseWriter, r *http.Request) {
 		"expiresIn": models.OTPExpirationMinutes * 60,
 	})
 }
+
+// SendForgotPasswordOTP handles POST /api/auth/forgot-password/send-otp
+// Step 1: User sends phone number to receive OTP for password reset
+func SendForgotPasswordOTP(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Phone string `json:"phone"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		return
+	}
+
+	// Convert Persian digits to English and trim
+	req.Phone = convertPersianToEnglishDigits(strings.TrimSpace(req.Phone))
+
+	// Validate phone number
+	if req.Phone == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "شماره تلفن الزامی است")
+		return
+	}
+	if !irPhoneRegex.MatchString(req.Phone) {
+		utils.ErrorResponse(w, http.StatusBadRequest, "شماره تلفن نامعتبر است (فرمت: 09xxxxxxxxx)")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	userCollection := db.Database.Collection("users")
+	otpCollection := db.Database.Collection("otps")
+
+	// Check if user exists
+	var existingUser models.User
+	err := userCollection.FindOne(ctx, bson.M{"phone": req.Phone}).Decode(&existingUser)
+	if err == mongo.ErrNoDocuments {
+		utils.ErrorResponse(w, http.StatusNotFound, "کاربری با این شماره تلفن یافت نشد")
+		return
+	}
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در بررسی شماره تلفن")
+		return
+	}
+
+	// Check for existing unexpired OTP (rate limiting)
+	var existingOTP models.OTP
+	err = otpCollection.FindOne(ctx, bson.M{
+		"phone":      req.Phone,
+		"purpose":    models.OTPPurposeResetPassword,
+		"verified":   false,
+		"expires_at": bson.M{"$gt": time.Now()},
+	}).Decode(&existingOTP)
+
+	if err == nil {
+		// OTP already exists and not expired - check if we should allow resend
+		timeSinceCreated := time.Since(existingOTP.CreatedAt)
+		if timeSinceCreated < 2*time.Minute {
+			remainingSeconds := int((2*time.Minute - timeSinceCreated).Seconds())
+			utils.ErrorResponse(w, http.StatusTooManyRequests,
+				fmt.Sprintf("لطفاً %d ثانیه صبر کنید و سپس دوباره تلاش کنید", remainingSeconds))
+			return
+		}
+		// Delete old OTP if more than 2 minutes passed
+		otpCollection.DeleteOne(ctx, bson.M{"_id": existingOTP.ID})
+	}
+
+	// Generate OTP code
+	code, err := generateOTPCode()
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در تولید کد تأیید")
+		return
+	}
+
+	// Create OTP record
+	otp := models.OTP{
+		ID:        primitive.NewObjectID(),
+		Phone:     req.Phone,
+		Code:      code,
+		FirstName: existingUser.Name, // Use existing user's name
+		Purpose:   models.OTPPurposeResetPassword,
+		Verified:  false,
+		Attempts:  0,
+		ExpiresAt: time.Now().Add(time.Duration(models.OTPExpirationMinutes) * time.Minute),
+		CreatedAt: time.Now(),
+	}
+
+	// Save OTP to database
+	_, err = otpCollection.InsertOne(ctx, otp)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در ذخیره کد تأیید")
+		return
+	}
+
+	// Send OTP via SMS
+	smsService := services.NewSMSService()
+	if err := smsService.SendOTP(req.Phone, code, existingUser.Name); err != nil {
+		fmt.Printf("SMS send error for password reset: %v\n", err)
+		otpCollection.DeleteOne(ctx, bson.M{"_id": otp.ID})
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در ارسال پیامک. لطفاً دوباره تلاش کنید")
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+		"message":   "کد تأیید به شماره تلفن شما ارسال شد",
+		"expiresIn": models.OTPExpirationMinutes * 60,
+		"phone":     req.Phone,
+	})
+}
+
+// ResetPasswordWithOTP handles POST /api/auth/forgot-password/reset
+// Step 2: User sends OTP code, new password, and password confirmation
+func ResetPasswordWithOTP(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Phone           string `json:"phone"`
+		Code            string `json:"code"`
+		Password        string `json:"password"`
+		ConfirmPassword string `json:"confirmPassword"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		return
+	}
+
+	// Convert Persian digits to English
+	req.Phone = convertPersianToEnglishDigits(strings.TrimSpace(req.Phone))
+	req.Code = convertPersianToEnglishDigits(strings.TrimSpace(req.Code))
+
+	// Validate inputs
+	if req.Phone == "" || req.Code == "" || req.Password == "" || req.ConfirmPassword == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "تمام فیلدها الزامی هستند")
+		return
+	}
+
+	if req.Password != req.ConfirmPassword {
+		utils.ErrorResponse(w, http.StatusBadRequest, "رمز عبور و تکرار آن مطابقت ندارند")
+		return
+	}
+
+	// Validate password strength
+	if len(req.Password) < 8 || passwordRegex.MatchString(req.Password) {
+		utils.ErrorResponse(w, http.StatusBadRequest,
+			"رمز عبور باید حداقل ۸ کاراکتر و شامل حروف بزرگ، کوچک و عدد باشد")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	otpCollection := db.Database.Collection("otps")
+	userCollection := db.Database.Collection("users")
+
+	// Find the OTP record
+	var otp models.OTP
+	err := otpCollection.FindOne(ctx, bson.M{
+		"phone":    req.Phone,
+		"purpose":  models.OTPPurposeResetPassword,
+		"verified": false,
+	}).Decode(&otp)
+
+	if err == mongo.ErrNoDocuments {
+		utils.ErrorResponse(w, http.StatusBadRequest, "کد تأیید یافت نشد. لطفاً دوباره درخواست کد کنید")
+		return
+	}
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در بررسی کد تأیید")
+		return
+	}
+
+	// Check if OTP expired
+	if time.Now().After(otp.ExpiresAt) {
+		otpCollection.DeleteOne(ctx, bson.M{"_id": otp.ID})
+		utils.ErrorResponse(w, http.StatusBadRequest, "کد تأیید منقضی شده است. لطفاً دوباره درخواست کد کنید")
+		return
+	}
+
+	// Check attempts
+	if otp.Attempts >= models.MaxOTPAttempts {
+		otpCollection.DeleteOne(ctx, bson.M{"_id": otp.ID})
+		utils.ErrorResponse(w, http.StatusTooManyRequests, "تعداد تلاش‌های مجاز به پایان رسید. لطفاً دوباره درخواست کد کنید")
+		return
+	}
+
+	// Increment attempts
+	otpCollection.UpdateOne(ctx, bson.M{"_id": otp.ID}, bson.M{"$inc": bson.M{"attempts": 1}})
+
+	// Verify code
+	if otp.Code != req.Code {
+		remainingAttempts := models.MaxOTPAttempts - otp.Attempts - 1
+		utils.ErrorResponse(w, http.StatusBadRequest,
+			fmt.Sprintf("کد تأیید نادرست است. %d تلاش باقی مانده", remainingAttempts))
+		return
+	}
+
+	// Find the user
+	var user models.User
+	err = userCollection.FindOne(ctx, bson.M{"phone": req.Phone}).Decode(&user)
+	if err == mongo.ErrNoDocuments {
+		otpCollection.DeleteOne(ctx, bson.M{"_id": otp.ID})
+		utils.ErrorResponse(w, http.StatusNotFound, "کاربر یافت نشد")
+		return
+	}
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در یافتن کاربر")
+		return
+	}
+
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در پردازش رمز عبور")
+		return
+	}
+
+	// Update user's password
+	_, err = userCollection.UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{
+		"$set": bson.M{
+			"password_hash": string(hashedPassword),
+			"updated_at":    time.Now(),
+		},
+	})
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در بروزرسانی رمز عبور")
+		return
+	}
+
+	// Delete the OTP record
+	otpCollection.DeleteOne(ctx, bson.M{"_id": otp.ID})
+
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+		"message": "رمز عبور با موفقیت تغییر کرد",
+	})
+}

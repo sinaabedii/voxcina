@@ -31,6 +31,10 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/auth/signup/verify-otp", handlers.VerifySignupOTP).Methods(http.MethodPost)
 	api.HandleFunc("/auth/signup/resend-otp", handlers.ResendSignupOTP).Methods(http.MethodPost)
 
+	// Forgot password routes (OTP-based)
+	api.HandleFunc("/auth/forgot-password/send-otp", handlers.SendForgotPasswordOTP).Methods(http.MethodPost)
+	api.HandleFunc("/auth/forgot-password/reset", handlers.ResetPasswordWithOTP).Methods(http.MethodPost)
+
 	// Authenticated User routes
 	userAuthRouter := api.PathPrefix("/users").Subrouter()
 	userAuthRouter.Use(middlewares.AuthMiddleware)

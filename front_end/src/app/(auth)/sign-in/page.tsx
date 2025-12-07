@@ -3,26 +3,15 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Phone, Lock, ArrowRight, Shield } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import Button from "@/components/ui/Button";
-import Input from "@/components/ui/input";
-import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
 import AuthWrapper from "@/components/auth/AuthWrapper";
-
-// IR phone number validation regex: 09xxxxxxxxx (11 digits starting with 09)
-const irPhoneRegex = /^09[0-9]{9}$/;
-
-// Convert Persian digits to English
-const persianToEnglishDigits = (str: string): string => {
-  const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
-  let result = str;
-  for (let i = 0; i < 10; i++) {
-    result = result.replace(new RegExp(persianDigits[i], 'g'), i.toString());
-  }
-  return result;
-};
+import PhoneInput, { persianToEnglishDigits, validatePhone as validatePhoneUtil } from "@/components/auth/PhoneInput";
+import OtpInput from "@/components/auth/OtpInput";
+import OtpCountdown from "@/components/auth/OtpCountdown";
+import PasswordInput from "@/components/auth/PasswordInput";
 
 export default function SignInPage() {
   const [mode, setMode] = useState<'password' | 'sms'>("password");
@@ -30,7 +19,6 @@ export default function SignInPage() {
   const [phone, setPhone] = useState("");
   const [smsCode, setSmsCode] = useState("");
   const [isSent, setIsSent] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -54,28 +42,22 @@ export default function SignInPage() {
 
   // Validate phone
   const validatePhone = useCallback(() => {
-    const newErrors: typeof errors = {};
-    const normalizedPhone = persianToEnglishDigits(phone);
-
-    if (!phone.trim()) {
-      newErrors.phone = "شماره تلفن الزامی است";
-    } else if (!irPhoneRegex.test(normalizedPhone) && !/^09[0-9]{9}$/.test(normalizedPhone)) {
-      newErrors.phone = "شماره تلفن نامعتبر است (فرمت: 09xxxxxxxxx)";
+    const phoneError = validatePhoneUtil(phone);
+    if (phoneError) {
+      setErrors({ phone: phoneError });
+      return false;
     }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors({});
+    return true;
   }, [phone]);
 
   // Validate password mode
   const validatePasswordMode = useCallback(() => {
     const newErrors: typeof errors = {};
-    const normalizedPhone = persianToEnglishDigits(phone);
-
-    if (!phone.trim()) {
-      newErrors.phone = "شماره تلفن الزامی است";
-    } else if (!irPhoneRegex.test(normalizedPhone) && !/^09[0-9]{9}$/.test(normalizedPhone)) {
-      newErrors.phone = "شماره تلفن نامعتبر است (فرمت: 09xxxxxxxxx)";
+    
+    const phoneError = validatePhoneUtil(phone);
+    if (phoneError) {
+      newErrors.phone = phoneError;
     }
 
     if (!password) {
@@ -249,20 +231,14 @@ export default function SignInPage() {
     setErrors({});
   };
 
-  // Format countdown as MM:SS
-  const formatCountdown = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   return (
     <AuthWrapper
       title="ورود به حساب"
       subtitle="خوش آمدید! لطفاً وارد حساب کاربری خود شوید"
+      gradientClass="bg-gradient-to-l from-blue-900/60 via-indigo-900/50 to-purple-900/65"
     >
       {/* Mode Toggle */}
-      <div className="flex justify-center gap-1 mb-6 bg-gray-100 rounded-xl p-1">
+      <div className="flex gap-1 p-1 bg-gray-100 rounded-full mb-8">
         <button
           type="button"
           onClick={() => {
@@ -271,9 +247,9 @@ export default function SignInPage() {
             setSmsCode("");
             setErrors({});
           }}
-          className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+          className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${
             mode === 'password'
-              ? 'bg-white text-voxcina-blue shadow-sm'
+              ? 'bg-white text-gray-900 shadow-sm'
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -286,9 +262,9 @@ export default function SignInPage() {
             setPassword("");
             setErrors({});
           }}
-          className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+          className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${
             mode === 'sms'
-              ? 'bg-white text-voxcina-blue shadow-sm'
+              ? 'bg-white text-gray-900 shadow-sm'
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -296,221 +272,138 @@ export default function SignInPage() {
         </button>
       </div>
 
-      <AnimatePresence mode="wait">
-        {mode === 'password' ? (
-          <motion.form
-            key="password-mode"
-            onSubmit={handlePasswordLogin}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.2 }}
-            className="space-y-5"
-          >
-            <Input
-              label="شماره موبایل"
-              type="tel"
-              id="phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              error={errors.phone}
-              autoComplete="tel"
-              leftElement={<Phone className="h-5 w-5 text-gray-400" />}
-              placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-              className="text-base h-12"
-            />
+      {mode === 'password' ? (
+        <form
+          onSubmit={handlePasswordLogin}
+          className="space-y-6"
+        >
+          <PhoneInput
+            value={phone}
+            onChange={setPhone}
+            error={errors.phone}
+          />
 
-            <Input
-              label="رمز عبور"
-              type={showPassword ? "text" : "password"}
-              id="password"
+          <div>
+            <PasswordInput
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={setPassword}
               error={errors.password}
-              leftElement={<Lock className="h-5 w-5 text-gray-400" />}
-              rightElement={
+              autoComplete="current-password"
+            />
+            <div className="flex justify-end mt-2">
+              <Link 
+                href="/forgot-password" 
+                className="text-sm text-voxcina-blue hover:underline"
+              >
+                فراموشی رمز عبور؟
+              </Link>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="rememberMe"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-voxcina-blue focus:ring-voxcina-blue/20 cursor-pointer"
+            />
+            <label htmlFor="rememberMe" className="text-sm text-gray-600 cursor-pointer">
+              مرا به خاطر بسپار
+            </label>
+          </div>
+
+          <Button
+            variant="primary"
+            fullWidth
+            type="submit"
+            isLoading={isLoading}
+            className="h-12 text-base font-medium rounded-xl"
+          >
+            {isLoading ? "درحال ورود..." : "ورود به حساب"}
+          </Button>
+
+          <p className="text-center text-sm text-gray-500 pt-4">
+            حساب کاربری ندارید؟{" "}
+            <Link href="/sign-up" className="text-voxcina-blue font-semibold hover:underline">
+              ثبت‌نام کنید
+            </Link>
+          </p>
+        </form>
+      ) : (
+        <form
+          onSubmit={isSent ? handleVerifyOTP : handleSendOTP}
+          className="space-y-6"
+        >
+          {!isSent ? (
+            <>
+              <PhoneInput
+                value={phone}
+                onChange={setPhone}
+                error={errors.phone}
+                id="phone-sms"
+              />
+
+              <Button
+                variant="primary"
+                fullWidth
+                type="submit"
+                isLoading={isLoading}
+                className="h-12 text-base font-medium rounded-xl"
+              >
+                {isLoading ? "درحال ارسال..." : "دریافت کد تأیید"}
+              </Button>
+
+              <p className="text-center text-sm text-gray-500 pt-4">
+                حساب کاربری ندارید؟{" "}
+                <Link href="/sign-up" className="text-voxcina-blue font-semibold hover:underline">
+                  ثبت‌نام کنید
+                </Link>
+              </p>
+            </>
+          ) : (
+            <>
+              {/* Back button & Phone display */}
+              <div className="flex items-center justify-between py-3 border-b border-gray-100">
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  onClick={handleGoBack}
+                  className="flex items-center gap-2 text-sm text-gray-500 hover:text-voxcina-blue transition-colors"
                 >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>تغییر شماره</span>
                 </button>
-              }
-              placeholder="••••••••"
-              autoComplete="current-password"
-              className="text-base h-12"
-            />
-
-            {/* Remember & Forgot */}
-            <div className="flex justify-between items-center text-sm">
-              <label className="flex items-center gap-2 cursor-pointer text-gray-500 hover:text-gray-700 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-voxcina-blue focus:ring-voxcina-blue/20"
-                />
-                مرا به خاطر بسپار
-              </label>
-              <Link href="/forgot-password" className="text-voxcina-blue hover:underline font-medium">
-                فراموشی رمز
-              </Link>
-            </div>
-
-            <Button
-              variant="primary"
-              fullWidth
-              type="submit"
-              isLoading={isLoading}
-              className="h-12 text-base font-medium mt-4"
-            >
-              {isLoading ? "درحال ورود..." : "ورود"}
-            </Button>
-
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200"></div>
+                <span className="text-sm font-medium text-gray-900 direction-ltr">
+                  {persianToEnglishDigits(phone)}
+                </span>
               </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-gray-400">یا</span>
-              </div>
-            </div>
 
-            <p className="text-center text-sm text-gray-500">
-              حساب ندارید؟{" "}
-              <Link href="/sign-up" className="text-voxcina-blue font-semibold hover:underline">
-                ثبت‌نام کنید
-              </Link>
-            </p>
+              {/* OTP Input */}
+              <OtpInput
+                value={smsCode}
+                onChange={setSmsCode}
+                error={errors.smsCode}
+              />
+              <OtpCountdown
+                countdown={countdown}
+                canResend={canResend}
+                isLoading={isLoading}
+                onResend={handleResendOTP}
+              />
 
-            {/* Footer badge */}
-            <div className="flex items-center justify-center gap-2 pt-4 text-xs text-gray-400">
-              <Shield className="w-3.5 h-3.5" />
-              <span>
-                با ورود،{" "}
-                <Link href="/terms" className="text-voxcina-blue hover:underline">
-                  قوانین
-                </Link>{" "}
-                را می‌پذیرید
-              </span>
-            </div>
-          </motion.form>
-        ) : (
-          <motion.form
-            key="sms-mode"
-            onSubmit={isSent ? handleVerifyOTP : handleSendOTP}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
-            className="space-y-5"
-          >
-            {!isSent ? (
-              <>
-                <Input
-                  label="شماره موبایل"
-                  type="tel"
-                  id="phone-sms"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  error={errors.phone}
-                  autoComplete="tel"
-                  leftElement={<Phone className="h-5 w-5 text-gray-400" />}
-                  placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-                  className="text-base h-12"
-                />
-
-                <Button
-                  variant="primary"
-                  fullWidth
-                  type="submit"
-                  isLoading={isLoading}
-                  className="h-12 text-base font-medium mt-4"
-                >
-                  {isLoading ? "درحال ارسال..." : "ارسال کد تأیید"}
-                </Button>
-
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-200"></div>
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-4 bg-white text-gray-400">یا</span>
-                  </div>
-                </div>
-
-                <p className="text-center text-sm text-gray-500">
-                  حساب ندارید؟{" "}
-                  <Link href="/sign-up" className="text-voxcina-blue font-semibold hover:underline">
-                    ثبت‌نام کنید
-                  </Link>
-                </p>
-              </>
-            ) : (
-              <>
-                {/* Back button & Phone display */}
-                <div className="flex items-center justify-between bg-gradient-to-r from-gray-50 to-blue-50/50 rounded-xl px-4 py-3 border border-gray-100">
-                  <button
-                    type="button"
-                    onClick={handleGoBack}
-                    className="flex items-center gap-2 text-sm text-gray-500 hover:text-voxcina-blue transition-colors"
-                  >
-                    <ArrowRight className="w-4 h-4" />
-                    <span>بازگشت</span>
-                  </button>
-                  <span className="text-sm font-medium text-gray-700 direction-ltr bg-white px-3 py-1 rounded-lg">
-                    {persianToEnglishDigits(phone)}
-                  </span>
-                </div>
-
-                {/* OTP Input */}
-                <div>
-                  <Input
-                    label="کد تأیید"
-                    type="text"
-                    id="smsCode"
-                    value={smsCode}
-                    onChange={(e) => setSmsCode(e.target.value)}
-                    error={errors.smsCode}
-                    maxLength={5}
-                    placeholder="_ _ _ _ _"
-                    autoComplete="one-time-code"
-                    className="text-base h-12 text-center tracking-[0.5em] font-medium"
-                  />
-                  <div className="flex justify-between items-center mt-3 text-sm">
-                    <span className="text-gray-400 font-medium">
-                      {countdown > 0 && (
-                        <span className="bg-gray-100 px-2 py-1 rounded-md">
-                          {formatCountdown(countdown)}
-                        </span>
-                      )}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleResendOTP}
-                      disabled={!canResend || isLoading}
-                      className={`${canResend ? 'text-voxcina-blue hover:underline font-medium' : 'text-gray-300'} transition-colors`}
-                    >
-                      ارسال مجدد
-                    </button>
-                  </div>
-                </div>
-
-                <Button
-                  variant="primary"
-                  fullWidth
-                  type="submit"
-                  isLoading={isLoading}
-                  className="h-12 text-base font-medium mt-4"
-                >
-                  {isLoading ? "درحال تأیید..." : "تأیید و ورود"}
-                </Button>
-              </>
-            )}
-          </motion.form>
-        )}
-      </AnimatePresence>
+              <Button
+                variant="primary"
+                fullWidth
+                type="submit"
+                isLoading={isLoading}
+                className="h-12 text-base font-medium rounded-xl"
+              >
+                {isLoading ? "درحال تأیید..." : "تأیید و ورود"}
+              </Button>
+            </>
+          )}
+        </form>
+      )}
     </AuthWrapper>
   );
 }

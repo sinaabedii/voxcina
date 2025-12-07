@@ -1,4 +1,5 @@
 import React from 'react';
+import { cn } from '@/lib/utils';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   className?: string;
@@ -7,26 +8,58 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   helperText?: string;
   leftElement?: React.ReactNode;
   rightElement?: React.ReactNode;
+  variant?: 'default' | 'minimal';
 }
 
-function Input({ className = '', label, error, helperText, leftElement, rightElement, ...props }: InputProps) {
-  const baseClasses = 'flex h-10 w-full rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 dark:placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:ring-offset-gray-950 dark:focus-visible:ring-blue-400';
+function Input({ 
+  className = '', 
+  label, 
+  error, 
+  helperText, 
+  leftElement, 
+  rightElement, 
+  variant = 'default',
+  ...props 
+}: InputProps) {
+  const baseClasses = cn(
+    'flex w-full bg-transparent text-gray-900 dark:text-gray-100',
+    'placeholder:text-gray-400 dark:placeholder:text-gray-500',
+    'focus:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+    'transition-all duration-200',
+    variant === 'default' && [
+      'h-12 px-4 rounded-xl',
+      'border-2 border-gray-200 dark:border-gray-700',
+      'focus:border-voxcina-blue dark:focus:border-voxcina-blue',
+      'hover:border-gray-300 dark:hover:border-gray-600',
+    ],
+    variant === 'minimal' && [
+      'h-11 px-0 py-2',
+      'border-b-2 border-gray-200 dark:border-gray-700 rounded-none',
+      'focus:border-voxcina-blue dark:focus:border-voxcina-blue',
+    ],
+    error && 'border-red-400 focus:border-red-500 dark:border-red-500',
+  );
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {label && (
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
           {label}
         </label>
       )}
       <div className="relative">
         {leftElement && (
-          <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
             {leftElement}
           </div>
         )}
         <input
-          className={`${baseClasses} ${leftElement ? 'pl-10' : ''} ${rightElement ? 'pr-10' : ''} ${error ? 'border-red-500 focus-visible:ring-red-500' : ''} ${className}`}
+          className={cn(
+            baseClasses,
+            leftElement && 'pl-11',
+            rightElement && 'pr-11',
+            className
+          )}
           {...props}
         />
         {rightElement && (
@@ -36,10 +69,10 @@ function Input({ className = '', label, error, helperText, leftElement, rightEle
         )}
       </div>
       {error && (
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <p className="text-xs text-red-500 mt-1">{error}</p>
       )}
       {helperText && !error && (
-        <p className="text-sm text-gray-500 dark:text-gray-400">{helperText}</p>
+        <p className="text-xs text-gray-400 mt-1">{helperText}</p>
       )}
     </div>
   );

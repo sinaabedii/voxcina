@@ -3,30 +3,20 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, User, Phone, ArrowRight, Shield } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/input";
-import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
 import AuthWrapper from "@/components/auth/AuthWrapper";
+import PhoneInput, { persianToEnglishDigits, validatePhone } from "@/components/auth/PhoneInput";
+import OtpInput from "@/components/auth/OtpInput";
+import OtpCountdown from "@/components/auth/OtpCountdown";
+import PasswordInput, { validatePassword } from "@/components/auth/PasswordInput";
+import StepIndicator from "@/components/auth/StepIndicator";
 
 // Persian character validation regex (includes Persian letters and spaces)
 const persianNameRegex = /^[\u0600-\u06FF\s]+$/;
-
-// IR phone number validation regex: 09xxxxxxxxx (11 digits starting with 09)
-// Accepts both Persian and English digits
-const irPhoneRegexPersian = /^[۰0][۹9][۰-۹0-9]{9}$/;
-
-// Convert Persian digits to English
-const persianToEnglishDigits = (str: string): string => {
-  const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
-  let result = str;
-  for (let i = 0; i < 10; i++) {
-    result = result.replace(new RegExp(persianDigits[i], 'g'), i.toString());
-  }
-  return result;
-};
 
 // Validate Persian name
 const isPersianName = (name: string): boolean => {
@@ -34,6 +24,11 @@ const isPersianName = (name: string): boolean => {
   if (!trimmed) return false;
   return persianNameRegex.test(trimmed);
 };
+
+const STEPS = [
+  { label: "اطلاعات" },
+  { label: "تأیید" },
+];
 
 export default function SignUpPage() {
   // Step 1: User info
@@ -45,7 +40,6 @@ export default function SignUpPage() {
   const [otpCode, setOtpCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   
   // UI state
   const [step, setStep] = useState<1 | 2>(1);
@@ -91,11 +85,9 @@ export default function SignUpPage() {
       newErrors.lastName = "نام خانوادگی باید فقط شامل حروف فارسی باشد";
     }
 
-    const normalizedPhone = persianToEnglishDigits(phone);
-    if (!phone.trim()) {
-      newErrors.phone = "شماره تلفن الزامی است";
-    } else if (!irPhoneRegexPersian.test(phone) && !/^09[0-9]{9}$/.test(normalizedPhone)) {
-      newErrors.phone = "شماره تلفن نامعتبر است (فرمت: 09xxxxxxxxx)";
+    const phoneError = validatePhone(phone);
+    if (phoneError) {
+      newErrors.phone = phoneError;
     }
 
     setErrors(newErrors);
@@ -112,12 +104,9 @@ export default function SignUpPage() {
       newErrors.otpCode = "کد تأیید باید ۵ رقم باشد";
     }
 
-    if (!password) {
-      newErrors.password = "رمز عبور الزامی است";
-    } else if (password.length < 8) {
-      newErrors.password = "رمز عبور باید حداقل ۸ کاراکتر باشد";
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-      newErrors.password = "رمز عبور باید شامل حروف کوچک، بزرگ و عدد باشد";
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      newErrors.password = passwordError;
     }
 
     if (!confirmPassword) {
@@ -273,230 +262,129 @@ export default function SignUpPage() {
     setErrors({});
   };
 
-  // Format countdown as MM:SS
-  const formatCountdown = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   return (
     <AuthWrapper
       title="ایجاد حساب کاربری"
       subtitle="به خانواده وکسینا خوش آمدید"
-      imageSrc="/images/banners/heroheader.jpeg"
+      gradientClass="bg-gradient-to-r from-green-900/55 via-teal-900/60 to-blue-900/65"
     >
       {/* Step Indicator */}
-      <div className="flex items-center justify-center gap-3 mb-6">
-        <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-300 ${
-            step >= 1 ? 'bg-voxcina-blue text-white' : 'bg-gray-200 text-gray-500'
-          }`}>
-            ۱
+      <StepIndicator steps={STEPS} currentStep={step} />
+
+      {step === 1 ? (
+        <form
+          onSubmit={handleSendOTP}
+          className="space-y-5"
+        >
+          {/* Name fields in a row */}
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="نام"
+              type="text"
+              id="firstName"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              error={errors.firstName}
+              placeholder="علی"
+            />
+            <Input
+              label="نام خانوادگی"
+              type="text"
+              id="lastName"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              error={errors.lastName}
+              placeholder="محمدی"
+            />
           </div>
-          <span className={`text-sm hidden sm:inline ${step === 1 ? 'text-voxcina-blue font-medium' : 'text-gray-400'}`}>
-            اطلاعات
-          </span>
-        </div>
-        <div className={`w-8 h-0.5 rounded transition-all duration-300 ${step === 2 ? 'bg-voxcina-blue' : 'bg-gray-200'}`} />
-        <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-300 ${
-            step === 2 ? 'bg-voxcina-blue text-white' : 'bg-gray-200 text-gray-500'
-          }`}>
-            ۲
+
+          <PhoneInput
+            value={phone}
+            onChange={setPhone}
+            error={errors.phone}
+          />
+
+          <Button
+            variant="primary"
+            fullWidth
+            type="submit"
+            isLoading={isLoading}
+            className="h-12 text-base font-medium rounded-xl"
+          >
+            {isLoading ? "در حال ارسال..." : "دریافت کد تأیید"}
+          </Button>
+
+          <p className="text-center text-sm text-gray-500 pt-4">
+            حساب کاربری دارید؟{" "}
+            <Link href="/sign-in" className="text-voxcina-blue font-semibold hover:underline">
+              وارد شوید
+            </Link>
+          </p>
+        </form>
+      ) : (
+        <form
+          onSubmit={handleVerifyAndRegister}
+          className="space-y-5"
+        >
+          {/* Back button & Phone display */}
+          <div className="flex items-center justify-between py-3 border-b border-gray-100">
+            <button
+              type="button"
+              onClick={handleGoBack}
+              className="flex items-center gap-2 text-sm text-gray-500 hover:text-voxcina-blue transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>تغییر اطلاعات</span>
+            </button>
+            <span className="text-sm font-medium text-gray-900 direction-ltr">
+              {persianToEnglishDigits(phone)}
+            </span>
           </div>
-          <span className={`text-sm hidden sm:inline ${step === 2 ? 'text-voxcina-blue font-medium' : 'text-gray-400'}`}>
-            تأیید
-          </span>
-        </div>
-      </div>
 
-      <AnimatePresence mode="wait">
-        {step === 1 ? (
-          <motion.form
-            key="step1"
-            onSubmit={handleSendOTP}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.2 }}
-            className="space-y-5"
+          {/* OTP Input */}
+          <OtpInput
+            value={otpCode}
+            onChange={setOtpCode}
+            error={errors.otpCode}
+          />
+          <OtpCountdown
+            countdown={countdown}
+            canResend={canResend}
+            isLoading={isLoading}
+            onResend={handleResendOTP}
+          />
+
+          {/* Password field */}
+          <PasswordInput
+            value={password}
+            onChange={setPassword}
+            error={errors.password}
+            showStrength
+            autoComplete="new-password"
+          />
+
+          {/* Confirm Password */}
+          <PasswordInput
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+            error={errors.confirmPassword}
+            label="تکرار رمز عبور"
+            id="confirmPassword"
+            placeholder="رمز عبور را مجدداً وارد کنید"
+            autoComplete="new-password"
+          />
+
+          <Button
+            variant="primary"
+            fullWidth
+            type="submit"
+            isLoading={isLoading}
+            className="h-12 text-base font-medium rounded-xl"
           >
-            {/* Name fields in a row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="نام"
-                type="text"
-                id="firstName"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                error={errors.firstName}
-                leftElement={<User className="h-5 w-5 text-gray-400" />}
-                placeholder="علی"
-                className="text-base h-12"
-              />
-              <Input
-                label="نام خانوادگی"
-                type="text"
-                id="lastName"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                error={errors.lastName}
-                leftElement={<User className="h-5 w-5 text-gray-400" />}
-                placeholder="محمدی"
-                className="text-base h-12"
-              />
-            </div>
-
-            <Input
-              label="شماره موبایل"
-              type="tel"
-              id="phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              error={errors.phone}
-              leftElement={<Phone className="h-5 w-5 text-gray-400" />}
-              placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-              className="text-base h-12"
-            />
-
-            <Button
-              variant="primary"
-              fullWidth
-              type="submit"
-              isLoading={isLoading}
-              className="h-12 text-base font-medium mt-4"
-            >
-              {isLoading ? "در حال ارسال..." : "دریافت کد تأیید"}
-            </Button>
-
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-gray-400">یا</span>
-              </div>
-            </div>
-
-            <p className="text-center text-sm text-gray-500">
-              حساب دارید؟{" "}
-              <Link href="/sign-in" className="text-voxcina-blue font-semibold hover:underline">
-                وارد شوید
-              </Link>
-            </p>
-
-            {/* Footer badge */}
-            <div className="flex items-center justify-center gap-2 pt-4 text-xs text-gray-400">
-              <Shield className="w-3.5 h-3.5" />
-              <span>اطلاعات شما نزد ما محفوظ است</span>
-            </div>
-          </motion.form>
-        ) : (
-          <motion.form
-            key="step2"
-            onSubmit={handleVerifyAndRegister}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
-            className="space-y-5"
-          >
-            {/* Back button & Phone display */}
-            <div className="flex items-center justify-between bg-gradient-to-r from-gray-50 to-blue-50/50 rounded-xl px-4 py-3 border border-gray-100">
-              <button
-                type="button"
-                onClick={handleGoBack}
-                className="flex items-center gap-2 text-sm text-gray-500 hover:text-voxcina-blue transition-colors"
-              >
-                <ArrowRight className="w-4 h-4" />
-                <span>بازگشت</span>
-              </button>
-              <span className="text-sm font-medium text-gray-700 direction-ltr bg-white px-3 py-1 rounded-lg">
-                {persianToEnglishDigits(phone)}
-              </span>
-            </div>
-
-            {/* OTP Input */}
-            <div>
-              <Input
-                label="کد تأیید"
-                type="text"
-                id="otpCode"
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value)}
-                error={errors.otpCode}
-                maxLength={5}
-                placeholder="_ _ _ _ _"
-                autoComplete="one-time-code"
-                className="text-base h-12 text-center tracking-[0.5em] font-medium"
-              />
-              <div className="flex justify-between items-center mt-3 text-sm">
-                <span className="text-gray-400 font-medium">
-                  {countdown > 0 && (
-                    <span className="bg-gray-100 px-2 py-1 rounded-md">
-                      {formatCountdown(countdown)}
-                    </span>
-                  )}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleResendOTP}
-                  disabled={!canResend || isLoading}
-                  className={`${canResend ? 'text-voxcina-blue hover:underline font-medium' : 'text-gray-300'} transition-colors`}
-                >
-                  ارسال مجدد
-                </button>
-              </div>
-            </div>
-
-            {/* Password fields */}
-            <Input
-              label="رمز عبور"
-              type={showPassword ? "text" : "password"}
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              error={errors.password}
-              leftElement={<Lock className="h-5 w-5 text-gray-400" />}
-              rightElement={
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
-              }
-              placeholder="••••••••"
-              className="text-base h-12"
-              helperText="حداقل ۸ کاراکتر شامل حروف بزرگ، کوچک و عدد"
-            />
-
-            <Input
-              label="تکرار رمز عبور"
-              type={showPassword ? "text" : "password"}
-              id="confirmPassword"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              error={errors.confirmPassword}
-              leftElement={<Lock className="h-5 w-5 text-gray-400" />}
-              placeholder="••••••••"
-              className="text-base h-12"
-            />
-
-            <Button
-              variant="primary"
-              fullWidth
-              type="submit"
-              isLoading={isLoading}
-              className="h-12 text-base font-medium mt-4"
-            >
-              {isLoading ? "در حال ثبت‌نام..." : "تکمیل ثبت‌نام"}
-            </Button>
-          </motion.form>
-        )}
-      </AnimatePresence>
+            {isLoading ? "در حال ثبت‌نام..." : "تکمیل ثبت‌نام"}
+          </Button>
+        </form>
+      )}
     </AuthWrapper>
   );
 }
