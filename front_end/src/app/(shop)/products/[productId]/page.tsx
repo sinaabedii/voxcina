@@ -1671,7 +1671,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 <X className="h-8 w-8" />
               </button>
 
-              <div className="relative w-full max-w-5xl h-[80vh] flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+              <div className="relative w-full max-w-5xl h-[80vh] flex items-center justify-center">
                 <BackendImage
                   src={productImages?.[selectedImage] || ''}
                   alt={activeProduct?.name || ''}
@@ -1681,14 +1681,14 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
                 <button
                   className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-sm transition-colors"
-                  onClick={() => handleNextImage()}
+                  onClick={(e) => { e.stopPropagation(); handleNextImage(); }}
                 >
                   <ChevronLeft className="h-8 w-8" />
                 </button>
 
                 <button
                   className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-sm transition-colors"
-                  onClick={() => handlePrevImage()}
+                  onClick={(e) => { e.stopPropagation(); handlePrevImage(); }}
                 >
                   <ChevronRight className="h-8 w-8" />
                 </button>
@@ -1720,14 +1720,14 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         <AnimatePresence>
           {showTryOnModal && (
             <motion.div
-              className="fixed inset-0 bg-voxcina-blue/30 dark:bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-voxcina-blue/30 dark:bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowTryOnModal(false)}
             >
               <motion.div
-                className="bg-white/95 dark:bg-voxcina-blue/95 rounded-2xl max-w-md w-full p-6 relative shadow-lg backdrop-blur-sm border border-voxcina-cream/30 dark:border-voxcina-blue/50"
+                className="bg-white/95 dark:bg-voxcina-blue/95 rounded-2xl w-full max-w-[95vw] sm:max-w-sm p-4 sm:p-5 relative shadow-lg backdrop-blur-sm border border-voxcina-cream/30 dark:border-voxcina-blue/50 max-h-[95vh] sm:max-h-[90vh] flex flex-col"
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
@@ -1735,92 +1735,106 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 onClick={(e) => e.stopPropagation()}
               >
                 <button
-                  className="absolute top-4 right-4 text-voxcina-blue/60 hover:text-voxcina-blue dark:text-voxcina-cream/60 dark:hover:text-voxcina-cream transition-colors"
+                  className="absolute top-3 right-3 text-voxcina-blue/60 hover:text-voxcina-blue dark:text-voxcina-cream/60 dark:hover:text-voxcina-cream transition-colors z-10"
                   onClick={() => setShowTryOnModal(false)}
                 >
                   <X className="w-5 h-5" />
                 </button>
 
-                <div className="text-center mb-6">
-                  <div className="w-16 h-16 bg-voxcina-cream/50 dark:bg-voxcina-blue/30 rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
-                    <Camera className="h-8 w-8 text-voxcina-blue dark:text-voxcina-cream" />
+                {/* Header - Compact */}
+                <div className="text-center mb-3 sm:mb-4 flex-shrink-0">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-voxcina-cream/50 dark:bg-voxcina-blue/30 rounded-full flex items-center justify-center mx-auto mb-2 shadow-sm">
+                    <Camera className="h-5 w-5 sm:h-6 sm:w-6 text-voxcina-blue dark:text-voxcina-cream" />
                   </div>
-                  <h3 className="text-lg font-bold text-voxcina-blue dark:text-voxcina-cream">
+                  <h3 className="text-base sm:text-lg font-bold text-voxcina-blue dark:text-voxcina-cream">
                     پرو مجازی
                   </h3>
-                  <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
-                    تصویر خود را بارگذاری کنید و نتیجه را مشاهده کنید.
+                  <p className="text-xs sm:text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-0.5">
+                    تصویر خود را بارگذاری کنید
                   </p>
                 </div>
 
-                <div className="mb-4 flex flex-col items-center">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleUserImageSelect}
-                    className="mb-4"
-                  />
-                  {uploadedPreview && (
-                    <img
-                      src={uploadedPreview}
-                      alt="preview"
-                      className="max-w-xs rounded-lg shadow"
+                {/* Image Upload Section */}
+                <div className="flex-1 min-h-0 flex flex-col items-center justify-center mb-3">
+                  <label className="w-full cursor-pointer">
+                    <div className={`border-2 border-dashed rounded-xl p-3 sm:p-4 text-center transition-colors ${uploadedPreview ? 'border-voxcina-blue/30 dark:border-voxcina-cream/30' : 'border-voxcina-blue/20 dark:border-voxcina-cream/20 hover:border-voxcina-blue/40 dark:hover:border-voxcina-cream/40'}`}>
+                      {uploadedPreview ? (
+                        <img
+                          src={uploadedPreview}
+                          alt="preview"
+                          className="max-h-[25vh] sm:max-h-[30vh] w-auto mx-auto rounded-lg shadow object-contain"
+                        />
+                      ) : (
+                        <div className="py-4 sm:py-6">
+                          <Camera className="h-8 w-8 sm:h-10 sm:w-10 mx-auto text-voxcina-blue/40 dark:text-voxcina-cream/40 mb-2" />
+                          <p className="text-xs sm:text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60">
+                            برای انتخاب تصویر کلیک کنید
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleUserImageSelect}
+                      className="hidden"
                     />
-                  )}
+                  </label>
                 </div>
 
-                <div className="flex justify-end mt-4 space-x-2 space-x-reverse">
+                {/* Settings - Compact Grid */}
+                <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3 flex-shrink-0">
+                  <div>
+                    <label className="block text-xs font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
+                      نوع لباس
+                    </label>
+                    <select
+                      value={garmentType}
+                      onChange={(e) => setGarmentType(e.target.value)}
+                      className="w-full border border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-lg p-2 text-xs sm:text-sm bg-white dark:bg-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream"
+                    >
+                      <option value="upper_body">بالاتنه</option>
+                      <option value="lower_body">پایین تنه</option>
+                      <option value="dresses">لباس</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
+                      کیفیت (15-60)
+                    </label>
+                    <input
+                      type="number"
+                      value={steps}
+                      onChange={(e) => setSteps(Math.max(15, Math.min(60, Number(e.target.value))))}
+                      min={15}
+                      max={60}
+                      className="w-full border border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-lg p-2 text-xs sm:text-sm bg-white dark:bg-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream"
+                    />
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 flex-shrink-0">
                   <motion.button
-                    className="px-4 py-2 text-sm border border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-xl text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/20 dark:hover:bg-voxcina-blue/30 transition-colors shadow-sm"
+                    className="flex-1 px-3 py-2 text-xs sm:text-sm border border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-xl text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/20 dark:hover:bg-voxcina-blue/30 transition-colors shadow-sm"
                     onClick={() => {
                       setUploadedFile(null);
                       setShowTryOnModal(false);
                     }}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                   >
                     انصراف
                   </motion.button>
                   <motion.button
-                    className="px-4 py-2 text-sm bg-voxcina-blue hover:bg-voxcina-darkBlue dark:bg-voxcina-cream/90 dark:hover:bg-voxcina-cream dark:text-voxcina-blue text-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 disabled:opacity-50"
+                    className="flex-1 px-3 py-2 text-xs sm:text-sm bg-voxcina-blue hover:bg-voxcina-darkBlue dark:bg-voxcina-cream/90 dark:hover:bg-voxcina-cream dark:text-voxcina-blue text-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 disabled:opacity-50"
                     onClick={handleTryOnSubmit}
                     disabled={!uploadedFile}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                   >
                     شروع آزمایش
                   </motion.button>
-                </div>
-
-                {/* Garment Type Selection */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                    نوع لباس
-                  </label>
-                  <select
-                    value={garmentType}
-                    onChange={(e) => setGarmentType(e.target.value)}
-                    className="w-full border rounded-md p-2"
-                  >
-                    <option value="upper_body">بالاتنه</option>
-                    <option value="lower_body">پایین تنه</option>
-                    <option value="dresses">لباس</option>
-                  </select>
-                </div>
-
-                {/* Steps Input */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                    مراحل (15-60)
-                  </label>
-                  <input
-                    type="number"
-                    value={steps}
-                    onChange={(e) => setSteps(Math.max(15, Math.min(60, Number(e.target.value))))}
-                    min={15}
-                    max={60}
-                    className="w-full border rounded-md p-2"
-                  />
                 </div>
               </motion.div>
             </motion.div>
