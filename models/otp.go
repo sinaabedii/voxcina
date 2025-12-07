@@ -28,7 +28,7 @@ const (
 )
 
 // MaxOTPAttempts is the maximum number of verification attempts allowed
-const MaxOTPAttempts = 5
+const MaxOTPAttempts = 10
 
 // OTPExpirationMinutes is the OTP validity duration in minutes
-const OTPExpirationMinutes = 5
+const OTPExpirationMinutes = 10
