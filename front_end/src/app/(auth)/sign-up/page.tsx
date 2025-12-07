@@ -8,9 +8,8 @@ import { useAuthStore } from "@/store/auth-store";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
-import Image from "next/image";
-import { APP_NAME } from "@/lib/constants";
 import { toast } from "react-toastify";
+import AuthWrapper from "@/components/auth/AuthWrapper";
 
 // Persian character validation regex (includes Persian letters and spaces)
 const persianNameRegex = /^[\u0600-\u06FF\s]+$/;
@@ -282,221 +281,222 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="h-screen w-screen flex items-center justify-center p-4 sm:p-6 overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50">
-      {/* Subtle background decoration */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-bl from-voxcina-blue/5 to-transparent rounded-full blur-3xl" />
-        <div className="absolute -bottom-1/2 -left-1/2 w-full h-full bg-gradient-to-tr from-voxcina-blue/5 to-transparent rounded-full blur-3xl" />
+    <AuthWrapper
+      title="ایجاد حساب کاربری"
+      subtitle="به خانواده وکسینا خوش آمدید"
+      imageSrc="/images/banners/heroheader.jpeg"
+    >
+      {/* Step Indicator */}
+      <div className="flex items-center justify-center gap-3 mb-6">
+        <div className="flex items-center gap-2">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-300 ${
+            step >= 1 ? 'bg-voxcina-blue text-white' : 'bg-gray-200 text-gray-500'
+          }`}>
+            ۱
+          </div>
+          <span className={`text-sm hidden sm:inline ${step === 1 ? 'text-voxcina-blue font-medium' : 'text-gray-400'}`}>
+            اطلاعات
+          </span>
+        </div>
+        <div className={`w-8 h-0.5 rounded transition-all duration-300 ${step === 2 ? 'bg-voxcina-blue' : 'bg-gray-200'}`} />
+        <div className="flex items-center gap-2">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-300 ${
+            step === 2 ? 'bg-voxcina-blue text-white' : 'bg-gray-200 text-gray-500'
+          }`}>
+            ۲
+          </div>
+          <span className={`text-sm hidden sm:inline ${step === 2 ? 'text-voxcina-blue font-medium' : 'text-gray-400'}`}>
+            تأیید
+          </span>
+        </div>
       </div>
 
-      <motion.div
-        className="w-full max-w-md relative z-10"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        {/* Card Container */}
-        <div className="bg-white/90 backdrop-blur-xl border border-white/60 shadow-xl rounded-2xl overflow-hidden">
-          {/* Header */}
-          <div className="px-6 pt-6 pb-4 text-center border-b border-gray-100/80">
-            <Link href="/" className="inline-block mb-2">
-              <div className="relative w-24 h-10 mx-auto">
-                <Image
-                  alt={APP_NAME}
-                  priority
-                  quality={100}
-                  src="/images/Logo/BlueXTransparent.png"
-                  fill
-                  className="object-contain"
-                />
-              </div>
-            </Link>
-            <h1 className="text-xl font-bold text-gray-800">ایجاد حساب</h1>
-            
-            {/* Minimal Step Indicator */}
-            <div className="flex items-center justify-center gap-2 mt-4">
-              <div className={`h-1.5 rounded-full transition-all duration-300 ${step === 1 ? 'w-8 bg-voxcina-blue' : 'w-8 bg-voxcina-blue'}`} />
-              <div className={`h-1.5 rounded-full transition-all duration-300 ${step === 2 ? 'w-8 bg-voxcina-blue' : 'w-8 bg-gray-200'}`} />
+      <AnimatePresence mode="wait">
+        {step === 1 ? (
+          <motion.form
+            key="step1"
+            onSubmit={handleSendOTP}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-5"
+          >
+            {/* Name fields in a row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="نام"
+                type="text"
+                id="firstName"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                error={errors.firstName}
+                leftElement={<User className="h-5 w-5 text-gray-400" />}
+                placeholder="علی"
+                className="text-base h-12"
+              />
+              <Input
+                label="نام خانوادگی"
+                type="text"
+                id="lastName"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                error={errors.lastName}
+                leftElement={<User className="h-5 w-5 text-gray-400" />}
+                placeholder="محمدی"
+                className="text-base h-12"
+              />
             </div>
-          </div>
 
-          {/* Form Content */}
-          <div className="p-6">
-            <AnimatePresence mode="wait">
-              {step === 1 ? (
-                <motion.form
-                  key="step1"
-                  onSubmit={handleSendOTP}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.2 }}
-                  className="space-y-4"
-                >
-                  {/* Name fields in a row on larger screens */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input
-                      label="نام"
-                      type="text"
-                      id="firstName"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      error={errors.firstName}
-                      leftElement={<User className="h-5 w-5 text-gray-400" />}
-                      placeholder="علی"
-                      className="text-base h-11"
-                    />
-                    <Input
-                      label="نام خانوادگی"
-                      type="text"
-                      id="lastName"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      error={errors.lastName}
-                      leftElement={<User className="h-5 w-5 text-gray-400" />}
-                      placeholder="محمدی"
-                      className="text-base h-11"
-                    />
-                  </div>
+            <Input
+              label="شماره موبایل"
+              type="tel"
+              id="phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              error={errors.phone}
+              leftElement={<Phone className="h-5 w-5 text-gray-400" />}
+              placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+              className="text-base h-12"
+            />
 
-                  <Input
-                    label="شماره موبایل"
-                    type="tel"
-                    id="phone"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    error={errors.phone}
-                    leftElement={<Phone className="h-5 w-5 text-gray-400" />}
-                    placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-                    className="text-base h-11"
-                  />
+            <Button
+              variant="primary"
+              fullWidth
+              type="submit"
+              isLoading={isLoading}
+              className="h-12 text-base font-medium mt-4"
+            >
+              {isLoading ? "در حال ارسال..." : "دریافت کد تأیید"}
+            </Button>
 
-                  <Button
-                    variant="primary"
-                    fullWidth
-                    type="submit"
-                    isLoading={isLoading}
-                    className="h-12 text-base font-medium mt-3"
-                  >
-                    {isLoading ? "در حال ارسال..." : "دریافت کد تأیید"}
-                  </Button>
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-4 bg-white text-gray-400">یا</span>
+              </div>
+            </div>
 
-                  <p className="text-center text-sm text-gray-500 pt-2">
-                    حساب دارید؟{" "}
-                    <Link href="/sign-in" className="text-voxcina-blue font-medium hover:underline">
-                      وارد شوید
-                    </Link>
-                  </p>
-                </motion.form>
-              ) : (
-                <motion.form
-                  key="step2"
-                  onSubmit={handleVerifyAndRegister}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.2 }}
-                  className="space-y-4"
-                >
-                  {/* Back button & Phone display */}
-                  <div className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2.5">
-                    <button
-                      type="button"
-                      onClick={handleGoBack}
-                      className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-voxcina-blue transition-colors"
-                    >
-                      <ArrowRight className="w-4 h-4" />
-                      <span>بازگشت</span>
-                    </button>
-                    <span className="text-sm font-medium text-gray-700 direction-ltr">
-                      {persianToEnglishDigits(phone)}
+            <p className="text-center text-sm text-gray-500">
+              حساب دارید؟{" "}
+              <Link href="/sign-in" className="text-voxcina-blue font-semibold hover:underline">
+                وارد شوید
+              </Link>
+            </p>
+
+            {/* Footer badge */}
+            <div className="flex items-center justify-center gap-2 pt-4 text-xs text-gray-400">
+              <Shield className="w-3.5 h-3.5" />
+              <span>اطلاعات شما نزد ما محفوظ است</span>
+            </div>
+          </motion.form>
+        ) : (
+          <motion.form
+            key="step2"
+            onSubmit={handleVerifyAndRegister}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-5"
+          >
+            {/* Back button & Phone display */}
+            <div className="flex items-center justify-between bg-gradient-to-r from-gray-50 to-blue-50/50 rounded-xl px-4 py-3 border border-gray-100">
+              <button
+                type="button"
+                onClick={handleGoBack}
+                className="flex items-center gap-2 text-sm text-gray-500 hover:text-voxcina-blue transition-colors"
+              >
+                <ArrowRight className="w-4 h-4" />
+                <span>بازگشت</span>
+              </button>
+              <span className="text-sm font-medium text-gray-700 direction-ltr bg-white px-3 py-1 rounded-lg">
+                {persianToEnglishDigits(phone)}
+              </span>
+            </div>
+
+            {/* OTP Input */}
+            <div>
+              <Input
+                label="کد تأیید"
+                type="text"
+                id="otpCode"
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value)}
+                error={errors.otpCode}
+                maxLength={5}
+                placeholder="_ _ _ _ _"
+                autoComplete="one-time-code"
+                className="text-base h-12 text-center tracking-[0.5em] font-medium"
+              />
+              <div className="flex justify-between items-center mt-3 text-sm">
+                <span className="text-gray-400 font-medium">
+                  {countdown > 0 && (
+                    <span className="bg-gray-100 px-2 py-1 rounded-md">
+                      {formatCountdown(countdown)}
                     </span>
-                  </div>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleResendOTP}
+                  disabled={!canResend || isLoading}
+                  className={`${canResend ? 'text-voxcina-blue hover:underline font-medium' : 'text-gray-300'} transition-colors`}
+                >
+                  ارسال مجدد
+                </button>
+              </div>
+            </div>
 
-                  {/* OTP Input */}
-                  <div>
-                    <Input
-                      label="کد تأیید"
-                      type="text"
-                      id="otpCode"
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value)}
-                      error={errors.otpCode}
-                      maxLength={5}
-                      placeholder="_ _ _ _ _"
-                      className="text-base h-11 text-center tracking-[0.5em] font-medium"
-                    />
-                    <div className="flex justify-between items-center mt-2 text-sm">
-                      <span className="text-gray-400">
-                        {countdown > 0 && formatCountdown(countdown)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleResendOTP}
-                        disabled={!canResend || isLoading}
-                        className={`${canResend ? 'text-voxcina-blue hover:underline' : 'text-gray-300'} transition-colors`}
-                      >
-                        ارسال مجدد
-                      </button>
-                    </div>
-                  </div>
+            {/* Password fields */}
+            <Input
+              label="رمز عبور"
+              type={showPassword ? "text" : "password"}
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              error={errors.password}
+              leftElement={<Lock className="h-5 w-5 text-gray-400" />}
+              rightElement={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              }
+              placeholder="••••••••"
+              className="text-base h-12"
+              helperText="حداقل ۸ کاراکتر شامل حروف بزرگ، کوچک و عدد"
+            />
 
-                  {/* Password fields */}
-                  <Input
-                    label="رمز عبور"
-                    type={showPassword ? "text" : "password"}
-                    id="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    error={errors.password}
-                    leftElement={<Lock className="h-5 w-5 text-gray-400" />}
-                    rightElement={
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
-                      >
-                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                      </button>
-                    }
-                    placeholder="••••••••"
-                    className="text-base h-11"
-                    helperText="حداقل ۸ کاراکتر شامل حروف بزرگ، کوچک و عدد"
-                  />
+            <Input
+              label="تکرار رمز عبور"
+              type={showPassword ? "text" : "password"}
+              id="confirmPassword"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              error={errors.confirmPassword}
+              leftElement={<Lock className="h-5 w-5 text-gray-400" />}
+              placeholder="••••••••"
+              className="text-base h-12"
+            />
 
-                  <Input
-                    label="تکرار رمز"
-                    type={showPassword ? "text" : "password"}
-                    id="confirmPassword"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    error={errors.confirmPassword}
-                    leftElement={<Lock className="h-5 w-5 text-gray-400" />}
-                    placeholder="••••••••"
-                    className="text-base h-11"
-                  />
-
-                  <Button
-                    variant="primary"
-                    fullWidth
-                    type="submit"
-                    isLoading={isLoading}
-                    className="h-12 text-base font-medium mt-3"
-                  >
-                    {isLoading ? "در حال ثبت‌نام..." : "ثبت‌نام"}
-                  </Button>
-                </motion.form>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* Footer badge */}
-        <div className="flex items-center justify-center gap-2 mt-4 text-sm text-gray-400">
-          <Shield className="w-4 h-4" />
-          <span>اطلاعات شما محفوظ است</span>
-        </div>
-      </motion.div>
-    </div>
+            <Button
+              variant="primary"
+              fullWidth
+              type="submit"
+              isLoading={isLoading}
+              className="h-12 text-base font-medium mt-4"
+            >
+              {isLoading ? "در حال ثبت‌نام..." : "تکمیل ثبت‌نام"}
+            </Button>
+          </motion.form>
+        )}
+      </AnimatePresence>
+    </AuthWrapper>
   );
 }
