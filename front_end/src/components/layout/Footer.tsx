@@ -149,15 +149,15 @@ const Footer = () => {
                   <a 
                     referrerPolicy='origin' 
                     target='_blank' 
-                    href='https://trustseal.enamad.ir/?id=625947&Code=6W6KblfeR0Ztn1cpWTxurXJRXOS6O2aa'
+                    href='https://trustseal.enamad.ir/?id=684494&Code=Zjpd4eaZhtqJbXoLvwbpf4pAXotCkI0Q'
                     className="block"
                   >
                     <img 
                       referrerPolicy='origin' 
-                      src='https://trustseal.enamad.ir/logo.aspx?id=625947&Code=6W6KblfeR0Ztn1cpWTxurXJRXOS6O2aa' 
+                      src='https://trustseal.enamad.ir/logo.aspx?id=684494&Code=Zjpd4eaZhtqJbXoLvwbpf4pAXotCkI0Q'
                       alt='نماد اعتماد الکترونیکی' 
                       style={{cursor:'pointer'}} 
-                      data-code='6W6KblfeR0Ztn1cpWTxurXJRXOS6O2aa'
+                      data-code='Zjpd4eaZhtqJbXoLvwbpf4pAXotCkI0Q'
                       className="object-contain w-14 h-14"
                     />
                   </a>
