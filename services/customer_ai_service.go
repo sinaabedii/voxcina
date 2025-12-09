@@ -171,6 +171,13 @@ Guidelines:
 - You can ask clarifying questions if the request is too vague.
 - YOUR FINAL RESPONSE MUST BE IN PERSIAN.
 - Only output JSON when calling a tool. Otherwise, write normal text.
+
+CRITICAL RULES:
+- You MUST ONLY mention products that were returned by the search_products tool.
+- NEVER invent, fabricate, or hallucinate product names, prices, or details.
+- If no products are found, say "متاسفانه محصولی با این مشخصات پیدا نشد" and suggest the user try different search terms.
+- Only reference product IDs, names, and prices that appear in the tool results.
+- If the tool returns "هیچ محصولی یافت نشد", do NOT make up products.
 `,
 		SearchStrategy: SearchStrategyConfig{
 			MaxResults:        8,
@@ -243,11 +250,17 @@ func (s *CustomerAIService) RunAgenticChat(
 
 		if !isToolCall {
 			// Final text response
+			// If no products were found but LLM generated a response, 
+			// ensure we don't return hallucinated product info
+			if len(finalProducts) == 0 && i > 0 {
+				// LLM tried to search but found nothing - use a safe response
+				response = "متاسفانه محصولی با این مشخصات پیدا نشد. لطفاً با کلمات کلیدی دیگری جستجو کنید یا دسته‌بندی‌های محصولات ما را مرور کنید."
+			}
 			return &CustomerSearchResponse{
 				Response:      response,
 				Products:      finalProducts,
 				ProductIDs:    finalProductIDs,
-				Success:       true,
+				Success:       len(finalProducts) > 0 || i == 0,
 				IsAIGenerated: true,
 			}, nil
 		}
@@ -279,7 +292,11 @@ func (s *CustomerAIService) RunAgenticChat(
 			} else {
 				finalProducts = products
 				finalProductIDs = ids
-				toolResult = fmt.Sprintf("Found %d products. Product context: %s", len(products), s.buildProductsContext(products))
+				if len(products) == 0 {
+					toolResult = "IMPORTANT: No products found matching the query. Tell the user: متاسفانه محصولی با این مشخصات پیدا نشد. Do NOT invent or make up any products."
+				} else {
+					toolResult = fmt.Sprintf("Found %d products. IMPORTANT: You may ONLY mention these exact products with their exact details. Do NOT invent any other products.\n\nProduct list:\n%s", len(products), s.buildProductsContext(products))
+				}
 			}
 
 		case "get_user_info":
