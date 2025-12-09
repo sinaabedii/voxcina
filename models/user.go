@@ -35,9 +35,12 @@ type User struct {
 	PasswordHash string             `bson:"password_hash"       json:"-"`               // Don't include in JSON responses
 	Phone        string             `bson:"phone"               json:"phone"`           // Required, Unique - IR phone number (09xxxxxxxxx)
 	Addresses    []Address          `bson:"addresses,omitempty" json:"addresses,omitempty"`
-	Role         string             `bson:"role"                json:"role"`      // Values: "customer", "admin"
+	Role         string             `bson:"role"                json:"role"`      // Values: "customer", "admin", "seller"
 	IsActive     bool               `bson:"is_active"           json:"is_active"` // Soft delete flag
 	CreatedAt    time.Time          `bson:"created_at"          json:"created_at"`
 	UpdatedAt    time.Time          `bson:"updated_at"          json:"updated_at"`
 	Reviews      []Review           `bson:"-"               json:"reviews,omitempty"` // Populated programmatically, not stored in MongoDB
+	
+	// C2C Marketplace fields for sellers
+	StoreID *primitive.ObjectID `bson:"store_id,omitempty" json:"store_id,omitempty"` // Reference to seller's store (if role is seller)
 }

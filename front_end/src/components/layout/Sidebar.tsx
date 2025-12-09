@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { User, Package, MapPin, Heart, LogOut, Settings, Menu, X } from "lucide-react";
+import { User, Package, MapPin, Heart, LogOut, Settings, Menu, X, Store, ShoppingBag, BarChart3, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,9 +10,11 @@ import { useState } from "react";
 
 const Sidebar = () => {
   const pathname = usePathname();
-  const { logout } = useAuthStore();
+  const { logout, user } = useAuthStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const router = useRouter();
+
+  const isSeller = user?.role === "seller";
 
   const sidebarItems = [
     {
@@ -41,6 +43,37 @@ const Sidebar = () => {
       icon: <Settings className="w-4 h-4 sm:w-5 sm:h-5" />,
     },
   ];
+
+  // Seller-specific menu items
+  const sellerItems = [
+    {
+      name: "پنل فروشندگی",
+      href: "/dashboard/seller",
+      icon: <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />,
+    },
+    {
+      name: "فروشگاه من",
+      href: "/dashboard/seller/store",
+      icon: <Store className="w-4 h-4 sm:w-5 sm:h-5" />,
+    },
+    {
+      name: "محصولات من",
+      href: "/dashboard/seller/products",
+      icon: <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />,
+    },
+    {
+      name: "سفارشات فروشگاه",
+      href: "/dashboard/seller/orders",
+      icon: <Package className="w-4 h-4 sm:w-5 sm:h-5" />,
+    },
+  ];
+
+  // Non-seller: show "Become a Seller" option
+  const becomeSellerItem = {
+    name: "فروشنده شوید",
+    href: "/dashboard/become-seller",
+    icon: <Plus className="w-4 h-4 sm:w-5 sm:h-5" />,
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -138,6 +171,66 @@ const Sidebar = () => {
                   </motion.div>
                 );
               })}
+
+              {/* Seller Section */}
+              {isSeller ? (
+                <>
+                  <div className="pt-4 pb-2 px-4">
+                    <p className="text-xs font-medium text-voxcina-blue/50 dark:text-voxcina-cream/50 uppercase tracking-wider">
+                      پنل فروشندگی
+                    </p>
+                  </div>
+                  {sellerItems.map((item) => {
+                    const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                    return (
+                      <motion.div
+                        key={item.href}
+                        variants={itemVariants}
+                        whileHover={{ x: 3 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <Link
+                          href={item.href}
+                          className={cn(
+                            "flex items-center px-4 py-3 text-sm rounded-xl transition-all duration-300",
+                            isActive
+                              ? "bg-green-600 dark:bg-green-500 text-white font-medium shadow-sm"
+                              : "text-voxcina-blue/80 dark:text-voxcina-cream/80 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-700 dark:hover:text-green-400"
+                          )}
+                        >
+                          <div
+                            className={cn(
+                              "flex items-center justify-center w-8 h-8 rounded-lg mr-3 transition-all duration-300",
+                              isActive
+                                ? "bg-white/20"
+                                : "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400"
+                            )}
+                          >
+                            {item.icon}
+                          </div>
+                          {item.name}
+                        </Link>
+                      </motion.div>
+                    );
+                  })}
+                </>
+              ) : (
+                <motion.div
+                  variants={itemVariants}
+                  whileHover={{ x: 3 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Link
+                    href={becomeSellerItem.href}
+                    className="flex items-center px-4 py-3 text-sm rounded-xl transition-all duration-300 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 border border-dashed border-green-300 dark:border-green-700 mt-4"
+                  >
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg mr-3 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
+                      {becomeSellerItem.icon}
+                    </div>
+                    {becomeSellerItem.name}
+                  </Link>
+                </motion.div>
+              )}
 
               <motion.div
                 variants={itemVariants}

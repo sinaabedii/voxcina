@@ -113,3 +113,36 @@ func AdminAuthMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	}))
 }
+
+// SellerAuthMiddleware checks for seller role (wraps AuthMiddleware)
+func SellerAuthMiddleware(next http.Handler) http.Handler {
+	return AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		roleCtx := r.Context().Value("role")
+		if roleCtx == nil {
+			utils.ErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"Role not found in context; authentication middleware may have failed.",
+			)
+			return
+		}
+
+		role, ok := roleCtx.(string)
+		if !ok {
+			utils.ErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"Role in context is of incorrect type",
+			)
+			return
+		}
+
+		// Allow both sellers and admins to access seller routes
+		if role != handlers.RoleSeller && role != handlers.RoleAdmin {
+			utils.ErrorResponse(w, http.StatusForbidden, "Seller access required")
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	}))
+}

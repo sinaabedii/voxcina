@@ -32,6 +32,9 @@ type OrderItemAPIResponse struct {
 	Variant         models.OrderVariant  `json:"variant"`
 	Quantity        int                  `json:"quantity"`
 	PriceAtPurchase float64              `json:"price_at_purchase"`
+	// C2C Marketplace fields
+	StoreID   primitive.ObjectID `json:"store_id,omitempty"`
+	StoreName string             `json:"store_name,omitempty"`
 }
 
 // OrderAPIResponse represents the full order structure for API responses.
@@ -82,11 +85,8 @@ func newOrderAPIResponse(
 			)
 		}
 		productImage := ""
-		// Get image from MainImages or first ColorVariant
-		if len(product.MainImages) > 0 {
-			productImage = product.MainImages[0]
-		} else if len(product.ColorVariants) > 0 && len(product.ColorVariants[0].Images) > 0 {
-			productImage = product.ColorVariants[0].Images[0]
+		if len(product.Images) > 0 { // Assuming models.Product has Images []string
+			productImage = product.Images[0]
 		}
 
 		populatedItems = append(populatedItems, OrderItemAPIResponse{
@@ -98,6 +98,8 @@ func newOrderAPIResponse(
 			Variant:         item.Variant,
 			Quantity:        item.Quantity,
 			PriceAtPurchase: item.PriceAtPurchase,
+			StoreID:         item.StoreID,
+			StoreName:       item.StoreName,
 		})
 	}
 
@@ -118,179 +120,6 @@ func newOrderAPIResponse(
 		JalaliUpdatedAt: utils.ToJalaliDateString(order.UpdatedAt),
 		ProductCount:    order.GetProductCount(),
 	}, nil
-}
-
-// validateAndReserveInventory checks if all items have sufficient stock
-// Returns an error message if any item is out of stock or has insufficient quantity
-func validateInventory(ctx context.Context, items []models.OrderItem) (bool, string) {
-	productsCollection := db.Database.Collection("products")
-
-	for _, item := range items {
-		var product models.Product
-		if err := productsCollection.FindOne(ctx, bson.M{"_id": item.ProductID}).Decode(&product); err != nil {
-			if err == mongo.ErrNoDocuments {
-				return false, fmt.Sprintf("محصول با شناسه %s یافت نشد", item.ProductID.Hex())
-			}
-			return false, fmt.Sprintf("خطا در بررسی موجودی محصول: %v", err)
-		}
-
-		// Find the color variant and size
-		found := false
-		for _, colorVariant := range product.ColorVariants {
-			if colorVariant.Color == item.Variant.Color {
-				for _, sizeVariant := range colorVariant.Sizes {
-					if sizeVariant.Size == item.Variant.Size {
-						found = true
-						if sizeVariant.Quantity < item.Quantity {
-							return false, fmt.Sprintf(
-								"موجودی کافی برای %s (رنگ: %s، سایز: %s) وجود ندارد. موجودی: %d، درخواست: %d",
-								product.Name, colorVariant.ColorName, sizeVariant.Size,
-								sizeVariant.Quantity, item.Quantity,
-							)
-						}
-						break
-					}
-				}
-				break
-			}
-		}
-
-		if !found {
-			return false, fmt.Sprintf(
-				"تنوع انتخاب شده (رنگ: %s، سایز: %s) برای محصول %s یافت نشد",
-				item.Variant.Color, item.Variant.Size, product.Name,
-			)
-		}
-	}
-
-	return true, ""
-}
-
-// reduceInventory decreases the inventory for each item in the order
-// This should be called after successful payment
-func reduceInventory(ctx context.Context, items []models.OrderItem) error {
-	productsCollection := db.Database.Collection("products")
-
-	for _, item := range items {
-		// Use MongoDB's positional operator to update the specific size variant
-		// We need to find the product, then update the specific color variant's size quantity
-		filter := bson.M{
-			"_id":                          item.ProductID,
-			"color_variants.color":         item.Variant.Color,
-			"color_variants.sizes.size":    item.Variant.Size,
-		}
-
-		// First, get the product to find the correct indices
-		var product models.Product
-		if err := productsCollection.FindOne(ctx, bson.M{"_id": item.ProductID}).Decode(&product); err != nil {
-			return fmt.Errorf("failed to find product %s: %w", item.ProductID.Hex(), err)
-		}
-
-		// Find the color variant index and size index
-		colorIdx := -1
-		sizeIdx := -1
-		for ci, cv := range product.ColorVariants {
-			if cv.Color == item.Variant.Color {
-				colorIdx = ci
-				for si, sv := range cv.Sizes {
-					if sv.Size == item.Variant.Size {
-						sizeIdx = si
-						break
-					}
-				}
-				break
-			}
-		}
-
-		if colorIdx == -1 || sizeIdx == -1 {
-			return fmt.Errorf("variant not found for product %s", item.ProductID.Hex())
-		}
-
-		// Update the specific size quantity using array indices
-		updatePath := fmt.Sprintf("color_variants.%d.sizes.%d.quantity", colorIdx, sizeIdx)
-		update := bson.M{
-			"$inc": bson.M{
-				updatePath: -item.Quantity,
-			},
-			"$set": bson.M{
-				"updated_at": time.Now(),
-			},
-		}
-
-		result, err := productsCollection.UpdateOne(ctx, filter, update)
-		if err != nil {
-			return fmt.Errorf("failed to reduce inventory for product %s: %w", item.ProductID.Hex(), err)
-		}
-
-		if result.MatchedCount == 0 {
-			return fmt.Errorf("product variant not found for inventory reduction: %s", item.ProductID.Hex())
-		}
-
-		// Check if product should be marked as out of stock
-		// Re-fetch product to check total inventory
-		if err := productsCollection.FindOne(ctx, bson.M{"_id": item.ProductID}).Decode(&product); err == nil {
-			totalStock := 0
-			for _, cv := range product.ColorVariants {
-				for _, sv := range cv.Sizes {
-					totalStock += sv.Quantity
-				}
-			}
-			// Update in_stock flag if total stock is 0
-			if totalStock <= 0 {
-				productsCollection.UpdateOne(ctx, bson.M{"_id": item.ProductID}, bson.M{
-					"$set": bson.M{"in_stock": false},
-				})
-			}
-		}
-	}
-
-	return nil
-}
-
-// restoreInventory increases the inventory for each item (used when order is cancelled)
-func restoreInventory(ctx context.Context, items []models.OrderItem) error {
-	productsCollection := db.Database.Collection("products")
-
-	for _, item := range items {
-		var product models.Product
-		if err := productsCollection.FindOne(ctx, bson.M{"_id": item.ProductID}).Decode(&product); err != nil {
-			return fmt.Errorf("failed to find product %s: %w", item.ProductID.Hex(), err)
-		}
-
-		colorIdx := -1
-		sizeIdx := -1
-		for ci, cv := range product.ColorVariants {
-			if cv.Color == item.Variant.Color {
-				colorIdx = ci
-				for si, sv := range cv.Sizes {
-					if sv.Size == item.Variant.Size {
-						sizeIdx = si
-						break
-					}
-				}
-				break
-			}
-		}
-
-		if colorIdx == -1 || sizeIdx == -1 {
-			continue // Skip if variant not found (product might have been modified)
-		}
-
-		updatePath := fmt.Sprintf("color_variants.%d.sizes.%d.quantity", colorIdx, sizeIdx)
-		update := bson.M{
-			"$inc": bson.M{
-				updatePath: item.Quantity,
-			},
-			"$set": bson.M{
-				"updated_at": time.Now(),
-				"in_stock":   true, // Mark as in stock since we're restoring inventory
-			},
-		}
-
-		productsCollection.UpdateOne(ctx, bson.M{"_id": item.ProductID}, update)
-	}
-
-	return nil
 }
 
 // POST /api/checkout
@@ -336,14 +165,22 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Validate inventory before creating order
-	valid, errMsg := validateInventory(ctx, orderData.Items)
-	if !valid {
-		utils.ErrorResponse(w, http.StatusBadRequest, errMsg)
-		return
+	// Enrich order items with store information from products
+	productCollection := db.Database.Collection("products")
+	enrichedItems := make([]models.OrderItem, 0, len(orderData.Items))
+	
+	for _, item := range orderData.Items {
+		var product models.Product
+		if err := productCollection.FindOne(ctx, bson.M{"_id": item.ProductID}).Decode(&product); err == nil {
+			// Add store info to order item
+			item.StoreID = product.StoreID
+			item.StoreName = product.StoreName
+			item.SellerID = product.SellerID
+		}
+		enrichedItems = append(enrichedItems, item)
 	}
 
 	// Create a new order
@@ -354,7 +191,7 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		ID:              primitive.NewObjectID(),
 		UserID:          userID,
 		OrderNumber:     fmt.Sprintf("DGS-%05d", orderCount),
-		Items:           orderData.Items,
+		Items:           enrichedItems,
 		TotalAmount:     orderData.TotalAmount,
 		ShippingAddress: orderData.ShippingAddress,
 		Status:          "pending",
@@ -383,138 +220,6 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	utils.JSONResponse(w, http.StatusOK, response)
-}
-
-// POST /api/orders/{orderId}/confirm-payment
-// Confirms payment for an order and reduces inventory
-func ConfirmPayment(w http.ResponseWriter, r *http.Request) {
-	userIDCtx := r.Context().Value("userID")
-	if userIDCtx == nil {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "User ID not found in context")
-		return
-	}
-	userID, ok := userIDCtx.(primitive.ObjectID)
-	if !ok || userID == primitive.NilObjectID {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid User ID")
-		return
-	}
-
-	vars := mux.Vars(r)
-	orderIDStr, ok := vars["orderId"]
-	if !ok {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Order ID not provided in path")
-		return
-	}
-	orderID, err := primitive.ObjectIDFromHex(orderIDStr)
-	if err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid Order ID format")
-		return
-	}
-
-	var paymentData struct {
-		TransactionID string `json:"transactionId"` // Payment gateway transaction ID
-		PaymentMethod string `json:"paymentMethod"` // e.g., "card", "wallet", "cod"
-	}
-	if err := json.NewDecoder(r.Body).Decode(&paymentData); err != nil {
-		// Payment data is optional for now
-		paymentData.PaymentMethod = "online"
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-
-	ordersCollection := db.Database.Collection("orders")
-
-	// Fetch the order
-	var order models.Order
-	if err := ordersCollection.FindOne(ctx, bson.M{"_id": orderID, "is_active": true}).Decode(&order); err != nil {
-		if err == mongo.ErrNoDocuments {
-			utils.ErrorResponse(w, http.StatusNotFound, "Order not found")
-		} else {
-			utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching order: "+err.Error())
-		}
-		return
-	}
-
-	// Verify user owns this order (unless admin)
-	roleCtx := r.Context().Value("role")
-	isAdmin := roleCtx != nil && roleCtx.(string) == "admin"
-	if !isAdmin && order.UserID != userID {
-		utils.ErrorResponse(w, http.StatusForbidden, "You are not authorized to confirm payment for this order")
-		return
-	}
-
-	// Check if already paid
-	if order.PaymentStatus == "paid" {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Order is already paid")
-		return
-	}
-
-	// Validate inventory one more time before reducing
-	valid, errMsg := validateInventory(ctx, order.Items)
-	if !valid {
-		// Update order status to indicate inventory issue
-		ordersCollection.UpdateOne(ctx, bson.M{"_id": orderID}, bson.M{
-			"$set": bson.M{
-				"status":         "cancelled",
-				"status_text":    "لغو شده - موجودی ناکافی",
-				"payment_status": "failed",
-				"updated_at":     time.Now(),
-			},
-		})
-		utils.ErrorResponse(w, http.StatusBadRequest, errMsg)
-		return
-	}
-
-	// Reduce inventory
-	if err := reduceInventory(ctx, order.Items); err != nil {
-		utils.LogAction("error", fmt.Sprintf("Failed to reduce inventory for order %s: %v", orderID.Hex(), err))
-		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در به‌روزرسانی موجودی: "+err.Error())
-		return
-	}
-
-	// Update order payment status
-	update := bson.M{
-		"$set": bson.M{
-			"payment_status": "paid",
-			"status":         "processing",
-			"status_text":    "در حال پردازش",
-			"updated_at":     time.Now(),
-		},
-	}
-	if _, err := ordersCollection.UpdateOne(ctx, bson.M{"_id": orderID}, update); err != nil {
-		// Try to restore inventory if order update fails
-		restoreInventory(ctx, order.Items)
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error updating order: "+err.Error())
-		return
-	}
-
-	// Clear user's cart after successful payment
-	cartsCollection := db.Database.Collection("carts")
-	cartsCollection.UpdateOne(ctx, bson.M{"user_id": userID, "is_active": true}, bson.M{
-		"$set": bson.M{
-			"items":      []models.CartItem{},
-			"updated_at": time.Now(),
-		},
-	})
-
-	// Fetch updated order for response
-	var updatedOrder models.Order
-	if err := ordersCollection.FindOne(ctx, bson.M{"_id": orderID}).Decode(&updatedOrder); err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching updated order")
-		return
-	}
-
-	response, err := newOrderAPIResponse(ctx, updatedOrder)
-	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error preparing order response: "+err.Error())
-		return
-	}
-
-	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
-		"message": "پرداخت با موفقیت تایید شد",
-		"order":   response,
-	})
 }
 
 // GET /api/orders?orderId=<orderId>
@@ -1047,28 +752,9 @@ func UpdateOrderStatusAdmin(w http.ResponseWriter, r *http.Request) {
 		statusText = ""
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	ordersCollection := db.Database.Collection("orders")
-
-	// Fetch current order to check previous status
-	var currentOrder models.Order
-	if err := ordersCollection.FindOne(ctx, bson.M{"_id": orderID}).Decode(&currentOrder); err != nil {
-		if err == mongo.ErrNoDocuments {
-			utils.ErrorResponse(w, http.StatusNotFound, "Order not found")
-		} else {
-			utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching order: "+err.Error())
-		}
-		return
-	}
-
-	// If changing to cancelled and order was paid, restore inventory
-	if payload.Status == "cancelled" && currentOrder.Status != "cancelled" && currentOrder.PaymentStatus == "paid" {
-		if err := restoreInventory(ctx, currentOrder.Items); err != nil {
-			utils.LogAction("error", fmt.Sprintf("Failed to restore inventory for cancelled order %s: %v", orderID.Hex(), err))
-			// Continue with cancellation even if inventory restore fails
-		}
-	}
 
 	update := bson.M{"$set": bson.M{
 		"status":      payload.Status,

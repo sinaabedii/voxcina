@@ -318,5 +318,43 @@ func NewRouter() *mux.Router {
 	// Fetch reviews written by a user (public)
 	api.HandleFunc("/users/{userId}/reviews", handlers.GetUserReviews).Methods(http.MethodGet)
 
+	// --- C2C Marketplace: Store Routes ---
+	// Public store routes
+	api.HandleFunc("/stores", handlers.ListStores).Methods(http.MethodGet)
+	api.HandleFunc("/stores/{id}", handlers.GetStore).Methods(http.MethodGet)
+	api.HandleFunc("/stores/{id}/products", handlers.GetStoreProducts).Methods(http.MethodGet)
+
+	// Store registration (requires authentication)
+	api.Handle("/stores/register", middlewares.AuthMiddleware(http.HandlerFunc(handlers.RegisterStore))).
+		Methods(http.MethodPost)
+
+	// Check if user can become a seller
+	api.Handle("/users/can-become-seller", middlewares.AuthMiddleware(http.HandlerFunc(handlers.CanBecomeSeller))).
+		Methods(http.MethodGet)
+
+	// --- C2C Marketplace: Seller Routes ---
+	sellerRouter := api.PathPrefix("/seller").Subrouter()
+	sellerRouter.Use(middlewares.SellerAuthMiddleware)
+
+	// Seller store management
+	sellerRouter.HandleFunc("/store", handlers.GetMyStore).Methods(http.MethodGet)
+	sellerRouter.HandleFunc("/store", handlers.UpdateStore).Methods(http.MethodPut)
+
+	// Seller product management
+	sellerRouter.HandleFunc("/products", handlers.ListSellerProducts).Methods(http.MethodGet)
+	sellerRouter.HandleFunc("/products", handlers.AddSellerProduct).Methods(http.MethodPost)
+	sellerRouter.HandleFunc("/products/{id}", handlers.UpdateSellerProduct).Methods(http.MethodPut)
+	sellerRouter.HandleFunc("/products/{id}", handlers.DeleteSellerProduct).Methods(http.MethodDelete)
+
+	// Seller order management
+	sellerRouter.HandleFunc("/orders", handlers.GetSellerOrders).Methods(http.MethodGet)
+
+	// Seller dashboard
+	sellerRouter.HandleFunc("/dashboard", handlers.GetSellerDashboard).Methods(http.MethodGet)
+
+	// --- Admin Store Management ---
+	adminRouter.HandleFunc("/stores", handlers.AdminListStores).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/stores/{id}/status", handlers.AdminUpdateStoreStatus).Methods(http.MethodPut)
+
 	return router
 }
