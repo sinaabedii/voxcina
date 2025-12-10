@@ -50,12 +50,7 @@ type Product struct {
 	AverageRating float64              `bson:"average_rating,omitempty" json:"average_rating,omitempty"`        // Average rating calculated from reviews
 	ReviewCount   int                  `bson:"review_count,omitempty"   json:"review_count,omitempty"`          // Total number of reviews
 	Reviews       []Review             `bson:"-"                        json:"reviews,omitempty"`               // Populated programmatically, not stored in MongoDB
-	
-	// C2C Marketplace fields - Store/Seller information
-	StoreID   primitive.ObjectID `bson:"store_id,omitempty"   json:"store_id,omitempty"`   // Reference to stores collection
-	StoreName string             `bson:"store_name,omitempty" json:"store_name,omitempty"` // Denormalized store name for quick access
-	SellerID  primitive.ObjectID `bson:"seller_id,omitempty"  json:"seller_id,omitempty"`  // Reference to seller user
-	
+
 	// AI Agent Search Optimization (embedded for fast retrieval)
 	SearchMetadata *ProductSearchMetadata `bson:"search_metadata,omitempty" json:"searchMetadata,omitempty"` // AI-optimized search fields
 }

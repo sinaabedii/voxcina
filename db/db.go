@@ -62,9 +62,6 @@ func Connect(cfg *config.Config) *mongo.Database {
 		// Non-critical, continue anyway
 	}
 
-	// Create C2C marketplace store indexes
-	CreateStoreIndexes()
-
 	log.Println("Database connected and indexes ensured.")
 	return Database
 }

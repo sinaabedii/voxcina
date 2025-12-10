@@ -22,11 +22,6 @@ type OrderItem struct {
 	Variant         OrderVariant       `bson:"variant"           json:"variant"`           // Size and color information
 	Quantity        int                `bson:"quantity"          json:"quantity"`          // Number of items ordered
 	PriceAtPurchase float64            `bson:"price_at_purchase" json:"price_at_purchase"` // Snapshot of price at order time
-	
-	// C2C Marketplace fields
-	StoreID   primitive.ObjectID `bson:"store_id,omitempty"   json:"store_id,omitempty"`   // Reference to store
-	StoreName string             `bson:"store_name,omitempty" json:"store_name,omitempty"` // Store name at purchase time
-	SellerID  primitive.ObjectID `bson:"seller_id,omitempty"  json:"seller_id,omitempty"`  // Reference to seller
 }
 
 // Order represents a customer order

@@ -29,7 +29,6 @@ var jwtKey = []byte(
 const (
 	RoleCustomer = "customer"
 	RoleAdmin    = "admin"
-	RoleSeller   = "seller"
 )
 
 // Password validation regex: at least 8 characters, one uppercase, one lowercase, one digit
@@ -1138,11 +1137,11 @@ func UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 
 	// --- Validate Role ---
 	newRole := strings.ToLower(payload.Role)
-	if newRole != RoleCustomer && newRole != RoleAdmin && newRole != RoleSeller {
+	if newRole != RoleCustomer && newRole != RoleAdmin {
 		utils.ErrorResponse(
 			w,
 			http.StatusBadRequest,
-			"Invalid role specified. Must be 'customer' or 'admin' or seller.",
+			"Invalid role specified. Must be 'customer' or 'admin'.",
 		)
 		return
 	}

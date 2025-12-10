@@ -89,11 +89,6 @@ export interface Product {
   average_rating?: number;
   review_count?: number;
   searchMetadata?: ProductSearchMetadata;
-
-  // C2C Marketplace fields
-  store_id?: string; // Store ObjectID as string
-  store_name?: string; // Store name for display
-  seller_id?: string; // Seller user ObjectID as string
 }
 
 export interface Review {
