@@ -1,0 +1,189 @@
+import { useState, useCallback } from "react";
+import { toast } from "react-hot-toast";
+
+interface PaymentRequestResponse {
+  result: number;
+  message: string;
+  trackId?: number;
+  payUrl?: string;
+}
+
+interface VerifyPaymentResponse {
+  result: number;
+  message: string;
+  status: number;
+  amount: number;
+  refNumber?: string;
+  cardNumber?: string;
+  paidAt?: string;
+  description?: string;
+  orderId?: string;
+  paymentStatus: string;
+  statusText: string;
+}
+
+interface InquiryPaymentResponse {
+  result: number;
+  message: string;
+  status: number;
+  amount: number;
+  refNumber?: string;
+  cardNumber?: string;
+  createdAt?: string;
+  paidAt?: string;
+  verifiedAt?: string;
+  description?: string;
+  orderId?: string;
+  paymentStatus: string;
+  statusText: string;
+}
+
+export const usePayment = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const requestPayment = useCallback(
+    async (
+      orderId: string,
+      amount: number,
+      description?: string,
+      mobile?: string
+    ): Promise<PaymentRequestResponse | null> => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch("/api/payment/request", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            orderId,
+            amount,
+            description,
+            mobile,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to request payment");
+        }
+
+        const data: PaymentRequestResponse = await response.json();
+
+        if (data.result !== 100) {
+          throw new Error(data.message || "Payment request failed");
+        }
+
+        toast.success("درخواست پرداخت با موفقیت ایجاد شد");
+        return data;
+      } catch (err) {
+        const errorMsg =
+          err instanceof Error ? err.message : "خطا در درخواست پرداخت";
+        setError(errorMsg);
+        toast.error(errorMsg);
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
+
+  const verifyPayment = useCallback(
+    async (trackId: number): Promise<VerifyPaymentResponse | null> => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch("/api/payment/verify", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({ trackId }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to verify payment");
+        }
+
+        const data: VerifyPaymentResponse = await response.json();
+
+        if (data.result !== 100) {
+          throw new Error(data.message || "Payment verification failed");
+        }
+
+        if (data.paymentStatus === "paid") {
+          toast.success("پرداخت با موفقیت تایید شد");
+        } else {
+          toast.error(`وضعیت پرداخت: ${data.statusText}`);
+        }
+
+        return data;
+      } catch (err) {
+        const errorMsg =
+          err instanceof Error ? err.message : "خطا در تایید پرداخت";
+        setError(errorMsg);
+        toast.error(errorMsg);
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
+
+  const inquiryPayment = useCallback(
+    async (trackId: number): Promise<InquiryPaymentResponse | null> => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch("/api/payment/inquiry", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({ trackId }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to inquiry payment");
+        }
+
+        const data: InquiryPaymentResponse = await response.json();
+
+        if (data.result !== 100) {
+          throw new Error(data.message || "Payment inquiry failed");
+        }
+
+        return data;
+      } catch (err) {
+        const errorMsg =
+          err instanceof Error ? err.message : "خطا در استعلام پرداخت";
+        setError(errorMsg);
+        toast.error(errorMsg);
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
+
+  return {
+    requestPayment,
+    verifyPayment,
+    inquiryPayment,
+    isLoading,
+    error,
+  };
+};

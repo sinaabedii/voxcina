@@ -35,10 +35,14 @@ type Order struct {
 	Status          string             `bson:"status"                  json:"status"`                  // Values: "pending", "shipped", "delivered", "cancelled", etc.
 	StatusText      string             `bson:"status_text"             json:"status_text"`             // Localized status description (e.g., Persian)
 	PaymentStatus   string             `bson:"payment_status"          json:"payment_status"`          // Values: "pending", "paid", "failed"
+	PaymentMethod   string             `bson:"payment_method"          json:"payment_method"`          // Payment method: "online", "wallet", "cod"
+	ZibalTrackID    *int64             `bson:"zibal_track_id,omitempty" json:"zibal_track_id,omitempty"` // Zibal payment tracking ID
+	ZibalRefNumber  *string            `bson:"zibal_ref_number,omitempty" json:"zibal_ref_number,omitempty"` // Zibal reference number
 	TrackingCode    *string            `bson:"tracking_code,omitempty" json:"tracking_code,omitempty"` // Shipping tracking number (nullable)
 	IsActive        bool               `bson:"is_active"               json:"is_active"`               // Soft delete flag
 	CreatedAt       time.Time          `bson:"created_at"              json:"created_at"`
 	UpdatedAt       time.Time          `bson:"updated_at"              json:"updated_at"`
+	PaidAt          *time.Time         `bson:"paid_at,omitempty"       json:"paid_at,omitempty"`       // Payment completion time
 }
 
 // GetProductCount returns the total number of products in the order

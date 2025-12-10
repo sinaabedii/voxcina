@@ -322,5 +322,15 @@ func NewRouter() *mux.Router {
 	// Fetch reviews written by a user (public)
 	api.HandleFunc("/users/{userId}/reviews", handlers.GetUserReviews).Methods(http.MethodGet)
 
+	// Payment Routes (Zibal Integration)
+	paymentRouter := api.PathPrefix("/payment").Subrouter()
+	paymentRouter.Use(middlewares.AuthMiddleware)
+	paymentRouter.HandleFunc("/request", handlers.RequestPayment).Methods(http.MethodPost)
+	paymentRouter.HandleFunc("/verify", handlers.VerifyPayment).Methods(http.MethodPost)
+	paymentRouter.HandleFunc("/inquiry", handlers.InquiryPayment).Methods(http.MethodPost)
+
+	// Payment Callback (Public - no auth required)
+	api.HandleFunc("/payment/callback", handlers.PaymentCallback).Methods(http.MethodGet)
+
 	return router
 }

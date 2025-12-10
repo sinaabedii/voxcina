@@ -65,6 +65,10 @@ func main() {
 	handlers.InitUserActivityService(database)
 	log.Println("User activity service initialized")
 
+	// Initialize Zibal payment service
+	handlers.InitZibalService()
+	log.Println("Zibal payment service initialized")
+
 	// Seed database if requested
 	if *seedDB {
 		log.Println("Seeding database...")
