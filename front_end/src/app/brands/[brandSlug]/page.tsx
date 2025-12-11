@@ -30,16 +30,29 @@ export default function BrandPage() {
       setError(null);
       
       try {
-        // Fetch brand info
-        const brandRes = await fetch(`/api/brands/${brandSlug}`);
-        if (!brandRes.ok) {
+        // Fetch all brands and find the one matching the slug/name
+        const brandsRes = await fetch(`/api/brands`);
+        if (!brandsRes.ok) {
+          throw new Error("خطا در دریافت برندها");
+        }
+        const brandsData = await brandsRes.json();
+        const brandsArray = brandsData.brands || brandsData || [];
+        
+        // Find brand by slug or name (case-insensitive)
+        const foundBrand = brandsArray.find((b: any) => 
+          b.slug?.toLowerCase() === brandSlug.toLowerCase() ||
+          b.name?.toLowerCase() === brandSlug.toLowerCase() ||
+          b.name === brandSlug
+        );
+        
+        if (!foundBrand) {
           throw new Error("برند یافت نشد");
         }
-        const brandData = await brandRes.json();
-        setBrand(brandData);
+        
+        setBrand(foundBrand);
 
-        // Fetch products for this brand
-        const productsRes = await fetch(`/api/products?brand=${brandSlug}`);
+        // Fetch products for this brand using brand name
+        const productsRes = await fetch(`/api/products?brand=${encodeURIComponent(foundBrand.name)}`);
         if (productsRes.ok) {
           const productsData = await productsRes.json();
           setProducts(productsData.products || productsData || []);
