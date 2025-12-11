@@ -6,10 +6,12 @@ import { motion } from "framer-motion";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Link from "next/link";
+import { useCart } from "@/hooks/useCart";
 
 function CallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { clearCart } = useCart();
   const [status, setStatus] = useState<"loading" | "success" | "failed">("loading");
   const [message, setMessage] = useState("");
   const [orderId, setOrderId] = useState<string | null>(null);
@@ -25,7 +27,8 @@ function CallbackContent() {
       setOrderId(orderIdParam);
 
       if (success === "1") {
-        // Payment was successful - backend already updated the order
+        // Payment was successful - clear cart and redirect
+        clearCart();
         setStatus("success");
         setMessage("پرداخت با موفقیت انجام شد");
         // Redirect to success page after a short delay
@@ -33,14 +36,14 @@ function CallbackContent() {
           router.push(`/checkout/success?orderId=${orderIdParam}&trackId=${trackIdParam}`);
         }, 1500);
       } else {
-        // Payment failed or was cancelled
+        // Payment failed or was cancelled - keep cart items for retry
         setStatus("failed");
         setMessage("پرداخت انجام نشد یا لغو شد");
       }
     };
 
     handleCallback();
-  }, [searchParams, router]);
+  }, [searchParams, router, clearCart]);
 
   return (
     <div className="container py-16 flex items-center justify-center min-h-[60vh]">

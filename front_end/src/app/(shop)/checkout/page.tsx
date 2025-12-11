@@ -400,8 +400,7 @@ export default function CheckoutPage() {
         const paymentData = await paymentResponse.json();
 
         if (paymentData.result === 100 && paymentData.payUrl) {
-          // Clear cart before redirecting
-          clearCart();
+          // Don't clear cart here - it will be cleared on successful payment callback
           // Redirect to payment gateway
           window.location.href = paymentData.payUrl;
           return;
