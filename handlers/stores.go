@@ -27,8 +27,8 @@ import (
 // Default commission rate for new stores (10%)
 const DefaultCommissionRate = 10.0
 
-// generateSlug creates a URL-friendly slug from a store name
-func generateSlug(name string) string {
+// generateStoreSlug creates a URL-friendly slug from a store name
+func generateStoreSlug(name string) string {
 	// Convert to lowercase and replace spaces with hyphens
 	slug := strings.ToLower(strings.TrimSpace(name))
 	// Remove special characters except hyphens
@@ -114,7 +114,7 @@ func RegisterStore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate unique slug
-	baseSlug := generateSlug(name)
+	baseSlug := generateStoreSlug(name)
 	slug := baseSlug
 	counter := 1
 	for {

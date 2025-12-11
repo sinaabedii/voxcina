@@ -53,6 +53,22 @@ type Product struct {
 
 	// AI Agent Search Optimization (embedded for fast retrieval)
 	SearchMetadata *ProductSearchMetadata `bson:"search_metadata,omitempty" json:"searchMetadata,omitempty"` // AI-optimized search fields
+
+	// C2C Marketplace fields (for seller products)
+	StoreID   primitive.ObjectID `bson:"store_id,omitempty"   json:"store_id,omitempty"`   // Reference to seller's store
+	StoreName string             `bson:"store_name,omitempty" json:"store_name,omitempty"` // Store name for display
+	SellerID  primitive.ObjectID `bson:"seller_id,omitempty"  json:"seller_id,omitempty"`  // Reference to seller user
+	Images    []string           `bson:"images,omitempty"     json:"images,omitempty"`     // Simple image URLs for seller products
+	Variants  []ProductVariant   `bson:"variants,omitempty"   json:"variants,omitempty"`   // Simple variants for seller products
+}
+
+// ProductVariant represents a simple variant for C2C seller products
+type ProductVariant struct {
+	Size     string  `bson:"size"     json:"size"`
+	Color    string  `bson:"color"    json:"color"`
+	SKU      string  `bson:"sku"      json:"sku"`
+	Price    float64 `bson:"price"    json:"price"`
+	Quantity int     `bson:"quantity" json:"quantity"`
 }
 
 // ColorVariantListItem is used for the product list API - represents one color variant as a separate item
