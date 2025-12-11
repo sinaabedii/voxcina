@@ -39,14 +39,18 @@ func Connect(cfg *config.Config) *mongo.Database {
 		// If index creation failure is critical, consider log.Fatal(err)
 	}
 
-	// Ensure unique index for email in users collection (sparse index for optional emails)
+	// Drop old non-sparse email index if it exists, then create sparse one
+	// This is needed because the old index blocks empty email values
+	_, _ = usersCollection.Indexes().DropOne(context.Background(), "email_1")
+	
+	// Ensure unique sparse index for email in users collection (allows multiple empty/null values)
 	emailIndexModel := mongo.IndexModel{
 		Keys:    bson.D{{Key: "email", Value: 1}}, // 1 for ascending order
-		Options: options.Index().SetUnique(true).SetSparse(true), // Sparse allows multiple null/empty values
+		Options: options.Index().SetUnique(true).SetSparse(true).SetName("email_1_sparse"), // Sparse allows multiple null/empty values
 	}
 	_, err = usersCollection.Indexes().CreateOne(context.Background(), emailIndexModel)
 	if err != nil {
-		log.Printf("Warning: Could not ensure unique index for users email: %v", err)
+		log.Printf("Warning: Could not ensure unique sparse index for users email: %v", err)
 		// If index creation failure is critical, consider log.Fatal(err)
 	}
 
