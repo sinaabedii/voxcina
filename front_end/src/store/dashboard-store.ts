@@ -19,15 +19,30 @@ export interface Address {
 
 export interface Order {
   id: string;
+  // Snake case from API
+  order_number?: string;
+  status_text?: string;
+  total_amount?: number;
+  created_at?: string;
+  updated_at?: string;
+  jalali_created_at?: string;
+  jalali_updated_at?: string;
+  product_count?: number;
+  tracking_code?: string;
+  payment_status?: string;
+  shipping_address?: any;
+  // Camel case for backwards compatibility
   orderNumber?: string;
   date?: string; // fallback for old data
-  status: "pending" | "processing" | "shipping" | "delivered" | "canceled";
+  status: "pending" | "processing" | "shipping" | "delivered" | "canceled" | "cancelled";
   statusText?: string;
   items?: {
-    productId: string;
-    name: string;
+    productId?: string;
+    product_id?: string;
+    name?: string;
     quantity: number;
-    price: number;
+    price?: number;
+    price_at_purchase?: number;
   }[];
   total?: number; // fallback for old data
   totalAmount?: number;
