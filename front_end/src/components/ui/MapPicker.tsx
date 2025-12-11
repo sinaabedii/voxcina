@@ -42,6 +42,11 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange }) => {
           });
           markerRef.current = marker;
 
+          // If using default location, notify parent so form validation passes
+          if (isDefaultLocation) {
+            onChange({ lat: centerLat, lng: centerLng });
+          }
+
           map.on("click", (e: any) => {
             const { lat: newLat, lng: newLng } = e.latlng;
             marker.setLatLng([newLat, newLng]);
