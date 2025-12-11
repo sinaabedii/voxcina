@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, lazy, Suspense } from "react";
+import { useEffect, useState, lazy, Suspense, useRef } from "react";
 import Link from "next/link";
 import { useProductStore } from "@/store/product-store";
 import { useCategoryStore } from "@/store/category-store";
@@ -15,7 +15,7 @@ import Footer from "@/components/layout/Footer";
 import { ModernSliderSection } from "@/components/home/ModernSlider";
 import HeroSection from "@/components/home/HeroSection";
 import ModernCategoriesSection from "@/components/home/ModernCategoriesSection";
-import { FaArrowLeft } from "react-icons/fa";
+import { FaArrowLeft, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import AnimatedBackground from "@/components/ui/AnimatedBackground";
 
 // Lazy load کردن کامپوننت‌های سنگین
@@ -47,6 +47,18 @@ export default function HomePage() {
   const { addItem: addItemToCart } = useCartStore();
 
   const [isVisible, setIsVisible] = useState(false);
+  const newProductsSliderRef = useRef<HTMLDivElement>(null);
+
+  const scrollNewProducts = (direction: 'left' | 'right') => {
+    if (newProductsSliderRef.current) {
+      const scrollAmount = 260; // width of one card + gap
+      const currentScroll = newProductsSliderRef.current.scrollLeft;
+      const newScroll = direction === 'right' 
+        ? currentScroll + scrollAmount 
+        : currentScroll - scrollAmount;
+      newProductsSliderRef.current.scrollTo({ left: newScroll, behavior: 'smooth' });
+    }
+  };
 
   useEffect(() => {
     fetchFlashSaleProducts();
@@ -262,9 +274,24 @@ export default function HomePage() {
               </div>
             </div>
           ) : (
-            <div className="relative">
+            <div className="relative group">
+              {/* Navigation Arrows */}
+              <button
+                onClick={() => scrollNewProducts('right')}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 dark:bg-voxcina-blue/90 shadow-lg rounded-full p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-white dark:hover:bg-voxcina-blue -translate-x-1/2"
+              >
+                <FaChevronLeft className="w-5 h-5 text-voxcina-blue dark:text-white" />
+              </button>
+              <button
+                onClick={() => scrollNewProducts('left')}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 dark:bg-voxcina-blue/90 shadow-lg rounded-full p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-white dark:hover:bg-voxcina-blue translate-x-1/2"
+              >
+                <FaChevronRight className="w-5 h-5 text-voxcina-blue dark:text-white" />
+              </button>
+              
               <div 
-                className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide"
+                ref={newProductsSliderRef}
+                className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {newProducts.map((product, index) => (
