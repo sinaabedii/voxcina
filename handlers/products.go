@@ -690,6 +690,25 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 		filter["is_flash_sale"] = true
 	}
 
+	// Filter by brand name
+	if brandName := r.URL.Query().Get("brand"); brandName != "" {
+		filter["brand"] = brandName
+	}
+
+	// Filter by brand ID
+	if brandID := r.URL.Query().Get("brandId"); brandID != "" {
+		if oid, err := primitive.ObjectIDFromHex(brandID); err == nil {
+			filter["brandId"] = oid
+		}
+	}
+
+	// Filter by category ID
+	if categoryID := r.URL.Query().Get("categoryId"); categoryID != "" {
+		if oid, err := primitive.ObjectIDFromHex(categoryID); err == nil {
+			filter["category_ids"] = oid
+		}
+	}
+
 	// Fetch all active products (no pagination yet - we'll paginate color variants)
 	cursor, err := collection.Find(ctx, filter)
 	if err != nil {
