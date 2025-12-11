@@ -8,6 +8,7 @@ import { useCartStore } from "@/store/cart-store";
 import { useSliderStore } from "@/store/slider-store";
 import { Product } from "@/types/product";
 import ProductGrid from "@/components/product/ProductGrid";
+import ProductCard from "@/components/product/ProductCard";
 import { motion } from "framer-motion";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -261,8 +262,24 @@ export default function HomePage() {
               </div>
             </div>
           ) : (
-            <div>
-              <ProductGrid items={newProducts} columns={4} />
+            <div className="relative group">
+              {/* Slider Container */}
+              <div 
+                className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-4 scrollbar-hide"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {newProducts.map((product, index) => (
+                  <div 
+                    key={product.productId || index} 
+                    className="flex-shrink-0 w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[calc(25%-12px)] lg:w-[calc(20%-13px)] snap-start"
+                  >
+                    <ProductCard item={product} />
+                  </div>
+                ))}
+              </div>
+              {/* Gradient Fade Effect */}
+              <div className="absolute left-0 top-0 bottom-4 w-8 bg-gradient-to-r from-transparent to-transparent pointer-events-none hidden md:block" />
+              <div className="absolute right-0 top-0 bottom-4 w-8 bg-gradient-to-l from-transparent to-transparent pointer-events-none hidden md:block" />
             </div>
           )}
         </motion.section>
