@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     const postexResponse = await fetch(targetUrl, {
       method: "POST",
       headers: {
-        Authorization: API_KEY,
+        "x-api-key": API_KEY,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(postexRequest),

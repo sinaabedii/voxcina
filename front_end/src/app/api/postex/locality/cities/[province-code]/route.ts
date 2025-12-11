@@ -14,7 +14,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const backendResponse = await fetch(targetUrl, {
       method: 'GET',
       headers: {
-        'Authorization': API_KEY,
+        'x-api-key': API_KEY,
       },
     });
 
