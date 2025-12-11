@@ -48,6 +48,9 @@ export default function HomePage() {
 
   const [isVisible, setIsVisible] = useState(false);
   const newProductsSliderRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
 
   const scrollNewProducts = (direction: 'left' | 'right') => {
     if (newProductsSliderRef.current) {
@@ -58,6 +61,29 @@ export default function HomePage() {
         : currentScroll - scrollAmount;
       newProductsSliderRef.current.scrollTo({ left: newScroll, behavior: 'smooth' });
     }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!newProductsSliderRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - newProductsSliderRef.current.offsetLeft);
+    setScrollLeft(newProductsSliderRef.current.scrollLeft);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !newProductsSliderRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - newProductsSliderRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5; // Scroll speed multiplier
+    newProductsSliderRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
   };
 
   useEffect(() => {
@@ -291,8 +317,12 @@ export default function HomePage() {
               
               <div 
                 ref={newProductsSliderRef}
-                className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                className={`flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory ${isDragging ? '' : 'scroll-smooth'} select-none`}
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', cursor: isDragging ? 'grabbing' : 'grab' }}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseLeave}
               >
                 {newProducts.map((product, index) => (
                   <div 
