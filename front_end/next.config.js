@@ -49,7 +49,12 @@ const nextConfig = {
         destination: `${backendUrl}/uploads/:path*`,
       },
       {
-        source: '/api/:path*',
+        source: '/api/postex/:path*',
+        has: [{ type: 'header', key: 'x-skip-rewrite' }], // Never matches - keeps postex routes in Next.js
+        destination: '/api/postex/:path*',
+      },
+      {
+        source: '/api/:path((?!postex).*)',
         destination: `${backendUrl}/api/:path*`,
       }
     ];
