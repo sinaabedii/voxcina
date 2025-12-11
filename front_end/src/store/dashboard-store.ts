@@ -248,15 +248,18 @@ export const useDashboardStore = create<DashboardState>()(
 
       fetchUserOrders: async () => {
         try {
-          const response = await fetch("/api/orders/user", {
+          const response = await fetch("/api/orders", {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("authToken")}`,
             },
           });
           if (!response.ok) throw new Error("Failed to fetch user orders");
           const data = await response.json();
-          set({ orders: data });
+          // Backend returns { orders_data: [...], has_orders: true/false }
+          const ordersArray = data.orders_data || data.orders || [];
+          set({ orders: ordersArray });
         } catch (e) {
+          console.error("Error fetching user orders:", e);
           set({ orders: [] });
         }
       },
