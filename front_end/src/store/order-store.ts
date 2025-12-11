@@ -120,8 +120,10 @@ export const useOrderStore = create<OrderState & OrderActions>()(
             throw new Error(errorData.message || "Failed to fetch orders");
           }
 
-          const data = await response.json(); // Expect { orders: [], pagination: {...} } or similar
-          const transformedOrders = data.orders?.map(transformBackendOrder) || [];
+          const data = await response.json();
+          // Backend returns orders_data for user orders, orders for admin
+          const ordersArray = data.orders_data || data.orders || [];
+          const transformedOrders = ordersArray.map(transformBackendOrder);
           
           set({
             orders: transformedOrders,
