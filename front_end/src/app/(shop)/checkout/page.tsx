@@ -308,45 +308,118 @@ export default function CheckoutPage() {
       return;
     }
 
+    const token = localStorage.getItem("authToken");
+    if (!token) {
+      toast.error("لطفا وارد حساب کاربری خود شوید");
+      router.push("/sign-in");
+      return;
+    }
+
     try {
       setIsProcessing(true);
 
-      // Convert the address to the format expected by dashboard-store
-      const dashboardAddress = {
-        id: selectedAddress.id || generateId(), // Use the existing ID or generate a new one
+      // Prepare order items for backend
+      const orderItems = cart.items.map((item) => ({
+        product_id: item.productId,
+        variant: {
+          color: item.color || "",
+          color_name: item.colorName || "",
+          size: item.size || "",
+        },
+        quantity: item.quantity,
+        price_at_purchase: item.price,
+      }));
+
+      // Calculate total with shipping
+      const shippingCost = selectedShippingMethod?.price || 0;
+      const totalAmount = summary.total + shippingCost;
+
+      // Prepare shipping address
+      const shippingAddress = {
         title: selectedAddress.title || "",
-        firstName: selectedAddress.firstName || "",
-        lastName: selectedAddress.lastName || "",
-        phoneNumber: selectedAddress.phoneNumber || "",
+        first_name: selectedAddress.firstName || "",
+        last_name: selectedAddress.lastName || "",
+        phone_number: selectedAddress.phoneNumber || "",
         province: selectedAddress.province || "",
+        province_code: selectedAddress.provinceCode || 0,
         city: selectedAddress.city || "",
+        city_code: selectedAddress.cityCode || 0,
         address: selectedAddress.address || "",
-        postalCode: selectedAddress.postalCode || "",
-        isDefault: selectedAddress.isDefault || false,
+        postal_code: selectedAddress.postalCode || "",
         latitude: selectedAddress.latitude || 0,
         longitude: selectedAddress.longitude || 0,
+        is_default: selectedAddress.isDefault || false,
       };
 
-      const orderId = createOrder(
-        cart.items.map((item) => ({
-          productId: item.productId,
-          name: item.product.name,
-          quantity: item.quantity,
-          price: item.price,
-        })),
-        dashboardAddress
-      );
+      // Step 1: Create order in backend
+      const orderResponse = await fetch("/api/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          items: orderItems,
+          totalAmount: totalAmount,
+          shippingAddress: shippingAddress,
+        }),
+      });
 
-      clearCart();
+      if (!orderResponse.ok) {
+        const errorData = await orderResponse.json();
+        throw new Error(errorData.error || "خطا در ثبت سفارش");
+      }
 
-      // simulate payment gateway round-trip
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const orderData = await orderResponse.json();
+      const orderId = orderData.id;
 
-      router.push(`/checkout/success?orderId=${orderId}`);
-    } catch (error) {
+      // Step 2: Handle payment based on selected method
+      if (selectedPaymentMethod === "online") {
+        // Request payment from Zibal
+        const paymentResponse = await fetch("/api/payment/request", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            orderId: orderId,
+            amount: totalAmount * 10, // Convert Toman to Rial
+            description: `سفارش ${orderData.order_number}`,
+            mobile: selectedAddress.phoneNumber,
+          }),
+        });
+
+        if (!paymentResponse.ok) {
+          const errorData = await paymentResponse.json();
+          throw new Error(errorData.error || "خطا در اتصال به درگاه پرداخت");
+        }
+
+        const paymentData = await paymentResponse.json();
+
+        if (paymentData.result === 100 && paymentData.payUrl) {
+          // Clear cart before redirecting
+          clearCart();
+          // Redirect to payment gateway
+          window.location.href = paymentData.payUrl;
+          return;
+        } else {
+          throw new Error("خطا در دریافت لینک پرداخت");
+        }
+      } else if (selectedPaymentMethod === "cod") {
+        // Cash on delivery - just clear cart and show success
+        clearCart();
+        router.push(`/checkout/success?orderId=${orderId}&method=cod`);
+      } else if (selectedPaymentMethod === "wallet") {
+        // Wallet payment - TODO: implement wallet deduction
+        toast.error("پرداخت با کیف پول در حال حاضر فعال نیست");
+        setIsProcessing(false);
+        return;
+      }
+    } catch (error: any) {
       console.error("خطا در ثبت سفارش:", error);
       setIsProcessing(false);
-      toast.error("خطا در ثبت سفارش. لطفا دوباره تلاش کنید.");
+      toast.error(error.message || "خطا در ثبت سفارش. لطفا دوباره تلاش کنید.");
     }
   };
 

@@ -195,16 +195,19 @@ export const PAYMENT_GATEWAYS = [
     id: "zibal",
     name: "زیبال",
     logo: "/images/payment/zibal.png",
+    enabled: true,
   },
   {
     id: "zarinpal",
     name: "زرین‌پال",
     logo: "/images/payment/zarinpal.png",
+    enabled: false, // Not implemented yet
   },
   {
     id: "mellat",
     name: "به‌پرداخت ملت",
     logo: "/images/payment/mellat.png",
+    enabled: false, // Not implemented yet
   },
 ];
 

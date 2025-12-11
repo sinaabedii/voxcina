@@ -156,14 +156,20 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 	trackIDStr := r.URL.Query().Get("trackId")
 	orderIDStr := r.URL.Query().Get("orderId")
 
+	// Get frontend URL for redirect
+	appURL := os.Getenv("APP_URL")
+	if appURL == "" {
+		appURL = "http://localhost:3000"
+	}
+
 	if trackIDStr == "" {
-		utils.ErrorResponse(w, http.StatusBadRequest, "trackId is required")
+		http.Redirect(w, r, appURL+"/checkout/callback?success=0&error=missing_trackId", http.StatusFound)
 		return
 	}
 
 	trackID, err := strconv.ParseInt(trackIDStr, 10, 64)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid trackId format")
+		http.Redirect(w, r, appURL+"/checkout/callback?success=0&error=invalid_trackId", http.StatusFound)
 		return
 	}
 
@@ -186,9 +192,12 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 
 	err = collection.FindOne(ctx, filter).Decode(&order)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusNotFound, "Order not found")
+		http.Redirect(w, r, appURL+"/checkout/callback?success=0&error=order_not_found", http.StatusFound)
 		return
 	}
+
+	redirectURL := fmt.Sprintf("%s/checkout/callback?success=%s&trackId=%s&orderId=%s",
+		appURL, success, trackIDStr, order.ID.Hex())
 
 	if success == "1" {
 		now := time.Now()
@@ -203,16 +212,11 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 		})
 
 		if err != nil {
-			utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to update order status")
+			http.Redirect(w, r, redirectURL+"&error=update_failed", http.StatusFound)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(PaymentCallbackResponse{
-			Result:  100,
-			Message: "Payment callback processed successfully",
-		})
+		http.Redirect(w, r, redirectURL, http.StatusFound)
 		return
 	}
 
@@ -227,16 +231,11 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to update order status")
+		http.Redirect(w, r, redirectURL+"&error=update_failed", http.StatusFound)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(PaymentCallbackResponse{
-		Result:  100,
-		Message: "Payment callback processed",
-	})
+	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
 type VerifyPaymentPayload struct {

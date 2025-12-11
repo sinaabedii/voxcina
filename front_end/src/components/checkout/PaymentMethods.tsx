@@ -82,27 +82,29 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
                   transition={{ duration: 0.3 }}
                   className="mt-4 border-t border-border/10 pt-4 mr-6"
                 >
-                  <p className="text-sm font-medium mb-3">انتخاب درگاه پرداخت:</p>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {PAYMENT_GATEWAYS.map((gateway) => (
+                  <p className="text-sm font-medium mb-3">درگاه پرداخت:</p>
+                  <div className="flex flex-wrap gap-3">
+                    {PAYMENT_GATEWAYS.filter((g) => g.enabled).map((gateway) => (
                       <div
                         key={gateway.id}
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectGateway?.(gateway.id);
                         }}
-                        className={`flex flex-col items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-all duration-200 ${
                           selectedGateway === gateway.id
                             ? "border-primary bg-primary/10"
                             : "border-border/20 hover:border-primary/50"
                         }`}
                       >
-                        <img
-                          src={gateway.logo}
-                          alt={gateway.name}
-                          className="h-8 w-auto mb-2"
+                        <input
+                          type="radio"
+                          checked={selectedGateway === gateway.id}
+                          onChange={() => onSelectGateway?.(gateway.id)}
+                          className="text-primary"
                         />
-                        <span className="text-xs font-medium">{gateway.name}</span>
+                        <CreditCard className="w-5 h-5 text-primary" />
+                        <span className="text-sm font-medium">{gateway.name}</span>
                       </div>
                     ))}
                   </div>
@@ -135,15 +137,9 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
           ))}
         </div>
         
-        <div className="flex justify-between items-center mt-6 pt-4 border-t border-border/10">
-          <div className="flex items-center">
-            <Shield className="w-5 h-5 ml-2 text-primary" />
-            <span className="text-sm text-muted-foreground">پرداخت امن</span>
-          </div>
-          <div className="flex">
-            <img src="/images/payment/shaparak.png" alt="شاپرک" className="h-8 ml-2 opacity-70 hover:opacity-100 transition-opacity duration-200" />
-            <img src="/images/payment/shetab.png" alt="شتاب" className="h-8 opacity-70 hover:opacity-100 transition-opacity duration-200" />
-          </div>
+        <div className="flex items-center mt-6 pt-4 border-t border-border/10">
+          <Shield className="w-5 h-5 ml-2 text-primary" />
+          <span className="text-sm text-muted-foreground">پرداخت امن با رمز دوم پویا</span>
         </div>
       </CardContent>
     </Card>
