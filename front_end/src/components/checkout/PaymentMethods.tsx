@@ -1,39 +1,22 @@
-import React, { useState } from "react";
-import { CreditCard, Wallet, Truck, Shield, ExternalLink, CheckCircle2 } from "lucide-react";
+import React from "react";
+import { CreditCard, Wallet, Truck, Shield, ExternalLink } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { PAYMENT_METHODS } from "@/lib/constants";
+import { PAYMENT_METHODS, PAYMENT_GATEWAYS } from "@/lib/constants";
 import { motion } from "framer-motion";
-
-// Available payment gateways
-const PAYMENT_GATEWAYS = [
-  {
-    id: "zibal",
-    name: "زیبال",
-    logo: "/images/payment/zibal.png",
-    description: "درگاه پرداخت امن زیبال",
-  },
-];
 
 interface PaymentMethodsProps {
   onSelectMethod: (methodId: string) => void;
-  selectedMethod?: string;
   onSelectGateway?: (gatewayId: string) => void;
+  selectedMethod?: string;
   selectedGateway?: string;
 }
 
 const PaymentMethods: React.FC<PaymentMethodsProps> = ({
   onSelectMethod,
-  selectedMethod = "online",
   onSelectGateway,
+  selectedMethod = "online",
   selectedGateway = "zibal",
 }) => {
-  const [internalSelectedGateway, setInternalSelectedGateway] = useState(selectedGateway);
-
-  const handleGatewaySelect = (gatewayId: string) => {
-    setInternalSelectedGateway(gatewayId);
-    onSelectGateway?.(gatewayId);
-  };
-
   const getPaymentIcon = (id: string) => {
     switch (id) {
       case "online":
@@ -90,6 +73,7 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
                 {method.description}
               </p>
 
+              {/* Gateway Selection for Online Payment */}
               {method.id === "online" && selectedMethod === "online" && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
@@ -98,55 +82,34 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
                   transition={{ duration: 0.3 }}
                   className="mt-4 border-t border-border/10 pt-4 mr-6"
                 >
-                  <p className="text-sm font-medium mb-3 text-foreground">
-                    انتخاب درگاه پرداخت:
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <p className="text-sm font-medium mb-3">انتخاب درگاه پرداخت:</p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {PAYMENT_GATEWAYS.map((gateway) => (
-                      <motion.div
+                      <div
                         key={gateway.id}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className={`relative border rounded-lg p-3 cursor-pointer transition-all duration-200 flex items-center gap-3 ${
-                          internalSelectedGateway === gateway.id
-                            ? "border-primary bg-primary/10 shadow-sm"
-                            : "border-border/20 hover:border-primary/40"
-                        }`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleGatewaySelect(gateway.id);
+                          onSelectGateway?.(gateway.id);
                         }}
+                        className={`flex flex-col items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
+                          selectedGateway === gateway.id
+                            ? "border-primary bg-primary/10"
+                            : "border-border/20 hover:border-primary/50"
+                        }`}
                       >
-                        {internalSelectedGateway === gateway.id && (
-                          <CheckCircle2 className="absolute top-2 left-2 w-4 h-4 text-primary" />
-                        )}
-                        <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center border border-border/10">
-                          <img
-                            src={gateway.logo}
-                            alt={gateway.name}
-                            className="w-10 h-10 object-contain"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                              (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-lg font-bold text-primary">${gateway.name.charAt(0)}</span>`;
-                            }}
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-foreground">{gateway.name}</p>
-                          <p className="text-xs text-muted-foreground">{gateway.description}</p>
-                        </div>
-                      </motion.div>
+                        <img
+                          src={gateway.logo}
+                          alt={gateway.name}
+                          className="h-8 w-auto mb-2"
+                        />
+                        <span className="text-xs font-medium">{gateway.name}</span>
+                      </div>
                     ))}
                   </div>
                   
-                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs text-blue-700 dark:text-blue-300 flex items-start">
-                    <ExternalLink className="w-4 h-4 ml-2 mt-0.5 flex-shrink-0" />
-                    <span>پس از ثبت سفارش، به درگاه پرداخت منتقل خواهید شد تا پرداخت را به صورت امن انجام دهید.</span>
-                  </div>
-                  
-                  <div className="mt-3 p-3 bg-secondary/30 rounded-lg text-xs text-muted-foreground flex items-start">
-                    <Shield className="w-4 h-4 ml-2 mt-0.5 text-primary flex-shrink-0" />
-                    <span>تمامی تراکنش‌ها از طریق درگاه‌های معتبر بانکی و با رعایت استانداردهای امنیتی انجام می‌شود.</span>
+                  <div className="mt-4 p-3 bg-secondary/30 rounded-lg text-xs text-muted-foreground flex items-start">
+                    <ExternalLink className="w-4 h-4 ml-2 mt-0.5 text-primary flex-shrink-0" />
+                    <span>پس از تأیید سفارش، به درگاه پرداخت منتقل خواهید شد.</span>
                   </div>
                 </motion.div>
               )}

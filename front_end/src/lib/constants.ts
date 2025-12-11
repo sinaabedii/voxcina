@@ -190,6 +190,24 @@ export const PAYMENT_METHODS = [
   },
 ];
 
+export const PAYMENT_GATEWAYS = [
+  {
+    id: "zibal",
+    name: "زیبال",
+    logo: "/images/payment/zibal.png",
+  },
+  {
+    id: "zarinpal",
+    name: "زرین‌پال",
+    logo: "/images/payment/zarinpal.png",
+  },
+  {
+    id: "mellat",
+    name: "به‌پرداخت ملت",
+    logo: "/images/payment/mellat.png",
+  },
+];
+
 export const fallbackSliders: Slider[] = [
   {
     id: "1",
