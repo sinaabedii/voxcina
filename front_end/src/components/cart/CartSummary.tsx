@@ -165,15 +165,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
                     )}
                   </AnimatePresence>
 
-                  <div className="text-xs text-muted-foreground pt-1 bg-primary/5 p-2 rounded-lg">
-                    <p className="flex items-center">
-                      <Percent className="ml-1 h-3 w-3 text-primary" />
-                      کدهای تخفیف فعال: 
-                      <span className="font-medium text-primary mr-1">WELCOME10</span>, 
-                      <span className="font-medium text-primary mx-1">SUMMER20</span>, 
-                      <span className="font-medium text-primary mr-1">FLASH30</span>
-                    </p>
-                  </div>
+
                 </motion.div>
               )}
             </AnimatePresence>

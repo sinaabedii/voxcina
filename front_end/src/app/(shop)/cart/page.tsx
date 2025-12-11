@@ -425,9 +425,7 @@ export default function CartPage() {
                         </p>
                       )}
 
-                      <div className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 pt-2">
-                        <p>کدهای تخفیف فعال: WELCOME10, SUMMER20, FLASH30</p>
-                      </div>
+
                     </div>
                   )}
                 </div>
