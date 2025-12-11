@@ -21,10 +21,17 @@ export default function CartPage() {
     removePromoCode,
     promoCode,
     dismissCartWarnings,
+    syncCartWithBackend,
+    isLoading,
   } = useCartStore();
   const [promoInput, setPromoInput] = useState("");
   const [promoError, setPromoError] = useState("");
   const warnings = getCartWarnings();
+
+  // Sync cart with backend on mount
+  useEffect(() => {
+    syncCartWithBackend();
+  }, [syncCartWithBackend]);
 
   useEffect(() => {
     if (warnings.length) {
