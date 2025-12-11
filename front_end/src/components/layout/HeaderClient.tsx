@@ -29,11 +29,18 @@ const HeaderClient: React.FC<HeaderClientProps> = ({ navItems }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const pathname = usePathname();
-  const cart = useCartStore((state) => state.cart);
+  const { cart, syncCartWithBackend } = useCartStore();
   const { isAuthenticated, user } = useAuth();
   const router = useRouter();
 
   const itemCount = cart.items.reduce((count, item) => count + item.quantity, 0);
+
+  // Sync cart with backend when user is authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      syncCartWithBackend();
+    }
+  }, [isAuthenticated, syncCartWithBackend]);
 
   useEffect(() => {
     const handleScroll = () => {
