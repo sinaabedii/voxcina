@@ -14,7 +14,6 @@ var jwtKey = []byte("my_secret_key")
 const (
 	RoleCustomer = "customer"
 	RoleAdmin    = "admin"
-	RoleSeller   = "seller"
 )
 
 // Password validation regex: at least 8 characters, one uppercase, one lowercase, one digit
