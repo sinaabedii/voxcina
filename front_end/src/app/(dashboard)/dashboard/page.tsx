@@ -49,9 +49,9 @@ export default function DashboardPage() {
     cartItems: cart.items.length,
   };
 
-  const sortedOrders = [...orders].sort((a, b) => {
-    const da = new Date(a.createdAt || a.date || 0).getTime();
-    const db = new Date(b.createdAt || b.date || 0).getTime();
+  const sortedOrders = [...orders].sort((a: any, b: any) => {
+    const da = new Date(a.created_at || a.createdAt || a.date || 0).getTime();
+    const db = new Date(b.created_at || b.createdAt || b.date || 0).getTime();
     return db - da;
   });
   const filteredOrders =
@@ -398,9 +398,9 @@ export default function DashboardPage() {
                         transition={{ delay: index * 0.05 }}
                         whileHover={{ backgroundColor: 'rgba(244, 241, 236, 0.3)' }}
                       >
-                        <td className="p-4 font-medium text-voxcina-blue dark:text-voxcina-cream">{order.id}</td>
+                        <td className="p-4 font-medium text-voxcina-blue dark:text-voxcina-cream">{order.order_number || order.id}</td>
                         <td className="p-4 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          {order.jalaliCreatedAt || order.date || order.createdAt}
+                          {order.jalali_created_at || order.jalaliCreatedAt || order.date || order.created_at || order.createdAt}
                         </td>
                         <td className="p-4">
                           <span
@@ -408,11 +408,11 @@ export default function DashboardPage() {
                               order.status
                             )}`}
                           >
-                            {order.statusText}
+                            {order.status_text || order.statusText}
                           </span>
                         </td>
                         <td className="p-4 font-bold text-voxcina-blue dark:text-voxcina-cream">
-                          {formatPrice(order.totalAmount ?? order.total ?? 0)}
+                          {formatPrice(order.total_amount ?? order.totalAmount ?? order.total ?? 0)} تومان
                         </td>
                         <td className="p-4 text-left">
                           <motion.button 
