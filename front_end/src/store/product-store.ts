@@ -175,7 +175,8 @@ export const useProductStore = create<ProductState>()(
       fetchFlashSaleProducts: async (limit = 10) => {
         set({ isLoading: true, error: null });
         try {
-          const params = new URLSearchParams({ is_flash_sale: "true", limit: String(limit) });
+          // Fetch all products (removed is_flash_sale filter to show popular products)
+          const params = new URLSearchParams({ limit: String(limit) });
           const response = await fetch(`/api/products?${params.toString()}`);
           if (!response.ok) {
             throw new Error("Failed to fetch flash sale products");
