@@ -5,6 +5,9 @@ import { Product } from "@/types/product";
 import { generateId, formatPrice } from "@/lib/utils";
 import { useAuthStore, type AuthStore } from "./auth-store";
 
+// Module-level flag to prevent duplicate API calls (more reliable than state-based check)
+let isAddingItem = false;
+
 const validPromoCodes = [
   {
     code: "WELCOME10",
@@ -342,14 +345,14 @@ export const useCartStore = create<CartStore>()(
       },
 
       addItem: async (product, quantity, size, color) => {
-        const { cart: currentLocalCart, isLoading } = get();
-        
-        // Prevent double-calls (e.g., from React StrictMode)
-        if (isLoading) {
+        // Prevent double-calls using module-level flag (more reliable than state)
+        if (isAddingItem) {
           console.log('addItem already in progress, skipping duplicate call');
           return;
         }
+        isAddingItem = true;
         
+        const { cart: currentLocalCart } = get();
         set({ isLoading: true, error: null });
         try {
           let isAuthenticated = false;
@@ -411,7 +414,9 @@ export const useCartStore = create<CartStore>()(
         } catch (error) { 
             console.error('Error adding item:', error);
             set({error: error instanceof Error ? error.message : 'Error adding item', isLoading: false}); 
-        } 
+        } finally {
+            isAddingItem = false;
+        }
       },
 
       updateItemQuantity: async (productId, quantity, size, color) => {
