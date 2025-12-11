@@ -186,8 +186,10 @@ export const useCartStore = create<CartStore>()(
 
         set({ isLoading: true, error: null });
         try {
-          // Simply fetch the backend cart - don't merge local items
-          // Local items should only be merged once on login, not on every sync
+          const localCartItems = get().cart.items;
+          const hasLocalItems = localCartItems.length > 0;
+          
+          // Fetch the backend cart
           const response = await fetch('/api/cart', {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
           });
@@ -195,16 +197,49 @@ export const useCartStore = create<CartStore>()(
           let backendCart = null;
 
           if (response.ok) {
-            // Backend cart exists - just use it
+            // Backend cart exists
             backendCart = await response.json();
+            const backendHasItems = backendCart.items?.length > 0;
             console.log('Found existing backend cart with', backendCart.items?.length || 0, 'items');
+            
+            // If we have local items and backend is empty, merge local items to backend
+            if (hasLocalItems && !backendHasItems) {
+              console.log('Backend cart empty, merging local items...');
+              const localCartItemsForBackend = localCartItems.map(item => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                variant: { size: item.size, color: item.color }
+              }));
+
+              const mergeResponse = await fetch('/api/cart', {
+                method: 'POST',
+                headers: { 
+                  'Content-Type': 'application/json', 
+                  'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                },
+                body: JSON.stringify({ items: localCartItemsForBackend })
+              });
+
+              if (mergeResponse.ok) {
+                backendCart = await mergeResponse.json();
+                console.log('✅ Local items merged to backend cart');
+              }
+            }
           } else if (response.status === 404) {
-            // No backend cart exists - create an empty one
-            console.log('No backend cart found, creating new empty cart...');
+            // No backend cart exists - create with local items if any
+            console.log('No backend cart found, creating new cart...');
+            const itemsToCreate = hasLocalItems 
+              ? localCartItems.map(item => ({
+                  productId: item.productId,
+                  quantity: item.quantity,
+                  variant: { size: item.size, color: item.color }
+                }))
+              : [];
+              
             const postResponse = await fetch('/api/cart', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
-              body: JSON.stringify({ items: [] })
+              body: JSON.stringify({ items: itemsToCreate })
             });
 
             if (postResponse.ok) {
@@ -216,7 +251,7 @@ export const useCartStore = create<CartStore>()(
                 isLoading: false,
                 syncRetryCount: 0,
               });
-              console.log('New empty backend cart created.');
+              console.log('New backend cart created with', hasLocalItems ? 'local items' : 'empty items');
               return;
             } else {
               const errorData = await postResponse.json().catch(() => ({ message: 'Failed to create cart' }));
