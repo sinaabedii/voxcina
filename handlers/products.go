@@ -690,6 +690,9 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 		filter["is_flash_sale"] = true
 	}
 
+	// Filter by is_new (for newest products - sort by created_at desc)
+	// Note: is_new doesn't filter, it's handled by sorting below
+
 	// Filter by brand name
 	if brandName := r.URL.Query().Get("brand"); brandName != "" {
 		filter["brand"] = brandName
@@ -709,8 +712,16 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Build find options with sorting
+	findOptions := options.Find()
+	
+	// Sort by created_at desc for newest products
+	if r.URL.Query().Get("is_new") == "true" {
+		findOptions.SetSort(bson.D{{Key: "created_at", Value: -1}})
+	}
+
 	// Fetch all active products (no pagination yet - we'll paginate color variants)
-	cursor, err := collection.Find(ctx, filter)
+	cursor, err := collection.Find(ctx, filter, findOptions)
 	if err != nil {
 		response := map[string]interface{}{
 			"data":       []models.ColorVariantListItem{},
