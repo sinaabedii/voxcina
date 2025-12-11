@@ -5,9 +5,9 @@ const POSTEX_BASE_URL = process.env.POSTEX_URL || "https://api.postex.ir";
 // API key for Postex, provided via Docker / .env as POSTEX_API_KEY
 const API_KEY = process.env.POSTEX_API_KEY || "";
 
-export async function GET(request: NextRequest, { params }: { params: { "province-code": string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ "province-code": string }> }) {
   try {
-    const provinceCode = params["province-code"];
+    const { "province-code": provinceCode } = await params;
     const { search } = request.nextUrl;
     const targetUrl = `${POSTEX_BASE_URL}/api/v1/locality/cities/${provinceCode}${search}`;
 
