@@ -27,13 +27,24 @@ func Connect(cfg *config.Config) *mongo.Database {
 	Client = client
 	Database = client.Database(cfg.DBName)
 
-	// Ensure unique index for email in users collection upon connection
+	// Ensure unique index for phone in users collection upon connection
 	usersCollection := Database.Collection("users")
-	indexModel := mongo.IndexModel{
-		Keys:    bson.D{{Key: "email", Value: 1}}, // 1 for ascending order
+	phoneIndexModel := mongo.IndexModel{
+		Keys:    bson.D{{Key: "phone", Value: 1}}, // 1 for ascending order
 		Options: options.Index().SetUnique(true),
 	}
-	_, err = usersCollection.Indexes().CreateOne(context.Background(), indexModel)
+	_, err = usersCollection.Indexes().CreateOne(context.Background(), phoneIndexModel)
+	if err != nil {
+		log.Printf("Warning: Could not ensure unique index for users phone: %v", err)
+		// If index creation failure is critical, consider log.Fatal(err)
+	}
+
+	// Ensure unique index for email in users collection (sparse index for optional emails)
+	emailIndexModel := mongo.IndexModel{
+		Keys:    bson.D{{Key: "email", Value: 1}}, // 1 for ascending order
+		Options: options.Index().SetUnique(true).SetSparse(true), // Sparse allows multiple null/empty values
+	}
+	_, err = usersCollection.Indexes().CreateOne(context.Background(), emailIndexModel)
 	if err != nil {
 		log.Printf("Warning: Could not ensure unique index for users email: %v", err)
 		// If index creation failure is critical, consider log.Fatal(err)

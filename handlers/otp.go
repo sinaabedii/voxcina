@@ -317,6 +317,7 @@ func VerifySignupOTP(w http.ResponseWriter, r *http.Request) {
 		Name:         otp.FirstName + " " + otp.LastName,
 		Phone:        req.Phone,
 		PasswordHash: string(hashedPassword),
+		Addresses:    []models.Address{}, // Initialize with empty slice
 		Role:         RoleCustomer,
 		IsActive:     true,
 		CreatedAt:    time.Now(),
@@ -325,7 +326,13 @@ func VerifySignupOTP(w http.ResponseWriter, r *http.Request) {
 
 	_, err = userCollection.InsertOne(ctx, user)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در ایجاد حساب کاربری")
+		// Log the actual error for debugging
+		fmt.Printf("User creation error: %v\n", err)
+		if strings.Contains(err.Error(), "duplicate key") {
+			utils.ErrorResponse(w, http.StatusConflict, "این شماره تلفن قبلاً ثبت شده است")
+		} else {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در ایجاد حساب کاربری")
+		}
 		return
 	}
 
