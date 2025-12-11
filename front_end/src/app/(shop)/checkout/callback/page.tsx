@@ -16,7 +16,7 @@ function CallbackContent() {
   const [trackId, setTrackId] = useState<string | null>(null);
 
   useEffect(() => {
-    const verifyPayment = async () => {
+    const handleCallback = async () => {
       const success = searchParams.get("success");
       const trackIdParam = searchParams.get("trackId");
       const orderIdParam = searchParams.get("orderId");
@@ -24,43 +24,14 @@ function CallbackContent() {
       setTrackId(trackIdParam);
       setOrderId(orderIdParam);
 
-      if (success === "1" && trackIdParam) {
-        // Payment was successful, verify it
-        try {
-          const token = localStorage.getItem("authToken");
-          if (!token) {
-            setStatus("failed");
-            setMessage("لطفا وارد حساب کاربری خود شوید");
-            return;
-          }
-
-          const response = await fetch("/api/payment/verify", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ trackId: parseInt(trackIdParam) }),
-          });
-
-          const data = await response.json();
-
-          if (response.ok && data.paymentStatus === "paid") {
-            setStatus("success");
-            setMessage("پرداخت با موفقیت انجام شد");
-            // Redirect to success page after a short delay
-            setTimeout(() => {
-              router.push(`/checkout/success?orderId=${orderIdParam}&trackId=${trackIdParam}`);
-            }, 2000);
-          } else {
-            setStatus("failed");
-            setMessage(data.statusText || "خطا در تأیید پرداخت");
-          }
-        } catch (error) {
-          console.error("Payment verification error:", error);
-          setStatus("failed");
-          setMessage("خطا در ارتباط با سرور");
-        }
+      if (success === "1") {
+        // Payment was successful - backend already updated the order
+        setStatus("success");
+        setMessage("پرداخت با موفقیت انجام شد");
+        // Redirect to success page after a short delay
+        setTimeout(() => {
+          router.push(`/checkout/success?orderId=${orderIdParam}&trackId=${trackIdParam}`);
+        }, 1500);
       } else {
         // Payment failed or was cancelled
         setStatus("failed");
@@ -68,7 +39,7 @@ function CallbackContent() {
       }
     };
 
-    verifyPayment();
+    handleCallback();
   }, [searchParams, router]);
 
   return (
