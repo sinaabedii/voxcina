@@ -553,7 +553,7 @@ export const useCartStore = create<CartStore>()(
         }
         discountVal = Math.min(subtotal, discountVal);
         const subtotalAfterDiscount = subtotal - discountVal;
-        const taxRate = 0.09; // 9% tax
+        const taxRate = 0.10; // 10% tax
         const tax = subtotalAfterDiscount * taxRate;
         const shipping = subtotalAfterDiscount > 500000 ? 0 : 35000; // Free shipping over 500,000
         const total = subtotalAfterDiscount + tax + shipping;
