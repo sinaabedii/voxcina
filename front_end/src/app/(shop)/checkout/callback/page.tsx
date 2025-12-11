@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Link from "next/link";
 
-export default function PaymentCallbackPage() {
+function CallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<"loading" | "success" | "failed">("loading");
@@ -136,5 +136,23 @@ export default function PaymentCallbackPage() {
         )}
       </motion.div>
     </div>
+  );
+}
+
+export default function PaymentCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container py-16 flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="w-16 h-16 animate-spin text-primary mx-auto mb-6" />
+            <h1 className="text-xl font-bold mb-2">در حال بررسی پرداخت...</h1>
+            <p className="text-muted-foreground">لطفاً صبر کنید</p>
+          </div>
+        </div>
+      }
+    >
+      <CallbackContent />
+    </Suspense>
   );
 }
