@@ -66,12 +66,13 @@ export default function CheckoutPage() {
 
   /* ────────────────────────────────────────────
      Redirect to /cart on the CLIENT only
+     Skip redirect if we're processing payment (cart cleared before redirect)
   ───────────────────────────────────────────── */
   useEffect(() => {
-    if (cart.items.length === 0) {
+    if (cart.items.length === 0 && !isProcessing) {
       router.replace("/cart");
     }
-  }, [cart.items.length, router]);
+  }, [cart.items.length, router, isProcessing]);
 
   /* Select default address when addresses load */
   useEffect(() => {
@@ -125,8 +126,9 @@ export default function CheckoutPage() {
   }, [formData.province, provinces]); // Remove fetchCities from dependencies
 
   /* While the redirect effect hasn't run yet, render nothing.
-     This avoids executing any of the heavy checkout UI on the server. */
-  if (cart.items.length === 0) return null;
+     This avoids executing any of the heavy checkout UI on the server.
+     Skip this check if we're processing payment (cart cleared before redirect) */
+  if (cart.items.length === 0 && !isProcessing) return null;
 
   /* ────────────────────────────────────────────
      Address form handlers
