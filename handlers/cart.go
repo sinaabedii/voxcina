@@ -1007,7 +1007,7 @@ func calculateCartSummaryInternal(items []CartItemResponse) CartSummary {
 		subtotal += item.Product.Price * float64(item.Quantity)
 	}
 
-	tax := subtotal * 0.09
+	tax := subtotal * 0.10
 	shipping := 0.0
 	if len(items) > 0 {
 		shipping = 150000
