@@ -342,7 +342,14 @@ export const useCartStore = create<CartStore>()(
       },
 
       addItem: async (product, quantity, size, color) => {
-        const { cart: currentLocalCart } = get();
+        const { cart: currentLocalCart, isLoading } = get();
+        
+        // Prevent double-calls (e.g., from React StrictMode)
+        if (isLoading) {
+          console.log('addItem already in progress, skipping duplicate call');
+          return;
+        }
+        
         set({ isLoading: true, error: null });
         try {
           let isAuthenticated = false;
@@ -408,6 +415,14 @@ export const useCartStore = create<CartStore>()(
       },
 
       updateItemQuantity: async (productId, quantity, size, color) => {
+        const { isLoading } = get();
+        
+        // Prevent double-calls
+        if (isLoading) {
+          console.log('updateItemQuantity already in progress, skipping duplicate call');
+          return;
+        }
+        
         set({ isLoading: true, error: null });
         try {
           let isAuthenticated = false;
@@ -452,6 +467,14 @@ export const useCartStore = create<CartStore>()(
       },
 
       removeItem: async (productId, size, color) => {
+        const { isLoading } = get();
+        
+        // Prevent double-calls
+        if (isLoading) {
+          console.log('removeItem already in progress, skipping duplicate call');
+          return;
+        }
+        
         set({ isLoading: true, error: null });
         try {
           let isAuthenticated = false;
