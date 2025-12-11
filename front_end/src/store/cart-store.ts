@@ -186,113 +186,41 @@ export const useCartStore = create<CartStore>()(
 
         set({ isLoading: true, error: null });
         try {
-          const localCartItems = get().cart.items;
-          const hasLocalItems = localCartItems.length > 0;
-          
-          // First, always fetch the existing backend cart
+          // Simply fetch the backend cart - don't merge local items
+          // Local items should only be merged once on login, not on every sync
           const response = await fetch('/api/cart', {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
           });
 
           let backendCart = null;
-          let needsItemAddition = false;
 
           if (response.ok) {
-            // Backend cart exists
+            // Backend cart exists - just use it
             backendCart = await response.json();
             console.log('Found existing backend cart with', backendCart.items?.length || 0, 'items');
-            
-            if (hasLocalItems) {
-              // ✅ Use merge endpoint - send ALL local items to POST /api/cart
-              // Backend will intelligently merge: increment quantities for duplicates, add new items
-              console.log(`Merging ${localCartItems.length} local items with existing backend cart...`);
-              
-              const localCartItemsForBackend = localCartItems.map(item => ({
-                productId: item.productId,
-                quantity: item.quantity,
-                variant: { size: item.size, color: item.color }
-              }));
-
-              try {
-                const mergeResponse = await fetch('/api/cart', {
-                  method: 'POST',
-                  headers: { 
-                    'Content-Type': 'application/json', 
-                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-                  },
-                  body: JSON.stringify({ items: localCartItemsForBackend })
-                });
-
-                if (mergeResponse.ok) {
-                  // Backend has merged carts, get the final result
-                  backendCart = await mergeResponse.json();
-                  console.log('✅ Cart merge completed - backend cart now has', backendCart.items?.length || 0, 'items');
-                  needsItemAddition = false; // Already have final merged cart
-                } else {
-                  const errorData = await mergeResponse.json().catch(() => ({ message: 'Failed to merge carts' }));
-                  console.warn('Failed to merge carts:', errorData.message);
-                  // Fall through to use existing backend cart
-                }
-              } catch (mergeError) {
-                console.warn('Error during cart merge:', mergeError);
-                // Fall through to use existing backend cart
-              }
-            }
           } else if (response.status === 404) {
-            // No backend cart exists
-            if (hasLocalItems) {
-              console.log('No backend cart found, creating new cart with local items...');
-              const localCartItemsForBackend = localCartItems.map(item => ({
-                productId: item.productId,
-                quantity: item.quantity,
-                variant: { size: item.size, color: item.color }
-              }));
+            // No backend cart exists - create an empty one
+            console.log('No backend cart found, creating new empty cart...');
+            const postResponse = await fetch('/api/cart', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
+              body: JSON.stringify({ items: [] })
+            });
 
-              const postResponse = await fetch('/api/cart', { 
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
-                body: JSON.stringify({ items: localCartItemsForBackend })
+            if (postResponse.ok) {
+              const rawNewCart = await postResponse.json();
+              const { cart: processedCart, summary: processedSummary } = processBackendCartData(rawNewCart);
+              set({
+                cart: processedCart,
+                summary: processedSummary,
+                isLoading: false,
+                syncRetryCount: 0,
               });
-
-              if (postResponse.ok) {
-                const rawNewCart = await postResponse.json();
-                const { cart: processedCart, summary: processedSummary } = processBackendCartData(rawNewCart);
-                set({
-                  cart: processedCart,
-                  summary: processedSummary,
-                  isLoading: false,
-                  syncRetryCount: 0,
-                });
-                console.log('New backend cart created with local items.');
-                return; // Exit early since we have our final cart
-              } else {
-                const errorData = await postResponse.json().catch(() => ({ message: 'Failed to create cart' }));
-                throw new Error(errorData.message || 'Failed to create backend cart');
-              }
+              console.log('New empty backend cart created.');
+              return;
             } else {
-              // No local items and no backend cart - create an empty cart on backend
-              console.log('No local items and no backend cart, creating new empty cart on backend...');
-              const postResponse = await fetch('/api/cart', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
-                body: JSON.stringify({ items: [] }) // Send empty items array
-              });
-
-              if (postResponse.ok) {
-                const rawNewCart = await postResponse.json();
-                const { cart: processedCart, summary: processedSummary } = processBackendCartData(rawNewCart);
-                set({
-                  cart: processedCart,
-                  summary: processedSummary,
-                  isLoading: false,
-                  syncRetryCount: 0,
-                });
-                console.log('New empty backend cart created.');
-                return; // Exit early
-              } else {
-                const errorData = await postResponse.json().catch(() => ({ message: 'Failed to create empty cart' }));
-                throw new Error(errorData.message || 'Failed to create empty backend cart');
-              }
+              const errorData = await postResponse.json().catch(() => ({ message: 'Failed to create cart' }));
+              throw new Error(errorData.message || 'Failed to create backend cart');
             }
           } else {
             const errorData = await response.json().catch(() => ({ message: 'Failed to get backend cart'}));
@@ -301,29 +229,14 @@ export const useCartStore = create<CartStore>()(
               errorData.message === 'Active cart is empty for user' ||
               errorData.error === 'Active cart is empty for user'
             ) {
-              // Set empty cart and summary
               const { cart: emptyCart, summary: emptySummary } = processBackendCartData({ items: [], summary: { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 } });
               set({ cart: emptyCart, summary: emptySummary, isLoading: false });
-              return; // Exit early
+              return;
             }
             throw new Error(errorData.message || errorData.error || 'Failed to get backend cart');
           }
           
-          // If we added items, fetch the updated cart; otherwise use the existing backend cart
-          if (needsItemAddition) {
-            console.log('Fetching updated backend cart after adding items...');
-            const updatedResponse = await fetch('/api/cart', {
-              headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
-            });
-            
-            if (updatedResponse.ok) {
-              backendCart = await updatedResponse.json();
-            } else {
-              console.warn('Failed to fetch updated cart, using previous backend cart state');
-            }
-          }
-          
-          // Process and set the final cart state
+          // Process and set the final cart state from backend
           const { cart: processedCart, summary: processedSummary } = processBackendCartData(backendCart);
           set({
             cart: processedCart,
