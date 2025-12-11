@@ -22,23 +22,7 @@ import (
 	"backEnd/utils"
 )
 
-var jwtKey = []byte(
-	"my_secret_key",
-) // TODO: Use a strong, configurable secret key from env variables
-
-const (
-	RoleCustomer = "customer"
-	RoleAdmin    = "admin"
-)
-
-// Password validation regex: at least 8 characters, one uppercase, one lowercase, one digit
-var passwordRegex = regexp.MustCompile(`^(.{0,7}|[^0-9]*|[^A-Z]*|[^a-z]*)$`)
-
-// Email validation regex (optional)
-var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-
-// IR phone number validation regex: 09xxxxxxxxx (11 digits starting with 09)
-var irPhoneRegex = regexp.MustCompile(`^09[0-9]{9}$`)
+// Shared constants and variables are now in auth_common.go
 
 // Register handles POST /api/users/register
 func Register(w http.ResponseWriter, r *http.Request) {
@@ -208,13 +192,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, http.StatusCreated, userResponse)
 }
 
-// Claims struct for JWT
-type Claims struct {
-	UserID primitive.ObjectID `json:"user_id"`
-	Email  string             `json:"email"`
-	Role   string             `json:"role"`
-	jwt.RegisteredClaims
-}
+// Claims struct is now defined in auth_common.go
 
 // Login handles POST /api/users/login
 func Login(w http.ResponseWriter, r *http.Request) {

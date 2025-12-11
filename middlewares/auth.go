@@ -38,9 +38,8 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		claims := &handlers.Claims{} // Uses Claims struct from handlers package
 
-		// IMPORTANT: Ensure jwtKey is consistent with the key used in token generation (e.g., in handlers/users.go)
-		// TODO: Centralize this JWT key, perhaps via environment variable or a config package.
-		var jwtKey = []byte("my_secret_key")
+		// Use the shared JWT key from handlers package
+		jwtKey := handlers.GetJWTKey()
 
 		token, err := jwt.ParseWithClaims(
 			tokenString,
