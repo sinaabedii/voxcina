@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Base URL for the Postex API (override via POSTEX_BASE_URL)
-const POSTEX_BASE_URL = process.env.POSTEX_BASE_URL || "https://api.postex.ir";
+// Base URL for the Postex API (override via POSTEX_URL)
+const POSTEX_BASE_URL = process.env.POSTEX_URL || "https://api.postex.ir";
 // API key for Postex, provided via Docker / .env as POSTEX_API_KEY
 const API_KEY = process.env.POSTEX_API_KEY || "";
 
@@ -28,4 +28,4 @@ export async function GET(request: NextRequest, { params }: { params: { "provinc
     console.error("Error in cities proxy:", error);
     return NextResponse.json({ error: 'Proxy error' }, { status: 500 });
   }
-} 
+}

@@ -21,7 +21,9 @@ export interface Address {
   lastName: string;
   phoneNumber: string;
   province: string;
+  provinceCode: number;
   city: string;
+  cityCode: number;
   address: string;
   postalCode: string;
   isDefault: boolean;
@@ -36,10 +38,12 @@ export interface BackendAddress {
   last_name?: string;
   phone_number?: string;
   province?: string;
+  province_code?: number;
   address?: string;
   postal_code: string;
   street?: string;
   city: string;
+  city_code?: number;
   state?: string;
   country?: string;
   is_default: boolean;

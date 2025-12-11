@@ -9,22 +9,24 @@ import (
 // Address represents a shipping or billing address for a user
 type Address struct {
 	// Frontend Persian-specific fields
-	Title       string  `bson:"title,omitempty"        json:"title,omitempty"`
-	FirstName   string  `bson:"first_name,omitempty"   json:"first_name,omitempty"`
-	LastName    string  `bson:"last_name,omitempty"    json:"last_name,omitempty"`
-	PhoneNumber string  `bson:"phone_number,omitempty" json:"phone_number,omitempty"`
-	Province    string  `bson:"province,omitempty"     json:"province,omitempty"`
-	Address     string  `bson:"address,omitempty"      json:"address,omitempty"`
-	PostalCode  string  `bson:"postal_code"            json:"postal_code"`
-	Latitude    float64 `bson:"latitude,omitempty"    json:"latitude,omitempty"`
-	Longitude   float64 `bson:"longitude,omitempty"   json:"longitude,omitempty"`
+	Title        string  `bson:"title,omitempty"         json:"title,omitempty"`
+	FirstName    string  `bson:"first_name,omitempty"    json:"first_name,omitempty"`
+	LastName     string  `bson:"last_name,omitempty"     json:"last_name,omitempty"`
+	PhoneNumber  string  `bson:"phone_number,omitempty"  json:"phone_number,omitempty"`
+	Province     string  `bson:"province,omitempty"      json:"province,omitempty"`
+	ProvinceCode int     `bson:"province_code,omitempty" json:"province_code,omitempty"`
+	Address      string  `bson:"address,omitempty"       json:"address,omitempty"`
+	PostalCode   string  `bson:"postal_code"             json:"postal_code"`
+	Latitude     float64 `bson:"latitude,omitempty"      json:"latitude,omitempty"`
+	Longitude    float64 `bson:"longitude,omitempty"     json:"longitude,omitempty"`
 
 	// Original backend fields (kept for compatibility)
-	Street    string `bson:"street,omitempty"  json:"street,omitempty"`
-	City      string `bson:"city"              json:"city"`
-	State     string `bson:"state,omitempty"   json:"state,omitempty"`
-	Country   string `bson:"country,omitempty" json:"country,omitempty"`
-	IsDefault bool   `bson:"is_default"        json:"is_default"`
+	Street    string `bson:"street,omitempty"    json:"street,omitempty"`
+	City      string `bson:"city"                json:"city"`
+	CityCode  int    `bson:"city_code,omitempty" json:"city_code,omitempty"`
+	State     string `bson:"state,omitempty"     json:"state,omitempty"`
+	Country   string `bson:"country,omitempty"   json:"country,omitempty"`
+	IsDefault bool   `bson:"is_default"          json:"is_default"`
 }
 
 // User represents a registered user

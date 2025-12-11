@@ -24,7 +24,7 @@ export function useLocality() {
   const fetchProvinces = async () => {
     setLoadingProvinces(true);
     try {
-      const response = await fetch('/api/locality/provinces');
+      const response = await fetch('/api/postex/locality/provinces');
       const resJson = await response.json();
       const list = Array.isArray(resJson)
         ? resJson
@@ -44,7 +44,7 @@ export function useLocality() {
   const fetchCities = async (provinceCode: number) => {
     setLoadingCities(true);
     try {
-      const response = await fetch(`/api/locality/cities/${provinceCode}`);
+      const response = await fetch(`/api/postex/locality/cities/${provinceCode}`);
       const resJson = await response.json();
       const list = Array.isArray(resJson)
         ? resJson

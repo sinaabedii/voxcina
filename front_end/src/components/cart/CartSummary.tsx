@@ -9,12 +9,21 @@ import { motion, AnimatePresence } from "framer-motion";
 
 interface CartSummaryProps {
   showCheckoutButton?: boolean;
+  shippingCost?: number; // Optional override for shipping cost (used in checkout with dynamic shipping)
 }
 
 const CartSummary: React.FC<CartSummaryProps> = ({
   showCheckoutButton = true,
+  shippingCost,
 }) => {
   const { summary, promoCode, applyPromoCode, removePromoCode } = useCart();
+  
+  // Use provided shipping cost or fall back to cart summary shipping
+  const effectiveShipping = shippingCost !== undefined ? shippingCost : summary.shipping;
+  // Recalculate total if shipping cost is overridden
+  const effectiveTotal = shippingCost !== undefined 
+    ? summary.subtotal - summary.discount + summary.tax + shippingCost
+    : summary.total;
   const [promoInput, setPromoInput] = useState("");
   const [promoError, setPromoError] = useState("");
 
@@ -57,7 +66,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
 
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">هزینه ارسال</span>
-            <span>{formatPrice(summary.shipping)}</span>
+            <span>{effectiveShipping === 0 ? "رایگان" : formatPrice(effectiveShipping)}</span>
           </div>
 
           <AnimatePresence>
@@ -80,7 +89,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
           <div className="border-t border-border/10 pt-4 mt-4">
             <div className="flex justify-between font-bold text-primary">
               <span>مجموع</span>
-              <span>{formatPrice(summary.total)}</span>
+              <span>{formatPrice(effectiveTotal)}</span>
             </div>
           </div>
 

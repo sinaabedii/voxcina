@@ -15,9 +15,11 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
+  User,
 } from "lucide-react";
 import { useAddress } from "@/hooks/useAddress";
 import { useLocality } from "@/hooks/useLocality";
+import { useAuthStore } from "@/store/auth-store";
 import { motion, AnimatePresence } from "framer-motion";
 import { Address } from "@/types/user";
 import { toast } from "react-hot-toast";
@@ -34,6 +36,7 @@ export default function AddressesPage() {
     setDefaultAddress,
   } = useAddress();
   const { provinces, cities, fetchCities, loadingProvinces, loadingCities } = useLocality();
+  const { user } = useAuthStore();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<string | null>(null);
@@ -47,7 +50,9 @@ export default function AddressesPage() {
     lastName: "",
     phoneNumber: "",
     province: "",
+    provinceCode: 0,
     city: "",
+    cityCode: 0,
     address: "",
     postalCode: "",
     isDefault: false,
@@ -66,7 +71,9 @@ export default function AddressesPage() {
         lastName: "",
         phoneNumber: "",
         province: "",
+        provinceCode: 0,
         city: "",
+        cityCode: 0,
         address: "",
         postalCode: "",
         isDefault: false,
@@ -97,6 +104,24 @@ export default function AddressesPage() {
       setFormData({ ...formData, [name]: checked });
     } else if (type === "radio") {
       setFormData({ ...formData, addressType: value });
+    } else if (name === "province") {
+      // When province changes, also set the province code and reset city
+      const selectedProvince = provinces.find((p) => p.province_name === value);
+      setFormData({
+        ...formData,
+        province: value,
+        provinceCode: selectedProvince?.province_code || 0,
+        city: "",
+        cityCode: 0,
+      });
+    } else if (name === "city") {
+      // When city changes, also set the city code
+      const selectedCity = cities.find((c) => c.city_name === value);
+      setFormData({
+        ...formData,
+        city: value,
+        cityCode: selectedCity?.city_code || 0,
+      });
     } else {
       setFormData({ ...formData, [name]: value });
     }
@@ -115,7 +140,9 @@ export default function AddressesPage() {
       lastName: address.lastName || "",
       phoneNumber: address.phoneNumber || "",
       province: address.province || "",
+      provinceCode: address.provinceCode || 0,
       city: address.city || "",
+      cityCode: address.cityCode || 0,
       address: address.address || "",
       postalCode: address.postalCode || "",
       isDefault: address.isDefault || false,
@@ -136,7 +163,9 @@ export default function AddressesPage() {
       lastName: "",
       phoneNumber: "",
       province: "",
+      provinceCode: 0,
       city: "",
+      cityCode: 0,
       address: "",
       postalCode: "",
       isDefault: addresses.length === 0, // Auto set as default if first address
@@ -602,6 +631,33 @@ export default function AddressesPage() {
               }
               className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
             />
+
+            <div className="flex justify-end mb-2">
+              {user && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const nameParts = user.name?.split(' ') || [];
+                    const firstName = nameParts[0] || '';
+                    const lastName = nameParts.slice(1).join(' ') || '';
+                    setFormData(prev => ({
+                      ...prev,
+                      firstName,
+                      lastName,
+                      phoneNumber: user.phone || prev.phoneNumber,
+                    }));
+                    toast.success("اطلاعات شما از پروفایل کاربری وارد شد");
+                  }}
+                  disabled={isSubmitting}
+                  className="text-xs rounded-lg border-voxcina-blue/30 text-voxcina-blue dark:border-voxcina-cream/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-cream/5"
+                >
+                  <User className="w-3 h-3 ml-1" />
+                  استفاده از اطلاعات پروفایل
+                </Button>
+              )}
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input

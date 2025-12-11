@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Truck, AlertCircle, MapPin, Plus, Home, Briefcase, Edit, Loader2 } from "lucide-react";
+import { Check, Truck, AlertCircle, MapPin, Plus, Home, Briefcase, Edit, Loader2, User } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -11,13 +11,15 @@ import Input from "@/components/ui/input";
 import Modal from "@/components/ui/Modal";
 import MapPicker from "@/components/ui/MapPicker";
 import PaymentMethods from "@/components/checkout/PaymentMethods";
+import ShippingMethodSelector from "@/components/checkout/ShippingMethodSelector";
 import CartSummary from "@/components/cart/CartSummary";
 import { useCart } from "@/hooks/useCart";
 import { useAddress } from "@/hooks/useAddress";
 import { useLocality } from "@/hooks/useLocality";
 import { useDashboardStore } from "@/store/dashboard-store";
+import { useAuthStore } from "@/store/auth-store";
 import { Address } from "@/types/user";
-import { SHIPPING_METHODS } from "@/lib/constants";
+import { ShippingMethod } from "@/services/shipping/types";
 import { formatPrice, generateId } from "@/lib/utils";
 import { toast } from "react-hot-toast";
 
@@ -25,6 +27,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { cart, summary, clearCart } = useCart();
   const { createOrder } = useDashboardStore();
+  const { user } = useAuthStore();
   const { 
     addresses, 
     isLoading: addressesLoading, 
@@ -37,9 +40,7 @@ export default function CheckoutPage() {
 
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("online");
-  const [selectedShippingMethod, setSelectedShippingMethod] = useState(
-    SHIPPING_METHODS[0].id
-  );
+  const [selectedShippingMethod, setSelectedShippingMethod] = useState<ShippingMethod | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<string | null>(null);
@@ -52,7 +53,9 @@ export default function CheckoutPage() {
     lastName: "",
     phoneNumber: "",
     province: "",
+    provinceCode: 0,
     city: "",
+    cityCode: 0,
     address: "",
     postalCode: "",
     isDefault: false,
@@ -92,7 +95,9 @@ export default function CheckoutPage() {
         lastName: "",
         phoneNumber: "",
         province: "",
+        provinceCode: 0,
         city: "",
+        cityCode: 0,
         address: "",
         postalCode: "",
         isDefault: false,
@@ -137,11 +142,22 @@ export default function CheckoutPage() {
     } else if (type === "radio") {
       setFormData({ ...formData, addressType: value });
     } else if (name === "province") {
-      // When province changes, reset city
-      setFormData({ 
-        ...formData, 
-        [name]: value,
-        city: "" // Reset city when province changes
+      // When province changes, also set the province code and reset city
+      const selectedProvince = provinces.find((p) => p.province_name === value);
+      setFormData({
+        ...formData,
+        province: value,
+        provinceCode: selectedProvince?.province_code || 0,
+        city: "",
+        cityCode: 0,
+      });
+    } else if (name === "city") {
+      // When city changes, also set the city code
+      const selectedCity = cities.find((c) => c.city_name === value);
+      setFormData({
+        ...formData,
+        city: value,
+        cityCode: selectedCity?.city_code || 0,
       });
     } else {
       setFormData({ ...formData, [name]: value });
@@ -155,7 +171,9 @@ export default function CheckoutPage() {
       lastName: "",
       phoneNumber: "",
       province: "",
+      provinceCode: 0,
       city: "",
+      cityCode: 0,
       address: "",
       postalCode: "",
       isDefault: addresses.length === 0, // Auto set as default if first address
@@ -180,7 +198,9 @@ export default function CheckoutPage() {
       lastName: address.lastName || "",
       phoneNumber: address.phoneNumber || "",
       province: address.province || "",
+      provinceCode: address.provinceCode || 0,
       city: address.city || "",
+      cityCode: address.cityCode || 0,
       address: address.address || "",
       postalCode: address.postalCode || "",
       isDefault: address.isDefault || false,
@@ -548,70 +568,18 @@ export default function CheckoutPage() {
           >
             <Card className="border border-voxcina-cream/30 dark:border-voxcina-blue/30 bg-white/90 dark:bg-voxcina-blue/10 shadow-sm rounded-2xl backdrop-blur-sm">
               <CardContent className="p-6">
-                <h2 className="text-lg font-semibold mb-6 text-voxcina-blue dark:text-voxcina-cream">
+                <h2 className="text-lg font-semibold mb-6 text-voxcina-blue dark:text-voxcina-cream flex items-center">
+                  <Truck className="w-5 h-5 ml-2" />
                   روش ارسال
                 </h2>
 
-                <div className="space-y-4">
-                  {SHIPPING_METHODS.map((method) => (
-                    <div
-                      key={method.id}
-                      className={`border rounded-xl p-4 cursor-pointer transition-all duration-300 ${
-                        selectedShippingMethod === method.id
-                          ? "border-voxcina-blue dark:border-voxcina-cream/70 bg-voxcina-cream/30 dark:bg-voxcina-blue/20 shadow-sm"
-                          : "border-voxcina-cream/30 dark:border-voxcina-blue/30 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/30 hover:shadow-sm"
-                      }`}
-                      onClick={() => setSelectedShippingMethod(method.id)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <div className="relative flex items-center">
-                            <input
-                              type="radio"
-                              id={`shipping-${method.id}`}
-                              name="shipping-method"
-                              checked={selectedShippingMethod === method.id}
-                              onChange={() =>
-                                setSelectedShippingMethod(method.id)
-                              }
-                              className="w-5 h-5 opacity-0 absolute"
-                            />
-                            <div
-                              className={`w-5 h-5 rounded-full border flex items-center justify-center mr-3 ml-2 transition-all duration-200 ${
-                                selectedShippingMethod === method.id
-                                  ? "border-voxcina-blue dark:border-voxcina-cream bg-voxcina-blue dark:bg-voxcina-cream text-white dark:text-voxcina-blue"
-                                  : "border-voxcina-blue/30 dark:border-voxcina-cream/30"
-                              }`}
-                            >
-                              {selectedShippingMethod === method.id && (
-                                <Check className="w-3 h-3" />
-                              )}
-                            </div>
-                            <label
-                              htmlFor={`shipping-${method.id}`}
-                              className="font-medium cursor-pointer text-voxcina-blue dark:text-voxcina-cream"
-                            >
-                              {method.title}
-                            </label>
-                          </div>
-                        </div>
-                        <span
-                          className={`font-bold ${
-                            selectedShippingMethod === method.id
-                              ? "text-voxcina-blue dark:text-voxcina-cream"
-                              : "text-voxcina-blue/70 dark:text-voxcina-cream/70"
-                          }`}
-                        >
-                          {formatPrice(method.price)}
-                        </span>
-                      </div>
-                      <div className="flex mt-3 mr-10 text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 items-start">
-                        <Truck className="h-4 w-4 text-voxcina-blue/50 dark:text-voxcina-cream/50 mt-0.5 ml-2 flex-shrink-0" />
-                        <p>{method.description}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <ShippingMethodSelector
+                  selectedAddressCityCode={selectedAddress?.cityCode || null}
+                  cartItemCount={cart.items.length}
+                  cartTotal={summary.subtotal}
+                  onSelectMethod={setSelectedShippingMethod}
+                  selectedMethodId={selectedShippingMethod?.id}
+                />
               </CardContent>
             </Card>
           </motion.div>
@@ -668,7 +636,10 @@ export default function CheckoutPage() {
 
         {/* ───────── Right column (Order summary) ───────── */}
         <motion.div variants={itemVariants}>
-          <CartSummary showCheckoutButton={false} />
+          <CartSummary 
+            showCheckoutButton={false} 
+            shippingCost={selectedShippingMethod?.price}
+          />
         </motion.div>
       </motion.div>
 
@@ -742,6 +713,33 @@ export default function CheckoutPage() {
               }
               className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
             />
+
+            <div className="flex justify-end mb-2">
+              {user && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const nameParts = user.name?.split(' ') || [];
+                    const firstName = nameParts[0] || '';
+                    const lastName = nameParts.slice(1).join(' ') || '';
+                    setFormData(prev => ({
+                      ...prev,
+                      firstName,
+                      lastName,
+                      phoneNumber: user.phone || prev.phoneNumber,
+                    }));
+                    toast.success("اطلاعات شما از پروفایل کاربری وارد شد");
+                  }}
+                  disabled={isSubmitting}
+                  className="text-xs rounded-lg border-voxcina-blue/30 text-voxcina-blue dark:border-voxcina-cream/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-cream/5"
+                >
+                  <User className="w-3 h-3 ml-1" />
+                  استفاده از اطلاعات پروفایل
+                </Button>
+              )}
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input

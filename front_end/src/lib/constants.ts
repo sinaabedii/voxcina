@@ -172,27 +172,6 @@ export const DEMO_BANNERS = [
   },
 ];
 
-export const SHIPPING_METHODS = [
-  {
-    id: "express",
-    title: "ارسال سریع",
-    description: "تحویل در ۱ الی ۲ روز کاری",
-    price: 250000,
-  },
-  {
-    id: "standard",
-    title: "ارسال استاندارد",
-    description: "تحویل در ۳ الی ۵ روز کاری",
-    price: 150000,
-  },
-  {
-    id: "economic",
-    title: "ارسال اقتصادی",
-    description: "تحویل در ۷ الی ۱۰ روز کاری",
-    price: 90000,
-  },
-];
-
 export const PAYMENT_METHODS = [
   {
     id: "online",
