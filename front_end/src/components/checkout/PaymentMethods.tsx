@@ -1,18 +1,39 @@
-import React from "react";
-import { CreditCard, Wallet, Truck, Shield, Clock } from "lucide-react";
+import React, { useState } from "react";
+import { CreditCard, Wallet, Truck, Shield, ExternalLink, CheckCircle2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { PAYMENT_METHODS } from "@/lib/constants";
 import { motion } from "framer-motion";
 
+// Available payment gateways
+const PAYMENT_GATEWAYS = [
+  {
+    id: "zibal",
+    name: "زیبال",
+    logo: "/images/payment/zibal.png",
+    description: "درگاه پرداخت امن زیبال",
+  },
+];
+
 interface PaymentMethodsProps {
   onSelectMethod: (methodId: string) => void;
   selectedMethod?: string;
+  onSelectGateway?: (gatewayId: string) => void;
+  selectedGateway?: string;
 }
 
 const PaymentMethods: React.FC<PaymentMethodsProps> = ({
   onSelectMethod,
   selectedMethod = "online",
+  onSelectGateway,
+  selectedGateway = "zibal",
 }) => {
+  const [internalSelectedGateway, setInternalSelectedGateway] = useState(selectedGateway);
+
+  const handleGatewaySelect = (gatewayId: string) => {
+    setInternalSelectedGateway(gatewayId);
+    onSelectGateway?.(gatewayId);
+  };
+
   const getPaymentIcon = (id: string) => {
     switch (id) {
       case "online":
@@ -77,53 +98,55 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
                   transition={{ duration: 0.3 }}
                   className="mt-4 border-t border-border/10 pt-4 mr-6"
                 >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium block mb-1 text-foreground">
-                        شماره کارت
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          placeholder="xxxx-xxxx-xxxx-xxxx"
-                          className="voxcina-input w-full pl-9"
-                        />
-                        <CreditCard className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-sm font-medium block mb-1 text-foreground">
-                          تاریخ انقضا
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            placeholder="00/00"
-                            className="voxcina-input w-full pl-8"
+                  <p className="text-sm font-medium mb-3 text-foreground">
+                    انتخاب درگاه پرداخت:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {PAYMENT_GATEWAYS.map((gateway) => (
+                      <motion.div
+                        key={gateway.id}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className={`relative border rounded-lg p-3 cursor-pointer transition-all duration-200 flex items-center gap-3 ${
+                          internalSelectedGateway === gateway.id
+                            ? "border-primary bg-primary/10 shadow-sm"
+                            : "border-border/20 hover:border-primary/40"
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleGatewaySelect(gateway.id);
+                        }}
+                      >
+                        {internalSelectedGateway === gateway.id && (
+                          <CheckCircle2 className="absolute top-2 left-2 w-4 h-4 text-primary" />
+                        )}
+                        <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center border border-border/10">
+                          <img
+                            src={gateway.logo}
+                            alt={gateway.name}
+                            className="w-10 h-10 object-contain"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-lg font-bold text-primary">${gateway.name.charAt(0)}</span>`;
+                            }}
                           />
-                          <Clock className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         </div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium block mb-1 text-foreground">
-                          CVV2
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            placeholder="000"
-                            className="voxcina-input w-full pl-8"
-                          />
-                          <Shield className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1">
+                          <p className="font-medium text-foreground">{gateway.name}</p>
+                          <p className="text-xs text-muted-foreground">{gateway.description}</p>
                         </div>
-                      </div>
-                    </div>
+                      </motion.div>
+                    ))}
                   </div>
                   
-                  <div className="mt-4 p-3 bg-secondary/30 rounded-lg text-xs text-muted-foreground flex items-start">
-                    <Shield className="w-4 h-4 ml-2 mt-0.5 text-primary" />
-                    <span>تمامی اطلاعات کارت شما به صورت ایمن و با استفاده از پروتکل‌های امنیتی پیشرفته منتقل می‌شود. اطلاعات کارت شما در سیستم ذخیره نخواهد شد.</span>
+                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs text-blue-700 dark:text-blue-300 flex items-start">
+                    <ExternalLink className="w-4 h-4 ml-2 mt-0.5 flex-shrink-0" />
+                    <span>پس از ثبت سفارش، به درگاه پرداخت منتقل خواهید شد تا پرداخت را به صورت امن انجام دهید.</span>
+                  </div>
+                  
+                  <div className="mt-3 p-3 bg-secondary/30 rounded-lg text-xs text-muted-foreground flex items-start">
+                    <Shield className="w-4 h-4 ml-2 mt-0.5 text-primary flex-shrink-0" />
+                    <span>تمامی تراکنش‌ها از طریق درگاه‌های معتبر بانکی و با رعایت استانداردهای امنیتی انجام می‌شود.</span>
                   </div>
                 </motion.div>
               )}
