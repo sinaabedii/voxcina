@@ -1,15 +1,34 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Trash2, ShoppingBag, Minus, Plus, ArrowLeft } from "lucide-react";
+import { Trash2, ShoppingBag, Minus, Plus, ArrowLeft, Loader2 } from "lucide-react";
 import { useCartStore, getCartWarnings } from "@/store/cart-store";
 import { formatPrice } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { CartItem } from '@/types/cart';
+
+/**
+ * Helper function to get the appropriate image for a cart item
+ * Prioritizes: selected color variant image > main images > first color variant image
+ * @param item - The cart item to get the image for
+ * @returns The image URL or null if no image is available
+ */
+const getCartItemImage = (item: CartItem): string | null => {
+  // First, try to get image from the selected color variant
+  if (item.color && item.product.colorVariants) {
+    const colorVariant = item.product.colorVariants.find(cv => cv.color === item.color);
+    if (colorVariant?.images?.[0]) return colorVariant.images[0];
+  }
+  // Fallback to main images
+  if (item.product.mainImages?.[0]) return item.product.mainImages[0];
+  // Last resort: first color variant's first image
+  if (item.product.colorVariants?.[0]?.images?.[0]) return item.product.colorVariants[0].images[0];
+  return null;
+};
 
 export default function CartPage() {
   const {
@@ -21,17 +40,38 @@ export default function CartPage() {
     removePromoCode,
     promoCode,
     dismissCartWarnings,
-    syncCartWithBackend,
     isLoading,
+    error,
   } = useCartStore();
+  
+  // State for dismissing error messages
+  const [errorDismissed, setErrorDismissed] = useState(false);
+  
+  // Optimistic UI state for quantity changes (Requirement 6.3)
+  // Maps item key (productId-size-color) to pending quantity
+  const [pendingQuantities, setPendingQuantities] = useState<Record<string, number>>({});
+  
+  // Reset error dismissed state when error changes
+  useEffect(() => {
+    if (error) {
+      setErrorDismissed(false);
+    }
+  }, [error]);
+  
+  // Clear pending quantities when loading completes (success or failure)
+  useEffect(() => {
+    if (!isLoading) {
+      setPendingQuantities({});
+    }
+  }, [isLoading]);
+  
   const [promoInput, setPromoInput] = useState("");
   const [promoError, setPromoError] = useState("");
   const warnings = getCartWarnings();
 
-  // Sync cart with backend on mount
-  useEffect(() => {
-    syncCartWithBackend();
-  }, [syncCartWithBackend]);
+  // Note: Cart sync is handled by the auth subscription in cart-store.ts
+  // Removing redundant syncCartWithBackend call to prevent duplicate sync operations
+  // and potential cart doubling (Requirements 3.1, 3.2, 7.1, 7.2)
 
   useEffect(() => {
     if (warnings.length) {
@@ -42,8 +82,24 @@ export default function CartPage() {
     }
   }, [warnings, dismissCartWarnings]);
 
+  // Helper to get item key for optimistic updates
+  const getItemKey = (item: CartItem) => `${item.productId}-${item.size || ''}-${item.color || ''}`;
+  
+  // Get displayed quantity (pending or actual)
+  const getDisplayQuantity = (item: CartItem): number => {
+    const key = getItemKey(item);
+    return pendingQuantities[key] !== undefined ? pendingQuantities[key] : item.quantity;
+  };
+
   const handleQuantityChange = (item: CartItem, quantity: number) => {
     if (quantity < 1) return;
+    
+    // Optimistic update: immediately show the new quantity (Requirement 6.3)
+    const key = getItemKey(item);
+    setPendingQuantities(prev => ({ ...prev, [key]: quantity }));
+    
+    // Then update the backend - if it fails, the pending state will be cleared
+    // and the actual quantity from the store will be shown
     updateItemQuantity(item.productId, quantity, item.size, item.color);
   };
 
@@ -56,14 +112,19 @@ export default function CartPage() {
       setPromoError("لطفا کد تخفیف را وارد کنید");
       return;
     }
-
+    
+    // Clear local error state before applying
+    setPromoError("");
+    
+    // Let the store handle validation - it has the validPromoCodes array
+    // and will set promoCode.errorMessage if the code is invalid
     applyPromoCode(promoInput);
-
-    if (promoInput === "WELCOME10" || promoInput === "SUMMER20") {
-      setPromoError("");
-    } else {
-      setPromoError("کد تخفیف نامعتبر است");
-    }
+    
+    // Note: The store's applyPromoCode function handles all validation:
+    // - Invalid codes
+    // - Expired codes  
+    // - Minimum purchase requirements
+    // The UI displays promoCode.errorMessage from the store
   };
 
   const cartItemVariants = {
@@ -139,7 +200,35 @@ export default function CartPage() {
     );
   }
   return (
-    <div className="container py-8 md:py-12">
+    <div className="container py-8 md:py-12 relative">
+      {/* Loading overlay - displays during cart operations (Requirement 6.1) */}
+      {isLoading && (
+        <div className="absolute inset-0 bg-white/50 dark:bg-voxcina-blue/30 backdrop-blur-sm z-50 flex items-center justify-center rounded-2xl">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-voxcina-blue dark:text-voxcina-cream" />
+            <span className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">در حال پردازش...</span>
+          </div>
+        </div>
+      )}
+      
+      {/* Error banner - displays error messages from cart operations (Requirement 6.2) */}
+      {error && !errorDismissed && (
+        <div className="mb-6">
+          <div className="bg-red-50 border border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-700 dark:text-red-200 rounded-xl p-4 flex items-center justify-between shadow-sm animate-fade-in">
+            <div className="flex items-center gap-2">
+              <span className="text-red-500 dark:text-red-400">⚠️</span>
+              <span>{error}</span>
+            </div>
+            <button
+              className="ml-4 text-sm text-red-700 dark:text-red-200 hover:underline"
+              onClick={() => setErrorDismissed(true)}
+            >
+              بستن
+            </button>
+          </div>
+        </div>
+      )}
+      
       {warnings.length > 0 && (
         <div className="mb-6">
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-700 dark:text-yellow-200 rounded-xl p-4 flex items-center justify-between shadow-sm animate-fade-in">
@@ -194,36 +283,22 @@ export default function CartPage() {
                       layout
                     >
                       <div className="w-full sm:w-24 h-24 mb-4 sm:mb-0">
-                        {(() => {
-                          // Get image from colorVariants based on selected color or mainImages
-                          const getProductImage = () => {
-                            if (item.color && item.product.colorVariants) {
-                              const colorVariant = item.product.colorVariants.find(cv => cv.color === item.color);
-                              if (colorVariant?.images?.[0]) return colorVariant.images[0];
-                            }
-                            if (item.product.mainImages?.[0]) return item.product.mainImages[0];
-                            if (item.product.colorVariants?.[0]?.images?.[0]) return item.product.colorVariants[0].images[0];
-                            return null;
-                          };
-                          const imageSrc = getProductImage();
-                          
-                          return imageSrc ? (
-                            <div className="relative h-24 w-24 rounded-xl overflow-hidden bg-voxcina-cream/30 dark:bg-voxcina-blue/20 border border-voxcina-cream/50 dark:border-voxcina-blue/40 shadow-sm">
-                              <Image
-                                src={imageSrc}
-                                alt={item.product.name || 'Product image'}
-                                fill
-                                className="object-cover"
-                              />
-                            </div>
-                          ) : (
-                            <div className="h-24 w-24 bg-voxcina-cream/30 dark:bg-voxcina-blue/20 rounded-xl flex items-center justify-center border border-voxcina-cream/50 dark:border-voxcina-blue/40">
-                              <span className="text-voxcina-blue/50 dark:text-voxcina-cream/50 text-xs">
-                                بدون تصویر
-                              </span>
-                            </div>
-                          );
-                        })()}
+                        {getCartItemImage(item) ? (
+                          <div className="relative h-24 w-24 rounded-xl overflow-hidden bg-voxcina-cream/30 dark:bg-voxcina-blue/20 border border-voxcina-cream/50 dark:border-voxcina-blue/40 shadow-sm">
+                            <Image
+                              src={getCartItemImage(item)!}
+                              alt={item.product.name || 'Product image'}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="h-24 w-24 bg-voxcina-cream/30 dark:bg-voxcina-blue/20 rounded-xl flex items-center justify-center border border-voxcina-cream/50 dark:border-voxcina-blue/40">
+                            <span className="text-voxcina-blue/50 dark:text-voxcina-cream/50 text-xs">
+                              بدون تصویر
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex-grow sm:mr-4">
@@ -260,44 +335,47 @@ export default function CartPage() {
                           </div>
 
                           <div className="flex items-center">
-                            <div className="flex items-center border border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-lg overflow-hidden bg-white dark:bg-voxcina-blue/20 shadow-inner-soft">
+                            <div className={`flex items-center border border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-lg overflow-hidden bg-white dark:bg-voxcina-blue/20 shadow-inner-soft ${isLoading ? 'opacity-50' : ''}`}>
                               <motion.button
-                                className="w-8 h-8 flex items-center justify-center text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
+                                className="w-8 h-8 flex items-center justify-center text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                 onClick={() =>
                                   handleQuantityChange(
                                     item,
-                                    item.quantity - 1
+                                    getDisplayQuantity(item) - 1
                                   )
                                 }
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
+                                disabled={isLoading}
+                                whileHover={!isLoading ? { scale: 1.1 } : {}}
+                                whileTap={!isLoading ? { scale: 0.9 } : {}}
                               >
                                 <Minus className="h-3.5 w-3.5" />
                               </motion.button>
-                              <span className="w-10 text-center py-1 font-medium text-voxcina-blue dark:text-voxcina-cream">
-                                {item.quantity}
+                              <span className={`w-10 text-center py-1 font-medium text-voxcina-blue dark:text-voxcina-cream ${pendingQuantities[getItemKey(item)] !== undefined ? 'animate-pulse' : ''}`}>
+                                {getDisplayQuantity(item)}
                               </span>
                               <motion.button
-                                className="w-8 h-8 flex items-center justify-center text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
+                                className="w-8 h-8 flex items-center justify-center text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                 onClick={() =>
                                   handleQuantityChange(
                                     item,
-                                    item.quantity + 1
+                                    getDisplayQuantity(item) + 1
                                   )
                                 }
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
+                                disabled={isLoading}
+                                whileHover={!isLoading ? { scale: 1.1 } : {}}
+                                whileTap={!isLoading ? { scale: 0.9 } : {}}
                               >
                                 <Plus className="h-3.5 w-3.5" />
                               </motion.button>
                             </div>
 
                             <motion.button
-                              className="mr-3 w-8 h-8 rounded-full flex items-center justify-center text-voxcina-blue/50 dark:text-voxcina-cream/50 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                              className="mr-3 w-8 h-8 rounded-full flex items-center justify-center text-voxcina-blue/50 dark:text-voxcina-cream/50 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                               onClick={() => handleRemoveItem(item)}
                               aria-label="حذف از سبد خرید"
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
+                              disabled={isLoading}
+                              whileHover={!isLoading ? { scale: 1.1 } : {}}
+                              whileTap={!isLoading ? { scale: 0.9 } : {}}
                             >
                               <Trash2 className="h-4 w-4" />
                             </motion.button>

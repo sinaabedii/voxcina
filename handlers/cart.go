@@ -76,6 +76,144 @@ type PromoCode struct {
 	ErrorMessage       string    `json:"errorMessage,omitempty"`
 }
 
+// --- Helper Functions for DRY Refactoring ---
+
+// ErrUserNotFound indicates user ID was not found in context
+var ErrUserNotFound = fmt.Errorf("user ID not found in context")
+
+// ErrInvalidUserID indicates user ID is invalid (wrong type or NilObjectID)
+var ErrInvalidUserID = fmt.Errorf("invalid user ID")
+
+// ErrCartNotFound indicates no active cart was found for the user
+var ErrCartNotFound = fmt.Errorf("active cart not found")
+
+// getUserIDFromContext extracts and validates the user ID from the request context.
+// Returns the user ID or an error with appropriate HTTP status code.
+func getUserIDFromContext(r *http.Request) (primitive.ObjectID, int, error) {
+	userIDCtx := r.Context().Value("userID")
+	if userIDCtx == nil {
+		return primitive.NilObjectID, http.StatusUnauthorized, ErrUserNotFound
+	}
+
+	userID, ok := userIDCtx.(primitive.ObjectID)
+	if !ok {
+		return primitive.NilObjectID, http.StatusInternalServerError, fmt.Errorf("user ID in context is of incorrect type")
+	}
+
+	if userID == primitive.NilObjectID {
+		return primitive.NilObjectID, http.StatusUnauthorized, ErrInvalidUserID
+	}
+
+	return userID, 0, nil
+}
+
+// getActiveCartForUser fetches the active cart for a user.
+// Returns the cart, or an error with appropriate HTTP status code.
+func getActiveCartForUser(ctx context.Context, userID primitive.ObjectID) (*models.Cart, int, error) {
+	cartCollection := db.Database.Collection("carts")
+	var cart models.Cart
+
+	err := cartCollection.FindOne(ctx, bson.M{"user_id": userID, "is_active": true}).Decode(&cart)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, http.StatusNotFound, ErrCartNotFound
+		}
+		return nil, http.StatusInternalServerError, fmt.Errorf("error fetching cart: %w", err)
+	}
+
+	return &cart, 0, nil
+}
+
+// enrichVariantFromProduct finds ColorName and SKU for a variant from the product's ColorVariants.
+// Returns an enriched CartVariant with ColorName and SKU populated.
+func enrichVariantFromProduct(product *models.Product, variant models.CartVariant) models.CartVariant {
+	enriched := models.CartVariant{
+		Size:  variant.Size,
+		Color: variant.Color,
+	}
+
+	for _, colorVariant := range product.ColorVariants {
+		if colorVariant.Color == variant.Color {
+			enriched.ColorName = colorVariant.ColorName
+			for _, sizeVariant := range colorVariant.Sizes {
+				if sizeVariant.Size == variant.Size {
+					enriched.SKU = sizeVariant.SKU
+					break
+				}
+			}
+			break
+		}
+	}
+
+	return enriched
+}
+
+// updateCartAndRespond updates the cart in the database and sends the JSON response.
+// Returns an error if the update or response preparation fails.
+func updateCartAndRespond(ctx context.Context, w http.ResponseWriter, cart *models.Cart) error {
+	cartCollection := db.Database.Collection("carts")
+
+	updateFields := bson.M{
+		"items":      cart.Items,
+		"updated_at": cart.UpdatedAt,
+	}
+	// Ensure items is always an array, not null
+	if len(cart.Items) == 0 {
+		updateFields["items"] = []models.CartItem{}
+	}
+
+	_, err := cartCollection.UpdateOne(
+		ctx,
+		bson.M{"_id": cart.ID, "is_active": true},
+		bson.M{"$set": updateFields},
+	)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error updating cart: "+err.Error())
+		return err
+	}
+
+	finalCartResponse, err := prepareCartResponse(ctx, *cart)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error preparing cart response: "+err.Error())
+		return err
+	}
+
+	utils.JSONResponse(w, http.StatusOK, finalCartResponse)
+	return nil
+}
+
+// validateVariantStock validates that a variant exists and has sufficient stock.
+// Returns the available stock and an error if validation fails.
+func validateVariantStock(product *models.Product, color, size string, requestedQty int) (int, int, error) {
+	for _, colorVariant := range product.ColorVariants {
+		if colorVariant.Color == color {
+			for _, sizeVariant := range colorVariant.Sizes {
+				if sizeVariant.Size == size {
+					if requestedQty > sizeVariant.Quantity {
+						return sizeVariant.Quantity, http.StatusBadRequest, fmt.Errorf(
+							"not enough stock. Available: %d, Requested: %d",
+							sizeVariant.Quantity, requestedQty,
+						)
+					}
+					return sizeVariant.Quantity, 0, nil
+				}
+			}
+			// Size not found for this color
+			return 0, http.StatusBadRequest, fmt.Errorf(
+				"invalid variant: size '%s' not found for color '%s'",
+				size, color,
+			)
+		}
+	}
+	// Color not found
+	return 0, http.StatusBadRequest, fmt.Errorf(
+		"invalid variant: color '%s' not found for this product",
+		color,
+	)
+}
+
+// --- End Helper Functions ---
+
 // getUserIDFromToken extracts the user ID from the JWT token in the Authorization header
 // This function should return primitive.ObjectID, string for consistency with models.User
 func getUserIDFromToken(r *http.Request) (primitive.ObjectID, error) {
@@ -182,62 +320,18 @@ func prepareCartResponse(ctx context.Context, cart models.Cart) (CartResponse, e
 
 // GetCart returns the complete cart for a given user
 func GetCart(w http.ResponseWriter, r *http.Request) {
-	userIDCtx := r.Context().
-		Value("userID")
-		// Assume AuthMiddleware sets "userID" as primitive.ObjectID
-	if userIDCtx == nil {
-		utils.ErrorResponse(
-			w,
-			http.StatusUnauthorized,
-			"User ID not found in context (authentication error)",
-		)
+	userID, statusCode, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.ErrorResponse(w, statusCode, err.Error())
 		return
 	}
 
-	userID, ok := userIDCtx.(primitive.ObjectID)
-	if !ok {
-		utils.ErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"User ID in context is of incorrect type",
-		)
-		return
-	}
-
-	if userID == primitive.NilObjectID {
-		utils.ErrorResponse(
-			w,
-			http.StatusUnauthorized,
-			"Invalid User ID in context (NilObjectID)",
-		)
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		10*time.Second,
-	) // Increased timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cartCollection := db.Database.Collection(
-		"carts",
-	) // Assuming collection name is "carts"
-	var cart models.Cart
-	// Try to find an existing active cart for the user
-	err := cartCollection.FindOne(ctx, bson.M{"user_id": userID, "is_active": true}).
-		Decode(&cart)
-
+	cart, statusCode, err := getActiveCartForUser(ctx, userID)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			// No active cart found – return 404 so the frontend can create one via POST /api/cart
-			utils.ErrorResponse(w, http.StatusNotFound, "Active cart not found for user")
-			return
-		}
-		utils.ErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"Error fetching cart: "+err.Error(),
-		)
+		utils.ErrorResponse(w, statusCode, err.Error())
 		return
 	}
 
@@ -248,7 +342,7 @@ func GetCart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cartResponse, err := prepareCartResponse(ctx, cart)
+	cartResponse, err := prepareCartResponse(ctx, *cart)
 	if err != nil {
 		utils.ErrorResponse(
 			w,
@@ -265,14 +359,9 @@ func GetCart(w http.ResponseWriter, r *http.Request) {
 // It deactivates any existing active carts for the user and creates a new active cart
 // with the items provided from the frontend's local storage.
 func CreateOrReplaceCart(w http.ResponseWriter, r *http.Request) {
-	userIDCtx := r.Context().Value("userID")
-	if userIDCtx == nil {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "User ID not found in context")
-		return
-	}
-	userID, ok := userIDCtx.(primitive.ObjectID)
-	if !ok || userID == primitive.NilObjectID {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid User ID")
+	userID, statusCode, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.ErrorResponse(w, statusCode, err.Error())
 		return
 	}
 
@@ -380,29 +469,8 @@ func CreateOrReplaceCart(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Find ColorName and SKU for the variant
-		colorName := ""
-		sku := ""
-		for _, colorVariant := range productCheck.ColorVariants {
-			if colorVariant.Color == reqItem.Variant.Color {
-				colorName = colorVariant.ColorName
-				for _, sizeVariant := range colorVariant.Sizes {
-					if sizeVariant.Size == reqItem.Variant.Size {
-						sku = sizeVariant.SKU
-						break
-					}
-				}
-				break
-			}
-		}
-
-		// Create enriched variant
-		enrichedVariant := models.CartVariant{
-			Size:      reqItem.Variant.Size,
-			Color:     reqItem.Variant.Color,
-			ColorName: colorName,
-			SKU:       sku,
-		}
+		// Enrich variant with ColorName and SKU from product
+		enrichedVariant := enrichVariantFromProduct(&productCheck, reqItem.Variant)
 
 		k := itemKey{
 			ProductID: productIDObj,
@@ -412,8 +480,8 @@ func CreateOrReplaceCart(w http.ResponseWriter, r *http.Request) {
 		if existing, ok := mergeMap[k]; ok {
 			existing.Quantity += reqItem.Quantity // increment quantity
 			// Update ColorName and SKU
-			existing.Variant.ColorName = colorName
-			existing.Variant.SKU = sku
+			existing.Variant.ColorName = enrichedVariant.ColorName
+			existing.Variant.SKU = enrichedVariant.SKU
 		} else {
 			mergeMap[k] = &models.CartItem{
 				ProductID: productIDObj,
@@ -477,32 +545,9 @@ func CreateOrReplaceCart(w http.ResponseWriter, r *http.Request) {
 // RENAMING THIS TO AddItemToExistingCart FOR CLARITY
 // This handler should be for POST /api/cart/item or similar specific route
 func AddItemToExistingCart(w http.ResponseWriter, r *http.Request) {
-	userIDCtx := r.Context().
-		Value("userID")
-		// Assume AuthMiddleware sets "userID" as primitive.ObjectID
-	if userIDCtx == nil {
-		utils.ErrorResponse(
-			w,
-			http.StatusUnauthorized,
-			"User ID not found in context (authentication error)",
-		)
-		return
-	}
-	userID, ok := userIDCtx.(primitive.ObjectID)
-	if !ok {
-		utils.ErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"User ID in context is of incorrect type",
-		)
-		return
-	}
-	if userID == primitive.NilObjectID {
-		utils.ErrorResponse(
-			w,
-			http.StatusUnauthorized,
-			"Invalid User ID in context (NilObjectID)",
-		)
+	userID, statusCode, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.ErrorResponse(w, statusCode, err.Error())
 		return
 	}
 
@@ -552,64 +597,22 @@ func AddItemToExistingCart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate that the requested color+size combination exists and has stock
-	variantValid := false
-	availableStock := 0
-	colorName := ""
-	sku := ""
-	for _, colorVariant := range product.ColorVariants {
-		if colorVariant.Color == requestData.Variant.Color {
-			colorName = colorVariant.ColorName
-			for _, sizeVariant := range colorVariant.Sizes {
-				if sizeVariant.Size == requestData.Variant.Size {
-					variantValid = true
-					availableStock = sizeVariant.Quantity
-					sku = sizeVariant.SKU
-					break
-				}
-			}
-			break
-		}
-	}
-
-	if !variantValid {
-		utils.ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf(
-			"Invalid variant: color '%s' with size '%s' not found for this product",
-			requestData.Variant.Color, requestData.Variant.Size,
-		))
-		return
-	}
-
-	if availableStock < requestData.Quantity {
-		utils.ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf(
-			"Not enough stock. Available: %d, Requested: %d",
-			availableStock, requestData.Quantity,
-		))
+	availableStock, statusCode, err := validateVariantStock(&product, requestData.Variant.Color, requestData.Variant.Size, requestData.Quantity)
+	if err != nil {
+		utils.ErrorResponse(w, statusCode, err.Error())
 		return
 	}
 
 	// Enrich variant with ColorName and SKU
-	enrichedVariant := models.CartVariant{
-		Size:      requestData.Variant.Size,
-		Color:     requestData.Variant.Color,
-		ColorName: colorName,
-		SKU:       sku,
-	}
+	enrichedVariant := enrichVariantFromProduct(&product, requestData.Variant)
 
-	cartCollection := db.Database.Collection("carts")
-	var cart models.Cart
 	// Fetch the user's active cart
-	err = cartCollection.FindOne(ctx, bson.M{"user_id": userID, "is_active": true}).
-		Decode(&cart)
-
+	cart, statusCode, err := getActiveCartForUser(ctx, userID)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			utils.ErrorResponse(
-				w,
-				http.StatusNotFound,
-				"Active cart not found for user. Please create a cart first via POST /api/cart.",
-			)
+		if err == ErrCartNotFound {
+			utils.ErrorResponse(w, statusCode, "Active cart not found for user. Please create a cart first via POST /api/cart.")
 		} else {
-			utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching active cart: "+err.Error())
+			utils.ErrorResponse(w, statusCode, err.Error())
 		}
 		return
 	}
@@ -652,65 +655,15 @@ func AddItemToExistingCart(w http.ResponseWriter, r *http.Request) {
 	}
 	cart.UpdatedAt = time.Now()
 
-	// No upsert logic needed here, as we require an existing active cart.
-	// Update the existing cart.
-	update := bson.M{"$set": bson.M{"items": cart.Items, "updated_at": cart.UpdatedAt}}
-	_, err = cartCollection.UpdateOne(
-		ctx,
-		bson.M{"_id": cart.ID, "is_active": true},
-		update,
-	)
-
-	if err != nil {
-		utils.ErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"Error updating cart: "+err.Error(),
-		)
-		return
-	}
-
-	// Return the fully populated and updated cart
-	finalCartResponse, err := prepareCartResponse(ctx, cart)
-	if err != nil {
-		utils.ErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"Error preparing updated cart response: "+err.Error(),
-		)
-		return
-	}
-	utils.JSONResponse(w, http.StatusOK, finalCartResponse)
+	// Update cart and send response
+	updateCartAndRespond(ctx, w, cart)
 }
 
 // UpdateCart updates an item's quantity in the cart
 func UpdateCart(w http.ResponseWriter, r *http.Request) {
-	userIDCtx := r.Context().
-		Value("userID")
-		// Assume AuthMiddleware sets "userID" as primitive.ObjectID
-	if userIDCtx == nil {
-		utils.ErrorResponse(
-			w,
-			http.StatusUnauthorized,
-			"User ID not found in context (authentication error)",
-		)
-		return
-	}
-	userID, ok := userIDCtx.(primitive.ObjectID)
-	if !ok {
-		utils.ErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"User ID in context is of incorrect type",
-		)
-		return
-	}
-	if userID == primitive.NilObjectID {
-		utils.ErrorResponse(
-			w,
-			http.StatusUnauthorized,
-			"Invalid User ID in context (NilObjectID)",
-		)
+	userID, statusCode, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.ErrorResponse(w, statusCode, err.Error())
 		return
 	}
 
@@ -756,51 +709,29 @@ func UpdateCart(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Find available stock for the variant
-		availableStock := 0
-		variantFound := false
-		for _, colorVariant := range product.ColorVariants {
-			if colorVariant.Color == requestData.Variant.Color {
-				for _, sizeVariant := range colorVariant.Sizes {
-					if sizeVariant.Size == requestData.Variant.Size {
-						availableStock = sizeVariant.Quantity
-						variantFound = true
-						break
-					}
-				}
-				break
+		// Validate variant exists and has sufficient stock
+		_, statusCode, err := validateVariantStock(&product, requestData.Variant.Color, requestData.Variant.Size, requestData.Quantity)
+		if err != nil {
+			// Translate error messages to Persian for user-facing errors
+			if statusCode == http.StatusBadRequest {
+				utils.ErrorResponse(w, statusCode, fmt.Sprintf(
+					"موجودی کافی نیست یا تنوع انتخاب شده یافت نشد: %s",
+					err.Error(),
+				))
+			} else {
+				utils.ErrorResponse(w, statusCode, err.Error())
 			}
-		}
-
-		if !variantFound {
-			utils.ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf(
-				"تنوع انتخاب شده (رنگ: %s، سایز: %s) یافت نشد",
-				requestData.Variant.Color, requestData.Variant.Size,
-			))
-			return
-		}
-
-		if requestData.Quantity > availableStock {
-			utils.ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf(
-				"موجودی کافی نیست. موجودی انبار: %d، درخواست: %d",
-				availableStock, requestData.Quantity,
-			))
 			return
 		}
 	}
 
-	cartCollection := db.Database.Collection("carts")
-	var cart models.Cart
 	// Fetch the user's active cart
-	if err := cartCollection.FindOne(ctx, bson.M{"user_id": userID, "is_active": true}).Decode(&cart); err != nil {
-		if err == mongo.ErrNoDocuments {
-			utils.ErrorResponse(
-				w,
-				http.StatusNotFound,
-				"Active cart not found for user. Please create a cart first via POST /api/cart.",
-			)
+	cart, statusCode, err := getActiveCartForUser(ctx, userID)
+	if err != nil {
+		if err == ErrCartNotFound {
+			utils.ErrorResponse(w, statusCode, "Active cart not found for user. Please create a cart first via POST /api/cart.")
 		} else {
-			utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching active cart: "+err.Error())
+			utils.ErrorResponse(w, statusCode, err.Error())
 		}
 		return
 	}
@@ -828,71 +759,16 @@ func UpdateCart(w http.ResponseWriter, r *http.Request) {
 	}
 	cart.UpdatedAt = time.Now()
 
-	updateFields := bson.M{
-		"items":      cart.Items,
-		"updated_at": cart.UpdatedAt,
-	}
-	// If items slice becomes empty, MongoDB might store it as null instead of an empty array depending on driver/library behavior or BSON tags like omitempty on the struct.
-	// Ensure it's always at least an empty array if that's desired.
-	if len(cart.Items) == 0 {
-		updateFields["items"] = []models.CartItem{}
-	}
-
-	_, err = cartCollection.UpdateOne(
-		ctx,
-		bson.M{"_id": cart.ID, "is_active": true},
-		bson.M{"$set": updateFields},
-	)
-	if err != nil {
-		utils.ErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"Error updating cart: "+err.Error(),
-		)
-		return
-	}
-
-	finalCartResponse, err := prepareCartResponse(ctx, cart)
-	if err != nil {
-		utils.ErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"Error preparing updated cart response: "+err.Error(),
-		)
-		return
-	}
-	utils.JSONResponse(w, http.StatusOK, finalCartResponse)
+	// Update cart and send response
+	updateCartAndRespond(ctx, w, cart)
 }
 
 // RemoveFromCart removes an item from the user's cart based on ProductID and Variant from query params.
 // Expected query params: productId, variantSize, variantColor
 func RemoveFromCart(w http.ResponseWriter, r *http.Request) {
-	userIDCtx := r.Context().
-		Value("userID")
-		// Assume AuthMiddleware sets "userID" as primitive.ObjectID
-	if userIDCtx == nil {
-		utils.ErrorResponse(
-			w,
-			http.StatusUnauthorized,
-			"User ID not found in context (authentication error)",
-		)
-		return
-	}
-	userID, ok := userIDCtx.(primitive.ObjectID)
-	if !ok {
-		utils.ErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"User ID in context is of incorrect type",
-		)
-		return
-	}
-	if userID == primitive.NilObjectID {
-		utils.ErrorResponse(
-			w,
-			http.StatusUnauthorized,
-			"Invalid User ID in context (NilObjectID)",
-		)
+	userID, statusCode, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.ErrorResponse(w, statusCode, err.Error())
 		return
 	}
 
@@ -926,18 +802,13 @@ func RemoveFromCart(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cartCollection := db.Database.Collection("carts")
-	var cart models.Cart
 	// Fetch the user's active cart
-	if err := cartCollection.FindOne(ctx, bson.M{"user_id": userID, "is_active": true}).Decode(&cart); err != nil {
-		if err == mongo.ErrNoDocuments {
-			utils.ErrorResponse(
-				w,
-				http.StatusNotFound,
-				"Active cart not found for user. Please create a cart first via POST /api/cart.",
-			)
+	cart, statusCode, err := getActiveCartForUser(ctx, userID)
+	if err != nil {
+		if err == ErrCartNotFound {
+			utils.ErrorResponse(w, statusCode, "Active cart not found for user. Please create a cart first via POST /api/cart.")
 		} else {
-			utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching active cart: "+err.Error())
+			utils.ErrorResponse(w, statusCode, err.Error())
 		}
 		return
 	}
@@ -966,38 +837,8 @@ func RemoveFromCart(w http.ResponseWriter, r *http.Request) {
 	cart.Items = newItems
 	cart.UpdatedAt = time.Now()
 
-	updateFields := bson.M{
-		"items":      cart.Items,
-		"updated_at": cart.UpdatedAt,
-	}
-	if len(cart.Items) == 0 {
-		updateFields["items"] = []models.CartItem{}
-	}
-
-	_, err = cartCollection.UpdateOne(
-		ctx,
-		bson.M{"_id": cart.ID, "is_active": true},
-		bson.M{"$set": updateFields},
-	)
-	if err != nil {
-		utils.ErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"Error updating cart after removal: "+err.Error(),
-		)
-		return
-	}
-
-	finalCartResponse, err := prepareCartResponse(ctx, cart)
-	if err != nil {
-		utils.ErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"Error preparing updated cart response: "+err.Error(),
-		)
-		return
-	}
-	utils.JSONResponse(w, http.StatusOK, finalCartResponse)
+	// Update cart and send response
+	updateCartAndRespond(ctx, w, cart)
 }
 
 // calculateCartSummaryInternal calculates the cart's financial summary using populated items
@@ -1101,28 +942,19 @@ func DeleteCart(w http.ResponseWriter, r *http.Request) {
 
 // ClearUserCart handles DELETE /api/cart - clears the entire cart for a user
 func ClearUserCart(w http.ResponseWriter, r *http.Request) {
-	userIDCtx := r.Context().Value("userID")
-	if userIDCtx == nil {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "User ID not found in context")
-		return
-	}
-	userID, ok := userIDCtx.(primitive.ObjectID)
-	if !ok || userID == primitive.NilObjectID {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid User ID")
+	userID, statusCode, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.ErrorResponse(w, statusCode, err.Error())
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cartCollection := db.Database.Collection("carts")
-	
 	// Find the user's active cart
-	var cart models.Cart
-	err := cartCollection.FindOne(ctx, bson.M{"user_id": userID, "is_active": true}).Decode(&cart)
-	
+	cart, statusCode, err := getActiveCartForUser(ctx, userID)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
+		if err == ErrCartNotFound {
 			// No active cart found - return empty cart response
 			emptyCart := models.Cart{
 				ID:        primitive.NewObjectID(),
@@ -1132,7 +964,7 @@ func ClearUserCart(w http.ResponseWriter, r *http.Request) {
 				UpdatedAt: time.Now(),
 				Items:     []models.CartItem{},
 			}
-			
+
 			finalCartResponse, err := prepareCartResponse(ctx, emptyCart)
 			if err != nil {
 				utils.ErrorResponse(w, http.StatusInternalServerError, "Error preparing empty cart response: "+err.Error())
@@ -1141,7 +973,7 @@ func ClearUserCart(w http.ResponseWriter, r *http.Request) {
 			utils.JSONResponse(w, http.StatusOK, finalCartResponse)
 			return
 		}
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching cart: "+err.Error())
+		utils.ErrorResponse(w, statusCode, err.Error())
 		return
 	}
 
@@ -1149,28 +981,6 @@ func ClearUserCart(w http.ResponseWriter, r *http.Request) {
 	cart.Items = []models.CartItem{}
 	cart.UpdatedAt = time.Now()
 
-	// Update the cart in database
-	updateFields := bson.M{
-		"items":      cart.Items,
-		"updated_at": cart.UpdatedAt,
-	}
-
-	_, err = cartCollection.UpdateOne(
-		ctx,
-		bson.M{"_id": cart.ID, "is_active": true},
-		bson.M{"$set": updateFields},
-	)
-	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error clearing cart: "+err.Error())
-		return
-	}
-
-	// Return the cleared cart
-	finalCartResponse, err := prepareCartResponse(ctx, cart)
-	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error preparing cleared cart response: "+err.Error())
-		return
-	}
-	
-	utils.JSONResponse(w, http.StatusOK, finalCartResponse)
+	// Update cart and send response
+	updateCartAndRespond(ctx, w, cart)
 }
