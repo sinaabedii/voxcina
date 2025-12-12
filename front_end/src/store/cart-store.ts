@@ -134,7 +134,9 @@ interface CartStore {
   syncCompleted: boolean;       // Tracks if sync has completed for current session
   lastSyncTimestamp: number;    // Timestamp of last successful sync
 
-  syncCartWithBackend: () => Promise<void>;
+  // Cart operations
+  fetchCart: () => Promise<void>;           // Fetch backend cart (no merge)
+  syncCartWithBackend: () => Promise<void>; // Merge local cart with backend
   addItem: (
     product: Product,
     quantity: number,
@@ -315,12 +317,67 @@ export const useCartStore = create<CartStore>()(
         }
       },
 
+      // Fetch backend cart without merging local items (used on page reload)
+      fetchCart: async () => {
+        const { isSyncing, syncCompleted } = get();
+        
+        if (isSyncing || syncCompleted) {
+          console.log('Cart fetch skipped - already syncing or completed');
+          return;
+        }
+        
+        const { isAuthenticated, user } = getAuthState();
+        if (!isAuthenticated || !user) return;
+        
+        set({ isLoading: true, error: null, isSyncing: true });
+        
+        try {
+          const result = await makeCartApiRequest<any>('/api/cart', 'GET');
+          
+          if (result.ok && result.data) {
+            // Backend returns cart (may be empty or have items)
+            const { cart: processedCart, summary: processedSummary } = processBackendCartData(result.data);
+            get().clearLocalCartStorage();
+            set({
+              cart: processedCart,
+              summary: processedSummary,
+              isLoading: false,
+              syncCompleted: true,
+              lastSyncTimestamp: Date.now(),
+              isSyncing: false,
+            });
+            console.log('✅ Backend cart fetched, localStorage cleared');
+          } else if (result.status === 404) {
+            // No cart exists for user - clear local and set empty state
+            get().clearLocalCartStorage();
+            set({
+              cart: { id: generateId(), userId: null, items: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+              summary: { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 },
+              isLoading: false,
+              syncCompleted: true,
+              lastSyncTimestamp: Date.now(),
+              isSyncing: false,
+            });
+            console.log('✅ No backend cart exists, localStorage cleared');
+          } else {
+            throw new Error(result.error || 'Failed to fetch cart');
+          }
+        } catch (error) {
+          console.error('Error fetching cart:', error);
+          set({
+            error: error instanceof Error ? error.message : 'Error fetching cart',
+            isLoading: false,
+            isSyncing: false,
+          });
+        }
+      },
+
       syncCartWithBackend: async () => {
         // Sync guard: Check if already syncing or sync completed (Requirements 3.1, 3.2)
         const { isSyncing, syncCompleted } = get();
         
         if (isSyncing) {
-          console.log('Sync already in progress, skipping duplicate sync request');
+          console.log('Sync already in progress, skipping');
           return;
         }
         
@@ -329,80 +386,32 @@ export const useCartStore = create<CartStore>()(
           return;
         }
         
-        // Task 9.1: Use helper for auth state
         const { isAuthenticated, user } = getAuthState();
         if (!isAuthenticated || !user) return;
 
-        // Set isSyncing flag to prevent concurrent sync operations (Requirement 3.1)
         set({ isLoading: true, error: null, isSyncing: true });
         
-        // Store reference to local cart items before sync for potential rollback
-        const localCartItemsBeforeSync = [...get().cart.items];
-        const hasLocalItems = localCartItemsBeforeSync.length > 0;
+        const localCartItems = [...get().cart.items];
+        const hasLocalItems = localCartItems.length > 0;
         
         try {
-          const localCartItems = localCartItemsBeforeSync;
+          // Step 1: Check if backend cart exists
+          const getResult = await makeCartApiRequest<any>('/api/cart', 'GET');
           
-          // Fetch the backend cart
-          const response = await fetch('/api/cart', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
-          });
+          // Step 2: If we have local items, merge them to backend
+          if (hasLocalItems) {
+            console.log(`Merging ${localCartItems.length} local items to backend...`);
+            const itemsForBackend = localCartItems.map(item => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              variant: { size: item.size, color: item.color }
+            }));
 
-          let backendCart = null;
-
-          if (response.ok) {
-            // Backend cart exists
-            backendCart = await response.json();
-            const backendHasItems = backendCart.items?.length > 0;
-            console.log('Found existing backend cart with', backendCart.items?.length || 0, 'items');
+            const mergeResult = await makeCartApiRequest<any>('/api/cart', 'POST', { items: itemsForBackend });
             
-            // If we have local items, merge them to backend (handles both empty and non-empty backend)
-            if (hasLocalItems) {
-              console.log('Merging local items to backend cart...');
-              const localCartItemsForBackend = localCartItems.map(item => ({
-                productId: item.productId,
-                quantity: item.quantity,
-                variant: { size: item.size, color: item.color }
-              }));
-
-              const mergeResponse = await fetch('/api/cart', {
-                method: 'POST',
-                headers: { 
-                  'Content-Type': 'application/json', 
-                  'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-                },
-                body: JSON.stringify({ items: localCartItemsForBackend })
-              });
-
-              if (mergeResponse.ok) {
-                backendCart = await mergeResponse.json();
-                console.log('✅ Local items merged to backend cart');
-              }
-            }
-          } else if (response.status === 404) {
-            // No backend cart exists - create with local items if any
-            console.log('No backend cart found, creating new cart...');
-            const itemsToCreate = hasLocalItems 
-              ? localCartItems.map(item => ({
-                  productId: item.productId,
-                  quantity: item.quantity,
-                  variant: { size: item.size, color: item.color }
-                }))
-              : [];
-              
-            const postResponse = await fetch('/api/cart', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
-              body: JSON.stringify({ items: itemsToCreate })
-            });
-
-            if (postResponse.ok) {
-              const rawNewCart = await postResponse.json();
-              const { cart: processedCart, summary: processedSummary } = processBackendCartData(rawNewCart);
-              
-              // Clear localStorage after successful sync (Requirement 1.5)
+            if (mergeResult.ok && mergeResult.data) {
+              const { cart: processedCart, summary: processedSummary } = processBackendCartData(mergeResult.data);
               get().clearLocalCartStorage();
-              
               set({
                 cart: processedCart,
                 summary: processedSummary,
@@ -412,69 +421,52 @@ export const useCartStore = create<CartStore>()(
                 lastSyncTimestamp: Date.now(),
                 isSyncing: false,
               });
-              console.log('New backend cart created with', hasLocalItems ? 'local items' : 'empty items');
-              console.log('✅ Sync completed, localStorage cart cleared');
+              console.log('✅ Local items merged to backend, localStorage cleared');
               return;
             } else {
-              const errorData = await postResponse.json().catch(() => ({ message: 'Failed to create cart' }));
-              throw new Error(errorData.message || 'Failed to create backend cart');
+              throw new Error(mergeResult.error || 'Failed to merge cart');
             }
-          } else {
-            const errorData = await response.json().catch(() => ({ message: 'Failed to get backend cart'}));
-            // Handle specific backend error for empty cart
-            if (
-              errorData.message === 'Active cart is empty for user' ||
-              errorData.error === 'Active cart is empty for user'
-            ) {
-              const { cart: emptyCart, summary: emptySummary } = processBackendCartData({ items: [], summary: { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 } });
-              
-              // Clear localStorage after successful sync (Requirement 1.5)
-              get().clearLocalCartStorage();
-              
-              set({ 
-                cart: emptyCart, 
-                summary: emptySummary, 
-                isLoading: false,
-                syncCompleted: true,
-                lastSyncTimestamp: Date.now(),
-                isSyncing: false,
-              });
-              console.log('✅ Sync completed (empty cart), localStorage cart cleared');
-              return;
-            }
-            throw new Error(errorData.message || errorData.error || 'Failed to get backend cart');
           }
           
-          // Process and set the final cart state from backend
-          const { cart: processedCart, summary: processedSummary } = processBackendCartData(backendCart);
+          // Step 3: No local items - just use backend cart (or empty if 404)
+          if (getResult.ok && getResult.data) {
+            const { cart: processedCart, summary: processedSummary } = processBackendCartData(getResult.data);
+            get().clearLocalCartStorage();
+            set({
+              cart: processedCart,
+              summary: processedSummary,
+              isLoading: false,
+              syncRetryCount: 0,
+              syncCompleted: true,
+              lastSyncTimestamp: Date.now(),
+              isSyncing: false,
+            });
+            console.log('✅ Backend cart loaded, localStorage cleared');
+            return;
+          }
           
-          // Clear localStorage after successful sync (Requirement 1.5)
+          // No backend cart (404) and no local items - set empty cart
           get().clearLocalCartStorage();
-          
           set({
-            cart: processedCart,
-            summary: processedSummary,
+            cart: { id: generateId(), userId: null, items: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+            summary: { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 },
             isLoading: false,
-            syncRetryCount: 0,
             syncCompleted: true,
             lastSyncTimestamp: Date.now(),
             isSyncing: false,
           });
-          
-          console.log('Cart sync completed successfully - backend cart now has', processedCart.items.length, 'items');
-          console.log('✅ Sync completed, localStorage cart cleared');
+          console.log('✅ No cart data, starting fresh');
           
         } catch (error) {
           console.error('Error in syncCartWithBackend:', error);
-          // On error, preserve local cart (Requirement 5.1) - don't clear localStorage
+          // On error, preserve local cart (Requirement 5.1)
           set({ 
-            error: error instanceof Error ? error.message : 'An unknown error occurred while syncing cart', 
+            error: error instanceof Error ? error.message : 'Sync failed', 
             isLoading: false, 
             syncRetryCount: (get().syncRetryCount || 0) + 1,
             isSyncing: false,
-            // Don't set syncCompleted to true on error - allow retry (Requirement 5.3)
           });
-          console.log('⚠️ Sync failed, localStorage cart preserved for retry');
+          console.log('⚠️ Sync failed, localStorage preserved for retry');
         }
       },
 
@@ -841,92 +833,52 @@ export const useCartStore = create<CartStore>()(
   )
 );
 
-// Move auth subscription to be lazy-loaded to avoid circular dependency issues
-let authUnsubscribe: (() => void) | null = null;
+// ============================================================================
+// AUTH SUBSCRIPTION - Handles cart sync on login/logout
+// ============================================================================
 
-// Initialize auth subscription after stores are ready
+let authUnsubscribe: (() => void) | null = null;
+let isInitialAuthCheck = true; // Tracks first subscription call (page load vs login action)
+
 const initializeAuthSubscription = () => {
-  if (authUnsubscribe) return; // Already initialized
+  if (authUnsubscribe) return;
   
   try {
     authUnsubscribe = useAuthStore.subscribe((state, prevState) => {
-      // User just logged in - sync local cart with backend
-      if (state.isAuthenticated && !prevState.isAuthenticated && state.user) {
-        console.log('User logged in, syncing local cart with backend...');
+      // First callback after page load - handle rehydration
+      if (isInitialAuthCheck) {
+        isInitialAuthCheck = false;
         
-        // Use a small delay to ensure auth token is properly set
-        setTimeout(async () => {
-          try {
-            const cartState = useCartStore.getState();
-            
-            // Check sync flags before triggering sync (Requirement 3.2)
-            // Only trigger sync if not already syncing and sync hasn't completed this session
-            if (cartState.isSyncing) {
-              console.log('Sync already in progress, skipping duplicate sync from auth subscription');
-              return;
-            }
-            
-            if (cartState.syncCompleted) {
-              console.log('Sync already completed for this session, skipping from auth subscription');
-              return;
-            }
-            
-            const hasLocalItems = cartState.cart.items.length > 0;
-            
-            if (hasLocalItems) {
-              console.log(`Found ${cartState.cart.items.length} local cart items, syncing to backend...`);
-            }
-            
-            // This will handle merging local cart with backend or creating new backend cart
-            await cartState.syncCartWithBackend();
-            
-            // If sync was successful and we had local items, log success
-            if (hasLocalItems && !cartState.error) {
-              console.log('Cart sync completed successfully after login');
-            }
-          } catch (error) {
-            console.error('Error during post-login cart sync:', error);
-            // Don't set store error here as syncCartWithBackend handles its own errors
-          }
-        }, 200); // Slightly longer delay to ensure auth token is set
-      } 
-      // User logged out - clear LOCAL cart only (preserve backend cart)
-      else if (!state.isAuthenticated && prevState.isAuthenticated) {
-        console.log('User logged out, clearing LOCAL cart from localStorage (backend cart preserved).');
-        try {
-          // ✅ Clear localStorage only - DO NOT delete backend cart
-          // User's incomplete cart in database will be available when they log back in
-          
-          // Clear localStorage cart using helper function (Requirement 4.1)
-          useCartStore.getState().clearLocalCartStorage();
-          
-          useCartStore.setState({
-            cart: {
-              id: generateId(),
-              userId: null,
-              items: [],
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-            summary: {
-              subtotal: 0,
-              shipping: 0,
-              tax: 0,
-              discount: 0,
-              total: 0,
-            },
-            promoCode: null,
-            error: null,
-            isLoading: false,
-            // Reset sync flags on logout to allow sync on next login (Requirement 4.1)
-            isSyncing: false,
-            syncCompleted: false,
-            lastSyncTimestamp: 0,
-          });
-          console.log('✅ Local cart cleared from localStorage, sync flags reset, backend cart preserved for next login');
-        } catch (error) {
-          console.error('Error clearing local cart on logout:', error);
+        // Already authenticated on page load → fetch backend cart (no merge)
+        if (state.isAuthenticated && state.user) {
+          console.log('Page load: fetching backend cart (no merge)');
+          setTimeout(() => useCartStore.getState().fetchCart(), 200);
         }
+        return;
+      }
+      
+      // Actual login action → merge local cart with backend
+      if (state.isAuthenticated && !prevState.isAuthenticated && state.user) {
+        console.log('Login: syncing local cart with backend');
+        setTimeout(() => useCartStore.getState().syncCartWithBackend(), 200);
+        return;
+      }
+      
+      // Logout → clear local cart, preserve backend
+      if (!state.isAuthenticated && prevState.isAuthenticated) {
+        console.log('Logout: clearing local cart');
+        const store = useCartStore.getState();
+        store.clearLocalCartStorage();
+        useCartStore.setState({
+          cart: { id: generateId(), userId: null, items: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          summary: { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 },
+          promoCode: null,
+          error: null,
+          isLoading: false,
+          isSyncing: false,
+          syncCompleted: false,
+          lastSyncTimestamp: 0,
+        });
       }
     });
   } catch (error) {
@@ -934,7 +886,7 @@ const initializeAuthSubscription = () => {
   }
 };
 
-// Initialize the subscription after a timeout to ensure both stores are ready
+// Initialize after stores are ready
 setTimeout(initializeAuthSubscription, 200);
 
 // Optional: Cleanup subscription when the module is unloaded (e.g., in a test environment or on app exit)

@@ -319,6 +319,7 @@ func prepareCartResponse(ctx context.Context, cart models.Cart) (CartResponse, e
 }
 
 // GetCart returns the complete cart for a given user
+// Returns 200 with cart data (even if empty), or 404 if no cart exists
 func GetCart(w http.ResponseWriter, r *http.Request) {
 	userID, statusCode, err := getUserIDFromContext(r)
 	if err != nil {
@@ -331,17 +332,14 @@ func GetCart(w http.ResponseWriter, r *http.Request) {
 
 	cart, statusCode, err := getActiveCartForUser(ctx, userID)
 	if err != nil {
+		// Return 404 only if no cart exists at all
+		// This allows frontend to distinguish between "no cart" and "empty cart"
 		utils.ErrorResponse(w, statusCode, err.Error())
 		return
 	}
 
-	// After successfully decoding the cart, check if it contains any items
-	if len(cart.Items) == 0 {
-		// Treat an empty cart as non-existent so that the frontend can POST its local items
-		utils.ErrorResponse(w, http.StatusNotFound, "Active cart is empty for user")
-		return
-	}
-
+	// Return cart even if empty - frontend handles empty cart display
+	// This is more RESTful: cart exists but has no items
 	cartResponse, err := prepareCartResponse(ctx, *cart)
 	if err != nil {
 		utils.ErrorResponse(
