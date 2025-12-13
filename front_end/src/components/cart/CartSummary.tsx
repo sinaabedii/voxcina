@@ -10,24 +10,22 @@ import { motion, AnimatePresence } from "framer-motion";
 interface CartSummaryProps {
   showCheckoutButton?: boolean;
   shippingCost?: number; // Optional override for shipping cost (used in checkout with dynamic shipping)
-  showTaxAndShipping?: boolean; // Whether to show tax and shipping (hide on cart page, show on checkout)
+  showShipping?: boolean; // Whether to show shipping (hide on cart page, show on checkout)
 }
 
 const CartSummary: React.FC<CartSummaryProps> = ({
   showCheckoutButton = true,
   shippingCost,
-  showTaxAndShipping = true,
+  showShipping = true,
 }) => {
   const { summary, promoCode, applyPromoCode, removePromoCode } = useCart();
   
   // Use provided shipping cost or fall back to cart summary shipping
   const effectiveShipping = shippingCost !== undefined ? shippingCost : summary.shipping;
-  // Recalculate total based on what's shown
-  const effectiveTotal = showTaxAndShipping
-    ? (shippingCost !== undefined 
-        ? summary.subtotal - summary.discount + summary.tax + shippingCost
-        : summary.total)
-    : summary.subtotal - summary.discount; // Only subtotal minus discount when tax/shipping hidden
+  // Recalculate total - no tax, only subtotal + shipping - discount
+  const effectiveTotal = showShipping
+    ? summary.subtotal - summary.discount + effectiveShipping
+    : summary.subtotal - summary.discount;
   const [promoInput, setPromoInput] = useState("");
   const [promoError, setPromoError] = useState("");
 
@@ -63,18 +61,11 @@ const CartSummary: React.FC<CartSummaryProps> = ({
             <span className="font-medium">{formatPrice(summary.subtotal)}</span>
           </div>
 
-          {showTaxAndShipping && (
-            <>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">مالیات</span>
-                <span>{formatPrice(summary.tax)}</span>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">هزینه ارسال</span>
-                <span>{effectiveShipping === 0 ? "رایگان" : formatPrice(effectiveShipping)}</span>
-              </div>
-            </>
+          {showShipping && (
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">هزینه ارسال</span>
+              <span>{effectiveShipping === 0 ? "رایگان" : formatPrice(effectiveShipping)}</span>
+            </div>
           )}
 
           <AnimatePresence>
