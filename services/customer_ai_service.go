@@ -269,6 +269,176 @@ func (s *CustomerAIService) detectProductCodeQuestion(query string) (string, str
 	return "", ""
 }
 
+// detectContextualQuestion checks if the query is asking about a previously shown product
+// Returns: questionType (material, color, size, price, details) or empty if not a contextual question
+func (s *CustomerAIService) detectContextualQuestion(query string) string {
+	query = strings.ToLower(query)
+
+	// Contextual references in Persian: همین, این, اون, محصول قبلی, etc.
+	contextualPatterns := []string{
+		"همین", "این", "اون", "محصول", "قبلی", "بالایی", "this", "that", "it",
+	}
+
+	hasContextualRef := false
+	for _, pattern := range contextualPatterns {
+		if strings.Contains(query, pattern) {
+			hasContextualRef = true
+			break
+		}
+	}
+
+	if !hasContextualRef {
+		return ""
+	}
+
+	// Determine question type
+	if strings.Contains(query, "جنس") || strings.Contains(query, "پارچه") || strings.Contains(query, "material") {
+		return "material"
+	} else if strings.Contains(query, "رنگ") || strings.Contains(query, "color") {
+		return "color"
+	} else if strings.Contains(query, "سایز") || strings.Contains(query, "size") {
+		return "size"
+	} else if strings.Contains(query, "قیمت") || strings.Contains(query, "price") {
+		return "price"
+	}
+
+	return "details"
+}
+
+// getLastShownProductIDs retrieves product IDs from the most recent bot message in chat history
+func (s *CustomerAIService) getLastShownProductIDs(ctx context.Context, chatID string) []string {
+	if chatID == "" {
+		return nil
+	}
+
+	chatSvc := NewChatService(s.database)
+	chat, err := chatSvc.GetChatByChatID(ctx, chatID)
+	if err != nil || chat == nil {
+		return nil
+	}
+
+	// Look for the most recent bot message with product IDs
+	for i := len(chat.Messages) - 1; i >= 0; i-- {
+		msg := chat.Messages[i]
+		if msg.Sender == "bot" && len(msg.ProductIDs) > 0 {
+			var ids []string
+			for _, id := range msg.ProductIDs {
+				ids = append(ids, id.Hex())
+			}
+			return ids
+		}
+	}
+
+	return nil
+}
+
+// handleContextualQuestion handles questions about previously shown products
+func (s *CustomerAIService) handleContextualQuestion(
+	ctx context.Context,
+	chatID string,
+	questionType string,
+) (*CustomerSearchResponse, error) {
+	productIDs := s.getLastShownProductIDs(ctx, chatID)
+	if len(productIDs) == 0 {
+		return &CustomerSearchResponse{
+			Response:      "متاسفانه محصولی در گفتگوی قبلی پیدا نکردم. لطفاً نام یا کد محصول را مشخص کنید.",
+			Products:      nil,
+			ProductIDs:    nil,
+			Success:       false,
+			IsAIGenerated: false,
+		}, nil
+	}
+
+	// Get the first product (most relevant)
+	products, err := s.getProductsByIDs(ctx, productIDs[:1])
+	if err != nil || len(products) == 0 {
+		return &CustomerSearchResponse{
+			Response:      "متاسفانه اطلاعات این محصول در دسترس نیست.",
+			Products:      nil,
+			ProductIDs:    nil,
+			Success:       false,
+			IsAIGenerated: false,
+		}, nil
+	}
+
+	product := products[0]
+	var response string
+	productName := product.Name
+	if product.SearchMetadata != nil && product.SearchMetadata.NamePersian != "" {
+		productName = product.SearchMetadata.NamePersian
+	}
+
+	switch questionType {
+	case "material":
+		if product.SearchMetadata != nil && product.SearchMetadata.MaterialPersian != "" {
+			response = fmt.Sprintf("جنس %s: %s", productName, product.SearchMetadata.MaterialPersian)
+		} else {
+			response = fmt.Sprintf("متاسفانه اطلاعات جنس %s در سیستم ثبت نشده است.", productName)
+		}
+	case "color":
+		if product.SearchMetadata != nil && len(product.SearchMetadata.ColorsPersian) > 0 {
+			var colors []string
+			for _, c := range product.SearchMetadata.ColorsPersian {
+				colors = append(colors, c.NamePersian)
+			}
+			response = fmt.Sprintf("رنگ‌های موجود %s: %s", productName, strings.Join(colors, "، "))
+		} else {
+			response = fmt.Sprintf("متاسفانه اطلاعات رنگ %s در سیستم ثبت نشده است.", productName)
+		}
+	case "size":
+		if len(product.ColorVariants) > 0 {
+			sizeSet := make(map[string]bool)
+			for _, cv := range product.ColorVariants {
+				for _, sv := range cv.Sizes {
+					if sv.Size != "" {
+						sizeSet[sv.Size] = true
+					}
+				}
+			}
+			if len(sizeSet) > 0 {
+				var sizes []string
+				for size := range sizeSet {
+					sizes = append(sizes, size)
+				}
+				response = fmt.Sprintf("سایزهای موجود %s: %s", productName, strings.Join(sizes, "، "))
+			} else {
+				response = fmt.Sprintf("متاسفانه اطلاعات سایز %s در سیستم ثبت نشده است.", productName)
+			}
+		} else {
+			response = fmt.Sprintf("متاسفانه اطلاعات سایز %s در سیستم ثبت نشده است.", productName)
+		}
+	case "price":
+		response = fmt.Sprintf("قیمت %s: %s تومان", productName, formatPrice(product.Price))
+	default:
+		// Return full details
+		var builder strings.Builder
+		builder.WriteString(fmt.Sprintf("📦 %s\n", productName))
+		if product.SearchMetadata != nil {
+			if product.SearchMetadata.MaterialPersian != "" {
+				builder.WriteString(fmt.Sprintf("جنس: %s\n", product.SearchMetadata.MaterialPersian))
+			}
+			if len(product.SearchMetadata.ColorsPersian) > 0 {
+				var colors []string
+				for _, c := range product.SearchMetadata.ColorsPersian {
+					colors = append(colors, c.NamePersian)
+				}
+				builder.WriteString(fmt.Sprintf("رنگ‌ها: %s\n", strings.Join(colors, "، ")))
+			}
+		}
+		builder.WriteString(fmt.Sprintf("قیمت: %s تومان\n", formatPrice(product.Price)))
+		builder.WriteString(fmt.Sprintf("برند: %s", product.Brand))
+		response = builder.String()
+	}
+
+	return &CustomerSearchResponse{
+		Response:      response,
+		Products:      products,
+		ProductIDs:    productIDs[:1],
+		Success:       true,
+		IsAIGenerated: false,
+	}, nil
+}
+
 // handleProductDetailQuestion handles direct questions about specific products
 func (s *CustomerAIService) handleProductDetailQuestion(
 	ctx context.Context,
@@ -361,9 +531,14 @@ func (s *CustomerAIService) RunAgenticChat(
 		return s.getFallbackResponse(ctx, req.Query)
 	}
 
-	// Check if this is a direct product detail question
+	// Check if this is a direct product detail question (with product code)
 	if productCode, questionType := s.detectProductCodeQuestion(req.Query); productCode != "" {
 		return s.handleProductDetailQuestion(ctx, productCode, questionType)
+	}
+
+	// Check if this is a contextual question about a previously shown product
+	if questionType := s.detectContextualQuestion(req.Query); questionType != "" {
+		return s.handleContextualQuestion(ctx, req.ChatID, questionType)
 	}
 
 	// 1. Build Initial Context
