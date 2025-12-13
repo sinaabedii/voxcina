@@ -398,9 +398,26 @@ export const useCartStore = create<CartStore>()(
           // Step 1: Check if backend cart exists
           const getResult = await makeCartApiRequest<any>('/api/cart', 'GET');
           
-          // Step 2: If we have local items, merge them to backend
+          // Step 2: Backend cart exists - use it (don't merge local items to avoid doubling)
+          if (getResult.ok && getResult.data && getResult.data.items?.length > 0) {
+            const { cart: processedCart, summary: processedSummary } = processBackendCartData(getResult.data);
+            get().clearLocalCartStorage();
+            set({
+              cart: processedCart,
+              summary: processedSummary,
+              isLoading: false,
+              syncRetryCount: 0,
+              syncCompleted: true,
+              lastSyncTimestamp: Date.now(),
+              isSyncing: false,
+            });
+            console.log('✅ Backend cart has items, using backend cart, localStorage cleared');
+            return;
+          }
+          
+          // Step 3: Backend cart is empty or doesn't exist - merge local items if any
           if (hasLocalItems) {
-            console.log(`Merging ${localCartItems.length} local items to backend...`);
+            console.log(`Backend cart empty/missing, merging ${localCartItems.length} local items...`);
             const itemsForBackend = localCartItems.map(item => ({
               productId: item.productId,
               quantity: item.quantity,
@@ -428,24 +445,7 @@ export const useCartStore = create<CartStore>()(
             }
           }
           
-          // Step 3: No local items - just use backend cart (or empty if 404)
-          if (getResult.ok && getResult.data) {
-            const { cart: processedCart, summary: processedSummary } = processBackendCartData(getResult.data);
-            get().clearLocalCartStorage();
-            set({
-              cart: processedCart,
-              summary: processedSummary,
-              isLoading: false,
-              syncRetryCount: 0,
-              syncCompleted: true,
-              lastSyncTimestamp: Date.now(),
-              isSyncing: false,
-            });
-            console.log('✅ Backend cart loaded, localStorage cleared');
-            return;
-          }
-          
-          // No backend cart (404) and no local items - set empty cart
+          // No backend cart and no local items - set empty cart
           get().clearLocalCartStorage();
           set({
             cart: { id: generateId(), userId: null, items: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
