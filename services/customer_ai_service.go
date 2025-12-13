@@ -144,31 +144,31 @@ func defaultCustomerAIConfig() *CustomerAIConfig {
 	return &CustomerAIConfig{
 		SystemPrompt: `You are Voxcina, a Persian e-commerce shopping assistant.
 
-You MUST use tools to search for products. You have access to:
-
-{"tool": "search_products", "arguments": {"query": "search term"}}
+You have access to these tools:
+1. {"tool": "search_products", "arguments": {"query": "search term"}} - Search for products
+2. {"tool": "get_product_details", "arguments": {"product_code": "1210"}} - Get details of a specific product by code
 
 WORKFLOW:
-1. When user asks for products, FIRST call search_products tool
-2. WAIT for tool results
-3. ONLY THEN respond using the actual products returned
+1. For product searches: use search_products tool
+2. For questions about specific products (by code/name): use get_product_details tool
+3. For follow-up questions about previously shown products: answer using the product info from chat history
+4. WAIT for tool results before responding
 
-CRITICAL - ANTI-HALLUCINATION RULES:
-- You MUST call search_products BEFORE recommending anything
-- You can ONLY mention products that appear in tool results
-- NEVER invent product codes like P010, P011, P012
-- NEVER make up prices, materials, or colors
-- If tool returns no products, say: "متاسفانه محصولی پیدا نشد"
-- Do NOT create tables with fake product data
+FOLLOW-UP QUESTIONS:
+- If user asks about a product code (like 'کد ۱۲۱۰ جنسش چیه؟'), look at chat history for that product
+- Answer questions about material (جنس), color (رنگ), size (سایز), price (قیمت) from product details
+- If product was shown before, use that info directly without searching again
+
+CRITICAL RULES:
+- ONLY mention products from tool results or chat history
+- NEVER invent product details
+- If you don't have info, say: "اطلاعات این محصول در دسترس نیست"
 
 RESPONSE RULES:
 - Respond in Persian (Farsi)
 - Be friendly and helpful
-- Only describe products from actual search results
-- Include real product names and prices from results
-
-If you don't have search results yet, output ONLY:
-{"tool": "search_products", "arguments": {"query": "USER_QUERY_HERE"}}
+- For material questions: mention جنس/پارچه
+- For specific product questions: give direct answers, not new searches
 `,
 		SearchStrategy: SearchStrategyConfig{
 			MaxResults:        8,
@@ -219,6 +219,137 @@ func cleanDeepSeekResponse(response string) string {
 	return cleaned
 }
 
+// detectProductCodeQuestion checks if the query is asking about a specific product code
+func (s *CustomerAIService) detectProductCodeQuestion(query string) (string, string) {
+	// Common patterns for product code questions in Persian
+	// "کد 1210 جنسش چیه" -> code: 1210, question: material
+	// "کد ۱۲۱۰ چه رنگی داره" -> code: 1210, question: color
+
+	query = strings.ToLower(query)
+
+	// Look for "کد" followed by numbers
+	patterns := []string{"کد ", "کد", "code ", "code"}
+	for _, pattern := range patterns {
+		if idx := strings.Index(query, pattern); idx >= 0 {
+			// Extract the code number after the pattern
+			rest := query[idx+len(pattern):]
+			rest = strings.TrimSpace(rest)
+
+			// Extract digits (both Persian and English)
+			var codeBuilder strings.Builder
+			for _, r := range rest {
+				if r >= '0' && r <= '9' {
+					codeBuilder.WriteRune(r)
+				} else if r >= '۰' && r <= '۹' {
+					// Convert Persian digit to English
+					codeBuilder.WriteRune(r - '۰' + '0')
+				} else if codeBuilder.Len() > 0 {
+					break
+				}
+			}
+
+			code := codeBuilder.String()
+			if code != "" {
+				// Determine question type
+				questionType := "details"
+				if strings.Contains(query, "جنس") || strings.Contains(query, "پارچه") || strings.Contains(query, "material") {
+					questionType = "material"
+				} else if strings.Contains(query, "رنگ") || strings.Contains(query, "color") {
+					questionType = "color"
+				} else if strings.Contains(query, "سایز") || strings.Contains(query, "size") {
+					questionType = "size"
+				} else if strings.Contains(query, "قیمت") || strings.Contains(query, "price") {
+					questionType = "price"
+				}
+				return code, questionType
+			}
+		}
+	}
+
+	return "", ""
+}
+
+// handleProductDetailQuestion handles direct questions about specific products
+func (s *CustomerAIService) handleProductDetailQuestion(
+	ctx context.Context,
+	productCode string,
+	questionType string,
+) (*CustomerSearchResponse, error) {
+	details, products, err := s.toolGetProductDetails(ctx, productCode, "")
+	if err != nil {
+		return nil, err
+	}
+
+	if len(products) == 0 {
+		return &CustomerSearchResponse{
+			Response:      fmt.Sprintf("متاسفانه محصولی با کد %s پیدا نشد.", productCode),
+			Products:      nil,
+			ProductIDs:    nil,
+			Success:       false,
+			IsAIGenerated: false,
+		}, nil
+	}
+
+	product := products[0]
+	var response string
+
+	switch questionType {
+	case "material":
+		if product.SearchMetadata != nil && product.SearchMetadata.MaterialPersian != "" {
+			response = fmt.Sprintf("جنس محصول کد %s: %s", productCode, product.SearchMetadata.MaterialPersian)
+		} else {
+			response = fmt.Sprintf("متاسفانه اطلاعات جنس محصول کد %s در سیستم ثبت نشده است.", productCode)
+		}
+	case "color":
+		if product.SearchMetadata != nil && len(product.SearchMetadata.ColorsPersian) > 0 {
+			var colors []string
+			for _, c := range product.SearchMetadata.ColorsPersian {
+				colors = append(colors, c.NamePersian)
+			}
+			response = fmt.Sprintf("رنگ‌های موجود محصول کد %s: %s", productCode, strings.Join(colors, "، "))
+		} else {
+			response = fmt.Sprintf("متاسفانه اطلاعات رنگ محصول کد %s در سیستم ثبت نشده است.", productCode)
+		}
+	case "size":
+		if len(product.Variants) > 0 {
+			sizeSet := make(map[string]bool)
+			for _, v := range product.Variants {
+				if v.Size != "" {
+					sizeSet[v.Size] = true
+				}
+			}
+			if len(sizeSet) > 0 {
+				var sizes []string
+				for size := range sizeSet {
+					sizes = append(sizes, size)
+				}
+				response = fmt.Sprintf("سایزهای موجود محصول کد %s: %s", productCode, strings.Join(sizes, "، "))
+			} else {
+				response = fmt.Sprintf("متاسفانه اطلاعات سایز محصول کد %s در سیستم ثبت نشده است.", productCode)
+			}
+		} else {
+			response = fmt.Sprintf("متاسفانه اطلاعات سایز محصول کد %s در سیستم ثبت نشده است.", productCode)
+		}
+	case "price":
+		response = fmt.Sprintf("قیمت محصول کد %s: %s تومان", productCode, formatPrice(product.Price))
+	default:
+		response = details
+	}
+
+	var productIDs []string
+	for _, p := range products {
+		productIDs = append(productIDs, p.ID.Hex())
+	}
+
+	return &CustomerSearchResponse{
+		Response:      response,
+		Products:      products,
+		ProductIDs:    productIDs,
+		Success:       true,
+		IsAIGenerated: false,
+	}, nil
+}
+
 // RunAgenticChat executes the main agent loop
 func (s *CustomerAIService) RunAgenticChat(
 	ctx context.Context,
@@ -226,6 +357,11 @@ func (s *CustomerAIService) RunAgenticChat(
 ) (*CustomerSearchResponse, error) {
 	if s.openRouterAPIKey == "" {
 		return s.getFallbackResponse(ctx, req.Query)
+	}
+
+	// Check if this is a direct product detail question
+	if productCode, questionType := s.detectProductCodeQuestion(req.Query); productCode != "" {
+		return s.handleProductDetailQuestion(ctx, productCode, questionType)
 	}
 
 	// 1. Build Initial Context
@@ -375,6 +511,26 @@ func (s *CustomerAIService) RunAgenticChat(
 				toolResult = orders
 			}
 
+		case "get_product_details":
+			var args struct {
+				ProductCode string `json:"product_code"`
+				ProductID   string `json:"product_id"`
+			}
+			json.Unmarshal(toolCall.Arguments, &args)
+
+			details, products, err := s.toolGetProductDetails(ctx, args.ProductCode, args.ProductID)
+			if err != nil {
+				toolResult = fmt.Sprintf("Error getting product details: %v", err)
+			} else {
+				toolResult = details
+				if len(products) > 0 {
+					finalProducts = products
+					for _, p := range products {
+						finalProductIDs = append(finalProductIDs, p.ID.Hex())
+					}
+				}
+			}
+
 		default:
 			toolResult = "Unknown tool: " + toolCall.Tool
 		}
@@ -412,6 +568,108 @@ func (s *CustomerAIService) toolSearchProducts(
 	}
 
 	return products, productIDs, nil
+}
+
+// toolGetProductDetails retrieves detailed information about a specific product by code or ID
+func (s *CustomerAIService) toolGetProductDetails(
+	ctx context.Context,
+	productCode string,
+	productID string,
+) (string, []models.Product, error) {
+	collection := s.database.Collection("products")
+
+	var filter bson.M
+
+	// Try to find by product code in name (e.g., "کد 1210" or "1210")
+	if productCode != "" {
+		// Clean the code - remove Persian/Arabic digits and convert
+		cleanCode := strings.TrimSpace(productCode)
+		// Search for products with this code in their name
+		filter = bson.M{
+			"$or": []bson.M{
+				{"name": bson.M{"$regex": cleanCode, "$options": "i"}},
+				{"search_metadata.namePersian": bson.M{"$regex": cleanCode, "$options": "i"}},
+				{"sku": bson.M{"$regex": cleanCode, "$options": "i"}},
+			},
+			"is_active": true,
+		}
+	} else if productID != "" {
+		// Try to find by ObjectID
+		objID, err := primitive.ObjectIDFromHex(productID)
+		if err != nil {
+			return "شناسه محصول نامعتبر است.", nil, nil
+		}
+		filter = bson.M{"_id": objID, "is_active": true}
+	} else {
+		return "لطفاً کد یا شناسه محصول را مشخص کنید.", nil, nil
+	}
+
+	cursor, err := collection.Find(ctx, filter, options.Find().SetLimit(5))
+	if err != nil {
+		return "", nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var products []models.Product
+	if err := cursor.All(ctx, &products); err != nil {
+		return "", nil, err
+	}
+
+	if len(products) == 0 {
+		return fmt.Sprintf("محصولی با کد %s پیدا نشد.", productCode), nil, nil
+	}
+
+	// Build detailed response
+	var builder strings.Builder
+	for _, product := range products {
+		builder.WriteString(fmt.Sprintf("📦 **%s**\n", product.Name))
+
+		if product.SearchMetadata != nil {
+			if product.SearchMetadata.NamePersian != "" {
+				builder.WriteString(fmt.Sprintf("نام: %s\n", product.SearchMetadata.NamePersian))
+			}
+			if product.SearchMetadata.MaterialPersian != "" {
+				builder.WriteString(fmt.Sprintf("جنس/پارچه: %s\n", product.SearchMetadata.MaterialPersian))
+			}
+			if product.SearchMetadata.StylePersian != "" {
+				builder.WriteString(fmt.Sprintf("استایل: %s\n", product.SearchMetadata.StylePersian))
+			}
+			if len(product.SearchMetadata.ColorsPersian) > 0 {
+				var colors []string
+				for _, c := range product.SearchMetadata.ColorsPersian {
+					colors = append(colors, c.NamePersian)
+				}
+				builder.WriteString(fmt.Sprintf("رنگ‌ها: %s\n", strings.Join(colors, "، ")))
+			}
+			if product.SearchMetadata.DescriptionPersian != "" {
+				builder.WriteString(fmt.Sprintf("توضیحات: %s\n", product.SearchMetadata.DescriptionPersian))
+			}
+		}
+
+		builder.WriteString(fmt.Sprintf("قیمت: %s تومان\n", formatPrice(product.Price)))
+		builder.WriteString(fmt.Sprintf("برند: %s\n", product.Brand))
+
+		// Add available sizes from variants
+		if len(product.Variants) > 0 {
+			sizeSet := make(map[string]bool)
+			for _, v := range product.Variants {
+				if v.Size != "" {
+					sizeSet[v.Size] = true
+				}
+			}
+			if len(sizeSet) > 0 {
+				var sizes []string
+				for size := range sizeSet {
+					sizes = append(sizes, size)
+				}
+				builder.WriteString(fmt.Sprintf("سایزهای موجود: %s\n", strings.Join(sizes, "، ")))
+			}
+		}
+
+		builder.WriteString(fmt.Sprintf("شناسه: %s\n\n", product.ID.Hex()))
+	}
+
+	return builder.String(), products, nil
 }
 
 // toolGetUserContext implements user info retrieval
