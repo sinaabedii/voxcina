@@ -311,11 +311,13 @@ func (s *CustomerAIService) handleProductDetailQuestion(
 			response = fmt.Sprintf("متاسفانه اطلاعات رنگ محصول کد %s در سیستم ثبت نشده است.", productCode)
 		}
 	case "size":
-		if len(product.Variants) > 0 {
+		if len(product.ColorVariants) > 0 {
 			sizeSet := make(map[string]bool)
-			for _, v := range product.Variants {
-				if v.Size != "" {
-					sizeSet[v.Size] = true
+			for _, cv := range product.ColorVariants {
+				for _, sv := range cv.Sizes {
+					if sv.Size != "" {
+						sizeSet[sv.Size] = true
+					}
 				}
 			}
 			if len(sizeSet) > 0 {
@@ -649,12 +651,14 @@ func (s *CustomerAIService) toolGetProductDetails(
 		builder.WriteString(fmt.Sprintf("قیمت: %s تومان\n", formatPrice(product.Price)))
 		builder.WriteString(fmt.Sprintf("برند: %s\n", product.Brand))
 
-		// Add available sizes from variants
-		if len(product.Variants) > 0 {
+		// Add available sizes from color variants
+		if len(product.ColorVariants) > 0 {
 			sizeSet := make(map[string]bool)
-			for _, v := range product.Variants {
-				if v.Size != "" {
-					sizeSet[v.Size] = true
+			for _, cv := range product.ColorVariants {
+				for _, sv := range cv.Sizes {
+					if sv.Size != "" {
+						sizeSet[sv.Size] = true
+					}
 				}
 			}
 			if len(sizeSet) > 0 {
