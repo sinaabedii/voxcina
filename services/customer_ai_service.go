@@ -178,6 +178,47 @@ If you don't have search results yet, output ONLY:
 	}
 }
 
+// cleanDeepSeekResponse removes reasoning tokens and internal markup from DeepSeek R1 responses
+func cleanDeepSeekResponse(response string) string {
+	// DeepSeek R1 uses special tokens like <|channel>, start|>, <|call|>, etc.
+	// These need to be stripped out to get the actual response
+
+	// Common patterns to remove
+	patterns := []string{
+		"start|>assistant<|channel>commentary",
+		"start|>assistant",
+		"<|channel>commentary",
+		"<|channel>",
+		"<|call|>",
+		"<|constrain|>json",
+		"<|constrain|>",
+		"<|message",
+		"|>",
+		"start|>",
+		"to=search_products",
+		"to=get_user_info",
+		"to=get_recent_orders",
+	}
+
+	cleaned := response
+	for _, pattern := range patterns {
+		cleaned = strings.ReplaceAll(cleaned, pattern, "")
+	}
+
+	// Also try to extract content between <think> tags if present (DeepSeek reasoning)
+	if thinkStart := strings.Index(cleaned, "<think>"); thinkStart >= 0 {
+		if thinkEnd := strings.Index(cleaned, "</think>"); thinkEnd > thinkStart {
+			// Remove the thinking section
+			cleaned = cleaned[:thinkStart] + cleaned[thinkEnd+8:]
+		}
+	}
+
+	// Clean up multiple spaces and newlines
+	cleaned = strings.TrimSpace(cleaned)
+
+	return cleaned
+}
+
 // RunAgenticChat executes the main agent loop
 func (s *CustomerAIService) RunAgenticChat(
 	ctx context.Context,
@@ -219,6 +260,16 @@ func (s *CustomerAIService) RunAgenticChat(
 		response, err := s.callOpenRouterWithMessages(messages)
 		if err != nil {
 			log.Printf("LLM Error: %v", err)
+			return s.getFallbackResponse(ctx, req.Query)
+		}
+
+		// Clean DeepSeek R1 reasoning tokens if present
+		response = cleanDeepSeekResponse(response)
+
+		// If response looks like garbage/internal tokens, fall back to direct search
+		if strings.Contains(response, "|>") || strings.Contains(response, "<|") ||
+			strings.Contains(response, "channel>") || len(strings.TrimSpace(response)) < 10 {
+			log.Printf("Warning: LLM returned malformed response, falling back to direct search")
 			return s.getFallbackResponse(ctx, req.Query)
 		}
 
@@ -406,13 +457,21 @@ func (s *CustomerAIService) getFallbackResponse(
 	ctx context.Context,
 	query string,
 ) (*CustomerSearchResponse, error) {
-	// Basic search fallback
-	productIDs, _ := s.semanticProductSearch(ctx, query)
+	// Use hybrid search for better results
+	productIDs, _ := s.hybridSemanticProductSearch(ctx, query)
 	products, _ := s.getProductsByIDs(ctx, productIDs)
 
-	msg := "متاسفانه در حال حاضر نمی‌توانم ارتباط برقرار کنم. اما این محصولات شاید برای شما جالب باشند:"
-	if len(s.config.FallbackMessages) > 0 {
-		msg = s.config.FallbackMessages[0]
+	var msg string
+	if len(products) > 0 {
+		// Pick a random fallback message
+		if len(s.config.FallbackMessages) > 0 {
+			idx := int(time.Now().UnixNano()) % len(s.config.FallbackMessages)
+			msg = s.config.FallbackMessages[idx]
+		} else {
+			msg = "بر اساس جستجوی شما، این محصولات رو پیشنهاد می‌کنم:"
+		}
+	} else {
+		msg = "متاسفانه محصولی با این مشخصات پیدا نشد. لطفاً با کلمات کلیدی دیگری جستجو کنید یا دسته‌بندی‌های محصولات ما را مرور کنید."
 	}
 
 	return &CustomerSearchResponse{
