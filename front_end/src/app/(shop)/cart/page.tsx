@@ -412,23 +412,7 @@ export default function CartPage() {
                   </span>
                 </div>
 
-                <div className="flex justify-between">
-                  <span className="text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                    مالیات
-                  </span>
-                  <span className="text-voxcina-blue dark:text-voxcina-cream">
-                    {formatPrice(summary.tax)}
-                  </span>
-                </div>
 
-                <div className="flex justify-between">
-                  <span className="text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                    هزینه ارسال
-                  </span>
-                  <span className="text-voxcina-blue dark:text-voxcina-cream">
-                    {formatPrice(summary.shipping)}
-                  </span>
-                </div>
 
                 {summary.discount > 0 && (
                   <div className="flex justify-between text-green-600 dark:text-green-400">
@@ -443,7 +427,7 @@ export default function CartPage() {
                       مجموع
                     </span>
                     <span className="text-voxcina-blue dark:text-voxcina-cream">
-                      {formatPrice(summary.total)}
+                      {formatPrice(summary.subtotal - summary.discount)}
                     </span>
                   </div>
                 </div>
