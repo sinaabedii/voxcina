@@ -178,16 +178,6 @@ export const PAYMENT_METHODS = [
     title: "پرداخت آنلاین",
     description: "پرداخت با کارت‌های شتاب از طریق درگاه بانکی",
   },
-  {
-    id: "wallet",
-    title: "کیف پول",
-    description: "پرداخت از طریق کیف پول دیجی استایل",
-  },
-  {
-    id: "cod",
-    title: "پرداخت در محل",
-    description: "پرداخت هنگام تحویل سفارش",
-  },
 ];
 
 export const PAYMENT_GATEWAYS = [
