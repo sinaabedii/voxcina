@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/Card";
 import { motion } from "framer-motion";
 import {
@@ -18,35 +19,89 @@ import {
   TruckIcon,
   X,
   SlidersHorizontal,
+  DollarSign,
+  Package,
+  Loader2,
+  CreditCard,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
 import { useOrderStore } from '@/store/order-store';
+import { AdminOrderFilters } from "@/types/order";
 
 export default function AdminOrdersPage() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Initialize state from URL params
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
+  const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get("page") || "1", 10));
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("newest");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "all");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState(searchParams.get("payment_status") || "all");
+  const [dateFrom, setDateFrom] = useState(searchParams.get("date_from") || "");
+  const [dateTo, setDateTo] = useState(searchParams.get("date_to") || "");
+  const [sortBy, setSortBy] = useState(searchParams.get("sort_by") || "newest");
 
   // Connect to admin orders store
-  const { orders, fetchAdminOrders, deleteOrder, updateOrderStatusAdmin, pagination, isLoading } = useOrderStore();
+  const { orders, fetchAdminOrders, deleteOrder, updateOrderStatusAdmin, pagination, isLoading, orderStats, fetchOrderStats } = useOrderStore();
+
+  // Build filters object from current state
+  const buildFilters = useCallback((): AdminOrderFilters => {
+    const filters: AdminOrderFilters = {};
+    if (statusFilter !== "all") filters.status = statusFilter;
+    if (paymentStatusFilter !== "all") filters.payment_status = paymentStatusFilter;
+    if (searchTerm) filters.search = searchTerm;
+    if (dateFrom) filters.date_from = dateFrom;
+    if (dateTo) filters.date_to = dateTo;
+    if (sortBy !== "newest") filters.sort_by = sortBy as AdminOrderFilters['sort_by'];
+    return filters;
+  }, [statusFilter, paymentStatusFilter, searchTerm, dateFrom, dateTo, sortBy]);
+
+  // Update URL params when filters change
+  const updateUrlParams = useCallback(() => {
+    const params = new URLSearchParams();
+    if (searchTerm) params.set("search", searchTerm);
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    if (paymentStatusFilter !== "all") params.set("payment_status", paymentStatusFilter);
+    if (dateFrom) params.set("date_from", dateFrom);
+    if (dateTo) params.set("date_to", dateTo);
+    if (sortBy !== "newest") params.set("sort_by", sortBy);
+    if (currentPage > 1) params.set("page", currentPage.toString());
+    
+    const queryString = params.toString();
+    router.replace(`/admin/orders${queryString ? `?${queryString}` : ''}`, { scroll: false });
+  }, [router, searchTerm, statusFilter, paymentStatusFilter, dateFrom, dateTo, sortBy, currentPage]);
 
   // Fetch admin orders on filter or page change
   useEffect(() => {
-    const filters: Record<string, any> = {};
-    if (statusFilter !== "all") filters.status = statusFilter;
-    if (searchTerm) filters.search = searchTerm;
-    fetchAdminOrders(currentPage, 5, filters);
-  }, [currentPage, statusFilter, searchTerm, fetchAdminOrders]);
+    const filters = buildFilters();
+    fetchAdminOrders(currentPage, 10, filters);
+    updateUrlParams();
+  }, [currentPage, statusFilter, paymentStatusFilter, searchTerm, dateFrom, dateTo, sortBy, fetchAdminOrders, buildFilters, updateUrlParams]);
+
+  // Fetch order stats when filters change (excluding pagination)
+  useEffect(() => {
+    const filters = buildFilters();
+    fetchOrderStats(filters);
+  }, [statusFilter, paymentStatusFilter, dateFrom, dateTo, fetchOrderStats, buildFilters]);
 
   // Handle pagination
   const paginate = (pageNumber: number) => {
     if (pageNumber > 0 && pageNumber <= (pagination?.totalPages || 1)) {
       setCurrentPage(pageNumber);
     }
+  };
+
+  // Clear all filters
+  const clearFilters = () => {
+    setStatusFilter("all");
+    setPaymentStatusFilter("all");
+    setDateFrom("");
+    setDateTo("");
+    setSortBy("newest");
+    setSearchTerm("");
+    setCurrentPage(1);
   };
 
   const currentOrders = orders;
@@ -116,6 +171,86 @@ export default function AdminOrdersPage() {
         </div>
       </motion.div>
 
+      {/* Statistics Summary Section */}
+      <motion.div
+        className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <motion.div variants={itemVariants}>
+          <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">کل سفارش‌ها</p>
+                  <p className="text-2xl font-bold text-voxcina-blue dark:text-voxcina-cream">
+                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (orderStats?.total_orders || 0).toLocaleString('fa-IR')}
+                  </p>
+                </div>
+                <div className="p-3 bg-voxcina-blue/10 dark:bg-voxcina-cream/10 rounded-xl">
+                  <Package className="w-6 h-6 text-voxcina-blue dark:text-voxcina-cream" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div variants={itemVariants}>
+          <Card className="border border-amber-200 dark:border-amber-800/30 shadow-sm rounded-2xl backdrop-blur-sm bg-amber-50/90 dark:bg-amber-900/10">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-amber-700 dark:text-amber-400">در انتظار</p>
+                  <p className="text-2xl font-bold text-amber-800 dark:text-amber-300">
+                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (orderStats?.pending_orders || 0).toLocaleString('fa-IR')}
+                  </p>
+                </div>
+                <div className="p-3 bg-amber-200/50 dark:bg-amber-800/30 rounded-xl">
+                  <Clock className="w-6 h-6 text-amber-700 dark:text-amber-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div variants={itemVariants}>
+          <Card className="border border-green-200 dark:border-green-800/30 shadow-sm rounded-2xl backdrop-blur-sm bg-green-50/90 dark:bg-green-900/10">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-green-700 dark:text-green-400">درآمد کل</p>
+                  <p className="text-xl font-bold text-green-800 dark:text-green-300">
+                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : formatPrice(orderStats?.total_revenue || 0)}
+                  </p>
+                </div>
+                <div className="p-3 bg-green-200/50 dark:bg-green-800/30 rounded-xl">
+                  <DollarSign className="w-6 h-6 text-green-700 dark:text-green-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div variants={itemVariants}>
+          <Card className="border border-blue-200 dark:border-blue-800/30 shadow-sm rounded-2xl backdrop-blur-sm bg-blue-50/90 dark:bg-blue-900/10">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-blue-700 dark:text-blue-400">سفارش‌های امروز</p>
+                  <p className="text-2xl font-bold text-blue-800 dark:text-blue-300">
+                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (orderStats?.today_orders || 0).toLocaleString('fa-IR')}
+                  </p>
+                </div>
+                <div className="p-3 bg-blue-200/50 dark:bg-blue-800/30 rounded-xl">
+                  <Calendar className="w-6 h-6 text-blue-700 dark:text-blue-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </motion.div>
+
       <motion.div
         className="mb-6 flex flex-col md:flex-row md:items-center gap-3"
         variants={containerVariants}
@@ -156,7 +291,8 @@ export default function AdminOrdersPage() {
         >
           <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
             <CardContent className="p-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Order Status Filter */}
                 <div>
                   <h3 className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-2">
                     وضعیت سفارش
@@ -164,34 +300,43 @@ export default function AdminOrdersPage() {
                   <select
                     className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-lg w-full p-2 text-sm focus:outline-none"
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
+                    onChange={(e) => {
+                      setStatusFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
                   >
                     <option value="all">همه وضعیت‌ها</option>
                     <option value="pending">در انتظار تایید</option>
                     <option value="processing">در حال پردازش</option>
-                    <option value="shipping">در حال ارسال</option>
+                    <option value="shipped">ارسال شده</option>
                     <option value="delivered">تحویل شده</option>
                     <option value="cancelled">لغو شده</option>
                   </select>
                 </div>
 
+                {/* Payment Status Filter */}
                 <div>
-                  <h3 className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-2">
-                    تاریخ
+                  <h3 className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-2 flex items-center">
+                    <CreditCard className="w-4 h-4 ml-1" />
+                    وضعیت پرداخت
                   </h3>
                   <select
                     className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-lg w-full p-2 text-sm focus:outline-none"
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
+                    value={paymentStatusFilter}
+                    onChange={(e) => {
+                      setPaymentStatusFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
                   >
-                    <option value="all">همه تاریخ‌ها</option>
-                    <option value="today">امروز</option>
-                    <option value="yesterday">دیروز</option>
-                    <option value="week">هفته اخیر</option>
-                    <option value="month">ماه اخیر</option>
+                    <option value="all">همه وضعیت‌ها</option>
+                    <option value="pending">در انتظار پرداخت</option>
+                    <option value="paid">پرداخت شده</option>
+                    <option value="failed">ناموفق</option>
+                    <option value="refunded">بازگشت وجه</option>
                   </select>
                 </div>
 
+                {/* Sort Options */}
                 <div>
                   <h3 className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-2">
                     مرتب‌سازی
@@ -199,13 +344,48 @@ export default function AdminOrdersPage() {
                   <select
                     className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-lg w-full p-2 text-sm focus:outline-none"
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
+                    onChange={(e) => {
+                      setSortBy(e.target.value);
+                      setCurrentPage(1);
+                    }}
                   >
                     <option value="newest">جدیدترین</option>
-                    <option value="customer">نام مشتری</option>
-                    <option value="amount-asc">مبلغ (کم به زیاد)</option>
-                    <option value="amount-desc">مبلغ (زیاد به کم)</option>
+                    <option value="oldest">قدیمی‌ترین</option>
+                    <option value="amount_asc">مبلغ (کم به زیاد)</option>
+                    <option value="amount_desc">مبلغ (زیاد به کم)</option>
                   </select>
+                </div>
+
+                {/* Date From */}
+                <div>
+                  <h3 className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-2">
+                    از تاریخ
+                  </h3>
+                  <input
+                    type="date"
+                    className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-lg w-full p-2 text-sm focus:outline-none"
+                    value={dateFrom}
+                    onChange={(e) => {
+                      setDateFrom(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
+
+                {/* Date To */}
+                <div>
+                  <h3 className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-2">
+                    تا تاریخ
+                  </h3>
+                  <input
+                    type="date"
+                    className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-lg w-full p-2 text-sm focus:outline-none"
+                    value={dateTo}
+                    onChange={(e) => {
+                      setDateTo(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  />
                 </div>
               </div>
 
@@ -214,12 +394,7 @@ export default function AdminOrdersPage() {
                   variant="outline"
                   size="sm"
                   className="rounded-xl border-red-200 dark:border-red-900/30 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10"
-                  onClick={() => {
-                    setStatusFilter("all");
-                    setDateFilter("all");
-                    setSortBy("newest");
-                    setSearchTerm("");
-                  }}
+                  onClick={clearFilters}
                 >
                   <X className="w-4 h-4 ml-1" />
                   پاک کردن فیلترها
@@ -405,12 +580,7 @@ export default function AdminOrdersPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  setStatusFilter("all");
-                  setDateFilter("all");
-                  setSortBy("newest");
-                  setSearchTerm("");
-                }}
+                onClick={clearFilters}
                 className="rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
               >
                 پاک کردن فیلترها

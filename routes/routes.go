@@ -132,10 +132,12 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/reviews", handlers.AdminListReviews).Methods(http.MethodGet)
 
 	// Admin Order Management
+	adminRouter.HandleFunc("/orders/stats", handlers.GetOrderStats).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/orders", handlers.GetAllOrders).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/orders/recent", handlers.GetRecentOrders).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/orders/{orderId}", handlers.UpdateOrderStatusAdmin).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/orders/{orderId}", handlers.DeleteOrder).Methods("DELETE")
+	adminRouter.HandleFunc("/orders/{orderId}/notes", handlers.AddOrderNote).Methods(http.MethodPost)
 
 	// Admin Ticket Management
 	adminRouter.HandleFunc("/tickets", handlers.AdminListTickets).Methods(http.MethodGet)

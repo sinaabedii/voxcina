@@ -1,28 +1,24 @@
 "use client";
 
-import { useEffect, useState, lazy, Suspense, useRef } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import Link from "next/link";
 import { useProductStore } from "@/store/product-store";
-import { useCategoryStore } from "@/store/category-store";
-import { useCartStore } from "@/store/cart-store";
 import { useSliderStore } from "@/store/slider-store";
-import { Product } from "@/types/product";
-import ProductGrid from "@/components/product/ProductGrid";
-import ProductCard from "@/components/product/ProductCard";
 import { motion } from "framer-motion";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { ModernSliderSection } from "@/components/home/ModernSlider";
 import HeroSection from "@/components/home/HeroSection";
 import ModernCategoriesSection from "@/components/home/ModernCategoriesSection";
-import { FaArrowLeft, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import ProductCarouselSection from "@/components/home/ProductCarouselSection";
+import { FaArrowLeft } from "react-icons/fa";
 import AnimatedBackground from "@/components/ui/AnimatedBackground";
 
 // Lazy load کردن کامپوننت‌های سنگین
 const ColorMatchingTool = lazy(
   () => import("@/components/home/ColorMatchingTool")
 );
-const InstagramFeed = lazy(() => import("@/components/home/InstagramFeed"));
+// const InstagramFeed = lazy(() => import("@/components/home/InstagramFeed"));
 const AIAssistantPromo = lazy(() => import("@/components/home/AIAssistantPromo"));
 
 export default function HomePage() {
@@ -32,67 +28,15 @@ export default function HomePage() {
     fetchFlashSaleProducts,
     fetchNewProducts,
     isLoading: isProductLoading,
-    error: productError,
   } = useProductStore();
 
-  const {
-    categories,
-    fetchCategories,
-    isLoading: isLoadingCategories,
-    error: categoriesError,
-  } = useCategoryStore();
-
-  const { sliders, fetchSliders, isLoading: isLoadingSliders } = useSliderStore();
-
-  const { addItem: addItemToCart } = useCartStore();
-
-  const [isVisible, setIsVisible] = useState(false);
-  const newProductsSliderRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [scrollLeft, setScrollLeft] = useState(0);
-
-  const scrollNewProducts = (direction: 'left' | 'right') => {
-    if (newProductsSliderRef.current) {
-      const scrollAmount = 260; // width of one card + gap
-      const currentScroll = newProductsSliderRef.current.scrollLeft;
-      const newScroll = direction === 'right' 
-        ? currentScroll + scrollAmount 
-        : currentScroll - scrollAmount;
-      newProductsSliderRef.current.scrollTo({ left: newScroll, behavior: 'smooth' });
-    }
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!newProductsSliderRef.current) return;
-    setIsDragging(true);
-    setStartX(e.pageX - newProductsSliderRef.current.offsetLeft);
-    setScrollLeft(newProductsSliderRef.current.scrollLeft);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || !newProductsSliderRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - newProductsSliderRef.current.offsetLeft;
-    const walk = (x - startX) * 1.5; // Scroll speed multiplier
-    newProductsSliderRef.current.scrollLeft = scrollLeft - walk;
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  const handleMouseLeave = () => {
-    setIsDragging(false);
-  };
+  const { sliders, fetchSliders } = useSliderStore();
 
   useEffect(() => {
     fetchFlashSaleProducts();
     fetchNewProducts();
-    fetchCategories();
     fetchSliders();
-    setIsVisible(true);
-  }, [fetchFlashSaleProducts, fetchNewProducts, fetchCategories, fetchSliders]);
+  }, [fetchFlashSaleProducts, fetchNewProducts, fetchSliders]);
 
   // انیمیشن‌های ساده‌تر با عملکرد بهتر
   const fadeIn = {
@@ -100,15 +44,11 @@ export default function HomePage() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
   };
 
-  const handleAddToCart = (product: Product) => {
-    addItemToCart(product, 1);
-    console.log(`${product.name} added to cart`);
-  };
-
   return (
     <>
       <Header />
       <AnimatedBackground />
+      {/* Live Shopping Notification */}
       <div className="pb-10 overflow-x-hidden font-sans bg-transparent relative z-10">
         <HeroSection />
         <ModernCategoriesSection />
@@ -172,64 +112,14 @@ export default function HomePage() {
           </div>
         </motion.section>
 
-        <motion.section
-          className="container px-4 md:px-8 mb-16 md:mb-24"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fadeIn}
-        >
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 md:mb-12">
-            <motion.h2
-              className="text-2xl sm:text-3xl font-bold relative inline-block text-voxcina-blue mb-4 sm:mb-0"
-              variants={fadeIn}
-            >
-              محصولات پرطرفدار
-              <span className="absolute -bottom-1 left-0 right-0 h-1 bg-gradient-to-r from-voxcina-blue to-primary-400"></span>
-            </motion.h2>
+        <ProductCarouselSection
+          title="محصولات پرطرفدار"
+          viewAllHref="/products?sort=popular"
+          products={featuredProducts}
+          isLoading={isProductLoading}
+        />
 
-            <motion.div variants={fadeIn}>
-              <Link
-                href="/products?sort=popular"
-                className="text-voxcina-blue hover:text-voxcina-darkBlue flex items-center group transition-all duration-300"
-              >
-                <span>مشاهده همه</span>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 md:h-5 md:w-5 mr-1 transform transition-transform duration-300 group-hover:translate-x-1"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </Link>
-            </motion.div>
-          </div>
-
-          {isProductLoading ? (
-            <div className="h-52 md:h-64 flex items-center justify-center">
-              <div className="relative w-12 h-12 md:w-16 md:h-16">
-                <div className="absolute inset-0 border-4 border-secondary-200 rounded-full"></div>
-                <div className="absolute inset-0 border-4 border-t-voxcina-blue rounded-full animate-spin"></div>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <ProductGrid
-                items={featuredProducts}
-                columns={4}
-                glassEffect={true}
-              />
-            </div>
-          )}
-        </motion.section>
-
+        {/* Flash Sale Countdown Section */}
         <Suspense
           fallback={
             <div className="h-40 flex items-center justify-center">
@@ -239,6 +129,15 @@ export default function HomePage() {
         >
           <AIAssistantPromo />
         </Suspense>
+
+
+        <ProductCarouselSection
+          title="جدیدترین محصولات"
+          viewAllHref="/products?sort=newest"
+          products={newProducts}
+          isLoading={isProductLoading}
+        />
+
         <ModernSliderSection sliders={sliders} />
 
 
@@ -251,92 +150,9 @@ export default function HomePage() {
         >
           <ColorMatchingTool />
         </Suspense>
-
-        <motion.section
-          className="container px-4 md:px-8 mb-16 md:mb-24"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fadeIn}
-        >
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 md:mb-12">
-            <motion.h2
-              className="text-2xl sm:text-3xl font-bold relative inline-block text-voxcina-blue mb-4 sm:mb-0"
-              variants={fadeIn}
-            >
-              جدیدترین محصولات
-              <span className="absolute -bottom-1 left-0 right-0 h-1 bg-gradient-to-r from-voxcina-blue to-primary-400"></span>
-            </motion.h2>
-
-            <motion.div variants={fadeIn}>
-              <Link
-                href="/products?sort=newest"
-                className="text-voxcina-blue hover:text-voxcina-darkBlue flex items-center group transition-all duration-300"
-              >
-                <span>مشاهده همه</span>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 md:h-5 md:w-5 mr-1 transform transition-transform duration-300 group-hover:translate-x-1"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </Link>
-            </motion.div>
-          </div>
-
-          {isProductLoading ? (
-            <div className="h-52 md:h-64 flex items-center justify-center">
-              <div className="relative w-12 h-12 md:w-16 md:h-16">
-                <div className="absolute inset-0 border-4 border-secondary-200 rounded-full"></div>
-                <div className="absolute inset-0 border-4 border-t-voxcina-blue rounded-full animate-spin"></div>
-              </div>
-            </div>
-          ) : (
-            <div className="relative group">
-              {/* Navigation Arrows */}
-              <button
-                onClick={() => scrollNewProducts('right')}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 dark:bg-voxcina-blue/90 shadow-lg rounded-full p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-white dark:hover:bg-voxcina-blue -translate-x-1/2"
-              >
-                <FaChevronLeft className="w-5 h-5 text-voxcina-blue dark:text-white" />
-              </button>
-              <button
-                onClick={() => scrollNewProducts('left')}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 dark:bg-voxcina-blue/90 shadow-lg rounded-full p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-white dark:hover:bg-voxcina-blue translate-x-1/2"
-              >
-                <FaChevronRight className="w-5 h-5 text-voxcina-blue dark:text-white" />
-              </button>
-              
-              <div 
-                ref={newProductsSliderRef}
-                className={`flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory ${isDragging ? '' : 'scroll-smooth'} select-none`}
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', cursor: isDragging ? 'grabbing' : 'grab' }}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseLeave}
-              >
-                {newProducts.map((product, index) => (
-                  <div 
-                    key={product.productId || index} 
-                    className="flex-shrink-0 w-[200px] sm:w-[220px] md:w-[250px] snap-start"
-                  >
-                    <ProductCard item={product} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </motion.section>
         {/* <VirtualWardrobe /> */}
+        {/* Customer Reviews Section */}
+
         <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-24"
           initial="hidden"
@@ -446,7 +262,7 @@ export default function HomePage() {
           </div>
         </motion.section>
 
-        <Suspense
+        {/* <Suspense
           fallback={
             <div className="h-40 flex items-center justify-center">
               در حال بارگذاری...
@@ -460,9 +276,9 @@ export default function HomePage() {
             showStats={true}
             className="mb-16"
           />
-        </Suspense>
+        </Suspense> */}
 
-        <motion.section
+        {/* <motion.section
           className="container px-4 md:px-8 mb-16 md:mb-20"
           initial="hidden"
           whileInView="visible"
@@ -531,7 +347,7 @@ export default function HomePage() {
               </motion.div>
             </motion.div>
           </div>
-        </motion.section>
+        </motion.section> */}
       </div>
       <Footer />
     </>

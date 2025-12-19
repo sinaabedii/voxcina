@@ -1,8 +1,28 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { Order, OrderItem, ShippingAddress } from "@/types/order"; // Assuming order.ts is created
+import { Order, OrderItem, ShippingAddress, OrderStats, AdminOrderFilters, OrderTimelineEntry, OrderNote } from "@/types/order";
 import { useAuthStore } from "./auth-store";
-import { toast } from "react-toastify"; // Import toast
+import { toast } from "react-toastify";
+
+// Helper to transform timeline entries with Jalali dates
+const transformTimelineEntry = (entry: any): OrderTimelineEntry => ({
+  status: entry.status || '',
+  timestamp: entry.timestamp || '',
+  jalali_timestamp: entry.jalali_timestamp || '',
+  note: entry.note,
+  admin_id: entry.admin_id,
+  admin_name: entry.admin_name,
+});
+
+// Helper to transform order notes with Jalali dates
+const transformOrderNote = (note: any): OrderNote => ({
+  id: note._id || note.id || '',
+  content: note.content || '',
+  admin_id: note.admin_id || '',
+  admin_name: note.admin_name || '',
+  created_at: note.created_at || '',
+  jalali_created_at: note.jalali_created_at || '',
+});
 
 // Helper to transform backend order data to frontend structure if needed
 // For now, assumes backend data largely matches frontend Order type
@@ -11,9 +31,12 @@ const transformBackendOrder = (backendOrderData: any): Order => {
   const transformedItems = backendOrderData.items?.map((item: any) => ({
     product: {
       id: item.product?.id || item.product_id, // Handle both nested and flat structures
-      name: item.product?.name || 'نامشخص',
-      image: item.product?.image || '',
+      name: item.product?.name || item.product_name || 'نامشخص',
+      image: item.product?.image || item.product_image || '',
     },
+    product_id: item.product_id,
+    product_name: item.product_name,
+    product_image: item.product_image,
     variant: item.variant || { size: 'N/A', color: 'N/A' },
     quantity: item.quantity || 0,
     price_at_purchase: item.price_at_purchase || 0,
@@ -22,12 +45,21 @@ const transformBackendOrder = (backendOrderData: any): Order => {
   // Transform shipping address to handle extended structure
   const transformedAddress = backendOrderData.shipping_address || {};
 
+  // Transform timeline entries with Jalali dates
+  const transformedTimeline = backendOrderData.timeline?.map(transformTimelineEntry) || [];
+
+  // Transform notes with Jalali dates
+  const transformedNotes = backendOrderData.notes?.map(transformOrderNote) || [];
+
   return {
     id: backendOrderData._id || backendOrderData.id,
     user_id: backendOrderData.user_id,
     order_number: backendOrderData.order_number,
     items: transformedItems,
     total_amount: backendOrderData.total_amount,
+    shipping_cost: backendOrderData.shipping_cost,
+    discount_amount: backendOrderData.discount_amount,
+    discount_code: backendOrderData.discount_code,
     shipping_address: {
       // Persian-specific fields
       title: transformedAddress.title,
@@ -49,12 +81,19 @@ const transformBackendOrder = (backendOrderData: any): Order => {
     status: backendOrderData.status || 'pending',
     status_text: backendOrderData.status_text || 'نامشخص',
     payment_status: backendOrderData.payment_status || 'pending',
+    payment_method: backendOrderData.payment_method,
+    zibal_track_id: backendOrderData.zibal_track_id,
+    zibal_ref_number: backendOrderData.zibal_ref_number,
     tracking_code: backendOrderData.tracking_code,
+    timeline: transformedTimeline,
+    notes: transformedNotes,
     is_active: backendOrderData.is_active !== undefined ? backendOrderData.is_active : true,
     created_at: backendOrderData.created_at || new Date().toISOString(),
     updated_at: backendOrderData.updated_at || new Date().toISOString(),
+    paid_at: backendOrderData.paid_at,
     jalali_created_at: backendOrderData.jalali_created_at || '',
     jalali_updated_at: backendOrderData.jalali_updated_at || '',
+    jalali_paid_at: backendOrderData.jalali_paid_at,
     product_count: backendOrderData.product_count || 0,
   } as Order;
 };
@@ -62,6 +101,7 @@ const transformBackendOrder = (backendOrderData: any): Order => {
 interface OrderState {
   orders: Order[];
   currentOrder: Order | null;
+  orderStats: OrderStats | null;
   isLoading: boolean;
   error: string | null;
   pagination: {
@@ -75,19 +115,22 @@ interface OrderState {
 interface OrderActions {
   fetchOrders: (page?: number, limit?: number, filters?: Record<string, any>) => Promise<void>;
   fetchOrderById: (orderId: string) => Promise<Order | null>;
+  fetchAdminOrderById: (orderId: string) => Promise<Order | null>;
   createOrder: (orderData: any) => Promise<Order | null>;
-  // updateOrderStatus: (orderId: string, status: Order['status']) => Promise<void>; // Example for admin
+  addOrderNote: (orderId: string, content: string) => Promise<Order | null>;
+  fetchOrderStats: (filters?: AdminOrderFilters) => Promise<OrderStats | null>;
+  updateOrderStatusAdmin: (orderId: string, status: Order['status'], note?: string) => Promise<void>;
   setCurrentOrder: (order: Order | null) => void;
   clearOrders: () => void;
   fetchAdminOrders: (page?: number, limit?: number, filters?: Record<string, any>) => Promise<void>;
   fetchRecentOrders: (limit?: number) => Promise<Order[]>;
-  updateOrderStatusAdmin: (orderId: string, status: Order['status']) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
 }
 
 const initialState: OrderState = {
   orders: [],
   currentOrder: null,
+  orderStats: null,
   isLoading: false,
   error: null,
   pagination: null,
@@ -176,6 +219,119 @@ export const useOrderStore = create<OrderState & OrderActions>()(
           return null;
         }
       },
+
+      fetchAdminOrderById: async (orderId: string) => {
+        const { isAuthenticated } = useAuthStore.getState();
+        if (!isAuthenticated) {
+          set({ error: "User not authenticated", isLoading: false, currentOrder: null });
+          return null;
+        }
+        set({ isLoading: true, error: null });
+        try {
+          const response = await fetch(`/api/admin/orders/${orderId}`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
+          });
+
+          if (!response.ok) {
+            if (response.status === 404) {
+              set({ currentOrder: null, isLoading: false, error: "Order not found" });
+              return null;
+            }
+            const errorData = await response.json().catch(() => ({ message: "Failed to fetch order details" }));
+            throw new Error(errorData.message || "Failed to fetch order details");
+          }
+          const backendOrder = await response.json();
+          const transformedOrder = transformBackendOrder(backendOrder);
+          set({ currentOrder: transformedOrder, isLoading: false });
+          return transformedOrder;
+        } catch (error) {
+          console.error(`Error fetching admin order ${orderId}:`, error);
+          set({ 
+            error: error instanceof Error ? error.message : "An unknown error occurred", 
+            isLoading: false, 
+            currentOrder: null 
+          });
+          return null;
+        }
+      },
+
+      addOrderNote: async (orderId: string, content: string) => {
+        const { isAuthenticated } = useAuthStore.getState();
+        if (!isAuthenticated) {
+          const errMessage = "User not authenticated";
+          set({ error: errMessage, isLoading: false });
+          toast.error(errMessage);
+          return null;
+        }
+        set({ isLoading: true, error: null });
+        try {
+          const response = await fetch(`/api/admin/orders/${orderId}/notes`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+            },
+            body: JSON.stringify({ content }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: "Failed to add note" }));
+            throw new Error(errorData.message || "Failed to add note");
+          }
+          const data = await response.json();
+          const transformedOrder = transformBackendOrder(data.order);
+          set({ currentOrder: transformedOrder, isLoading: false });
+          toast.success("یادداشت با موفقیت اضافه شد");
+          return transformedOrder;
+        } catch (error) {
+          console.error(`Error adding note to order ${orderId}:`, error);
+          set({ 
+            error: error instanceof Error ? error.message : "An unknown error occurred", 
+            isLoading: false 
+          });
+          toast.error(error instanceof Error ? error.message : "خطا در افزودن یادداشت");
+          return null;
+        }
+      },
+
+      fetchOrderStats: async (filters?: AdminOrderFilters) => {
+        const { isAuthenticated } = useAuthStore.getState();
+        if (!isAuthenticated) {
+          set({ error: "User not authenticated", isLoading: false, orderStats: null });
+          return null;
+        }
+        set({ isLoading: true, error: null });
+        try {
+          const queryParams = new URLSearchParams();
+          if (filters) {
+            if (filters.status) queryParams.set('status', filters.status);
+            if (filters.payment_status) queryParams.set('payment_status', filters.payment_status);
+            if (filters.date_from) queryParams.set('date_from', filters.date_from);
+            if (filters.date_to) queryParams.set('date_to', filters.date_to);
+          }
+          
+          const url = `/api/admin/orders/stats${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          const response = await fetch(url, {
+            headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: "Failed to fetch order stats" }));
+            throw new Error(errorData.message || "Failed to fetch order stats");
+          }
+          const stats: OrderStats = await response.json();
+          set({ orderStats: stats, isLoading: false });
+          return stats;
+        } catch (error) {
+          console.error("Error fetching order stats:", error);
+          set({ 
+            error: error instanceof Error ? error.message : "An unknown error occurred", 
+            isLoading: false,
+            orderStats: null
+          });
+          return null;
+        }
+      },
       
       createOrder: async (orderData: any) => {
         const { isAuthenticated } = useAuthStore.getState();
@@ -233,7 +389,7 @@ export const useOrderStore = create<OrderState & OrderActions>()(
       },
 
       clearOrders: () => {
-        set({ orders: [], currentOrder: null, pagination: null, isLoading: false, error: null });
+        set({ orders: [], currentOrder: null, orderStats: null, pagination: null, isLoading: false, error: null });
       },
 
       fetchAdminOrders: async (page = 1, limit = 10, filters = {}) => {
@@ -327,7 +483,7 @@ export const useOrderStore = create<OrderState & OrderActions>()(
         }
       },
 
-      updateOrderStatusAdmin: async (orderId, status) => {
+      updateOrderStatusAdmin: async (orderId, status, note) => {
         const { isAuthenticated } = useAuthStore.getState();
         if (!isAuthenticated) {
           const err = "User not authenticated";
@@ -337,13 +493,17 @@ export const useOrderStore = create<OrderState & OrderActions>()(
         }
         set({ isLoading: true, error: null });
         try {
+          const body: { status: string; note?: string } = { status };
+          if (note) {
+            body.note = note;
+          }
           const response = await fetch(`/api/admin/orders/${orderId}`, {
             method: "PUT",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${localStorage.getItem("authToken")}`,
             },
-            body: JSON.stringify({ status }),
+            body: JSON.stringify(body),
           });
           if (!response.ok) {
             const errData = await response.json().catch(() => ({ message: "Failed to update order status" }));
@@ -353,9 +513,10 @@ export const useOrderStore = create<OrderState & OrderActions>()(
           const transformedOrder = transformBackendOrder(updated);
           set(state => ({
             orders: state.orders.map(o => (o.id === transformedOrder.id ? transformedOrder : o)),
+            currentOrder: state.currentOrder?.id === transformedOrder.id ? transformedOrder : state.currentOrder,
             isLoading: false,
           }));
-          toast.success("Order status updated");
+          toast.success("وضعیت سفارش به‌روزرسانی شد");
         } catch (error) {
           console.error("Error updating order status:", error);
           set({ error: error instanceof Error ? error.message : "An unknown error occurred", isLoading: false });

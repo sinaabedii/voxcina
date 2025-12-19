@@ -37,21 +37,29 @@ type OrderItemAPIResponse struct {
 // OrderAPIResponse represents the full order structure for API responses.
 // It includes populated product details for items and Jalali dates.
 type OrderAPIResponse struct {
-	ID              primitive.ObjectID     `json:"id"`
-	UserID          primitive.ObjectID     `json:"user_id"`
-	OrderNumber     string                 `json:"order_number"`
-	Items           []OrderItemAPIResponse `json:"items"`
-	TotalAmount     float64                `json:"total_amount"`
-	ShippingAddress models.Address         `json:"shipping_address"`
-	Status          string                 `json:"status"`
-	StatusText      string                 `json:"status_text"`
-	TrackingCode    *string                `json:"tracking_code,omitempty"` // omitempty for null tracking code
-	PaymentStatus   string                 `json:"payment_status"`
-	CreatedAt       time.Time              `json:"created_at"`
-	UpdatedAt       time.Time              `json:"updated_at"`
-	JalaliCreatedAt string                 `json:"jalali_created_at"`
-	JalaliUpdatedAt string                 `json:"jalali_updated_at"`
-	ProductCount    int                    `json:"product_count"`
+	ID              primitive.ObjectID           `json:"id"`
+	UserID          primitive.ObjectID           `json:"user_id"`
+	OrderNumber     string                       `json:"order_number"`
+	Items           []OrderItemAPIResponse       `json:"items"`
+	TotalAmount     float64                      `json:"total_amount"`
+	ShippingCost    float64                      `json:"shipping_cost"`
+	DiscountAmount  float64                      `json:"discount_amount"`
+	DiscountCode    string                       `json:"discount_code,omitempty"`
+	ShippingAddress models.Address               `json:"shipping_address"`
+	Status          string                       `json:"status"`
+	StatusText      string                       `json:"status_text"`
+	TrackingCode    *string                      `json:"tracking_code,omitempty"`
+	PaymentStatus   string                       `json:"payment_status"`
+	PaymentMethod   string                       `json:"payment_method"`
+	ZibalTrackID    *int64                       `json:"zibal_track_id,omitempty"`
+	ZibalRefNumber  *string                      `json:"zibal_ref_number,omitempty"`
+	Timeline        []models.OrderTimelineEntry  `json:"timeline,omitempty"`
+	Notes           []models.OrderNote           `json:"notes,omitempty"`
+	CreatedAt       time.Time                    `json:"created_at"`
+	UpdatedAt       time.Time                    `json:"updated_at"`
+	JalaliCreatedAt string                       `json:"jalali_created_at"`
+	JalaliUpdatedAt string                       `json:"jalali_updated_at"`
+	ProductCount    int                          `json:"product_count"`
 }
 
 // Helper function to populate order items and create OrderAPIResponse
@@ -107,11 +115,19 @@ func newOrderAPIResponse(
 		OrderNumber:     order.OrderNumber,
 		Items:           populatedItems,
 		TotalAmount:     order.TotalAmount,
+		ShippingCost:    order.ShippingCost,
+		DiscountAmount:  order.DiscountAmount,
+		DiscountCode:    order.DiscountCode,
 		ShippingAddress: order.ShippingAddress,
 		Status:          order.Status,
 		StatusText:      order.StatusText,
 		TrackingCode:    order.TrackingCode,
 		PaymentStatus:   order.PaymentStatus,
+		PaymentMethod:   order.PaymentMethod,
+		ZibalTrackID:    order.ZibalTrackID,
+		ZibalRefNumber:  order.ZibalRefNumber,
+		Timeline:        order.Timeline,
+		Notes:           order.Notes,
 		CreatedAt:       order.CreatedAt,
 		UpdatedAt:       order.UpdatedAt,
 		JalaliCreatedAt: utils.ToJalaliDateString(order.CreatedAt),
@@ -467,6 +483,42 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// Fetch product snapshots for each order item
+	productsCollection := db.Database.Collection("products")
+	itemsWithSnapshots := make([]models.OrderItem, 0, len(orderData.Items))
+
+	for _, item := range orderData.Items {
+		// Fetch product to get name and image snapshot
+		var product models.Product
+		if err := productsCollection.FindOne(ctx, bson.M{"_id": item.ProductID}).Decode(&product); err != nil {
+			if err == mongo.ErrNoDocuments {
+				utils.ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("محصول با شناسه %s یافت نشد", item.ProductID.Hex()))
+				return
+			}
+			utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در دریافت اطلاعات محصول")
+			return
+		}
+
+		// Get product image from mainImages or first color variant
+		productImage := ""
+		if len(product.MainImages) > 0 {
+			productImage = product.MainImages[0]
+		} else if len(product.ColorVariants) > 0 && len(product.ColorVariants[0].Images) > 0 {
+			productImage = product.ColorVariants[0].Images[0]
+		}
+
+		// Create order item with product snapshot
+		itemWithSnapshot := models.OrderItem{
+			ProductID:       item.ProductID,
+			ProductName:     product.Name,
+			ProductImage:    productImage,
+			Variant:         item.Variant,
+			Quantity:        item.Quantity,
+			PriceAtPurchase: item.PriceAtPurchase,
+		}
+		itemsWithSnapshots = append(itemsWithSnapshots, itemWithSnapshot)
+	}
+
 	// Create a new order
 	now := time.Now()
 	orderCount := getNextOrderNumber()
@@ -475,7 +527,7 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		ID:              primitive.NewObjectID(),
 		UserID:          userID,
 		OrderNumber:     fmt.Sprintf("DGS-%05d", orderCount),
-		Items:           orderData.Items,
+		Items:           itemsWithSnapshots,
 		TotalAmount:     orderData.TotalAmount,
 		ShippingAddress: orderData.ShippingAddress,
 		Status:          "pending",
@@ -698,6 +750,20 @@ func GetUserOrders(w http.ResponseWriter, r *http.Request) {
 
 // PATCH /api/orders/:id/tracking
 func UpdateOrderTracking(w http.ResponseWriter, r *http.Request) {
+	// Get admin info from context (if available)
+	var adminID primitive.ObjectID
+	var adminName string
+	if userIDCtx := r.Context().Value("userID"); userIDCtx != nil {
+		if id, ok := userIDCtx.(primitive.ObjectID); ok {
+			adminID = id
+		}
+	}
+	if nameCtx := r.Context().Value("userName"); nameCtx != nil {
+		if name, ok := nameCtx.(string); ok {
+			adminName = name
+		}
+	}
+
 	vars := mux.Vars(r)
 	orderIdStr, ok := vars["id"]
 	if !ok {
@@ -721,17 +787,35 @@ func UpdateOrderTracking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update the order
+	// Validate tracking code is not empty
+	if updateData.TrackingCode == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "کد رهگیری نمی‌تواند خالی باشد")
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	collection := db.Database.Collection("orders")
+
+	// Create timeline entry for tracking code addition
+	timelineEntry := models.OrderTimelineEntry{
+		Status:    "shipped",
+		Timestamp: time.Now(),
+		Note:      fmt.Sprintf("کد رهگیری اضافه شد: %s", updateData.TrackingCode),
+		AdminID:   adminID,
+		AdminName: adminName,
+	}
+
 	update := bson.M{
 		"$set": bson.M{
 			"tracking_code": updateData.TrackingCode,
 			"status":        "shipped",
 			"status_text":   "ارسال شده",
 			"updated_at":    time.Now(),
+		},
+		"$push": bson.M{
+			"timeline": timelineEntry,
 		},
 	}
 
@@ -828,6 +912,29 @@ func getNextOrderNumber() int {
 
 // --- Admin Order Management ---
 
+// addTimelineEntry appends a new timeline entry to an order's timeline
+// It sets the timestamp to the current time and includes admin info if provided
+func addTimelineEntry(order *models.Order, status string, adminID primitive.ObjectID, adminName string, note string) {
+	entry := models.OrderTimelineEntry{
+		Status:    status,
+		Timestamp: time.Now(),
+		Note:      note,
+	}
+
+	// Only set admin fields if adminID is not nil
+	if adminID != primitive.NilObjectID {
+		entry.AdminID = adminID
+		entry.AdminName = adminName
+	}
+
+	// Initialize timeline if nil
+	if order.Timeline == nil {
+		order.Timeline = []models.OrderTimelineEntry{}
+	}
+
+	order.Timeline = append(order.Timeline, entry)
+}
+
 // DeleteOrder handles DELETE /api/admin/orders/{orderId} (Soft Delete)
 // Requires admin authentication
 func DeleteOrder(w http.ResponseWriter, r *http.Request) {
@@ -903,8 +1010,9 @@ func DeleteOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetAllOrders handles GET /api/admin/orders (Admin only)
+// Supports advanced filtering: status, payment_status, search, date_from, date_to, sort_by
 func GetAllOrders(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	collection := db.Database.Collection("orders")
@@ -922,18 +1030,62 @@ func GetAllOrders(w http.ResponseWriter, r *http.Request) {
 	}
 	skip := (page - 1) * limit
 
+	// Parse sort_by parameter
+	sortBy := r.URL.Query().Get("sort_by")
+	sortField := bson.D{{Key: "created_at", Value: -1}} // Default: newest first
+	switch sortBy {
+	case "oldest":
+		sortField = bson.D{{Key: "created_at", Value: 1}}
+	case "amount_asc":
+		sortField = bson.D{{Key: "total_amount", Value: 1}}
+	case "amount_desc":
+		sortField = bson.D{{Key: "total_amount", Value: -1}}
+	case "newest":
+		sortField = bson.D{{Key: "created_at", Value: -1}}
+	}
+
 	findOptions := options.Find()
 	findOptions.SetSkip(skip)
 	findOptions.SetLimit(limit)
-	findOptions.SetSort(bson.D{{Key: "created_at", Value: -1}})
+	findOptions.SetSort(sortField)
 
-	// Build filter
+	// Build filter with AND conditions
 	filter := bson.M{"is_active": true}
+
+	// Status filter
 	if status := r.URL.Query().Get("status"); status != "" && status != "all" {
 		filter["status"] = status
 	}
+
+	// Payment status filter
+	if paymentStatus := r.URL.Query().Get("payment_status"); paymentStatus != "" && paymentStatus != "all" {
+		filter["payment_status"] = paymentStatus
+	}
+
+	// Search by order number (case-insensitive partial matching)
 	if search := r.URL.Query().Get("search"); search != "" {
 		filter["order_number"] = bson.M{"$regex": search, "$options": "i"}
+	}
+
+	// Date range filter
+	dateFrom := r.URL.Query().Get("date_from")
+	dateTo := r.URL.Query().Get("date_to")
+	if dateFrom != "" || dateTo != "" {
+		dateFilter := bson.M{}
+		if dateFrom != "" {
+			if fromTime, parseErr := time.Parse("2006-01-02", dateFrom); parseErr == nil {
+				dateFilter["$gte"] = fromTime
+			}
+		}
+		if dateTo != "" {
+			if toTime, parseErr := time.Parse("2006-01-02", dateTo); parseErr == nil {
+				// Add 1 day minus 1 second to include the entire end date
+				dateFilter["$lte"] = toTime.Add(24*time.Hour - time.Second)
+			}
+		}
+		if len(dateFilter) > 0 {
+			filter["created_at"] = dateFilter
+		}
 	}
 
 	cursor, err := collection.Find(ctx, filter, findOptions)
@@ -997,8 +1149,46 @@ func GetAllOrders(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// getStatusText returns the Persian localized text for a given order status
+func getStatusText(status string) string {
+	switch status {
+	case "pending":
+		return "در انتظار تایید"
+	case "processing":
+		return "در حال پردازش"
+	case "shipped":
+		return "ارسال شده"
+	case "delivered":
+		return "تحویل شده"
+	case "cancelled":
+		return "لغو شده"
+	default:
+		return ""
+	}
+}
+
 // UpdateOrderStatusAdmin handles PUT /api/admin/orders/{orderId} to update order status (Admin only)
 func UpdateOrderStatusAdmin(w http.ResponseWriter, r *http.Request) {
+	// Get admin info from context
+	userIDCtx := r.Context().Value("userID")
+	if userIDCtx == nil {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "User ID not found in context")
+		return
+	}
+	adminID, ok := userIDCtx.(primitive.ObjectID)
+	if !ok || adminID == primitive.NilObjectID {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid User ID")
+		return
+	}
+
+	// Get admin name from context (set by AdminAuthMiddleware)
+	adminName := ""
+	if nameCtx := r.Context().Value("userName"); nameCtx != nil {
+		if name, ok := nameCtx.(string); ok {
+			adminName = name
+		}
+	}
+
 	vars := mux.Vars(r)
 	orderIDStr, ok := vars["orderId"]
 	if !ok {
@@ -1012,29 +1202,36 @@ func UpdateOrderStatusAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload struct {
-		Status string `json:"status"`
+		Status       string `json:"status"`
+		Note         string `json:"note,omitempty"`
+		TrackingCode string `json:"tracking_code,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
-	// Determine status text
-	var statusText string
-	switch payload.Status {
-	case "pending":
-		statusText = "در انتظار تایید"
-	case "processing":
-		statusText = "در حال پردازش"
-	case "shipping":
-		statusText = "در حال ارسال"
-	case "delivered":
-		statusText = "تحویل شده"
-	case "cancelled":
-		statusText = "لغو شده"
-	default:
-		statusText = ""
+	// Validate status
+	validStatuses := map[string]bool{
+		"pending":    true,
+		"processing": true,
+		"shipped":    true,
+		"delivered":  true,
+		"cancelled":  true,
 	}
+	if !validStatuses[payload.Status] {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid status value")
+		return
+	}
+
+	// Require tracking code when changing to "shipped" status
+	if payload.Status == "shipped" && payload.TrackingCode == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "کد رهگیری برای تغییر وضعیت به 'ارسال شده' الزامی است")
+		return
+	}
+
+	// Determine status text
+	statusText := getStatusText(payload.Status)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -1059,11 +1256,34 @@ func UpdateOrderStatusAdmin(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	update := bson.M{"$set": bson.M{
+	// Create timeline entry for the status change
+	timelineEntry := models.OrderTimelineEntry{
+		Status:    payload.Status,
+		Timestamp: time.Now(),
+		Note:      payload.Note,
+		AdminID:   adminID,
+		AdminName: adminName,
+	}
+
+	// Build update document
+	updateSet := bson.M{
 		"status":      payload.Status,
 		"status_text": statusText,
 		"updated_at":  time.Now(),
-	}}
+	}
+
+	// If tracking code is provided (for shipped status), update it as well
+	if payload.TrackingCode != "" {
+		updateSet["tracking_code"] = payload.TrackingCode
+	}
+
+	update := bson.M{
+		"$set": updateSet,
+		"$push": bson.M{
+			"timeline": timelineEntry,
+		},
+	}
+
 	result, err := ordersCollection.UpdateOne(ctx, bson.M{"_id": orderID}, update)
 	if err != nil {
 		utils.ErrorResponse(
@@ -1097,6 +1317,282 @@ func UpdateOrderStatusAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	utils.JSONResponse(w, http.StatusOK, resp)
+}
+
+// AddOrderNote handles POST /api/admin/orders/{orderId}/notes
+// Adds an internal admin note to an order
+func AddOrderNote(w http.ResponseWriter, r *http.Request) {
+	// Get admin info from context
+	userIDCtx := r.Context().Value("userID")
+	if userIDCtx == nil {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "User ID not found in context")
+		return
+	}
+	adminID, ok := userIDCtx.(primitive.ObjectID)
+	if !ok || adminID == primitive.NilObjectID {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid User ID")
+		return
+	}
+
+	// Get admin name from context (set by AdminAuthMiddleware)
+	adminName := ""
+	if nameCtx := r.Context().Value("userName"); nameCtx != nil {
+		if name, ok := nameCtx.(string); ok {
+			adminName = name
+		}
+	}
+
+	// Get order ID from path
+	vars := mux.Vars(r)
+	orderIDStr, ok := vars["orderId"]
+	if !ok {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Order ID not provided in path")
+		return
+	}
+	orderID, err := primitive.ObjectIDFromHex(orderIDStr)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid Order ID format")
+		return
+	}
+
+	// Parse request body
+	var payload struct {
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	// Validate content is not empty
+	if payload.Content == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Note content cannot be empty")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	ordersCollection := db.Database.Collection("orders")
+
+	// Check if order exists
+	var order models.Order
+	if err := ordersCollection.FindOne(ctx, bson.M{"_id": orderID, "is_active": true}).Decode(&order); err != nil {
+		if err == mongo.ErrNoDocuments {
+			utils.ErrorResponse(w, http.StatusNotFound, "Order not found")
+		} else {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching order: "+err.Error())
+		}
+		return
+	}
+
+	// Create new note
+	newNote := models.OrderNote{
+		ID:        primitive.NewObjectID(),
+		Content:   payload.Content,
+		AdminID:   adminID,
+		AdminName: adminName,
+		CreatedAt: time.Now(),
+	}
+
+	// Update order with new note
+	update := bson.M{
+		"$push": bson.M{
+			"notes": newNote,
+		},
+		"$set": bson.M{
+			"updated_at": time.Now(),
+		},
+	}
+
+	result, err := ordersCollection.UpdateOne(ctx, bson.M{"_id": orderID}, update)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error adding note: "+err.Error())
+		return
+	}
+
+	if result.MatchedCount == 0 {
+		utils.ErrorResponse(w, http.StatusNotFound, "Order not found")
+		return
+	}
+
+	// Fetch updated order for response
+	var updatedOrder models.Order
+	if err := ordersCollection.FindOne(ctx, bson.M{"_id": orderID}).Decode(&updatedOrder); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching updated order: "+err.Error())
+		return
+	}
+
+	response, err := newOrderAPIResponse(ctx, updatedOrder)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error preparing order response: "+err.Error())
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+		"message": "یادداشت با موفقیت اضافه شد",
+		"order":   response,
+	})
+}
+
+// OrderStatsResponse represents the statistics response for admin dashboard
+type OrderStatsResponse struct {
+	TotalOrders      int64   `json:"total_orders"`
+	PendingOrders    int64   `json:"pending_orders"`
+	ProcessingOrders int64   `json:"processing_orders"`
+	ShippedOrders    int64   `json:"shipped_orders"`
+	DeliveredOrders  int64   `json:"delivered_orders"`
+	CancelledOrders  int64   `json:"cancelled_orders"`
+	TotalRevenue     float64 `json:"total_revenue"`
+	TodayOrders      int64   `json:"today_orders"`
+	TodayRevenue     float64 `json:"today_revenue"`
+}
+
+// GetOrderStats handles GET /api/admin/orders/stats
+// Returns order statistics for the admin dashboard with optional filtering
+func GetOrderStats(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	collection := db.Database.Collection("orders")
+
+	// Parse filter parameters
+	dateFrom := r.URL.Query().Get("date_from")
+	dateTo := r.URL.Query().Get("date_to")
+	statusFilter := r.URL.Query().Get("status")
+
+	// Build base filter for active orders
+	baseFilter := bson.M{"is_active": true}
+
+	// Apply date range filter if provided
+	if dateFrom != "" || dateTo != "" {
+		dateFilter := bson.M{}
+		if dateFrom != "" {
+			if fromTime, err := time.Parse("2006-01-02", dateFrom); err == nil {
+				dateFilter["$gte"] = fromTime
+			}
+		}
+		if dateTo != "" {
+			if toTime, err := time.Parse("2006-01-02", dateTo); err == nil {
+				// Add 1 day to include the entire end date
+				dateFilter["$lte"] = toTime.Add(24*time.Hour - time.Second)
+			}
+		}
+		if len(dateFilter) > 0 {
+			baseFilter["created_at"] = dateFilter
+		}
+	}
+
+	// Apply status filter if provided
+	if statusFilter != "" && statusFilter != "all" {
+		baseFilter["status"] = statusFilter
+	}
+
+	// Calculate total orders count
+	totalOrders, err := collection.CountDocuments(ctx, baseFilter)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error counting total orders: "+err.Error())
+		return
+	}
+
+	// Count orders by status
+	pendingFilter := copyFilter(baseFilter)
+	pendingFilter["status"] = "pending"
+	pendingOrders, _ := collection.CountDocuments(ctx, pendingFilter)
+
+	processingFilter := copyFilter(baseFilter)
+	processingFilter["status"] = "processing"
+	processingOrders, _ := collection.CountDocuments(ctx, processingFilter)
+
+	shippedFilter := copyFilter(baseFilter)
+	shippedFilter["status"] = "shipped"
+	shippedOrders, _ := collection.CountDocuments(ctx, shippedFilter)
+
+	deliveredFilter := copyFilter(baseFilter)
+	deliveredFilter["status"] = "delivered"
+	deliveredOrders, _ := collection.CountDocuments(ctx, deliveredFilter)
+
+	cancelledFilter := copyFilter(baseFilter)
+	cancelledFilter["status"] = "cancelled"
+	cancelledOrders, _ := collection.CountDocuments(ctx, cancelledFilter)
+
+	// Calculate total revenue from paid orders
+	revenueFilter := copyFilter(baseFilter)
+	revenueFilter["payment_status"] = "paid"
+	totalRevenue := calculateRevenue(ctx, collection, revenueFilter)
+
+	// Calculate today's statistics
+	now := time.Now()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	endOfDay := startOfDay.Add(24*time.Hour - time.Second)
+
+	todayFilter := bson.M{
+		"is_active": true,
+		"created_at": bson.M{
+			"$gte": startOfDay,
+			"$lte": endOfDay,
+		},
+	}
+	todayOrders, _ := collection.CountDocuments(ctx, todayFilter)
+
+	todayRevenueFilter := bson.M{
+		"is_active":      true,
+		"payment_status": "paid",
+		"created_at": bson.M{
+			"$gte": startOfDay,
+			"$lte": endOfDay,
+		},
+	}
+	todayRevenue := calculateRevenue(ctx, collection, todayRevenueFilter)
+
+	stats := OrderStatsResponse{
+		TotalOrders:      totalOrders,
+		PendingOrders:    pendingOrders,
+		ProcessingOrders: processingOrders,
+		ShippedOrders:    shippedOrders,
+		DeliveredOrders:  deliveredOrders,
+		CancelledOrders:  cancelledOrders,
+		TotalRevenue:     totalRevenue,
+		TodayOrders:      todayOrders,
+		TodayRevenue:     todayRevenue,
+	}
+
+	utils.JSONResponse(w, http.StatusOK, stats)
+}
+
+// copyFilter creates a shallow copy of a bson.M filter
+func copyFilter(filter bson.M) bson.M {
+	newFilter := bson.M{}
+	for k, v := range filter {
+		newFilter[k] = v
+	}
+	return newFilter
+}
+
+// calculateRevenue calculates the total revenue for orders matching the filter
+func calculateRevenue(ctx context.Context, collection *mongo.Collection, filter bson.M) float64 {
+	pipeline := mongo.Pipeline{
+		{{Key: "$match", Value: filter}},
+		{{Key: "$group", Value: bson.M{
+			"_id":   nil,
+			"total": bson.M{"$sum": "$total_amount"},
+		}}},
+	}
+
+	cursor, err := collection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return 0
+	}
+	defer cursor.Close(ctx)
+
+	var results []struct {
+		Total float64 `bson:"total"`
+	}
+	if err := cursor.All(ctx, &results); err != nil || len(results) == 0 {
+		return 0
+	}
+
+	return results[0].Total
 }
 
 // GetRecentOrders retrieves a limited number of recent orders for the admin dashboard

@@ -4,3 +4,4 @@ uploads/*
 main
 .kiro/steering/**
 .kiro/specs/**
+.windsurf/rules/**
