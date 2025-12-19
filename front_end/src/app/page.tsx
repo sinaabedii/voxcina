@@ -102,7 +102,7 @@ export default function HomePage() {
               <div className="relative h-64 sm:h-72 md:h-auto">
                 <div className="absolute inset-0 overflow-hidden rounded-b-3xl md:rounded-r-3xl md:rounded-bl-none">
                   <div className="absolute inset-0 bg-gradient-to-br from-voxcina-blue/20 to-voxcina-blue/30 mix-blend-multiply z-10"></div>
-                  <div className="absolute inset-0 bg-[url('/images/banners/FinalB2.jpg')] bg-cover bg-center" />
+                  <div className="absolute inset-0 bg-[url('/images/banners/FinalB2.webp')] bg-cover bg-center" />
                 </div>
               </div>
             </div>
