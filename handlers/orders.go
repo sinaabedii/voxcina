@@ -912,6 +912,47 @@ func getNextOrderNumber() int {
 
 // --- Admin Order Management ---
 
+// GetAdminOrderById handles GET /api/admin/orders/{orderId}
+// Returns detailed order information for admin including all fields, timeline, notes, and Jalali dates
+func GetAdminOrderById(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	orderIDStr, ok := vars["orderId"]
+	if !ok {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Order ID not provided in path")
+		return
+	}
+
+	orderID, err := primitive.ObjectIDFromHex(orderIDStr)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid Order ID format")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	ordersCollection := db.Database.Collection("orders")
+
+	var order models.Order
+	if err := ordersCollection.FindOne(ctx, bson.M{"_id": orderID}).Decode(&order); err != nil {
+		if err == mongo.ErrNoDocuments {
+			utils.ErrorResponse(w, http.StatusNotFound, "Order not found")
+		} else {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching order: "+err.Error())
+		}
+		return
+	}
+
+	// Prepare the response with populated product details and Jalali dates
+	response, err := newOrderAPIResponse(ctx, order)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error preparing order response: "+err.Error())
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, response)
+}
+
 // addTimelineEntry appends a new timeline entry to an order's timeline
 // It sets the timestamp to the current time and includes admin info if provided
 func addTimelineEntry(order *models.Order, status string, adminID primitive.ObjectID, adminName string, note string) {
