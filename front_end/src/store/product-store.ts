@@ -6,47 +6,61 @@ import {
   Review,
   PaginationInfo,
   ColorVariantListItem,
-  PaginatedColorVariantsResponse
 } from "@/types/product";
-import { delay, getBrandName, getCategoryName } from "@/lib/utils";
+import { getBrandName, getCategoryName } from "@/lib/utils";
 import { Brand } from "@/types/brand";
 import { Category } from "@/types/category";
 import { useAuthStore } from "./auth-store";
 
+/**
+ * Product Store
+ * 
+ * This store manages product-related state for:
+ * - Admin product management (CRUD operations)
+ * - Client-side filtering (for interactive filter UI)
+ * - Recently viewed products (persisted to localStorage)
+ * - Product comparison (client-only feature)
+ * 
+ * Note: Featured products and new products are now fetched server-side
+ * in the home page for SSR/SEO optimization (Requirements: 3.1)
+ */
 interface ProductState {
   // Product lists now store ColorVariantListItem (color variants as separate items)
   products: ColorVariantListItem[];
-  featuredProducts: ColorVariantListItem[];
-  newProducts: ColorVariantListItem[];
   adminProducts: Product[]; // Full products for admin dashboard
   isLoading: boolean;
   error: string | null;
-  activeProduct: Product | null; // Detail view still returns full Product
+  activeProduct: Product | null; // Detail view for admin edit page
   activeProductReviews: Review[];
   filter: ProductFilter;
-  recentlyViewed: Product[]; // Keep as Product for full details
-  comparedProducts: Product[]; // Keep as Product for full details
+  recentlyViewed: Product[]; // Keep as Product for full details (client-only)
+  comparedProducts: Product[]; // Keep as Product for full details (client-only)
   brands: Brand[];
   categories: Category[];
   pagination: PaginationInfo | null;
 
-
+  // Data fetching (kept for admin pages and client-side filtering)
   fetchBrands: () => Promise<void>;
   fetchCategories: () => Promise<void>;
   fetchProducts: (page?: number, limit?: number) => Promise<void>;
-  fetchAdminProducts: (adminToken?: string) => Promise<void>; // Fetch full products for admin
+  fetchAdminProducts: (adminToken?: string) => Promise<void>;
   fetchProductById: (id: string) => Promise<void>;
-  fetchFlashSaleProducts: (limit?: number) => Promise<void>;
-  fetchNewProducts: (limit?: number) => Promise<void>;
+  
+  // Filter operations
   setFilter: (filter: Partial<ProductFilter>) => void;
   clearFilters: () => void;
-  getFilteredProducts: () => ColorVariantListItem[]; // Changed from Product[]
+  getFilteredProducts: () => ColorVariantListItem[];
+  
+  // Recently viewed (client-only, persisted)
   addRecentlyViewed: (product: Product) => void;
   removeRecentlyViewed: (productId: string) => void;
   clearRecentlyViewed: () => void;
+  
+  // Product comparison (client-only, persisted)
   addToCompare: (product: Product) => void;
   removeFromCompare: (productId: string) => void;
   clearCompareList: () => void;
+  
   // Brand Admin Actions
   createBrand: (brandData: FormData, adminToken: string) => Promise<Brand | null>;
   updateBrand: (
@@ -55,6 +69,7 @@ interface ProductState {
     adminToken: string
   ) => Promise<Brand | null>;
   deleteBrand: (id: string, adminToken: string) => Promise<boolean>;
+  
   // Product Admin Actions
   createProduct: (productData: FormData, adminToken: string) => Promise<Product | null>;
   updateProduct: (
@@ -69,8 +84,6 @@ export const useProductStore = create<ProductState>()(
   persist(
     (set, get) => ({
       products: [],
-      featuredProducts: [],
-      newProducts: [],
       adminProducts: [],
       isLoading: false,
       error: null,
@@ -109,6 +122,7 @@ export const useProductStore = create<ProductState>()(
         }
       },
 
+      // Fetch products for client-side filtering (kept for admin and filter UI)
       fetchProducts: async (page = 1, limit = 20) => {
         set({ isLoading: true, error: null });
         try {
@@ -137,6 +151,7 @@ export const useProductStore = create<ProductState>()(
         }
       },
 
+      // Fetch single product for admin edit page
       fetchProductById: async (id: string) => {
         set({ isLoading: true, error: null, activeProduct: null, activeProductReviews: [] });
         try {
@@ -167,59 +182,6 @@ export const useProductStore = create<ProductState>()(
         } catch (error) {
           set({
             error: error instanceof Error ? error.message : "خطای ناشناخته",
-            isLoading: false,
-          });
-        }
-      },
-
-      fetchFlashSaleProducts: async (limit = 10) => {
-        set({ isLoading: true, error: null });
-        try {
-          // Fetch all products (removed is_flash_sale filter to show popular products)
-          const params = new URLSearchParams({ limit: String(limit) });
-          const response = await fetch(`/api/products?${params.toString()}`);
-          if (!response.ok) {
-            throw new Error("Failed to fetch flash sale products");
-          }
-          const data = await response.json();
-
-          if (Array.isArray(data)) {
-            set({ featuredProducts: data, isLoading: false });
-          } else if (data && data.data) {
-            set({ featuredProducts: data.data, isLoading: false });
-          } else {
-            set({ featuredProducts: [], isLoading: false });
-          }
-        } catch (error) {
-          set({
-            featuredProducts: [],
-            error: error instanceof Error ? error.message : "خطا در دریافت محصولات ویژه. لطفا دوباره تلاش کنید.",
-            isLoading: false,
-          });
-        }
-      },
-
-      fetchNewProducts: async (limit = 10) => {
-        set({ isLoading: true, error: null });
-        try {
-          const params = new URLSearchParams({ is_new: "true", limit: String(limit) });
-          const response = await fetch(`/api/products?${params.toString()}`);
-          if (!response.ok) {
-            throw new Error("Failed to fetch new products");
-          }
-          const data = await response.json();
-
-          if (Array.isArray(data)) {
-            set({ newProducts: data, isLoading: false });
-          } else if (data && data.data) {
-            set({ newProducts: data.data, isLoading: false });
-          } else {
-            set({ newProducts: [], isLoading: false });
-          }
-        } catch (error) {
-          set({
-            newProducts: [],
-            error: error instanceof Error ? error.message : "خطا در دریافت محصولات جدید. لطفا دوباره تلاش کنید.",
             isLoading: false,
           });
         }

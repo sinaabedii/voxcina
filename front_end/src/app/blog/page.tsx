@@ -2,8 +2,30 @@ import { Suspense } from 'react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import BlogClientContent from '@/components/blog/BlogClientContent';
+import { BlogPost } from '@/types/blog';
+import { serverFetchWithFallback, CACHE_TIMES } from '@/lib/server-api';
 
-export default function BlogPage() {
+/**
+ * Blog Listing Page - Server Component
+ * 
+ * Fetches blog posts on the server for SEO and passes to client component.
+ * Requirements: 4.3, 6.1
+ */
+export default async function BlogPage() {
+  // Fetch blog posts on the server using absolute URLs for Docker compatibility
+  const response = await serverFetchWithFallback<{ data: BlogPost[] } | BlogPost[]>(
+    '/api/blog-posts',
+    { data: [] },
+    { revalidate: CACHE_TIMES.BLOG_POST, tags: ['blog'] }
+  );
+
+  // Handle both array and paginated response formats
+  const posts = Array.isArray(response) ? response : response.data || [];
+  
+  // Extract unique categories and tags from posts
+  const categories = Array.from(new Set(posts.map((p) => p.category))).filter(Boolean).sort();
+  const tags = Array.from(new Set(posts.flatMap((p) => p.tags || []))).filter(Boolean).sort();
+
   return (
     <>
       <Header />
@@ -23,7 +45,11 @@ export default function BlogPage() {
       <section className="py-8 md:py-12">
         <div className="container px-4 sm:px-6 md:px-8">
           <Suspense fallback={<BlogLoadingSkeleton />}>
-            <BlogClientContent />
+            <BlogClientContent 
+              initialPosts={posts}
+              initialCategories={categories}
+              initialTags={tags}
+            />
           </Suspense>
         </div>
       </section>

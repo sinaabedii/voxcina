@@ -3,38 +3,62 @@ import { notFound } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import BlogPostClientContent from '@/components/blog/BlogPostClientContent';
+import ArticleSchema from '@/components/SEO/ArticleSchema';
 import { BlogPost } from '@/types/blog';
+import { serverFetch, serverFetchWithFallback, CACHE_TIMES } from '@/lib/server-api';
 
+/**
+ * Blog Post Detail Page - Server Component
+ * 
+ * Fetches blog post data on the server using absolute URLs for Docker compatibility.
+ * Includes JSON-LD structured data for Article schema.
+ * Requirements: 4.1, 4.2, 4.4, 6.1
+ */
 export default async function BlogPostPage({ params }: { params: { slug: string } }) {
   const { slug } = params;
 
-  // Fetch the blog post by slug
-  const postRes = await fetch(`/api/blog-posts/${slug}`, {
-    // Next.js caching: revalidate every 60s
-    next: { revalidate: 60 },
+  // Fetch the blog post by slug using server-side fetch utility
+  // Uses GO_BACKEND_URL for Docker internal networking (Requirement 6.1)
+  const post = await serverFetch<BlogPost>(`/api/blog-posts/${slug}`, {
+    revalidate: CACHE_TIMES.BLOG_POST,
+    tags: ['blog', `blog-${slug}`],
   });
 
-  if (postRes.status === 404) {
+  // Return 404 if post not found
+  if (!post) {
     notFound();
   }
 
-  if (!postRes.ok) {
-    throw new Error('Failed to fetch blog post');
-  }
+  // Fetch all posts to extract categories and tags
+  // This is more reliable than separate endpoints
+  const allPostsResponse = await serverFetchWithFallback<{ data: BlogPost[] } | BlogPost[]>(
+    '/api/blog-posts',
+    { data: [] },
+    { revalidate: CACHE_TIMES.BLOG_POST, tags: ['blog'] }
+  );
 
-  const post: BlogPost = await postRes.json();
-
-  // Fetch categories and tags (optional)
-  const [catRes, tagRes] = await Promise.all([
-    fetch(`/api/blog/categories`, { next: { revalidate: 300 } }),
-    fetch(`/api/blog/tags`, { next: { revalidate: 300 } }),
-  ]);
-
-  const categories: string[] = catRes.ok ? await catRes.json() : [];
-  const tags: string[] = tagRes.ok ? await tagRes.json() : [];
+  // Handle both array and paginated response formats
+  const allPosts = Array.isArray(allPostsResponse) ? allPostsResponse : allPostsResponse.data || [];
+  
+  // Extract unique categories and tags from all posts
+  const categories = Array.from(new Set(allPosts.map((p) => p.category))).filter(Boolean).sort();
+  const tags = Array.from(new Set(allPosts.flatMap((p) => p.tags || []))).filter(Boolean).sort();
 
   return (
     <>
+      {/* JSON-LD Structured Data for Article (Requirement 4.2) */}
+      <ArticleSchema
+        title={post.title}
+        description={post.excerpt}
+        imageUrl={post.coverImage || '/images/blog/placeholder.jpg'}
+        authorName={post.author?.name || 'تیم وکسینا'}
+        authorAvatar={post.author?.avatar}
+        publishedAt={post.publishedAt}
+        slug={post.slug}
+        category={post.category}
+        tags={post.tags}
+        readTime={post.readTime}
+      />
       <Header />
       <Suspense fallback={<BlogPostLoadingSkeleton />}>
         <BlogPostClientContent post={post} categories={categories} tags={tags} />

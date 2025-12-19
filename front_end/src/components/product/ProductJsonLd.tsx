@@ -3,10 +3,21 @@ import { Product } from '@/types/product';
 interface ProductJsonLdProps {
   product: Product;
   url: string;
+  /** Average rating from reviews (optional, for SSR) */
+  avgRating?: number;
+  /** Total review count (optional, for SSR) */
+  reviewCount?: number;
 }
 
-// کامپوننت برای افزودن نشانه‌گذاری ساختاریافته محصول
-export default function ProductJsonLd({ product, url }: ProductJsonLdProps) {
+/**
+ * JSON-LD Structured Data Component for Product Pages
+ * 
+ * This is a Server Component that renders structured data in the initial HTML.
+ * Search engines can read this data without executing JavaScript.
+ * 
+ * Requirements: 1.2 - Include structured data (JSON-LD) in initial HTML response
+ */
+export default function ProductJsonLd({ product, url, avgRating, reviewCount: propReviewCount }: ProductJsonLdProps) {
   if (!product) return null;
   
   // محاسبه قیمت - use price directly since discountPrice doesn't exist
@@ -16,9 +27,9 @@ export default function ProductJsonLd({ product, url }: ProductJsonLdProps) {
   const inStock = product.colorVariants?.some(cv => cv.sizes?.some(s => s.quantity > 0)) ?? false;
   const availability = inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock';
   
-  // امتیاز و تعداد نظرات - ratings property doesn't exist, use default values
-  const ratingValue = 0;
-  const reviewCount = 0;
+  // امتیاز و تعداد نظرات - use props if provided, otherwise use product fields or defaults
+  const ratingValue = avgRating ?? product.average_rating ?? 0;
+  const reviewCount = propReviewCount ?? product.review_count ?? 0;
   
   // نوع محصول - use category_ids instead of categories
   const productCategory = product.category_ids?.[0] || 'پوشاک';

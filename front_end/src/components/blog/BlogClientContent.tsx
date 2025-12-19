@@ -7,15 +7,41 @@ import BlogCard from './BlogCard';
 import BlogCategories from './BlogCategories';
 import BlogSearch from './BlogSearch';
 import BlogSidebar from './BlogSidebar';
+import { BlogPost } from '@/types/blog';
 
-export default function BlogClientContent() {
+interface BlogClientContentProps {
+  /** Initial posts fetched on the server for SSR */
+  initialPosts?: BlogPost[];
+  /** Initial categories extracted from posts */
+  initialCategories?: string[];
+  /** Initial tags extracted from posts */
+  initialTags?: string[];
+}
+
+/**
+ * Blog Client Content Component
+ * 
+ * Handles interactive filtering and search for blog posts.
+ * Receives initial data from server for SSR, then hydrates for client-side interactions.
+ * Requirements: 4.3, 5.3
+ */
+export default function BlogClientContent({
+  initialPosts = [],
+  initialCategories = [],
+  initialTags = [],
+}: BlogClientContentProps) {
   const searchParams = useSearchParams();
   const {
-    posts: blogPosts,
-    categories,
-    tags,
+    posts: storePosts,
+    categories: storeCategories,
+    tags: storeTags,
     fetchPosts,
   } = useBlogStore();
+
+  // Use server-provided data initially, fall back to store data
+  const blogPosts = initialPosts.length > 0 ? initialPosts : storePosts;
+  const categories = initialCategories.length > 0 ? initialCategories : storeCategories;
+  const tags = initialTags.length > 0 ? initialTags : storeTags;
 
   const [filteredPosts, setFilteredPosts] = useState(blogPosts);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
@@ -23,13 +49,18 @@ export default function BlogClientContent() {
   );
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
 
-  // Initial fetch when component mounts
+  // Sync store with initial data if store is empty
   useEffect(() => {
-    if (blogPosts.length === 0) {
+    if (storePosts.length === 0 && initialPosts.length === 0) {
       fetchPosts();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Update filtered posts when blogPosts changes (for initial render)
+  useEffect(() => {
+    setFilteredPosts(blogPosts);
+  }, [blogPosts]);
 
   // Filter posts based on category, tag, and search term
   useEffect(() => {

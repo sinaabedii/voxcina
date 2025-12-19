@@ -1,17 +1,24 @@
 import { Metadata } from 'next';
 import { BlogPost } from '@/types/blog';
+import { serverFetch, serverFetchWithFallback, CACHE_TIMES } from '@/lib/server-api';
 
+/**
+ * Generate metadata for blog post pages
+ * Uses server-side fetch with absolute URLs for Docker compatibility
+ * Requirements: 4.4, 6.1
+ */
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const res = await fetch(`/api/blog-posts/${params.slug}`);
+  const post = await serverFetch<BlogPost>(`/api/blog-posts/${params.slug}`, {
+    revalidate: CACHE_TIMES.BLOG_POST,
+    tags: ['blog', `blog-${params.slug}`],
+  });
 
-  if (!res.ok) {
+  if (!post) {
     return {
       title: 'مقاله یافت نشد | وکسینا',
       description: 'متأسفانه مقاله مورد نظر یافت نشد.',
     };
   }
-
-  const post: BlogPost = await res.json();
 
   return {
     title: `${post.title} | وکسینا`,
@@ -32,10 +39,18 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
+/**
+ * Generate static params for blog posts
+ * Uses server-side fetch with absolute URLs for Docker compatibility
+ * Requirements: 4.4, 6.1
+ */
 export async function generateStaticParams() {
-  const res = await fetch('/api/blog-posts');
-  if (!res.ok) return [];
-  const json = await res.json();
-  const posts: BlogPost[] = Array.isArray(json) ? json : json.data;
+  const response = await serverFetchWithFallback<{ data: BlogPost[] } | BlogPost[]>(
+    '/api/blog-posts',
+    { data: [] },
+    { revalidate: CACHE_TIMES.BLOG_POST, tags: ['blog'] }
+  );
+  
+  const posts = Array.isArray(response) ? response : response.data || [];
   return posts.map((post) => ({ slug: post.slug }));
 } 
