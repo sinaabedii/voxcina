@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Slider } from "@/types/slider";
 import { fallbackSliders } from "@/lib/constants";
 
@@ -95,10 +96,14 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
             transition={{ duration: 0.5 }}
           >
             <div className="absolute inset-0">
-              <img
+              <Image
                 src={sliderData[currentSlide].image}
                 alt={sliderData[currentSlide].title}
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
+                priority={currentSlide === 0}
+                loading={currentSlide === 0 ? 'eager' : 'lazy'}
+                sizes="100vw"
               />
               <div
                 className={`absolute inset-0 bg-gradient-to-br ${sliderData[currentSlide].bgColor} opacity-85`}

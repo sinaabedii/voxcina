@@ -20,6 +20,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     };
   }
 
+  const canonicalPath = `/blog/${params.slug}`;
+
   return {
     title: `${post.title} | وکسینا`,
     description: post.excerpt,
@@ -35,6 +37,14 @@ export async function generateMetadata({ params }: { params: { slug: string } })
           alt: post.title,
         },
       ],
+    },
+    alternates: {
+      canonical: canonicalPath,
+      languages: {
+        'fa': canonicalPath,
+        'fa-IR': canonicalPath,
+        'x-default': canonicalPath,
+      },
     },
   };
 }

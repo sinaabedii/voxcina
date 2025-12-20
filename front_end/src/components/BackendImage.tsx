@@ -11,8 +11,10 @@ type BackendImageProps = {
   className?: string;
   objectFit?: 'cover' | 'contain' | 'fill' | 'none' | 'scale-down';
   priority?: boolean;
+  loading?: 'lazy' | 'eager';
   fallbackSrc?: string;
   style?: CSSProperties;
+  sizes?: string;
 };
 
 /**
@@ -27,8 +29,10 @@ export default function BackendImage({
   className = '',
   objectFit = 'cover',
   priority = false,
+  loading,
   fallbackSrc = '',
   style = {},
+  sizes,
 }: BackendImageProps) {
   const [error, setError] = useState(false);
   
@@ -59,6 +63,8 @@ export default function BackendImage({
       className={className}
       style={combinedStyle}
       priority={priority}
+      loading={priority ? undefined : (loading || 'lazy')}
+      sizes={sizes}
       onError={() => setError(true)}
       unoptimized={src.startsWith('/uploads/')}  // Don't optimize backend images
     />

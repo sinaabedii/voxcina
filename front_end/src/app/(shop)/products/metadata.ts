@@ -29,4 +29,12 @@ export const metadata: Metadata = {
     locale: 'fa_IR',
     type: 'website',
   },
+  alternates: {
+    canonical: '/products',
+    languages: {
+      'fa': '/products',
+      'fa-IR': '/products',
+      'x-default': '/products',
+    },
+  },
 }; 

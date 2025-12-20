@@ -5,6 +5,7 @@ import { Category } from "@/types/category";
 import ProductJsonLd from "@/components/product/ProductJsonLd";
 import ProductActions from "@/components/product/ProductActions";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
+import BreadcrumbSchema from "@/components/SEO/BreadcrumbSchema";
 import SectionTitle from "@/components/ui/SectionTitle";
 import ProductGrid from "@/components/product/ProductGrid";
 import { ColorVariantListItem } from "@/types/product";
@@ -54,10 +55,12 @@ async function getProductData(productId: string) {
     )
   ]);
 
-  // Get category name for breadcrumbs
-  const categoryName = product.category_ids?.[0]
-    ? categories.find(c => c.id === product.category_ids[0])?.name || ''
-    : '';
+  // Get category name and slug for breadcrumbs
+  const productCategory = product.category_ids?.[0]
+    ? categories.find(c => c.id === product.category_ids[0])
+    : null;
+  const categoryName = productCategory?.name || '';
+  const categorySlug = productCategory?.slug || '';
 
   // Filter similar products (same category, different product)
   const similarProducts = (allProducts.data || [])
@@ -72,6 +75,7 @@ async function getProductData(productId: string) {
     product,
     reviews,
     categoryName,
+    categorySlug,
     similarProducts
   };
 }
@@ -100,7 +104,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
     notFound();
   }
 
-  const { product, reviews, categoryName, similarProducts } = data;
+  const { product, reviews, categoryName, categorySlug, similarProducts } = data;
 
   // Build product URL for structured data
   const productUrl = `/products/${productId}`;
@@ -109,6 +113,15 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
   const avgRating = reviews.length > 0
     ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
     : 0;
+
+  // Build breadcrumb items for JSON-LD schema (Home > Category > Product)
+  const breadcrumbItems = [
+    { name: 'خانه', url: '/' },
+    ...(categoryName && categorySlug
+      ? [{ name: categoryName, url: `/categories/${categorySlug}` }]
+      : []),
+    { name: product.name, url: productUrl },
+  ];
 
   return (
     <>
@@ -120,6 +133,9 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
         reviewCount={reviews.length}
       />
 
+      {/* BreadcrumbList JSON-LD schema for SEO */}
+      <BreadcrumbSchema items={breadcrumbItems} />
+
       <div className="container py-8 md:py-16">
         {/* Breadcrumbs - Server rendered for SEO */}
         <div className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60 mb-6">
@@ -127,8 +143,8 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             items={[
               { title: "خانه", href: "/" },
               { title: "محصولات", href: "/products" },
-              ...(product.category_ids && product.category_ids.length > 0 && categoryName
-                ? [{ title: categoryName, href: `/categories/${product.category_ids[0]}` }]
+              ...(categoryName && categorySlug
+                ? [{ title: categoryName, href: `/categories/${categorySlug}` }]
                 : []),
               { title: product.name, href: `/products/${productId}` },
             ]}

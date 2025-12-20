@@ -690,6 +690,19 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 		filter["is_flash_sale"] = true
 	}
 
+	// Filter by in_stock (only products with inventory > 0)
+	if r.URL.Query().Get("in_stock") == "true" {
+		filter["in_stock"] = true
+	}
+
+	// Filter by search term (basic text search on name and description)
+	if searchTerm := r.URL.Query().Get("search"); searchTerm != "" {
+		filter["$or"] = []bson.M{
+			{"name": bson.M{"$regex": searchTerm, "$options": "i"}},
+			{"description": bson.M{"$regex": searchTerm, "$options": "i"}},
+		}
+	}
+
 	// Filter by is_new (for newest products - sort by created_at desc)
 	// Note: is_new doesn't filter, it's handled by sorting below
 
@@ -705,8 +718,12 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Filter by category ID
-	if categoryID := r.URL.Query().Get("categoryId"); categoryID != "" {
+	// Filter by category ID (support both "categoryId" and "category" params)
+	categoryID := r.URL.Query().Get("categoryId")
+	if categoryID == "" {
+		categoryID = r.URL.Query().Get("category")
+	}
+	if categoryID != "" {
 		if oid, err := primitive.ObjectIDFromHex(categoryID); err == nil {
 			filter["category_ids"] = oid
 		}
@@ -715,9 +732,26 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 	// Build find options with sorting
 	findOptions := options.Find()
 	
-	// Sort by created_at desc for newest products
-	if r.URL.Query().Get("is_new") == "true" {
+	// Handle sort parameter
+	sortParam := r.URL.Query().Get("sort")
+	switch sortParam {
+	case "newest":
 		findOptions.SetSort(bson.D{{Key: "created_at", Value: -1}})
+	case "price-asc":
+		findOptions.SetSort(bson.D{{Key: "price", Value: 1}})
+	case "price-desc":
+		findOptions.SetSort(bson.D{{Key: "price", Value: -1}})
+	case "popular":
+		findOptions.SetSort(bson.D{{Key: "review_count", Value: -1}, {Key: "average_rating", Value: -1}})
+	case "discount":
+		// Sort by discount percentage (original_price - price) / original_price
+		// Since MongoDB doesn't easily compute this, sort by original_price desc as proxy
+		findOptions.SetSort(bson.D{{Key: "original_price", Value: -1}})
+	default:
+		// Also support legacy is_new parameter
+		if r.URL.Query().Get("is_new") == "true" {
+			findOptions.SetSort(bson.D{{Key: "created_at", Value: -1}})
+		}
 	}
 
 	// Fetch all active products (no pagination yet - we'll paginate color variants)

@@ -111,6 +111,11 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: "/",
+    languages: {
+      'fa': '/',
+      'fa-IR': '/',
+      'x-default': '/',
+    },
   },
 };
 
@@ -162,6 +167,30 @@ export default async function RootLayout({
         />
         <meta name="theme-color" content="#1A3C69" />
         <link rel="icon" href="/images/Logo/WXTransparent-org.png" sizes="any" />
+        
+        {/* Preload critical above-fold images for better LCP */}
+        <link
+          rel="preload"
+          as="image"
+          href="/images/banners/FinalB1.webp"
+          type="image/webp"
+        />
+        
+        {/* Preload critical fonts for better CLS and LCP */}
+        <link
+          rel="preload"
+          as="font"
+          href="/fonts/iransansx-regular.woff"
+          type="font/woff"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preload"
+          as="font"
+          href="/fonts/iransansx-bold.woff"
+          type="font/woff"
+          crossOrigin="anonymous"
+        />
         
         {/* JSON-LD structured data for Organization */}
         <script

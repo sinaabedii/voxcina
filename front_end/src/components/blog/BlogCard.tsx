@@ -25,6 +25,7 @@ export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"
             sizes="(max-width: 640px) 100vw, (max-width: 768px) 80vw, 50vw"
+            loading="lazy"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-voxcina-blue/90 to-transparent"></div>
         </div>
@@ -77,6 +78,7 @@ export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"
             sizes="(max-width: 640px) 64px, 80px"
+            loading="lazy"
           />
         </div>
         <div className="flex flex-col justify-center">
@@ -109,6 +111,7 @@ export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
           fill
           className="object-cover transition-transform duration-500 group-hover:scale-105"
           sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
+          loading="lazy"
         />
       </div>
       <div className="flex flex-1 flex-col p-4 sm:p-5">

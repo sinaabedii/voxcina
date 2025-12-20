@@ -105,7 +105,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
               width={300}
               height={300}
               className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700"
-              priority
+              loading="lazy"
+              sizes="(max-width: 640px) 160px, (max-width: 768px) 200px, (max-width: 1024px) 220px, 250px"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-secondary">

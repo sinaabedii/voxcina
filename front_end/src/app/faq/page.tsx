@@ -6,13 +6,48 @@ export const metadata: Metadata = {
   title: "سوالات متداول",
   description:
     "سوالات متداول کاربران و پاسخ‌های مربوط به روند ثبت سفارش، ارسال، پیگیری و خدمات پس از فروش در وکسینا.",
+  keywords: [
+    "سوالات متداول وکسینا",
+    "راهنمای خرید",
+    "پشتیبانی وکسینا",
+    "نحوه ثبت سفارش",
+    "ارسال سفارش",
+    "بازگشت کالا",
+  ],
+  openGraph: {
+    title: "سوالات متداول | وکسینا",
+    description:
+      "پاسخ به سوالات متداول درباره ثبت سفارش، ارسال، پیگیری و خدمات پس از فروش در وکسینا.",
+    type: "website",
+    locale: "fa_IR",
+    images: [
+      {
+        url: "/images/Logo/WXTransparent-org.png",
+        width: 1200,
+        height: 630,
+        alt: "سوالات متداول وکسینا",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "سوالات متداول | وکسینا",
+    description:
+      "پاسخ به سوالات متداول درباره ثبت سفارش، ارسال، پیگیری و خدمات پس از فروش در وکسینا.",
+    images: ["/images/Logo/WXTransparent-org.png"],
+  },
   alternates: {
     canonical: "/faq",
+    languages: {
+      'fa': '/faq',
+      'fa-IR': '/faq',
+      'x-default': '/faq',
+    },
   },
 };
 
 // Force this page to be dynamic (not statically generated at build time)
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface FaqPageData {
   faqs: Faq[];
@@ -51,8 +86,40 @@ async function getFaqs(): Promise<FaqPageData> {
   }
 }
 
+// Generate FAQPage JSON-LD schema from FAQ data
+function generateFaqSchema(faqs: Faq[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs
+      .filter((faq) => faq.is_active !== false)
+      .map((faq) => ({
+        "@type": "Question",
+        name: faq.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: faq.answer,
+        },
+      })),
+  };
+}
+
 export default async function FAQPage() {
   const { faqs, error } = await getFaqs();
 
-  return <FAQClient faqs={faqs} error={error} />;
+  const faqSchema = generateFaqSchema(faqs);
+
+  return (
+    <>
+      {faqs.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(faqSchema),
+          }}
+        />
+      )}
+      <FAQClient faqs={faqs} error={error} />
+    </>
+  );
 }

@@ -4,6 +4,7 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import BlogPostClientContent from '@/components/blog/BlogPostClientContent';
 import ArticleSchema from '@/components/SEO/ArticleSchema';
+import BreadcrumbSchema from '@/components/SEO/BreadcrumbSchema';
 import { BlogPost } from '@/types/blog';
 import { serverFetch, serverFetchWithFallback, CACHE_TIMES } from '@/lib/server-api';
 
@@ -44,6 +45,13 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
   const categories = Array.from(new Set(allPosts.map((p) => p.category))).filter(Boolean).sort();
   const tags = Array.from(new Set(allPosts.flatMap((p) => p.tags || []))).filter(Boolean).sort();
 
+  // Build breadcrumb items for JSON-LD schema (Home > Blog > Post)
+  const breadcrumbItems = [
+    { name: 'خانه', url: '/' },
+    { name: 'بلاگ', url: '/blog' },
+    { name: post.title, url: `/blog/${post.slug}` },
+  ];
+
   return (
     <>
       {/* JSON-LD Structured Data for Article (Requirement 4.2) */}
@@ -59,6 +67,10 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
         tags={post.tags}
         readTime={post.readTime}
       />
+
+      {/* BreadcrumbList JSON-LD schema for SEO (Home > Blog > Post) */}
+      <BreadcrumbSchema items={breadcrumbItems} />
+
       <Header />
       <Suspense fallback={<BlogPostLoadingSkeleton />}>
         <BlogPostClientContent post={post} categories={categories} tags={tags} />

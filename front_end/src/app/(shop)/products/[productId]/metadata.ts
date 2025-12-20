@@ -30,6 +30,9 @@ export async function generateMetadata({ params }: { params: { productId: string
     // Get product images
     const images = product.mainImages || product.colorVariants?.[0]?.images || [];
     
+    // Canonical path for this product
+    const canonicalPath = `/products/${params.productId}`;
+    
     // Build SEO-optimized metadata
     return {
       title: `${product.name} | ${APP_NAME}`,
@@ -54,6 +57,14 @@ export async function generateMetadata({ params }: { params: { productId: string
         ] : [],
         locale: 'fa_IR',
         type: 'website',
+      },
+      alternates: {
+        canonical: canonicalPath,
+        languages: {
+          'fa': canonicalPath,
+          'fa-IR': canonicalPath,
+          'x-default': canonicalPath,
+        },
       },
     };
   } catch (error) {

@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+// Client components for interactive features
 import HeroSectionClient from "@/components/home/HeroSectionClient";
 import ModernCategoriesSection from "@/components/home/ModernCategoriesSection";
 import ProductCarouselSectionClient from "@/components/home/ProductCarouselSectionClient";
