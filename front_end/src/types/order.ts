@@ -117,9 +117,4 @@ export interface Order {
   // Product count field that backend always sends
   product_count: number;
 }
-
-// For creating/updating orders - may differ from the full Order interface
-export interface OrderSubmission {
-  // Define fields needed for creating an order
-  // e.g., items, shipping_address_id or new_shipping_address, payment_method_id etc.
-} 
+ 

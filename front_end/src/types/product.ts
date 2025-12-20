@@ -137,55 +137,6 @@ export interface ProductFilter {
   sort?: 'price-asc' | 'price-desc' | 'newest' | 'popularity' | string;
 }
 
-export interface RecentlyViewedProduct {
-  productId: string;
-  viewedAt: string;
-}
-
-export interface ComparedProduct {
-  productId: string;
-  addedAt: string;
-}
-
-export interface UserRating {
-  userId: string;
-  productId: string;
-  rating: number;
-  review?: string;
-  createdAt: string;
-  updatedAt?: string;
-}
-
-export interface UserReviewAction {
-  userId: string;
-  reviewId: string;
-  action: "like" | "dislike";
-  createdAt: string;
-}
-
-export interface StockNotification {
-  id: string;
-  userId: string;
-  productId: string;
-  email: string;
-  phone?: string;
-  size?: string;
-  color?: string;
-  createdAt: string;
-  isNotified: boolean;
-  notifiedAt?: string;
-}
-
-export interface ProductStats {
-  productId: string;
-  viewCount: number;
-  salesCount: number;
-  wishlistCount: number;
-  reviewCount: number;
-  averageRating: number;
-  lastUpdated: string;
-}
-
 // ================================================
 // Pagination response helpers
 // ================================================
@@ -200,11 +151,5 @@ export interface PaginationInfo {
 // Paginated response for color variant list
 export interface PaginatedColorVariantsResponse {
   data: ColorVariantListItem[];
-  pagination: PaginationInfo;
-}
-
-// Legacy - kept for any existing code that might still use it
-export interface PaginatedProductsResponse {
-  data: Product[];
   pagination: PaginationInfo;
 }
