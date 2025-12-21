@@ -7,6 +7,15 @@ import (
 	"time"
 )
 
+// Auth error codes for consistent client handling
+const (
+	ErrCodeMissingHeader    = "MISSING_AUTH_HEADER"
+	ErrCodeInvalidFormat    = "INVALID_TOKEN_FORMAT"
+	ErrCodeTokenExpired     = "TOKEN_EXPIRED"
+	ErrCodeInvalidToken     = "INVALID_TOKEN"
+	ErrCodeInsufficientRole = "INSUFFICIENT_ROLE"
+)
+
 func JSONResponse(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -15,6 +24,16 @@ func JSONResponse(w http.ResponseWriter, status int, data interface{}) {
 
 func ErrorResponse(w http.ResponseWriter, status int, message string) {
 	JSONResponse(w, status, map[string]string{"error": message})
+}
+
+// AuthErrorResponse returns a standardized auth error response with error code
+func AuthErrorResponse(w http.ResponseWriter, statusCode int, code string, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(map[string]string{
+		"error": message,
+		"code":  code,
+	})
 }
 
 func SuccessResponse(w http.ResponseWriter, status int, message string, data interface{}) {

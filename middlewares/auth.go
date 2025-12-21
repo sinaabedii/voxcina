@@ -2,14 +2,14 @@ package middlewares
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
-	// "go.mongodb.org/mongo-driver/bson/primitive" // Not directly used in this version of middleware if Claims.UserID is already primitive.ObjectID
 
-	"backEnd/handlers" // Changed from backEnd/handlers
-	"backEnd/utils"    // Changed from backEnd/utils
+	"backEnd/handlers"
+	"backEnd/utils"
 )
 
 // AuthMiddleware checks for a valid JWT and sets user info in context
@@ -17,9 +17,10 @@ func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			utils.ErrorResponse(
+			utils.AuthErrorResponse(
 				w,
 				http.StatusUnauthorized,
+				utils.ErrCodeMissingHeader,
 				"Authorization header required",
 			)
 			return
@@ -27,16 +28,17 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			utils.ErrorResponse(
+			utils.AuthErrorResponse(
 				w,
 				http.StatusUnauthorized,
-				"Authorization header format must be Bearer {token}",
+				utils.ErrCodeInvalidFormat,
+				"Invalid token format",
 			)
 			return
 		}
 		tokenString := parts[1]
 
-		claims := &handlers.Claims{} // Uses Claims struct from handlers package
+		claims := &handlers.Claims{}
 
 		// Use the shared JWT key from handlers package
 		jwtKey := handlers.GetJWTKey()
@@ -47,29 +49,54 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			func(token *jwt.Token) (interface{}, error) {
 				// Validate the alg is what you expect:
 				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-					return nil, jwt.ErrSignatureInvalid // Or a more specific error
+					return nil, jwt.ErrSignatureInvalid
 				}
 				return jwtKey, nil
 			},
 		)
 
 		if err != nil {
-			if err == jwt.ErrSignatureInvalid {
-				utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid token signature")
+			// Check if the error is due to token expiration
+			if errors.Is(err, jwt.ErrTokenExpired) {
+				utils.AuthErrorResponse(
+					w,
+					http.StatusUnauthorized,
+					utils.ErrCodeTokenExpired,
+					"Token expired",
+				)
 				return
 			}
-			// Handle other errors like expired token, malformed token, etc.
-			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid token: "+err.Error())
+			// Handle signature invalid error
+			if errors.Is(err, jwt.ErrSignatureInvalid) {
+				utils.AuthErrorResponse(
+					w,
+					http.StatusUnauthorized,
+					utils.ErrCodeInvalidToken,
+					"Invalid token signature",
+				)
+				return
+			}
+			// Handle other errors (malformed token, etc.)
+			utils.AuthErrorResponse(
+				w,
+				http.StatusUnauthorized,
+				utils.ErrCodeInvalidToken,
+				"Invalid token",
+			)
 			return
 		}
 
 		if !token.Valid {
-			utils.ErrorResponse(w, http.StatusUnauthorized, "Token is not valid")
+			utils.AuthErrorResponse(
+				w,
+				http.StatusUnauthorized,
+				utils.ErrCodeInvalidToken,
+				"Token is not valid",
+			)
 			return
 		}
 
-		// Token is valid. Ensure UserID in claims is primitive.ObjectID and Role is string.
-		// The handlers.Claims struct should already define UserID as primitive.ObjectID.
+		// Token is valid. Set userID and role in context.
 		ctx := context.WithValue(r.Context(), "userID", claims.UserID)
 		ctx = context.WithValue(ctx, "role", claims.Role)
 
@@ -81,14 +108,12 @@ func AuthMiddleware(next http.Handler) http.Handler {
 func AdminAuthMiddleware(next http.Handler) http.Handler {
 	return AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// AuthMiddleware should have already run and set the context values if token was valid.
-		// We retrieve the role set by AuthMiddleware.
 		roleCtx := r.Context().Value("role")
 		if roleCtx == nil {
-			// This case implies AuthMiddleware failed to set the role, possibly due to an earlier error response.
-			// Or, if AuthMiddleware allows requests to pass through under some conditions without setting role (not typical).
-			utils.ErrorResponse(
+			utils.AuthErrorResponse(
 				w,
 				http.StatusInternalServerError,
+				utils.ErrCodeInvalidToken,
 				"Role not found in context; authentication middleware may have failed.",
 			)
 			return
@@ -96,16 +121,22 @@ func AdminAuthMiddleware(next http.Handler) http.Handler {
 
 		role, ok := roleCtx.(string)
 		if !ok {
-			utils.ErrorResponse(
+			utils.AuthErrorResponse(
 				w,
 				http.StatusInternalServerError,
+				utils.ErrCodeInvalidToken,
 				"Role in context is of incorrect type",
 			)
 			return
 		}
 
-		if role != handlers.RoleAdmin { // Using RoleAdmin constant from handlers package
-			utils.ErrorResponse(w, http.StatusForbidden, "Admin access required")
+		if role != handlers.RoleAdmin {
+			utils.AuthErrorResponse(
+				w,
+				http.StatusForbidden,
+				utils.ErrCodeInsufficientRole,
+				"Admin access required",
+			)
 			return
 		}
 

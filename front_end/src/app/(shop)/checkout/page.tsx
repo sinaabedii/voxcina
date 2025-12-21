@@ -18,6 +18,7 @@ import { useAddress } from "@/hooks/useAddress";
 import { useLocality } from "@/hooks/useLocality";
 import { useDashboardStore } from "@/store/dashboard-store";
 import { useAuthStore } from "@/store/auth-store";
+import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import { Address } from "@/types/user";
 import { ShippingMethod } from "@/services/shipping/types";
 import { formatPrice, generateId } from "@/lib/utils";
@@ -28,6 +29,25 @@ export default function CheckoutPage() {
   const { cart, summary, clearCart } = useCart();
   const { createOrder } = useDashboardStore();
   const { user } = useAuthStore();
+  
+  /**
+   * Protected Route Authentication Check
+   * Implements Requirements 9.1, 9.2, 9.4:
+   * - Redirects unauthenticated users to /sign-in
+   * - Stores /checkout as return URL for post-login redirect
+   * - Cart contents are preserved in localStorage during redirect
+   * 
+   * Cart Merge on Authentication (Requirement 9.3):
+   * When the user successfully authenticates and is redirected back to checkout,
+   * the cart store's auth subscription automatically detects the login and calls
+   * syncCartWithBackend(), which merges any anonymous cart items with the user's
+   * existing backend cart. This happens in cart-store.ts via the auth state subscription.
+   */
+  const { isLoading: authLoading, isAuthorized } = useProtectedRoute({
+    requiredAuth: true,
+    redirectUrl: '/sign-in',
+  });
+  
   const { 
     addresses, 
     isLoading: addressesLoading, 
@@ -129,6 +149,39 @@ export default function CheckoutPage() {
      This avoids executing any of the heavy checkout UI on the server.
      Skip this check if we're processing payment (cart cleared before redirect) */
   if (cart.items.length === 0 && !isProcessing) return null;
+
+  /**
+   * Show loading state while authentication is being verified
+   * Implements Requirement 3.5: Display loading state during auth verification
+   */
+  if (authLoading) {
+    return (
+      <div className="container py-8 md:py-12">
+        <div className="flex flex-col items-center justify-center min-h-[400px]">
+          <div className="relative w-16 h-16 mb-6">
+            <div className="absolute top-0 right-0 w-full h-full border-4 border-secondary-200 dark:border-voxcina-darkBlue/30 rounded-full animate-pulse-soft"></div>
+            <div className="absolute top-0 right-0 w-full h-full border-4 border-t-voxcina-blue dark:border-t-secondary-200 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+            <User className="absolute inset-0 m-auto w-6 h-6 text-voxcina-blue/40 dark:text-secondary-200/40" />
+          </div>
+          <p className="text-voxcina-blue/70 dark:text-secondary-200/70 font-medium text-lg">
+            در حال بررسی وضعیت ورود...
+          </p>
+          <p className="text-voxcina-blue/50 dark:text-secondary-300/50 text-sm mt-2">
+            لطفاً صبر کنید
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  /**
+   * If not authorized after auth check completes, the useProtectedRoute hook
+   * will handle the redirect to /sign-in with /checkout stored as return URL.
+   * Cart contents remain in localStorage during this redirect (Requirement 9.2).
+   */
+  if (!isAuthorized) {
+    return null;
+  }
 
   /* ────────────────────────────────────────────
      Address form handlers
@@ -310,10 +363,12 @@ export default function CheckoutPage() {
       return;
     }
 
+    // Get token from localStorage - user is already authenticated via useProtectedRoute
     const token = localStorage.getItem("authToken");
     if (!token) {
+      // This should not happen since useProtectedRoute ensures authentication,
+      // but handle gracefully just in case
       toast.error("لطفا وارد حساب کاربری خود شوید");
-      router.push("/sign-in");
       return;
     }
 

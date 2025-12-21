@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
+import { localStorageManager } from "@/lib/local-storage-manager";
+import { validateReturnUrl } from "@/lib/url-security";
 import Button from "@/components/ui/Button";
 import { toast } from "react-toastify";
 import AuthWrapper from "@/components/auth/AuthWrapper";
@@ -192,7 +194,12 @@ export default function SignInPage() {
 
       toast.success("کد معتبر است، درحال ورود...");
       await loginSms(normalizedPhone);
-      router.push("/");
+      
+      // Redirect to stored return URL or default to home
+      // Validate return URL to prevent token exposure (Requirement 7.2)
+      const storedUrl = localStorageManager.consumeReturnUrl();
+      const returnUrl = validateReturnUrl(storedUrl);
+      router.push(returnUrl || "/");
     } catch (error) {
       console.error("Verify OTP error:", error);
       toast.error("خطا در تأیید کد");
@@ -214,7 +221,12 @@ export default function SignInPage() {
     try {
       const normalizedPhone = persianToEnglishDigits(phone);
       await login({ phone: normalizedPhone, password });
-      router.push("/");
+      
+      // Redirect to stored return URL or default to home
+      // Validate return URL to prevent token exposure (Requirement 7.2)
+      const storedUrl = localStorageManager.consumeReturnUrl();
+      const returnUrl = validateReturnUrl(storedUrl);
+      router.push(returnUrl || "/");
     } catch (error) {
       console.error("Login error:", error);
     } finally {

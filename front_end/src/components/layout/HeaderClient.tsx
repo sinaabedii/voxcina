@@ -11,7 +11,7 @@ import MobileNav from "./MobileNav";
 import SmartSearch from "@/components/ui/SmartSearch";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuthStore } from "@/store/auth-store";
 
 // Type definition for navigation items
 export interface NavItem {
@@ -30,7 +30,7 @@ const HeaderClient: React.FC<HeaderClientProps> = ({ navItems }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const pathname = usePathname();
   const { cart, syncCartWithBackend } = useCartStore();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user } = useAuthStore();
   const router = useRouter();
 
   const itemCount = cart.items.reduce((count, item) => count + item.quantity, 0);

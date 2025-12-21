@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 
 const ChatBot = dynamic(() => import("@/components/module/ChatBot"), {
   ssr: false,
@@ -34,10 +35,10 @@ export default function ClientLayout({
   }
 
   return (
-    <>
+    <AuthProvider>
       {children}
       {isHomePage && <ChatBot />}
       {isHomePage && <AssistantWidget />}
-    </>
+    </AuthProvider>
   );
 }

@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -465,24 +466,8 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 // Logout handles POST /api/users/logout
 // For JWT, logout is primarily client-side (deleting the token).
-// This endpoint can be used to clear any server-side session cookies if used (not typical for pure JWT in headers)
-// or to add the token to a blacklist if implemented.
+// This endpoint acknowledges the logout request.
 func Logout(w http.ResponseWriter, r *http.Request) {
-	// Clear the cookie (though this could be optional in a JWT setup).
-	// http.SetCookie(w, &http.Cookie{
-	// 	Name:     "auth_token",
-	// 	Value:    "",
-	// 	Expires:  time.Now().Add(-time.Hour),
-	// 	HttpOnly: true,
-	// 	Path:     "/",
-	// 	// Secure: true, // In production
-	// 	// SameSite: http.SameSiteLaxMode, // Or StrictMode
-	// })
-
-	// If a token blacklist is implemented, this is where you would:
-	// 1. Extract the token from the Authorization header.
-	// 2. Add the token ID (e.g., JTI claim) or the full token to the blacklist (e.g., in Redis) until its original expiry.
-
 	utils.JSONResponse(
 		w,
 		http.StatusOK,
@@ -947,23 +932,8 @@ func DeleteUserAddress(w http.ResponseWriter, r *http.Request) {
 // --- Admin User Management Handlers ---
 
 // ListUsers handles GET /api/admin/users
-// Requires admin authentication
+// Requires admin authentication (handled by AdminAuthMiddleware)
 func ListUsers(w http.ResponseWriter, r *http.Request) {
-	// Admin authentication should be handled by middleware.
-	// We can double-check the role from context if needed, but middleware is primary.
-	/*
-		userRoleCtx := r.Context().Value("role") // Assuming role is set by AuthMiddleware
-		if userRoleCtx == nil {
-			utils.ErrorResponse(w, http.StatusUnauthorized, "Role not found in context")
-			return
-		}
-		userRole, ok := userRoleCtx.(string)
-		if !ok || userRole != RoleAdmin {
-			utils.ErrorResponse(w, http.StatusForbidden, "Admin access required")
-			return
-		}
-	*/
-
 	// Pagination parameters (optional, but good for production)
 	pageQuery := r.URL.Query().Get("page")
 	limitQuery := r.URL.Query().Get("limit")
@@ -1338,37 +1308,76 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 // RefreshToken handles POST /api/users/refresh
 func RefreshToken(w http.ResponseWriter, r *http.Request) {
-	var req struct { RefreshToken string `json:"refreshToken"` }
+	var req struct {
+		RefreshToken string `json:"refreshToken"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid refresh request: "+err.Error())
+		utils.AuthErrorResponse(w, http.StatusBadRequest, utils.ErrCodeInvalidFormat, "Invalid refresh request")
 		return
 	}
+
+	if req.RefreshToken == "" {
+		utils.AuthErrorResponse(w, http.StatusBadRequest, utils.ErrCodeInvalidFormat, "Refresh token is required")
+		return
+	}
+
 	token, err := jwt.ParseWithClaims(req.RefreshToken, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		// Validate the signing method
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, jwt.ErrSignatureInvalid
+		}
 		return jwtKey, nil
 	})
-	if err != nil || !token.Valid {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid refresh token")
+
+	if err != nil {
+		// Check if the error is due to token expiration
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			utils.AuthErrorResponse(w, http.StatusUnauthorized, utils.ErrCodeTokenExpired, "Refresh token expired")
+			return
+		}
+		// Handle signature invalid error
+		if errors.Is(err, jwt.ErrSignatureInvalid) {
+			utils.AuthErrorResponse(w, http.StatusUnauthorized, utils.ErrCodeInvalidToken, "Invalid refresh token signature")
+			return
+		}
+		// Handle other errors (malformed token, etc.)
+		utils.AuthErrorResponse(w, http.StatusUnauthorized, utils.ErrCodeInvalidToken, "Invalid refresh token")
 		return
 	}
+
+	if !token.Valid {
+		utils.AuthErrorResponse(w, http.StatusUnauthorized, utils.ErrCodeInvalidToken, "Refresh token is not valid")
+		return
+	}
+
 	claims, ok := token.Claims.(*Claims)
 	if !ok {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid refresh token claims")
+		utils.AuthErrorResponse(w, http.StatusUnauthorized, utils.ErrCodeInvalidToken, "Invalid refresh token claims")
 		return
 	}
-	expirationTime := time.Now().Add(15 * time.Minute)
+
+	// Generate new access token with 24 hour expiration (as per requirements)
+	expirationTime := time.Now().Add(24 * time.Hour)
 	newClaims := &Claims{
 		UserID: claims.UserID,
 		Email:  claims.Email,
 		Role:   claims.Role,
-		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(expirationTime)},
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
 	}
 	accessTokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, newClaims)
 	accessTokenString, err := accessTokenObj.SignedString(jwtKey)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error generating access token: "+err.Error())
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error generating access token")
 		return
 	}
-	utils.JSONResponse(w, http.StatusOK, map[string]string{"accessToken": accessTokenString})
+
+	// Return consistent response format with accessToken field
+	utils.JSONResponse(w, http.StatusOK, map[string]string{
+		"accessToken": accessTokenString,
+	})
 }
 
 // CheckPhone handles POST /api/users/check-phone

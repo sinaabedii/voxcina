@@ -226,12 +226,15 @@ func getUserIDFromToken(r *http.Request) (primitive.ObjectID, error) {
 		return primitive.NilObjectID, nil // Or return a specific error
 	}
 	tokenString := parts[1]
+	
+	// Use the shared JWT key from handlers package
+	jwtKey := GetJWTKey()
+	
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrSignatureInvalid
 		}
-		// Ensure JWT_SECRET is loaded from env or config
-		return []byte("137888"), nil // Use the same secret as in auth.go
+		return jwtKey, nil
 	})
 	if err != nil {
 		return primitive.NilObjectID, err

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/store/auth-store";
+import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import { APP_NAME } from "@/lib/constants";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -32,26 +33,19 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const router = useRouter();
-  const [isChecking, setIsChecking] = useState(true);
+  
+  // Use the new protected route hook with admin role requirement (Requirement 3.4)
+  const { isLoading, isAuthorized } = useProtectedRoute({
+    requiredAuth: true,
+    requiredRole: 'admin',
+    nonAdminRedirectUrl: '/dashboard', // Redirect non-admin users to dashboard
+  });
+  
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [activeSection, setActiveSection] = useState("dashboard");
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!isAuthenticated) {
-        router.push("/sign-in");
-      } else if (user && user.role !== "admin") {
-        // Redirect non-admin users
-        router.push("/dashboard");
-      }
-      setIsChecking(false);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [isAuthenticated, router, user]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -164,7 +158,8 @@ export default function AdminLayout({
     router.push("/sign-in");
   };
 
-  if (isChecking) {
+  // Show loading state during auth verification (Requirement 3.5)
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-voxcina-blue/95 transition-all duration-300">
         <div className="text-center">
@@ -180,7 +175,8 @@ export default function AdminLayout({
     );
   }
 
-  if (!isAuthenticated || (user && user.role !== "admin")) {
+  // Don't render content if not authorized (redirect is handled by hook)
+  if (!isAuthorized) {
     return null;
   }
 

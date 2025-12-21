@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/store/auth-store";
+import { useProtectedRoute } from "@/hooks/useProtectedRoute";
+import { localStorageManager } from "@/lib/local-storage-manager";
 import { APP_NAME } from "@/lib/constants";
 import Sidebar from "@/components/layout/Sidebar";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,7 +16,6 @@ import {
   Search,
   Menu,
   X,
-  Moon,
   LogOut,
 } from "lucide-react";
 
@@ -23,22 +24,27 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const router = useRouter();
-  const [isChecking, setIsChecking] = useState(true);
+  
+  // Use the new protected route hook (Requirements 3.1, 3.3, 3.5)
+  const { isLoading, isAuthorized } = useProtectedRoute({
+    requiredAuth: true,
+    requiredRole: 'customer', // Any authenticated user can access dashboard
+  });
+  
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
+  // Handle return URL redirect after login (Requirement 3.3)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!isAuthenticated) {
-        router.push("/sign-in");
+    if (isAuthorized) {
+      const returnUrl = localStorageManager.consumeReturnUrl();
+      if (returnUrl && returnUrl !== '/dashboard' && !returnUrl.startsWith('/sign-')) {
+        router.push(returnUrl);
       }
-      setIsChecking(false);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [isAuthenticated, router]);
+    }
+  }, [isAuthorized, router]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -64,7 +70,8 @@ export default function DashboardLayout({
     return () => window.removeEventListener("popstate", handleRouteChange);
   }, []);
 
-  if (isChecking) {
+  // Show loading state during auth verification (Requirement 3.5)
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-voxcina-blue/95 transition-all duration-300">
         <div className="text-center">
@@ -80,7 +87,8 @@ export default function DashboardLayout({
     );
   }
 
-  if (!isAuthenticated) {
+  // Don't render content if not authorized (redirect is handled by hook)
+  if (!isAuthorized) {
     return null;
   }
 

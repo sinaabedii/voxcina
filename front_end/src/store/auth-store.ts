@@ -7,6 +7,9 @@ import {
   RegistrationData,
   AuthState,
 } from "@/types/user";
+import { tokenValidator } from "@/lib/token-validator";
+import { localStorageManager, AUTH_STORAGE_KEYS } from "@/lib/local-storage-manager";
+import { sessionManager } from "@/lib/session-manager";
 
 export interface AuthStore extends AuthState {
   login: (credentials: LoginCredentials) => Promise<User>;
@@ -22,48 +25,16 @@ export interface AuthStore extends AuthState {
   // Direct setters for OTP signup flow
   setUser: (user: User | null) => void;
   setIsAuthenticated: (isAuthenticated: boolean) => void;
+  // Initialization state and methods (Requirements 2.3, 2.4)
+  isInitialized: boolean;
+  initializeAuth: () => Promise<void>;
+  // Cross-tab synchronization (Requirements 8.1, 8.2, 8.3)
+  syncFromStorage: () => void;
+  setupStorageListener: () => () => void;
 }
 
-// Helper to automatically refresh access token on 401 responses
-async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  const token = localStorage.getItem("authToken");
-  const existingHeaders = (options.headers as Record<string, string>) || {};
-  // First attempt with current access token
-  let response = await fetch(url, {
-    ...options,
-    headers: {
-      ...existingHeaders,
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  if (response.status === 401) {
-    const refreshToken = localStorage.getItem("refreshToken");
-    if (refreshToken) {
-      const refreshRes = await fetch("/api/users/refresh", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken }),
-      });
-      if (refreshRes.ok) {
-        const data = await refreshRes.json();
-        localStorage.setItem("authToken", data.accessToken);
-        // Retry original request with new access token
-        response = await fetch(url, {
-          ...options,
-          headers: {
-            ...existingHeaders,
-            Authorization: `Bearer ${data.accessToken}`,
-          },
-        });
-      } else {
-        // Refresh failed; clear tokens
-        localStorage.removeItem("authToken");
-        localStorage.removeItem("refreshToken");
-      }
-    }
-  }
-  return response;
-}
+// Note: fetchWithAuth is now provided by sessionManager.fetchWithAuth()
+// which implements proper request queuing and proactive refresh (Requirements 1.1-1.4, 6.1)
 
 export const useAuthStore = create<AuthStore>()(
   persist(
@@ -74,10 +45,151 @@ export const useAuthStore = create<AuthStore>()(
       error: null,
       adminToken: null,
       allUsers: [],
+      // Initialization state (Requirements 2.3, 2.4)
+      isInitialized: false,
 
       // Direct setters for OTP signup flow
       setUser: (user) => set({ user }),
       setIsAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
+
+      /**
+       * Initialize authentication state on app start
+       * Validates stored tokens and clears invalid ones
+       * Implements Requirements 2.3, 2.4
+       * Also initializes activity tracking for proactive refresh (Requirement 6.4)
+       */
+      initializeAuth: async () => {
+        // Prevent multiple initializations
+        if (get().isInitialized) {
+          return;
+        }
+
+        // Initialize activity tracking for proactive token refresh (Requirement 6.4)
+        sessionManager.initActivityTracking();
+
+        const accessToken = localStorageManager.getAccessToken();
+        
+        // No token stored - set as unauthenticated
+        if (!accessToken) {
+          set({
+            isInitialized: true,
+            isAuthenticated: false,
+            user: null,
+          });
+          return;
+        }
+
+        // Validate the stored token using TokenValidator (Requirement 2.3)
+        if (!tokenValidator.isTokenValid(accessToken)) {
+          // Token is invalid or expired - clear all auth data using LocalStorageManager (Requirement 2.1)
+          localStorageManager.clearAuthData();
+          set({
+            isInitialized: true,
+            isAuthenticated: false,
+            user: null,
+            adminToken: null,
+          });
+          return;
+        }
+
+        // Token is valid - try to restore user state from persisted storage
+        const persistedState = localStorageManager.getPersistedAuthState();
+        if (persistedState?.state?.user && persistedState.state.isAuthenticated) {
+          set({
+            isInitialized: true,
+            user: persistedState.state.user as User,
+            isAuthenticated: true,
+            adminToken: persistedState.state.adminToken,
+          });
+        } else {
+          // Token exists but no persisted user state - fetch profile using SessionManager (Requirement 1.1, 1.2)
+          try {
+            const response = await sessionManager.fetchWithAuth("/api/users/profile");
+            if (response.ok) {
+              const data = await response.json();
+              const userData = data.user_data || data;
+              set({
+                isInitialized: true,
+                user: userData,
+                isAuthenticated: true,
+              });
+            } else {
+              // Profile fetch failed - clear auth data using LocalStorageManager
+              localStorageManager.clearAuthData();
+              set({
+                isInitialized: true,
+                isAuthenticated: false,
+                user: null,
+                adminToken: null,
+              });
+            }
+          } catch {
+            // Network error - keep tokens but mark as initialized
+            // User can retry later
+            set({
+              isInitialized: true,
+            });
+          }
+        }
+      },
+
+      /**
+       * Sync auth state from localStorage (for cross-tab synchronization)
+       * Implements Requirements 8.1, 8.2, 8.3
+       */
+      syncFromStorage: () => {
+        const accessToken = localStorageManager.getAccessToken();
+        const persistedState = localStorageManager.getPersistedAuthState();
+
+        // If no token exists, user logged out in another tab
+        if (!accessToken) {
+          const currentState = get();
+          if (currentState.isAuthenticated) {
+            set({
+              user: null,
+              isAuthenticated: false,
+              adminToken: null,
+            });
+          }
+          return;
+        }
+
+        // If token exists and is valid, sync the user state
+        if (tokenValidator.isTokenValid(accessToken) && persistedState?.state) {
+          const currentState = get();
+          const newUser = persistedState.state.user as User | null;
+          const newIsAuthenticated = persistedState.state.isAuthenticated;
+
+          // Only update if state actually changed
+          if (
+            currentState.isAuthenticated !== newIsAuthenticated ||
+            currentState.user?.id !== newUser?.id
+          ) {
+            set({
+              user: newUser,
+              isAuthenticated: newIsAuthenticated,
+              adminToken: persistedState.state.adminToken,
+            });
+          }
+        }
+      },
+
+      /**
+       * Setup storage event listener for cross-tab synchronization
+       * Returns cleanup function to remove listener
+       * Implements Requirements 8.1, 8.2, 8.3
+       */
+      setupStorageListener: () => {
+        return localStorageManager.onStorageChange((event) => {
+          // Handle auth-related storage changes from other tabs
+          if (
+            event.key === AUTH_STORAGE_KEYS.ACCESS_TOKEN ||
+            event.key === AUTH_STORAGE_KEYS.AUTH_STORAGE
+          ) {
+            get().syncFromStorage();
+          }
+        });
+      },
 
       login: async (credentials) => {
         set({ isLoading: true, error: null });
@@ -105,8 +217,24 @@ export const useAuthStore = create<AuthStore>()(
           }
       
           if (data.token) {
-            localStorage.setItem("authToken", data.token);
-            if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
+            // Validate token before storing (Requirement 5.4)
+            if (!tokenValidator.isTokenValid(data.token)) {
+              const errorMessage = "توکن دریافتی نامعتبر است";
+              set({
+                isLoading: false,
+                error: errorMessage,
+                user: null,
+                isAuthenticated: false,
+              });
+              toast.error(errorMessage);
+              throw new Error(errorMessage);
+            }
+
+            // Store tokens using LocalStorageManager (Requirement 5.3)
+            localStorageManager.setAccessToken(data.token);
+            if (data.refreshToken) {
+              localStorageManager.setRefreshToken(data.refreshToken);
+            }
             
             // Create a user object from the backend response structure
             const user: User = {
@@ -156,8 +284,8 @@ export const useAuthStore = create<AuthStore>()(
             });
             toast.error(errorMessage);
           }
-          localStorage.removeItem("authToken");
-          localStorage.removeItem("refreshToken");
+          // Clear tokens using LocalStorageManager on error
+          localStorageManager.clearAuthData();
           throw error;
         }
       },
@@ -206,8 +334,24 @@ export const useAuthStore = create<AuthStore>()(
             
             // Extract token from response
             if (userData.token) {
-              localStorage.setItem("authToken", userData.token);
-              if (userData.refreshToken) localStorage.setItem("refreshToken", userData.refreshToken);
+              // Validate token before storing (Requirement 5.4)
+              if (!tokenValidator.isTokenValid(userData.token)) {
+                const errorMessage = "توکن دریافتی نامعتبر است";
+                set({
+                  isLoading: false,
+                  error: errorMessage,
+                  user: null,
+                  isAuthenticated: false,
+                });
+                toast.error(errorMessage);
+                throw new Error(errorMessage);
+              }
+
+              // Store tokens using LocalStorageManager (Requirement 5.3)
+              localStorageManager.setAccessToken(userData.token);
+              if (userData.refreshToken) {
+                localStorageManager.setRefreshToken(userData.refreshToken);
+              }
               
               // Create user object from backend response structure
               const user: User = {
@@ -257,7 +401,8 @@ export const useAuthStore = create<AuthStore>()(
 
       logout: async () => {
         try {
-          const token = localStorage.getItem("authToken");
+          // Get token using LocalStorageManager
+          const token = localStorageManager.getAccessToken();
           if (token) {
             await fetch("/api/users/logout", {
               method: "POST",
@@ -269,8 +414,8 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           console.error("Logout error:", error);
         } finally {
-          localStorage.removeItem("authToken");
-          localStorage.removeItem("refreshToken");
+          // Clear all auth data using LocalStorageManager (Requirement 7.4)
+          localStorageManager.clearAuthData();
           set({
             user: null,
             isAuthenticated: false,
@@ -285,14 +430,16 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
 
         try {
-          const token = localStorage.getItem("authToken");
+          // Check for valid token using LocalStorageManager (Requirement 2.1)
+          const token = localStorageManager.getAccessToken();
           if (!token) {
             const errorMessage = "کاربر وارد نشده است";
             toast.error(errorMessage);
             throw new Error(errorMessage);
           }
 
-          const response = await fetchWithAuth("/api/users/profile", {
+          // Use SessionManager for authenticated request (Requirements 1.1, 1.2)
+          const response = await sessionManager.fetchWithAuth("/api/users/profile", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(userData),
@@ -334,7 +481,8 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
 
         try {
-          const token = localStorage.getItem("authToken");
+          // Check for valid token using LocalStorageManager (Requirement 2.1)
+          const token = localStorageManager.getAccessToken();
           if (!token) {
             const errorMessage = "کاربر وارد نشده است";
             set({
@@ -346,7 +494,8 @@ export const useAuthStore = create<AuthStore>()(
             throw new Error(errorMessage);
           }
 
-          const response = await fetchWithAuth("/api/users/profile");
+          // Use SessionManager for authenticated request (Requirements 1.1, 1.2)
+          const response = await sessionManager.fetchWithAuth("/api/users/profile");
 
           const data = await response.json();
 
@@ -359,8 +508,8 @@ export const useAuthStore = create<AuthStore>()(
               isAuthenticated: false,
             });
             if (response.status === 401) {
-              localStorage.removeItem("authToken");
-              localStorage.removeItem("refreshToken");
+              // Clear auth data using LocalStorageManager (Requirement 2.1)
+              localStorageManager.clearAuthData();
               toast.error("جلسه شما منقضی شده است. لطفا مجددا وارد شوید");
             } else {
               toast.error(errorMessage);
@@ -394,7 +543,8 @@ export const useAuthStore = create<AuthStore>()(
 
       fetchAllUsers: async () => {
         set({ isLoading: true, error: null });
-        const token = get().adminToken || localStorage.getItem("authToken");
+        // Use LocalStorageManager for token retrieval (Requirement 2.1)
+        const token = get().adminToken || localStorageManager.getAccessToken();
         if (!token) {
           const errorMessage = "Admin not authenticated";
           set({ isLoading: false, error: errorMessage });
@@ -447,7 +597,8 @@ export const useAuthStore = create<AuthStore>()(
 
       updateUserAsAdmin: async (userId, userData) => {
         set({ isLoading: true, error: null });
-        const token = get().adminToken || localStorage.getItem("authToken");
+        // Use LocalStorageManager for token retrieval (Requirement 2.1)
+        const token = get().adminToken || localStorageManager.getAccessToken();
         if (!token) {
           const errorMessage = "Admin not authenticated";
           set({ isLoading: false, error: errorMessage });
@@ -518,7 +669,8 @@ export const useAuthStore = create<AuthStore>()(
 
       deleteUserAsAdmin: async (userId) => {
         set({ isLoading: true, error: null });
-        const token = get().adminToken || localStorage.getItem("authToken");
+        // Use LocalStorageManager for token retrieval (Requirement 2.1)
+        const token = get().adminToken || localStorageManager.getAccessToken();
         if (!token) {
           const errorMessage = "Admin not authenticated";
           set({ isLoading: false, error: errorMessage });
@@ -584,8 +736,20 @@ export const useAuthStore = create<AuthStore>()(
             throw new Error(errorMessage);
           }
           if (data.token) {
-            localStorage.setItem("authToken", data.token);
-            if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
+            // Validate token before storing (Requirement 5.4)
+            if (!tokenValidator.isTokenValid(data.token)) {
+              const errorMessage = "توکن دریافتی نامعتبر است";
+              set({ isLoading: false, error: errorMessage });
+              toast.error(errorMessage);
+              throw new Error(errorMessage);
+            }
+
+            // Store tokens using LocalStorageManager (Requirement 5.3)
+            localStorageManager.setAccessToken(data.token);
+            if (data.refreshToken) {
+              localStorageManager.setRefreshToken(data.refreshToken);
+            }
+            
             const user: User = {
               id: data.id || data._id,
               name: data.name,
@@ -614,7 +778,7 @@ export const useAuthStore = create<AuthStore>()(
       name: "auth-storage",
       partialize: (state) =>
         Object.fromEntries(
-          Object.entries(state).filter(([key]) => !['isLoading', 'error', 'allUsers'].includes(key))
+          Object.entries(state).filter(([key]) => !['isLoading', 'error', 'allUsers', 'isInitialized'].includes(key))
         ) as Pick<AuthStore, 'user' | 'isAuthenticated' | 'adminToken'>,
     }
   )
