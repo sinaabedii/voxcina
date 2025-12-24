@@ -73,7 +73,7 @@ const HeroSectionClient = () => {
             className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-3 sm:mb-4 md:mb-6 leading-tight"
           >
             <span className="text-white block mb-1 sm:mb-2">
-              استایل تابستانی
+              فروشگاه اینترنتی لباس و پوشاک
             </span>
             <span className="relative inline-block">
               <span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400">

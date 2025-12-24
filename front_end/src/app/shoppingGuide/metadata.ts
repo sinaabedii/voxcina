@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { APP_NAME } from '@/lib/constants';
 
 export const metadata: Metadata = {
-  title: `راهنمای خرید | ${APP_NAME}`,
+  title: 'راهنمای خرید',
   description: `راهنمای کامل خرید از فروشگاه آنلاین وکسینا. مراحل ثبت‌نام، جستجوی محصول، سبد خرید، پرداخت و تحویل سفارش.`,
   keywords: [
     'راهنمای خرید',

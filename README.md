@@ -44,6 +44,33 @@ docker compose up --build
 - Payment status tracking and verification
 - Callback handling for payment confirmation
 
+### Google Analytics
+- Page view tracking
+- User behavior analytics
+- Conversion tracking
+- Real-time visitor monitoring
+
+## Google Analytics Setup
+
+1. Create a Google Analytics 4 property at [analytics.google.com](https://analytics.google.com)
+2. Get your Measurement ID (format: `G-XXXXXXXXXX`)
+3. Add it to your environment variables:
+
+```bash
+# For local development (.env.local)
+NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX
+
+# For Docker deployment (.env)
+NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX
+```
+
+4. The analytics will automatically start tracking page views and user interactions
+
+**Note for Docker deployment:**
+- The `NEXT_PUBLIC_GA_ID` variable is already configured in `docker-compose.yml`
+- Simply add your Google Analytics Measurement ID to your `.env` file
+- Restart with `docker compose up --build` to apply changes
+
 ## Tech Stack
 
 | Layer | Technology |

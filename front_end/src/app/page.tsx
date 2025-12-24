@@ -11,10 +11,19 @@ import AIAssistantPromo from "@/components/home/AIAssistantPromo";
 import ColorMatchingTool from "@/components/home/ColorMatchingTool";
 import SeasonalCollectionBanner from "@/components/home/SeasonalCollectionBanner";
 import BenefitsSection from "@/components/home/BenefitsSection";
+import SEOContentSection from "@/components/home/SEOContentSection";
 import { serverFetchWithFallback, CACHE_TIMES } from "@/lib/server-api";
 import { ColorVariantListItem } from "@/types/product";
 import { Slider } from "@/types/slider";
 import { fallbackSliders } from "@/lib/constants";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: {
+    absolute: "وکسینا | فروشگاه اینترنتی لباس و پوشاک | خرید آنلاین مد و استایل",
+  },
+  description: "خرید آنلاین جدیدترین مدل‌های لباس زنانه، مردانه و بچگانه با بهترین قیمت و کیفیت در فروشگاه اینترنتی وکسینا. ضمانت اصالت و بازگشت کالا.",
+};
 
 /**
  * Server-side data fetching for home page
@@ -137,6 +146,9 @@ export default async function HomePage() {
         >
           <ColorMatchingTool />
         </Suspense>
+
+        {/* SEO Content Section - Keyword-rich content for better SEO */}
+        <SEOContentSection />
 
         {/* Benefits Section - Client component for animations */}
         <BenefitsSection />

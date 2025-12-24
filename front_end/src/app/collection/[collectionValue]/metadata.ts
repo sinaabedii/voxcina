@@ -9,7 +9,7 @@ export async function generateMetadata({ params }: { params: { collectionValue: 
   const canonicalPath = `/collection/${params.collectionValue}`;
   
   return {
-    title: `کالکشن ${collectionValue} | ${APP_NAME}`,
+    title: `کالکشن ${collectionValue}`,
     description: `مشاهده و خرید محصولات کالکشن ${collectionValue} از فروشگاه آنلاین ${APP_NAME}. جدیدترین محصولات با بهترین قیمت.`,
     keywords: [
       collectionValue,

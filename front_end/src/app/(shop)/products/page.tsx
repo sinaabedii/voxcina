@@ -139,11 +139,11 @@ export async function generateMetadata({ searchParams }: ProductsPageProps): Pro
   const { pagination } = await getProducts(params);
   const totalPages = pagination?.totalPages || 1;
 
-  let title = "محصولات | وکسینا";
+  let title = "محصولات";
   let description = "مشاهده و خرید انواع محصولات مد و پوشاک با بهترین قیمت در فروشگاه وکسینا";
 
   if (search) {
-    title = `جستجو: ${search} | وکسینا`;
+    title = `جستجو: ${search}`;
     description = `نتایج جستجو برای "${search}" در فروشگاه وکسینا`;
   }
 

@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { APP_NAME } from '@/lib/constants';
 
 export const metadata: Metadata = {
-  title: `دستیار هوشمند | ${APP_NAME}`,
+  title: 'دستیار هوشمند',
   description: `دستیار هوشمند وکسینا - پاسخگویی به سوالات شما درباره محصولات، سفارشات و خدمات فروشگاه با استفاده از هوش مصنوعی.`,
   keywords: [
     'دستیار هوشمند',

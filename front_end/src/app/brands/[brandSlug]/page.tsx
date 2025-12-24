@@ -75,7 +75,7 @@ export async function generateMetadata({ params }: BrandPageProps): Promise<Meta
 
   if (!data) {
     return {
-      title: `برند یافت نشد | ${APP_NAME}`,
+      title: 'برند یافت نشد',
       description: 'متأسفانه برند مورد نظر یافت نشد.',
     };
   }
@@ -84,7 +84,7 @@ export async function generateMetadata({ params }: BrandPageProps): Promise<Meta
   const productCount = products.length;
 
   return {
-    title: `${brand.name} | ${APP_NAME}`,
+    title: brand.name,
     description: brand.description || `خرید آنلاین محصولات برند ${brand.name} با بهترین قیمت و کیفیت از فروشگاه آنلاین ${APP_NAME}. ${productCount} محصول موجود.`,
     keywords: [
       brand.name,

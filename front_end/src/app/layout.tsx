@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { APP_NAME, APP_DESCRIPTION } from "@/lib/constants";
+import { APP_NAME, APP_DESCRIPTION, SEO_DEFAULT_TITLE } from "@/lib/constants";
 import "./globals.css";
 import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer } from "react-toastify";
 import ClientLayout from "../components/layout/ClientLayout";
 import { NavigationProvider } from "@/context/navigation";
 import type { NavItem } from "@/components/layout/HeaderClient";
+import GoogleAnalytics from "../components/GoogleAnalytics";
 
 interface CategoryApi {
   id?: string;
@@ -52,7 +53,7 @@ function buildNavItems(categories: CategoryApi[]): NavItem[] {
 
 export const metadata: Metadata = {
   title: {
-    default: APP_NAME,
+    default: SEO_DEFAULT_TITLE,
     template: `%s | ${APP_NAME}`,
   },
   description: APP_DESCRIPTION,
@@ -80,7 +81,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "fa_IR",
-    title: APP_NAME,
+    title: SEO_DEFAULT_TITLE,
     description: APP_DESCRIPTION,
     siteName: APP_NAME,
     images: [
@@ -94,7 +95,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: APP_NAME,
+    title: SEO_DEFAULT_TITLE,
     description: APP_DESCRIPTION,
     images: ["/images/Logo/WXTransparent-org.png"],
   },
@@ -236,6 +237,9 @@ export default async function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-background text-foreground font-iransans antialiased selection:bg-primary/20 selection:text-primary">
+        {process.env.NEXT_PUBLIC_GA_ID && (
+          <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
+        )}
         <NavigationProvider navItems={navItems}>
         <ClientLayout>
           <div className="page-transition-wrapper">

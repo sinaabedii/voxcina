@@ -1,6 +1,7 @@
 import { Slider } from "@/types/slider";
 
 export const APP_NAME = "وکسینا | Voxcina";
+export const SEO_DEFAULT_TITLE = "وکسینا | فروشگاه اینترنتی لباس و پوشاک | خرید آنلاین مد و استایل";
 export const APP_DESCRIPTION = "وکسینا، فروشگاه آنلاین پوشاک و مد | جدیدترین لباس‌های مردانه، زنانه و بچگانه با تخفیف ویژه و ارسال سریع";
 
 export const NAV_ITEMS = [

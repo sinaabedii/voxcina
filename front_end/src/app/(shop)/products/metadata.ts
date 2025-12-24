@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { APP_NAME } from '@/lib/constants';
 
 export const metadata: Metadata = {
-  title: `محصولات | ${APP_NAME}`,
+  title: 'محصولات',
   description: `مشاهده و خرید آنلاین جدیدترین محصولات با کیفیت از فروشگاه اینترنتی ${APP_NAME}. تنوع بالا، قیمت مناسب و ارسال سریع به سراسر کشور.`,
   keywords: [
     'خرید آنلاین',

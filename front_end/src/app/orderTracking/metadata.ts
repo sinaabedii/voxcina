@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { APP_NAME } from '@/lib/constants';
 
 export const metadata: Metadata = {
-  title: `پیگیری سفارش | ${APP_NAME}`,
+  title: 'پیگیری سفارش',
   description: `پیگیری وضعیت سفارش در فروشگاه آنلاین وکسینا. با وارد کردن کد پیگیری یا شماره موبایل، از وضعیت سفارش خود مطلع شوید.`,
   keywords: [
     'پیگیری سفارش',

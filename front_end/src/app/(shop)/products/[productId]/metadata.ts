@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: { params: { productId: string
     
     if (!product) {
       return {
-        title: `محصول یافت نشد | ${APP_NAME}`,
+        title: 'محصول یافت نشد',
         description: 'متأسفانه محصول مورد نظر یافت نشد.',
       };
     }
@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: { params: { productId: string
     
     // Build SEO-optimized metadata
     return {
-      title: `${product.name} | ${APP_NAME}`,
+      title: product.name,
       description: product.description?.substring(0, 160) || `خرید ${product.name} با بهترین قیمت و کیفیت از فروشگاه آنلاین ${APP_NAME}`,
       keywords: [
         product.name,
@@ -70,7 +70,7 @@ export async function generateMetadata({ params }: { params: { productId: string
   } catch (error) {
     console.error('Error generating product metadata:', error);
     return {
-      title: `محصولات | ${APP_NAME}`,
+      title: 'محصولات',
       description: `مشاهده و خرید محصولات با کیفیت از فروشگاه آنلاین ${APP_NAME}`,
     };
   }

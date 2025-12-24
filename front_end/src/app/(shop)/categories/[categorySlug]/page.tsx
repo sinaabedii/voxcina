@@ -134,7 +134,7 @@ export async function generateMetadata({ params, searchParams }: CategoryPagePro
 
   if (!data) {
     return {
-      title: `دسته‌بندی یافت نشد | ${APP_NAME}`,
+      title: 'دسته‌بندی یافت نشد',
       description: 'متأسفانه دسته‌بندی مورد نظر یافت نشد.',
     };
   }
@@ -144,9 +144,9 @@ export async function generateMetadata({ params, searchParams }: CategoryPagePro
   const totalPages = pagination?.totalPages || 1;
   const productCount = pagination?.totalItems || products.length;
 
-  let title = `${category.name} | ${APP_NAME}`;
+  let title = category.name;
   if (page > 1) {
-    title = `${category.name} - صفحه ${page} | ${APP_NAME}`;
+    title = `${category.name} - صفحه ${page}`;
   }
 
   const siteUrl = "https://voxcina.com";

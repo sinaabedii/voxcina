@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
   if (!post) {
     return {
-      title: 'مقاله یافت نشد | وکسینا',
+      title: 'مقاله یافت نشد',
       description: 'متأسفانه مقاله مورد نظر یافت نشد.',
     };
   }
@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const canonicalPath = `/blog/${params.slug}`;
 
   return {
-    title: `${post.title} | وکسینا`,
+    title: post.title,
     description: post.excerpt,
     keywords: post.tags,
     openGraph: {

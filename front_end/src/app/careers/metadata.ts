@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { APP_NAME } from '@/lib/constants';
 
 export const metadata: Metadata = {
-  title: `همکاری با ما | ${APP_NAME}`,
+  title: 'همکاری با ما',
   description: `فرصت‌های همکاری با وکسینا - تأمین‌کنندگان، شرکای تجاری و فرصت‌های شغلی. با ما همراه شوید و در رشد کسب‌وکار خود سهیم باشید.`,
   keywords: [
     'همکاری با وکسینا',
