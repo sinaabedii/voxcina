@@ -20,7 +20,6 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/cart',
     languages: {
-      'fa': '/cart',
       'fa-IR': '/cart',
       'x-default': '/cart',
     },

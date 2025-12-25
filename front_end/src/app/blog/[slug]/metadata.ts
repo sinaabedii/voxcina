@@ -41,7 +41,6 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     alternates: {
       canonical: canonicalPath,
       languages: {
-        'fa': canonicalPath,
         'fa-IR': canonicalPath,
         'x-default': canonicalPath,
       },

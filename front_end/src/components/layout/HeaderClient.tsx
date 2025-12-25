@@ -145,6 +145,7 @@ const HeaderClient: React.FC<HeaderClientProps> = ({ navItems }) => {
                 aria-label="سبد خرید"
               >
                 <ShoppingBag className="h-4 w-4 sm:h-[18px] sm:w-[18px] md:h-5 md:w-5" />
+                <span className="sr-only">سبد خرید</span>
                 {itemCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 bg-voxcina-blue dark:bg-voxcina-cream text-white dark:text-voxcina-blue text-xs rounded-full h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 flex items-center justify-center shadow-sm animate-pulse-soft text-[10px] sm:text-xs">
                     {itemCount}
@@ -161,6 +162,7 @@ const HeaderClient: React.FC<HeaderClientProps> = ({ navItems }) => {
                     title="پنل ادمین"
                   >
                     <Shield className="h-4 w-4 sm:h-[18px] sm:w-[18px] md:h-5 md:w-5" />
+                    <span className="sr-only">پنل ادمین</span>
                   </Link>
                 )}
                 {isAuthenticated ? (

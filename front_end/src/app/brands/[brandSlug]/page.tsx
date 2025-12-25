@@ -111,7 +111,6 @@ export async function generateMetadata({ params }: BrandPageProps): Promise<Meta
     alternates: {
       canonical: `https://voxcina.com/brands/${params.brandSlug}`,
       languages: {
-        'fa': `https://voxcina.com/brands/${params.brandSlug}`,
         'fa-IR': `https://voxcina.com/brands/${params.brandSlug}`,
         'x-default': `https://voxcina.com/brands/${params.brandSlug}`,
       },

@@ -37,7 +37,6 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/contact",
     languages: {
-      'fa': '/contact',
       'fa-IR': '/contact',
       'x-default': '/contact',
     },

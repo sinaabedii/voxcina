@@ -32,7 +32,6 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/products',
     languages: {
-      'fa': '/products',
       'fa-IR': '/products',
       'x-default': '/products',
     },

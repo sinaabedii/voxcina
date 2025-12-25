@@ -149,8 +149,10 @@ const Footer = () => {
                   <a 
                     referrerPolicy='origin' 
                     target='_blank' 
+                    rel='noopener noreferrer nofollow'
                     href='https://trustseal.enamad.ir/?id=684494&Code=Zjpd4eaZhtqJbXoLvwbpf4pAXotCkI0Q'
                     className="block"
+                    aria-label="نماد اعتماد الکترونیکی"
                   >
                     <img 
                       referrerPolicy='origin' 
@@ -160,6 +162,7 @@ const Footer = () => {
                       data-code='Zjpd4eaZhtqJbXoLvwbpf4pAXotCkI0Q'
                       className="object-contain w-14 h-14"
                     />
+                    <span className="sr-only">نماد اعتماد الکترونیکی</span>
                   </a>
                 </div>
                 

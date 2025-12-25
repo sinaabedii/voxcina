@@ -35,7 +35,6 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/shoppingGuide',
     languages: {
-      'fa': '/shoppingGuide',
       'fa-IR': '/shoppingGuide',
       'x-default': '/shoppingGuide',
     },

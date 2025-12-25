@@ -39,7 +39,6 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/faq",
     languages: {
-      'fa': '/faq',
       'fa-IR': '/faq',
       'x-default': '/faq',
     },

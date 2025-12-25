@@ -35,7 +35,6 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/careers',
     languages: {
-      'fa': '/careers',
       'fa-IR': '/careers',
       'x-default': '/careers',
     },

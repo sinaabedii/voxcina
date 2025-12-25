@@ -158,17 +158,12 @@ export default function CareersPage() {
                     transition={{ duration: 0.8, delay: 0.6 }}
                     className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 dark:text-secondary-200/80 leading-relaxed max-w-2xl"
                   >
-                    جایی که
+                    با ما همکاری کنید و به جمع
                     <span className="text-voxcina-blue font-semibold">
                       {" "}
-                      شرکا{" "}
+                      شرکای موفق{" "}
                     </span>
-                    به
-                    <span className="text-voxcina-blue font-semibold">
-                      {" "}
-                      موفقیت{" "}
-                    </span>
-                    می‌رسند
+                    وکسینا بپیوندید
                   </motion.p>
                 </div>
                 <div className="lg:col-span-5 order-1 lg:order-2">
@@ -259,7 +254,7 @@ export default function CareersPage() {
               transition={{ duration: 0.5 }}
             >
               <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-voxcina-darkBlue dark:text-white mb-4 sm:mb-6 relative inline-block">
-                چرا با ما همکاری کنید؟
+                چرا همکاری با ما؟
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: "100%" }}

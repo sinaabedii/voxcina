@@ -28,7 +28,6 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/assistant',
     languages: {
-      'fa': '/assistant',
       'fa-IR': '/assistant',
       'x-default': '/assistant',
     },

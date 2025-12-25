@@ -38,7 +38,6 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/returns",
     languages: {
-      'fa': '/returns',
       'fa-IR': '/returns',
       'x-default': '/returns',
     },

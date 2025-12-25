@@ -8,7 +8,6 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/blog',
     languages: {
-      'fa': '/blog',
       'fa-IR': '/blog',
       'x-default': '/blog',
     },

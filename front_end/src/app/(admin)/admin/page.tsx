@@ -299,9 +299,10 @@ export default function AdminDashboardPage() {
                   <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
                     کاربر ثبت شده
                   </p>
-                  <Link href="/admin/users">
+                  <Link href="/admin/users" aria-label="مدیریت کاربران">
                     <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
                       <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+                      <span className="sr-only">مدیریت کاربران</span>
                     </div>
                   </Link>
                 </div>
@@ -327,9 +328,10 @@ export default function AdminDashboardPage() {
                   <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
                     {dashboardStats.pendingOrders} سفارش در انتظار تایید
                   </p>
-                  <Link href="/admin/orders">
+                  <Link href="/admin/orders" aria-label="مدیریت سفارش‌ها">
                     <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
                       <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+                      <span className="sr-only">مدیریت سفارش‌ها</span>
                     </div>
                   </Link>
                 </div>
@@ -357,9 +359,10 @@ export default function AdminDashboardPage() {
                   <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
                     ارزش کل فروش
                   </p>
-                  <Link href="/admin/analytics">
+                  <Link href="/admin/analytics" aria-label="آمار و تحلیل فروش">
                     <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
                       <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+                      <span className="sr-only">آمار و تحلیل فروش</span>
                     </div>
                   </Link>
                 </div>
@@ -385,9 +388,10 @@ export default function AdminDashboardPage() {
                   <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
                     دسته‌بندی فعال
                   </p>
-                  <Link href="/admin/categories">
+                  <Link href="/admin/categories" aria-label="مدیریت دسته‌بندی‌ها">
                     <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
                       <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+                      <span className="sr-only">مدیریت دسته‌بندی‌ها</span>
                     </div>
                   </Link>
                 </div>
@@ -413,9 +417,10 @@ export default function AdminDashboardPage() {
                   <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
                     نظر در انتظار تایید
                   </p>
-                  <Link href="/admin/reviews">
+                  <Link href="/admin/reviews" aria-label="مدیریت نظرات">
                     <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
                       <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+                      <span className="sr-only">مدیریت نظرات</span>
                     </div>
                   </Link>
                 </div>

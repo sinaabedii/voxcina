@@ -38,7 +38,6 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/shipping",
     languages: {
-      'fa': '/shipping',
       'fa-IR': '/shipping',
       'x-default': '/shipping',
     },

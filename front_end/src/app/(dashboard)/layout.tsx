@@ -140,8 +140,10 @@ export default function DashboardLayout({
             <Link
               href="/cart"
               className="p-2 text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream rounded-full hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 relative transition-colors"
+              aria-label="سبد خرید"
             >
               <ShoppingCart size={18} />
+              <span className="sr-only">سبد خرید</span>
               <span className="absolute top-0 right-0 w-4 h-4 bg-voxcina-blue dark:bg-voxcina-cream rounded-full text-white dark:text-voxcina-blue text-[10px] flex items-center justify-center">
                 3
               </span>

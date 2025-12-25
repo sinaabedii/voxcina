@@ -35,7 +35,6 @@ export function generateAlternates(path: string) {
   return {
     canonical: cleanPath,
     languages: {
-      'fa': cleanPath,
       'fa-IR': cleanPath,
       'x-default': cleanPath,
     },
@@ -75,7 +74,6 @@ export function generatePaginatedAlternates(
   return {
     canonical: canonicalPath,
     languages: {
-      'fa': canonicalPath,
       'fa-IR': canonicalPath,
       'x-default': canonicalPath,
     },
@@ -106,7 +104,6 @@ export function generateFilteredAlternates(
   return {
     canonical: canonicalPath,
     languages: {
-      'fa': canonicalPath,
       'fa-IR': canonicalPath,
       'x-default': canonicalPath,
     },

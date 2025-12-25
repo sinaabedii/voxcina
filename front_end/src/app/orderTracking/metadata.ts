@@ -34,7 +34,6 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/orderTracking',
     languages: {
-      'fa': '/orderTracking',
       'fa-IR': '/orderTracking',
       'x-default': '/orderTracking',
     },

@@ -156,7 +156,6 @@ export async function generateMetadata({ params, searchParams }: CategoryPagePro
   const alternates: Metadata["alternates"] = {
     canonical: canonicalUrl,
     languages: {
-      'fa': canonicalUrl,
       'fa-IR': canonicalUrl,
       'x-default': canonicalUrl,
     },
