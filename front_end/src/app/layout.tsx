@@ -17,15 +17,17 @@ interface CategoryApi {
 }
 
 // Helper to build nav items (depth 1-2)
+// Uses clean URLs (/categories/slug) instead of query parameters for better SEO
 function buildNavItems(categories: CategoryApi[]): NavItem[] {
   const map = new Map<string, NavItem>();
   const roots: NavItem[] = [];
 
   categories.forEach((cat) => {
     const key = String(cat.id ?? cat.slug);
+    // Use clean URL with slug instead of query parameter for SEO
     const item: NavItem = {
       label: cat.name,
-      href: `/products?category=${key}`,
+      href: `/categories/${cat.slug}`,
       children: [],
     };
     map.set(key, item);
@@ -111,10 +113,10 @@ export const metadata: Metadata = {
     },
   },
   alternates: {
-    canonical: "/",
+    canonical: "https://voxcina.com/",
     languages: {
-      'fa-IR': '/',
-      'x-default': '/',
+      'fa-IR': 'https://voxcina.com/',
+      'x-default': 'https://voxcina.com/',
     },
   },
 };
