@@ -124,14 +124,14 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
                       </span>
                     </div>
 
-                    <motion.h1
+                    <motion.h2
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.4 }}
                       className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-2 md:mb-4 leading-tight"
                     >
                       {sliderData[currentSlide].title}
-                    </motion.h1>
+                    </motion.h2>
 
                     <motion.p
                       initial={{ opacity: 0, y: 20 }}
