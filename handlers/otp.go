@@ -545,12 +545,15 @@ func SendForgotPasswordOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Extract first name from full name
+	firstName := strings.Split(existingUser.Name, " ")[0]
+
 	// Create OTP record
 	otp := models.OTP{
 		ID:        primitive.NewObjectID(),
 		Phone:     req.Phone,
 		Code:      code,
-		FirstName: existingUser.Name, // Use existing user's name
+		FirstName: firstName,
 		Purpose:   models.OTPPurposeResetPassword,
 		Verified:  false,
 		Attempts:  0,
@@ -567,7 +570,7 @@ func SendForgotPasswordOTP(w http.ResponseWriter, r *http.Request) {
 
 	// Send OTP via SMS
 	smsService := services.NewSMSService()
-	if err := smsService.SendOTP(req.Phone, code, existingUser.Name); err != nil {
+	if err := smsService.SendOTP(req.Phone, code, firstName); err != nil {
 		fmt.Printf("SMS send error for password reset: %v\n", err)
 		otpCollection.DeleteOne(ctx, bson.M{"_id": otp.ID})
 		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در ارسال پیامک. لطفاً دوباره تلاش کنید")
@@ -649,12 +652,15 @@ func SendLoginOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Extract first name from full name
+	firstName := strings.Split(existingUser.Name, " ")[0]
+
 	// Create OTP record
 	otp := models.OTP{
 		ID:        primitive.NewObjectID(),
 		Phone:     req.Phone,
 		Code:      code,
-		FirstName: existingUser.Name,
+		FirstName: firstName,
 		Purpose:   models.OTPPurposeLogin,
 		Verified:  false,
 		Attempts:  0,
@@ -669,7 +675,7 @@ func SendLoginOTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	smsService := services.NewSMSService()
-	if err := smsService.SendOTP(req.Phone, code, existingUser.Name); err != nil {
+	if err := smsService.SendOTP(req.Phone, code, firstName); err != nil {
 		fmt.Printf("SMS send error for login: %v\n", err)
 		otpCollection.DeleteOne(ctx, bson.M{"_id": otp.ID})
 		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در ارسال پیامک. لطفاً دوباره تلاش کنید")

@@ -37,22 +37,21 @@ const nextConfig = {
   async rewrites() {
     const isProduction = process.env.NODE_ENV === 'production';
     const backendUrl = process.env.GO_BACKEND_URL || (isProduction ? 'http://server:8080' : 'http://localhost:8080');
-    console.log('---------------------------------------------------');
-    console.log('Next.js Rewrites Configuration:');
-    console.log('GO_BACKEND_URL env:', process.env.GO_BACKEND_URL);
-    console.log('NODE_ENV:', process.env.NODE_ENV);
-    console.log('Resolved backendUrl:', backendUrl);
-    console.log('---------------------------------------------------');
+    
     return [
+      // Static file uploads from Go backend
       {
         source: '/uploads/:path*',
         destination: `${backendUrl}/uploads/:path*`,
       },
+      // Postex shipping routes stay in Next.js (handled by /api/postex/*)
       {
         source: '/api/postex/:path*',
-        has: [{ type: 'header', key: 'x-skip-rewrite' }], // Never matches - keeps postex routes in Next.js
+        has: [{ type: 'header', key: 'x-skip-rewrite' }],
         destination: '/api/postex/:path*',
       },
+      // All other /api/* routes (auth, products, orders, etc.) → Go backend
+      // This includes OTP endpoints: /api/auth/signup/send-otp, /api/auth/check-otp, etc.
       {
         source: '/api/:path((?!postex).*)',
         destination: `${backendUrl}/api/:path*`,
