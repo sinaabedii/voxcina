@@ -1,5 +1,6 @@
 import React from "react";
 import { cn } from "@/lib/utils";
+import { ButtonLoading } from "./Loading";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "outline" | "ghost" | "link" | "danger";
@@ -54,16 +55,10 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         {...props}
       >
-        {isLoading && (
-          <span className="ml-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent">
-            <span className="sr-only">در حال بارگذاری...</span>
-          </span>
-        )}
+        {isLoading && <ButtonLoading className="ml-2" />}
 
-        {leftIcon && (
-          <span className={cn("ml-2.5", { "mr-2": isLoading })}>
-            {leftIcon}
-          </span>
+        {leftIcon && !isLoading && (
+          <span className="ml-2.5">{leftIcon}</span>
         )}
         {children}
         {rightIcon && <span className="mr-2.5">{rightIcon}</span>}
