@@ -718,14 +718,23 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Filter by category ID (support both "categoryId" and "category" params)
+	// Filter by category ID or name (support both "categoryId" and "category" params)
 	categoryID := r.URL.Query().Get("categoryId")
 	if categoryID == "" {
 		categoryID = r.URL.Query().Get("category")
 	}
 	if categoryID != "" {
+		// Try to parse as ObjectID first
 		if oid, err := primitive.ObjectIDFromHex(categoryID); err == nil {
 			filter["category_ids"] = oid
+		} else {
+			// If not a valid ObjectID, look up category by name
+			categoriesCollection := db.Database.Collection("categories")
+			var category models.Category
+			err := categoriesCollection.FindOne(ctx, bson.M{"name": categoryID}).Decode(&category)
+			if err == nil {
+				filter["category_ids"] = category.ID
+			}
 		}
 	}
 
