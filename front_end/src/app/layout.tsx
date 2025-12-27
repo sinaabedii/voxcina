@@ -170,14 +170,6 @@ export default async function RootLayout({
         <meta name="theme-color" content="#1A3C69" />
         <link rel="icon" href="/images/Logo/WXTransparent-org.png" sizes="any" />
         
-        {/* Preload critical above-fold images for better LCP */}
-        <link
-          rel="preload"
-          as="image"
-          href="/images/banners/FinalB1.webp"
-          type="image/webp"
-        />
-        
         {/* Preload critical fonts for better CLS and LCP */}
         <link
           rel="preload"
