@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { HeroImage, DEFAULT_GRADIENT } from "@/types/hero-image";
+import { HeroImage, DEFAULT_OVERLAY_GRADIENT } from "@/types/hero-image";
 import { useHeroImageStore } from "@/store/hero-image-store";
 import Button from "@/components/ui/Button";
 import { Input } from "@/components/ui/input";
@@ -317,16 +317,16 @@ export default function HeroImageForm({ heroImage, onClose }: HeroImageFormProps
                     onChange={(e) =>
                       setFormData((prev) => ({ ...prev, gradient: e.target.value }))
                     }
-                    placeholder={DEFAULT_GRADIENT}
+                    placeholder={DEFAULT_OVERLAY_GRADIENT}
                     label="کلاس گرادیان (اختیاری)"
-                    helperText={`پیش‌فرض: ${DEFAULT_GRADIENT}`}
+                    helperText={`پیش‌فرض: ${DEFAULT_OVERLAY_GRADIENT}`}
                   />
                   {/* Gradient Preview */}
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-gray-500">پیش‌نمایش:</span>
                     <div
                       className={`w-full h-8 rounded ${
-                        formData.gradient || DEFAULT_GRADIENT
+                        formData.gradient || DEFAULT_OVERLAY_GRADIENT
                       }`}
                     />
                   </div>

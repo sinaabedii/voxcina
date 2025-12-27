@@ -60,10 +60,13 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({
     mobileGradient: getGradientClass(mobileImage),
   }), [desktopImage, mobileImage]);
 
+  // Determine if we need a fallback background (when no images are available)
+  const needsFallbackBackground = !desktopImage && !mobileImage;
+
   return (
     <section
       ref={heroRef}
-      className="relative max-w-6xl mx-4 sm:mx-6 lg:mx-auto rounded-lg sm:rounded-xl md:rounded-2xl mb-6 sm:mb-8 md:mb-10 py-4 sm:py-5 md:py-6 min-h-[40vh] sm:min-h-[50vh] md:min-h-[60vh] lg:min-h-[65vh] flex items-center overflow-hidden"
+      className={`relative max-w-6xl mx-4 sm:mx-6 lg:mx-auto rounded-lg sm:rounded-xl md:rounded-2xl mb-6 sm:mb-8 md:mb-10 py-4 sm:py-5 md:py-6 min-h-[40vh] sm:min-h-[50vh] md:min-h-[60vh] lg:min-h-[65vh] flex items-center overflow-hidden ${needsFallbackBackground ? DEFAULT_GRADIENT : ''}`}
     >
       {/* Desktop Hero Image - Hidden on mobile */}
       {desktopImage && (
