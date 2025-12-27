@@ -15,7 +15,7 @@ interface HeroImageState {
   deleteHeroImage: (id: string) => Promise<boolean>;
 }
 
-export const useHeroImageStore = create<HeroImageState>()((set) => ({
+export const useHeroImageStore = create<HeroImageState>()((set, get) => ({
   heroImages: [],
   activeHeroImage: null,
   isLoading: false,
@@ -36,7 +36,10 @@ export const useHeroImageStore = create<HeroImageState>()((set) => ({
       });
       if (!response.ok) throw new Error("Failed to fetch hero images");
       const data = await response.json();
-      set({ heroImages: data.heroImages || [], isLoading: false });
+      // Ensure heroImages is always an array
+      const images = Array.isArray(data.heroImages) ? data.heroImages : 
+                     Array.isArray(data) ? data : [];
+      set({ heroImages: images, isLoading: false });
     } catch (error) {
       set({ heroImages: [], error: "خطا در دریافت تصاویر هیرو", isLoading: false });
       toast.error("خطا در دریافت تصاویر هیرو");

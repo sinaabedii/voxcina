@@ -42,8 +42,8 @@ export default function HeroImagesPage() {
     setSelectedHeroImage(null);
   };
 
-  // Filter and sort hero images
-  const filteredHeroImages = heroImages
+  // Filter and sort hero images - ensure heroImages is an array
+  const filteredHeroImages = (heroImages || [])
     .filter((img) => deviceFilter === "all" || img.deviceType === deviceFilter)
     .sort((a, b) => a.displayOrder - b.displayOrder);
 

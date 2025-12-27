@@ -26,6 +26,7 @@ import {
   Settings,
   Headphones,
   HelpCircle,
+  Image,
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -138,6 +139,12 @@ export default function AdminLayout({
       href: "/admin/blogs",
       icon: <FileText className="w-5 h-5 ml-3" />,
       section: "blogs",
+    },
+    {
+      name: "تصاویر هیرو",
+      href: "/admin/hero-images",
+      icon: <Image className="w-5 h-5 ml-3" />,
+      section: "hero-images",
     },
     {
       name: "سوالات متداول",
