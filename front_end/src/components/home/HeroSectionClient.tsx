@@ -5,7 +5,7 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { FaArrowLeft } from "react-icons/fa";
-import { HeroImage, DEFAULT_GRADIENT } from "@/types/hero-image";
+import { HeroImage, DEFAULT_GRADIENT, DEFAULT_OVERLAY_GRADIENT } from "@/types/hero-image";
 
 interface HeroSectionClientProps {
   desktopImage?: HeroImage | null;
@@ -13,27 +13,54 @@ interface HeroSectionClientProps {
 }
 
 /**
- * Get the gradient class for a hero image
+ * Get the overlay gradient class for a hero image
+ * 
+ * Logic:
+ * - If noGradient is true: return empty string (no overlay, image shown clearly)
+ * - If custom gradient is specified: use that gradient
+ * - Otherwise: use the default transparent overlay gradient
  */
-function getGradientClass(heroImage: HeroImage | null | undefined): string {
+function getOverlayGradient(heroImage: HeroImage | null | undefined): string {
   if (!heroImage) {
-    return DEFAULT_GRADIENT;
+    return DEFAULT_OVERLAY_GRADIENT;
   }
   
+  // No gradient = show image without any overlay filter
   if (heroImage.noGradient) {
     return "";
   }
   
+  // Custom gradient specified by admin
   if (heroImage.gradient && heroImage.gradient.trim() !== "") {
     return heroImage.gradient;
   }
   
-  return DEFAULT_GRADIENT;
+  // Default: transparent colorful overlay (same as original)
+  return DEFAULT_OVERLAY_GRADIENT;
 }
+
+/**
+ * Get the image opacity based on gradient settings
+ * 
+ * - If noGradient is true: full opacity (100%) - image shown clearly
+ * - Otherwise: 30% opacity (original behavior with gradient overlay)
+ */
+function getImageOpacity(heroImage: HeroImage | null | undefined): string {
+  if (heroImage?.noGradient) {
+    return "opacity-100";
+  }
+  return "opacity-30";
+}
+
 
 /**
  * Client-side Hero Section with scroll-based animations.
  * Uses Next.js Image component for automatic image optimization.
+ * 
+ * Gradient behavior:
+ * - Default (no gradient set): Dark background + transparent colorful overlay + image at 30% opacity
+ * - Custom gradient: Dark background + custom gradient overlay + image at 30% opacity
+ * - No gradient (noGradient=true): Dark background + image at full opacity (no overlay)
  */
 const HeroSectionClient: React.FC<HeroSectionClientProps> = ({
   desktopImage,
@@ -55,36 +82,46 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({
     visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
   };
 
-  const { desktopGradient, mobileGradient } = useMemo(() => ({
-    desktopGradient: getGradientClass(desktopImage),
-    mobileGradient: getGradientClass(mobileImage),
+  const { 
+    desktopOverlay, 
+    mobileOverlay,
+    desktopImageOpacity,
+    mobileImageOpacity 
+  } = useMemo(() => ({
+    desktopOverlay: getOverlayGradient(desktopImage),
+    mobileOverlay: getOverlayGradient(mobileImage),
+    desktopImageOpacity: getImageOpacity(desktopImage),
+    mobileImageOpacity: getImageOpacity(mobileImage),
   }), [desktopImage, mobileImage]);
 
-  // Determine if we need a fallback background (when no images are available)
-  const needsFallbackBackground = !desktopImage && !mobileImage;
+  // Check if we have any images
+  const hasDesktopImage = !!desktopImage;
+  const hasMobileImage = !!mobileImage;
 
   return (
     <section
       ref={heroRef}
-      className={`relative max-w-6xl mx-4 sm:mx-6 lg:mx-auto rounded-lg sm:rounded-xl md:rounded-2xl mb-6 sm:mb-8 md:mb-10 py-4 sm:py-5 md:py-6 min-h-[40vh] sm:min-h-[50vh] md:min-h-[60vh] lg:min-h-[65vh] flex items-center overflow-hidden ${needsFallbackBackground ? DEFAULT_GRADIENT : ''}`}
+      className={`relative max-w-6xl mx-4 sm:mx-6 lg:mx-auto rounded-lg sm:rounded-xl md:rounded-2xl mb-6 sm:mb-8 md:mb-10 py-4 sm:py-5 md:py-6 min-h-[40vh] sm:min-h-[50vh] md:min-h-[60vh] lg:min-h-[65vh] flex items-center overflow-hidden ${DEFAULT_GRADIENT}`}
     >
       {/* Desktop Hero Image - Hidden on mobile */}
-      {desktopImage && (
+      {hasDesktopImage && (
         <div className="hidden md:block absolute inset-0">
           <motion.div
             className="absolute inset-0"
             style={{ opacity: heroOpacity, y: heroY }}
           >
-            {desktopGradient && (
-              <div className={`absolute inset-0 z-10 ${desktopGradient}`} />
+            {/* Transparent overlay gradient (when not noGradient) */}
+            {desktopOverlay && (
+              <div className={`absolute inset-0 z-10 opacity-50 ${desktopOverlay}`} />
             )}
+            {/* Hero image */}
             <Image
-              src={desktopImage.image}
+              src={desktopImage!.image}
               alt="Hero banner desktop"
               fill
               priority
               sizes="(min-width: 768px) 100vw, 0vw"
-              className="object-cover opacity-30"
+              className={`object-cover ${desktopImageOpacity}`}
               quality={85}
             />
           </motion.div>
@@ -92,22 +129,24 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({
       )}
 
       {/* Mobile Hero Image - Hidden on desktop */}
-      {mobileImage && (
+      {hasMobileImage && (
         <div className="block md:hidden absolute inset-0">
           <motion.div
             className="absolute inset-0"
             style={{ opacity: heroOpacity, y: heroY }}
           >
-            {mobileGradient && (
-              <div className={`absolute inset-0 z-10 ${mobileGradient}`} />
+            {/* Transparent overlay gradient (when not noGradient) */}
+            {mobileOverlay && (
+              <div className={`absolute inset-0 z-10 opacity-50 ${mobileOverlay}`} />
             )}
+            {/* Hero image */}
             <Image
-              src={mobileImage.image}
+              src={mobileImage!.image}
               alt="Hero banner mobile"
               fill
               priority
               sizes="(max-width: 767px) 100vw, 0vw"
-              className="object-cover opacity-30"
+              className={`object-cover ${mobileImageOpacity}`}
               quality={80}
             />
           </motion.div>
@@ -115,7 +154,7 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({
       )}
 
       {/* Decorative blur elements */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-10 -right-10 sm:-top-16 md:-top-20 sm:-right-16 md:-right-20 w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-60 lg:h-60 rounded-full bg-gradient-to-br from-blue-500/30 to-purple-500/30 blur-xl" />
         <div className="absolute -bottom-10 -left-10 sm:-bottom-16 md:-bottom-20 sm:-left-16 md:-left-20 w-32 h-32 sm:w-48 sm:h-48 md:w-60 md:h-60 lg:w-80 lg:h-80 rounded-full bg-gradient-to-br from-pink-500/20 to-orange-500/20 blur-xl" />
       </div>
@@ -162,6 +201,7 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({
           >
             با جدیدترین ترندهای مد تابستانی، استایل منحصر به فرد خود را خلق کنید
           </motion.p>
+
 
           <motion.div
             initial="hidden"
