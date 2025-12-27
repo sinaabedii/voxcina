@@ -42,6 +42,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { useBrandStore } from "@/store/brand-store";
 import { useProductStore } from "@/store/product-store";
 import BackendImage from "@/components/BackendImage";
+import { ImageSkeleton } from "@/components/ui/Loading";
 
 interface ProductActionsProps {
   product: Product;
@@ -84,6 +85,8 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   const [showShareModal, setShowShareModal] = useState(false);
   const [showTryOnModal, setShowTryOnModal] = useState(false);
   const [showSelectColorMessage, setShowSelectColorMessage] = useState(false);
+  const [imagesLoading, setImagesLoading] = useState(false);
+  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
 
   const imageContainerRef = useRef<HTMLDivElement>(null);
 
@@ -252,6 +255,31 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     setQuantity(1);
   }, [selectedColor, selectedSize]);
 
+  // Reset image loading state when color changes
+  useEffect(() => {
+    if (selectedColor) {
+      const newImages = getProductImages();
+      const allLoaded = newImages.every(img => loadedImages.has(img));
+      if (!allLoaded) {
+        setImagesLoading(true);
+        setSelectedImage(0);
+      }
+    }
+  }, [selectedColor]);
+
+  // Handle image load completion
+  const handleImageLoad = (imageSrc: string) => {
+    setLoadedImages(prev => new Set(prev).add(imageSrc));
+    const currentImages = getProductImages();
+    const newLoaded = new Set(loadedImages).add(imageSrc);
+    if (currentImages.every(img => newLoaded.has(img))) {
+      setImagesLoading(false);
+    }
+  };
+
+  // Check if current main image is loaded
+  const isMainImageLoaded = productImages[selectedImage] ? loadedImages.has(productImages[selectedImage]) : false;
+
   // Resume pending try-on job
   useEffect(() => {
     if (taskToken) {
@@ -380,15 +408,23 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
           {productImages && productImages.length > 0 ? (
             <>
               <div className="relative w-full h-full" onClick={() => setIsZoomed(!isZoomed)}>
+                {(imagesLoading && !isMainImageLoaded) && (
+                  <ImageSkeleton className="absolute inset-0 z-10 rounded-2xl" />
+                )}
                 <Image
                   src={productImages?.[selectedImage] || ''}
                   alt={`${product?.name || ''} - ${product?.brand || ''}`}
                   fill
                   sizes="(max-width: 768px) 100vw, 50vw"
-                  className={cn("object-contain transition-transform duration-300", isZoomed && "scale-150")}
+                  className={cn(
+                    "object-contain transition-all duration-300",
+                    isZoomed && "scale-150",
+                    (imagesLoading && !isMainImageLoaded) && "opacity-0"
+                  )}
                   style={isZoomed ? { transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%` } : undefined}
                   priority
                   unoptimized={productImages?.[selectedImage]?.startsWith('/uploads/')}
+                  onLoad={() => handleImageLoad(productImages[selectedImage])}
                 />
               </div>
               <button
@@ -433,13 +469,17 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
                 onClick={() => setSelectedImage(index)}
               >
                 <div className="relative w-full h-full">
+                  {(imagesLoading && !loadedImages.has(image)) && (
+                    <div className="absolute inset-0 bg-muted animate-pulse rounded-lg" />
+                  )}
                   <Image
                     src={image}
                     alt={`${product?.name || ''} - تصویر ${index + 1}`}
                     fill
                     sizes="80px"
-                    className="object-contain"
+                    className={cn("object-contain", (imagesLoading && !loadedImages.has(image)) && "opacity-0")}
                     unoptimized={image?.startsWith('/uploads/')}
+                    onLoad={() => handleImageLoad(image)}
                   />
                 </div>
               </button>

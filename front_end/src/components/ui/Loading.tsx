@@ -133,3 +133,12 @@ export function ProductGridSkeleton({ count = 10 }: { count?: number }) {
     </div>
   );
 }
+
+// Image loading skeleton for product gallery
+export function ImageSkeleton({ className = "" }: { className?: string }) {
+  return (
+    <div className={`bg-muted animate-pulse flex items-center justify-center ${className}`}>
+      <Loading size="md" />
+    </div>
+  );
+}

@@ -14,6 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/crypto/bcrypt"
 
 	"backEnd/db"
@@ -253,13 +254,14 @@ func VerifySignupOTP(w http.ResponseWriter, r *http.Request) {
 	otpCollection := db.Database.Collection("otps")
 	userCollection := db.Database.Collection("users")
 
-	// Find the OTP record
+	// Find the most recent OTP record (sorted by created_at descending)
 	var otp models.OTP
+	findOptions := options.FindOne().SetSort(bson.D{{Key: "created_at", Value: -1}})
 	err := otpCollection.FindOne(ctx, bson.M{
 		"phone":    req.Phone,
 		"purpose":  models.OTPPurposeSignup,
 		"verified": false,
-	}).Decode(&otp)
+	}, findOptions).Decode(&otp)
 
 	if err == mongo.ErrNoDocuments {
 		utils.ErrorResponse(w, http.StatusBadRequest, "کد تأیید یافت نشد. لطفاً دوباره درخواست کد کنید")
@@ -412,13 +414,14 @@ func ResendSignupOTP(w http.ResponseWriter, r *http.Request) {
 
 	otpCollection := db.Database.Collection("otps")
 
-	// Find existing OTP
+	// Find the most recent OTP
 	var existingOTP models.OTP
+	findOpts := options.FindOne().SetSort(bson.D{{Key: "created_at", Value: -1}})
 	err := otpCollection.FindOne(ctx, bson.M{
 		"phone":    req.Phone,
 		"purpose":  models.OTPPurposeSignup,
 		"verified": false,
-	}).Decode(&existingOTP)
+	}, findOpts).Decode(&existingOTP)
 
 	if err == mongo.ErrNoDocuments {
 		utils.ErrorResponse(w, http.StatusBadRequest, "ابتدا اطلاعات ثبت‌نام را وارد کنید")
@@ -715,12 +718,14 @@ func VerifyLoginOTP(w http.ResponseWriter, r *http.Request) {
 
 	otpCollection := db.Database.Collection("otps")
 
+	// Find the most recent OTP
 	var otp models.OTP
+	loginFindOpts := options.FindOne().SetSort(bson.D{{Key: "created_at", Value: -1}})
 	err := otpCollection.FindOne(ctx, bson.M{
 		"phone":    req.Phone,
 		"purpose":  models.OTPPurposeLogin,
 		"verified": false,
-	}).Decode(&otp)
+	}, loginFindOpts).Decode(&otp)
 
 	if err == mongo.ErrNoDocuments {
 		utils.ErrorResponse(w, http.StatusBadRequest, "کد تأیید یافت نشد. لطفاً دوباره درخواست کد کنید")
@@ -804,13 +809,14 @@ func ResetPasswordWithOTP(w http.ResponseWriter, r *http.Request) {
 	otpCollection := db.Database.Collection("otps")
 	userCollection := db.Database.Collection("users")
 
-	// Find the OTP record
+	// Find the most recent OTP record
 	var otp models.OTP
+	resetFindOpts := options.FindOne().SetSort(bson.D{{Key: "created_at", Value: -1}})
 	err := otpCollection.FindOne(ctx, bson.M{
 		"phone":    req.Phone,
 		"purpose":  models.OTPPurposeResetPassword,
 		"verified": false,
-	}).Decode(&otp)
+	}, resetFindOpts).Decode(&otp)
 
 	if err == mongo.ErrNoDocuments {
 		utils.ErrorResponse(w, http.StatusBadRequest, "کد تأیید یافت نشد. لطفاً دوباره درخواست کد کنید")
