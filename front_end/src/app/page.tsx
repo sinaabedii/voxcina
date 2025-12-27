@@ -1,8 +1,9 @@
 import { Suspense } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+// Server component for hero section with SSR
+import HeroSection from "@/components/home/HeroSection";
 // Client components for interactive features
-import HeroSectionClient from "@/components/home/HeroSectionClient";
 import ModernCategoriesSection from "@/components/home/ModernCategoriesSection";
 import ProductCarouselSectionClient from "@/components/home/ProductCarouselSectionClient";
 import { ModernSliderSectionClient } from "@/components/home/ModernSliderClient";
@@ -99,8 +100,16 @@ export default async function HomePage() {
       <Header />
       <AnimatedBackground />
       <div className="pb-10 overflow-x-hidden font-sans bg-transparent relative z-10">
-        {/* Hero Section - Client component for scroll animations */}
-        <HeroSectionClient />
+        {/* Hero Section - Server component with SSR for SEO, client hydration for animations */}
+        <Suspense fallback={
+          <div className="relative max-w-6xl mx-4 sm:mx-6 lg:mx-auto rounded-lg sm:rounded-xl md:rounded-2xl mb-6 sm:mb-8 md:mb-10 py-4 sm:py-5 md:py-6 min-h-[40vh] sm:min-h-[50vh] md:min-h-[60vh] lg:min-h-[65vh] flex items-center overflow-hidden bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900">
+            <div className="flex items-center justify-center w-full">
+              <span className="text-white/60">در حال بارگذاری...</span>
+            </div>
+          </div>
+        }>
+          <HeroSection />
+        </Suspense>
         
         {/* Categories Section - Client component with useState */}
         <ModernCategoriesSection />

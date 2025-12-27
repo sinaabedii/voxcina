@@ -1,17 +1,44 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useMemo } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import { FaArrowLeft } from "react-icons/fa";
+import { HeroImage, DEFAULT_GRADIENT } from "@/types/hero-image";
+
+interface HeroSectionClientProps {
+  desktopImage?: HeroImage | null;
+  mobileImage?: HeroImage | null;
+}
+
+/**
+ * Get the gradient class for a hero image
+ */
+function getGradientClass(heroImage: HeroImage | null | undefined): string {
+  if (!heroImage) {
+    return DEFAULT_GRADIENT;
+  }
+  
+  if (heroImage.noGradient) {
+    return "";
+  }
+  
+  if (heroImage.gradient && heroImage.gradient.trim() !== "") {
+    return heroImage.gradient;
+  }
+  
+  return DEFAULT_GRADIENT;
+}
 
 /**
  * Client-side Hero Section with scroll-based animations.
- * This component uses Framer Motion for parallax effects and scroll animations.
- * 
- * Requirements: 3.4, 5.1
+ * Uses Next.js Image component for automatic image optimization.
  */
-const HeroSectionClient = () => {
+const HeroSectionClient: React.FC<HeroSectionClientProps> = ({
+  desktopImage,
+  mobileImage,
+}) => {
   const heroRef = useRef(null);
 
   const { scrollYProgress } = useScroll({
@@ -28,27 +55,69 @@ const HeroSectionClient = () => {
     visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
   };
 
+  const { desktopGradient, mobileGradient } = useMemo(() => ({
+    desktopGradient: getGradientClass(desktopImage),
+    mobileGradient: getGradientClass(mobileImage),
+  }), [desktopImage, mobileImage]);
+
   return (
     <section
       ref={heroRef}
-      className="relative max-w-6xl mx-4 sm:mx-6 lg:mx-auto rounded-lg sm:rounded-xl md:rounded-2xl mb-6 sm:mb-8 md:mb-10 py-4 sm:py-5 md:py-6 min-h-[40vh] sm:min-h-[50vh] md:min-h-[60vh] lg:min-h-[65vh] flex items-center overflow-hidden bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900"
+      className="relative max-w-6xl mx-4 sm:mx-6 lg:mx-auto rounded-lg sm:rounded-xl md:rounded-2xl mb-6 sm:mb-8 md:mb-10 py-4 sm:py-5 md:py-6 min-h-[40vh] sm:min-h-[50vh] md:min-h-[60vh] lg:min-h-[65vh] flex items-center overflow-hidden"
     >
-      <motion.div
-        className="absolute inset-0"
-        style={{ opacity: heroOpacity, y: heroY }}
-      >
-        <div className="absolute inset-0 opacity-50">
-          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-pink-600/20" />
+      {/* Desktop Hero Image - Hidden on mobile */}
+      {desktopImage && (
+        <div className="hidden md:block absolute inset-0">
+          <motion.div
+            className="absolute inset-0"
+            style={{ opacity: heroOpacity, y: heroY }}
+          >
+            {desktopGradient && (
+              <div className={`absolute inset-0 z-10 ${desktopGradient}`} />
+            )}
+            <Image
+              src={desktopImage.image}
+              alt="Hero banner desktop"
+              fill
+              priority
+              sizes="(min-width: 768px) 100vw, 0vw"
+              className="object-cover opacity-30"
+              quality={85}
+            />
+          </motion.div>
         </div>
+      )}
 
-        <div className="absolute inset-0 bg-[url('/images/banners/FinalB1.webp')] bg-cover bg-center opacity-30" />
-      </motion.div>
+      {/* Mobile Hero Image - Hidden on desktop */}
+      {mobileImage && (
+        <div className="block md:hidden absolute inset-0">
+          <motion.div
+            className="absolute inset-0"
+            style={{ opacity: heroOpacity, y: heroY }}
+          >
+            {mobileGradient && (
+              <div className={`absolute inset-0 z-10 ${mobileGradient}`} />
+            )}
+            <Image
+              src={mobileImage.image}
+              alt="Hero banner mobile"
+              fill
+              priority
+              sizes="(max-width: 767px) 100vw, 0vw"
+              className="object-cover opacity-30"
+              quality={80}
+            />
+          </motion.div>
+        </div>
+      )}
 
+      {/* Decorative blur elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-10 -right-10 sm:-top-16 md:-top-20 sm:-right-16 md:-right-20 w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-60 lg:h-60 rounded-full bg-gradient-to-br from-blue-500/30 to-purple-500/30 blur-xl" />
         <div className="absolute -bottom-10 -left-10 sm:-bottom-16 md:-bottom-20 sm:-left-16 md:-left-20 w-32 h-32 sm:w-48 sm:h-48 md:w-60 md:h-60 lg:w-80 lg:h-80 rounded-full bg-gradient-to-br from-pink-500/20 to-orange-500/20 blur-xl" />
       </div>
 
+      {/* Content overlay */}
       <motion.div
         className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8"
         style={{ y: textY }}

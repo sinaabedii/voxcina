@@ -184,6 +184,14 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/sliders/{id}", handlers.UpdateSlider).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/sliders/{id}", handlers.DeleteSlider).Methods(http.MethodDelete)
 
+	// Hero Image routes
+	api.HandleFunc("/hero-images", handlers.GetHeroImages).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/hero-images", handlers.GetAllHeroImages).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/hero-images", handlers.CreateHeroImage).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/hero-images/{id}", handlers.GetHeroImageByID).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/hero-images/{id}", handlers.UpdateHeroImage).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/hero-images/{id}", handlers.DeleteHeroImage).Methods(http.MethodDelete)
+
 	// Admin FAQ Management
 	adminRouter.HandleFunc("/faqs", handlers.AdminListFaqs).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/faqs", handlers.CreateFaq).Methods(http.MethodPost)
