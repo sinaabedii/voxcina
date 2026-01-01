@@ -12,6 +12,11 @@ export interface User {
   updatedAt: string;
   isActive?: boolean;
   reviews?: Review[];
+  // Mobile app tracking fields
+  hasMobileApp?: boolean;
+  lastAppOpen?: string;
+  appPlatform?: "android" | "ios" | "unknown";
+  appVersion?: string;
 }
 
 export interface Address {

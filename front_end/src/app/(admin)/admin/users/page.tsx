@@ -6,36 +6,25 @@ import { motion } from "framer-motion";
 import {
   Users,
   Search,
-  Filter,
-  ChevronDown,
   ChevronRight,
   ChevronLeft,
-  UserCog,
   Mail,
   Phone,
   Calendar,
-  ShoppingBag,
   Ban,
   CheckCircle,
-  User as UserIcon,
   X,
   Edit3,
   Trash2,
-  MoreVertical,
   AlertTriangle,
   SlidersHorizontal,
   Loader2,
+  Smartphone,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { useAdminUsersStore } from "@/store/auth-store";
 import { User } from "@/types/user";
 import { toast } from "react-toastify";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 
 // Helper to format date strings (assuming backend sends ISO strings)
@@ -49,6 +38,31 @@ const formatDate = (dateString: string | undefined) => {
     });
   } catch (e) {
     return dateString; // Fallback if parsing fails
+  }
+};
+
+// Helper to format relative time for last app open
+const formatRelativeTime = (dateString: string | undefined) => {
+  if (!dateString) return null;
+  try {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    
+    if (diffMinutes < 60) {
+      return `${diffMinutes} دقیقه پیش`;
+    } else if (diffHours < 24) {
+      return `${diffHours} ساعت پیش`;
+    } else if (diffDays < 7) {
+      return `${diffDays} روز پیش`;
+    } else {
+      return formatDate(dateString);
+    }
+  } catch (e) {
+    return null;
   }
 };
 
@@ -67,6 +81,7 @@ export default function AdminUsersPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [mobileAppFilter, setMobileAppFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState("newest");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
@@ -98,7 +113,12 @@ export default function AdminUsersPage() {
       (statusFilter === "active" && userIsActive) ||
       (statusFilter === "inactive" && !userIsActive);
     
-    return matchesSearch && matchesRole && matchesStatus;
+    const matchesMobileApp =
+      mobileAppFilter === "all" ||
+      (mobileAppFilter === "has_app" && user.hasMobileApp === true) ||
+      (mobileAppFilter === "no_app" && user.hasMobileApp !== true);
+    
+    return matchesSearch && matchesRole && matchesStatus && matchesMobileApp;
   });
 
   // Sort users
@@ -299,7 +319,7 @@ export default function AdminUsersPage() {
         >
           <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
             <CardContent className="p-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <h3 className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-2">
                     نقش کاربری
@@ -332,6 +352,21 @@ export default function AdminUsersPage() {
 
                 <div>
                   <h3 className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-2">
+                    اپلیکیشن موبایل
+                  </h3>
+                  <select
+                    className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-lg w-full p-2 text-sm focus:outline-none"
+                    value={mobileAppFilter}
+                    onChange={(e) => setMobileAppFilter(e.target.value)}
+                  >
+                    <option value="all">همه کاربران</option>
+                    <option value="has_app">دارای اپلیکیشن</option>
+                    <option value="no_app">بدون اپلیکیشن</option>
+                  </select>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-2">
                     مرتب‌سازی
                   </h3>
                   <select
@@ -353,6 +388,7 @@ export default function AdminUsersPage() {
                   onClick={() => {
                     setRoleFilter("all");
                     setStatusFilter("all");
+                    setMobileAppFilter("all");
                     setSortBy("newest");
                     setSearchTerm("");
                   }}
@@ -398,6 +434,7 @@ export default function AdminUsersPage() {
                         <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 uppercase tracking-wider">کاربر</th>
                         <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 uppercase tracking-wider">نقش</th>
                         <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 uppercase tracking-wider">وضعیت</th>
+                        <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 uppercase tracking-wider">اپلیکیشن</th>
                         <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 uppercase tracking-wider">تاریخ عضویت</th>
                         <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 uppercase tracking-wider">عملیات</th>
                       </tr>
@@ -432,6 +469,25 @@ export default function AdminUsersPage() {
                             >
                               {user.isActive === true ? "فعال" : "غیرفعال"}
                             </Badge>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            {user.hasMobileApp ? (
+                              <div className="flex flex-col items-center">
+                                <div className="flex items-center gap-1">
+                                  <Smartphone className="h-4 w-4 text-green-500" />
+                                  <span className="text-xs text-green-600 dark:text-green-400">
+                                    {user.appPlatform === 'android' ? 'اندروید' : user.appPlatform === 'ios' ? 'iOS' : 'موبایل'}
+                                  </span>
+                                </div>
+                                {user.lastAppOpen && (
+                                  <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50 mt-1">
+                                    {formatRelativeTime(user.lastAppOpen)}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-voxcina-blue/40 dark:text-voxcina-cream/40">—</span>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">
                             {formatDate(user.createdAt)}
@@ -498,7 +554,7 @@ export default function AdminUsersPage() {
                       
                       <div className="flex flex-col space-y-3">
                         <div className="flex items-center justify-between">
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 flex-wrap">
                             <Badge variant={user.role === 'admin' ? 'destructive' : 'secondary'}>
                               {user.role === 'admin' ? 'مدیر' : 'مشتری'}
                             </Badge>
@@ -506,11 +562,23 @@ export default function AdminUsersPage() {
                                    className={`${user.isActive === true ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                               {user.isActive === true ? "فعال" : "غیرفعال"}
                             </Badge>
+                            {user.hasMobileApp && (
+                              <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">
+                                <Smartphone className="h-3 w-3 ml-1" />
+                                {user.appPlatform === 'android' ? 'اندروید' : user.appPlatform === 'ios' ? 'iOS' : 'موبایل'}
+                              </Badge>
+                            )}
                           </div>
                           <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
                             {formatDate(user.createdAt)}
                           </span>
                         </div>
+                        
+                        {user.hasMobileApp && user.lastAppOpen && (
+                          <div className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50">
+                            آخرین فعالیت اپ: {formatRelativeTime(user.lastAppOpen)}
+                          </div>
+                        )}
                         
                         <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30">
                           <Button 
@@ -556,20 +624,21 @@ export default function AdminUsersPage() {
                   <Users className="h-8 w-8 text-voxcina-blue/50 dark:text-voxcina-cream/50" />
                 </div>
                 <h3 className="text-lg font-semibold mb-2 text-voxcina-blue dark:text-voxcina-cream">
-                  {allUsers.length === 0 && !isLoading ? "هیچ کاربری یافت نشد." : (searchTerm || roleFilter !== 'all' || statusFilter !== 'all' ? "هیچ کاربری با این فیلترها یافت نشد." : "در حال بارگذاری...")}
+                  {allUsers.length === 0 && !isLoading ? "هیچ کاربری یافت نشد." : (searchTerm || roleFilter !== 'all' || statusFilter !== 'all' || mobileAppFilter !== 'all' ? "هیچ کاربری با این فیلترها یافت نشد." : "در حال بارگذاری...")}
                 </h3>
                 <p className="text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-6">
-                  {searchTerm || roleFilter !== 'all' || statusFilter !== 'all'
+                  {searchTerm || roleFilter !== 'all' || statusFilter !== 'all' || mobileAppFilter !== 'all'
                     ? "هیچ کاربری با فیلترهای انتخاب شده یافت نشد"
                     : "کاربران در حال بارگذاری هستند"}
                 </p>
-                {(searchTerm || roleFilter !== 'all' || statusFilter !== 'all') && (
+                {(searchTerm || roleFilter !== 'all' || statusFilter !== 'all' || mobileAppFilter !== 'all') && (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => {
                       setRoleFilter("all");
                       setStatusFilter("all");
+                      setMobileAppFilter("all");
                       setSortBy("newest");
                       setSearchTerm("");
                     }}
@@ -874,6 +943,21 @@ export default function AdminUsersPage() {
               <span className={`text-sm ${selectedUser.isActive === true ? 'text-green-600' : 'text-red-600'}`}>
                 {selectedUser.isActive === true ? "فعال" : "غیرفعال"}
               </span>
+            </div>
+            
+            {/* Mobile App Info */}
+            <div>
+              <Smartphone className={`inline-block mr-2 h-5 w-5 ${selectedUser.hasMobileApp ? 'text-green-500' : 'text-voxcina-blue/40 dark:text-voxcina-cream/40'}`} />
+              <span className={`text-sm ${selectedUser.hasMobileApp ? 'text-green-600 dark:text-green-400' : 'text-voxcina-blue/50 dark:text-voxcina-cream/50'}`}>
+                {selectedUser.hasMobileApp 
+                  ? `اپلیکیشن ${selectedUser.appPlatform === 'android' ? 'اندروید' : selectedUser.appPlatform === 'ios' ? 'iOS' : 'موبایل'}` 
+                  : 'بدون اپلیکیشن'}
+              </span>
+              {selectedUser.hasMobileApp && selectedUser.lastAppOpen && (
+                <p className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50 mr-7 mt-1">
+                  آخرین فعالیت: {formatRelativeTime(selectedUser.lastAppOpen)}
+                </p>
+              )}
             </div>
             
             <div className="mt-6 space-y-2">

@@ -42,4 +42,10 @@ type User struct {
 	CreatedAt    time.Time          `bson:"created_at"          json:"created_at"`
 	UpdatedAt    time.Time          `bson:"updated_at"          json:"updated_at"`
 	Reviews      []Review           `bson:"-"               json:"reviews,omitempty"` // Populated programmatically, not stored in MongoDB
+
+	// Mobile app tracking fields
+	HasMobileApp bool       `bson:"has_mobile_app"          json:"has_mobile_app"`           // Indicates if user has used mobile app
+	LastAppOpen  *time.Time `bson:"last_app_open,omitempty" json:"last_app_open,omitempty"`  // Timestamp of last app activity
+	AppPlatform  string     `bson:"app_platform,omitempty"  json:"app_platform,omitempty"`   // "android" or "ios"
+	AppVersion   string     `bson:"app_version,omitempty"   json:"app_version,omitempty"`    // Version of the mobile app (e.g., "1.2.3")
 }

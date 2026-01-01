@@ -45,6 +45,8 @@ func NewRouter() *mux.Router {
 	userAuthRouter.HandleFunc("/logout", handlers.Logout).Methods(http.MethodPost)
 	userAuthRouter.HandleFunc("/profile", handlers.GetProfile).Methods(http.MethodGet)
 	userAuthRouter.HandleFunc("/profile", handlers.UpdateProfile).Methods(http.MethodPut)
+	// Mobile app activity tracking
+	userAuthRouter.HandleFunc("/app-activity", handlers.RecordAppActivity).Methods(http.MethodPost)
 	// Address Management for authenticated user
 	userAuthRouter.HandleFunc("/addresses", handlers.GetUserAddresses).
 		Methods(http.MethodGet)
@@ -121,6 +123,9 @@ func NewRouter() *mux.Router {
 
 	// Admin User Management
 	adminRouter.HandleFunc("/users", handlers.ListUsers).Methods("GET")
+	adminRouter.HandleFunc("/users/stats", handlers.GetUserTargetingStats).Methods("GET")
+	adminRouter.HandleFunc("/users/filter", handlers.FilterUsers).Methods("POST")
+	adminRouter.HandleFunc("/users/filter/count", handlers.GetFilteredUserCount).Methods("POST")
 	adminRouter.HandleFunc("/users/{userId}", handlers.GetUserByID).Methods("GET")
 	adminRouter.HandleFunc("/users/{userId}/role", handlers.UpdateUserRole).Methods("PUT")
 	adminRouter.HandleFunc("/users/{userId}", handlers.DeleteUser).

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { useState, useEffect, useCallback } from "react";
+import { Card, CardContent } from "@/components/ui/Card";
 import { motion } from "framer-motion";
 import {
   Percent,
@@ -16,16 +16,72 @@ import {
   Copy,
   CheckCircle,
   X,
+  Users,
+  Globe,
+  Target,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
+import { Badge } from "@/components/ui/badge";
+import UserTargetingPanel from "@/components/admin/UserTargetingPanel";
+import TargetingStatsPreview from "@/components/admin/TargetingStatsPreview";
+import UserSelectionModal from "@/components/admin/UserSelectionModal";
+import { TargetingCriteria, UserTargetingStats } from "@/types/discount";
+import { User } from "@/types/user";
+import { useAuthStore } from "@/store/auth-store";
+import { localStorageManager } from "@/lib/local-storage-manager";
+
+interface DiscountData {
+  id: string;
+  code: string;
+  type: string;
+  value: number;
+  minOrder: number;
+  maxUses: number;
+  usedCount: number;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  forProducts: string[];
+  forCategories: string[];
+  isPublic: boolean;
+  assignedUsers: string[];
+  targetingCriteria?: TargetingCriteria;
+}
 
 export default function AdminDiscountsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingDiscount, setEditingDiscount] = useState<any>(null);
+  const [editingDiscount, setEditingDiscount] = useState<DiscountData | null>(null);
   const [copiedCode, setCopiedCode] = useState("");
-  const [newDiscount, setNewDiscount] = useState({
+  const [isUserSelectionOpen, setIsUserSelectionOpen] = useState(false);
+  const [isEditUserSelectionOpen, setIsEditUserSelectionOpen] = useState(false);
+  
+  // Targeting state
+  const [targetingStats, setTargetingStats] = useState<UserTargetingStats | null>(null);
+  const [filteredUserCount, setFilteredUserCount] = useState<number>(0);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+
+  const { adminToken } = useAuthStore();
+
+  const [newDiscount, setNewDiscount] = useState<{
+    code: string;
+    type: string;
+    value: string;
+    minOrder: string;
+    maxUses: string;
+    usedCount: number;
+    startDate: string;
+    endDate: string;
+    isActive: boolean;
+    forProducts: string[];
+    forCategories: string[];
+    isPublic: boolean;
+    assignedUsers: string[];
+    targetingCriteria: TargetingCriteria;
+  }>({
     code: "",
     type: "percentage",
     value: "",
@@ -37,10 +93,13 @@ export default function AdminDiscountsPage() {
     isActive: true,
     forProducts: [],
     forCategories: [],
+    isPublic: true,
+    assignedUsers: [],
+    targetingCriteria: {},
   });
 
   // Mock discounts data - would be fetched from API in real application
-  const [discounts, setDiscounts] = useState([
+  const [discounts, setDiscounts] = useState<DiscountData[]>([
     {
       id: "disc-1",
       code: "WELCOME10",
@@ -54,6 +113,8 @@ export default function AdminDiscountsPage() {
       isActive: true,
       forProducts: [],
       forCategories: [],
+      isPublic: true,
+      assignedUsers: [],
     },
     {
       id: "disc-2",
@@ -68,6 +129,8 @@ export default function AdminDiscountsPage() {
       isActive: false,
       forProducts: [],
       forCategories: ["الکترونیک"],
+      isPublic: true,
+      assignedUsers: [],
     },
     {
       id: "disc-3",
@@ -82,6 +145,8 @@ export default function AdminDiscountsPage() {
       isActive: true,
       forProducts: [],
       forCategories: [],
+      isPublic: false,
+      assignedUsers: ["user-1", "user-2", "user-3"],
     },
     {
       id: "disc-4",
@@ -96,6 +161,9 @@ export default function AdminDiscountsPage() {
       isActive: true,
       forProducts: [],
       forCategories: ["موبایل"],
+      isPublic: false,
+      assignedUsers: ["user-4", "user-5"],
+      targetingCriteria: { hasMobileApp: true },
     },
     {
       id: "disc-5",
@@ -110,36 +178,119 @@ export default function AdminDiscountsPage() {
       isActive: true,
       forProducts: [],
       forCategories: [],
-    },
-    {
-      id: "disc-6",
-      code: "FIXED20K",
-      type: "fixed",
-      value: 20000,
-      minOrder: 150000,
-      maxUses: 500,
-      usedCount: 320,
-      startDate: "1402/04/15",
-      endDate: "1402/07/15",
-      isActive: false,
-      forProducts: [],
-      forCategories: [],
-    },
-    {
-      id: "disc-7",
-      code: "WINTER25",
-      type: "percentage",
-      value: 25,
-      minOrder: 250000,
-      maxUses: 400,
-      usedCount: 0,
-      startDate: "1402/10/01",
-      endDate: "1402/12/29",
-      isActive: true,
-      forProducts: [],
-      forCategories: [],
+      isPublic: true,
+      assignedUsers: [],
     },
   ]);
+
+  // Fetch targeting stats
+  const fetchTargetingStats = useCallback(async () => {
+    setIsLoadingStats(true);
+    try {
+      const token = adminToken || localStorageManager.getAccessToken();
+      const response = await fetch("/api/admin/users/stats", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTargetingStats(data);
+      }
+    } catch (error) {
+      console.error("Error fetching targeting stats:", error);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  }, [adminToken]);
+
+  // Fetch filtered user count based on criteria
+  const fetchFilteredUserCount = useCallback(async (criteria: TargetingCriteria) => {
+    try {
+      const token = adminToken || localStorageManager.getAccessToken();
+      const params = new URLSearchParams();
+      if (criteria.hasMobileApp !== undefined) {
+        params.append("has_mobile_app", String(criteria.hasMobileApp));
+      }
+      if (criteria.minOrders !== undefined) {
+        params.append("min_orders", String(criteria.minOrders));
+      }
+      if (criteria.maxOrders !== undefined) {
+        params.append("max_orders", String(criteria.maxOrders));
+      }
+      if (criteria.inactiveDays !== undefined) {
+        params.append("inactive_days", String(criteria.inactiveDays));
+      }
+      if (criteria.registeredAfter) {
+        params.append("registered_after", criteria.registeredAfter);
+      }
+      if (criteria.registeredBefore) {
+        params.append("registered_before", criteria.registeredBefore);
+      }
+
+      const response = await fetch(`/api/admin/users/filter/count?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setFilteredUserCount(data.count || 0);
+      }
+    } catch (error) {
+      console.error("Error fetching filtered user count:", error);
+    }
+  }, [adminToken]);
+
+  // Fetch all users for selection modal
+  const fetchAllUsers = useCallback(async () => {
+    setIsLoadingUsers(true);
+    try {
+      const token = adminToken || localStorageManager.getAccessToken();
+      const response = await fetch("/api/admin/users", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const usersData = data.data || data;
+        const users: User[] = Array.isArray(usersData)
+          ? usersData.map((u: any) => ({
+              id: u.id || u._id,
+              name: u.name,
+              email: u.email,
+              role: u.role,
+              createdAt: u.created_at || u.createdAt,
+              updatedAt: u.updated_at || u.updatedAt,
+              isActive: u.is_active !== undefined ? u.is_active : u.isActive,
+              addresses: u.addresses || [],
+              phone: u.phone_number || u.phone,
+              avatar: u.avatar,
+              hasMobileApp: u.has_mobile_app || u.hasMobileApp,
+              lastAppOpen: u.last_app_open || u.lastAppOpen,
+            }))
+          : [];
+        setAllUsers(users);
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  }, [adminToken]);
+
+  // Fetch stats on mount
+  useEffect(() => {
+    fetchTargetingStats();
+  }, [fetchTargetingStats]);
+
+  // Update filtered count when targeting criteria changes
+  useEffect(() => {
+    if (!newDiscount.isPublic && Object.keys(newDiscount.targetingCriteria).length > 0) {
+      fetchFilteredUserCount(newDiscount.targetingCriteria);
+    }
+  }, [newDiscount.targetingCriteria, newDiscount.isPublic, fetchFilteredUserCount]);
 
   // Filter and search discounts
   const filteredDiscounts = discounts.filter((discount) =>
@@ -161,7 +312,7 @@ export default function AdminDiscountsPage() {
 
   // Add new discount
   const handleAddDiscount = () => {
-    const newDiscountWithId = {
+    const newDiscountWithId: DiscountData = {
       ...newDiscount,
       id: `disc-${discounts.length + 1}`,
       value: parseFloat(newDiscount.value),
@@ -183,18 +334,22 @@ export default function AdminDiscountsPage() {
       isActive: true,
       forProducts: [],
       forCategories: [],
+      isPublic: true,
+      assignedUsers: [],
+      targetingCriteria: {},
     });
     setIsAddModalOpen(false);
   };
 
   // Update discount
   const handleUpdateDiscount = () => {
+    if (!editingDiscount) return;
     const updatedDiscounts = discounts.map((discount) =>
       discount.id === editingDiscount.id ? {
         ...editingDiscount,
-        value: parseFloat(editingDiscount.value),
-        minOrder: parseFloat(editingDiscount.minOrder) || 0,
-        maxUses: parseInt(editingDiscount.maxUses) || 0,
+        value: typeof editingDiscount.value === 'string' ? parseFloat(editingDiscount.value) : editingDiscount.value,
+        minOrder: typeof editingDiscount.minOrder === 'string' ? parseFloat(editingDiscount.minOrder) || 0 : editingDiscount.minOrder,
+        maxUses: typeof editingDiscount.maxUses === 'string' ? parseInt(editingDiscount.maxUses) || 0 : editingDiscount.maxUses,
       } : discount
     );
     setDiscounts(updatedDiscounts);
@@ -222,6 +377,30 @@ export default function AdminDiscountsPage() {
       discount.id === id ? { ...discount, isActive: !discount.isActive } : discount
     );
     setDiscounts(updatedDiscounts);
+  };
+
+  // Handle targeting criteria change for new discount
+  const handleTargetingCriteriaChange = (criteria: TargetingCriteria) => {
+    setNewDiscount({ ...newDiscount, targetingCriteria: criteria });
+  };
+
+  // Handle targeting criteria change for editing discount
+  const handleEditTargetingCriteriaChange = (criteria: TargetingCriteria) => {
+    if (editingDiscount) {
+      setEditingDiscount({ ...editingDiscount, targetingCriteria: criteria });
+    }
+  };
+
+  // Open user selection modal
+  const handleOpenUserSelection = () => {
+    fetchAllUsers();
+    setIsUserSelectionOpen(true);
+  };
+
+  // Open user selection modal for editing
+  const handleOpenEditUserSelection = () => {
+    fetchAllUsers();
+    setIsEditUserSelectionOpen(true);
   };
 
   // Animation variants
@@ -310,16 +489,37 @@ export default function AdminDiscountsPage() {
                       </div>
                       <div className="mr-3 flex-grow">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center">
+                          <div className="flex items-center gap-2">
                             <h3 className="font-medium text-voxcina-blue dark:text-voxcina-cream">
                               {discount.code}
                             </h3>
                             <button
-                              className="mr-2 text-voxcina-blue/50 dark:text-voxcina-cream/50 hover:text-voxcina-blue dark:hover:text-voxcina-cream transition-colors"
+                              className="text-voxcina-blue/50 dark:text-voxcina-cream/50 hover:text-voxcina-blue dark:hover:text-voxcina-cream transition-colors"
                               onClick={() => copyToClipboard(discount.code)}
                             >
                               {copiedCode === discount.code ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                             </button>
+                            {/* Promotion Type Badge - Task 10.3 */}
+                            {discount.isPublic ? (
+                              <Badge
+                                variant="secondary"
+                                className="bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 flex items-center gap-1"
+                              >
+                                <Globe className="w-3 h-3" />
+                                عمومی
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="secondary"
+                                className="bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400 flex items-center gap-1"
+                              >
+                                <Target className="w-3 h-3" />
+                                هدفمند
+                                {discount.assignedUsers.length > 0 && (
+                                  <span className="mr-1">({discount.assignedUsers.length} کاربر)</span>
+                                )}
+                              </Badge>
+                            )}
                           </div>
                           <div className="flex items-center space-x-1 space-x-reverse">
                             <span
@@ -479,11 +679,12 @@ export default function AdminDiscountsPage() {
         )}
       </motion.div>
 
+
       {/* Add Discount Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-voxcina-blue/40 backdrop-blur-sm dark:bg-black/60">
           <motion.div
-            className="bg-white dark:bg-voxcina-blue/90 rounded-2xl shadow-lg w-full max-w-md mx-4"
+            className="bg-white dark:bg-voxcina-blue/90 rounded-2xl shadow-lg w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col"
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
@@ -501,7 +702,7 @@ export default function AdminDiscountsPage() {
                 <X className="w-5 h-5" />
               </Button>
             </div>
-            <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
+            <div className="p-4 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
                   کد تخفیف
@@ -610,6 +811,86 @@ export default function AdminDiscountsPage() {
                   کد تخفیف فعال است
                 </label>
               </div>
+
+              {/* Promotion Type Selector - Task 10.1 */}
+              <div className="border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 pt-4 mt-4">
+                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-3">
+                  نوع تخفیف
+                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer p-3 rounded-xl border transition-all ${newDiscount.isPublic ? 'border-voxcina-blue bg-voxcina-blue/5 dark:border-voxcina-cream dark:bg-voxcina-cream/5' : 'border-voxcina-cream/50 dark:border-voxcina-blue/30'}">
+                    <input
+                      type="radio"
+                      name="promotionType"
+                      checked={newDiscount.isPublic}
+                      onChange={() => setNewDiscount({ ...newDiscount, isPublic: true, assignedUsers: [], targetingCriteria: {} })}
+                      className="text-voxcina-blue focus:ring-voxcina-blue"
+                    />
+                    <Globe className="w-5 h-5 text-blue-500" />
+                    <div>
+                      <div className="font-medium text-voxcina-blue dark:text-voxcina-cream">عمومی</div>
+                      <div className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">همه کاربران</div>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer p-3 rounded-xl border transition-all ${!newDiscount.isPublic ? 'border-voxcina-blue bg-voxcina-blue/5 dark:border-voxcina-cream dark:bg-voxcina-cream/5' : 'border-voxcina-cream/50 dark:border-voxcina-blue/30'}">
+                    <input
+                      type="radio"
+                      name="promotionType"
+                      checked={!newDiscount.isPublic}
+                      onChange={() => setNewDiscount({ ...newDiscount, isPublic: false })}
+                      className="text-voxcina-blue focus:ring-voxcina-blue"
+                    />
+                    <Target className="w-5 h-5 text-purple-500" />
+                    <div>
+                      <div className="font-medium text-voxcina-blue dark:text-voxcina-cream">هدفمند</div>
+                      <div className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">کاربران خاص</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* User Targeting Panel - Task 10.2 */}
+              {!newDiscount.isPublic && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-4"
+                >
+                  <UserTargetingPanel
+                    criteria={newDiscount.targetingCriteria}
+                    onChange={handleTargetingCriteriaChange}
+                    stats={targetingStats}
+                    isLoadingStats={isLoadingStats}
+                    onFetchStats={fetchTargetingStats}
+                  />
+
+                  <TargetingStatsPreview
+                    stats={targetingStats}
+                    filteredCount={filteredUserCount}
+                    isLoading={isLoadingStats}
+                    showFilteredCount={Object.keys(newDiscount.targetingCriteria).length > 0}
+                  />
+
+                  {/* Manual User Selection */}
+                  <div className="flex items-center justify-between p-3 rounded-xl border border-voxcina-cream/50 dark:border-voxcina-blue/30 bg-voxcina-cream/10 dark:bg-voxcina-blue/20">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream" />
+                      <span className="text-sm text-voxcina-blue dark:text-voxcina-cream">
+                        کاربران انتخاب شده: {newDiscount.assignedUsers.length}
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleOpenUserSelection}
+                      className="rounded-lg"
+                    >
+                      انتخاب کاربران
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
             </div>
             <div className="p-4 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 flex justify-end gap-2">
               <Button
@@ -634,11 +915,12 @@ export default function AdminDiscountsPage() {
         </div>
       )}
 
-      {/* Edit Discount Modal */}
+
+      {/* Edit Discount Modal - Task 10.4 */}
       {editingDiscount && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-voxcina-blue/40 backdrop-blur-sm dark:bg-black/60">
           <motion.div
-            className="bg-white dark:bg-voxcina-blue/90 rounded-2xl shadow-lg w-full max-w-md mx-4"
+            className="bg-white dark:bg-voxcina-blue/90 rounded-2xl shadow-lg w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col"
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
@@ -656,7 +938,7 @@ export default function AdminDiscountsPage() {
                 <X className="w-5 h-5" />
               </Button>
             </div>
-            <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
+            <div className="p-4 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
                   کد تخفیف
@@ -691,7 +973,7 @@ export default function AdminDiscountsPage() {
                   type="number"
                   className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
                   value={editingDiscount.value}
-                  onChange={(e) => setEditingDiscount({ ...editingDiscount, value: e.target.value })}
+                  onChange={(e) => setEditingDiscount({ ...editingDiscount, value: parseFloat(e.target.value) || 0 })}
                   min={0}
                   max={editingDiscount.type === "percentage" ? 100 : undefined}
                 />
@@ -705,7 +987,7 @@ export default function AdminDiscountsPage() {
                   type="number"
                   className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
                   value={editingDiscount.minOrder}
-                  onChange={(e) => setEditingDiscount({ ...editingDiscount, minOrder: e.target.value })}
+                  onChange={(e) => setEditingDiscount({ ...editingDiscount, minOrder: parseFloat(e.target.value) || 0 })}
                   min={0}
                 />
               </div>
@@ -718,7 +1000,7 @@ export default function AdminDiscountsPage() {
                   type="number"
                   className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
                   value={editingDiscount.maxUses}
-                  onChange={(e) => setEditingDiscount({ ...editingDiscount, maxUses: e.target.value })}
+                  onChange={(e) => setEditingDiscount({ ...editingDiscount, maxUses: parseInt(e.target.value) || 0 })}
                   min={0}
                 />
               </div>
@@ -765,6 +1047,86 @@ export default function AdminDiscountsPage() {
                   کد تخفیف فعال است
                 </label>
               </div>
+
+              {/* Promotion Type Selector for Edit - Task 10.4 */}
+              <div className="border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 pt-4 mt-4">
+                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-3">
+                  نوع تخفیف
+                </label>
+                <div className="flex gap-4">
+                  <label className={`flex items-center gap-2 cursor-pointer p-3 rounded-xl border transition-all ${editingDiscount.isPublic ? 'border-voxcina-blue bg-voxcina-blue/5 dark:border-voxcina-cream dark:bg-voxcina-cream/5' : 'border-voxcina-cream/50 dark:border-voxcina-blue/30'}`}>
+                    <input
+                      type="radio"
+                      name="editPromotionType"
+                      checked={editingDiscount.isPublic}
+                      onChange={() => setEditingDiscount({ ...editingDiscount, isPublic: true, assignedUsers: [], targetingCriteria: undefined })}
+                      className="text-voxcina-blue focus:ring-voxcina-blue"
+                    />
+                    <Globe className="w-5 h-5 text-blue-500" />
+                    <div>
+                      <div className="font-medium text-voxcina-blue dark:text-voxcina-cream">عمومی</div>
+                      <div className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">همه کاربران</div>
+                    </div>
+                  </label>
+                  <label className={`flex items-center gap-2 cursor-pointer p-3 rounded-xl border transition-all ${!editingDiscount.isPublic ? 'border-voxcina-blue bg-voxcina-blue/5 dark:border-voxcina-cream dark:bg-voxcina-cream/5' : 'border-voxcina-cream/50 dark:border-voxcina-blue/30'}`}>
+                    <input
+                      type="radio"
+                      name="editPromotionType"
+                      checked={!editingDiscount.isPublic}
+                      onChange={() => setEditingDiscount({ ...editingDiscount, isPublic: false })}
+                      className="text-voxcina-blue focus:ring-voxcina-blue"
+                    />
+                    <Target className="w-5 h-5 text-purple-500" />
+                    <div>
+                      <div className="font-medium text-voxcina-blue dark:text-voxcina-cream">هدفمند</div>
+                      <div className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">کاربران خاص</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* User Targeting Panel for Edit - Task 10.4 */}
+              {!editingDiscount.isPublic && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-4"
+                >
+                  <UserTargetingPanel
+                    criteria={editingDiscount.targetingCriteria || {}}
+                    onChange={handleEditTargetingCriteriaChange}
+                    stats={targetingStats}
+                    isLoadingStats={isLoadingStats}
+                    onFetchStats={fetchTargetingStats}
+                  />
+
+                  <TargetingStatsPreview
+                    stats={targetingStats}
+                    filteredCount={editingDiscount.assignedUsers.length}
+                    isLoading={isLoadingStats}
+                    showFilteredCount={true}
+                  />
+
+                  {/* Manual User Selection for Edit */}
+                  <div className="flex items-center justify-between p-3 rounded-xl border border-voxcina-cream/50 dark:border-voxcina-blue/30 bg-voxcina-cream/10 dark:bg-voxcina-blue/20">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream" />
+                      <span className="text-sm text-voxcina-blue dark:text-voxcina-cream">
+                        کاربران انتخاب شده: {editingDiscount.assignedUsers.length}
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleOpenEditUserSelection}
+                      className="rounded-lg"
+                    >
+                      انتخاب کاربران
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
               
               <div>
                 <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">
@@ -794,6 +1156,32 @@ export default function AdminDiscountsPage() {
           </motion.div>
         </div>
       )}
+
+      {/* User Selection Modal for Add */}
+      <UserSelectionModal
+        isOpen={isUserSelectionOpen}
+        onClose={() => setIsUserSelectionOpen(false)}
+        users={allUsers}
+        selectedUserIds={newDiscount.assignedUsers}
+        onSelectionChange={(userIds) => setNewDiscount({ ...newDiscount, assignedUsers: userIds })}
+        isLoading={isLoadingUsers}
+        title="انتخاب کاربران برای تخفیف"
+      />
+
+      {/* User Selection Modal for Edit */}
+      <UserSelectionModal
+        isOpen={isEditUserSelectionOpen}
+        onClose={() => setIsEditUserSelectionOpen(false)}
+        users={allUsers}
+        selectedUserIds={editingDiscount?.assignedUsers || []}
+        onSelectionChange={(userIds) => {
+          if (editingDiscount) {
+            setEditingDiscount({ ...editingDiscount, assignedUsers: userIds });
+          }
+        }}
+        isLoading={isLoadingUsers}
+        title="انتخاب کاربران برای تخفیف"
+      />
     </div>
   );
-} 
+}

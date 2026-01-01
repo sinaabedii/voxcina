@@ -1445,3 +1445,532 @@ func LoginViaSMS(w http.ResponseWriter, r *http.Request) {
 	resp := struct { models.User; Token string `json:"token"`; RefreshToken string `json:"refreshToken"` }{User: user, Token: accessToken, RefreshToken: refreshToken}
 	utils.JSONResponse(w, http.StatusOK, resp)
 }
+
+
+// AppActivityRequest represents the request body for recording mobile app activity
+type AppActivityRequest struct {
+	Platform   string `json:"platform"`    // "android" or "ios"
+	AppVersion string `json:"app_version"` // e.g., "1.2.3"
+}
+
+// AppActivityResponse represents the response for recording mobile app activity
+type AppActivityResponse struct {
+	Message     string    `json:"message"`
+	LastAppOpen time.Time `json:"last_app_open"`
+}
+
+// RecordAppActivity handles POST /api/users/app-activity
+// Records mobile app activity for authenticated users
+// Requires authentication - UserID should be available in request context
+func RecordAppActivity(w http.ResponseWriter, r *http.Request) {
+	// --- Get UserID from context (set by AuthMiddleware) ---
+	userIDCtx := r.Context().Value("userID")
+	if userIDCtx == nil {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+	userID, ok := userIDCtx.(primitive.ObjectID)
+	if !ok {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Invalid userID format in context")
+		return
+	}
+
+	var req AppActivityRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	// Validate platform - normalize to lowercase and validate
+	platform := strings.ToLower(req.Platform)
+	if platform != "android" && platform != "ios" {
+		platform = "unknown"
+	}
+
+	now := time.Now()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	userCollection := db.Database.Collection("users")
+
+	// Update user document with mobile app tracking fields
+	update := bson.M{
+		"$set": bson.M{
+			"has_mobile_app": true,
+			"last_app_open":  now,
+			"app_platform":   platform,
+			"app_version":    req.AppVersion,
+			"updated_at":     now,
+		},
+	}
+
+	result, err := userCollection.UpdateOne(ctx, bson.M{"_id": userID}, update)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error recording app activity")
+		return
+	}
+
+	if result.MatchedCount == 0 {
+		utils.ErrorResponse(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, AppActivityResponse{
+		Message:     "App activity recorded successfully",
+		LastAppOpen: now,
+	})
+}
+
+
+// --- User Targeting Statistics API Handlers ---
+
+// UserTargetingStats represents statistics for user targeting
+type UserTargetingStats struct {
+	TotalUsers        int64 `json:"total_users"`
+	MobileAppUsers    int64 `json:"mobile_app_users"`
+	NonMobileAppUsers int64 `json:"non_mobile_app_users"`
+	UsersWithOrders   int64 `json:"users_with_orders"`
+	FirstTimeBuyers   int64 `json:"first_time_buyers"`
+	InactiveUsers     int64 `json:"inactive_users"`
+	NewUsers          int64 `json:"new_users"`
+}
+
+// GetUserTargetingStats handles GET /api/admin/users/stats
+// Returns user statistics for targeting purposes
+// Requires admin authentication
+func GetUserTargetingStats(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	userCollection := db.Database.Collection("users")
+	orderCollection := db.Database.Collection("orders")
+
+	var stats UserTargetingStats
+
+	// Total users (active only)
+	totalUsers, err := userCollection.CountDocuments(ctx, bson.M{"is_active": true})
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error counting total users: "+err.Error())
+		return
+	}
+	stats.TotalUsers = totalUsers
+
+	// Mobile app users
+	mobileAppUsers, err := userCollection.CountDocuments(ctx, bson.M{
+		"is_active":      true,
+		"has_mobile_app": true,
+	})
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error counting mobile app users: "+err.Error())
+		return
+	}
+	stats.MobileAppUsers = mobileAppUsers
+	stats.NonMobileAppUsers = totalUsers - mobileAppUsers
+
+	// Users with orders - use aggregation to get distinct user IDs from orders
+	usersWithOrdersPipeline := mongo.Pipeline{
+		{{Key: "$match", Value: bson.M{"is_active": true}}},
+		{{Key: "$group", Value: bson.M{"_id": "$user_id"}}},
+		{{Key: "$count", Value: "count"}},
+	}
+	cursor, err := orderCollection.Aggregate(ctx, usersWithOrdersPipeline)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error counting users with orders: "+err.Error())
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var usersWithOrdersResult []struct {
+		Count int64 `bson:"count"`
+	}
+	if err := cursor.All(ctx, &usersWithOrdersResult); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding users with orders: "+err.Error())
+		return
+	}
+	if len(usersWithOrdersResult) > 0 {
+		stats.UsersWithOrders = usersWithOrdersResult[0].Count
+	}
+
+	// First time buyers (users with exactly 0 orders)
+	// This is total users minus users with orders
+	stats.FirstTimeBuyers = totalUsers - stats.UsersWithOrders
+
+	// Inactive users (haven't logged in for 30 days)
+	thirtyDaysAgo := time.Now().AddDate(0, 0, -30)
+	inactiveUsers, err := userCollection.CountDocuments(ctx, bson.M{
+		"is_active": true,
+		"$or": []bson.M{
+			{"updated_at": bson.M{"$lt": thirtyDaysAgo}},
+			{"updated_at": bson.M{"$exists": false}},
+		},
+	})
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error counting inactive users: "+err.Error())
+		return
+	}
+	stats.InactiveUsers = inactiveUsers
+
+	// New users (registered in last 30 days)
+	newUsers, err := userCollection.CountDocuments(ctx, bson.M{
+		"is_active":  true,
+		"created_at": bson.M{"$gte": thirtyDaysAgo},
+	})
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error counting new users: "+err.Error())
+		return
+	}
+	stats.NewUsers = newUsers
+
+	utils.JSONResponse(w, http.StatusOK, stats)
+}
+
+// UserFilterRequest represents the request body for filtering users
+type UserFilterRequest struct {
+	HasMobileApp     *bool      `json:"has_mobile_app,omitempty"`
+	MinOrders        *int       `json:"min_orders,omitempty"`
+	MaxOrders        *int       `json:"max_orders,omitempty"`
+	InactiveDays     *int       `json:"inactive_days,omitempty"`
+	RegisteredAfter  *time.Time `json:"registered_after,omitempty"`
+	RegisteredBefore *time.Time `json:"registered_before,omitempty"`
+}
+
+// FilterUsers handles POST /api/admin/users/filter
+// Returns users matching the specified targeting criteria
+// Requires admin authentication
+func FilterUsers(w http.ResponseWriter, r *http.Request) {
+	var req UserFilterRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		return
+	}
+
+	// Pagination parameters
+	pageQuery := r.URL.Query().Get("page")
+	limitQuery := r.URL.Query().Get("limit")
+
+	page, err := strconv.ParseInt(pageQuery, 10, 64)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	limit, err := strconv.ParseInt(limitQuery, 10, 64)
+	if err != nil || limit < 1 {
+		limit = 50 // Default to 50 items per page for filtering
+	}
+	skip := (page - 1) * limit
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	userCollection := db.Database.Collection("users")
+	orderCollection := db.Database.Collection("orders")
+
+	// Build the base filter
+	filter := bson.M{"is_active": true}
+
+	// Filter by mobile app status
+	if req.HasMobileApp != nil {
+		filter["has_mobile_app"] = *req.HasMobileApp
+	}
+
+	// Filter by registration date range
+	if req.RegisteredAfter != nil {
+		filter["created_at"] = bson.M{"$gte": *req.RegisteredAfter}
+	}
+	if req.RegisteredBefore != nil {
+		if existingCreatedAt, ok := filter["created_at"].(bson.M); ok {
+			existingCreatedAt["$lte"] = *req.RegisteredBefore
+		} else {
+			filter["created_at"] = bson.M{"$lte": *req.RegisteredBefore}
+		}
+	}
+
+	// Filter by inactive days
+	if req.InactiveDays != nil && *req.InactiveDays > 0 {
+		inactiveDate := time.Now().AddDate(0, 0, -*req.InactiveDays)
+		filter["$or"] = []bson.M{
+			{"updated_at": bson.M{"$lt": inactiveDate}},
+			{"updated_at": bson.M{"$exists": false}},
+		}
+	}
+
+	// If we need to filter by order count, we need to use aggregation
+	if req.MinOrders != nil || req.MaxOrders != nil {
+		users, total, err := filterUsersByOrderCount(ctx, userCollection, orderCollection, filter, req.MinOrders, req.MaxOrders, skip, limit)
+		if err != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error filtering users: "+err.Error())
+			return
+		}
+
+		paginationResponse := struct {
+			Data       []models.User `json:"data"`
+			Total      int64         `json:"total"`
+			Page       int64         `json:"page"`
+			Limit      int64         `json:"limit"`
+			TotalPages int64         `json:"total_pages"`
+		}{
+			Data:       users,
+			Total:      total,
+			Page:       page,
+			Limit:      limit,
+			TotalPages: (total + limit - 1) / limit,
+		}
+
+		utils.JSONResponse(w, http.StatusOK, paginationResponse)
+		return
+	}
+
+	// Simple filter without order count
+	findOptions := options.Find()
+	findOptions.SetSkip(skip)
+	findOptions.SetLimit(limit)
+	findOptions.SetSort(bson.D{{Key: "created_at", Value: -1}})
+
+	cursor, err := userCollection.Find(ctx, filter, findOptions)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching users: "+err.Error())
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var users []models.User
+	if err = cursor.All(ctx, &users); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding users: "+err.Error())
+		return
+	}
+
+	if users == nil {
+		users = []models.User{}
+	}
+
+	// Get total count
+	totalUsers, err := userCollection.CountDocuments(ctx, filter)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error counting users: "+err.Error())
+		return
+	}
+
+	paginationResponse := struct {
+		Data       []models.User `json:"data"`
+		Total      int64         `json:"total"`
+		Page       int64         `json:"page"`
+		Limit      int64         `json:"limit"`
+		TotalPages int64         `json:"total_pages"`
+	}{
+		Data:       users,
+		Total:      totalUsers,
+		Page:       page,
+		Limit:      limit,
+		TotalPages: (totalUsers + limit - 1) / limit,
+	}
+
+	utils.JSONResponse(w, http.StatusOK, paginationResponse)
+}
+
+// filterUsersByOrderCount filters users by their order count using aggregation
+func filterUsersByOrderCount(ctx context.Context, userCollection, orderCollection *mongo.Collection, baseFilter bson.M, minOrders, maxOrders *int, skip, limit int64) ([]models.User, int64, error) {
+	// First, get order counts per user
+	orderCountPipeline := mongo.Pipeline{
+		{{Key: "$match", Value: bson.M{"is_active": true}}},
+		{{Key: "$group", Value: bson.M{
+			"_id":         "$user_id",
+			"order_count": bson.M{"$sum": 1},
+		}}},
+	}
+
+	cursor, err := orderCollection.Aggregate(ctx, orderCountPipeline)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer cursor.Close(ctx)
+
+	// Build a map of user_id -> order_count
+	orderCounts := make(map[primitive.ObjectID]int)
+	for cursor.Next(ctx) {
+		var result struct {
+			ID         primitive.ObjectID `bson:"_id"`
+			OrderCount int                `bson:"order_count"`
+		}
+		if err := cursor.Decode(&result); err != nil {
+			continue
+		}
+		orderCounts[result.ID] = result.OrderCount
+	}
+
+	// Get all users matching the base filter
+	userCursor, err := userCollection.Find(ctx, baseFilter)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer userCursor.Close(ctx)
+
+	var allUsers []models.User
+	if err = userCursor.All(ctx, &allUsers); err != nil {
+		return nil, 0, err
+	}
+
+	// Filter users by order count
+	var filteredUsers []models.User
+	for _, user := range allUsers {
+		orderCount := orderCounts[user.ID] // Will be 0 if not found
+
+		// Check min orders
+		if minOrders != nil && orderCount < *minOrders {
+			continue
+		}
+
+		// Check max orders
+		if maxOrders != nil && orderCount > *maxOrders {
+			continue
+		}
+
+		filteredUsers = append(filteredUsers, user)
+	}
+
+	total := int64(len(filteredUsers))
+
+	// Apply pagination
+	start := int(skip)
+	end := int(skip + limit)
+	if start > len(filteredUsers) {
+		return []models.User{}, total, nil
+	}
+	if end > len(filteredUsers) {
+		end = len(filteredUsers)
+	}
+
+	return filteredUsers[start:end], total, nil
+}
+
+// GetFilteredUserCount handles POST /api/admin/users/filter/count
+// Returns the count of users matching the specified targeting criteria
+// Requires admin authentication
+func GetFilteredUserCount(w http.ResponseWriter, r *http.Request) {
+	var req UserFilterRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	userCollection := db.Database.Collection("users")
+	orderCollection := db.Database.Collection("orders")
+
+	// Build the base filter
+	filter := bson.M{"is_active": true}
+
+	// Filter by mobile app status
+	if req.HasMobileApp != nil {
+		filter["has_mobile_app"] = *req.HasMobileApp
+	}
+
+	// Filter by registration date range
+	if req.RegisteredAfter != nil {
+		filter["created_at"] = bson.M{"$gte": *req.RegisteredAfter}
+	}
+	if req.RegisteredBefore != nil {
+		if existingCreatedAt, ok := filter["created_at"].(bson.M); ok {
+			existingCreatedAt["$lte"] = *req.RegisteredBefore
+		} else {
+			filter["created_at"] = bson.M{"$lte": *req.RegisteredBefore}
+		}
+	}
+
+	// Filter by inactive days
+	if req.InactiveDays != nil && *req.InactiveDays > 0 {
+		inactiveDate := time.Now().AddDate(0, 0, -*req.InactiveDays)
+		filter["$or"] = []bson.M{
+			{"updated_at": bson.M{"$lt": inactiveDate}},
+			{"updated_at": bson.M{"$exists": false}},
+		}
+	}
+
+	// If we need to filter by order count, we need to count differently
+	if req.MinOrders != nil || req.MaxOrders != nil {
+		count, err := countUsersByOrderCount(ctx, userCollection, orderCollection, filter, req.MinOrders, req.MaxOrders)
+		if err != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error counting users: "+err.Error())
+			return
+		}
+
+		utils.JSONResponse(w, http.StatusOK, map[string]int64{
+			"count": count,
+		})
+		return
+	}
+
+	// Simple count without order count filter
+	count, err := userCollection.CountDocuments(ctx, filter)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error counting users: "+err.Error())
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, map[string]int64{
+		"count": count,
+	})
+}
+
+// countUsersByOrderCount counts users matching the filter and order count criteria
+func countUsersByOrderCount(ctx context.Context, userCollection, orderCollection *mongo.Collection, baseFilter bson.M, minOrders, maxOrders *int) (int64, error) {
+	// Get order counts per user
+	orderCountPipeline := mongo.Pipeline{
+		{{Key: "$match", Value: bson.M{"is_active": true}}},
+		{{Key: "$group", Value: bson.M{
+			"_id":         "$user_id",
+			"order_count": bson.M{"$sum": 1},
+		}}},
+	}
+
+	cursor, err := orderCollection.Aggregate(ctx, orderCountPipeline)
+	if err != nil {
+		return 0, err
+	}
+	defer cursor.Close(ctx)
+
+	// Build a map of user_id -> order_count
+	orderCounts := make(map[primitive.ObjectID]int)
+	for cursor.Next(ctx) {
+		var result struct {
+			ID         primitive.ObjectID `bson:"_id"`
+			OrderCount int                `bson:"order_count"`
+		}
+		if err := cursor.Decode(&result); err != nil {
+			continue
+		}
+		orderCounts[result.ID] = result.OrderCount
+	}
+
+	// Get all users matching the base filter
+	userCursor, err := userCollection.Find(ctx, baseFilter)
+	if err != nil {
+		return 0, err
+	}
+	defer userCursor.Close(ctx)
+
+	var count int64
+	for userCursor.Next(ctx) {
+		var user models.User
+		if err := userCursor.Decode(&user); err != nil {
+			continue
+		}
+
+		orderCount := orderCounts[user.ID] // Will be 0 if not found
+
+		// Check min orders
+		if minOrders != nil && orderCount < *minOrders {
+			continue
+		}
+
+		// Check max orders
+		if maxOrders != nil && orderCount > *maxOrders {
+			continue
+		}
+
+		count++
+	}
+
+	return count, nil
+}
