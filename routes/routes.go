@@ -346,6 +346,7 @@ func NewRouter() *mux.Router {
 	paymentRouter.HandleFunc("/request", handlers.RequestPayment).Methods(http.MethodPost)
 	paymentRouter.HandleFunc("/verify", handlers.VerifyPayment).Methods(http.MethodPost)
 	paymentRouter.HandleFunc("/inquiry", handlers.InquiryPayment).Methods(http.MethodPost)
+	paymentRouter.HandleFunc("/retry", handlers.RetryPayment).Methods(http.MethodPost)
 
 	// Payment Callback (Public - no auth required)
 	api.HandleFunc("/payment/callback", handlers.PaymentCallback).Methods(http.MethodGet)

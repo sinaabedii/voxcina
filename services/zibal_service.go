@@ -210,6 +210,16 @@ func IsPaymentSuccessful(status int) bool {
 	return status == 1
 }
 
+// IsPaymentPending returns true if payment is still awaiting completion
+func IsPaymentPending(status int) bool {
+	return status == -1
+}
+
+// IsPaymentCancelledByUser returns true if user cancelled the payment
+func IsPaymentCancelledByUser(status int) bool {
+	return status == 3
+}
+
 func GetPaymentStatusText(status int) string {
 	switch status {
 	case -1:

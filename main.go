@@ -15,6 +15,7 @@ import (
 	"backEnd/handlers"
 	"backEnd/mongo_data"
 	"backEnd/routes"
+	"backEnd/services"
 )
 
 func main() {
@@ -68,6 +69,11 @@ func main() {
 	// Initialize Zibal payment service
 	handlers.InitZibalService()
 	log.Println("Zibal payment service initialized")
+
+	// Initialize and start order cleanup service
+	orderCleanupService := services.NewOrderCleanupService(database)
+	orderCleanupService.Start()
+	defer orderCleanupService.Stop()
 
 	// Seed database if requested
 	if *seedDB {
