@@ -526,3 +526,88 @@ func DeleteDiscount(w http.ResponseWriter, r *http.Request) {
 		map[string]string{"message": "Discount deleted successfully"},
 	)
 }
+
+
+// GetUserPromotions retrieves promotions available to the authenticated user
+// GET /api/users/promotions
+// Returns:
+// - Public promotions (is_public = true)
+// - Targeted promotions where user is in assigned_users
+// - Only active promotions (within valid_from and valid_to, not maxed out)
+func GetUserPromotions(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from context (set by AuthMiddleware)
+	userIDCtx := r.Context().Value("userID")
+	if userIDCtx == nil {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+	userID, ok := userIDCtx.(primitive.ObjectID)
+	if !ok {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid user ID in context")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	collection := db.Database.Collection("discounts")
+	now := time.Now()
+
+	// Query for promotions that are:
+	// 1. Currently active (valid_from <= now <= valid_to)
+	// 2. Not maxed out (max_uses = 0 OR used_count < max_uses)
+	// 3. Either public OR user is in assigned_users
+	filter := bson.M{
+		"valid_from": bson.M{"$lte": now},
+		"valid_to":   bson.M{"$gte": now},
+		"$or": []bson.M{
+			{"max_uses": 0},
+			{"max_uses": bson.M{"$exists": false}},
+			{"$expr": bson.M{"$lt": []interface{}{"$used_count", "$max_uses"}}},
+		},
+		"$or": []bson.M{
+			{"is_public": true},
+			{"assigned_users": userID},
+		},
+	}
+
+	// MongoDB doesn't allow multiple $or at the same level, so we need to use $and
+	filter = bson.M{
+		"$and": []bson.M{
+			{"valid_from": bson.M{"$lte": now}},
+			{"valid_to": bson.M{"$gte": now}},
+			{
+				"$or": []bson.M{
+					{"max_uses": 0},
+					{"max_uses": bson.M{"$exists": false}},
+					{"$expr": bson.M{"$lt": []interface{}{"$used_count", "$max_uses"}}},
+				},
+			},
+			{
+				"$or": []bson.M{
+					{"is_public": true},
+					{"assigned_users": userID},
+				},
+			},
+		},
+	}
+
+	cursor, err := collection.Find(ctx, filter)
+	if err != nil {
+		utils.JSONResponse(w, http.StatusOK, []models.Discount{})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var promotions []models.Discount
+	if err = cursor.All(ctx, &promotions); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding promotions")
+		return
+	}
+
+	if promotions == nil {
+		promotions = []models.Discount{}
+	}
+
+	utils.JSONResponse(w, http.StatusOK, promotions)
+}
