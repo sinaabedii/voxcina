@@ -38,6 +38,14 @@ interface InquiryPaymentResponse {
   statusText: string;
 }
 
+const getAuthHeaders = (): HeadersInit => {
+  const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
+  return {
+    "Content-Type": "application/json",
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+};
+
 export const usePayment = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,24 +63,14 @@ export const usePayment = () => {
       try {
         const response = await fetch("/api/payment/request", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            orderId,
-            amount,
-            description,
-            mobile,
-          }),
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ orderId, amount, description, mobile }),
         });
 
+        const data = await response.json();
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to request payment");
+          throw new Error(data.error || data.message || "Failed to request payment");
         }
-
-        const data: PaymentRequestResponse = await response.json();
 
         if (data.result !== 100) {
           throw new Error(data.message || "Payment request failed");
@@ -81,8 +79,7 @@ export const usePayment = () => {
         toast.success("درخواست پرداخت با موفقیت ایجاد شد");
         return data;
       } catch (err) {
-        const errorMsg =
-          err instanceof Error ? err.message : "خطا در درخواست پرداخت";
+        const errorMsg = err instanceof Error ? err.message : "خطا در درخواست پرداخت";
         setError(errorMsg);
         toast.error(errorMsg);
         return null;
@@ -101,19 +98,14 @@ export const usePayment = () => {
       try {
         const response = await fetch("/api/payment/verify", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
+          headers: getAuthHeaders(),
           body: JSON.stringify({ trackId }),
         });
 
+        const data = await response.json();
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to verify payment");
+          throw new Error(data.error || data.message || "Failed to verify payment");
         }
-
-        const data: VerifyPaymentResponse = await response.json();
 
         if (data.result !== 100) {
           throw new Error(data.message || "Payment verification failed");
@@ -127,8 +119,7 @@ export const usePayment = () => {
 
         return data;
       } catch (err) {
-        const errorMsg =
-          err instanceof Error ? err.message : "خطا در تایید پرداخت";
+        const errorMsg = err instanceof Error ? err.message : "خطا در تایید پرداخت";
         setError(errorMsg);
         toast.error(errorMsg);
         return null;
@@ -147,19 +138,14 @@ export const usePayment = () => {
       try {
         const response = await fetch("/api/payment/inquiry", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
+          headers: getAuthHeaders(),
           body: JSON.stringify({ trackId }),
         });
 
+        const data = await response.json();
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to inquiry payment");
+          throw new Error(data.error || data.message || "Failed to inquiry payment");
         }
-
-        const data: InquiryPaymentResponse = await response.json();
 
         if (data.result !== 100) {
           throw new Error(data.message || "Payment inquiry failed");
@@ -167,8 +153,7 @@ export const usePayment = () => {
 
         return data;
       } catch (err) {
-        const errorMsg =
-          err instanceof Error ? err.message : "خطا در استعلام پرداخت";
+        const errorMsg = err instanceof Error ? err.message : "خطا در استعلام پرداخت";
         setError(errorMsg);
         toast.error(errorMsg);
         return null;

@@ -210,6 +210,11 @@ func IsPaymentSuccessful(status int) bool {
 	return status == 1
 }
 
+// IsPaymentAlreadyVerified returns true if payment was already verified
+func IsPaymentAlreadyVerified(status int) bool {
+	return status == 2
+}
+
 // IsPaymentPending returns true if payment is still awaiting completion
 func IsPaymentPending(status int) bool {
 	return status == -1

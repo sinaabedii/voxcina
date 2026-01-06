@@ -189,20 +189,44 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Best practice: Always verify with Zibal API instead of trusting URL params
+	// Idempotency: If already paid, redirect to success
+	if order.PaymentStatus == "paid" {
+		redirectURL := fmt.Sprintf("%s/checkout/callback?success=1&trackId=%s&orderId=%s&status=paid",
+			appURL, trackIDStr, order.ID.Hex())
+		http.Redirect(w, r, redirectURL, http.StatusFound)
+		return
+	}
+
+	// Verify with Zibal API
 	zibalResp, err := zibalService.VerifyPayment(ctx, trackID)
-	
+
 	now := time.Now()
 	var paymentStatus, orderStatus, statusText, successParam string
-	
+
 	if err == nil && zibalResp.Result == 100 && services.IsPaymentSuccessful(zibalResp.Status) {
-		// Payment verified as successful
 		paymentStatus = "paid"
 		orderStatus = "processing"
 		statusText = "در حال پردازش"
 		successParam = "1"
-		
-		collection.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
+
+		collection.UpdateOne(ctx, bson.M{"_id": order.ID, "payment_status": bson.M{"$ne": "paid"}}, bson.M{
+			"$set": bson.M{
+				"payment_status":   paymentStatus,
+				"status":           orderStatus,
+				"status_text":      statusText,
+				"zibal_ref_number": zibalResp.RefNumber,
+				"paid_at":          now,
+				"updated_at":       now,
+			},
+		})
+	} else if err == nil && zibalResp.Result == 100 && services.IsPaymentAlreadyVerified(zibalResp.Status) {
+		// Status 2: Already verified in a previous call
+		paymentStatus = "paid"
+		orderStatus = "processing"
+		statusText = "در حال پردازش"
+		successParam = "1"
+
+		collection.UpdateOne(ctx, bson.M{"_id": order.ID, "payment_status": bson.M{"$ne": "paid"}}, bson.M{
 			"$set": bson.M{
 				"payment_status":   paymentStatus,
 				"status":           orderStatus,
@@ -213,12 +237,11 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 			},
 		})
 	} else if err == nil && zibalResp.Result == 100 && services.IsPaymentPending(zibalResp.Status) {
-		// User pressed back - payment not completed
 		paymentStatus = "abandoned"
 		orderStatus = "pending"
 		statusText = "در انتظار پرداخت"
 		successParam = "0"
-		
+
 		collection.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
 			"$set": bson.M{
 				"payment_status": paymentStatus,
@@ -228,17 +251,16 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 			},
 		})
 	} else {
-		// Payment failed or cancelled
 		paymentStatus = "failed"
-		orderStatus = "pending" // Keep pending to allow retry
+		orderStatus = "pending"
 		statusText = "پرداخت ناموفق"
 		successParam = "0"
-		
+
 		if err == nil && zibalResp.Result == 100 && services.IsPaymentCancelledByUser(zibalResp.Status) {
 			paymentStatus = "cancelled"
 			statusText = "لغو شده توسط کاربر"
 		}
-		
+
 		collection.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
 			"$set": bson.M{
 				"payment_status": paymentStatus,
@@ -296,6 +318,35 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	collection := db.Database.Collection("orders")
+	var order models.Order
+
+	err := collection.FindOne(ctx, bson.M{
+		"zibal_track_id": payload.TrackID,
+		"user_id":        userID,
+	}).Decode(&order)
+
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusNotFound, "Order not found")
+		return
+	}
+
+	// Idempotency: If already paid, return success without calling Zibal
+	if order.PaymentStatus == "paid" {
+		utils.JSONResponse(w, http.StatusOK, VerifyPaymentResponse{
+			Result:        100,
+			Message:       "پرداخت قبلاً تایید شده است",
+			Status:        1,
+			Amount:        int64(order.TotalAmount * 10),
+			OrderID:       order.ID.Hex(),
+			PaymentStatus: "paid",
+			StatusText:    "پرداخت شده - تاییدشده",
+			CanRetry:      false,
+			OrderNumber:   order.OrderNumber,
+		})
+		return
+	}
+
 	zibalResp, err := zibalService.VerifyPayment(ctx, payload.TrackID)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to verify payment: "+err.Error())
@@ -307,27 +358,15 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	collection := db.Database.Collection("orders")
-	var order models.Order
-
-	err = collection.FindOne(ctx, bson.M{
-		"zibal_track_id": payload.TrackID,
-		"user_id":        userID,
-	}).Decode(&order)
-
-	if err != nil {
-		utils.ErrorResponse(w, http.StatusNotFound, "Order not found")
-		return
-	}
-
 	paymentStatus := "failed"
 	statusText := services.GetPaymentStatusText(zibalResp.Status)
 	canRetry := false
 
-	if services.IsPaymentSuccessful(zibalResp.Status) {
+	if services.IsPaymentSuccessful(zibalResp.Status) || services.IsPaymentAlreadyVerified(zibalResp.Status) {
 		paymentStatus = "paid"
+		statusText = "پرداخت شده - تاییدشده"
 		now := time.Now()
-		_, err := collection.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
+		_, err := collection.UpdateOne(ctx, bson.M{"_id": order.ID, "payment_status": bson.M{"$ne": "paid"}}, bson.M{
 			"$set": bson.M{
 				"payment_status":   paymentStatus,
 				"zibal_ref_number": zibalResp.RefNumber,
@@ -343,16 +382,13 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else if services.IsPaymentPending(zibalResp.Status) {
-		// Payment was abandoned (user pressed back)
 		paymentStatus = "abandoned"
-		statusText = "پرداخت ناتمام - می‌توانید دوباره تلاش کنید"
+		statusText = "پرداخت ناتمام - میتوانید دوباره تلاش کنید"
 		canRetry = true
 	} else if services.IsPaymentCancelledByUser(zibalResp.Status) {
-		// User explicitly cancelled
 		paymentStatus = "cancelled"
 		canRetry = true
 	} else {
-		// Other failures - can retry
 		canRetry = true
 	}
 
