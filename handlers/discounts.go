@@ -557,22 +557,8 @@ func GetUserPromotions(w http.ResponseWriter, r *http.Request) {
 	// 1. Currently active (valid_from <= now <= valid_to)
 	// 2. Not maxed out (max_uses = 0 OR used_count < max_uses)
 	// 3. Either public OR user is in assigned_users
-	filter := bson.M{
-		"valid_from": bson.M{"$lte": now},
-		"valid_to":   bson.M{"$gte": now},
-		"$or": []bson.M{
-			{"max_uses": 0},
-			{"max_uses": bson.M{"$exists": false}},
-			{"$expr": bson.M{"$lt": []interface{}{"$used_count", "$max_uses"}}},
-		},
-		"$or": []bson.M{
-			{"is_public": true},
-			{"assigned_users": userID},
-		},
-	}
-
 	// MongoDB doesn't allow multiple $or at the same level, so we need to use $and
-	filter = bson.M{
+	filter := bson.M{
 		"$and": []bson.M{
 			{"valid_from": bson.M{"$lte": now}},
 			{"valid_to": bson.M{"$gte": now}},
