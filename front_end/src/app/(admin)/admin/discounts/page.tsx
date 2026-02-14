@@ -98,90 +98,44 @@ export default function AdminDiscountsPage() {
     targetingCriteria: {},
   });
 
-  // Mock discounts data - would be fetched from API in real application
-  const [discounts, setDiscounts] = useState<DiscountData[]>([
-    {
-      id: "disc-1",
-      code: "WELCOME10",
-      type: "percentage",
-      value: 10,
-      minOrder: 100000,
-      maxUses: 1000,
-      usedCount: 358,
-      startDate: "1402/05/01",
-      endDate: "1402/08/30",
-      isActive: true,
-      forProducts: [],
-      forCategories: [],
-      isPublic: true,
-      assignedUsers: [],
-    },
-    {
-      id: "disc-2",
-      code: "SUMMER20",
-      type: "percentage",
-      value: 20,
-      minOrder: 200000,
-      maxUses: 500,
-      usedCount: 245,
-      startDate: "1402/04/01",
-      endDate: "1402/06/31",
-      isActive: false,
-      forProducts: [],
-      forCategories: ["الکترونیک"],
-      isPublic: true,
-      assignedUsers: [],
-    },
-    {
-      id: "disc-3",
-      code: "FIXED50K",
-      type: "fixed",
-      value: 50000,
-      minOrder: 500000,
-      maxUses: 300,
-      usedCount: 87,
-      startDate: "1402/06/01",
-      endDate: "1402/09/30",
-      isActive: true,
-      forProducts: [],
-      forCategories: [],
-      isPublic: false,
-      assignedUsers: ["user-1", "user-2", "user-3"],
-    },
-    {
-      id: "disc-4",
-      code: "MOBILE15",
-      type: "percentage",
-      value: 15,
-      minOrder: 0,
-      maxUses: 1000,
-      usedCount: 124,
-      startDate: "1402/05/15",
-      endDate: "1402/07/15",
-      isActive: true,
-      forProducts: [],
-      forCategories: ["موبایل"],
-      isPublic: false,
-      assignedUsers: ["user-4", "user-5"],
-      targetingCriteria: { hasMobileApp: true },
-    },
-    {
-      id: "disc-5",
-      code: "BLACK30",
-      type: "percentage",
-      value: 30,
-      minOrder: 300000,
-      maxUses: 200,
-      usedCount: 198,
-      startDate: "1402/09/01",
-      endDate: "1402/09/05",
-      isActive: true,
-      forProducts: [],
-      forCategories: [],
-      isPublic: true,
-      assignedUsers: [],
-    },
-  ]);
+  // Fetch discounts from API
+  const [discounts, setDiscounts] = useState<DiscountData[]>([]);
+  const [isLoadingDiscounts, setIsLoadingDiscounts] = useState(true);
+
+  const fetchDiscounts = useCallback(async () => {
+    setIsLoadingDiscounts(true);
+    try {
+      const token = adminToken || localStorageManager.getAccessToken();
+      const response = await fetch("/api/admin/discounts", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const mapped: DiscountData[] = (Array.isArray(data) ? data : []).map((d: any) => ({
+          id: d.id || d._id,
+          code: d.code,
+          type: d.type,
+          value: d.value,
+          minOrder: d.min_order_amount || 0,
+          maxUses: d.max_uses || 0,
+          usedCount: d.used_count || 0,
+          startDate: d.valid_from || "",
+          endDate: d.valid_to || "",
+          isActive: d.valid_from && d.valid_to ? new Date() >= new Date(d.valid_from) && new Date() <= new Date(d.valid_to) : false,
+          forProducts: d.applicable_to?.product_ids || [],
+          forCategories: d.applicable_to?.category_ids || [],
+          isPublic: d.is_public ?? true,
+          assignedUsers: (d.assigned_users || []).map((u: any) => typeof u === 'string' ? u : u.toString()),
+          targetingCriteria: d.targeting_criteria,
+        }));
+        setDiscounts(mapped);
+      }
+    } catch (error) {
+      console.error("Error fetching discounts:", error);
+    } finally {
+      setIsLoadingDiscounts(false);
+    }
+  }, [adminToken]);
 
   // Fetch targeting stats
   const fetchTargetingStats = useCallback(async () => {
@@ -280,10 +234,11 @@ export default function AdminDiscountsPage() {
     }
   }, [adminToken]);
 
-  // Fetch stats on mount
+  // Fetch stats and discounts on mount
   useEffect(() => {
     fetchTargetingStats();
-  }, [fetchTargetingStats]);
+    fetchDiscounts();
+  }, [fetchTargetingStats, fetchDiscounts]);
 
   // Update filtered count when targeting criteria changes
   useEffect(() => {
@@ -310,57 +265,95 @@ export default function AdminDiscountsPage() {
     }
   };
 
-  // Add new discount
-  const handleAddDiscount = () => {
-    const newDiscountWithId: DiscountData = {
-      ...newDiscount,
-      id: `disc-${discounts.length + 1}`,
-      value: parseFloat(newDiscount.value),
-      minOrder: parseFloat(newDiscount.minOrder) || 0,
-      maxUses: parseInt(newDiscount.maxUses) || 0,
-      usedCount: 0,
-    };
-    
-    setDiscounts([...discounts, newDiscountWithId]);
-    setNewDiscount({
-      code: "",
-      type: "percentage",
-      value: "",
-      minOrder: "",
-      maxUses: "",
-      usedCount: 0,
-      startDate: "",
-      endDate: "",
-      isActive: true,
-      forProducts: [],
-      forCategories: [],
-      isPublic: true,
-      assignedUsers: [],
-      targetingCriteria: {},
-    });
-    setIsAddModalOpen(false);
+  // Add new discount via API
+  const handleAddDiscount = async () => {
+    try {
+      const token = adminToken || localStorageManager.getAccessToken();
+      const body = {
+        code: newDiscount.code,
+        type: newDiscount.type,
+        value: parseFloat(newDiscount.value) || 0,
+        min_order_amount: parseFloat(newDiscount.minOrder) || 0,
+        max_uses: parseInt(newDiscount.maxUses) || 0,
+        valid_from: newDiscount.startDate ? new Date(newDiscount.startDate).toISOString() : "",
+        valid_to: newDiscount.endDate ? new Date(newDiscount.endDate).toISOString() : "",
+        is_public: newDiscount.isPublic,
+        assigned_users: newDiscount.assignedUsers,
+        targeting_criteria: Object.keys(newDiscount.targetingCriteria).length > 0 ? newDiscount.targetingCriteria : undefined,
+      };
+      const response = await fetch("/api/admin/discounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      if (response.ok) {
+        setNewDiscount({ code: "", type: "percentage", value: "", minOrder: "", maxUses: "", usedCount: 0, startDate: "", endDate: "", isActive: true, forProducts: [], forCategories: [], isPublic: true, assignedUsers: [], targetingCriteria: {} });
+        setIsAddModalOpen(false);
+        fetchDiscounts();
+      } else {
+        const err = await response.json().catch(() => ({}));
+        alert(err.message || "خطا در ایجاد کد تخفیف");
+      }
+    } catch (error) {
+      console.error("Error creating discount:", error);
+      alert("خطا در ایجاد کد تخفیف");
+    }
   };
 
-  // Update discount
-  const handleUpdateDiscount = () => {
+  // Update discount via API
+  const handleUpdateDiscount = async () => {
     if (!editingDiscount) return;
-    const updatedDiscounts = discounts.map((discount) =>
-      discount.id === editingDiscount.id ? {
-        ...editingDiscount,
-        value: typeof editingDiscount.value === 'string' ? parseFloat(editingDiscount.value) : editingDiscount.value,
-        minOrder: typeof editingDiscount.minOrder === 'string' ? parseFloat(editingDiscount.minOrder) || 0 : editingDiscount.minOrder,
-        maxUses: typeof editingDiscount.maxUses === 'string' ? parseInt(editingDiscount.maxUses) || 0 : editingDiscount.maxUses,
-      } : discount
-    );
-    setDiscounts(updatedDiscounts);
-    setEditingDiscount(null);
+    try {
+      const token = adminToken || localStorageManager.getAccessToken();
+      const body: Record<string, any> = {
+        code: editingDiscount.code,
+        type: editingDiscount.type,
+        value: typeof editingDiscount.value === 'string' ? parseFloat(editingDiscount.value) || 0 : editingDiscount.value,
+        min_order_amount: typeof editingDiscount.minOrder === 'string' ? parseFloat(editingDiscount.minOrder) || 0 : editingDiscount.minOrder,
+        max_uses: typeof editingDiscount.maxUses === 'string' ? parseInt(editingDiscount.maxUses) || 0 : editingDiscount.maxUses,
+        is_public: editingDiscount.isPublic,
+        assigned_users: editingDiscount.assignedUsers,
+      };
+      if (editingDiscount.startDate) body.valid_from = new Date(editingDiscount.startDate).toISOString();
+      if (editingDiscount.endDate) body.valid_to = new Date(editingDiscount.endDate).toISOString();
+      if (editingDiscount.targetingCriteria) body.targeting_criteria = editingDiscount.targetingCriteria;
+
+      const response = await fetch(`/api/admin/discounts/${editingDiscount.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      if (response.ok) {
+        setEditingDiscount(null);
+        fetchDiscounts();
+      } else {
+        const err = await response.json().catch(() => ({}));
+        alert(err.message || "خطا در بروزرسانی کد تخفیف");
+      }
+    } catch (error) {
+      console.error("Error updating discount:", error);
+      alert("خطا در بروزرسانی کد تخفیف");
+    }
   };
 
-  // Delete discount
-  const handleDeleteDiscount = (id: string) => {
+  // Delete discount via API
+  const handleDeleteDiscount = async (id: string) => {
     if (window.confirm("آیا از حذف این کد تخفیف اطمینان دارید؟")) {
-      const updatedDiscounts = discounts.filter((discount) => discount.id !== id);
-      setDiscounts(updatedDiscounts);
+      try {
+        const token = adminToken || localStorageManager.getAccessToken();
+        const response = await fetch(`/api/admin/discounts/${id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          fetchDiscounts();
+        } else {
+          alert("خطا در حذف کد تخفیف");
+        }
+      } catch (error) {
+        console.error("Error deleting discount:", error);
+        alert("خطا در حذف کد تخفیف");
+      }
     }
   };
 
@@ -371,12 +364,26 @@ export default function AdminDiscountsPage() {
     setTimeout(() => setCopiedCode(""), 2000);
   };
 
-  // Toggle discount active status
-  const toggleDiscountStatus = (id: string) => {
-    const updatedDiscounts = discounts.map((discount) =>
-      discount.id === id ? { ...discount, isActive: !discount.isActive } : discount
-    );
-    setDiscounts(updatedDiscounts);
+  // Toggle discount active status by adjusting valid_to date
+  const toggleDiscountStatus = async (id: string) => {
+    const discount = discounts.find((d) => d.id === id);
+    if (!discount) return;
+    try {
+      const token = adminToken || localStorageManager.getAccessToken();
+      const now = new Date();
+      // If active, set valid_to to now (deactivate). If inactive, extend valid_to by 30 days.
+      const newValidTo = discount.isActive ? now.toISOString() : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const response = await fetch(`/api/admin/discounts/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ valid_to: newValidTo }),
+      });
+      if (response.ok) {
+        fetchDiscounts();
+      }
+    } catch (error) {
+      console.error("Error toggling discount:", error);
+    }
   };
 
   // Handle targeting criteria change for new discount

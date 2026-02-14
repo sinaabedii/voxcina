@@ -29,13 +29,13 @@ const CartSummary: React.FC<CartSummaryProps> = ({
   const [promoInput, setPromoInput] = useState("");
   const [promoError, setPromoError] = useState("");
 
-  const handleApplyPromoCode = () => {
+  const handleApplyPromoCode = async () => {
     if (!promoInput.trim()) {
       setPromoError("لطفا کد تخفیف را وارد کنید");
       return;
     }
 
-    applyPromoCode(promoInput);
+    await applyPromoCode(promoInput);
     setPromoError("");
   };
 
@@ -106,8 +106,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
                     <div>
                       <span className="font-medium items-center flex">
                         <CheckCircle className="ml-1.5 h-4 w-4" />
-                        کد تخفیف {promoCode.code} ({promoCode.discountPercentage}
-                        ٪) اعمال شد
+                        کد تخفیف {promoCode.code} اعمال شد
                       </span>
                       {promoCode.description && (
                         <span className="text-xs block mt-1 mr-5">

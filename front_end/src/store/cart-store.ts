@@ -94,32 +94,7 @@ const withOperationGuard = async <T>(
   }
 };
 
-const validPromoCodes = [
-  {
-    code: "WELCOME10",
-    discountPercentage: 10,
-    minPurchase: 0,
-    maxDiscount: 0,
-    expireDate: "2025-12-31T23:59:59Z",
-    description: "10% تخفیف برای اولین خرید",
-  },
-  {
-    code: "SUMMER20",
-    discountPercentage: 20,
-    minPurchase: 1000000,
-    maxDiscount: 500000,
-    expireDate: "2025-08-31T23:59:59Z",
-    description: "20% تخفیف تابستانه تا سقف 50 هزار تومان",
-  },
-  {
-    code: "FLASH30",
-    discountPercentage: 30,
-    minPurchase: 2000000,
-    maxDiscount: 800000,
-    expireDate: "2025-05-15T23:59:59Z",
-    description: "30% تخفیف ویژه تا سقف 80 هزار تومان",
-  },
-];
+
 
 interface CartStore {
   cart: Cart;
@@ -155,7 +130,7 @@ interface CartStore {
     color?: string
   ) => Promise<void>;
   clearCart: () => Promise<void>;
-  applyPromoCode: (code: string) => void;
+  applyPromoCode: (code: string) => Promise<void>;
   removePromoCode: () => void;
   calculateSummary: () => void;
   cleanupSubscriptions: () => void;
@@ -661,11 +636,15 @@ export const useCartStore = create<CartStore>()(
         let subtotal = cart.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
         let discountVal = 0;
         if (promoCode && promoCode.isValid) {
-            const potentialDiscount = (subtotal * promoCode.discountPercentage) / 100;
-            if (promoCode.maxDiscount !== undefined && promoCode.maxDiscount > 0) {
-                discountVal = Math.min(potentialDiscount, promoCode.maxDiscount);
-            } else {
-                discountVal = potentialDiscount;
+            if (promoCode.discountPercentage > 0) {
+                const potentialDiscount = (subtotal * promoCode.discountPercentage) / 100;
+                if (promoCode.maxDiscount !== undefined && promoCode.maxDiscount > 0) {
+                    discountVal = Math.min(potentialDiscount, promoCode.maxDiscount);
+                } else {
+                    discountVal = potentialDiscount;
+                }
+            } else if (promoCode.maxDiscount > 0) {
+                discountVal = promoCode.maxDiscount;
             }
         }
         discountVal = Math.min(subtotal, discountVal);
@@ -685,27 +664,37 @@ export const useCartStore = create<CartStore>()(
         });
       },
 
-       applyPromoCode: (code) => {
-        const { cart } = get(); // cart is used to check items, but summary.subtotal is used for minPurchase
-        const promo = validPromoCodes.find((p) => p.code === code);
+       applyPromoCode: async (code) => {
+        const currentSubtotal = get().summary.subtotal;
+        try {
+          const token = localStorage.getItem('authToken');
+          const headers: Record<string, string> = {};
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+          const response = await fetch(`/api/discounts/code/${encodeURIComponent(code)}`, { headers });
 
-        if (promo) {
-          const now = new Date();
-          const expiry = new Date(promo.expireDate);
-          const currentSubtotal = get().summary.subtotal; 
-
-          if (now > expiry) {
-            set({ error: "کد تخفیف منقضی شده است", promoCode: { ...promo, isValid: false, errorMessage: 'منقضی شده' } });
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({ message: 'کد تخفیف نامعتبر است' }));
+            set({ error: err.message || 'کد تخفیف نامعتبر است', promoCode: { code, isValid: false, errorMessage: err.message || 'نامعتبر', discountPercentage: 0, maxDiscount: 0, expireDate: '', minPurchase: 0 } });
+            get().calculateSummary();
             return;
           }
-          if (currentSubtotal < promo.minPurchase) {
-            set({ error: `حداقل خرید برای این کد ${formatPrice(promo.minPurchase)} تومان است`, promoCode: { ...promo, isValid: false, errorMessage: `حداقل خرید ${formatPrice(promo.minPurchase)}` } });
+
+          const discount = await response.json();
+          const discountPercentage = discount.type === 'percentage' ? discount.value : 0;
+          const maxDiscount = discount.type === 'fixed' ? discount.value : 0;
+          const minPurchase = discount.min_order_amount || 0;
+
+          if (currentSubtotal < minPurchase) {
+            set({ error: `حداقل خرید برای این کد ${formatPrice(minPurchase)} تومان است`, promoCode: { code, isValid: false, errorMessage: `حداقل خرید ${formatPrice(minPurchase)}`, discountPercentage, maxDiscount, expireDate: discount.valid_to, minPurchase } });
+            get().calculateSummary();
             return;
           }
 
-          set({ promoCode: { ...promo, isValid: true, errorMessage: '' }, error: null });
-        } else {
-          set({ error: "کد تخفیف نامعتبر است", promoCode: { code, isValid: false, errorMessage: 'نامعتبر', discountPercentage: 0, maxDiscount:0, expireDate: '', minPurchase: 0 } });
+          set({ promoCode: { code, isValid: true, errorMessage: '', discountPercentage, maxDiscount, expireDate: discount.valid_to, minPurchase, description: discount.type === 'percentage' ? `${discount.value}٪ تخفیف` : `${formatPrice(discount.value)} تومان تخفیف` }, error: null });
+        } catch {
+          set({ error: 'خطا در بررسی کد تخفیف', promoCode: { code, isValid: false, errorMessage: 'خطای شبکه', discountPercentage: 0, maxDiscount: 0, expireDate: '', minPurchase: 0 } });
         }
         get().calculateSummary();
       },
