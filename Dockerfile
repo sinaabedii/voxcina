@@ -1,12 +1,8 @@
 # ┌────────────────────────── BUILD STAGE ────────────────────────────┐
-FROM docker.arvancloud.ir/golang:1.24-alpine AS builder
+FROM docker.arvancloud.ir/golang:1.24 AS builder
 
-# Install git and build tools
-RUN apk update && \
-    apk --no-cache add git build-base
-
-# Set GOPROXY to use a proxy that works in Iran
-ENV GOPROXY=https://goproxy.io,direct
+# Set GOPROXY to use Iranian mirror
+ENV GOPROXY=https://package-mirror.liara.ir/repository/go/,direct
 
 WORKDIR /build
 
@@ -25,11 +21,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /build/main .
 # ┌────────────────────────── RUNTIME STAGE ──────────────────────────┐
 FROM docker.arvancloud.ir/alpine:3.21
 
-RUN apk update && \
-    apk --no-cache add \
-      ca-certificates \
-      tzdata
-
 WORKDIR /app
 
 # Copy the binary from the builder stage
@@ -41,19 +32,10 @@ COPY --from=builder /build/config ./config
 # Copy the startup script
 COPY --from=builder /build/start.sh .
 
-# Install mongosh for database operations
-RUN apk update && \
-    apk --no-cache add \
-      ca-certificates \
-      tzdata
-
 # Create necessary directories with proper permissions
 RUN mkdir -p admin uploads/products/main uploads/categories && \
     chmod -R 777 uploads && \
     chmod +x start.sh
-
-# If you have admin files, copy them in a separate step
-# COPY admin/ admin/
 
 EXPOSE 8080
 CMD ["./start.sh"]
