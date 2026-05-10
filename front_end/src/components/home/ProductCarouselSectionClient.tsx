@@ -72,9 +72,6 @@ export default function ProductCarouselSectionClient({
     visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
   };
 
-  // Show loading state if no products
-  const isLoading = !products || products.length === 0;
-
   return (
     <motion.section
       className={className ?? "container px-4 md:px-8 mb-16 md:mb-24"}
@@ -107,12 +104,9 @@ export default function ProductCarouselSectionClient({
         }
       />
 
-      {isLoading ? (
+      {!products || products.length === 0 ? (
         <div className="h-52 md:h-64 flex items-center justify-center">
-          <div className="relative w-12 h-12 md:w-16 md:h-16">
-            <div className="absolute inset-0 border-4 border-secondary-200 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-t-voxcina-blue rounded-full animate-spin"></div>
-          </div>
+          <p className="text-gray-500">محصولی یافت نشد</p>
         </div>
       ) : (
         <div className="relative group/slider">
