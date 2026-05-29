@@ -1,9 +1,10 @@
 import { ImageResponse } from 'next/og';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { serverFetch, CACHE_TIMES } from '@/lib/server-api';
 import { Product } from '@/types/product';
 
 // Image metadata
-export const runtime = 'edge';
 export const alt = 'محصول وکسینا';
 export const size = {
   width: 1200,
@@ -15,11 +16,11 @@ interface Props {
   params: { productId: string };
 }
 
-async function loadFont(url: string): Promise<ArrayBuffer | null> {
+const FONTS_DIR = join(process.cwd(), 'public', 'fonts');
+
+function loadFont(name: string, weight: number) {
   try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    return response.arrayBuffer();
+    return { name: 'IranSansX', data: readFileSync(join(FONTS_DIR, name)), weight, style: 'normal' as const };
   } catch {
     return null;
   }
@@ -36,14 +37,10 @@ async function loadFont(url: string): Promise<ArrayBuffer | null> {
 export default async function Image({ params }: Props) {
   const { productId } = params;
 
-  const [fontRegular, fontBold] = await Promise.all([
-    loadFont('http://localhost:3000/fonts/iransansx-regular.woff'),
-    loadFont('http://localhost:3000/fonts/iransansx-bold.woff'),
-  ]);
-
-  const fonts = [];
-  if (fontRegular) fonts.push({ name: 'IranSansX', data: fontRegular, weight: 400 as const, style: 'normal' as const });
-  if (fontBold) fonts.push({ name: 'IranSansX', data: fontBold, weight: 700 as const, style: 'normal' as const });
+  const fonts = [
+    loadFont('iransansx-regular.woff', 400),
+    loadFont('iransansx-bold.woff', 700),
+  ].filter(Boolean);
 
   // Fetch product data
   const product = await serverFetch<Product>(`/api/products/${productId}`, {
