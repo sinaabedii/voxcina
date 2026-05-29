@@ -18,7 +18,9 @@ interface Props {
 
 const FONTS_DIR = join(process.cwd(), 'public', 'fonts');
 
-function loadFont(name: string, weight: number) {
+type FontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
+
+function loadFont(name: string, weight: FontWeight) {
   try {
     return { name: 'IranSansX', data: readFileSync(join(FONTS_DIR, name)), weight, style: 'normal' as const };
   } catch {
