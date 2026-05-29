@@ -2,6 +2,18 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
+  
+  // Experimental optimizations
+  experimental: {
+    optimizePackageImports: ['lucide-react'], // Tree-shake icons (96 files use this)
+  },
+  
+  // Enable compression
+  compress: true,
+  
+  // Disable source maps in production for faster builds
+  productionBrowserSourceMaps: false,
+  
   images: {
     remotePatterns: [
       {
@@ -24,7 +36,7 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    minimumCacheTTL: 86400, // Cache for 24 hours instead of 60 seconds
+    minimumCacheTTL: 604800, // Cache for 1 week
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
@@ -119,6 +131,15 @@ const nextConfig = {
       },
       {
         source: '/fonts/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/_next/static/(.*)',
         headers: [
           {
             key: 'Cache-Control',
