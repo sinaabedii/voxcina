@@ -29,10 +29,9 @@ function loadFont(name: string, weight: number) {
  * SEO: OG images improve social sharing appearance
  */
 export default async function Image() {
-  const fonts = [
-    loadFont('iransansx-regular.woff', 400),
-    loadFont('iransansx-bold.woff', 700),
-  ].filter(Boolean);
+  const fontRegular = loadFont('iransansx-regular.woff', 400);
+  const fontBold = loadFont('iransansx-bold.woff', 700);
+  const fonts = [fontRegular, fontBold].filter((f): f is NonNullable<typeof f> => f !== null);
 
   return new ImageResponse(
     (

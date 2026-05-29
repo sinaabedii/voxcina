@@ -37,10 +37,9 @@ function loadFont(name: string, weight: number) {
 export default async function Image({ params }: Props) {
   const { slug } = params;
 
-  const fonts = [
-    loadFont('iransansx-regular.woff', 400),
-    loadFont('iransansx-bold.woff', 700),
-  ].filter(Boolean);
+  const fontRegular = loadFont('iransansx-regular.woff', 400);
+  const fontBold = loadFont('iransansx-bold.woff', 700);
+  const fonts = [fontRegular, fontBold].filter((f): f is NonNullable<typeof f> => f !== null);
 
   // Fetch blog post data
   const post = await serverFetch<BlogPost>(`/api/blog-posts/${slug}`, {
