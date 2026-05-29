@@ -6,11 +6,11 @@
       "G": "Gender (M=Men, F=Women, D=Kids, B=Unisex)",
       "CC": "Category ID (10-99)",
       "B": "Brand Code (0-9, then A-Z)",
-      "S": "Style/Model Identifier (0-9, then A-Z)",
+      "S": "Style/Product Variant (0-9, then A-Z - free identifier within category)",
       "C": "Color Code (0-9, then A-Z)",
       "Z": "Size Code (letter code, not number)"
     },
-    "example": "M10-0A0L = Men's T-shirt, Brand 0, Crew Neck, Black, Large"
+    "example": "M10-0A0L = Men's Crew Neck T-shirt (Cat 10), Brand 0, Variant A, Black, Large"
   },
   "size_codes": {
     "clothing": {
@@ -59,44 +59,6 @@
       "O": "One Size (Freesize)"
     }
   },
-  "color_codes": {
-    "0": "مشکی (Black)",
-    "1": "سفید (White)",
-    "2": "سرمه‌ای (Navy)",
-    "3": "خاکستری (Gray)",
-    "4": "آبی (Blue)",
-    "5": "قرمز (Red)",
-    "6": "سبز (Green)",
-    "7": "زرد (Yellow)",
-    "8": "نارنجی (Orange)",
-    "9": "صورتی (Pink)",
-    "A": "بژ (Beige)",
-    "B": "قهوه‌ای (Brown)",
-    "C": "کرم (Cream)",
-    "D": "بورگاندی (Burgundy)",
-    "E": "بنفش (Purple)",
-    "F": "طوسی (Charcoal)",
-    "G": "فیروزه‌ای (Turquoise)",
-    "H": "طلایی (Gold)",
-    "I": "نقره‌ای (Silver)",
-    "J": "چاپی/طرح‌دار (Printed)",
-    "K": "سرمه‌ای تیره (Dark Navy)",
-    "L": "آسمانی (Sky Blue)",
-    "M": "یاسی (Lilac)",
-    "N": "مرجانی (Coral)",
-    "O": "زیتونی (Olive)",
-    "P": "خاکی (Khaki)",
-    "Q": "نوک مدادی (Pencil)",
-    "R": "نباتی (Mint)",
-    "S": "یشم (Jade)",
-    "T": "شرابی (Wine)",
-    "U": "یخ‌آبی (Ice Blue)",
-    "V": "یاقوتی (Ruby)",
-    "W": "مسی (Copper)",
-    "X": "مشکی و سفید (Black & White)",
-    "Y": "چندرنگ (Multicolor)",
-    "Z": "سایر رنگ‌ها (Other)"
-  },
   "brand_codes": {
     "0": "Reserved for in-house/default brand",
     "1": "Brand 1",
@@ -137,73 +99,114 @@
   },
   "categories": [
     {
-      "group": "MEN - TOPS (بالاتنه مردانه)",
+      "group": "MEN - T-SHIRTS & POLOS (تیشرت و پولوشرت مردانه)",
       "gender_prefix": "M",
       "items": [
         {
-          "name": "تیشرت و پولوشرت",
+          "name": "تیشرت یقه گرد (Crew Neck)",
           "category_code": "10",
-          "style_mapping": {
-            "0": "تیشرت یقه گرد (Crew Neck) - ساده",
-            "1": "تیشرت یقه هفت (V-Neck)",
-            "2": "تیشرت لانگ / لش (Longline/Oversized)",
-            "3": "تیشرت آستین بلند",
-            "4": "پولوشرت (یقه دار) آستین کوتاه",
-            "5": "پولوشرت آستین بلند",
-            "6": "رکابی / تاپ ورزشی",
-            "7": "تیشرت طرح‌دار / چاپی",
-            "8": "ست ورزشی (تیشرت و شلوارک)",
-            "9": "تیشرت اسپرت",
-            "A": "تیشرت پولا",
-            "B": "تیشرت جین"
-          },
           "size_type": "clothing"
         },
         {
-          "name": "پیراهن مردانه",
+          "name": "تیشرت یقه هفت (V-Neck)",
+          "category_code": "11",
+          "size_type": "clothing"
+        },
+        {
+          "name": "تیشرت لانگ/لش (Longline/Oversized)",
           "category_code": "12",
-          "style_mapping": {
-            "0": "چهارخونه - آستین بلند - کلاسیک/رسمی (Classic Fit)",
-            "1": "ساده - آستین بلند - کلاسیک/رسمی (Classic Fit)",
-            "2": "آستین بلند - اسلیم فیت (Slim Fit)",
-            "3": "آستین کوتاه - ساده",
-            "4": "آستین کوتاه - هاوایی/طرح‌دار",
-            "5": "پیراهن جین",
-            "6": "پیراهن پشمی/فلانل",
-            "7": "یقه دیپلمات",
-            "8": "پیراهنlinen"
-          },
           "size_type": "clothing"
         },
         {
-          "name": "هودی، سویشرت و بافت",
+          "name": "تیشرت آستین بلند",
           "category_code": "13",
-          "style_mapping": {
-            "0": "هودی (کلاه‌دار) جلو بسته",
-            "1": "سویشرت (جلو زیپ‌دار)",
-            "2": "دورس (یقه گرد بدون کلاه)",
-            "3": "پلیور بافت / ژاکت",
-            "4": "ژیله / جلیقه بافت",
-            "5": "یقه اسکی",
-            "6": "کاپشن نخی",
-            "7": "ست هودی و شلوار"
-          },
           "size_type": "clothing"
         },
         {
-          "name": "کاپشن و کت مردانه",
+          "name": "پولوشرت (Polo Shirt)",
           "category_code": "14",
-          "style_mapping": {
-            "0": "کاپشن ضخیم / پافر",
-            "1": "کت تک اسپرت (Blazer)",
-            "2": "کت چرم",
-            "3": "بارانی / اورکت",
-            "4": "کت جین",
-            "5": "بادگیر / کاپشن بهاره",
-            "6": "وست (Jacket Vest)",
-            "7": "پالتو مردانه",
-            "8": "کت اسپرت"
-          },
+          "size_type": "clothing"
+        },
+        {
+          "name": "تیشرت طرح‌دار/چاپی",
+          "category_code": "15",
+          "size_type": "clothing"
+        },
+        {
+          "name": "تیشرت اسپرت",
+          "category_code": "16",
+          "size_type": "clothing"
+        }
+      ]
+    },
+    {
+      "group": "MEN - SHIRTS & SWEATERS (پیراهن و بافت مردانه)",
+      "gender_prefix": "M",
+      "items": [
+        {
+          "name": "پیراهن ساده آستین بلند",
+          "category_code": "20",
+          "size_type": "clothing"
+        },
+        {
+          "name": "پیراهن آستین کوتاه",
+          "category_code": "21",
+          "size_type": "clothing"
+        },
+        {
+          "name": "پیراهن جین (Denim Shirt)",
+          "category_code": "22",
+          "size_type": "clothing"
+        },
+        {
+          "name": "هودی (Hoodie)",
+          "category_code": "23",
+          "size_type": "clothing"
+        },
+        {
+          "name": "سویشرت (Sweatshirt)",
+          "category_code": "24",
+          "size_type": "clothing"
+        },
+        {
+          "name": "پلیور و بافت (Sweater/Knitwear)",
+          "category_code": "25",
+          "size_type": "clothing"
+        }
+      ]
+    },
+    {
+      "group": "MEN - OUTERWEAR & COATS (کاپشن و کت مردانه)",
+      "gender_prefix": "M",
+      "items": [
+        {
+          "name": "کاپشن ضخیم/پافر (Puffer Jacket)",
+          "category_code": "30",
+          "size_type": "clothing"
+        },
+        {
+          "name": "کت اسپرت (Blazer/Sport Coat)",
+          "category_code": "31",
+          "size_type": "clothing"
+        },
+        {
+          "name": "کت چرم (Leather Jacket)",
+          "category_code": "32",
+          "size_type": "clothing"
+        },
+        {
+          "name": "بارانی/بادگیر (Raincoat/Windbreaker)",
+          "category_code": "33",
+          "size_type": "clothing"
+        },
+        {
+          "name": "کت جین (Denim Jacket)",
+          "category_code": "34",
+          "size_type": "clothing"
+        },
+        {
+          "name": "پالتو (Overcoat)",
+          "category_code": "35",
           "size_type": "clothing"
         }
       ]
@@ -213,87 +216,104 @@
       "gender_prefix": "M",
       "items": [
         {
-          "name": "شلوار جین مردانه",
-          "category_code": "20",
-          "style_mapping": {
-            "0": "اسلیم / جذب (Slim Fit)",
-            "1": "راسته (Regular Fit)",
-            "2": "اسکینی (Skinny)",
-            "3": "مام استایل / مخروطی",
-            "4": "گشاد / ریلکس (Relaxed)",
-            "5": "زاپ‌دار (Distressed)",
-            "6": "رنگی (غیر از آبی/مشکی)",
-            "7": "جین کلاسیک",
-            "8": "جین بوت‌کات"
-          },
+          "name": "شلوار جین اسلیم (Slim Fit)",
+          "category_code": "40",
           "size_type": "pants_waist"
         },
         {
-          "name": "شلوار کتان و پارچه‌ای",
-          "category_code": "21",
-          "style_mapping": {
-            "0": "کتان کلاسیک",
-            "1": "کتان جذب/اسپرت",
-            "2": "شلوار پارچه‌ای رسمی",
-            "3": "شلوار اسلش (Jogger)",
-            "4": "شلوار شش‌جیب (Cargo)",
-            "5": "شلوارک کتان/جین",
-            "6": "شلوارک ورزشی/ساحلی",
-            "7": "شلوار کتان اسلیم"
-          },
+          "name": "شلوار جین راسته (Regular Fit)",
+          "category_code": "41",
+          "size_type": "pants_waist"
+        },
+        {
+          "name": "شلوار جین اسکینی (Skinny)",
+          "category_code": "42",
+          "size_type": "pants_waist"
+        },
+        {
+          "name": "شلوار جین گشاد (Relaxed/Loose)",
+          "category_code": "43",
+          "size_type": "pants_waist"
+        },
+        {
+          "name": "شلوار کتان (Cotton Pants)",
+          "category_code": "44",
+          "size_type": "pants_waist"
+        },
+        {
+          "name": "شلوار پارچه‌ای رسمی",
+          "category_code": "45",
+          "size_type": "pants_waist"
+        },
+        {
+          "name": "شلوار اسلش (Jogger)",
+          "category_code": "46",
+          "size_type": "pants_waist"
+        },
+        {
+          "name": "شلوار شش‌جیب (Cargo)",
+          "category_code": "47",
+          "size_type": "pants_waist"
+        },
+        {
+          "name": "شلوارک (Shorts)",
+          "category_code": "48",
           "size_type": "pants_waist"
         }
       ]
     },
     {
-      "group": "WOMEN - TOPS (بالاتنه زنانه)",
+      "group": "WOMEN - TOPS & OUTERWEAR (بالاتنه و رویه زنانه)",
       "gender_prefix": "F",
       "items": [
         {
-          "name": "شومیز، بلوز و تاپ",
+          "name": "شومیز مجلسی (Formal Blouse)",
           "category_code": "50",
-          "style_mapping": {
-            "0": "شومیز مجلسی (حریر/کرپ)",
-            "1": "شومیز اسپرت/نخی (Button-down)",
-            "2": "بلوز / تونیک بلند",
-            "3": "کراپ (Crop Top)",
-            "4": "تاپ مجلسی / بندی",
-            "5": "تیشرت زنانه",
-            "6": "بادی (Bodysuit)",
-            "7": "آستین پفی / مدل‌دار",
-            "8": "بافت / پلیور زنانه",
-            "9": "بلوز طرح‌دار"
-          },
           "size_type": "clothing"
         },
         {
-          "name": "مانتو و رویه",
+          "name": "شومیز اسپرت (Casual Button-down)",
           "category_code": "51",
-          "style_mapping": {
-            "0": "مانتو اسپرت / دانشجویی",
-            "1": "مانتو کتی (Blazer)",
-            "2": "مانتو مجلسی / کار شده",
-            "3": "مانتو جلو باز / عبایی",
-            "4": "رویه / کیمونو",
-            "5": "وست / جلیقه بلند",
-            "6": "مانتو بلند",
-            "7": "مانتو کوتاه"
-          },
           "size_type": "clothing"
         },
         {
-          "name": "لباس زمستانی زنانه",
+          "name": "بلوز و تونیک (Blouse/Tunic)",
           "category_code": "52",
-          "style_mapping": {
-            "0": "پالتو / کت بلند",
-            "1": "بارانی / ترنچ کت",
-            "2": "کاپشن / پافر کوتاه",
-            "3": "کاپشن / پافر بلند",
-            "4": "هودی / سویشرت زنانه",
-            "5": "کت چرم / خز",
-            "6": "کت پشمی",
-            "7": "پالتو مجلسی"
-          },
+          "size_type": "clothing"
+        },
+        {
+          "name": "کراپ (Crop Top)",
+          "category_code": "53",
+          "size_type": "clothing"
+        },
+        {
+          "name": "تیشرت زنانه",
+          "category_code": "54",
+          "size_type": "clothing"
+        },
+        {
+          "name": "بافت و پلیور زنانه",
+          "category_code": "55",
+          "size_type": "clothing"
+        },
+        {
+          "name": "مانتو اسپرت",
+          "category_code": "56",
+          "size_type": "clothing"
+        },
+        {
+          "name": "مانتو کتی و مجلسی",
+          "category_code": "57",
+          "size_type": "clothing"
+        },
+        {
+          "name": "پالتو و کاپشن زنانه",
+          "category_code": "58",
+          "size_type": "clothing"
+        },
+        {
+          "name": "هودی و سویشرت زنانه",
+          "category_code": "59",
           "size_type": "clothing"
         }
       ]
@@ -303,34 +323,38 @@
       "gender_prefix": "F",
       "items": [
         {
-          "name": "شلوار و دامن",
+          "name": "شلوار جین زنانه",
           "category_code": "60",
-          "style_mapping": {
-            "0": "جین مام استایل / مام فیت",
-            "1": "جین اسکینی / جذب",
-            "2": "جین بگ / واید (Wide Leg)",
-            "3": "جین راسته / بوت‌کات",
-            "4": "شلوار پارچه‌ای / کلاسیک",
-            "5": "لگینگ (Leggings)",
-            "6": "دامن کوتاه (Mini)",
-            "7": "دامن متوسط/بلند (Midi/Maxi)",
-            "8": "دامن شلواری",
-            "9": "شلوارک"
-          },
           "size_type": "clothing"
         },
         {
-          "name": "پیراهن و سرهمی",
+          "name": "شلوار پارچه‌ای زنانه",
           "category_code": "61",
-          "style_mapping": {
-            "0": "پیراهن ماکسی / بلند مجلسی",
-            "1": "پیراهن کوتاه / کوکتل",
-            "2": "پیراهن ساحلی / نخی",
-            "3": "اورال / سرهمی (Jumpsuit)",
-            "4": "بیلرسوت (Salopette)",
-            "5": "پیراهن میدی",
-            "6": "سرهمی اسپرت"
-          },
+          "size_type": "clothing"
+        },
+        {
+          "name": "لگینگ (Leggings)",
+          "category_code": "62",
+          "size_type": "clothing"
+        },
+        {
+          "name": "دامن (Skirt)",
+          "category_code": "63",
+          "size_type": "clothing"
+        },
+        {
+          "name": "پیراهن مجلسی (Formal Dress)",
+          "category_code": "64",
+          "size_type": "clothing"
+        },
+        {
+          "name": "پیراهن کوتاه/ساحلی",
+          "category_code": "65",
+          "size_type": "clothing"
+        },
+        {
+          "name": "سرهمی (Jumpsuit)",
+          "category_code": "66",
           "size_type": "clothing"
         }
       ]
@@ -340,31 +364,28 @@
       "gender_prefix": "D",
       "items": [
         {
-          "name": "لباس بچگانه پسرانه",
-          "category_code": "70",
-          "style_mapping": {
-            "0": "تیشرت پسرانه",
-            "1": "شلوار جین پسرانه",
-            "2": "شلوار کتان پسرانه",
-            "3": "پیراهن پسرانه",
-            "4": "هودی و سویشرت پسرانه",
-            "5": "ست لباس پسرانه",
-            "6": "شلوارک پسرانه"
-          },
+          "name": "تیشرت و بلوز پسرانه",
+          "category_code": "80",
           "size_type": "kids"
         },
         {
-          "name": "لباس بچگانه دخترانه",
-          "category_code": "71",
-          "style_mapping": {
-            "0": "تیشرت و بلوز دخترانه",
-            "1": "شلوار جین دخترانه",
-            "2": "پیراهن دخترانه",
-            "3": "هودی و سویشرت دخترانه",
-            "4": "ست لباس دخترانه",
-            "5": "دامن دخترانه",
-            "6": "شلوارک دخترانه"
-          },
+          "name": "شلوار پسرانه",
+          "category_code": "81",
+          "size_type": "kids"
+        },
+        {
+          "name": "تیشرت و بلوز دخترانه",
+          "category_code": "82",
+          "size_type": "kids"
+        },
+        {
+          "name": "دامن و شلوار دخترانه",
+          "category_code": "83",
+          "size_type": "kids"
+        },
+        {
+          "name": "ست لباس بچگانه",
+          "category_code": "84",
           "size_type": "kids"
         }
       ]
@@ -374,47 +395,33 @@
       "gender_prefix": "B",
       "items": [
         {
-          "name": "کفش مردانه",
+          "name": "کتانی و کفش اسپرت",
           "category_code": "90",
-          "style_mapping": {
-            "0": "کتانی روزمره (Sneakers)",
-            "1": "کتانی ورزشی/رانینگ",
-            "2": "کفش کلاسیک/چرم مردانه",
-            "3": "کالج (Loafers)",
-            "4": "بوت و نیم‌بوت مردانه",
-            "5": "صندل و دمپایی مردانه",
-            "6": "کفش اسپرت"
-          },
           "size_type": "shoes"
         },
         {
-          "name": "کفش زنانه",
+          "name": "کفش کلاسیک (Classic Shoes)",
           "category_code": "91",
-          "style_mapping": {
-            "0": "کتانی روزمره (Sneakers)",
-            "1": "کفش پاشنه‌دار",
-            "2": "کفش کلاسیک زنانه",
-            "3": "بوت و نیم‌بوت زنانه",
-            "4": "صندل زنانه",
-            "5": "کفش اسپرت زنانه",
-            "6": "بالرین"
-          },
           "size_type": "shoes"
         },
         {
-          "name": "کیف و سایر اکسسوری‌ها",
+          "name": "بوت و نیم‌بوت (Boots)",
+          "category_code": "92",
+          "size_type": "shoes"
+        },
+        {
+          "name": "صندل و دمپایی",
+          "category_code": "93",
+          "size_type": "shoes"
+        },
+        {
+          "name": "کیف و کوله (Bags)",
+          "category_code": "94",
+          "size_type": "one_size"
+        },
+        {
+          "name": "کمربند و اکسسوری",
           "category_code": "95",
-          "style_mapping": {
-            "0": "کیف دوشی / دستی",
-            "1": "کوله پشتی",
-            "2": "کیف پول / مدارک",
-            "3": "کمربند",
-            "4": "کلاه / شال گردن",
-            "5": "جوراب",
-            "6": "لباس زیر",
-            "7": "کاور لباس",
-            "8": "سایر اکسسوری"
-          },
           "size_type": "one_size"
         }
       ]
@@ -423,36 +430,36 @@
   "examples": [
     {
       "sku": "M100A0L",
-      "description": "Men's T-shirt, Brand 0, Crew Neck, Black, Large",
+      "description": "Men's Crew Neck T-shirt (Cat 10), Brand 0, Variant A, Black, Large",
       "breakdown": {
         "gender": "M (Men)",
-        "category": "10 (T-shirt/Polos)",
+        "category": "10 (Crew Neck T-shirt)",
         "brand": "0 (Default Brand)",
-        "style": "A (Crew Neck)",
+        "style": "A (free product variant)",
         "color": "0 (Black)",
         "size": "L (Large)"
       }
     },
     {
-      "sku": "F200B1D",
-      "description": "Women's Jeans, Brand B, Slim Fit, Navy, Size 32",
+      "sku": "M410B1D",
+      "description": "Men's Regular Fit Jeans (Cat 41), Brand 0, Variant B, Navy, Size 32",
       "breakdown": {
-        "gender": "F (Women)",
-        "category": "20 (Jeans)",
-        "brand": "B (Brand B)",
-        "style": "1 (Slim Fit)",
-        "color": "2 (Navy)",
+        "gender": "M (Men)",
+        "category": "41 (Regular Fit Jeans)",
+        "brand": "0 (Default Brand)",
+        "style": "B (free product variant)",
+        "color": "1 (Navy)",
         "size": "D (32)"
       }
     },
     {
       "sku": "B903C4E",
-      "description": "Unisex Sneakers, Brand 3, Casual, Blue, Size 40",
+      "description": "Unisex Sneakers (Cat 90), Brand 3, Variant C, Blue, Size 40",
       "breakdown": {
         "gender": "B (Unisex)",
-        "category": "90 (Shoes)",
+        "category": "90 (Sneakers)",
         "brand": "3 (Brand 3)",
-        "style": "C (Sneakers)",
+        "style": "C (free product variant)",
         "color": "4 (Blue)",
         "size": "E (40)"
       }
