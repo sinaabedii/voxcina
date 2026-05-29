@@ -74,7 +74,8 @@ async function safeFetch<T>(endpoint: string): Promise<T[]> {
       return [];
     }
     
-    const data = await response.json() as T[] | ApiResponse<T>;
+    const data = await response.json() as T[] | ApiResponse<T> | null;
+    if (!data) return [];
     return Array.isArray(data) ? data : (data.data || []);
   } catch (error) {
     // During Docker build, backend may not be available

@@ -9,6 +9,16 @@ export const size = {
 };
 export const contentType = 'image/png';
 
+async function loadFont(url: string): Promise<ArrayBuffer | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    return response.arrayBuffer();
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Default Open Graph Image for Voxcina
  * 
@@ -18,6 +28,15 @@ export const contentType = 'image/png';
  * SEO: OG images improve social sharing appearance
  */
 export default async function Image() {
+  const [fontRegular, fontBold] = await Promise.all([
+    loadFont('http://localhost:3000/fonts/iransansx-regular.woff'),
+    loadFont('http://localhost:3000/fonts/iransansx-bold.woff'),
+  ]);
+
+  const fonts = [];
+  if (fontRegular) fonts.push({ name: 'IranSansX', data: fontRegular, weight: 400 as const, style: 'normal' as const });
+  if (fontBold) fonts.push({ name: 'IranSansX', data: fontBold, weight: 700 as const, style: 'normal' as const });
+
   return new ImageResponse(
     (
       <div
@@ -29,7 +48,7 @@ export default async function Image() {
           alignItems: 'center',
           justifyContent: 'center',
           background: 'linear-gradient(135deg, #1A3C69 0%, #2D5A9E 50%, #1A3C69 100%)',
-          fontFamily: 'system-ui, sans-serif',
+          fontFamily: fonts.length ? 'IranSansX' : 'system-ui, sans-serif',
         }}
       >
         {/* Background Pattern */}
@@ -149,6 +168,7 @@ export default async function Image() {
     ),
     {
       ...size,
+      fonts: fonts.length > 0 ? fonts : undefined,
     }
   );
 }

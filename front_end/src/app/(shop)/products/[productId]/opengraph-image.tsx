@@ -15,6 +15,16 @@ interface Props {
   params: { productId: string };
 }
 
+async function loadFont(url: string): Promise<ArrayBuffer | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    return response.arrayBuffer();
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Product-specific Open Graph Image
  * 
@@ -25,6 +35,15 @@ interface Props {
  */
 export default async function Image({ params }: Props) {
   const { productId } = params;
+
+  const [fontRegular, fontBold] = await Promise.all([
+    loadFont('http://localhost:3000/fonts/iransansx-regular.woff'),
+    loadFont('http://localhost:3000/fonts/iransansx-bold.woff'),
+  ]);
+
+  const fonts = [];
+  if (fontRegular) fonts.push({ name: 'IranSansX', data: fontRegular, weight: 400 as const, style: 'normal' as const });
+  if (fontBold) fonts.push({ name: 'IranSansX', data: fontBold, weight: 700 as const, style: 'normal' as const });
 
   // Fetch product data
   const product = await serverFetch<Product>(`/api/products/${productId}`, {
@@ -62,7 +81,7 @@ export default async function Image({ params }: Props) {
           width: '100%',
           display: 'flex',
           background: 'linear-gradient(135deg, #FFFFFF 0%, #F5F0E6 100%)',
-          fontFamily: 'system-ui, sans-serif',
+          fontFamily: fonts.length ? 'IranSansX' : 'system-ui, sans-serif',
         }}
       >
         {/* Left Side - Product Image */}
@@ -231,6 +250,7 @@ export default async function Image({ params }: Props) {
     ),
     {
       ...size,
+      fonts: fonts.length > 0 ? fonts : undefined,
     }
   );
 }

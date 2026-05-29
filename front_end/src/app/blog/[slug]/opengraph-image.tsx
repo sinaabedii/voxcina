@@ -15,6 +15,16 @@ interface Props {
   params: { slug: string };
 }
 
+async function loadFont(url: string): Promise<ArrayBuffer | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    return response.arrayBuffer();
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Blog Post Open Graph Image
  * 
@@ -25,6 +35,15 @@ interface Props {
  */
 export default async function Image({ params }: Props) {
   const { slug } = params;
+
+  const [fontRegular, fontBold] = await Promise.all([
+    loadFont('http://localhost:3000/fonts/iransansx-regular.woff'),
+    loadFont('http://localhost:3000/fonts/iransansx-bold.woff'),
+  ]);
+
+  const fonts = [];
+  if (fontRegular) fonts.push({ name: 'IranSansX', data: fontRegular, weight: 400 as const, style: 'normal' as const });
+  if (fontBold) fonts.push({ name: 'IranSansX', data: fontBold, weight: 700 as const, style: 'normal' as const });
 
   // Fetch blog post data
   const post = await serverFetch<BlogPost>(`/api/blog-posts/${slug}`, {
@@ -61,7 +80,7 @@ export default async function Image({ params }: Props) {
           width: '100%',
           display: 'flex',
           position: 'relative',
-          fontFamily: 'system-ui, sans-serif',
+          fontFamily: fonts.length ? 'IranSansX' : 'system-ui, sans-serif',
         }}
       >
         {/* Background Image with Overlay */}
@@ -267,6 +286,7 @@ export default async function Image({ params }: Props) {
     ),
     {
       ...size,
+      fonts: fonts.length > 0 ? fonts : undefined,
     }
   );
 }
