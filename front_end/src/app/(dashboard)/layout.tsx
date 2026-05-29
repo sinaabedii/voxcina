@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useAuthStore } from "@/store/auth-store";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import { localStorageManager } from "@/lib/local-storage-manager";
-import { APP_NAME } from "@/lib/constants";
 import Sidebar from "@/components/layout/Sidebar";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -106,12 +106,14 @@ export default function DashboardLayout({
             </button>
 
             <Link href="/" className="flex items-center">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-r from-voxcina-blue to-voxcina-darkBlue flex items-center justify-center text-white font-bold text-sm ml-2 shadow-sm">
-                {APP_NAME.charAt(0)}
-              </div>
-              <span className="text-lg font-bold text-voxcina-blue dark:text-voxcina-cream hidden sm:inline-block">
-                {APP_NAME}
-              </span>
+              <Image
+                src="/images/Logo/WXTransparent-org.png"
+                alt="Voxcina"
+                width={120}
+                height={40}
+                className="h-8 w-auto"
+                priority
+              />
             </Link>
           </div>
 
@@ -250,9 +252,13 @@ export default function DashboardLayout({
                 transition={{ type: "spring" as const, damping: 25, stiffness: 300 }}
               >
                 <div className="p-4 border-b border-voxcina-cream/30 dark:border-voxcina-blue/30 flex items-center justify-between">
-                  <h2 className="font-bold text-lg text-voxcina-blue dark:text-voxcina-cream">
-                    {APP_NAME}
-                  </h2>
+                  <Image
+                    src="/images/Logo/WXTransparent-org.png"
+                    alt="Voxcina"
+                    width={100}
+                    height={32}
+                    className="h-6 w-auto"
+                  />
                   <motion.button
                     className="p-2 text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream rounded-full hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
                     onClick={() => setIsMobileSidebarOpen(false)}
