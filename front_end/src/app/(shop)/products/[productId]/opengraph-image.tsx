@@ -238,7 +238,7 @@ export default async function Image({ params }: Props) {
                   fontSize: '18px',
                 }}
               >
-                <span>✓</span>
+                <span>-</span>
                 <span>{feature}</span>
               </div>
             ))}

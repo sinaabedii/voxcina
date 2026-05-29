@@ -143,7 +143,7 @@ export default async function Image() {
                   fontSize: '20px',
                 }}
               >
-                <span>✓</span>
+                <span>-</span>
                 <span>{feature}</span>
               </div>
             ))}
