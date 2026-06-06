@@ -149,7 +149,15 @@ export default function AdminDiscountsPage() {
       });
       if (response.ok) {
         const data = await response.json();
-        setTargetingStats(data);
+        setTargetingStats({
+          totalUsers: data.total_users ?? data.totalUsers ?? 0,
+          mobileAppUsers: data.mobile_app_users ?? data.mobileAppUsers ?? 0,
+          nonMobileAppUsers: data.non_mobile_app_users ?? data.nonMobileAppUsers ?? 0,
+          usersWithOrders: data.users_with_orders ?? data.usersWithOrders ?? 0,
+          firstTimeBuyers: data.first_time_buyers ?? data.firstTimeBuyers ?? 0,
+          inactiveUsers: data.inactive_users ?? data.inactiveUsers ?? 0,
+          newUsers: data.new_users ?? data.newUsers ?? 0,
+        });
       }
     } catch (error) {
       console.error("Error fetching targeting stats:", error);
@@ -162,30 +170,33 @@ export default function AdminDiscountsPage() {
   const fetchFilteredUserCount = useCallback(async (criteria: TargetingCriteria) => {
     try {
       const token = adminToken || localStorageManager.getAccessToken();
-      const params = new URLSearchParams();
+      const body: Record<string, any> = {};
       if (criteria.hasMobileApp !== undefined) {
-        params.append("has_mobile_app", String(criteria.hasMobileApp));
+        body.has_mobile_app = criteria.hasMobileApp;
       }
       if (criteria.minOrders !== undefined) {
-        params.append("min_orders", String(criteria.minOrders));
+        body.min_orders = criteria.minOrders;
       }
       if (criteria.maxOrders !== undefined) {
-        params.append("max_orders", String(criteria.maxOrders));
+        body.max_orders = criteria.maxOrders;
       }
       if (criteria.inactiveDays !== undefined) {
-        params.append("inactive_days", String(criteria.inactiveDays));
+        body.inactive_days = criteria.inactiveDays;
       }
       if (criteria.registeredAfter) {
-        params.append("registered_after", criteria.registeredAfter);
+        body.registered_after = criteria.registeredAfter;
       }
       if (criteria.registeredBefore) {
-        params.append("registered_before", criteria.registeredBefore);
+        body.registered_before = criteria.registeredBefore;
       }
 
-      const response = await fetch(`/api/admin/users/filter/count?${params.toString()}`, {
+      const response = await fetch(`/api/admin/users/filter/count`, {
+        method: "POST",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify(body),
       });
       if (response.ok) {
         const data = await response.json();
@@ -825,7 +836,7 @@ export default function AdminDiscountsPage() {
                   نوع تخفیف
                 </label>
                 <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer p-3 rounded-xl border transition-all ${newDiscount.isPublic ? 'border-voxcina-blue bg-voxcina-blue/5 dark:border-voxcina-cream dark:bg-voxcina-cream/5' : 'border-voxcina-cream/50 dark:border-voxcina-blue/30'}">
+                  <label className={`flex items-center gap-2 cursor-pointer p-3 rounded-xl border transition-all ${newDiscount.isPublic ? 'border-voxcina-blue bg-voxcina-blue/5 dark:border-voxcina-cream dark:bg-voxcina-cream/5' : 'border-voxcina-cream/50 dark:border-voxcina-blue/30'}`}>
                     <input
                       type="radio"
                       name="promotionType"
@@ -839,7 +850,7 @@ export default function AdminDiscountsPage() {
                       <div className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">همه کاربران</div>
                     </div>
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer p-3 rounded-xl border transition-all ${!newDiscount.isPublic ? 'border-voxcina-blue bg-voxcina-blue/5 dark:border-voxcina-cream dark:bg-voxcina-cream/5' : 'border-voxcina-cream/50 dark:border-voxcina-blue/30'}">
+                  <label className={`flex items-center gap-2 cursor-pointer p-3 rounded-xl border transition-all ${!newDiscount.isPublic ? 'border-voxcina-blue bg-voxcina-blue/5 dark:border-voxcina-cream dark:bg-voxcina-cream/5' : 'border-voxcina-cream/50 dark:border-voxcina-blue/30'}`}>
                     <input
                       type="radio"
                       name="promotionType"
