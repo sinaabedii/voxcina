@@ -9,6 +9,7 @@ export interface SizeVariant {
 export interface ColorVariant {
   color: string;         // Hex code or color name (e.g., "#FF5733", "Red")
   colorName: string;     // Display name in Persian/English (e.g., "قرمز", "Red")
+  swatchImage?: string;  // Pattern/fabric swatch image for color selector
   images: string[];      // Multiple product images for this color (different angles)
   tryOnImage?: string;   // Virtual try-on image for this color
   sizes: SizeVariant[];  // Available sizes for this color with inventory

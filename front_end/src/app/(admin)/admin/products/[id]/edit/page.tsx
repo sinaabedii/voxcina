@@ -10,6 +10,7 @@ import Link from "next/link";
 import Button from "@/components/ui/Button";
 import toast from "react-hot-toast";
 import ImageUploader, { ImageItem, getNewImageFiles, getExistingImagePaths, getImageOrderInfo, createImageItemFromUrl } from "@/components/admin/ImageUploader";
+import PatternPicker from "@/components/ui/PatternPicker";
 
 export default function EditProductPage() {
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function EditProductPage() {
   const [colorVariants, setColorVariants] = useState<ColorVariant[]>([]);
   const [colorImageItems, setColorImageItems] = useState<{ [key: number]: ImageItem[] }>({});
   const [colorTryOnFiles, setColorTryOnFiles] = useState<{ [key: number]: File }>({});
+  const [colorSwatchBlobs, setColorSwatchBlobs] = useState<{ [key: number]: Blob }>({});
   const [attributes, setAttributes] = useState<ProductAttribute[]>([]);
   const [isFlashSale, setIsFlashSale] = useState(false);
   const [isActive, setIsActive] = useState(true);
@@ -404,6 +406,12 @@ export default function EditProductPage() {
       if (colorTryOnFile) {
         formData.append(`colorTryOn_${idx}`, colorTryOnFile);
       }
+
+      // Add color-specific swatch image
+      const swatchBlob = colorSwatchBlobs[idx];
+      if (swatchBlob) {
+        formData.append(`colorSwatch_${idx}`, swatchBlob, `swatch_${idx}.webp`);
+      }
     });
     const result = await updateProduct(productId, formData, adminToken);
     setSubmitting(false);
@@ -548,34 +556,30 @@ export default function EditProductPage() {
                 </Button>
               </div>
 
-              {/* Color Info */}
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm mb-1">کد رنگ (Hex)</label>
-                  <div className="flex gap-2 items-center">
-                    <input
-                      type="color"
-                      className="w-10 h-10 rounded cursor-pointer border"
-                      value={colorVariant.color || "#000000"}
-                      onChange={e => handleColorVariantChange(colorIdx, "color", e.target.value)}
-                    />
-                    <input
-                      className="input flex-1"
-                      placeholder="#FF5733"
-                      value={colorVariant.color}
-                      onChange={e => handleColorVariantChange(colorIdx, "color", e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm mb-1">نام رنگ (فارسی)</label>
-                  <input
-                    className="input"
-                    placeholder="مثال: قرمز"
-                    value={colorVariant.colorName}
-                    onChange={e => handleColorVariantChange(colorIdx, "colorName", e.target.value)}
-                  />
-                </div>
+              {/* Color Info - Pattern Picker */}
+              <div className="mb-4 bg-white rounded-lg p-4">
+                <PatternPicker
+                  color={colorVariant.color}
+                  colorName={colorVariant.colorName}
+                  swatchImage={colorVariant.swatchImage}
+                  existingImages={(colorImageItems[colorIdx] || []).map(item => item.url)}
+                  onColorChange={(color) => handleColorVariantChange(colorIdx, "color", color)}
+                  onColorNameChange={(name) => handleColorVariantChange(colorIdx, "colorName", name)}
+                  onSwatchChange={(swatch, blob) => {
+                    const updated = [...colorVariants];
+                    updated[colorIdx].swatchImage = swatch;
+                    setColorVariants(updated);
+                    if (blob) {
+                      setColorSwatchBlobs(prev => ({ ...prev, [colorIdx]: blob }));
+                    } else {
+                      setColorSwatchBlobs(prev => {
+                        const newBlobs = { ...prev };
+                        delete newBlobs[colorIdx];
+                        return newBlobs;
+                      });
+                    }
+                  }}
+                />
               </div>
 
               {/* Color Images */}

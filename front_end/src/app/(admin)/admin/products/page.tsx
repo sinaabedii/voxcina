@@ -539,10 +539,14 @@ export default function AdminProductsPage() {
                                 {product.colorVariants.slice(0, 5).map((cv: ColorVariant, idx: number) => (
                                   <div
                                     key={idx}
-                                    className="w-4 h-4 rounded-full border border-gray-300 dark:border-gray-600"
-                                    style={{ backgroundColor: cv.color || '#ccc' }}
+                                    className="w-4 h-4 rounded-full border border-gray-300 dark:border-gray-600 overflow-hidden"
+                                    style={!cv.swatchImage ? { backgroundColor: cv.color || '#ccc' } : undefined}
                                     title={cv.colorName || cv.color}
-                                  />
+                                  >
+                                    {cv.swatchImage && (
+                                      <img src={cv.swatchImage} alt={cv.colorName} className="w-full h-full object-cover" />
+                                    )}
+                                  </div>
                                 ))}
                                 {product.colorVariants.length > 5 && (
                                   <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">+{product.colorVariants.length - 5}</span>

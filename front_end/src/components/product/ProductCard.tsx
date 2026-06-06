@@ -32,7 +32,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   // Extract data from the color variant list item
   const { productId, colorVariant, name, price, originalPrice, brand, inStock } = item;
-  const { color, colorName, images, sizes } = colorVariant;
+  const { color, colorName, swatchImage, images, sizes } = colorVariant;
 
   // Display the first image from this color's images
   const displayImage = images && images.length > 0 ? images[0] : null;
@@ -140,10 +140,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
           {/* Color indicator badge */}
           <div className="absolute bottom-3 right-3 flex gap-1">
             <div
-              className="w-7 h-7 rounded-full border-2 border-white shadow-md"
-              style={{ backgroundColor: color }}
+              className="w-7 h-7 rounded-full border-2 border-white shadow-md overflow-hidden"
+              style={!swatchImage ? { backgroundColor: color } : undefined}
               title={colorName}
-            />
+            >
+              {swatchImage && (
+                <img src={swatchImage} alt={colorName} className="w-full h-full object-cover" />
+              )}
+            </div>
           </div>
 
           {/* Favorite button - on LEFT side */}

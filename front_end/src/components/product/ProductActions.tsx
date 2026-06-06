@@ -153,7 +153,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     : [];
 
   const availableColors = product?.colorVariants
-    ? product.colorVariants.map((cv) => ({ color: cv.color, colorName: cv.colorName }))
+    ? product.colorVariants.map((cv) => ({ color: cv.color, colorName: cv.colorName, swatchImage: cv.swatchImage }))
     : [];
 
   // Get available sizes based on selected color
@@ -169,7 +169,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     if (!product || !size) return availableColors;
     return product.colorVariants
       .filter(cv => cv.sizes.some(s => s.size === size && s.quantity > 0))
-      .map(cv => ({ color: cv.color, colorName: cv.colorName }));
+      .map(cv => ({ color: cv.color, colorName: cv.colorName, swatchImage: cv.swatchImage }));
   };
 
   // Check if a specific variant is in stock

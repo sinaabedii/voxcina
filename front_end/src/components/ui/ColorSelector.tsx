@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 interface ColorOption {
   color: string;
   colorName: string;
+  swatchImage?: string;
   isAvailable?: boolean;
 }
 
@@ -77,7 +78,7 @@ const ColorSelector: React.FC<ColorSelectorProps> = ({
               type="button"
               className={cn(
                 classes.outer,
-                "rounded-full flex items-center justify-center transition-all relative",
+                "rounded-full flex items-center justify-center transition-all relative overflow-hidden",
                 isSelected
                   ? "ring-2 ring-primary ring-offset-2"
                   : isAvailable
@@ -90,18 +91,30 @@ const ColorSelector: React.FC<ColorSelectorProps> = ({
               whileTap={isAvailable ? { scale: 0.9 } : {}}
               disabled={!isAvailable}
             >
-              <span
-                className={cn(classes.inner, "rounded-full block")}
-                style={{ backgroundColor: colorObj.color }}
-              />
+              {colorObj.swatchImage ? (
+                <img
+                  src={colorObj.swatchImage}
+                  alt={colorObj.colorName}
+                  className={cn(classes.inner, "rounded-full block object-cover")}
+                />
+              ) : (
+                <span
+                  className={cn(classes.inner, "rounded-full block")}
+                  style={{ backgroundColor: colorObj.color }}
+                />
+              )}
               {isSelected && (
                 <CheckCircle
                   className={cn(classes.icon, "absolute drop-shadow-md")}
                   style={{
-                    color: isLightColor(colorObj.color) ? '#000' : '#fff',
-                    filter: isLightColor(colorObj.color)
-                      ? 'drop-shadow(0 0 2px rgba(255,255,255,0.8))'
-                      : 'drop-shadow(0 0 2px rgba(0,0,0,0.8))'
+                    color: colorObj.swatchImage
+                      ? '#fff'
+                      : isLightColor(colorObj.color) ? '#000' : '#fff',
+                    filter: colorObj.swatchImage
+                      ? 'drop-shadow(0 0 2px rgba(0,0,0,0.8))'
+                      : isLightColor(colorObj.color)
+                        ? 'drop-shadow(0 0 2px rgba(255,255,255,0.8))'
+                        : 'drop-shadow(0 0 2px rgba(0,0,0,0.8))'
                   }}
                 />
               )}

@@ -15,11 +15,12 @@ type SizeVariant struct {
 
 // ColorVariant represents a color option with its images and available sizes
 type ColorVariant struct {
-	Color      string        `bson:"color" json:"color"`                                 // Hex code or color name (e.g., "#FF5733", "Red")
-	ColorName  string        `bson:"color_name" json:"colorName"`                        // Display name in Persian/English (e.g., "قرمز", "Red")
-	Images     []string      `bson:"images" json:"images"`                               // Multiple product images for this color (different angles)
-	TryOnImage string        `bson:"try_on_image,omitempty" json:"tryOnImage,omitempty"` // Virtual try-on / AR image for this color
-	Sizes      []SizeVariant `bson:"sizes" json:"sizes"`                                 // Available sizes for this color with inventory
+	Color       string        `bson:"color" json:"color"`                                    // Hex code or color name (e.g., "#FF5733", "Red")
+	ColorName   string        `bson:"color_name" json:"colorName"`                           // Display name in Persian/English (e.g., "قرمز", "Red")
+	SwatchImage string        `bson:"swatch_image,omitempty" json:"swatchImage,omitempty"`   // Pattern/fabric swatch image for color selector
+	Images      []string      `bson:"images" json:"images"`                                  // Multiple product images for this color (different angles)
+	TryOnImage  string        `bson:"try_on_image,omitempty" json:"tryOnImage,omitempty"`    // Virtual try-on / AR image for this color
+	Sizes       []SizeVariant `bson:"sizes" json:"sizes"`                                    // Available sizes for this color with inventory
 }
 
 // ProductAttribute represents product-wide metadata (non-variant)

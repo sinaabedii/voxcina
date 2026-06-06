@@ -196,6 +196,75 @@ func processVariantTryOnImage(
 	return webPath, nil
 }
 
+func processVariantSwatchImage(
+	handler *multipart.FileHeader,
+	productID primitive.ObjectID,
+	variantIndex int,
+	uploadedFilePaths *[]string,
+) (string, error) {
+	file, err := handler.Open()
+	if err != nil {
+		return "", fmt.Errorf(
+			"error opening variant swatch image file %s: %v",
+			handler.Filename,
+			err,
+		)
+	}
+	defer file.Close()
+
+	uploadDir := filepath.Join(
+		BaseUploadDir,
+		"products",
+		"variants",
+		productID.Hex(),
+		fmt.Sprintf("variant_%d", variantIndex),
+		"swatch",
+	)
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		return "", fmt.Errorf(
+			"error creating variant swatch upload directory %s: %v",
+			uploadDir,
+			err,
+		)
+	}
+
+	ext := filepath.Ext(handler.Filename)
+	filename := fmt.Sprintf(
+		"%s-%d-swatch-%d%s",
+		productID.Hex(),
+		variantIndex,
+		time.Now().UnixNano(),
+		ext,
+	)
+	filePath := filepath.Join(uploadDir, filename)
+
+	dst, err := os.Create(filePath)
+	if err != nil {
+		return "", fmt.Errorf(
+			"error creating variant swatch image file %s: %v",
+			filePath,
+			err,
+		)
+	}
+
+	bytesCopied, err := io.Copy(dst, file)
+	dst.Close()
+	if err != nil {
+		_ = os.Remove(filePath)
+		return "", fmt.Errorf(
+			"error saving variant swatch image file %s: %v",
+			filePath,
+			err,
+		)
+	}
+
+	webPath := "/" + filePath
+	*uploadedFilePaths = append(*uploadedFilePaths, filePath)
+
+	fmt.Printf("Uploaded variant swatch image: %s (%d bytes)\n", webPath, bytesCopied)
+	return webPath, nil
+}
+
 // AddProduct handles POST /api/admin/products
 func AddProduct(w http.ResponseWriter, r *http.Request) {
 	// Debug logging
@@ -590,6 +659,23 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			colorVariant.TryOnImage = tryOnPath
+		}
+
+		// Process color variant swatch image (e.g., colorSwatch_0, colorSwatch_1, etc.)
+		colorSwatchKey := fmt.Sprintf("colorSwatch_%d", i)
+		if files, exists := r.MultipartForm.File[colorSwatchKey]; exists &&
+			len(files) > 0 {
+			swatchPath, err := processVariantSwatchImage(
+				files[0],
+				productID,
+				i,
+				&uploadedFilePaths,
+			)
+			if err != nil {
+				utils.ErrorResponse(w, http.StatusBadRequest, err.Error())
+				return
+			}
+			colorVariant.SwatchImage = swatchPath
 		}
 	}
 
@@ -1646,6 +1732,25 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 						// Keep existing try-on image
 						colorVariants[idx].TryOnImage = existingProduct.ColorVariants[idx].TryOnImage
 					}
+
+					// Handle swatch image
+					swatchFiles := r.MultipartForm.File[fmt.Sprintf("colorSwatch_%d", idx)]
+					if len(swatchFiles) > 0 {
+						swatchPath, err := processVariantSwatchImage(
+							swatchFiles[0],
+							productID,
+							idx,
+							&newlyUploadedPaths,
+						)
+						if err != nil {
+							utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())
+							return
+						}
+						colorVariants[idx].SwatchImage = swatchPath
+					} else if idx < len(existingProduct.ColorVariants) {
+						// Keep existing swatch image
+						colorVariants[idx].SwatchImage = existingProduct.ColorVariants[idx].SwatchImage
+					}
 				}
 				
 				update["color_variants"] = colorVariants
@@ -1832,6 +1937,13 @@ func DeleteProduct(w http.ResponseWriter, r *http.Request) {
 			serverTryOnPath := "." + colorVariant.TryOnImage
 			if err := os.Remove(serverTryOnPath); err != nil {
 				fmt.Printf("WARN: Failed to delete try-on image %s: %v\n", serverTryOnPath, err)
+			}
+		}
+		// Delete swatch image for this color variant
+		if colorVariant.SwatchImage != "" {
+			serverSwatchPath := "." + colorVariant.SwatchImage
+			if err := os.Remove(serverSwatchPath); err != nil {
+				fmt.Printf("WARN: Failed to delete swatch image %s: %v\n", serverSwatchPath, err)
 			}
 		}
 	}

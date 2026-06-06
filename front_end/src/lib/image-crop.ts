@@ -1,0 +1,57 @@
+export interface CropArea {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export async function getCroppedImg(
+  imageSrc: string,
+  crop: CropArea,
+  outputSize: number = 160,
+  quality: number = 0.85
+): Promise<Blob> {
+  const image = new Image();
+  image.crossOrigin = "anonymous";
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = reject;
+    image.src = imageSrc;
+  });
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d")!;
+
+  canvas.width = outputSize;
+  canvas.height = outputSize;
+
+  const scaleX = image.naturalWidth / 100;
+  const scaleY = image.naturalHeight / 100;
+
+  ctx.drawImage(
+    image,
+    crop.x * scaleX,
+    crop.y * scaleY,
+    crop.width * scaleX,
+    crop.height * scaleY,
+    0,
+    0,
+    outputSize,
+    outputSize
+  );
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("Canvas toBlob failed"));
+      },
+      "image/webp",
+      quality
+    );
+  });
+}
+
+export function createImageObjectUrl(blob: Blob): string {
+  return URL.createObjectURL(blob);
+}
