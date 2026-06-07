@@ -69,10 +69,11 @@ services:
     build:
       context: ./front_end
       dockerfile: Dockerfile
-      network: host
       args:
-        - HTTP_PROXY=http://127.0.0.1:10809
-        - HTTPS_PROXY=http://127.0.0.1:10809
+        - HTTP_PROXY=http://host.docker.internal:10809
+        - HTTPS_PROXY=http://host.docker.internal:10809
+      extra_hosts:
+        - "host.docker.internal:host-gateway"
     restart: unless-stopped
     ports:
       - "3000:3000"
