@@ -42,6 +42,7 @@ export default function EditProductPage() {
   const [gender, setGender] = useState("مردانه");
   const [collection, setCollection] = useState("");
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [selectedAiModel, setSelectedAiModel] = useState("qwen3.5:9b");
   const [aiMetadata, setAiMetadata] = useState({
     namePersian: "",
     descriptionPersian: "",
@@ -270,8 +271,8 @@ export default function EditProductPage() {
           brand: brandName,
           price,
           gender,
-          images: [] as string[],
-          model: "",
+          images: mainImageItems.map(img => img.url),
+          model: selectedAiModel,
         }),
       });
 
@@ -689,15 +690,31 @@ export default function EditProductPage() {
         <div className="space-y-3 border-t pt-4">
           <div className="flex items-center justify-between gap-4">
             <h2 className="font-semibold">فیلدهای هوش مصنوعی برای جستجوی بهتر</h2>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={!canGenerateAiMetadata || aiGenerating || submitting || isLoading}
-              onClick={handleGenerateAiMetadata}
-            >
-              {aiGenerating ? "در حال تولید..." : "تکمیل خودکار با AI"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <select
+                className="input text-sm w-auto"
+                value={selectedAiModel}
+                onChange={e => setSelectedAiModel(e.target.value)}
+                disabled={aiGenerating || submitting || isLoading}
+              >
+                <option value="qwen/qwen3.7-plus">Qwen 3.7 Plus (OpenRouter)</option>
+                <option value="minimax/minimax-m3">MiniMax M3 (OpenRouter)</option>
+                <option value="stepfun/step-3.7-flash">Step 3.7 Flash (OpenRouter)</option>
+                <option value="google/gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (OpenRouter)</option>
+                <option value="qwen3.5:9b">Qwen 3.5 9B (Local, Fast)</option>
+                <option value="gemma4:31b">Gemma 4 31B (Local, Strong)</option>
+                <option value="qwen3.6.1-27b-4b">Qwen 3.6 27B MoE (Local)</option>
+              </select>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!canGenerateAiMetadata || aiGenerating || submitting || isLoading}
+                onClick={handleGenerateAiMetadata}
+              >
+                {aiGenerating ? "در حال تولید..." : "تکمیل خودکار با AI"}
+              </Button>
+            </div>
           </div>
           <p className="text-xs text-gray-500">
             پس از پر کردن نام، توضیحات، قیمت، دسته‌بندی و برند، می‌توانید با دکمه بالا فیلدهای کمکی برای چت‌بات و جستجوی هوشمند را به صورت خودکار تولید کنید و در صورت نیاز ویرایش نمایید.

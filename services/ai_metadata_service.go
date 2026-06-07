@@ -20,6 +20,7 @@ import (
 // AIMetadataService handles AI-powered product metadata generation
 type AIMetadataService struct {
 	openRouterAPIKey string
+	ollamaEndpoint   string
 	database         *mongo.Database
 	httpClient       *http.Client
 	promptConfig     *AIPromptConfig
@@ -67,8 +68,9 @@ type ProductMetadataResponse struct {
 // NewAIMetadataService creates a new AI metadata service
 func NewAIMetadataService(db *mongo.Database) (*AIMetadataService, error) {
 	apiKey := os.Getenv("OPENROUTER_API_KEY")
-	if apiKey == "" {
-		return nil, fmt.Errorf("OPENROUTER_API_KEY not set in environment")
+	ollamaEndpoint := os.Getenv("OLLAMA_ENDPOINT")
+	if ollamaEndpoint == "" {
+		ollamaEndpoint = "http://194.60.230.210:8181" // Default local Ollama
 	}
 
 	// Load prompt configuration
@@ -79,9 +81,10 @@ func NewAIMetadataService(db *mongo.Database) (*AIMetadataService, error) {
 
 	return &AIMetadataService{
 		openRouterAPIKey: apiKey,
+		ollamaEndpoint:   ollamaEndpoint,
 		database:         db,
 		httpClient: &http.Client{
-			Timeout: 60 * time.Second,
+			Timeout: 120 * time.Second, // Longer timeout for local models
 		},
 		promptConfig: promptConfig,
 	}, nil
@@ -116,7 +119,7 @@ func (s *AIMetadataService) GenerateMetadata(ctx context.Context, req ProductMet
 	// Build user prompt with vocabulary options
 	userPrompt := s.buildUserPrompt(req, vocabularies)
 
-	// Prepare messages for OpenRouter
+	// Prepare messages
 	messages := []OpenRouterMessage{
 		{
 			Role:    "system",
@@ -136,20 +139,29 @@ func (s *AIMetadataService) GenerateMetadata(ctx context.Context, req ProductMet
 
 	// Set default model if not specified
 	if req.Model == "" {
-		req.Model = "anthropic/claude-3.5-sonnet"
+		req.Model = "qwen/qwen3.7-plus"
 	}
 
-	// Call OpenRouter API
-	openRouterReq := OpenRouterRequest{
-		Model:       req.Model,
-		Messages:    messages,
-		MaxTokens:   2000,
-		Temperature: 0.3, // Lower temperature for more consistent output
-	}
+	// Route to appropriate provider based on model
+	var response string
+	if s.isLocalModel(req.Model) {
+		response, err = s.callOllama(req, messages)
+		if err != nil {
+			return nil, fmt.Errorf("Ollama API error: %v", err)
+		}
+	} else {
+		// Call OpenRouter API
+		openRouterReq := OpenRouterRequest{
+			Model:       req.Model,
+			Messages:    messages,
+			MaxTokens:   2000,
+			Temperature: 0.3,
+		}
 
-	response, err := s.callOpenRouter(openRouterReq)
-	if err != nil {
-		return nil, fmt.Errorf("OpenRouter API error: %v", err)
+		response, err = s.callOpenRouter(openRouterReq)
+		if err != nil {
+			return nil, fmt.Errorf("OpenRouter API error: %v", err)
+		}
 	}
 
 	// Parse AI response
@@ -164,6 +176,22 @@ func (s *AIMetadataService) GenerateMetadata(ctx context.Context, req ProductMet
 	}
 
 	return metadata, nil
+}
+
+// isLocalModel checks if the model should use local Ollama
+func (s *AIMetadataService) isLocalModel(model string) bool {
+	localModels := []string{
+		"qwen3.5:9b",
+		"gemma4:31b",
+		"qwen3.6.1-27b-4b",
+		"qwen3.6:27b-q4_K_M",
+	}
+	for _, m := range localModels {
+		if strings.Contains(model, m) {
+			return true
+		}
+	}
+	return false
 }
 
 // getVocabularies retrieves vocabulary options from database
@@ -294,6 +322,109 @@ func (s *AIMetadataService) callOpenRouter(req OpenRouterRequest) (string, error
 	return openRouterResp.Choices[0].Message.Content, nil
 }
 
+// OllamaRequest represents the request structure for Ollama API
+type OllamaRequest struct {
+	Model  string        `json:"model"`
+	Messages []OllamaMessage `json:"messages"`
+	Stream bool          `json:"stream"`
+	Options map[string]interface{} `json:"options,omitempty"`
+}
+
+// OllamaMessage represents a message in Ollama chat
+type OllamaMessage struct {
+	Role    string      `json:"role"`
+	Content string      `json:"content"`
+	Images  []string    `json:"images,omitempty"` // Base64 encoded images
+}
+
+// OllamaResponse represents the response from Ollama API
+type OllamaResponse struct {
+	Message OllamaMessage `json:"message"`
+	Done    bool          `json:"done"`
+	Error   string        `json:"error,omitempty"`
+}
+
+// callOllama makes the API call to local Ollama
+func (s *AIMetadataService) callOllama(req ProductMetadataRequest, messages []OpenRouterMessage) (string, error) {
+	// Convert OpenRouter messages to Ollama format
+	ollamaMessages := make([]OllamaMessage, 0, len(messages))
+	for _, msg := range messages {
+		// Handle content which could be string or array (for vision)
+		content := ""
+		var images []string
+		
+		switch c := msg.Content.(type) {
+		case string:
+			content = c
+		case []interface{}:
+			for _, item := range c {
+				if m, ok := item.(map[string]interface{}); ok {
+					if m["type"] == "text" {
+						content = m["text"].(string)
+					} else if m["type"] == "image_url" {
+						if urlMap, ok := m["image_url"].(map[string]interface{}); ok {
+							if url, ok := urlMap["url"].(string); ok {
+								images = append(images, url)
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		ollamaMessages = append(ollamaMessages, OllamaMessage{
+			Role:    msg.Role,
+			Content: content,
+			Images:  images,
+		})
+	}
+
+	ollamaReq := OllamaRequest{
+		Model:    req.Model,
+		Messages: ollamaMessages,
+		Stream:   false,
+		Options: map[string]interface{}{
+			"temperature": 0.3,
+			"num_predict": 2000,
+		},
+	}
+
+	jsonData, err := json.Marshal(ollamaReq)
+	if err != nil {
+		return "", err
+	}
+
+	url := strings.TrimSuffix(s.ollamaEndpoint, "/") + "/api/chat"
+	httpReq, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", err
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.httpClient.Do(httpReq)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var ollamaResp OllamaResponse
+	if err := json.Unmarshal(body, &ollamaResp); err != nil {
+		return "", fmt.Errorf("failed to parse Ollama response: %v\nBody: %s", err, string(body))
+	}
+
+	if ollamaResp.Error != "" {
+		return "", fmt.Errorf("Ollama error: %s", ollamaResp.Error)
+	}
+
+	return ollamaResp.Message.Content, nil
+}
+
 // parseAIResponse parses the AI response into structured metadata
 func (s *AIMetadataService) parseAIResponse(response string) (*ProductMetadataResponse, error) {
 	// Remove markdown code blocks if present
@@ -311,49 +442,133 @@ func (s *AIMetadataService) parseAIResponse(response string) (*ProductMetadataRe
 	return &metadata, nil
 }
 
-// validateMetadata validates the generated metadata against vocabularies
+// validateMetadata validates and normalizes the generated metadata against vocabularies
 func (s *AIMetadataService) validateMetadata(metadata *ProductMetadataResponse, vocabularies map[string][]models.VocabularyMapping) error {
-	// Validate material
-	if !s.isValidVocabularyTerm(metadata.MaterialPersian, vocabularies["material"]) {
-		return fmt.Errorf("invalid material: %s", metadata.MaterialPersian)
+	// Normalize material (find closest match, don't fail)
+	if metadata.MaterialPersian != "" {
+		normalized := s.findClosestVocabularyTerm(metadata.MaterialPersian, vocabularies["material"])
+		if normalized != "" {
+			metadata.MaterialPersian = normalized
+		}
 	}
 
-	// Validate style
-	if !s.isValidVocabularyTerm(metadata.StylePersian, vocabularies["style"]) {
-		return fmt.Errorf("invalid style: %s", metadata.StylePersian)
+	// Normalize style
+	if metadata.StylePersian != "" {
+		normalized := s.findClosestVocabularyTerm(metadata.StylePersian, vocabularies["style"])
+		if normalized != "" {
+			metadata.StylePersian = normalized
+		}
 	}
 
-	// Validate occasions
+	// Normalize occasions
+	var normalizedOccasions []string
 	for _, occasion := range metadata.OccasionTags {
-		if !s.isValidVocabularyTerm(occasion, vocabularies["occasion"]) {
-			return fmt.Errorf("invalid occasion: %s", occasion)
+		normalized := s.findClosestVocabularyTerm(occasion, vocabularies["occasion"])
+		if normalized != "" {
+			normalizedOccasions = append(normalizedOccasions, normalized)
 		}
 	}
+	if len(normalizedOccasions) > 0 {
+		metadata.OccasionTags = normalizedOccasions
+	}
 
-	// Validate seasons
+	// Validate seasons (strict - fixed list)
 	validSeasons := []string{"بهار", "تابستان", "پاییز", "زمستان"}
+	var validSeasonList []string
 	for _, season := range metadata.Season {
-		if !contains(validSeasons, season) {
-			return fmt.Errorf("invalid season: %s", season)
+		if contains(validSeasons, season) {
+			validSeasonList = append(validSeasonList, season)
 		}
 	}
+	metadata.Season = validSeasonList
 
-	// Validate fit type
+	// Validate fit type (strict - fixed list)
 	validFitTypes := []string{"معمولی", "تنگ", "گشاد"}
 	if !contains(validFitTypes, metadata.FitType) {
-		return fmt.Errorf("invalid fit type: %s", metadata.FitType)
+		metadata.FitType = "معمولی"
 	}
 
-	// Validate age group
+	// Validate age group (strict - fixed list)
 	validAgeGroups := []string{"بزرگسال", "نوجوان", "کودک"}
 	if !contains(validAgeGroups, metadata.AgeGroup) {
-		return fmt.Errorf("invalid age group: %s", metadata.AgeGroup)
+		metadata.AgeGroup = "بزرگسال"
 	}
 
 	return nil
 }
 
-// isValidVocabularyTerm checks if a term exists in the vocabulary
+// findClosestVocabularyTerm finds the best matching vocabulary term using fuzzy matching
+// Returns the StandardValue of the best match, or empty string if no reasonable match
+func (s *AIMetadataService) findClosestVocabularyTerm(term string, vocabs []models.VocabularyMapping) string {
+	term = strings.TrimSpace(term)
+	if term == "" {
+		return ""
+	}
+
+	// 1. Try exact match first
+	for _, vocab := range vocabs {
+		for _, persianTerm := range vocab.PersianTerms {
+			if persianTerm == term {
+				return vocab.StandardValue
+			}
+		}
+	}
+
+	// 2. Try partial match (term contains vocab term or vice versa)
+	bestMatch := ""
+	bestScore := 0
+	for _, vocab := range vocabs {
+		for _, persianTerm := range vocab.PersianTerms {
+			score := s.calculateMatchScore(term, persianTerm)
+			if score > bestScore {
+				bestScore = score
+				bestMatch = vocab.StandardValue
+			}
+		}
+	}
+
+	// Only return match if score is reasonably high (threshold: 3)
+	if bestScore >= 3 {
+		return bestMatch
+	}
+
+	// 3. No good match found - return original term (let it through)
+	return term
+}
+
+// calculateMatchScore calculates similarity between two Persian terms
+// Higher score = better match
+func (s *AIMetadataService) calculateMatchScore(term1, term2 string) int {
+	term1 = strings.TrimSpace(term1)
+	term2 = strings.TrimSpace(term2)
+
+	if term1 == term2 {
+		return 10 // Exact match
+	}
+
+	if strings.Contains(term1, term2) || strings.Contains(term2, term1) {
+		return 5 // Substring match
+	}
+
+	// Check word overlap
+	words1 := strings.Fields(term1)
+	words2 := strings.Fields(term2)
+	overlap := 0
+	for _, w1 := range words1 {
+		for _, w2 := range words2 {
+			if w1 == w2 {
+				overlap++
+			}
+		}
+	}
+	if overlap > 0 {
+		return 3 + overlap // Word overlap
+	}
+
+	return 0
+}
+
+// isValidVocabularyTerm checks if a term exists in the vocabulary (kept for backward compatibility)
 func (s *AIMetadataService) isValidVocabularyTerm(term string, vocabs []models.VocabularyMapping) bool {
 	for _, vocab := range vocabs {
 		for _, persianTerm := range vocab.PersianTerms {
