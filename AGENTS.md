@@ -88,12 +88,16 @@ Product SKUs follow format in `Coding.json`: `{Gender}{Category}{Brand}{Style}{C
 - SSH: `ssh vps-ir`, project at `~/voxcina`
 - **VPS has no direct internet access** but has SOCKS proxy on 127.0.0.1:10800 (frps tunnel)
 - HTTP proxy on port 10809 (Xray, routes through SOCKS) for Docker builds
+- Git configured to use proxy: `git config --global http.proxy http://127.0.0.1:10809`
 
 ### Required iptables rules (must persist across reboots)
 ```bash
-# Allow Docker containers to reach proxy ports
+# Allow Docker containers to reach proxy ports (both default and custom bridge networks)
+sudo iptables -I INPUT -i docker0 -p tcp --dport 10809 -j ACCEPT
+sudo iptables -I INPUT -i br-+ -p tcp --dport 10809 -j ACCEPT
 sudo iptables -I INPUT -i br-734055a429a3 -p tcp --dport 10800 -j ACCEPT
-sudo iptables -I INPUT -i br-734055a429a3 -p tcp --dport 10809 -j ACCEPT
+# Block external access to proxy port
+sudo iptables -I INPUT -p tcp --dport 10809 -j DROP
 # Save rules (Ubuntu/Debian)
 sudo apt install iptables-persistent
 sudo netfilter-persistent save
@@ -102,7 +106,7 @@ sudo netfilter-persistent save
 ### Frontend deploy (builds on VPS via proxy)
 ```bash
 cd ~/voxcina && git pull origin develop
-docker compose build --no-cache front_end  # Uses HTTP proxy via build args
+docker compose build --no-cache front_end  # Uses HTTP proxy via host.docker.internal
 docker compose up -d front_end
 ```
 
