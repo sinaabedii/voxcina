@@ -103,7 +103,20 @@ sudo apt install iptables-persistent
 sudo netfilter-persistent save
 ```
 
-### Frontend deploy (builds on VPS via proxy)
+### Frontend deploy (UI code changes only, no new npm packages)
+**IMPORTANT: Do NOT rebuild the image for UI-only changes. Copy code into existing container instead.**
+```bash
+# On VPS
+cd ~/voxcina && git pull origin develop
+docker cp front_end/src voxcina_frontend:/app/src
+docker cp front_end/public voxcina_frontend:/app/public
+docker cp front_end/next.config.js voxcina_frontend:/app/next.config.js
+docker exec voxcina_frontend npm run build
+docker restart voxcina_frontend
+```
+
+### Frontend deploy (new npm packages added)
+**Only rebuild image when package.json changes:**
 ```bash
 cd ~/voxcina && git pull origin develop
 docker compose build --no-cache front_end  # Uses HTTP proxy via host.docker.internal
