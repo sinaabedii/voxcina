@@ -50,12 +50,19 @@ docker compose logs -f front_end # Frontend logs
 - **RTL Persian UI** -- always maintain right-to-left layout support
 - Frontend locale is `fa` only (`next.config.js` i18n)
 - Reusable UI components in `front_end/src/components/ui/` -- import from `@/components/ui`
-- Available UI components: Button, Input, Card, Modal, Badge, StarRating, QuantitySelector, ColorSelector, SizeSelector, FeatureCard, SectionTitle, PriceDisplay, StockStatus
+- Available UI components: AnimatedBackground, Badge, Button, Card, ColorSelector, DropdownMenu, FeatureCard, Input, Loading, MapPicker, Modal, PatternPicker, PriceDisplay, QuantitySelector, SectionTitle, SizeSelector, SmartSearch, StarRating, StockStatus
 - New frontend components go in `front_end/src/components/` (ui/ for generic, feature subdirs for specific)
 - TailwindCSS with CSS variables for theming (dark mode via `class` strategy)
 - Primary color: `#1A3C69` (voxcina blue), secondary: `#f4f1ec` (cream)
 - State management: Zustand stores in `front_end/src/store/`
 - Path alias: `@/*` maps to `front_end/src/*`
+
+## Product Color Variants
+
+- `ColorVariant` has `color` (hex), `colorName` (Persian), `swatchImage` (pattern thumbnail), `images[]`, `tryOnImage`, `sizes[]`
+- `PatternPicker` component (admin): toggle between solid hex color or pattern mode with image cropping (react-easy-crop)
+- `ColorSelector` component (shop): shows swatch image if available, falls back to solid color circle
+- Swatch images are 160x160 WebP, uploaded via `colorSwatch_{idx}` form field
 
 ## Environment
 
@@ -79,6 +86,17 @@ Product SKUs follow format in `Coding.json`: `{Gender}{Category}{Brand}{Style}{C
 ## Deployment (VPS)
 
 - SSH: `ssh vps-ir`, project at `~/voxcina`
-- Frontend-only deploy (faster): `docker compose cp front_end/. front_end:/app && docker compose exec front_end npm run build && docker compose restart front_end`
+- **VPS has no internet access** -- cannot run `npm install` or `docker compose build front_end` on VPS
+- Frontend-only deploy (build locally, copy artifacts):
+  ```bash
+  cd front_end && npm run build
+  # Copy .next, public, package.json, package-lock.json, node_modules, next.config.js to VPS /tmp/voxcina-build/
+  # Then: docker cp /tmp/voxcina-build/.next voxcina_frontend:/app/.next (repeat for other files)
+  docker restart voxcina_frontend
+  ```
+- For new npm dependencies: copy the package folder from local `node_modules/` to container:
+  ```bash
+  docker cp /path/to/package voxcina_frontend:/app/node_modules/package
+  ```
 - Backend-only deploy: `docker compose build server && docker compose up -d server`
-- Full rebuild: `docker compose up -d --build`
+- Full rebuild (backend only, frontend needs local build): `docker compose up -d --build server`

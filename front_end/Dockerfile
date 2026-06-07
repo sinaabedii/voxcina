@@ -2,6 +2,14 @@
 FROM docker.arvancloud.ir/node:20-alpine AS builder
 WORKDIR /app
 
+# Proxy support for npm install (VPS has no direct internet)
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ENV HTTP_PROXY=${HTTP_PROXY} \
+    HTTPS_PROXY=${HTTPS_PROXY} \
+    http_proxy=${HTTP_PROXY} \
+    https_proxy=${HTTPS_PROXY}
+
 # Set environment variables to skip API calls during build
 ENV NODE_ENV=production \
     NEXT_PUBLIC_API_URL="" \

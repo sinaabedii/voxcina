@@ -69,12 +69,17 @@ services:
     build:
       context: ./front_end
       dockerfile: Dockerfile
+      args:
+        - HTTP_PROXY=http://172.18.0.1:10809
+        - HTTPS_PROXY=http://172.18.0.1:10809
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
       - GO_BACKEND_URL=http://server:8080
+      - HTTP_PROXY=http://172.18.0.1:10809
+      - HTTPS_PROXY=http://172.18.0.1:10809
       - POSTEX_API_KEY=${POSTEX_API_KEY}
       - POSTEX_BASE_URL=https://api.postex.ir
       - SMSIR_ACCESS_KEY=${SMSIR_ACCESS_KEY}
