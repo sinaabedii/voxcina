@@ -86,17 +86,37 @@ Product SKUs follow format in `Coding.json`: `{Gender}{Category}{Brand}{Style}{C
 ## Deployment (VPS)
 
 - SSH: `ssh vps-ir`, project at `~/voxcina`
-- **VPS has no internet access** -- cannot run `npm install` or `docker compose build front_end` on VPS
-- Frontend-only deploy (build locally, copy artifacts):
-  ```bash
-  cd front_end && npm run build
-  # Copy .next, public, package.json, package-lock.json, node_modules, next.config.js to VPS /tmp/voxcina-build/
-  # Then: docker cp /tmp/voxcina-build/.next voxcina_frontend:/app/.next (repeat for other files)
-  docker restart voxcina_frontend
-  ```
-- For new npm dependencies: copy the package folder from local `node_modules/` to container:
-  ```bash
-  docker cp /path/to/package voxcina_frontend:/app/node_modules/package
-  ```
-- Backend-only deploy: `docker compose build server && docker compose up -d server`
-- Full rebuild (backend only, frontend needs local build): `docker compose up -d --build server`
+- **VPS has no direct internet access** but has SOCKS proxy on 127.0.0.1:10800 (frps tunnel)
+- HTTP proxy on port 10809 (Xray, routes through SOCKS) for Docker builds
+
+### Required iptables rules (must persist across reboots)
+```bash
+# Allow Docker containers to reach proxy ports
+sudo iptables -I INPUT -i br-734055a429a3 -p tcp --dport 10800 -j ACCEPT
+sudo iptables -I INPUT -i br-734055a429a3 -p tcp --dport 10809 -j ACCEPT
+# Save rules (Ubuntu/Debian)
+sudo apt install iptables-persistent
+sudo netfilter-persistent save
+```
+
+### Frontend deploy (builds on VPS via proxy)
+```bash
+cd ~/voxcina && git pull origin develop
+docker compose build --no-cache front_end  # Uses HTTP proxy via build args
+docker compose up -d front_end
+```
+
+### Backend deploy
+```bash
+cd ~/voxcina && git pull origin develop
+docker compose build server && docker compose up -d server
+```
+
+### Fallback: Local build and copy (if proxy fails)
+```bash
+cd front_end && npm run build
+# Copy .next, public, package.json, package-lock.json, node_modules, next.config.js to VPS /tmp/voxcina-build/
+# Then: docker cp /tmp/voxcina-build/.next voxcina_frontend:/app/.next (repeat for other files)
+docker restart voxcina_frontend
+```
+For new npm dependencies: `docker cp /path/to/package voxcina_frontend:/app/node_modules/package`
