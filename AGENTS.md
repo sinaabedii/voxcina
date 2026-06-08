@@ -96,7 +96,10 @@ Product SKUs follow format in `Coding.json`: `{Gender}{Category}{Brand}{Style}{C
 sudo iptables -I INPUT -i docker0 -p tcp --dport 10809 -j ACCEPT
 sudo iptables -I INPUT -i br-+ -p tcp --dport 10809 -j ACCEPT
 sudo iptables -I INPUT -i br-734055a429a3 -p tcp --dport 10800 -j ACCEPT
-# Block external access to proxy port
+sudo iptables -I INPUT -i docker0 -p tcp --dport 10803 -j ACCEPT
+sudo iptables -I INPUT -i br-+ -p tcp --dport 10803 -j ACCEPT
+sudo iptables -I INPUT -i lo -p tcp --dport 10803 -j ACCEPT
+# Block external access to proxy ports (these rules must be AFTER the interface-specific ACCEPT rules above)
 sudo iptables -I INPUT -p tcp --dport 10809 -j DROP
 # Save rules (Ubuntu/Debian)
 sudo apt install iptables-persistent
