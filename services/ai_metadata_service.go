@@ -127,6 +127,11 @@ func (s *AIMetadataService) GenerateMetadata(ctx context.Context, req ProductMet
 		req.Model = "qwen/qwen3.7-plus"
 	}
 
+	// Strip images for local text-only models (no vision support)
+	if s.isLocalModel(req.Model) && !s.isVisionModel(req.Model) {
+		req.Images = nil
+	}
+
 	// Prepare messages
 	messages := []OpenRouterMessage{
 		{
@@ -191,6 +196,17 @@ func (s *AIMetadataService) isLocalModel(model string) bool {
 	}
 	for _, m := range localModels {
 		if strings.Contains(model, m) {
+			return true
+		}
+	}
+	return false
+}
+
+// isVisionModel checks if the model name indicates vision/multimodal support.
+func (s *AIMetadataService) isVisionModel(model string) bool {
+	visionIndicators := []string{"vl", "vision", "llava", "minicpm", "moondream", "cogvlm"}
+	for _, v := range visionIndicators {
+		if strings.Contains(strings.ToLower(model), v) {
 			return true
 		}
 	}
