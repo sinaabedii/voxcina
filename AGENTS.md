@@ -111,7 +111,10 @@ cd ~/voxcina && git pull origin develop
 docker cp front_end/src voxcina_frontend:/app/src
 docker cp front_end/public voxcina_frontend:/app/public
 docker cp front_end/next.config.js voxcina_frontend:/app/next.config.js
-docker exec voxcina_frontend npm run build
+docker cp front_end/tsconfig.json voxcina_frontend:/app/tsconfig.json
+docker cp front_end/tailwind.config.js voxcina_frontend:/app/tailwind.config.js
+docker cp front_end/postcss.config.js voxcina_frontend:/app/postcss.config.js
+docker exec voxcina_frontend sh -c 'rm -rf /app/.next && npm run build'
 docker restart voxcina_frontend
 ```
 
