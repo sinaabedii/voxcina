@@ -376,6 +376,25 @@ func resolveImageBase64(imageURL string) (string, error) {
 	return base64.StdEncoding.EncodeToString(data), nil
 }
 
+// extractContentAndImages processes a single content item map, extracting text and image data.
+func (s *AIMetadataService) extractContentAndImages(m map[string]interface{}, content string, images []string) (string, []string) {
+	if m["type"] == "text" {
+		if t, ok := m["text"].(string); ok {
+			content = t
+		}
+	} else if m["type"] == "image_url" {
+		if urlMap, ok := m["image_url"].(map[string]interface{}); ok {
+			if urlStr, ok := urlMap["url"].(string); ok {
+				b64, err := resolveImageBase64(urlStr)
+				if err == nil {
+					images = append(images, b64)
+				}
+			}
+		}
+	}
+	return content, images
+}
+
 // callOllama makes the API call to local Ollama
 func (s *AIMetadataService) callOllama(req ProductMetadataRequest, messages []OpenRouterMessage) (string, error) {
 	// Convert OpenRouter messages to Ollama format
@@ -391,19 +410,12 @@ func (s *AIMetadataService) callOllama(req ProductMetadataRequest, messages []Op
 		case []interface{}:
 			for _, item := range c {
 				if m, ok := item.(map[string]interface{}); ok {
-					if m["type"] == "text" {
-						content = m["text"].(string)
-					} else if m["type"] == "image_url" {
-						if urlMap, ok := m["image_url"].(map[string]interface{}); ok {
-							if urlStr, ok := urlMap["url"].(string); ok {
-								b64, err := resolveImageBase64(urlStr)
-								if err == nil {
-									images = append(images, b64)
-								}
-							}
-						}
-					}
+					content, images = s.extractContentAndImages(m, content, images)
 				}
+			}
+		case []map[string]interface{}:
+			for _, m := range c {
+				content, images = s.extractContentAndImages(m, content, images)
 			}
 		}
 		

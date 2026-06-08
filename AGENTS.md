@@ -150,6 +150,6 @@ For new npm dependencies: `docker cp /path/to/package voxcina_frontend:/app/node
 - Frontend sends `images: mainImageItems.map(img => img.url)` to `/api/admin/ai/generate-metadata`
 - Image URLs are like `/uploads/products/main/abc.webp` (stored at `./uploads/` on host, mounted to `/app/uploads/` in server container)
 - **OpenRouter models**: images passed as URLs directly (OpenRouter fetches them)
-- **Local models**: text-only models (qwen3.5:9b, gemma4:31b, etc.) have images automatically stripped — sending images to non-vision models causes empty content or conversational responses instead of JSON
-- `resolveImageBase64` in `services/ai_metadata_service.go` reads images from `/app/uploads/` filesystem and base64-encodes them (infrastructure for future vision-capable local models)
-- To add a vision-capable local model: add its name to `isLocalModel()` in `ai_metadata_service.go` AND add its vision indicators to `isVisionModel()` (e.g., "vl", "vision", "llava")
+- **Local models**: all local models (qwen3.5:9b, gemma4:31b, qwen3.6:27b) are multimodal — images are converted to base64 via `resolveImageBase64` and sent to Ollama
+- `resolveImageBase64` in `services/ai_metadata_service.go` reads images from `/app/uploads/` filesystem and base64-encodes them (GPU server has no internet to fetch voxcina.com URLs directly)
+- To add a vision-capable local model: add its name to `isLocalModel()` in `ai_metadata_service.go`
