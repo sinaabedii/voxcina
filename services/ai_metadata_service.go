@@ -119,6 +119,16 @@ func (s *AIMetadataService) GenerateMetadata(ctx context.Context, req ProductMet
 	// Build user prompt with vocabulary options
 	userPrompt := s.buildUserPrompt(req, vocabularies)
 
+	// Set default model if not specified
+	if req.Model == "" {
+		req.Model = "qwen/qwen3.7-plus"
+	}
+
+	// Local models are text-only and can't fetch image URLs from GPU server
+	if s.isLocalModel(req.Model) {
+		req.Images = nil
+	}
+
 	// Prepare messages
 	messages := []OpenRouterMessage{
 		{
@@ -127,7 +137,7 @@ func (s *AIMetadataService) GenerateMetadata(ctx context.Context, req ProductMet
 		},
 	}
 
-	// If images are provided, use vision model
+	// If images are provided, use vision model (OpenRouter only)
 	if len(req.Images) > 0 {
 		messages = append(messages, s.buildVisionMessage(userPrompt, req.Images))
 	} else {
@@ -135,11 +145,6 @@ func (s *AIMetadataService) GenerateMetadata(ctx context.Context, req ProductMet
 			Role:    "user",
 			Content: userPrompt,
 		})
-	}
-
-	// Set default model if not specified
-	if req.Model == "" {
-		req.Model = "qwen/qwen3.7-plus"
 	}
 
 	// Route to appropriate provider based on model
@@ -413,6 +418,10 @@ func (s *AIMetadataService) callOllama(req ProductMetadataRequest, messages []Op
 		return "", err
 	}
 
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("Ollama API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
 	var ollamaResp OllamaResponse
 	if err := json.Unmarshal(body, &ollamaResp); err != nil {
 		return "", fmt.Errorf("failed to parse Ollama response: %v\nBody: %s", err, string(body))
@@ -420,6 +429,10 @@ func (s *AIMetadataService) callOllama(req ProductMetadataRequest, messages []Op
 
 	if ollamaResp.Error != "" {
 		return "", fmt.Errorf("Ollama error: %s", ollamaResp.Error)
+	}
+
+	if ollamaResp.Message.Content == "" {
+		return "", fmt.Errorf("Ollama returned empty content\nBody: %s", string(body))
 	}
 
 	return ollamaResp.Message.Content, nil
