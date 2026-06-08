@@ -34,6 +34,7 @@ services:
       - ZIBAL_MERCHANT=${ZIBAL_MERCHANT:-zibal}
       - HTTP_PROXY=http://host.docker.internal:10809
       - HTTPS_PROXY=http://host.docker.internal:10809
+      - NO_PROXY=host.docker.internal,127.0.0.1,localhost,::1
     volumes:
       - ./uploads:/app/uploads
     extra_hosts:
