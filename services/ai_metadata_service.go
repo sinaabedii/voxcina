@@ -436,7 +436,7 @@ func (s *AIMetadataService) callOllama(req ProductMetadataRequest, messages []Op
 		Stream:   false,
 		Options: map[string]interface{}{
 			"temperature": 0.3,
-			"num_predict": 2000,
+			"num_predict": 4096,
 		},
 	}
 
