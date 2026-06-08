@@ -32,8 +32,12 @@ services:
       - SMSIR_URL=${SMSIR_URL}
       - SMSIR_TEMPLATE_ID=${SMSIR_TEMPLATE_ID}
       - ZIBAL_MERCHANT=${ZIBAL_MERCHANT:-zibal}
+      - HTTP_PROXY=http://host.docker.internal:10809
+      - HTTPS_PROXY=http://host.docker.internal:10809
     volumes:
       - ./uploads:/app/uploads
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       mongo:
         condition: service_healthy

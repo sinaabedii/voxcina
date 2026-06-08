@@ -263,6 +263,7 @@ export default function EditProductPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${adminToken}`,
         },
         body: JSON.stringify({
           name,
