@@ -3,11 +3,14 @@ package services
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -124,11 +127,6 @@ func (s *AIMetadataService) GenerateMetadata(ctx context.Context, req ProductMet
 		req.Model = "qwen/qwen3.7-plus"
 	}
 
-	// Local models are text-only and can't fetch image URLs from GPU server
-	if s.isLocalModel(req.Model) {
-		req.Images = nil
-	}
-
 	// Prepare messages
 	messages := []OpenRouterMessage{
 		{
@@ -137,7 +135,7 @@ func (s *AIMetadataService) GenerateMetadata(ctx context.Context, req ProductMet
 		},
 	}
 
-	// If images are provided, use vision model (OpenRouter only)
+	// If images are provided, use vision model
 	if len(req.Images) > 0 {
 		messages = append(messages, s.buildVisionMessage(userPrompt, req.Images))
 	} else {
@@ -349,6 +347,35 @@ type OllamaResponse struct {
 	Error   string        `json:"error,omitempty"`
 }
 
+// resolveImageBase64 converts an image URL to base64-encoded data for Ollama.
+// The GPU server has no internet, so voxcina.com URLs must be resolved locally.
+func resolveImageBase64(imageURL string) (string, error) {
+	if strings.HasPrefix(imageURL, "data:") {
+		if idx := strings.Index(imageURL, ","); idx != -1 {
+			return imageURL[idx+1:], nil
+		}
+		return "", fmt.Errorf("invalid data URI")
+	}
+
+	parsed, err := url.Parse(imageURL)
+	if err != nil {
+		return "", err
+	}
+
+	filePath := parsed.Path
+	if filePath == "" {
+		return "", fmt.Errorf("could not extract path from URL: %s", imageURL)
+	}
+
+	fsPath := filepath.Join("/app", filePath)
+	data, err := os.ReadFile(fsPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read image %s: %v", fsPath, err)
+	}
+
+	return base64.StdEncoding.EncodeToString(data), nil
+}
+
 // callOllama makes the API call to local Ollama
 func (s *AIMetadataService) callOllama(req ProductMetadataRequest, messages []OpenRouterMessage) (string, error) {
 	// Convert OpenRouter messages to Ollama format
@@ -368,8 +395,11 @@ func (s *AIMetadataService) callOllama(req ProductMetadataRequest, messages []Op
 						content = m["text"].(string)
 					} else if m["type"] == "image_url" {
 						if urlMap, ok := m["image_url"].(map[string]interface{}); ok {
-							if url, ok := urlMap["url"].(string); ok {
-								images = append(images, url)
+							if urlStr, ok := urlMap["url"].(string); ok {
+								b64, err := resolveImageBase64(urlStr)
+								if err == nil {
+									images = append(images, b64)
+								}
 							}
 						}
 					}
