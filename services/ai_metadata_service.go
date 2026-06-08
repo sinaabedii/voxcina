@@ -70,7 +70,7 @@ func NewAIMetadataService(db *mongo.Database) (*AIMetadataService, error) {
 	apiKey := os.Getenv("OPENROUTER_API_KEY")
 	ollamaEndpoint := os.Getenv("OLLAMA_ENDPOINT")
 	if ollamaEndpoint == "" {
-		ollamaEndpoint = "http://194.60.230.210:8181" // Default local Ollama
+		ollamaEndpoint = "http://host.docker.internal:10803" // Default local Ollama (bypass nginx auth)
 	}
 
 	// Load prompt configuration
