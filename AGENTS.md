@@ -108,11 +108,12 @@ sudo netfilter-persistent save
 
 ### Frontend deploy (UI code changes only, no new npm packages)
 **IMPORTANT: Do NOT rebuild the image for UI-only changes. Copy code into existing container instead.**
+**IMPORTANT: Use `src/.` (trailing slash + dot) with `docker cp` to overwrite files in existing directories. Without `/.`, Docker nests the source dir inside the destination (e.g., creates `/app/src/src/`).**
 ```bash
 # On VPS
 cd ~/voxcina && git pull origin develop
-docker cp front_end/src voxcina_frontend:/app/src
-docker cp front_end/public voxcina_frontend:/app/public
+docker cp front_end/src/. voxcina_frontend:/app/src/.
+docker cp front_end/public/. voxcina_frontend:/app/public/.
 docker cp front_end/next.config.js voxcina_frontend:/app/next.config.js
 docker cp front_end/tsconfig.json voxcina_frontend:/app/tsconfig.json
 docker cp front_end/tailwind.config.js voxcina_frontend:/app/tailwind.config.js
