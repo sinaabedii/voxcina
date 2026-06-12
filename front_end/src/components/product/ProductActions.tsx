@@ -118,7 +118,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   const getProductImages = () => {
     if (!product) return [];
     if (selectedColor) {
-      const colorVariant = product.colorVariants?.find(cv => cv.color === selectedColor);
+      const colorVariant = product.colorVariants?.find(cv => cv.colorName === selectedColor);
       if (colorVariant?.images?.length) {
         return [...colorVariant.images, ...(product.mainImages || [])];
       }
@@ -132,7 +132,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   const getTryOnImage = () => {
     if (!product) return null;
     if (selectedColor) {
-      const colorVariant = product.colorVariants?.find(cv => cv.color === selectedColor);
+      const colorVariant = product.colorVariants?.find(cv => cv.colorName === selectedColor);
       if (colorVariant?.tryOnImage) return colorVariant.tryOnImage;
     }
     return null;
@@ -159,7 +159,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   // Get available sizes based on selected color
   const getAvailableSizesForColor = (color: string | undefined) => {
     if (!product || !color) return availableSizes;
-    const colorVariant = product.colorVariants.find(cv => cv.color === color);
+    const colorVariant = product.colorVariants.find(cv => cv.colorName === color);
     if (!colorVariant) return [];
     return colorVariant.sizes.filter(s => s.quantity > 0).map(s => s.size);
   };
@@ -175,7 +175,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   // Check if a specific variant is in stock
   const isVariantInStock = (size: string, color: string) => {
     if (!product) return false;
-    const colorVariant = product.colorVariants.find(cv => cv.color === color);
+    const colorVariant = product.colorVariants.find(cv => cv.colorName === color);
     if (!colorVariant) return false;
     return colorVariant.sizes.some(s => s.size === size && s.quantity > 0);
   };
@@ -194,7 +194,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
       return 99;
     }
     if (!selectedColor || !selectedSize) return 0;
-    const colorVariant = product.colorVariants.find(cv => cv.color === selectedColor);
+    const colorVariant = product.colorVariants.find(cv => cv.colorName === selectedColor);
     if (!colorVariant) return 0;
     const sizeVariant = colorVariant.sizes.find(s => s.size === selectedSize);
     return sizeVariant?.quantity || 0;
@@ -244,7 +244,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
         cv => cv.color === urlColor || cv.colorName === urlColor
       );
       if (matchingVariant) {
-        setSelectedColor(matchingVariant.color);
+        setSelectedColor(matchingVariant.colorName);
         setSelectedImage(0);
       }
     }

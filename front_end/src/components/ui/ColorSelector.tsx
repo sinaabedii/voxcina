@@ -70,11 +70,11 @@ const ColorSelector: React.FC<ColorSelectorProps> = ({
       <div className="flex flex-wrap gap-3">
         {colors.map((colorObj) => {
           const isAvailable = colorObj.isAvailable !== false;
-          const isSelected = selectedColor === colorObj.color;
+          const isSelected = selectedColor === colorObj.colorName;
 
           return (
             <motion.button
-              key={colorObj.color}
+              key={colorObj.colorName}
               type="button"
               className={cn(
                 classes.outer,
@@ -85,7 +85,7 @@ const ColorSelector: React.FC<ColorSelectorProps> = ({
                     ? "ring-1 ring-border/30 hover:ring-primary/50"
                     : "ring-1 ring-border/20 opacity-40 cursor-not-allowed"
               )}
-              onClick={() => isAvailable && onColorChange(isSelected ? undefined : colorObj.color)}
+              onClick={() => isAvailable && onColorChange(isSelected ? undefined : colorObj.colorName)}
               title={`${colorObj.colorName}${!isAvailable ? ' (ناموجود)' : ''}`}
               whileHover={isAvailable ? { scale: 1.1 } : {}}
               whileTap={isAvailable ? { scale: 0.9 } : {}}
