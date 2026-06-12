@@ -35,6 +35,10 @@ func GetSliders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if sliders == nil {
+		sliders = []models.Slider{}
+	}
+
 	utils.JSONResponse(w, http.StatusOK, sliders)
 }
 
