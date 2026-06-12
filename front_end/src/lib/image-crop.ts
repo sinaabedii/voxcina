@@ -25,15 +25,12 @@ export async function getCroppedImg(
   canvas.width = outputSize;
   canvas.height = outputSize;
 
-  const scaleX = image.naturalWidth / 100;
-  const scaleY = image.naturalHeight / 100;
-
   ctx.drawImage(
     image,
-    crop.x * scaleX,
-    crop.y * scaleY,
-    crop.width * scaleX,
-    crop.height * scaleY,
+    crop.x,
+    crop.y,
+    crop.width,
+    crop.height,
     0,
     0,
     outputSize,
