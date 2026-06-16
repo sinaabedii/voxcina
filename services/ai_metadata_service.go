@@ -25,6 +25,7 @@ type AIMetadataService struct {
 	openRouterAPIKey string
 	ollamaEndpoint   string
 	ollamaAPIKey     string
+	appURL           string
 	database         *mongo.Database
 	httpClient       *http.Client
 	promptConfig     *AIPromptConfig
@@ -77,6 +78,7 @@ func NewAIMetadataService(db *mongo.Database) (*AIMetadataService, error) {
 		ollamaEndpoint = "http://host.docker.internal:10803" // Default local Ollama (bypass nginx auth)
 	}
 	ollamaAPIKey := os.Getenv("OLLAMA_API_KEY")
+	appURL := os.Getenv("APP_URL")
 
 	// Load prompt configuration
 	promptConfig, err := loadPromptConfig()
@@ -88,6 +90,7 @@ func NewAIMetadataService(db *mongo.Database) (*AIMetadataService, error) {
 		openRouterAPIKey: apiKey,
 		ollamaEndpoint:   ollamaEndpoint,
 		ollamaAPIKey:     ollamaAPIKey,
+		appURL:           appURL,
 		database:         db,
 		httpClient: &http.Client{
 			Timeout: 120 * time.Second, // Longer timeout for local models
@@ -270,10 +273,14 @@ func (s *AIMetadataService) buildVisionMessage(textContent string, images []stri
 	}
 
 	for _, imgURL := range images {
+		fullURL := imgURL
+		if strings.HasPrefix(imgURL, "/") && s.appURL != "" {
+			fullURL = strings.TrimRight(s.appURL, "/") + imgURL
+		}
 		content = append(content, map[string]interface{}{
 			"type": "image_url",
 			"image_url": map[string]string{
-				"url": imgURL,
+				"url": fullURL,
 			},
 		})
 	}
