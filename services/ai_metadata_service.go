@@ -318,7 +318,7 @@ func (s *AIMetadataService) callOpenRouter(req OpenRouterRequest) (string, error
 	}
 
 	if openRouterResp.Error != nil {
-		return "", fmt.Errorf("OpenRouter error: %s", openRouterResp.Error.Message)
+		return "", fmt.Errorf("OpenRouter error (code=%v): %s", openRouterResp.Error.Code, openRouterResp.Error.Message)
 	}
 
 	if len(openRouterResp.Choices) == 0 {
