@@ -125,7 +125,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     }
     const mainImages = product.mainImages || [];
     const firstColorImages = product.colorVariants?.[0]?.images || [];
-    return [...mainImages, ...firstColorImages];
+    return [...firstColorImages, ...mainImages];
   };
 
   // Helper function to get try-on image based on selected color
