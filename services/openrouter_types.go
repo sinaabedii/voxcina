@@ -30,7 +30,7 @@ type OpenRouterResponse struct {
 		TotalTokens      int `json:"total_tokens"`
 	} `json:"usage"`
 	Error *struct {
-		Message string `json:"message"`
-		Code    string `json:"code"`
+		Message string      `json:"message"`
+		Code    interface{} `json:"code"`
 	} `json:"error,omitempty"`
 }
