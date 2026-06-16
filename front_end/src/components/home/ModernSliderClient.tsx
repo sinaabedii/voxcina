@@ -20,7 +20,7 @@ interface ModernSliderSectionClientProps {
 export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClientProps) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
-  const [progress, setProgress] = useState(0);
+  const [progressKey, setProgressKey] = useState(0);
 
   const sliderData = sliders && sliders.length > 0 ? sliders : fallbackSliders;
 
@@ -28,30 +28,24 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
     if (!sliderData || sliderData.length === 0) return;
 
     let interval: NodeJS.Timeout;
-    let progressInterval: NodeJS.Timeout;
 
     if (isAutoPlaying) {
       interval = setInterval(() => {
         setCurrentSlide((prev) => (prev + 1) % sliderData.length);
-        setProgress(0);
+        setProgressKey((prev) => prev + 1);
       }, 6000);
-
-      progressInterval = setInterval(() => {
-        setProgress((prev) => Math.min(prev + 1.67, 100));
-      }, 100);
     }
 
     return () => {
       clearInterval(interval);
-      clearInterval(progressInterval);
     };
-  }, [currentSlide, isAutoPlaying, sliderData]);
+  }, [isAutoPlaying, sliderData]);
 
   const handleNext = () => {
     if (!sliderData || sliderData.length === 0) return;
     setIsAutoPlaying(false);
     setCurrentSlide((prev) => (prev + 1) % sliderData.length);
-    setProgress(0);
+    setProgressKey((prev) => prev + 1);
     setTimeout(() => setIsAutoPlaying(true), 5000);
   };
 
@@ -61,7 +55,7 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
     setCurrentSlide(
       (prev) => (prev - 1 + sliderData.length) % sliderData.length
     );
-    setProgress(0);
+    setProgressKey((prev) => prev + 1);
     setTimeout(() => setIsAutoPlaying(true), 5000);
   };
 
@@ -69,7 +63,7 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
     if (!sliderData || sliderData.length === 0) return;
     setIsAutoPlaying(false);
     setCurrentSlide(index);
-    setProgress(0);
+    setProgressKey((prev) => prev + 1);
     setTimeout(() => setIsAutoPlaying(true), 5000);
   };
 
@@ -296,11 +290,10 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
         </div>
 
         <div className="absolute bottom-0 left-0 w-full h-1 bg-white/20">
-          <motion.div
-            className="h-full bg-white"
-            initial={{ width: "0%" }}
-            animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.1, ease: "linear" }}
+          <div
+            key={progressKey}
+            className={`h-full bg-white ${isAutoPlaying ? "animate-slider-progress" : ""}`}
+            style={{ animationDuration: "6s" }}
           />
         </div>
       </div>

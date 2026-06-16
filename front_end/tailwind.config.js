@@ -133,6 +133,26 @@ module.exports = {
             "background-position": "right bottom"
           }
         },
+        "rotate-slow": {
+          "0%": { transform: "translate(-50%, -50%) rotate(0deg)" },
+          "100%": { transform: "translate(-50%, -50%) rotate(360deg)" },
+        },
+        "slider-progress": {
+          "0%": { width: "0%" },
+          "100%": { width: "100%" },
+        },
+        "pulse-glow": {
+          "0%, 100%": { opacity: "0.4", transform: "scale(1)" },
+          "50%": { opacity: "0.7", transform: "scale(1.05)" },
+        },
+        "float": {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-8px)" },
+        },
+        "badge-float": {
+          "0%, 100%": { transform: "rotate(0deg) scale(1)" },
+          "50%": { transform: "rotate(5deg) scale(1.05)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -145,6 +165,11 @@ module.exports = {
         "pulse-soft": "pulse-soft 2s ease-in-out infinite",
         "shine": "shine 1.5s ease-in-out infinite",
         "gradient-xy": "gradient-xy 6s ease infinite",
+        "rotate-slow": "rotate-slow var(--duration, 25s) linear infinite",
+        "slider-progress": "slider-progress 6s linear",
+        "pulse-glow": "pulse-glow 3s ease-in-out infinite",
+        "float": "float 4s ease-in-out infinite",
+        "badge-float": "badge-float 4s ease-in-out infinite",
       },
       transitionProperty: {
         'height': 'height',
