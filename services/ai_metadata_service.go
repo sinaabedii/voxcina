@@ -24,6 +24,7 @@ import (
 type AIMetadataService struct {
 	openRouterAPIKey string
 	ollamaEndpoint   string
+	ollamaAPIKey     string
 	database         *mongo.Database
 	httpClient       *http.Client
 	promptConfig     *AIPromptConfig
@@ -75,6 +76,7 @@ func NewAIMetadataService(db *mongo.Database) (*AIMetadataService, error) {
 	if ollamaEndpoint == "" {
 		ollamaEndpoint = "http://host.docker.internal:10803" // Default local Ollama (bypass nginx auth)
 	}
+	ollamaAPIKey := os.Getenv("OLLAMA_API_KEY")
 
 	// Load prompt configuration
 	promptConfig, err := loadPromptConfig()
@@ -85,6 +87,7 @@ func NewAIMetadataService(db *mongo.Database) (*AIMetadataService, error) {
 	return &AIMetadataService{
 		openRouterAPIKey: apiKey,
 		ollamaEndpoint:   ollamaEndpoint,
+		ollamaAPIKey:     ollamaAPIKey,
 		database:         db,
 		httpClient: &http.Client{
 			Timeout: 120 * time.Second, // Longer timeout for local models
@@ -448,6 +451,9 @@ func (s *AIMetadataService) callOllama(req ProductMetadataRequest, messages []Op
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
+	if s.ollamaAPIKey != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+s.ollamaAPIKey)
+	}
 
 	resp, err := s.httpClient.Do(httpReq)
 	if err != nil {
