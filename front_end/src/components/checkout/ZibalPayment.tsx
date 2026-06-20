@@ -32,7 +32,7 @@ const ZibalPayment: React.FC<ZibalPaymentProps> = ({
   const handleInitiatePayment = async () => {
     setPaymentStatus("requesting");
 
-    const response = await requestPayment(orderId, amount, description, mobile);
+    const response = await requestPayment(orderId, "zibal", mobile, description);
 
     if (response && response.trackId && response.payUrl) {
       setTrackId(response.trackId);

@@ -103,6 +103,7 @@ export interface Order {
   payment_method?: 'online' | 'wallet' | 'cod'; // Payment method
   zibal_track_id?: number; // Zibal payment tracking ID
   zibal_ref_number?: string; // Zibal reference number
+  gateway_name?: 'zibal' | 'digipay'; // Payment gateway used
   tracking_code?: string | null; // Nullable
   timeline?: OrderTimelineEntry[]; // Order status change history
   notes?: OrderNote[]; // Internal admin notes

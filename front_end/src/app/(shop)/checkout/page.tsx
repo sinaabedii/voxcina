@@ -60,6 +60,7 @@ export default function CheckoutPage() {
 
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("online");
+  const [selectedGateway, setSelectedGateway] = useState("zibal");
   const [selectedShippingMethod, setSelectedShippingMethod] = useState<ShippingMethod | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -441,7 +442,7 @@ export default function CheckoutPage() {
           },
           body: JSON.stringify({
             orderId: orderId,
-            amount: totalAmount * 10, // Convert Toman to Rial
+            gateway: selectedGateway,
             description: `سفارش ${orderData.order_number}`,
             mobile: selectedAddress.phoneNumber,
           }),
@@ -720,6 +721,8 @@ export default function CheckoutPage() {
             <PaymentMethods
               onSelectMethod={setSelectedPaymentMethod}
               selectedMethod={selectedPaymentMethod}
+              onSelectGateway={setSelectedGateway}
+              selectedGateway={selectedGateway}
             />
           </motion.div>
 

@@ -70,6 +70,10 @@ func main() {
 	handlers.InitZibalService()
 	log.Println("Zibal payment service initialized")
 
+	// Initialize DigiPay payment service
+	handlers.InitDigipayService()
+	log.Println("DigiPay payment service initialized")
+
 	// Initialize and start order cleanup service
 	orderCleanupService := services.NewOrderCleanupService(database)
 	orderCleanupService.Start()

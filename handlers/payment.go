@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -18,7 +19,11 @@ import (
 	"backEnd/utils"
 )
 
-var zibalService *services.ZibalService
+var (
+	zibalService  *services.ZibalService
+	digipayService *services.DigiPayService
+	gateways      map[string]services.PaymentGateway
+)
 
 func InitZibalService() {
 	merchant := os.Getenv("ZIBAL_MERCHANT")
@@ -26,20 +31,46 @@ func InitZibalService() {
 		merchant = "zibal"
 	}
 	zibalService = services.NewZibalService(merchant)
+	if gateways == nil {
+		gateways = make(map[string]services.PaymentGateway)
+	}
+	gateways[zibalService.Name()] = zibalService
 }
 
-type PaymentRequestPayload struct {
+func InitDigipayService() {
+	digipayService = services.NewDigiPayService()
+	if gateways == nil {
+		gateways = make(map[string]services.PaymentGateway)
+	}
+	gateways[digipayService.Name()] = digipayService
+}
+
+func getGateway(name string) services.PaymentGateway {
+	return gateways[name]
+}
+
+func generateUUID() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	b[6] = (b[6] & 0x0f) | 0x40
+	b[8] = (b[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+		b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+}
+
+// RequestPaymentPayload is sent by the client to request a payment.
+type RequestPaymentPayload struct {
 	OrderID     string `json:"orderId"`
-	Amount      int64  `json:"amount"`
+	Gateway     string `json:"gateway"`
 	Description string `json:"description,omitempty"`
 	Mobile      string `json:"mobile,omitempty"`
 }
 
-type PaymentRequestResponse struct {
+type RequestPaymentResponse struct {
 	Result  int    `json:"result"`
 	Message string `json:"message"`
-	TrackID int64  `json:"trackId,omitempty"`
 	PayURL  string `json:"payUrl,omitempty"`
+	Gateway string `json:"gateway,omitempty"`
 }
 
 func RequestPayment(w http.ResponseWriter, r *http.Request) {
@@ -55,21 +86,26 @@ func RequestPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var payload PaymentRequestPayload
+	var payload RequestPaymentPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	if payload.Amount < 1000 {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Amount must be at least 1000 Rials")
+	if payload.Gateway == "" {
+		payload.Gateway = "zibal"
+	}
+
+	gateway := getGateway(payload.Gateway)
+	if gateway == nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Unknown payment gateway: %s", payload.Gateway))
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	collection := db.Database.Collection("orders")
+	ordersCol := db.Database.Collection("orders")
 	var order models.Order
 
 	orderObjID, err := primitive.ObjectIDFromHex(payload.OrderID)
@@ -78,7 +114,7 @@ func RequestPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = collection.FindOne(ctx, bson.M{
+	err = ordersCol.FindOne(ctx, bson.M{
 		"_id":     orderObjID,
 		"user_id": userID,
 	}).Decode(&order)
@@ -88,68 +124,237 @@ func RequestPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Derive amount from order — never trust client
+	amountRials := int64(order.TotalAmount * 10)
+
+	if amountRials < 1000 {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Amount must be at least 1000 Rials")
+		return
+	}
+
 	appURL := os.Getenv("APP_URL")
 	if appURL == "" {
 		appURL = "http://localhost:3000"
 	}
 
-	callbackURL := appURL + "/api/payment/callback"
+	providerID := generateUUID()
 
-	zibalReq := &services.ZibalPaymentRequest{
-		Amount:      payload.Amount,
-		CallbackURL: callbackURL,
-		Description: fmt.Sprintf("Order %s - %s", order.OrderNumber, payload.Description),
-		OrderID:     payload.OrderID,
-		Mobile:      payload.Mobile,
+	var callbackURL string
+	if gateway.Name() == "digipay" {
+		callbackURL = appURL + "/api/payment/digipay-callback"
+	} else {
+		callbackURL = appURL + "/api/payment/callback"
 	}
 
-	zibalResp, err := zibalService.RequestPayment(ctx, zibalReq)
+	now := time.Now()
+	attempt := models.PaymentAttempt{
+		OrderID:        order.ID,
+		UserID:         userID,
+		Gateway:        gateway.Name(),
+		ProviderID:     providerID,
+		ExpectedAmount: amountRials,
+		Status:         "pending",
+		CreatedAt:      now,
+	}
+
+	description := payload.Description
+	if description == "" {
+		description = fmt.Sprintf("Order %s", order.OrderNumber)
+	}
+
+	payReq := &services.PaymentRequest{
+		OrderID:     payload.OrderID,
+		Amount:      amountRials,
+		CallbackURL: callbackURL,
+		Description: description,
+		Mobile:      payload.Mobile,
+		ProviderID:  providerID,
+	}
+
+	payResp, err := gateway.RequestPayment(ctx, payReq)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to initiate payment: "+err.Error())
 		return
 	}
 
-	if zibalResp.Result != 100 {
-		utils.ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Zibal error: %s", zibalResp.Message))
+	attempt.GatewayReference = payResp.GatewayRef
+
+	attemptsCol := db.Database.Collection("payment_attempts")
+	_, err = attemptsCol.InsertOne(ctx, attempt)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to save payment attempt")
 		return
 	}
 
-	trackID := zibalResp.TrackID
-	now := time.Now()
-	updateResult, err := collection.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
+	// Update order with gateway and payment status
+	ordersCol.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
 		"$set": bson.M{
-			"zibal_track_id": trackID,
+			"gateway_name":   gateway.Name(),
 			"payment_status": "pending",
 			"updated_at":     now,
 		},
 	})
 
-	if err != nil || updateResult.ModifiedCount == 0 {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to update order with track ID")
-		return
-	}
-
-	payURL := zibalService.GetPaymentURL(trackID)
-
-	utils.JSONResponse(w, http.StatusOK, PaymentRequestResponse{
+	utils.JSONResponse(w, http.StatusOK, RequestPaymentResponse{
 		Result:  100,
 		Message: "Payment request created successfully",
-		TrackID: trackID,
-		PayURL:  payURL,
+		PayURL:  payResp.PayURL,
+		Gateway: gateway.Name(),
 	})
 }
 
-type PaymentCallbackPayload struct {
-	Success int    `json:"success"`
-	TrackID int64  `json:"trackId"`
-	OrderID string `json:"orderId"`
-	Status  int    `json:"status"`
+// ──────────────────────────────────────────────────────────────────────────────
+// FinalizeVerifiedPayment atomically transitions an order to paid and marks
+// the attempt as verified. Returns error on any failure.
+// ──────────────────────────────────────────────────────────────────────────────
+
+func FinalizeVerifiedPayment(attemptID primitive.ObjectID, verifiedAmount int64, verifiedRefNum string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	attemptsCol := db.Database.Collection("payment_attempts")
+	var attempt models.PaymentAttempt
+
+	err := attemptsCol.FindOne(ctx, bson.M{"_id": attemptID}).Decode(&attempt)
+	if err != nil {
+		return fmt.Errorf("attempt not found: %w", err)
+	}
+
+	// Strict amount verification
+	if verifiedAmount != attempt.ExpectedAmount {
+		return fmt.Errorf("verified amount %d != expected %d", verifiedAmount, attempt.ExpectedAmount)
+	}
+
+	if attempt.Status == "verified" {
+		// Already verified — idempotent, check if order is also updated
+		ordersCol := db.Database.Collection("orders")
+		var order models.Order
+		if err := ordersCol.FindOne(ctx, bson.M{"_id": attempt.OrderID}).Decode(&order); err == nil {
+			if order.PaymentStatus == "paid" {
+				return nil
+			}
+		}
+	}
+
+	now := time.Now()
+	ordersCol := db.Database.Collection("orders")
+
+	result, err := ordersCol.UpdateOne(ctx, bson.M{
+		"_id":            attempt.OrderID,
+		"payment_status": bson.M{"$in": []string{"pending", "failed", "abandoned", "cancelled"}},
+	}, bson.M{
+		"$set": bson.M{
+			"payment_status": "paid",
+			"status":         "processing",
+			"status_text":    "در حال پردازش",
+			"gateway_name":   attempt.Gateway,
+			"paid_at":        now,
+			"updated_at":     now,
+		},
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to update order: %w", err)
+	}
+
+	if result.ModifiedCount == 0 {
+		return fmt.Errorf("order is not in a payable state or already paid")
+	}
+
+	_, err = attemptsCol.UpdateOne(ctx, bson.M{"_id": attempt.ID}, bson.M{
+		"$set": bson.M{
+			"status":              "verified",
+			"gateway_ref_number":  verifiedRefNum,
+			"verified_at":         now,
+		},
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to update attempt: %w", err)
+	}
+
+	return nil
 }
 
-type PaymentCallbackResponse struct {
-	Result  int    `json:"result"`
-	Message string `json:"message"`
+// ──────────────────────────────────────────────────────────────────────────────
+// DigipayPaymentCallback handles browser form POST from DigiPay.
+// Never trusts callback data as proof — only verify API is authoritative.
+// ──────────────────────────────────────────────────────────────────────────────
+
+func DigipayPaymentCallback(w http.ResponseWriter, r *http.Request) {
+	appURL := os.Getenv("APP_URL")
+	if appURL == "" {
+		appURL = "http://localhost:3000"
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, appURL+"/checkout/callback?success=0&error=parse_form", http.StatusSeeOther)
+		return
+	}
+
+	providerID := r.FormValue("providerId")
+	gatewayRef := r.FormValue("ticket")
+	callbackTypeStr := r.FormValue("type")
+
+	if providerID == "" {
+		http.Redirect(w, r, appURL+"/checkout/callback?success=0&error=missing_providerId", http.StatusSeeOther)
+		return
+	}
+
+	callbackType, _ := strconv.Atoi(callbackTypeStr)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	attemptsCol := db.Database.Collection("payment_attempts")
+	var attempt models.PaymentAttempt
+
+	err := attemptsCol.FindOne(ctx, bson.M{
+		"gateway":     "digipay",
+		"provider_id": providerID,
+	}).Decode(&attempt)
+
+	if err != nil {
+		http.Redirect(w, r, appURL+"/checkout/callback?success=0&error=attempt_not_found", http.StatusSeeOther)
+		return
+	}
+
+	gateway := getGateway("digipay")
+	if gateway == nil {
+		http.Redirect(w, r, appURL+"/checkout/callback?success=0&error=gateway_unavailable", http.StatusSeeOther)
+		return
+	}
+
+	verifyReq := &services.VerifyRequest{
+		GatewayRef:     gatewayRef,
+		ExpectedAmount: attempt.ExpectedAmount,
+		ProviderID:     providerID,
+		CallbackType:   callbackType,
+	}
+
+	verifyResp, err := gateway.VerifyPayment(ctx, verifyReq)
+	if err != nil || !verifyResp.Success {
+		redirectURL := fmt.Sprintf("%s/checkout/callback?success=0&error=verify_failed&orderId=%s",
+			appURL, attempt.OrderID.Hex())
+		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+		return
+	}
+
+	if err := FinalizeVerifiedPayment(attempt.ID, verifyResp.Amount, verifyResp.RefNumber); err != nil {
+		redirectURL := fmt.Sprintf("%s/checkout/callback?success=0&error=finalize_failed&orderId=%s",
+			appURL, attempt.OrderID.Hex())
+		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+		return
+	}
+
+	redirectURL := fmt.Sprintf("%s/checkout/callback?success=1&orderId=%s&gateway=digipay",
+		appURL, attempt.OrderID.Hex())
+	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// PaymentCallback handles Zibal GET callback.
+// ──────────────────────────────────────────────────────────────────────────────
 
 func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 	trackIDStr := r.URL.Query().Get("trackId")
@@ -174,7 +379,7 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	collection := db.Database.Collection("orders")
+	ordersCol := db.Database.Collection("orders")
 	var order models.Order
 
 	filter := bson.M{"zibal_track_id": trackID}
@@ -184,12 +389,11 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err = collection.FindOne(ctx, filter).Decode(&order); err != nil {
+	if err = ordersCol.FindOne(ctx, filter).Decode(&order); err != nil {
 		http.Redirect(w, r, appURL+"/checkout/callback?success=0&error=order_not_found", http.StatusFound)
 		return
 	}
 
-	// Idempotency: If already paid, redirect to success
 	if order.PaymentStatus == "paid" {
 		redirectURL := fmt.Sprintf("%s/checkout/callback?success=1&trackId=%s&orderId=%s&status=paid",
 			appURL, trackIDStr, order.ID.Hex())
@@ -197,52 +401,45 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify with Zibal API
-	zibalResp, err := zibalService.VerifyPayment(ctx, trackID)
+	gateway := getGateway("zibal")
+	if gateway == nil {
+		http.Redirect(w, r, appURL+"/checkout/callback?success=0&error=gateway_unavailable", http.StatusFound)
+		return
+	}
+
+	verifyReq := &services.VerifyRequest{
+		GatewayRef:     trackIDStr,
+		ExpectedAmount: int64(order.TotalAmount * 10),
+	}
+
+	verifyResp, err := gateway.VerifyPayment(ctx, verifyReq)
 
 	now := time.Now()
 	var paymentStatus, orderStatus, statusText, successParam string
 
-	if err == nil && zibalResp.Result == 100 && services.IsPaymentSuccessful(zibalResp.Status) {
+	if err == nil && verifyResp.Success && verifyResp.Amount == int64(order.TotalAmount*10) {
 		paymentStatus = "paid"
 		orderStatus = "processing"
 		statusText = "در حال پردازش"
 		successParam = "1"
 
-		collection.UpdateOne(ctx, bson.M{"_id": order.ID, "payment_status": bson.M{"$ne": "paid"}}, bson.M{
+		ordersCol.UpdateOne(ctx, bson.M{"_id": order.ID, "payment_status": bson.M{"$ne": "paid"}}, bson.M{
 			"$set": bson.M{
 				"payment_status":   paymentStatus,
 				"status":           orderStatus,
 				"status_text":      statusText,
-				"zibal_ref_number": zibalResp.RefNumber,
+				"zibal_ref_number": verifyResp.RefNumber,
 				"paid_at":          now,
 				"updated_at":       now,
 			},
 		})
-	} else if err == nil && zibalResp.Result == 100 && services.IsPaymentAlreadyVerified(zibalResp.Status) {
-		// Status 2: Already verified in a previous call
-		paymentStatus = "paid"
-		orderStatus = "processing"
-		statusText = "در حال پردازش"
-		successParam = "1"
-
-		collection.UpdateOne(ctx, bson.M{"_id": order.ID, "payment_status": bson.M{"$ne": "paid"}}, bson.M{
-			"$set": bson.M{
-				"payment_status":   paymentStatus,
-				"status":           orderStatus,
-				"status_text":      statusText,
-				"zibal_ref_number": zibalResp.RefNumber,
-				"paid_at":          now,
-				"updated_at":       now,
-			},
-		})
-	} else if err == nil && zibalResp.Result == 100 && services.IsPaymentPending(zibalResp.Status) {
+	} else if err == nil && !verifyResp.Success {
 		paymentStatus = "abandoned"
 		orderStatus = "pending"
 		statusText = "در انتظار پرداخت"
 		successParam = "0"
 
-		collection.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
+		ordersCol.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
 			"$set": bson.M{
 				"payment_status": paymentStatus,
 				"status":         orderStatus,
@@ -256,12 +453,7 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 		statusText = "پرداخت ناموفق"
 		successParam = "0"
 
-		if err == nil && zibalResp.Result == 100 && services.IsPaymentCancelledByUser(zibalResp.Status) {
-			paymentStatus = "cancelled"
-			statusText = "لغو شده توسط کاربر"
-		}
-
-		collection.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
+		ordersCol.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
 			"$set": bson.M{
 				"payment_status": paymentStatus,
 				"status":         orderStatus,
@@ -276,8 +468,13 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// VerifyPayment
+// ──────────────────────────────────────────────────────────────────────────────
+
 type VerifyPaymentPayload struct {
-	TrackID int64 `json:"trackId"`
+	TrackID     int64  `json:"trackId"`
+	Gateway     string `json:"gateway,omitempty"`
 }
 
 type VerifyPaymentResponse struct {
@@ -292,8 +489,8 @@ type VerifyPaymentResponse struct {
 	OrderID       string     `json:"orderId,omitempty"`
 	PaymentStatus string     `json:"paymentStatus"`
 	StatusText    string     `json:"statusText"`
-	CanRetry      bool       `json:"canRetry"`      // True if user can retry payment
-	OrderNumber   string     `json:"orderNumber,omitempty"` // Order number for display
+	CanRetry      bool       `json:"canRetry"`
+	OrderNumber   string     `json:"orderNumber,omitempty"`
 }
 
 func VerifyPayment(w http.ResponseWriter, r *http.Request) {
@@ -315,13 +512,23 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if payload.Gateway == "" {
+		payload.Gateway = "zibal"
+	}
+
+	gateway := getGateway(payload.Gateway)
+	if gateway == nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Unknown gateway")
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	collection := db.Database.Collection("orders")
+	ordersCol := db.Database.Collection("orders")
 	var order models.Order
 
-	err := collection.FindOne(ctx, bson.M{
+	err := ordersCol.FindOne(ctx, bson.M{
 		"zibal_track_id": payload.TrackID,
 		"user_id":        userID,
 	}).Decode(&order)
@@ -331,7 +538,6 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Idempotency: If already paid, return success without calling Zibal
 	if order.PaymentStatus == "paid" {
 		utils.JSONResponse(w, http.StatusOK, VerifyPaymentResponse{
 			Result:        100,
@@ -347,29 +553,31 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	zibalResp, err := zibalService.VerifyPayment(ctx, payload.TrackID)
+	verifyReq := &services.VerifyRequest{
+		GatewayRef:     fmt.Sprintf("%d", payload.TrackID),
+		ExpectedAmount: int64(order.TotalAmount * 10),
+	}
+
+	verifyResp, err := gateway.VerifyPayment(ctx, verifyReq)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to verify payment: "+err.Error())
 		return
 	}
 
-	if zibalResp.Result != 100 {
-		utils.ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Zibal error: %s", zibalResp.Message))
-		return
-	}
-
 	paymentStatus := "failed"
-	statusText := services.GetPaymentStatusText(zibalResp.Status)
+	statusText := "پرداخت ناموفق"
 	canRetry := false
 
-	if services.IsPaymentSuccessful(zibalResp.Status) || services.IsPaymentAlreadyVerified(zibalResp.Status) {
+	if verifyResp.Success && verifyResp.Amount == int64(order.TotalAmount*10) {
 		paymentStatus = "paid"
 		statusText = "پرداخت شده - تاییدشده"
+		canRetry = false
+
 		now := time.Now()
-		_, err := collection.UpdateOne(ctx, bson.M{"_id": order.ID, "payment_status": bson.M{"$ne": "paid"}}, bson.M{
+		_, err := ordersCol.UpdateOne(ctx, bson.M{"_id": order.ID, "payment_status": bson.M{"$ne": "paid"}}, bson.M{
 			"$set": bson.M{
 				"payment_status":   paymentStatus,
-				"zibal_ref_number": zibalResp.RefNumber,
+				"zibal_ref_number": verifyResp.RefNumber,
 				"status":           "processing",
 				"status_text":      "در حال پردازش",
 				"paid_at":          now,
@@ -381,26 +589,20 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request) {
 			utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to update order")
 			return
 		}
-	} else if services.IsPaymentPending(zibalResp.Status) {
+	} else if !verifyResp.Success {
 		paymentStatus = "abandoned"
 		statusText = "پرداخت ناتمام - میتوانید دوباره تلاش کنید"
-		canRetry = true
-	} else if services.IsPaymentCancelledByUser(zibalResp.Status) {
-		paymentStatus = "cancelled"
 		canRetry = true
 	} else {
 		canRetry = true
 	}
 
 	utils.JSONResponse(w, http.StatusOK, VerifyPaymentResponse{
-		Result:        zibalResp.Result,
-		Message:       zibalResp.Message,
-		Status:        zibalResp.Status,
-		Amount:        zibalResp.Amount,
-		RefNumber:     zibalResp.RefNumber,
-		CardNumber:    zibalResp.CardNumber,
-		PaidAt:        &zibalResp.PaidAt,
-		Description:   zibalResp.Description,
+		Result:        100,
+		Message:       "Verification complete",
+		Status:        1,
+		Amount:        verifyResp.Amount,
+		RefNumber:     verifyResp.RefNumber,
 		OrderID:       order.ID.Hex(),
 		PaymentStatus: paymentStatus,
 		StatusText:    statusText,
@@ -409,24 +611,29 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// InquiryPayment
+// ──────────────────────────────────────────────────────────────────────────────
+
 type InquiryPaymentPayload struct {
-	TrackID int64 `json:"trackId"`
+	TrackID int64  `json:"trackId"`
+	Gateway string `json:"gateway,omitempty"`
 }
 
 type InquiryPaymentResponse struct {
-	Result        int       `json:"result"`
-	Message       string    `json:"message"`
-	Status        int       `json:"status"`
-	Amount        int64     `json:"amount"`
-	RefNumber     string    `json:"refNumber,omitempty"`
-	CardNumber    string    `json:"cardNumber,omitempty"`
+	Result        int        `json:"result"`
+	Message       string     `json:"message"`
+	Status        int        `json:"status"`
+	Amount        int64      `json:"amount"`
+	RefNumber     string     `json:"refNumber,omitempty"`
+	CardNumber    string     `json:"cardNumber,omitempty"`
 	CreatedAt     *time.Time `json:"createdAt,omitempty"`
 	PaidAt        *time.Time `json:"paidAt,omitempty"`
 	VerifiedAt    *time.Time `json:"verifiedAt,omitempty"`
-	Description   string    `json:"description,omitempty"`
-	OrderID       string    `json:"orderId,omitempty"`
-	PaymentStatus string    `json:"paymentStatus"`
-	StatusText    string    `json:"statusText"`
+	Description   string     `json:"description,omitempty"`
+	OrderID       string     `json:"orderId,omitempty"`
+	PaymentStatus string     `json:"paymentStatus"`
+	StatusText    string     `json:"statusText"`
 }
 
 func InquiryPayment(w http.ResponseWriter, r *http.Request) {
@@ -448,24 +655,33 @@ func InquiryPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if payload.Gateway == "" {
+		payload.Gateway = "zibal"
+	}
+
+	gateway := getGateway(payload.Gateway)
+	if gateway == nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Unknown gateway")
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	zibalResp, err := zibalService.InquiryPayment(ctx, payload.TrackID)
+	inquiryReq := &services.InquiryRequest{
+		GatewayRef: fmt.Sprintf("%d", payload.TrackID),
+	}
+
+	inquiryResp, err := gateway.InquiryPayment(ctx, inquiryReq)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to inquiry payment: "+err.Error())
 		return
 	}
 
-	if zibalResp.Result != 100 {
-		utils.ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Zibal error: %s", zibalResp.Message))
-		return
-	}
-
-	collection := db.Database.Collection("orders")
+	ordersCol := db.Database.Collection("orders")
 	var order models.Order
 
-	err = collection.FindOne(ctx, bson.M{
+	err = ordersCol.FindOne(ctx, bson.M{
 		"zibal_track_id": payload.TrackID,
 		"user_id":        userID,
 	}).Decode(&order)
@@ -476,36 +692,35 @@ func InquiryPayment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	paymentStatus := "failed"
-	statusText := services.GetPaymentStatusText(zibalResp.Status)
+	statusText := inquiryResp.Status
 
-	if services.IsPaymentSuccessful(zibalResp.Status) {
+	if inquiryResp.Success {
 		paymentStatus = "paid"
 	}
 
 	utils.JSONResponse(w, http.StatusOK, InquiryPaymentResponse{
-		Result:        zibalResp.Result,
-		Message:       zibalResp.Message,
-		Status:        zibalResp.Status,
-		Amount:        zibalResp.Amount,
-		RefNumber:     zibalResp.RefNumber,
-		CardNumber:    zibalResp.CardNumber,
-		CreatedAt:     &zibalResp.CreatedAt,
-		PaidAt:        &zibalResp.PaidAt,
-		VerifiedAt:    &zibalResp.VerifiedAt,
-		Description:   zibalResp.Description,
-		OrderID:       zibalResp.OrderID,
+		Result:        100,
+		Message:       "Inquiry complete",
+		Status:        1,
+		Amount:        inquiryResp.Amount,
+		RefNumber:     inquiryResp.RefNumber,
+		CreatedAt:     inquiryResp.CreatedAt,
+		PaidAt:        inquiryResp.PaidAt,
+		OrderID:       order.ID.Hex(),
 		PaymentStatus: paymentStatus,
 		StatusText:    statusText,
 	})
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// RetryPayment
+// ──────────────────────────────────────────────────────────────────────────────
 
-// RetryPaymentPayload represents the request body for retrying payment
 type RetryPaymentPayload struct {
 	OrderID string `json:"orderId"`
+	Gateway string `json:"gateway,omitempty"`
 }
 
-// RetryPayment allows user to retry payment for a pending/failed order
 func RetryPayment(w http.ResponseWriter, r *http.Request) {
 	userIDCtx := r.Context().Value("userID")
 	if userIDCtx == nil {
@@ -525,10 +740,20 @@ func RetryPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if payload.Gateway == "" {
+		payload.Gateway = "zibal"
+	}
+
+	gateway := getGateway(payload.Gateway)
+	if gateway == nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Unknown gateway")
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	collection := db.Database.Collection("orders")
+	ordersCol := db.Database.Collection("orders")
 	var order models.Order
 
 	orderObjID, err := primitive.ObjectIDFromHex(payload.OrderID)
@@ -537,8 +762,7 @@ func RetryPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Find order that belongs to user and is not paid
-	err = collection.FindOne(ctx, bson.M{
+	err = ordersCol.FindOne(ctx, bson.M{
 		"_id":            orderObjID,
 		"user_id":        userID,
 		"payment_status": bson.M{"$in": []string{"pending", "failed", "abandoned", "cancelled"}},
@@ -550,10 +774,8 @@ func RetryPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if order is not expired (30 minutes)
 	if time.Since(order.CreatedAt) > 30*time.Minute {
-		// Mark as expired
-		collection.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
+		ordersCol.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
 			"$set": bson.M{
 				"payment_status": "expired",
 				"status":         "cancelled",
@@ -565,54 +787,67 @@ func RetryPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create new payment request
+	amountRials := int64(order.TotalAmount * 10)
+	providerID := generateUUID()
+
 	appURL := os.Getenv("APP_URL")
 	if appURL == "" {
 		appURL = "http://localhost:3000"
 	}
 
-	callbackURL := appURL + "/api/payment/callback"
-
-	zibalReq := &services.ZibalPaymentRequest{
-		Amount:      int64(order.TotalAmount),
-		CallbackURL: callbackURL,
-		Description: fmt.Sprintf("Order %s - تلاش مجدد پرداخت", order.OrderNumber),
-		OrderID:     payload.OrderID,
+	var callbackURL string
+	if gateway.Name() == "digipay" {
+		callbackURL = appURL + "/api/payment/digipay-callback"
+	} else {
+		callbackURL = appURL + "/api/payment/callback"
 	}
 
-	zibalResp, err := zibalService.RequestPayment(ctx, zibalReq)
+	now := time.Now()
+	attempt := models.PaymentAttempt{
+		OrderID:        order.ID,
+		UserID:         userID,
+		Gateway:        gateway.Name(),
+		ProviderID:     providerID,
+		ExpectedAmount: amountRials,
+		Status:         "pending",
+		CreatedAt:      now,
+	}
+
+	payReq := &services.PaymentRequest{
+		OrderID:     payload.OrderID,
+		Amount:      amountRials,
+		CallbackURL: callbackURL,
+		Description: fmt.Sprintf("Order %s - تلاش مجدد پرداخت", order.OrderNumber),
+		ProviderID:  providerID,
+	}
+
+	payResp, err := gateway.RequestPayment(ctx, payReq)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to initiate payment: "+err.Error())
 		return
 	}
 
-	if zibalResp.Result != 100 {
-		utils.ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Zibal error: %s", zibalResp.Message))
+	attempt.GatewayReference = payResp.GatewayRef
+
+	attemptsCol := db.Database.Collection("payment_attempts")
+	_, err = attemptsCol.InsertOne(ctx, attempt)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to save payment attempt")
 		return
 	}
 
-	// Update order with new track ID
-	trackID := zibalResp.TrackID
-	now := time.Now()
-	_, err = collection.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
+	ordersCol.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
 		"$set": bson.M{
-			"zibal_track_id": trackID,
+			"gateway_name":   gateway.Name(),
 			"payment_status": "pending",
 			"updated_at":     now,
 		},
 	})
 
-	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to update order with track ID")
-		return
-	}
-
-	payURL := zibalService.GetPaymentURL(trackID)
-
-	utils.JSONResponse(w, http.StatusOK, PaymentRequestResponse{
+	utils.JSONResponse(w, http.StatusOK, RequestPaymentResponse{
 		Result:  100,
 		Message: "Payment request created successfully",
-		TrackID: trackID,
-		PayURL:  payURL,
+		PayURL:  payResp.PayURL,
+		Gateway: gateway.Name(),
 	})
 }
