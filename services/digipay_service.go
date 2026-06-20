@@ -21,15 +21,13 @@ const (
 	digipayTicketURL   = "/digipay/api/tickets/business?type=11"
 	digipayVerifyURL   = "/digipay/api/purchases/verify"
 	digipayInquiryURL  = "/digipay/api/orders"
+	digipayAPIVersion  = "2022-02-02"
 )
 
 type DigiPayService struct {
 	clientID     string
 	clientSecret string
-	username     string
-	password     string
 	baseURL      string
-	apiVersion   string
 	httpClient   *http.Client
 
 	mu           sync.RWMutex
@@ -39,23 +37,12 @@ type DigiPayService struct {
 }
 
 func NewDigiPayService() *DigiPayService {
-	baseURL := "https://api.mydigipay.com"
-	if env := os.Getenv("DIGIPAY_ENVIRONMENT"); env == "staging" || env == "uat" {
-		baseURL = "https://uat.mydigipay.info"
-	}
-
-	apiVersion := os.Getenv("DIGIPAY_API_VERSION")
-	if apiVersion == "" {
-		apiVersion = "2022-02-02"
-	}
+	baseURL := "https://uat.mydigipay.info"
 
 	return &DigiPayService{
 		clientID:     os.Getenv("DIGIPAY_CLIENT_ID"),
 		clientSecret: os.Getenv("DIGIPAY_CLIENT_SECRET"),
-		username:     os.Getenv("DIGIPAY_USERNAME"),
-		password:     os.Getenv("DIGIPAY_PASSWORD"),
 		baseURL:      baseURL,
-		apiVersion:   apiVersion,
 		httpClient:   &http.Client{Timeout: 30 * time.Second},
 	}
 }
@@ -99,8 +86,8 @@ type digipayTokenResponse struct {
 
 func (d *DigiPayService) fetchToken(ctx context.Context) (string, time.Time, error) {
 	formData := url.Values{}
-	formData.Set("username", d.username)
-	formData.Set("password", d.password)
+	formData.Set("username", d.clientID)
+	formData.Set("password", d.clientSecret)
 	formData.Set("grant_type", "password")
 
 	body := strings.NewReader(formData.Encode())
@@ -174,7 +161,7 @@ func (d *DigiPayService) RequestPayment(ctx context.Context, req *PaymentRequest
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+token)
 	httpReq.Header.Set("Agent", "WEB")
-	httpReq.Header.Set("Digipay-Version", d.apiVersion)
+	httpReq.Header.Set("Digipay-Version", digipayAPIVersion)
 
 	resp, err := d.httpClient.Do(httpReq)
 	if err != nil {
@@ -233,7 +220,7 @@ func (d *DigiPayService) VerifyPayment(ctx context.Context, req *VerifyRequest) 
 	httpReq.Header.Set("Authorization", "Bearer "+token)
 	httpReq.Header.Set("Agent", "WEB")
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Digipay-Version", d.apiVersion)
+	httpReq.Header.Set("Digipay-Version", digipayAPIVersion)
 	httpReq.ContentLength = 0
 
 	resp, err := d.httpClient.Do(httpReq)
