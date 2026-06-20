@@ -348,15 +348,15 @@ export const useCartStore = create<CartStore>()(
       },
 
       syncCartWithBackend: async () => {
-        // Sync guard: Check if already syncing or sync completed (Requirements 3.1, 3.2)
-        const { isSyncing, syncCompleted } = get();
+        const { isSyncing, syncCompleted, cart } = get();
         
         if (isSyncing) {
           console.log('Sync already in progress, skipping');
           return;
         }
         
-        if (syncCompleted) {
+        // Allow re-sync if backend cart never got created (cart has no items and is not a real cart)
+        if (syncCompleted && cart.items.length > 0) {
           console.log('Sync already completed for this session, skipping');
           return;
         }
@@ -420,17 +420,33 @@ export const useCartStore = create<CartStore>()(
             }
           }
           
-          // No backend cart and no local items - set empty cart
-          get().clearLocalCartStorage();
-          set({
-            cart: { id: generateId(), userId: null, items: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-            summary: { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 },
-            isLoading: false,
-            syncCompleted: true,
-            lastSyncTimestamp: Date.now(),
-            isSyncing: false,
-          });
-          console.log('✅ No cart data, starting fresh');
+           // No backend cart and no local items - create an empty backend cart
+           console.log('No backend cart, creating empty cart for future operations');
+           const createResult = await makeCartApiRequest<any>('/api/cart', 'POST', { items: [] });
+           
+           if (createResult.ok && createResult.data) {
+             const { cart: processedCart, summary: processedSummary } = processBackendCartData(createResult.data);
+             get().clearLocalCartStorage();
+             set({
+               cart: processedCart,
+               summary: processedSummary,
+               isLoading: false,
+               syncCompleted: true,
+               lastSyncTimestamp: Date.now(),
+               isSyncing: false,
+             });
+             console.log('✅ Empty backend cart created');
+           } else {
+             // Fallback: set local empty cart but mark sync as NOT completed so it retries
+             get().clearLocalCartStorage();
+             set({
+               cart: { id: generateId(), userId: null, items: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+               summary: { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 },
+               isLoading: false,
+               isSyncing: false,
+             });
+             console.log('⚠️ Failed to create backend cart, will retry sync on next add');
+           }
           
         } catch (error) {
           console.error('Error in syncCartWithBackend:', error);
@@ -502,7 +518,37 @@ export const useCartStore = create<CartStore>()(
             }
           } catch (error) { 
             console.error('Error adding item:', error);
-            set({ error: error instanceof Error ? error.message : 'Error adding item', isLoading: false }); 
+            // Add to local cart as fallback so item isn't silently lost
+            const currentLocalCart = get().cart;
+            const existingItemIndex = currentLocalCart.items.findIndex(
+              item => item.productId === product.id && item.size === size && item.color === color
+            );
+            let updatedItems;
+            if (existingItemIndex > -1) {
+              updatedItems = currentLocalCart.items.map((item, index) =>
+                index === existingItemIndex
+                  ? { ...item, quantity: item.quantity + quantity }
+                  : item
+              );
+            } else {
+              const newItem: CartItem = {
+                id: generateId(),
+                productId: product.id,
+                product: product,
+                quantity: quantity,
+                size: size,
+                color: color,
+                price: product.price,
+              };
+              updatedItems = [...currentLocalCart.items, newItem];
+            }
+            set({
+              cart: { ...currentLocalCart, items: updatedItems, updatedAt: new Date().toISOString() },
+              error: error instanceof Error ? error.message : 'Error adding item',
+              isLoading: false,
+              syncCompleted: false, // allow re-sync on next add
+            });
+            get().calculateSummary();
           }
         });
       },

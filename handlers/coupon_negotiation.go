@@ -3,6 +3,8 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -32,6 +34,15 @@ func NegotiateCoupon(w http.ResponseWriter, r *http.Request) {
 	if req.Message == "" {
 		utils.ErrorResponse(w, http.StatusBadRequest, "پیام نمی‌تواند خالی باشد")
 		return
+	}
+
+	if req.TryonProductID != "" {
+		compProducts, err := findComplementaryProducts(req.TryonProductID, req.TryonColor)
+		if err != nil {
+			fmt.Printf("NegotiateCoupon: failed to find complementary products: %v\n", err)
+		} else {
+			req.ComplementaryProducts = compProducts
+		}
 	}
 
 	result, err := services.RunSellerAgent(req)
@@ -163,4 +174,103 @@ func ApplyNegotiatedCoupon(w http.ResponseWriter, r *http.Request) {
 			"description":        "کد تخفیف اختصاصی شما",
 		},
 	})
+}
+
+func findComplementaryProducts(productID, color string) ([]services.CouponCartItem, error) {
+	ctx := context.Background()
+	collection := db.Database.Collection("products")
+
+	objID, err := primitive.ObjectIDFromHex(productID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid product ID: %v", err)
+	}
+
+	var product models.Product
+	err = collection.FindOne(ctx, bson.M{"_id": objID, "is_active": true}).Decode(&product)
+	if err != nil {
+		return nil, fmt.Errorf("product not found: %v", err)
+	}
+
+	var sourceGarmentType string
+	for _, cv := range product.ColorVariants {
+		if color != "" && cv.Color != color {
+			continue
+		}
+		if cv.TryOnGarmentType != "" {
+			sourceGarmentType = cv.TryOnGarmentType
+			break
+		}
+	}
+	if sourceGarmentType == "" {
+		for _, cv := range product.ColorVariants {
+			if cv.TryOnGarmentType != "" {
+				sourceGarmentType = cv.TryOnGarmentType
+				break
+			}
+		}
+	}
+	if sourceGarmentType == "" {
+		sourceGarmentType = "upper_body"
+	}
+
+	compTypes := complementaryGarmentTypes(sourceGarmentType)
+	if len(compTypes) == 0 {
+		return nil, nil
+	}
+
+	filter := bson.M{
+		"_id":       bson.M{"$ne": objID},
+		"is_active": true,
+		"color_variants": bson.M{
+			"$elemMatch": bson.M{
+				"try_on_garment_type": bson.M{"$in": compTypes},
+				"try_on_image":        bson.M{"$ne": "", "$exists": true},
+			},
+		},
+	}
+
+	cursor, err := collection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("query error: %v", err)
+	}
+	defer cursor.Close(ctx)
+
+	var compProducts []models.Product
+	if err := cursor.All(ctx, &compProducts); err != nil {
+		return nil, fmt.Errorf("cursor error: %v", err)
+	}
+
+	rand.Shuffle(len(compProducts), func(i, j int) {
+		compProducts[i], compProducts[j] = compProducts[j], compProducts[i]
+	})
+
+	limit := 2
+	if len(compProducts) < limit {
+		limit = len(compProducts)
+	}
+
+	result := make([]services.CouponCartItem, 0, limit)
+	for i := 0; i < limit; i++ {
+		p := compProducts[i]
+		result = append(result, services.CouponCartItem{
+			ProductID:   p.ID.Hex(),
+			ProductName: p.Name,
+			Price:       p.Price,
+		})
+	}
+
+	return result, nil
+}
+
+func complementaryGarmentTypes(garmentType string) []string {
+	switch garmentType {
+	case "upper_body":
+		return []string{"lower_body"}
+	case "lower_body":
+		return []string{"upper_body"}
+	case "dresses":
+		return []string{"upper_body", "lower_body"}
+	default:
+		return nil
+	}
 }

@@ -611,11 +611,25 @@ func AddItemToExistingCart(w http.ResponseWriter, r *http.Request) {
 	cart, statusCode, err := getActiveCartForUser(ctx, userID)
 	if err != nil {
 		if err == ErrCartNotFound {
-			utils.ErrorResponse(w, statusCode, "Active cart not found for user. Please create a cart first via POST /api/cart.")
+			// Auto-create cart if none exists
+			cartCollection := db.Database.Collection("carts")
+			newCart := models.Cart{
+				ID:        primitive.NewObjectID(),
+				UserID:    userID,
+				Items:     []models.CartItem{},
+				IsActive:  true,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			}
+			if _, insertErr := cartCollection.InsertOne(ctx, newCart); insertErr != nil {
+				utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to create cart")
+				return
+			}
+			cart = &newCart
 		} else {
 			utils.ErrorResponse(w, statusCode, err.Error())
+			return
 		}
-		return
 	}
 
 	// Check if item (product + variant) already exists in cart

@@ -17,10 +17,13 @@ const maxDiscountPercent = 20
 const sellerAgentModel = "qwen/qwen3.6-27b"
 
 type NegotiateRequest struct {
-	Message        string              `json:"message"`
-	ChatHistory    []CouponChatMessage `json:"chat_history"`
-	CartItems      []CouponCartItem    `json:"cart_items"`
-	TryonContext   string              `json:"tryon_context"`
+	Message              string              `json:"message"`
+	ChatHistory          []CouponChatMessage `json:"chat_history"`
+	CartItems            []CouponCartItem    `json:"cart_items"`
+	TryonContext         string              `json:"tryon_context"`
+	TryonProductID       string              `json:"tryon_product_id"`
+	TryonColor           string              `json:"tryon_color"`
+	ComplementaryProducts []CouponCartItem   `json:"complementary_products,omitempty"`
 }
 
 type CouponChatMessage struct {
@@ -49,9 +52,11 @@ type NegotiateCouponOut struct {
 }
 
 type sellerCouponAction struct {
-	Action  string   `json:"action"`
-	Value   float64  `json:"value,omitempty"`
-	Message string   `json:"message"`
+	Action         string  `json:"action"`
+	Value          float64 `json:"value,omitempty"`
+	ProductID      string  `json:"product_id,omitempty"`
+	CompProductID  string  `json:"comp_product_id,omitempty"`
+	Message        string  `json:"message"`
 }
 
 func RunSellerAgent(req NegotiateRequest) (*NegotiateResponse, error) {
@@ -62,29 +67,42 @@ func RunSellerAgent(req NegotiateRequest) (*NegotiateResponse, error) {
 
 	cartCtx, _ := json.Marshal(req.CartItems)
 
-	systemPrompt := fmt.Sprintf(`You are a friendly Persian-speaking clothing seller in the Voxcina virtual try-on room.
+	complementaryCtx := ""
+	if len(req.ComplementaryProducts) > 0 {
+		compJSON, _ := json.Marshal(req.ComplementaryProducts)
+		complementaryCtx = fmt.Sprintf("\nمحصولات پیشنهادی قابل توصیه (در سبد خرید مشتری نیستند):\n%s\n", string(compJSON))
+	}
+
+	systemPrompt := fmt.Sprintf(`You are a friendly Persian-speaking clothing seller named "سارا" in the Voxcina virtual try-on room.
 The customer just virtually tried on: %s
 
 Their cart contains: %s
-
-Your role:
-1. First, mention the item they tried on. Start with a small discount offer (5-10%%).
-2. If the customer asks for more, gradually increase your offer — but NEVER exceed 20%%.
-3. Be playful and persuasive. Use Persian phrases like "فقط برای تو", "پیشنهاد ویژه", "همین الان", "فرصت محدود".
-4. When you reach your final offer, output a JSON action to create a coupon.
+%s
+YOUR TASK:
+1. Compliment how the tried-on item looks on them. Be enthusiastic!
+2. Pick ONE item from the "پیشنهادی" list above (if provided) and recommend it enthusiastically — explain why it pairs beautifully with their tried-on item.
+3. Offer a BUNDLE deal: "اگر هر دو رو با هم بخری، %d%% تخفیف می‌دم!" — if the customer accepts or negotiates, gradually increase up to %d%% max.
+4. If no complementary products are listed, negotiate normally on the tried-on item only.
+5. Be playful, warm, and persuasive. Use Persian phrases like "فقط برای تو", "پیشنهاد ویژه", "همین الان", "فرصت محدود".
+6. When you reach your final offer, output a JSON action to create a coupon.
 
 Rules:
-- Maximum discount: 20%% of item prices
+- Start bundle discount at 5-10%% and negotiate up to %d%% maximum
 - Coupons are valid for 1 hour only
-- Coupons apply only to the items being discussed
-- Never offer more than 20%% even if the customer insists
+- If complementary products exist, the coupon MUST include BOTH the tried-on product AND the chosen complementary product
+- Never exceed %d%% even if the customer insists
 - If the customer is rude, politely decline
 - Respond ONLY in Persian
+- Only recommend from the provided complementary list — never make up products
 
 When you decide to issue a coupon, output EXACTLY this JSON on a single line:
-{"action":"offer_coupon","value":15,"message":"باشه، ۱۵٪ تخفیف برات می‌ذارم. فقط تا یک ساعت دیگه وقت داری!"}
+{"action":"offer_coupon","value":15,"product_id":"[tried-on ID]","comp_product_id":"[complementary ID]","message":"باشه، ۱۵٪ تخفیف برات می‌ذارم. فقط تا یک ساعت دیگه وقت داری!"}
 
-Otherwise, just respond naturally in Persian. Do NOT use the JSON action format unless you are actually issuing a coupon.`, req.TryonContext, string(cartCtx))
+Otherwise, just respond naturally in Persian. Do NOT use the JSON action format unless you are actually issuing a coupon.`,
+		req.TryonContext, string(cartCtx), complementaryCtx,
+		maxDiscountPercent, maxDiscountPercent,
+		maxDiscountPercent, maxDiscountPercent,
+	)
 
 	messages := []map[string]interface{}{
 		{"role": "system", "content": systemPrompt},
@@ -171,9 +189,21 @@ Otherwise, just respond naturally in Persian. Do NOT use the JSON action format 
 		code := generateCouponCode()
 		validUntil := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
 
-		productIDs := make([]string, 0, len(req.CartItems))
+		productIDs := []string{req.TryonProductID}
+		if action.CompProductID != "" {
+			productIDs = append(productIDs, action.CompProductID)
+		}
 		for _, item := range req.CartItems {
-			productIDs = append(productIDs, item.ProductID)
+			found := false
+			for _, pid := range productIDs {
+				if pid == item.ProductID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				productIDs = append(productIDs, item.ProductID)
+			}
 		}
 
 		return &NegotiateResponse{

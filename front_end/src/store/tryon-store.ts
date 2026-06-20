@@ -102,13 +102,29 @@ export const useTryOnStore = create<TryOnState>()(
         }
 
         const data = await res.json();
-        const imageUrl = data?.image as string | undefined;
-        if (!imageUrl) throw new Error("تصویر تولید شده در پاسخ وجود ندارد");
+        const taskId = data?.task_id as string | undefined;
+        if (!taskId) throw new Error("شناسه تسک در پاسخ وجود ندارد");
 
-        set({
-          resultImage: imageUrl,
-          isProcessing: false,
-        });
+        for (let i = 0; i < 120; i++) {
+          await new Promise((r) => setTimeout(r, 2000));
+
+          const statusRes = await fetch(`/api/tryon/status?task_id=${encodeURIComponent(taskId)}`);
+          if (!statusRes.ok) continue;
+
+          const statusData = await statusRes.json();
+          if (statusData.status === "done" && statusData.image) {
+            set({
+              resultImage: statusData.image,
+              isProcessing: false,
+            });
+            return;
+          }
+          if (statusData.status === "error") {
+            throw new Error(statusData.error || "خطا در پردازش پرو مجازی");
+          }
+        }
+
+        throw new Error("زمان پردازش به پایان رسید. لطفاً دوباره تلاش کنید.");
       } catch (err: any) {
         set({ error: err?.message || "خطای نامشخص", isProcessing: false });
       }

@@ -78,6 +78,7 @@ func NewRouter() *mux.Router {
 
 	// Virtual Try-On endpoint (public)
 	api.HandleFunc("/tryon/generate", handlers.VirtualTryOn).Methods(http.MethodPost)
+	api.HandleFunc("/tryon/status", handlers.VirtualTryOnStatus).Methods(http.MethodGet)
 
 	// Coupon Negotiation (authenticated)
 	tryonCouponRouter := api.PathPrefix("/tryon").Subrouter()

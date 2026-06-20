@@ -17,7 +17,7 @@ services:
       network: host
     container_name: api-server
     ports:
-      - "8080:8080"
+      - "8088:8080"
     environment:
       - MONGODB_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/admin?authSource=admin
       - JWT_SECRET=137888
@@ -33,9 +33,10 @@ services:
       - SMSIR_URL=${SMSIR_URL}
       - SMSIR_TEMPLATE_ID=${SMSIR_TEMPLATE_ID}
       - ZIBAL_MERCHANT=${ZIBAL_MERCHANT:-zibal}
-      - HTTP_PROXY=http://host.docker.internal:10809
-      - HTTPS_PROXY=http://host.docker.internal:10809
-      - NO_PROXY=host.docker.internal,127.0.0.1,localhost,::1
+      - HTTP_PROXY=
+      - HTTPS_PROXY=
+      - NO_PROXY=
+      - TRYON_DEV_MODE=${TRYON_DEV_MODE:-false}
     volumes:
       - ./uploads:/app/uploads
     extra_hosts:
