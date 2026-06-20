@@ -11,8 +11,9 @@ export interface ColorVariant {
   colorName: string;     // Display name in Persian/English (e.g., "قرمز", "Red")
   swatchImage?: string;  // Pattern/fabric swatch image for color selector
   images: string[];      // Multiple product images for this color (different angles)
-  tryOnImage?: string;   // Virtual try-on image for this color
-  sizes: SizeVariant[];  // Available sizes for this color with inventory
+  tryOnImage?: string;         // Virtual try-on image for this color
+  tryOnGarmentType?: string;  // upper_body, lower_body, dresses
+  sizes: SizeVariant[];       // Available sizes for this color with inventory
 }
 
 // For product list API - each color variant is returned as a separate item

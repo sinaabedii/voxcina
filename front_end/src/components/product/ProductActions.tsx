@@ -99,14 +99,8 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     uploadedFile,
     resultImage,
     isProcessing: isTryOnLoading,
-    taskToken,
     setUploadedFile,
     startTryOn,
-    resumePending,
-    garmentType,
-    setGarmentType,
-    steps,
-    setSteps,
   } = useTryOnStore();
   const { isAuthenticated, user } = useAuthStore();
   const { activeBrand, fetchBrandById } = useBrandStore();
@@ -280,14 +274,6 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   // Check if current main image is loaded
   const isMainImageLoaded = productImages[selectedImage] ? loadedImages.has(productImages[selectedImage]) : false;
 
-  // Resume pending try-on job
-  useEffect(() => {
-    if (taskToken) {
-      resumePending();
-    }
-  }, [taskToken, resumePending]);
-
-
   const handleImageMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isZoomed || !imageContainerRef.current) return;
     const { left, top, width, height } = imageContainerRef.current.getBoundingClientRect();
@@ -364,9 +350,11 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
 
   const handleTryOnSubmit = async () => {
     if (!tryOnImage) return;
+    const colorVariant = product?.colorVariants?.find(cv => cv.colorName === selectedColor);
+    const garmentType = colorVariant?.tryOnGarmentType || "upper_body";
     setShowTryOnModal(false);
     try {
-      await startTryOn(tryOnImage);
+      await startTryOn(tryOnImage, garmentType);
     } catch (error) {
       console.error("Error in try-on process:", error);
     }
@@ -871,21 +859,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
           </div>
           <input type="file" accept="image/*" onChange={handleUserImageSelect} className="hidden" />
         </label>
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div>
-            <label className="block text-xs font-medium text-foreground mb-1">نوع لباس</label>
-            <select value={garmentType} onChange={(e) => setGarmentType(e.target.value)} className="w-full border border-border/30 rounded-lg p-2 text-sm bg-card text-foreground">
-              <option value="upper_body">بالاتنه</option>
-              <option value="lower_body">پایین تنه</option>
-              <option value="dresses">لباس</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-foreground mb-1">کیفیت (15-60)</label>
-            <input type="number" value={steps} onChange={(e) => setSteps(Math.max(15, Math.min(60, Number(e.target.value))))} min={15} max={60} className="w-full border border-border/30 rounded-lg p-2 text-sm bg-card text-foreground" />
-          </div>
-        </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 mt-4">
           <Button variant="outline" className="flex-1" onClick={() => { setUploadedFile(null); setShowTryOnModal(false); }}>انصراف</Button>
           <Button variant="primary" className="flex-1" onClick={handleTryOnSubmit} disabled={!uploadedFile}>شروع آزمایش</Button>
         </div>

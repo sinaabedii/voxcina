@@ -162,7 +162,8 @@ export default function EditProductPage() {
       color: "",
       colorName: "",
       images: [],
-      sizes: []
+      sizes: [],
+      tryOnGarmentType: "upper_body",
     }]);
   };
 
@@ -409,6 +410,11 @@ export default function EditProductPage() {
         formData.append(`colorTryOn_${idx}`, colorTryOnFile);
       }
 
+      // Add try-on garment type
+      if (cv.tryOnGarmentType) {
+        formData.append(`colorTryOnGarmentType_${idx}`, cv.tryOnGarmentType);
+      }
+
       // Add color-specific swatch image
       const swatchBlob = colorSwatchBlobs[idx];
       if (swatchBlob) {
@@ -604,6 +610,18 @@ export default function EditProductPage() {
                   accept="image/*"
                   onChange={(e) => handleColorTryOnChange(colorIdx, e.target.files?.[0] || null)}
                 />
+                <div className="mt-2">
+                  <label className="block text-xs mb-1">نوع لباس</label>
+                  <select
+                    className="input text-sm w-full"
+                    value={colorVariant.tryOnGarmentType || "upper_body"}
+                    onChange={(e) => handleColorVariantChange(colorIdx, "tryOnGarmentType", e.target.value)}
+                  >
+                    <option value="upper_body">بالاتنه</option>
+                    <option value="lower_body">پایین تنه</option>
+                    <option value="dresses">لباس</option>
+                  </select>
+                </div>
                 {colorTryOnFiles[colorIdx] && (
                   <div className="w-12 h-12 border rounded overflow-hidden mt-2">
                     <img src={URL.createObjectURL(colorTryOnFiles[colorIdx])} alt={`New try-on`} className="w-full h-full object-cover" />

@@ -661,6 +661,12 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 			colorVariant.TryOnImage = tryOnPath
 		}
 
+		// Read try-on garment type for this variant
+		garmentTypeKey := fmt.Sprintf("colorTryOnGarmentType_%d", i)
+		if gt := r.FormValue(garmentTypeKey); gt != "" {
+			colorVariant.TryOnGarmentType = gt
+		}
+
 		// Process color variant swatch image (e.g., colorSwatch_0, colorSwatch_1, etc.)
 		colorSwatchKey := fmt.Sprintf("colorSwatch_%d", i)
 		if files, exists := r.MultipartForm.File[colorSwatchKey]; exists &&
@@ -1731,6 +1737,15 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 					} else if idx < len(existingProduct.ColorVariants) {
 						// Keep existing try-on image
 						colorVariants[idx].TryOnImage = existingProduct.ColorVariants[idx].TryOnImage
+					}
+
+					// Read try-on garment type for this variant
+					garmentTypeKey := fmt.Sprintf("colorTryOnGarmentType_%d", idx)
+					if gt := r.FormValue(garmentTypeKey); gt != "" {
+						colorVariants[idx].TryOnGarmentType = gt
+					} else if idx < len(existingProduct.ColorVariants) {
+						// Keep existing garment type
+						colorVariants[idx].TryOnGarmentType = existingProduct.ColorVariants[idx].TryOnGarmentType
 					}
 
 					// Handle swatch image

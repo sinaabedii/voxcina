@@ -154,10 +154,12 @@ export default async function RootLayout({
   // Always include Home as the first item
   const homeItem: NavItem = { label: "خانه", href: "/" };
   const productsItem: NavItem = { label: "محصولات", href: "/products" };
+  const tryonItem: NavItem = { label: "پرو مجازی", href: "/tryon" };
   navItems = [
     homeItem,
     productsItem,
-    ...navItems.filter((i) => i.href !== "/" && i.href !== "/products"),
+    tryonItem,
+    ...navItems.filter((i) => i.href !== "/" && i.href !== "/products" && i.href !== "/tryon"),
   ];
 
   return (
