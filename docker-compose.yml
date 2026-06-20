@@ -3,7 +3,7 @@
 # └──────────────────────────────────────────────────────────────────┘
 services:
   scheduler:
-    image: mcuadros/ofelia:latest
+    image: docker.arvancloud.ir/mcuadros/ofelia:latest
     container_name: backup-scheduler
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -50,7 +50,7 @@ services:
       - backend-network
 
   mongo:
-    image: mongo:6.0
+    image: docker.arvancloud.ir/mongo:6.0
     container_name: mongodb
     ports:
       - "27017:27017"
