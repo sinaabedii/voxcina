@@ -64,8 +64,9 @@ const nextConfig = {
       },
       // All other /api/* routes (auth, products, orders, etc.) → Go backend
       // This includes OTP endpoints: /api/auth/signup/send-otp, /api/auth/check-otp, etc.
+      // Note: /api/tryon/negotiate is handled by a Next.js API route (needs longer timeout)
       {
-        source: '/api/:path((?!postex).*)',
+        source: '/api/:path((?!postex|tryon/negotiate).*)',
         destination: `${backendUrl}/api/:path*`,
       }
     ];

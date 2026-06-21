@@ -19,37 +19,48 @@ import (
 )
 
 func NegotiateCoupon(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("[negotiate] --- START ---")
 	userID, statusCode, err := getUserIDFromContext(r)
 	if err != nil {
+		fmt.Printf("[negotiate] auth failed: status=%d err=%v\n", statusCode, err)
 		utils.ErrorResponse(w, statusCode, "لطفاً وارد شوید")
 		return
 	}
+	fmt.Printf("[negotiate] user=%s\n", userID.Hex())
 
 	var req services.NegotiateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		fmt.Printf("[negotiate] decode error: %v\n", err)
 		utils.ErrorResponse(w, http.StatusBadRequest, "فرمت درخواست نامعتبر است")
 		return
 	}
+	fmt.Printf("[negotiate] decoded req: productID=%s color=%s msg=%s\n", req.TryonProductID, req.TryonColor, req.Message[:min(50, len(req.Message))])
 
 	if req.Message == "" {
+		fmt.Println("[negotiate] empty message")
 		utils.ErrorResponse(w, http.StatusBadRequest, "پیام نمی‌تواند خالی باشد")
 		return
 	}
 
 	if req.TryonProductID != "" {
+		fmt.Printf("[negotiate] looking up complementary for product=%s color=%s\n", req.TryonProductID, req.TryonColor)
 		compProducts, err := findComplementaryProducts(req.TryonProductID, req.TryonColor)
 		if err != nil {
-			fmt.Printf("NegotiateCoupon: failed to find complementary products: %v\n", err)
+			fmt.Printf("[negotiate] failed to find complementary products: %v\n", err)
 		} else {
 			req.ComplementaryProducts = compProducts
+			fmt.Printf("[negotiate] found %d complementary products\n", len(compProducts))
 		}
 	}
 
+	fmt.Println("[negotiate] calling RunSellerAgent...")
 	result, err := services.RunSellerAgent(req)
 	if err != nil {
+		fmt.Printf("[negotiate] RunSellerAgent error: %v\n", err)
 		utils.ErrorResponse(w, http.StatusServiceUnavailable, "خطا در ارتباط با سرویس مذاکره")
 		return
 	}
+	fmt.Printf("[negotiate] RunSellerAgent success, hasCoupon=%v reply=%s\n", result.Coupon != nil, result.Reply[:min(100, len(result.Reply))])
 
 	if result.Coupon != nil {
 		productIDs := make([]primitive.ObjectID, 0, len(result.Coupon.ProductIDs))
@@ -107,6 +118,7 @@ func NegotiateCoupon(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSONResponse(w, http.StatusOK, result)
+	fmt.Println("[negotiate] --- END ---")
 }
 
 func ApplyNegotiatedCoupon(w http.ResponseWriter, r *http.Request) {
@@ -229,15 +241,26 @@ func findComplementaryProducts(productID, color string) ([]services.CouponCartIt
 		},
 	}
 
-	cursor, err := collection.Find(ctx, filter)
+	compProducts, err := queryCompProducts(collection, ctx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("query error: %v", err)
+		return nil, err
 	}
-	defer cursor.Close(ctx)
 
-	var compProducts []models.Product
-	if err := cursor.All(ctx, &compProducts); err != nil {
-		return nil, fmt.Errorf("cursor error: %v", err)
+	if len(compProducts) == 0 {
+		fallbackFilter := bson.M{
+			"_id":       bson.M{"$ne": objID},
+			"is_active": true,
+			"color_variants": bson.M{
+				"$elemMatch": bson.M{
+					"try_on_image": bson.M{"$ne": "", "$exists": true},
+				},
+			},
+		}
+		fmt.Println("[negotiate] no garment-type matches, trying fallback query")
+		compProducts, err = queryCompProducts(collection, ctx, fallbackFilter)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	rand.Shuffle(len(compProducts), func(i, j int) {
@@ -260,6 +283,20 @@ func findComplementaryProducts(productID, color string) ([]services.CouponCartIt
 	}
 
 	return result, nil
+}
+
+func queryCompProducts(collection *mongo.Collection, ctx context.Context, filter bson.M) ([]models.Product, error) {
+	cursor, err := collection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("query error: %v", err)
+	}
+	defer cursor.Close(ctx)
+
+	var compProducts []models.Product
+	if err := cursor.All(ctx, &compProducts); err != nil {
+		return nil, fmt.Errorf("cursor error: %v", err)
+	}
+	return compProducts, nil
 }
 
 func complementaryGarmentTypes(garmentType string) []string {
