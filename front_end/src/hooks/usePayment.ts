@@ -6,6 +6,7 @@ interface PaymentRequestResponse {
   message: string;
   trackId?: number;
   payUrl?: string;
+  gateway?: string;
 }
 
 interface VerifyPaymentResponse {
@@ -53,9 +54,9 @@ export const usePayment = () => {
   const requestPayment = useCallback(
     async (
       orderId: string,
-      amount: number,
-      description?: string,
-      mobile?: string
+      gateway?: string,
+      mobile?: string,
+      description?: string
     ): Promise<PaymentRequestResponse | null> => {
       setIsLoading(true);
       setError(null);
@@ -64,7 +65,7 @@ export const usePayment = () => {
         const response = await fetch("/api/payment/request", {
           method: "POST",
           headers: getAuthHeaders(),
-          body: JSON.stringify({ orderId, amount, description, mobile }),
+          body: JSON.stringify({ orderId, gateway, mobile, description }),
         });
 
         const data = await response.json();

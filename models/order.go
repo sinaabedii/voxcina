@@ -61,6 +61,7 @@ type Order struct {
 	PaymentMethod   string               `bson:"payment_method"             json:"payment_method"`             // Payment method: "online", "wallet", "cod"
 	ZibalTrackID    *int64               `bson:"zibal_track_id,omitempty"   json:"zibal_track_id,omitempty"`   // Zibal payment tracking ID
 	ZibalRefNumber  *string              `bson:"zibal_ref_number,omitempty" json:"zibal_ref_number,omitempty"` // Zibal reference number
+	GatewayName     string               `bson:"gateway_name,omitempty"     json:"gateway_name,omitempty"`     // Payment gateway: "zibal" | "digipay"
 	TrackingCode    *string              `bson:"tracking_code,omitempty"    json:"tracking_code,omitempty"`    // Shipping tracking number (nullable)
 	Timeline        []OrderTimelineEntry `bson:"timeline,omitempty"         json:"timeline,omitempty"`         // Order status change history
 	Notes           []OrderNote          `bson:"notes,omitempty"            json:"notes,omitempty"`            // Internal admin notes

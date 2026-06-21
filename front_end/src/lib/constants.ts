@@ -189,6 +189,12 @@ export const PAYMENT_GATEWAYS = [
     enabled: true,
   },
   {
+    id: "digipay",
+    name: "دیجی‌پی",
+    logo: "/images/payment/digipay.png",
+    enabled: true,
+  },
+  {
     id: "zarinpal",
     name: "زرین‌پال",
     logo: "/images/payment/zarinpal.png",

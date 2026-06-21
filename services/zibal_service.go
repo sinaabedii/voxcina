@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -94,7 +95,7 @@ func NewZibalService(merchant string) *ZibalService {
 	}
 }
 
-func (z *ZibalService) RequestPayment(ctx context.Context, req *ZibalPaymentRequest) (*ZibalPaymentResponse, error) {
+func (z *ZibalService) doZibalRequest(ctx context.Context, req *ZibalPaymentRequest) (*ZibalPaymentResponse, error) {
 	req.Merchant = z.merchant
 
 	body, err := json.Marshal(req)
@@ -128,7 +129,7 @@ func (z *ZibalService) RequestPayment(ctx context.Context, req *ZibalPaymentRequ
 	return &result, nil
 }
 
-func (z *ZibalService) VerifyPayment(ctx context.Context, trackID int64) (*ZibalVerifyResponse, error) {
+func (z *ZibalService) doZibalVerify(ctx context.Context, trackID int64) (*ZibalVerifyResponse, error) {
 	req := ZibalVerifyRequest{
 		Merchant: z.merchant,
 		TrackID:  trackID,
@@ -165,7 +166,7 @@ func (z *ZibalService) VerifyPayment(ctx context.Context, trackID int64) (*Zibal
 	return &result, nil
 }
 
-func (z *ZibalService) InquiryPayment(ctx context.Context, trackID int64) (*ZibalInquiryResponse, error) {
+func (z *ZibalService) doZibalInquiry(ctx context.Context, trackID int64) (*ZibalInquiryResponse, error) {
 	req := ZibalInquiryRequest{
 		Merchant: z.merchant,
 		TrackID:  trackID,
@@ -204,6 +205,91 @@ func (z *ZibalService) InquiryPayment(ctx context.Context, trackID int64) (*Ziba
 
 func (z *ZibalService) GetPaymentURL(trackID int64) string {
 	return fmt.Sprintf("%s/%d", ZibalStartURL, trackID)
+}
+
+func (z *ZibalService) Name() string {
+	return "zibal"
+}
+
+func (z *ZibalService) RequestPayment(ctx context.Context, req *PaymentRequest) (*PaymentResponse, error) {
+	trackID, err := strconv.ParseInt(req.OrderID, 10, 64)
+	if err != nil {
+		trackID = 0
+	}
+	_ = trackID
+
+	zibalReq := &ZibalPaymentRequest{
+		Amount:      req.Amount,
+		CallbackURL: req.CallbackURL,
+		Description: req.Description,
+		Mobile:      req.Mobile,
+	}
+
+	resp, err := z.doZibalRequest(ctx, zibalReq)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Result != 100 {
+		return nil, fmt.Errorf("zibal error: %s", resp.Message)
+	}
+
+	return &PaymentResponse{
+		GatewayRef: fmt.Sprintf("%d", resp.TrackID),
+		PayURL:     z.GetPaymentURL(resp.TrackID),
+	}, nil
+}
+
+func (z *ZibalService) VerifyPayment(ctx context.Context, req *VerifyRequest) (*VerifyResponse, error) {
+	trackID, err := strconv.ParseInt(req.GatewayRef, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid zibal gateway ref: %w", err)
+	}
+
+	resp, err := z.doZibalVerify(ctx, trackID)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Result != 100 {
+		return nil, fmt.Errorf("zibal verify error: %s", resp.Message)
+	}
+
+	success := IsPaymentSuccessful(resp.Status) || IsPaymentAlreadyVerified(resp.Status)
+
+	return &VerifyResponse{
+		Success:    success,
+		RefNumber:  resp.RefNumber,
+		Amount:     resp.Amount,
+		GatewayRef: req.GatewayRef,
+	}, nil
+}
+
+func (z *ZibalService) InquiryPayment(ctx context.Context, req *InquiryRequest) (*InquiryResponse, error) {
+	trackID, err := strconv.ParseInt(req.GatewayRef, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid zibal gateway ref: %w", err)
+	}
+
+	resp, err := z.doZibalInquiry(ctx, trackID)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Result != 100 {
+		return nil, fmt.Errorf("zibal inquiry error: %s", resp.Message)
+	}
+
+	success := IsPaymentSuccessful(resp.Status)
+
+	return &InquiryResponse{
+		Success:   success,
+		Status:    GetPaymentStatusText(resp.Status),
+		Amount:    resp.Amount,
+		RefNumber: resp.RefNumber,
+		CreatedAt: &resp.CreatedAt,
+		PaidAt:    &resp.PaidAt,
+	}, nil
 }
 
 func IsPaymentSuccessful(status int) bool {
