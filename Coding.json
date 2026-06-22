@@ -1,0 +1,468 @@
+{
+  "system_config": {
+    "format": "G-CC-BSCSZ",
+    "description": "Voxcina Apparel SKU System - 7 Character Format",
+    "logic": {
+      "G": "Gender (M=Men, F=Women, D=Kids, B=Unisex)",
+      "CC": "Category ID (10-99)",
+      "B": "Brand Code (0-9, then A-Z)",
+      "S": "Style/Product Variant (0-9, then A-Z - free identifier within category)",
+      "C": "Color Code (0-9, then A-Z)",
+      "Z": "Size Code (letter code, not number)"
+    },
+    "example": "M10-0A0L = Men's Crew Neck T-shirt (Cat 10), Brand 0, Variant A, Black, Large"
+  },
+  "size_codes": {
+    "clothing": {
+      "_note": "Standard letter sizes with unique SKU codes to avoid confusion (Q=XL, R=2XL, T=3XL)",
+      "X": "XS - Extra Small",
+      "S": "S - Small",
+      "M": "M - Medium",
+      "L": "L - Large",
+      "Q": "XL - Extra Large (use Q, not X or L)",
+      "R": "2XL - Double Extra Large (use R, not XX)",
+      "T": "3XL - Triple Extra Large (use T, not XXX)"
+    },
+    "pants_waist": {
+      "A": "28",
+      "B": "30",
+      "C": "32",
+      "D": "34",
+      "E": "36",
+      "F": "38",
+      "G": "40",
+      "H": "42",
+      "I": "44",
+      "J": "46"
+    },
+    "shoes": {
+      "A": "36",
+      "B": "37",
+      "C": "38",
+      "D": "39",
+      "E": "40",
+      "F": "41",
+      "G": "42",
+      "H": "43",
+      "I": "44",
+      "J": "45"
+    },
+    "kids": {
+      "A": "2-3 Years",
+      "B": "4-5 Years",
+      "C": "6-7 Years",
+      "D": "8-9 Years",
+      "E": "10-11 Years",
+      "F": "12-13 Years"
+    },
+    "one_size": {
+      "O": "One Size (Freesize)"
+    }
+  },
+  "brand_codes": {
+    "0": "Reserved for in-house/default brand",
+    "1": "Free-Man",
+    "2": "Brand 2",
+    "3": "Brand 3",
+    "4": "Brand 4",
+    "5": "Brand 5",
+    "6": "Brand 6",
+    "7": "Brand 7",
+    "8": "Brand 8",
+    "9": "Brand 9",
+    "A": "Brand A",
+    "B": "Brand B",
+    "C": "Brand C",
+    "D": "Brand D",
+    "E": "Brand E",
+    "F": "Brand F",
+    "G": "Brand G",
+    "H": "Brand H",
+    "I": "Brand I",
+    "J": "Brand J",
+    "K": "Brand K",
+    "L": "Brand L",
+    "M": "Brand M",
+    "N": "Brand N",
+    "O": "Brand O",
+    "P": "Brand P",
+    "Q": "Brand Q",
+    "R": "Brand R",
+    "S": "Brand S",
+    "T": "Brand T",
+    "U": "Brand U",
+    "V": "Brand V",
+    "W": "Brand W",
+    "X": "Brand X",
+    "Y": "Brand Y",
+    "Z": "Brand Z"
+  },
+  "categories": [
+    {
+      "group": "MEN - T-SHIRTS & POLOS (تیشرت و پولوشرت مردانه)",
+      "gender_prefix": "M",
+      "items": [
+        {
+          "name": "تیشرت یقه گرد (Crew Neck)",
+          "category_code": "10",
+          "size_type": "clothing"
+        },
+        {
+          "name": "تیشرت یقه هفت (V-Neck)",
+          "category_code": "11",
+          "size_type": "clothing"
+        },
+        {
+          "name": "تیشرت لانگ/لش (Longline/Oversized)",
+          "category_code": "12",
+          "size_type": "clothing"
+        },
+        {
+          "name": "تیشرت آستین بلند",
+          "category_code": "13",
+          "size_type": "clothing"
+        },
+        {
+          "name": "پولوشرت (Polo Shirt)",
+          "category_code": "14",
+          "size_type": "clothing"
+        },
+        {
+          "name": "تیشرت طرح‌دار/چاپی",
+          "category_code": "15",
+          "size_type": "clothing"
+        },
+        {
+          "name": "تیشرت اسپرت",
+          "category_code": "16",
+          "size_type": "clothing"
+        }
+      ]
+    },
+    {
+      "group": "MEN - SHIRTS & SWEATERS (پیراهن و بافت مردانه)",
+      "gender_prefix": "M",
+      "items": [
+        {
+          "name": "پیراهن ساده آستین بلند",
+          "category_code": "20",
+          "size_type": "clothing"
+        },
+        {
+          "name": "پیراهن آستین کوتاه",
+          "category_code": "21",
+          "size_type": "clothing"
+        },
+        {
+          "name": "پیراهن جین (Denim Shirt)",
+          "category_code": "22",
+          "size_type": "clothing"
+        },
+        {
+          "name": "هودی (Hoodie)",
+          "category_code": "23",
+          "size_type": "clothing"
+        },
+        {
+          "name": "سویشرت (Sweatshirt)",
+          "category_code": "24",
+          "size_type": "clothing"
+        },
+        {
+          "name": "پلیور و بافت (Sweater/Knitwear)",
+          "category_code": "25",
+          "size_type": "clothing"
+        }
+      ]
+    },
+    {
+      "group": "MEN - OUTERWEAR & COATS (کاپشن و کت مردانه)",
+      "gender_prefix": "M",
+      "items": [
+        {
+          "name": "کاپشن ضخیم/پافر (Puffer Jacket)",
+          "category_code": "30",
+          "size_type": "clothing"
+        },
+        {
+          "name": "کت اسپرت (Blazer/Sport Coat)",
+          "category_code": "31",
+          "size_type": "clothing"
+        },
+        {
+          "name": "کت چرم (Leather Jacket)",
+          "category_code": "32",
+          "size_type": "clothing"
+        },
+        {
+          "name": "بارانی/بادگیر (Raincoat/Windbreaker)",
+          "category_code": "33",
+          "size_type": "clothing"
+        },
+        {
+          "name": "کت جین (Denim Jacket)",
+          "category_code": "34",
+          "size_type": "clothing"
+        },
+        {
+          "name": "پالتو (Overcoat)",
+          "category_code": "35",
+          "size_type": "clothing"
+        }
+      ]
+    },
+    {
+      "group": "MEN - BOTTOMS (پایین‌تنه مردانه)",
+      "gender_prefix": "M",
+      "items": [
+        {
+          "name": "شلوار جین اسلیم (Slim Fit)",
+          "category_code": "40",
+          "size_type": "pants_waist"
+        },
+        {
+          "name": "شلوار جین راسته (Regular Fit)",
+          "category_code": "41",
+          "size_type": "pants_waist"
+        },
+        {
+          "name": "شلوار جین اسکینی (Skinny)",
+          "category_code": "42",
+          "size_type": "pants_waist"
+        },
+        {
+          "name": "شلوار جین گشاد (Relaxed/Loose)",
+          "category_code": "43",
+          "size_type": "pants_waist"
+        },
+        {
+          "name": "شلوار کتان (Cotton Pants)",
+          "category_code": "44",
+          "size_type": "pants_waist"
+        },
+        {
+          "name": "شلوار پارچه‌ای رسمی",
+          "category_code": "45",
+          "size_type": "pants_waist"
+        },
+        {
+          "name": "شلوار اسلش (Jogger)",
+          "category_code": "46",
+          "size_type": "pants_waist"
+        },
+        {
+          "name": "شلوار شش‌جیب (Cargo)",
+          "category_code": "47",
+          "size_type": "pants_waist"
+        },
+        {
+          "name": "شلوارک (Shorts)",
+          "category_code": "48",
+          "size_type": "pants_waist"
+        }
+      ]
+    },
+    {
+      "group": "WOMEN - TOPS & OUTERWEAR (بالاتنه و رویه زنانه)",
+      "gender_prefix": "F",
+      "items": [
+        {
+          "name": "شومیز مجلسی (Formal Blouse)",
+          "category_code": "50",
+          "size_type": "clothing"
+        },
+        {
+          "name": "شومیز اسپرت (Casual Button-down)",
+          "category_code": "51",
+          "size_type": "clothing"
+        },
+        {
+          "name": "بلوز و تونیک (Blouse/Tunic)",
+          "category_code": "52",
+          "size_type": "clothing"
+        },
+        {
+          "name": "کراپ (Crop Top)",
+          "category_code": "53",
+          "size_type": "clothing"
+        },
+        {
+          "name": "تیشرت زنانه",
+          "category_code": "54",
+          "size_type": "clothing"
+        },
+        {
+          "name": "بافت و پلیور زنانه",
+          "category_code": "55",
+          "size_type": "clothing"
+        },
+        {
+          "name": "مانتو اسپرت",
+          "category_code": "56",
+          "size_type": "clothing"
+        },
+        {
+          "name": "مانتو کتی و مجلسی",
+          "category_code": "57",
+          "size_type": "clothing"
+        },
+        {
+          "name": "پالتو و کاپشن زنانه",
+          "category_code": "58",
+          "size_type": "clothing"
+        },
+        {
+          "name": "هودی و سویشرت زنانه",
+          "category_code": "59",
+          "size_type": "clothing"
+        }
+      ]
+    },
+    {
+      "group": "WOMEN - BOTTOMS & DRESSES (پایین‌تنه و پیراهن زنانه)",
+      "gender_prefix": "F",
+      "items": [
+        {
+          "name": "شلوار جین زنانه",
+          "category_code": "60",
+          "size_type": "clothing"
+        },
+        {
+          "name": "شلوار پارچه‌ای زنانه",
+          "category_code": "61",
+          "size_type": "clothing"
+        },
+        {
+          "name": "لگینگ (Leggings)",
+          "category_code": "62",
+          "size_type": "clothing"
+        },
+        {
+          "name": "دامن (Skirt)",
+          "category_code": "63",
+          "size_type": "clothing"
+        },
+        {
+          "name": "پیراهن مجلسی (Formal Dress)",
+          "category_code": "64",
+          "size_type": "clothing"
+        },
+        {
+          "name": "پیراهن کوتاه/ساحلی",
+          "category_code": "65",
+          "size_type": "clothing"
+        },
+        {
+          "name": "سرهمی (Jumpsuit)",
+          "category_code": "66",
+          "size_type": "clothing"
+        }
+      ]
+    },
+    {
+      "group": "KIDS - CLOTHING (لباس بچگانه)",
+      "gender_prefix": "D",
+      "items": [
+        {
+          "name": "تیشرت و بلوز پسرانه",
+          "category_code": "80",
+          "size_type": "kids"
+        },
+        {
+          "name": "شلوار پسرانه",
+          "category_code": "81",
+          "size_type": "kids"
+        },
+        {
+          "name": "تیشرت و بلوز دخترانه",
+          "category_code": "82",
+          "size_type": "kids"
+        },
+        {
+          "name": "دامن و شلوار دخترانه",
+          "category_code": "83",
+          "size_type": "kids"
+        },
+        {
+          "name": "ست لباس بچگانه",
+          "category_code": "84",
+          "size_type": "kids"
+        }
+      ]
+    },
+    {
+      "group": "UNISEX - ACCESSORIES & SHOES (کفش و اکسسوری)",
+      "gender_prefix": "B",
+      "items": [
+        {
+          "name": "کتانی و کفش اسپرت",
+          "category_code": "90",
+          "size_type": "shoes"
+        },
+        {
+          "name": "کفش کلاسیک (Classic Shoes)",
+          "category_code": "91",
+          "size_type": "shoes"
+        },
+        {
+          "name": "بوت و نیم‌بوت (Boots)",
+          "category_code": "92",
+          "size_type": "shoes"
+        },
+        {
+          "name": "صندل و دمپایی",
+          "category_code": "93",
+          "size_type": "shoes"
+        },
+        {
+          "name": "کیف و کوله (Bags)",
+          "category_code": "94",
+          "size_type": "one_size"
+        },
+        {
+          "name": "کمربند و اکسسوری",
+          "category_code": "95",
+          "size_type": "one_size"
+        }
+      ]
+    }
+  ],
+  "examples": [
+    {
+      "sku": "M100A0L",
+      "description": "Men's Crew Neck T-shirt (Cat 10), Brand 0, Variant A, Black, Large",
+      "breakdown": {
+        "gender": "M (Men)",
+        "category": "10 (Crew Neck T-shirt)",
+        "brand": "0 (Default Brand)",
+        "style": "A (free product variant)",
+        "color": "0 (Black)",
+        "size": "L (Large)"
+      }
+    },
+    {
+      "sku": "M410B1D",
+      "description": "Men's Regular Fit Jeans (Cat 41), Brand 0, Variant B, Navy, Size 32",
+      "breakdown": {
+        "gender": "M (Men)",
+        "category": "41 (Regular Fit Jeans)",
+        "brand": "0 (Default Brand)",
+        "style": "B (free product variant)",
+        "color": "1 (Navy)",
+        "size": "D (32)"
+      }
+    },
+    {
+      "sku": "B903C4E",
+      "description": "Unisex Sneakers (Cat 90), Brand 3, Variant C, Blue, Size 40",
+      "breakdown": {
+        "gender": "B (Unisex)",
+        "category": "90 (Sneakers)",
+        "brand": "3 (Brand 3)",
+        "style": "C (free product variant)",
+        "color": "4 (Blue)",
+        "size": "E (40)"
+      }
+    }
+  ]
+}

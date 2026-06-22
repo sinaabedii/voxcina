@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard - Add Product</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+  <div class="max-w-3xl mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-6 text-center">Admin Dashboard</h1>
+    
+    <div class="bg-white rounded shadow p-6">
+      <h2 class="text-2xl font-semibold mb-4">Add New Product</h2>
+      <form id="productForm" class="space-y-4">
+        <div>
+          <label class="block text-gray-700">Product Name</label>
+          <input type="text" name="name" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" />
+        </div>
+        <div>
+          <label class="block text-gray-700">Price</label>
+          <input type="number" name="price" step="0.01" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" />
+        </div>
+        <div>
+          <label class="block text-gray-700">Category ID</label>
+          <input type="text" name="categoryId" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" />
+        </div>
+        <button type="submit" class="w-full bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700 transition">Add Product</button>
+      </form>
+      <div id="responseMessage" class="mt-4 text-center"></div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById("productForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      
+      const form = e.target;
+      const formData = new FormData(form);
+      // Build JSON payload
+      const payload = {
+        name: formData.get("name"),
+        price: parseFloat(formData.get("price")),
+        categoryId: formData.get("categoryId")
+      };
+      
+      try {
+        const response = await fetch("/api/admin/products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        
+        const data = await response.json();
+        if (response.ok) {
+          document.getElementById("responseMessage").innerHTML = `<p class="text-green-600">${data.message}</p>`;
+          form.reset();
+        } else {
+          document.getElementById("responseMessage").innerHTML = `<p class="text-red-600">${data.error || "Error adding product"}</p>`;
+        }
+      } catch (err) {
+        document.getElementById("responseMessage").innerHTML = `<p class="text-red-600">Error: ${err.message}</p>`;
+      }
+    });
+  </script>
+</body>
+</html>

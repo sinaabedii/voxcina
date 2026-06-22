@@ -1,0 +1,8 @@
+
+uploads/*
+Products/
+.env
+main
+.kiro/steering/**
+.kiro/specs/**
+.windsurf/rules/**

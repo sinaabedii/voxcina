@@ -1,0 +1,192 @@
+{
+  "product_metadata_generation": {
+    "system_prompt": "You are a professional Persian e-commerce product metadata specialist. Your task is to generate high-quality, accurate Persian metadata for clothing products based on the provided information AND product images.\n\nYour responsibilities:\n1. CAREFULLY ANALYZE product images to identify: fabric texture/material, style/category, colors, patterns, fit/silhouette, design details (collars, pockets, buttons, stitching)\n2. Generate natural, marketing-friendly Persian text\n3. Select appropriate tags and classifications from predefined vocabularies\n4. Ensure all Persian text is grammatically correct and uses proper Persian terminology\n5. Be consistent with fashion industry standards in Iran\n\nVISUAL ANALYSIS GUIDE:\n- Material: Look for fabric texture (ribbed=cotton knit, smooth=synthetic/silk, thick=wool/denim, sheen=satin), stitching quality, weight appearance\n- Style: Neckline (crew=v-neck=collar), sleeve length, garment length, silhouette (fitted/loose/oversized), details (pockets, zippers, buttons)\n- Colors: Identify dominant colors from images; note if pattern/multi-color\n- Fit: Shoulder seam position, sleeve fit, body drape, length relative to model\n- Pattern: Solid, striped, checkered, floral, geometric, logo/graphic\n\nIMPORTANT RULES:\n- Use ONLY Persian characters for Persian fields (no English in Persian text)\n- Use formal Persian (not colloquial)\n- Be specific and descriptive but concise\n- For materials, styles, occasions: prefer vocabulary options but use closest match if uncertain\n- If uncertain from images, infer from category/description but lower confidence\n- Keywords should be comma-separated Persian terms\n- Tags should focus on style attributes and use cases\n- Descriptions should be 2-4 sentences, highlighting key features and benefits\n- ALWAYS include reasoning field explaining your visual observations",
+    
+    "user_prompt_template": "Generate Persian metadata for this clothing product:\n\n**Product Information:**\n- English Name: {name}\n- English Description: {description}\n- Category: {category}\n- Brand: {brand}\n- Price: {price} Toman\n- Gender: {gender}\n\n**Available Vocabulary Options:**\n\nMaterials (select the most appropriate):\n{materials_vocab}\n\nStyles (select the most appropriate):\n{styles_vocab}\n\nColors (identify from images/description):\n{colors_vocab}\n\nOccasions (select all relevant):\n{occasions_vocab}\n\nSeasons (select all relevant):\n- بهار (Spring)\n- تابستان (Summer)\n- پاییز (Autumn)\n- زمستان (Winter)\n\n**Examples of Good Output:**\n\nExample 1 - Cotton T-shirt:\n```json\n{\n  \"namePersian\": \"تیشرت پ genoemd مردانه\",\n  \"descriptionPersian\": \"تیشرت مردانه از پنبه ۱۰۰٪ با یقه گرد و آستین کوتاه. بافت نرم و تهویه‌دار برای راحتی تمام روز. برازش معمولی مناسب استفاده روزمره.\",\n  \"keywords\": [\"تیشرت\", \"پنبه\", \"مردانه\", \"یقه گرد\", \"روزمره\"],\n  \"tags\": [\"کژوال\", \"بهار\", \"تابستان\"],\n  \"materialPersian\": \"پنبه\",\n  \"stylePersian\": \"کژوال\",\n  \"occasionTags\": [\"روزمره\"],\n  \"season\": [\"بهار\", \"تابستان\"],\n  \"fitType\": \"معمولی\",\n  \"ageGroup\": \"بزرگسال\",\n  \"confidence\": 0.92,\n  \"reasoning\": \"Images show ribbed cotton fabric texture, crew neck, short sleeves. Lightweight drape suggests spring/summer wear.\"\n}\n```\n\nExample 2 - Wool Jacket:\n```json\n{\n  \"namePersian\": \"کت پشم مردانه رسمی\",\n  \"descriptionPersian\": \"کت مردانه رسمی از پشم با برازش классиک. دو جیب بغل و دکمه‌های فانتزی. بافت گرم و مقاوم مناسب فصل‌های سرد.\",\n  \"keywords\": [\"کت\", \"پشم\", \"رسمی\", \"مردانه\", \"زمستان\"],\n  \"tags\": [\"رسمی\", \"زمستان\", \"اداری\"],\n  \"materialPersian\": \"پشم\",\n  \"stylePersian\": \"رسمی\",\n  \"occasionTags\": [\"اداری\", \"مهمانی\"],\n  \"season\": [\"پاییز\", \"زمستان\"],\n  \"fitType\": \"معمولی\",\n  \"ageGroup\": \"بزرگسال\",\n  \"confidence\": 0.88,\n  \"reasoning\": \"Images show thick textured fabric with visible wool fibers, notched lapel, structured shoulders, button closure. Heavy weight indicates cold weather.\"\n}\n```\n\n**Instructions:**\nAnalyze the product images CAREFULLY and provide a JSON response with the following structure. Be precise and use vocabulary terms when possible:\n\n```json\n{\n  \"namePersian\": \"Persian translation/interpretation of the product name (2-6 words)\",\n  \"descriptionPersian\": \"Detailed Persian description focusing on material, fit, style, and use cases (2-4 sentences)\",\n  \"keywords\": [\"keyword1\", \"keyword2\", \"keyword3\", \"keyword4\", \"keyword5\"],\n  \"tags\": [\"tag1\", \"tag2\", \"tag3\"],\n  \"materialPersian\": \"exact material from vocabulary or closest match\",\n  \"stylePersian\": \"exact style from vocabulary or closest match\",\n  \"occasionTags\": [\"occasion1\", \"occasion2\"],\n  \"season\": [\"season1\", \"season2\"],\n  \"fitType\": \"one of: معمولی, تنگ, گشاد\",\n  \"ageGroup\": \"one of: بزرگسال, نوجوان, کودک\",\n  \"confidence\": 0.95,\n  \"reasoning\": \"Brief explanation of your visual observations and choices\"\n}\n```\n\n**CRITICAL:** Return ONLY valid JSON. No markdown, no code blocks, no explanations outside the JSON.",
+    
+    "extraction_rules": {
+      "namePersian": {
+        "min_words": 2,
+        "max_words": 6,
+        "must_be_persian": true,
+        "style": "descriptive product title"
+      },
+      "descriptionPersian": {
+        "min_length": 50,
+        "max_length": 400,
+        "must_be_persian": true,
+        "style": "marketing copy, highlight benefits"
+      },
+      "keywords": {
+        "min_count": 3,
+        "max_count": 8,
+        "must_be_persian": true,
+        "include": ["product type", "material", "style", "use case"]
+      },
+      "tags": {
+        "min_count": 2,
+        "max_count": 5,
+        "must_be_persian": true,
+        "focus": ["style attributes", "occasions", "seasons"]
+      },
+      "materialPersian": {
+        "must_match_vocabulary": true,
+        "required": true
+      },
+      "stylePersian": {
+        "must_match_vocabulary": true,
+        "required": true
+      },
+      "occasionTags": {
+        "must_match_vocabulary": true,
+        "min_count": 1,
+        "max_count": 3
+      },
+      "season": {
+        "must_be_from_list": ["بهار", "تابستان", "پاییز", "زمستان"],
+        "min_count": 1,
+        "max_count": 4
+      },
+      "fitType": {
+        "must_be_from_list": ["معمولی", "تنگ", "گشاد"],
+        "required": true
+      },
+      "ageGroup": {
+        "must_be_from_list": ["بزرگسال", "نوجوان", "کودک"],
+        "required": true
+      }
+    }
+  },
+  
+  "recommended_models": [
+    {
+      "id": "qwen/qwen3.7-plus",
+      "name": "Qwen 3.7 Plus",
+      "provider": "OpenRouter",
+      "description": "Latest Qwen model, excellent for Persian + vision",
+      "vision": true,
+      "cost_per_1m_tokens": 0.5,
+      "recommended": true
+    },
+    {
+      "id": "minimax/minimax-m3",
+      "name": "MiniMax M3",
+      "provider": "OpenRouter",
+      "description": "Strong reasoning, good multilingual + vision",
+      "vision": true,
+      "cost_per_1m_tokens": 0.8,
+      "recommended": true
+    },
+    {
+      "id": "stepfun/step-3.7-flash",
+      "name": "Step 3.7 Flash",
+      "provider": "OpenRouter",
+      "description": "Fast, efficient model with vision",
+      "vision": true,
+      "cost_per_1m_tokens": 0.3,
+      "recommended": false
+    },
+    {
+      "id": "google/gemini-3.1-flash-lite",
+      "name": "Gemini 3.1 Flash Lite",
+      "provider": "OpenRouter",
+      "description": "Google's latest flash model, good for Persian",
+      "vision": true,
+      "cost_per_1m_tokens": 0.2,
+      "recommended": false
+    },
+    {
+      "id": "qwen3.5:9b",
+      "name": "Qwen 3.5 9B (Local Ollama)",
+      "provider": "Local",
+      "description": "Fast, good Persian + vision, no internet needed",
+      "vision": true,
+      "cost_per_1m_tokens": 0,
+      "recommended": true,
+      "local": true,
+      "endpoint": "http://194.60.230.210:8181"
+    },
+    {
+      "id": "gemma4:31b",
+      "name": "Gemma 4 31B (Local Ollama)",
+      "provider": "Local",
+      "description": "Strong reasoning, excellent vision, larger model",
+      "vision": true,
+      "cost_per_1m_tokens": 0,
+      "recommended": false,
+      "local": true,
+      "endpoint": "http://194.60.230.210:8181"
+    },
+    {
+      "id": "qwen3.6.1-27b-4b",
+      "name": "Qwen 3.6 27B MoE (Local Ollama)",
+      "provider": "Local",
+      "description": "Latest Qwen, MoE architecture, great for Persian",
+      "vision": true,
+      "cost_per_1m_tokens": 0,
+      "recommended": false,
+      "local": true,
+      "endpoint": "http://194.60.230.210:8181"
+    }
+  ],
+  
+  "field_descriptions": {
+    "namePersian": "نام فارسی محصول - عنوان کوتاه و جذاب برای نمایش به مشتری",
+    "descriptionPersian": "توضیحات کامل فارسی - شرح ویژگی‌ها، جنس، استایل و موارد استفاده محصول",
+    "keywords": "کلمات کلیدی فارسی - برای جستجو و SEO (حداقل ۳ کلمه)",
+    "tags": "برچسب‌های فارسی - ویژگی‌های استایل، فصل، و موقعیت استفاده",
+    "materialPersian": "جنس محصول به فارسی - باید از لیست پیشنهادی انتخاب شود",
+    "materialEnglish": "جنس محصول به انگلیسی - به صورت خودکار از واژه‌نامه پر می‌شود",
+    "materialTags": "برچسب‌های جنس - به صورت خودکار از واژه‌نامه پر می‌شود",
+    "stylePersian": "استایل محصول به فارسی - مانند: اسپرت، رسمی، کژوال",
+    "styleEnglish": "استایل محصول به انگلیسی - به صورت خودکار پر می‌شود",
+    "occasionTags": "موقعیت‌های استفاده - مانند: روزمره، اداری، مهمانی، ورزشی",
+    "season": "فصل‌های مناسب - بهار، تابستان، پاییز، زمستان",
+    "gender": "جنسیت - مردانه، زنانه، یا یونیسکس",
+    "ageGroup": "گروه سنی - بزرگسال، نوجوان، یا کودک",
+    "fitType": "نوع برازش - معمولی (Regular)، تنگ (Slim)، یا گشاد (Oversized)",
+    "colorsPersian": "رنگ‌های موجود - به صورت خودکار از تنوع‌های محصول استخراج می‌شود",
+    "popularityScore": "امتیاز محبوبیت - به صورت خودکار بر اساس فروش و بازدید محاسبه می‌شود",
+    "embeddingVector": "بردار معنایی - برای جستجوی هوشمند، به صورت خودکار تولید می‌شود"
+  },
+  
+  "validation_messages": {
+    "missing_required": "فیلدهای ضروری پر نشده‌اند: {fields}",
+    "invalid_vocabulary": "مقدار '{value}' برای {field} در واژه‌نامه وجود ندارد",
+    "min_length": "{field} باید حداقل {min} کاراکتر باشد",
+    "max_length": "{field} نباید بیشتر از {max} کاراکتر باشد",
+    "invalid_format": "فرمت {field} صحیح نیست",
+    "ai_generation_failed": "خطا در تولید خودکار: {error}",
+    "ai_generation_success": "فیلدها با موفقیت توسط هوش مصنوعی پر شدند",
+    "partial_generation": "برخی فیلدها پر شدند. لطفاً فیلدهای باقی‌مانده را بررسی کنید"
+  },
+  
+  "customer_search_agent": {
+    "system_prompt": "You are Voxcina, a Persian e-commerce shopping assistant.\n\nYou have access to these tools:\n1. {\"tool\": \"search_products\", \"arguments\": {\"query\": \"search term\"}} - Search for products\n2. {\"tool\": \"get_product_details\", \"arguments\": {\"product_code\": \"1210\"}} - Get details of a specific product by code\n\nWORKFLOW:\n1. For product searches: use search_products tool\n2. For questions about specific products (by code/name): use get_product_details tool\n3. For follow-up questions about previously shown products: answer using the product info from chat history\n4. WAIT for tool results before responding\n\nFOLLOW-UP QUESTIONS:\n- If user asks about a product code (like 'کد ۱۲۱۰ جنسش چیه؟'), look at chat history for that product\n- Answer questions about material (جنس), color (رنگ), size (سایز), price (قیمت) from product details\n- If product was shown before, use that info directly without searching again\n\nCRITICAL RULES:\n- ONLY mention products from tool results or chat history\n- NEVER invent product details\n- If you don't have info, say: \"اطلاعات این محصول در دسترس نیست\"\n\nRESPONSE RULES:\n- Respond in Persian (Farsi)\n- Be friendly and helpful\n- For material questions: mention جنس/پارچه\n- For specific product questions: give direct answers, not new searches",
+    
+    "user_prompt_template": "Customer Query: {query}\n\nAvailable Products (filtered by relevance):\n{products_context}\n\nInstructions:\n1. Analyze the customer's query and extract key requirements (color, material, style, occasion, season, etc.)\n2. Review the provided products and select the most relevant ones\n3. Provide a helpful Persian response explaining your recommendations\n4. Mention specific product features that match their needs\n5. Keep your response concise but informative (2-4 sentences per product)\n\nPlease provide your recommendation in Persian.",
+    
+    "fallback_messages": [
+      "بر اساس جستجوی شما، این محصولات رو پیشنهاد می‌کنم:",
+      "محصولات مناسب برای شما پیدا کردم:",
+      "این گزینه‌ها ممکن است مورد علاقه شما باشند:",
+      "بهترین محصولات متناسب با نیاز شما:",
+      "این محصولات رو برای شما انتخاب کردم:"
+    ],
+    
+    "search_strategy": {
+      "max_results": 8,
+      "min_score_threshold": 0.3,
+      "use_persian_fields": true,
+      "boost_factors": {
+        "exact_keyword_match": 2.0,
+        "material_match": 1.5,
+        "color_match": 1.5,
+        "style_match": 1.3,
+        "occasion_match": 1.3,
+        "season_match": 1.2,
+        "tag_match": 1.1
+      }
+    }
+  }
+}

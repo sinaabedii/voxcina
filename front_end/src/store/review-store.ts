@@ -1,0 +1,198 @@
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { Review } from "@/types/product";
+import { generateId } from "@/lib/utils";
+
+type ReviewStatus = "pending" | "approved" | "rejected";
+
+interface UserAction {
+  reviewId: string;
+  action: "like" | "dislike";
+}
+
+interface ReviewState {
+  /* --- state --- */
+  reviews: Review[];
+  userActions: UserAction[];
+  isLoading: boolean;
+  error: string | null;
+
+  /* --- CRUD --- */
+  addReview: (review: Omit<Review, "id" | "date" | "likes" | "dislikes">) => void;
+  updateReview: (id: string, review: Partial<Review>) => void;
+  deleteReview: (id: string) => void;
+
+  /* --- selectors --- */
+  getReviewsByProductId: (productId: string) => Review[];
+  /** Average (0-5) rounded to one decimal, returns 0 when no reviews */
+  getAverageRatingByProductId: (productId: string) => number;
+  /** Total number of reviews for a product */
+  getReviewCountByProductId: (productId: string) => number;
+
+  /* --- like / dislike --- */
+  likeReview: (id: string, userId: string) => void;
+  dislikeReview: (id: string, userId: string) => void;
+  hasUserActedOnReview: (
+    reviewId: string,
+    userId: string
+  ) => "like" | "dislike" | null;
+
+  /* --- Backend API --- */
+  fetchReviewsByProductId: (productId: string) => Promise<void>;
+  submitReview: (productId: string, rating: number, comment: string, isRecommended: boolean, token: string) => Promise<Review | null>;
+  fetchReviewsByUser: (userId: string) => Promise<void>;
+  updateReviewStatusAdmin: (reviewId: string, status: ReviewStatus, adminToken: string) => Promise<boolean>;
+}
+
+export const useReviewStore = create<ReviewState>()(
+  persist(
+    (set, get) => ({
+      /* ---------- state ---------- */
+      reviews: [],
+      userActions: [],
+      isLoading: false,
+      error: null,
+
+      /* ---------- CRUD ---------- */
+      addReview: (reviewData) => {
+        const newReview: Review = {
+          ...reviewData,
+          id: generateId(),
+          date: new Date().toISOString(),
+          likes: 0,
+          dislikes: 0,
+        };
+        set((s) => ({ reviews: [...s.reviews, newReview] }));
+      },
+
+      updateReview: (id, reviewData) => {
+        set((s) => ({
+          reviews: s.reviews.map((r) =>
+            r.id === id ? { ...r, ...reviewData } : r
+          ),
+        }));
+      },
+
+      deleteReview: (id) => {
+        set((s) => ({ reviews: s.reviews.filter((r) => r.id !== id) }));
+      },
+
+      /* ---------- selectors ---------- */
+      getReviewsByProductId: (productId) =>
+        get().reviews.filter((r) => r.productId === productId),
+
+      getAverageRatingByProductId: (productId) => {
+        const list = get().reviews.filter((r) => r.productId === productId);
+        if (list.length === 0) return 0;
+        const avg = list.reduce((sum, r) => sum + r.rating, 0) / list.length;
+        // one-decimal rounding (e.g., 4.26 → 4.3)
+        return Math.round(avg * 10) / 10;
+      },
+
+      getReviewCountByProductId: (productId) =>
+        get().reviews.filter((r) => r.productId === productId).length,
+
+      /* ---------- like / dislike ---------- */
+      hasUserActedOnReview: (reviewId, userId) => {
+        const action = get().userActions.find((a) => a.reviewId === reviewId);
+        return action ? action.action : null;
+      },
+
+      likeReview: (id, userId) => {
+        const { userActions } = get();
+        if (userActions.some((a) => a.reviewId === id)) return; // already acted
+        set((s) => ({
+          userActions: [...s.userActions, { reviewId: id, action: "like" }],
+          reviews: s.reviews.map((r) =>
+            r.id === id ? { ...r, likes: r.likes + 1 } : r
+          ),
+        }));
+      },
+
+      dislikeReview: (id, userId) => {
+        const { userActions } = get();
+        if (userActions.some((a) => a.reviewId === id)) return;
+        set((s) => ({
+          userActions: [...s.userActions, { reviewId: id, action: "dislike" }],
+          reviews: s.reviews.map((r) =>
+            r.id === id ? { ...r, dislikes: r.dislikes + 1 } : r
+          ),
+        }));
+      },
+
+      /* ---------- Backend API ---------- */
+      fetchReviewsByProductId: async (productId) => {
+        set({ isLoading: true, error: null });
+        try {
+          const res = await fetch(`/api/products/${productId}/reviews`);
+          if (!res.ok) throw new Error("Failed to fetch reviews");
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            const normalized = data.map((r: any) => {
+              if (r && !r.userName && r.user_name) {
+                r.userName = r.user_name;
+              }
+              if (r && r.is_recommended !== undefined && r.isRecommended === undefined) {
+                r.isRecommended = r.is_recommended;
+              }
+              return r as Review;
+            });
+            set({ reviews: normalized, isLoading: false });
+          } else {
+            set({ reviews: [], isLoading: false });
+          }
+        } catch (err) {
+          set({ error: (err as Error).message, isLoading: false, reviews: [] });
+        }
+      },
+
+      submitReview: async (productId, rating, comment, isRecommended, token) => {
+        try {
+          const res = await fetch(`/api/products/${productId}/reviews`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ rating, comment, isRecommended }),
+          });
+          if (!res.ok) return null;
+          const review: Review = await res.json();
+          set((s) => ({ reviews: [review, ...s.reviews] }));
+          return review;
+        } catch {
+          return null;
+        }
+      },
+
+      fetchReviewsByUser: async (userId) => {
+        set({ isLoading: true, error: null });
+        try {
+          const res = await fetch(`/api/users/${userId}/reviews`);
+          if (!res.ok) throw new Error("Failed to fetch user reviews");
+          const data = await res.json();
+          set({ reviews: Array.isArray(data) ? data : [], isLoading: false });
+        } catch (err) {
+          set({ error: (err as Error).message, isLoading: false });
+        }
+      },
+
+      updateReviewStatusAdmin: async (reviewId, status, adminToken) => {
+        try {
+          const res = await fetch(`/api/admin/reviews/${reviewId}/status`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${adminToken}`,
+            },
+            body: JSON.stringify({ status }),
+          });
+          return res.ok;
+        } catch {
+          return false;
+        }
+      },
+    }),
+    { name: "digi-style-reviews" }
+  )
+);

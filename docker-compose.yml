@@ -1,0 +1,112 @@
+# ┌──────────────────────────────────────────────────────────────────┐
+# │ docker-compose.yml                                              │
+# └──────────────────────────────────────────────────────────────────┘
+services:
+  scheduler:
+    image: docker.arvancloud.ir/mcuadros/ofelia:latest
+    container_name: backup-scheduler
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: daemon --docker
+    networks:
+      - backend-network
+
+  server:
+    build:
+      context: .
+      network: host
+    container_name: api-server
+    ports:
+      - "8088:8080"
+    environment:
+      - MONGODB_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/admin?authSource=admin
+      - JWT_SECRET=137888
+      - SERVER_PORT=8080
+      - INTERNAL_SECRET=${INTERNAL_SECRET}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - APP_URL=${APP_URL}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL}
+      - OPENROUTER_EMBEDDING_MODEL=${OPENROUTER_EMBEDDING_MODEL}
+      - OLLAMA_ENDPOINT=${OLLAMA_ENDPOINT:-http://host.docker.internal:10803}
+      - OLLAMA_API_KEY=${OLLAMA_API_KEY}
+      - SMSIR_ACCESS_KEY=${SMSIR_ACCESS_KEY}
+      - SMSIR_URL=${SMSIR_URL}
+      - SMSIR_TEMPLATE_ID=${SMSIR_TEMPLATE_ID}
+      - ZIBAL_MERCHANT=${ZIBAL_MERCHANT:-zibal}
+      - DIGIPAY_CLIENT_ID=${DIGIPAY_CLIENT_ID}
+      - DIGIPAY_CLIENT_SECRET=${DIGIPAY_CLIENT_SECRET}
+      - HTTP_PROXY=
+      - HTTPS_PROXY=
+      - NO_PROXY=
+      - TRYON_DEV_MODE=${TRYON_DEV_MODE:-false}
+    volumes:
+      - ./uploads:/app/uploads
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - backend-network
+
+  mongo:
+    image: docker.arvancloud.ir/mongo:6.0
+    container_name: mongodb
+    ports:
+      - "127.0.0.1:27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
+    volumes:
+      - mongodb-data:/data/db
+      - /root/voxcina-backups:/backups
+      - ./uploads:/app/uploads:ro
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "--quiet"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      ofelia.enabled: "true"
+      ofelia.job-exec.backup.schedule: "@daily"
+      ofelia.job-exec.backup.command: "bash -c 'BACKUP_DIR=/backups && TIMESTAMP=$$(date +%Y%m%d_%H%M%S) && RETENTION_DAYS=7 && mkdir -p $$BACKUP_DIR && mongodump --out $$BACKUP_DIR/db_$$TIMESTAMP --username ${MONGO_INITDB_ROOT_USERNAME} --password ${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin && tar -czf $$BACKUP_DIR/db_$$TIMESTAMP.tar.gz -C $$BACKUP_DIR db_$$TIMESTAMP && rm -rf $$BACKUP_DIR/db_$$TIMESTAMP && tar -czf $$BACKUP_DIR/images_$$TIMESTAMP.tar.gz -C /app uploads && find $$BACKUP_DIR -name \"*.tar.gz\" -mtime +$$RETENTION_DAYS -delete && echo \"Backup completed at $$(date)\"'"
+
+  front_end:
+    container_name: voxcina_frontend
+    build:
+      context: ./front_end
+      dockerfile: Dockerfile
+      args:
+        - HTTP_PROXY=http://host.docker.internal:10809
+        - HTTPS_PROXY=http://host.docker.internal:10809
+      extra_hosts:
+        - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - GO_BACKEND_URL=http://server:8080
+      - POSTEX_API_KEY=${POSTEX_API_KEY}
+      - POSTEX_BASE_URL=https://api.postex.ir
+      - SMSIR_ACCESS_KEY=${SMSIR_ACCESS_KEY}
+      - SMSIR_LINE_NUMBER=${SMSIR_LINE_NUMBER}
+      - SMSIR_TEMPLATE_ID=${SMSIR_TEMPLATE_ID}
+      - INTERNAL_SECRET=${INTERNAL_SECRET}
+      - NEXT_PUBLIC_GA_ID=${NEXT_PUBLIC_GA_ID}
+    volumes:
+      - ./uploads:/app/public/uploads
+    depends_on:
+      - server
+    networks:
+      - backend-network
+
+volumes:
+  mongodb-data:
+
+networks:
+  backend-network:
+    driver: bridge
