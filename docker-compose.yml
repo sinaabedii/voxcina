@@ -35,9 +35,9 @@ services:
       - ZIBAL_MERCHANT=${ZIBAL_MERCHANT:-zibal}
       - DIGIPAY_CLIENT_ID=${DIGIPAY_CLIENT_ID}
       - DIGIPAY_CLIENT_SECRET=${DIGIPAY_CLIENT_SECRET}
-      - HTTP_PROXY=
-      - HTTPS_PROXY=
-      - NO_PROXY=
+      - HTTP_PROXY=${HTTP_PROXY:-http://host.docker.internal:10809}
+      - HTTPS_PROXY=${HTTPS_PROXY:-http://host.docker.internal:10809}
+      - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1,mongo,docker.arvancloud.ir,::1}
       - TRYON_DEV_MODE=${TRYON_DEV_MODE:-false}
     volumes:
       - ./uploads:/app/uploads
