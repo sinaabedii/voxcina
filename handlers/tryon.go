@@ -16,6 +16,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime/debug"
 	"strings"
@@ -712,6 +713,14 @@ func flattenOnWhite(src image.Image, bounds image.Rectangle) image.Image {
 }
 
 func fetchImageFromURL(imageURL string) ([]byte, error) {
+	if strings.HasPrefix(imageURL, "/uploads/") {
+		cleanPath := filepath.Clean(imageURL)
+		if !strings.HasPrefix(cleanPath, "/uploads/") {
+			return nil, fmt.Errorf("invalid uploads path: %s", imageURL)
+		}
+		return os.ReadFile("/app" + cleanPath)
+	}
+
 	if strings.HasPrefix(imageURL, "/") {
 		baseURL := os.Getenv("APP_URL")
 		if baseURL == "" {
