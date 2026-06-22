@@ -76,15 +76,15 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/chat/recommend", handlers.ChatRecommendation).Methods(http.MethodPost)
 	api.HandleFunc("/chat/support", handlers.ChatSupport).Methods(http.MethodPost)
 
-	// Virtual Try-On endpoint (public)
-	api.HandleFunc("/tryon/generate", handlers.VirtualTryOn).Methods(http.MethodPost)
-	api.HandleFunc("/tryon/status", handlers.VirtualTryOnStatus).Methods(http.MethodGet)
-
-	// Coupon Negotiation (authenticated)
-	tryonCouponRouter := api.PathPrefix("/tryon").Subrouter()
-	tryonCouponRouter.Use(middlewares.AuthMiddleware)
-	tryonCouponRouter.HandleFunc("/negotiate", handlers.NegotiateCoupon).Methods(http.MethodPost)
-	tryonCouponRouter.HandleFunc("/apply-negotiated-coupon", handlers.ApplyNegotiatedCoupon).Methods(http.MethodPost)
+	// Virtual Try-On endpoints (authenticated)
+	tryonRouter := api.PathPrefix("/tryon").Subrouter()
+	tryonRouter.Use(middlewares.AuthMiddleware)
+	tryonRouter.HandleFunc("/generate", handlers.VirtualTryOn).Methods(http.MethodPost)
+	tryonRouter.HandleFunc("/status", handlers.VirtualTryOnStatus).Methods(http.MethodGet)
+	tryonRouter.HandleFunc("/status-stream", handlers.VirtualTryOnStatusStream).Methods(http.MethodGet)
+	tryonRouter.HandleFunc("/negotiate", handlers.NegotiateCoupon).Methods(http.MethodPost)
+	tryonRouter.HandleFunc("/negotiate-stream", handlers.NegotiateCouponStream).Methods(http.MethodPost)
+	tryonRouter.HandleFunc("/apply-negotiated-coupon", handlers.ApplyNegotiatedCoupon).Methods(http.MethodPost)
 
 	// Chat Management & History endpoints
 	api.HandleFunc("/chat/save", handlers.SaveChatMessage).Methods(http.MethodPost)

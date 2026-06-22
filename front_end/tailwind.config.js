@@ -86,6 +86,8 @@ module.exports = {
         'medium': '0 6px 25px rgba(0, 0, 0, 0.1)',
         'strong': '0 10px 30px rgba(0, 0, 0, 0.15)',
         'inner-soft': 'inset 0 2px 4px rgba(0, 0, 0, 0.03)',
+        'inset-button': 'rgba(255,255,255,0.2) 0px 0.5px 0px 0px inset, rgba(0,0,0,0.2) 0px 0px 0px 0.5px inset, rgba(0,0,0,0.05) 0px 1px 2px 0px',
+        'focus-warm': 'rgba(0,0,0,0.1) 0px 4px 12px',
       },
       keyframes: {
         "accordion-down": {
