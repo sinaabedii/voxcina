@@ -10,6 +10,7 @@ go build -o main .          # Build
 ./main                      # Run (port 8080)
 ./main -seed                # Seed database
 ./main -healthcheck         # Check MongoDB (exit 0/1)
+./main -check-vocab         # Print vocabulary_mappings count (used by start.sh)
 go vet ./...                # Lint
 ```
 
@@ -33,13 +34,23 @@ docker compose logs -f server     # Backend logs
 ## Architecture
 
 - **Go module name is `backEnd`** (not `shop`). All imports use `backEnd/...`
-- Backend: `handlers/` -> `services/` -> MongoDB. Routes in `routes/routes.go` (355 lines, Gorilla Mux)
+- Backend: `handlers/` -> `services/` -> MongoDB. Routes in `routes/routes.go` (366 lines, Gorilla Mux)
 - Frontend: Page -> Zustand store (`store/` 17 stores) -> API -> Go backend
-- Next.js proxies `/api/*` to Go (except `/api/postex/*`, `/api/uploads/*`, `/api/instagram/*`, `/api/sitemap` handled by Next.js API routes)
+- Next.js proxies `/api/*` to Go (except `/api/postex/*`, `/api/uploads/*`, `/api/instagram/*`, `/api/sitemap`, `/api/tryon/negotiate` handled by Next.js API routes)
 - `/uploads/*` served by Go from `./uploads/`; frontend rewrites to backend
 - Auth: JWT Bearer token. `middlewares.AuthMiddleware` for users, `AdminAuthMiddleware` for admin (checks `role == "admin"`)
 - `start.sh` waits for MongoDB, auto-seeds if `vocabulary_mappings` is empty
 - Config reads `PORT` env (fallback 8080), not `SERVER_PORT`
+
+## Payment Gateway
+
+- **`PaymentGateway` interface** (`services/payment_gateway.go`): `Name()`, `RequestPayment`, `VerifyPayment`, `InquiryPayment`
+- **Gateway registry**: `map[string]services.PaymentGateway` in `handlers/payment.go`, populated by `InitZibalService()` and `InitDigipayService()` called from `main.go`
+- **Never trust client-sent amounts**: backend derives `amount` from `order.TotalAmount * 10`. `FinalizeVerifiedPayment` rejects if `verifiedAmount != expectedAmount`
+- **`PaymentAttempt` model** (`models/payment_attempt.go`): tracks each attempt with unique indexes on `(gateway, provider_id)` and `(gateway, gateway_reference)`. Each retry creates a fresh attempt with new UUID — never overwrite previous attempt data
+- **DigiPay OAuth**: uses `golang.org/x/sync/singleflight.Group` to deduplicate concurrent token refreshes
+- **DigiPay callback**: POST handler extracts `providerId` and `type` from form body, calls verify API (only authoritative source), then `FinalizeVerifiedPayment`, then `303 See Other` redirect. Callback data is never proof of payment
+- **Config**: `ZIBAL_MERCHANT` (default `"zibal"` for test), `DIGIPAY_CLIENT_ID` + `DIGIPAY_CLIENT_SECRET`. DigiPay staging URL and API version hardcoded in `services/digipay_service.go`
 
 ## Key Conventions
 
