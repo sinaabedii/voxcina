@@ -42,16 +42,7 @@ func NegotiateCoupon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.TryonProductID != "" {
-		fmt.Printf("[negotiate] looking up complementary for product=%s color=%s\n", req.TryonProductID, req.TryonColor)
-		compProducts, err := findComplementaryProducts(req.TryonProductID, req.TryonColor)
-		if err != nil {
-			fmt.Printf("[negotiate] failed to find complementary products: %v\n", err)
-		} else {
-			req.ComplementaryProducts = compProducts
-			fmt.Printf("[negotiate] found %d complementary products\n", len(compProducts))
-		}
-	}
+	req.ComplementaryProducts = loadComplementaryProducts(req.TryonProductID, req.TryonColor)
 
 	fmt.Println("[negotiate] calling RunSellerAgent...")
 	result, err := services.RunSellerAgent(req)
@@ -63,55 +54,8 @@ func NegotiateCoupon(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("[negotiate] RunSellerAgent success, hasCoupon=%v reply=%s\n", result.Coupon != nil, result.Reply[:min(100, len(result.Reply))])
 
 	if result.Coupon != nil {
-		productIDs := make([]primitive.ObjectID, 0, len(result.Coupon.ProductIDs))
-		for _, pid := range result.Coupon.ProductIDs {
-			objID, err := primitive.ObjectIDFromHex(pid)
-			if err == nil {
-				productIDs = append(productIDs, objID)
-			}
-		}
-
-		validUntil, _ := time.Parse(time.RFC3339, result.Coupon.ValidUntil)
-
-		cartSnapshot := make([]models.CartItemSnapshot, 0, len(req.CartItems))
-		for _, item := range req.CartItems {
-			cartSnapshot = append(cartSnapshot, models.CartItemSnapshot{
-				ProductID:   item.ProductID,
-				ProductName: item.ProductName,
-				Price:       item.Price,
-				Color:       item.Color,
-				Size:        item.Size,
-			})
-		}
-
-		conversation := make([]models.CouponMessage, 0, len(req.ChatHistory)+1)
-		for _, msg := range req.ChatHistory {
-			conversation = append(conversation, models.CouponMessage{
-				Role:    msg.Role,
-				Content: msg.Content,
-			})
-		}
-		conversation = append(conversation, models.CouponMessage{
-			Role:    "agent",
-			Content: result.Reply,
-		})
-
-		coupon := models.NegotiatedCoupon{
-			Code:         result.Coupon.Code,
-			UserID:       userID,
-			ProductIDs:   productIDs,
-			CartSnapshot: cartSnapshot,
-			Type:         "percentage",
-			Value:        result.Coupon.Value,
-			ValidUntil:   validUntil,
-			Used:         false,
-			Conversation: conversation,
-			CreatedAt:    time.Now(),
-		}
-
-		ctx := context.Background()
-		collection := db.Database.Collection("negotiated_coupons")
-		if _, err := collection.InsertOne(ctx, coupon); err != nil {
+		coupon := buildNegotiatedCoupon(req, result.Coupon, userID, result.Reply)
+		if err := saveNegotiatedCoupon(context.Background(), coupon); err != nil {
 			utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در ذخیره کوپن")
 			return
 		}
@@ -119,6 +63,127 @@ func NegotiateCoupon(w http.ResponseWriter, r *http.Request) {
 
 	utils.JSONResponse(w, http.StatusOK, result)
 	fmt.Println("[negotiate] --- END ---")
+}
+
+func NegotiateCouponStream(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("[negotiate-stream] --- START ---")
+	userID, _, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "لطفاً وارد شوید")
+		return
+	}
+	fmt.Printf("[negotiate-stream] user=%s\n", userID.Hex())
+
+	var req services.NegotiateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "فرمت درخواست نامعتبر است")
+		return
+	}
+	fmt.Printf("[negotiate-stream] productID=%s\n", req.TryonProductID)
+
+	if req.Message == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "پیام نمی‌تواند خالی باشد")
+		return
+	}
+
+	req.ComplementaryProducts = loadComplementaryProducts(req.TryonProductID, req.TryonColor)
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.WriteHeader(http.StatusOK)
+
+	coupon, err := services.RunSellerAgentStream(req, w)
+	if err != nil {
+		fmt.Printf("[negotiate-stream] stream error: %v\n", err)
+		evt := services.StreamEvent{Type: "error", Error: "خطا در ارتباط با سرویس مذاکره"}
+		data, _ := json.Marshal(evt)
+		fmt.Fprintf(w, "data: %s\n\n", data)
+		return
+	}
+
+	if coupon != nil {
+		nc := buildNegotiatedCoupon(req, coupon, userID, "")
+		if err := saveNegotiatedCoupon(context.Background(), nc); err != nil {
+			fmt.Printf("[negotiate-stream] coupon save error: %v\n", err)
+		}
+	}
+
+	fmt.Println("[negotiate-stream] --- END ---")
+}
+
+func loadComplementaryProducts(productID, color string) []services.CouponCartItem {
+	if productID == "" {
+		return nil
+	}
+	fmt.Printf("[negotiate] looking up complementary for product=%s color=%s\n", productID, color)
+	compProducts, err := findComplementaryProducts(productID, color)
+	if err != nil {
+		fmt.Printf("[negotiate] failed to find complementary products: %v\n", err)
+		return nil
+	}
+	fmt.Printf("[negotiate] found %d complementary products\n", len(compProducts))
+	return compProducts
+}
+
+func buildNegotiatedCoupon(req services.NegotiateRequest, coupon *services.NegotiateCouponOut, userID primitive.ObjectID, agentReply string) models.NegotiatedCoupon {
+	productIDs := make([]primitive.ObjectID, 0, len(coupon.ProductIDs))
+	for _, pid := range coupon.ProductIDs {
+		objID, err := primitive.ObjectIDFromHex(pid)
+		if err == nil {
+			productIDs = append(productIDs, objID)
+		}
+	}
+
+	validUntil, _ := time.Parse(time.RFC3339, coupon.ValidUntil)
+
+	cartSnapshot := make([]models.CartItemSnapshot, 0, len(req.CartItems))
+	for _, item := range req.CartItems {
+		cartSnapshot = append(cartSnapshot, models.CartItemSnapshot{
+			ProductID:   item.ProductID,
+			ProductName: item.ProductName,
+			Price:       item.Price,
+			Color:       item.Color,
+			Size:        item.Size,
+		})
+	}
+
+	conversation := make([]models.CouponMessage, 0, len(req.ChatHistory)+2)
+	for _, msg := range req.ChatHistory {
+		conversation = append(conversation, models.CouponMessage{
+			Role:    msg.Role,
+			Content: msg.Content,
+		})
+	}
+	conversation = append(conversation, models.CouponMessage{
+		Role:    "user",
+		Content: req.Message,
+	})
+	if agentReply != "" {
+		conversation = append(conversation, models.CouponMessage{
+			Role:    "agent",
+			Content: agentReply,
+		})
+	}
+
+	return models.NegotiatedCoupon{
+		Code:         coupon.Code,
+		UserID:       userID,
+		ProductIDs:   productIDs,
+		CartSnapshot: cartSnapshot,
+		Type:         "percentage",
+		Value:        coupon.Value,
+		ValidUntil:   validUntil,
+		Used:         false,
+		Conversation: conversation,
+		CreatedAt:    time.Now(),
+	}
+}
+
+func saveNegotiatedCoupon(ctx context.Context, coupon models.NegotiatedCoupon) error {
+	collection := db.Database.Collection("negotiated_coupons")
+	_, err := collection.InsertOne(ctx, coupon)
+	return err
 }
 
 func ApplyNegotiatedCoupon(w http.ResponseWriter, r *http.Request) {
@@ -252,7 +317,8 @@ func findComplementaryProducts(productID, color string) ([]services.CouponCartIt
 			"is_active": true,
 			"color_variants": bson.M{
 				"$elemMatch": bson.M{
-					"try_on_image": bson.M{"$ne": "", "$exists": true},
+					"try_on_image":        bson.M{"$ne": "", "$exists": true},
+					"try_on_garment_type": bson.M{"$ne": sourceGarmentType},
 				},
 			},
 		}
@@ -275,11 +341,34 @@ func findComplementaryProducts(productID, color string) ([]services.CouponCartIt
 	result := make([]services.CouponCartItem, 0, limit)
 	for i := 0; i < limit; i++ {
 		p := compProducts[i]
-		result = append(result, services.CouponCartItem{
+		item := services.CouponCartItem{
 			ProductID:   p.ID.Hex(),
 			ProductName: p.Name,
 			Price:       p.Price,
-		})
+		}
+		for _, cv := range p.ColorVariants {
+			if cv.TryOnImage != "" {
+				item.Image = cv.TryOnImage
+				item.Color = cv.Color
+				if len(cv.Sizes) > 0 {
+					item.Size = cv.Sizes[0].Size
+				}
+				break
+			}
+		}
+		if item.Image == "" {
+			for _, cv := range p.ColorVariants {
+				if len(cv.Images) > 0 {
+					item.Image = cv.Images[0]
+					item.Color = cv.Color
+					if len(cv.Sizes) > 0 {
+						item.Size = cv.Sizes[0].Size
+					}
+					break
+				}
+			}
+		}
+		result = append(result, item)
 	}
 
 	return result, nil

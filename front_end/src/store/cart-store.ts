@@ -131,6 +131,7 @@ interface CartStore {
   ) => Promise<void>;
   clearCart: () => Promise<void>;
   applyPromoCode: (code: string) => Promise<void>;
+  applyNegotiatedDiscount: (discount: { code: string; discountPercentage: number; min_order_amount?: number; valid_to?: string; description?: string; maxDiscount?: number }) => void;
   removePromoCode: () => void;
   calculateSummary: () => void;
   cleanupSubscriptions: () => void;
@@ -742,6 +743,23 @@ export const useCartStore = create<CartStore>()(
         } catch {
           set({ error: 'خطا در بررسی کد تخفیف', promoCode: { code, isValid: false, errorMessage: 'خطای شبکه', discountPercentage: 0, maxDiscount: 0, expireDate: '', minPurchase: 0 } });
         }
+        get().calculateSummary();
+      },
+
+      applyNegotiatedDiscount: (discount) => {
+        set({
+          promoCode: {
+            code: discount.code,
+            isValid: true,
+            discountPercentage: discount.discountPercentage || 0,
+            minPurchase: discount.min_order_amount || 0,
+            maxDiscount: discount.maxDiscount || 0,
+            expireDate: discount.valid_to || "",
+            description: discount.description || "کد تخفیف اختصاصی شما",
+            errorMessage: "",
+          },
+          error: null,
+        });
         get().calculateSummary();
       },
 

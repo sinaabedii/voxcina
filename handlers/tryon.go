@@ -10,17 +10,27 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw"
+	"image/jpeg"
 	"image/png"
 	"io"
 	"net/http"
 	"os"
 	"regexp"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/image/webp"
+	xdraw "golang.org/x/image/draw"
 )
 
 const tryOnModel = "google/gemini-2.5-flash-image"
+const tryOnMaxImageDimension = 1024
+const tryOnImageQuality = 85
+const tryOnTaskTTL = 30 * time.Minute
+const tryOnCleanupInterval = 5 * time.Minute
 
 const tryOnPromptUpper = "Replace upper garment with attached garment. Preserve exact face, pose, background, and lighting. Add natural armpit and chest folds matching light direction. Ensure shoulder seams align with natural shoulders and collar sits naturally at neckline. No warping, bleeding, or artifacts. Output only image."
 
@@ -39,22 +49,25 @@ func getTryOnPrompt(garmentType string) string {
 	}
 }
 
-type tryOnTaskStatus int
-
-const (
-	tryOnTaskProcessing tryOnTaskStatus = iota
-	tryOnTaskDone
-	tryOnTaskError
-)
+func tryOnDebug(format string, args ...interface{}) {
+	if os.Getenv("TRYON_DEBUG") == "true" {
+		fmt.Printf(format+"\n", args...)
+	}
+}
 
 type tryOnTask struct {
-	ID     string `json:"id"`
-	Status string `json:"status"` // "processing", "done", "error"
-	Image  string `json:"image,omitempty"`
-	Error  string `json:"error,omitempty"`
+	ID        string    `json:"id"`
+	Status    string    `json:"status"` // "processing", "done", "error"
+	Image     string    `json:"image,omitempty"`
+	Error     string    `json:"error,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 var tryOnTasks sync.Map
+
+func init() {
+	go cleanupTryOnTasks()
+}
 
 func generateTryOnTaskID() string {
 	b := make([]byte, 16)
@@ -62,6 +75,26 @@ func generateTryOnTaskID() string {
 		return fmt.Sprintf("%d", time.Now().UnixNano())
 	}
 	return hex.EncodeToString(b)
+}
+
+func cleanupTryOnTasks() {
+	ticker := time.NewTicker(tryOnCleanupInterval)
+	defer ticker.Stop()
+	for range ticker.C {
+		cutoff := time.Now().Add(-tryOnTaskTTL)
+		var removed int
+		tryOnTasks.Range(func(key, value interface{}) bool {
+			task := value.(*tryOnTask)
+			if task.CreatedAt.Before(cutoff) {
+				tryOnTasks.Delete(key)
+				removed++
+			}
+			return true
+		})
+		if removed > 0 {
+			fmt.Printf("[tryon-cleanup] removed %d stale tasks\n", removed)
+		}
+	}
 }
 
 func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
@@ -83,20 +116,34 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 	defer personFile.Close()
 	fmt.Println("[tryon] person_image received")
 
-	garmentFile, _, err := r.FormFile("garment_image")
-	if err != nil {
-		fmt.Printf("[tryon] garment_image missing: %v\n", err)
-		utils.ErrorResponse(w, http.StatusBadRequest, "تصویر لباس الزامی است")
-		return
+	garmentURL := r.FormValue("garment_image_url")
+	var garmentBytes []byte
+	if garmentURL != "" {
+		fmt.Printf("[tryon] fetching garment from URL: %s\n", garmentURL)
+		garmentBytes, err = fetchImageFromURL(garmentURL)
+		if err != nil {
+			fmt.Printf("[tryon] fetch garment URL error: %v\n", err)
+			utils.ErrorResponse(w, http.StatusBadRequest, "خطا در دریافت تصویر لباس")
+			return
+		}
+		fmt.Printf("[tryon] fetched garment image size: %d bytes\n", len(garmentBytes))
+	} else {
+		garmentFile, _, err := r.FormFile("garment_image")
+		if err != nil {
+			fmt.Printf("[tryon] garment_image missing: %v\n", err)
+			utils.ErrorResponse(w, http.StatusBadRequest, "تصویر لباس الزامی است")
+			return
+		}
+		defer garmentFile.Close()
+		fmt.Println("[tryon] garment_image received")
+		garmentBytes, err = io.ReadAll(garmentFile)
+		if err != nil {
+			fmt.Printf("[tryon] read garment bytes error: %v\n", err)
+			utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در خواندن تصویر لباس")
+			return
+		}
+		fmt.Printf("[tryon] garment image size: %d bytes\n", len(garmentBytes))
 	}
-	defer garmentFile.Close()
-	fmt.Println("[tryon] garment_image received")
-
-	garmentType := r.FormValue("garment_type")
-	if garmentType == "" {
-		garmentType = "upper_body"
-	}
-	fmt.Printf("[tryon] garment_type: %s\n", garmentType)
 
 	personBytes, err := io.ReadAll(personFile)
 	if err != nil {
@@ -106,26 +153,25 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Printf("[tryon] person image size: %d bytes\n", len(personBytes))
 
-	garmentBytes, err := io.ReadAll(garmentFile)
-	if err != nil {
-		fmt.Printf("[tryon] read garment bytes error: %v\n", err)
-		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در خواندن تصویر لباس")
-		return
+	garmentType := r.FormValue("garment_type")
+	if garmentType == "" {
+		garmentType = "upper_body"
 	}
-	fmt.Printf("[tryon] garment image size: %d bytes\n", len(garmentBytes))
+	fmt.Printf("[tryon] garment_type: %s\n", garmentType)
 
 	taskID := generateTryOnTaskID()
 	task := &tryOnTask{
-		ID:     taskID,
-		Status: "processing",
+		ID:        taskID,
+		Status:    "processing",
+		CreatedAt: time.Now(),
 	}
 	tryOnTasks.Store(taskID, task)
 	fmt.Printf("[tryon] task %s created, starting goroutine\n", taskID)
 
 	go func() {
 		defer func() {
-			if r := recover(); r != nil {
-				fmt.Printf("[tryon-%s] PANIC: %v\n", taskID, r)
+			if rec := recover(); rec != nil {
+				fmt.Printf("[tryon-%s] PANIC: %v\n%s\n", taskID, rec, string(debug.Stack()))
 				task.Status = "error"
 				task.Error = "خطای داخلی سرور"
 				tryOnTasks.Store(taskID, task)
@@ -134,30 +180,38 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 
 		if isTryOnDevMode() {
 			fmt.Printf("[tryon-%s] DEV MODE: returning placeholder image\n", taskID)
-			savedPath, err := generatePlaceholderImage()
-			if err != nil {
-				fmt.Printf("[tryon-%s] placeholder gen error: %v\n", taskID, err)
-				task.Status = "error"
-				task.Error = "خطا در تولید تصویر آزمایشی"
-				tryOnTasks.Store(taskID, task)
-				return
-			}
 			task.Status = "done"
-			task.Image = savedPath
+			task.Image = getDevPlaceholderPath()
 			tryOnTasks.Store(taskID, task)
 			return
 		}
 
+		fmt.Printf("[tryon-%s] resizing images...\n", taskID)
+		resizedPerson, _, err := resizeImageToMaxDimension(personBytes, tryOnMaxImageDimension)
+		if err != nil {
+			fmt.Printf("[tryon-%s] resize person error: %v\n", taskID, err)
+			task.Status = "error"
+			task.Error = "خطا در پردازش تصویر شخص"
+			tryOnTasks.Store(taskID, task)
+			return
+		}
+		resizedGarment, _, err := resizeImageToMaxDimension(garmentBytes, tryOnMaxImageDimension)
+		if err != nil {
+			fmt.Printf("[tryon-%s] resize garment error: %v\n", taskID, err)
+			task.Status = "error"
+			task.Error = "خطا در پردازش تصویر لباس"
+			tryOnTasks.Store(taskID, task)
+			return
+		}
+		fmt.Printf("[tryon-%s] resized person=%d garment=%d bytes\n", taskID, len(resizedPerson), len(resizedGarment))
+
 		prompt := getTryOnPrompt(garmentType)
 
-		personMime := http.DetectContentType(personBytes)
-		garmentMime := http.DetectContentType(garmentBytes)
+		personBase64 := base64.StdEncoding.EncodeToString(resizedPerson)
+		garmentBase64 := base64.StdEncoding.EncodeToString(resizedGarment)
 
-		personBase64 := base64.StdEncoding.EncodeToString(personBytes)
-		garmentBase64 := base64.StdEncoding.EncodeToString(garmentBytes)
-
-		personDataURL := fmt.Sprintf("data:%s;base64,%s", personMime, personBase64)
-		garmentDataURL := fmt.Sprintf("data:%s;base64,%s", garmentMime, garmentBase64)
+		personDataURL := fmt.Sprintf("data:image/jpeg;base64,%s", personBase64)
+		garmentDataURL := fmt.Sprintf("data:image/jpeg;base64,%s", garmentBase64)
 
 		requestBody := map[string]interface{}{
 			"model": tryOnModel,
@@ -336,18 +390,94 @@ func VirtualTryOnStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	val, ok := tryOnTasks.Load(taskID)
+	task, ok := loadTryOnTask(taskID)
 	if !ok {
 		utils.ErrorResponse(w, http.StatusNotFound, "تسک یافت نشد")
 		return
 	}
 
-	task := val.(*tryOnTask)
 	utils.JSONResponse(w, http.StatusOK, map[string]string{
 		"status": task.Status,
 		"image":  task.Image,
 		"error":  task.Error,
 	})
+}
+
+func VirtualTryOnStatusStream(w http.ResponseWriter, r *http.Request) {
+	taskID := r.URL.Query().Get("task_id")
+	if taskID == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "task_id الزامی است")
+		return
+	}
+
+	task, ok := loadTryOnTask(taskID)
+	if !ok {
+		utils.ErrorResponse(w, http.StatusNotFound, "تسک یافت نشد")
+		return
+	}
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "streaming not supported")
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.WriteHeader(http.StatusOK)
+
+	sendTaskEvent := func(t *tryOnTask) {
+		data, _ := json.Marshal(map[string]string{
+			"status": t.Status,
+			"image":  t.Image,
+			"error":  t.Error,
+		})
+		fmt.Fprintf(w, "data: %s\n\n", data)
+		flusher.Flush()
+	}
+
+	if task.Status != "processing" {
+		sendTaskEvent(task)
+		return
+	}
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+	timeout := time.After(5 * time.Minute)
+
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-timeout:
+			sendTaskEvent(&tryOnTask{Status: "error", Error: "زمان انتظار به پایان رسید"})
+			return
+		case <-ticker.C:
+			t, ok := loadTryOnTask(taskID)
+			if !ok {
+				sendTaskEvent(&tryOnTask{Status: "error", Error: "تسک یافت نشد"})
+				return
+			}
+			if t.Status != "processing" {
+				sendTaskEvent(t)
+				return
+			}
+		}
+	}
+}
+
+func loadTryOnTask(taskID string) (*tryOnTask, bool) {
+	val, ok := tryOnTasks.Load(taskID)
+	if !ok {
+		return nil, false
+	}
+	task := val.(*tryOnTask)
+	if time.Since(task.CreatedAt) > tryOnTaskTTL {
+		tryOnTasks.Delete(taskID)
+		return nil, false
+	}
+	return task, true
 }
 
 type openRouterTryOnResponse struct {
@@ -366,16 +496,17 @@ type openRouterTryOnResponse struct {
 	} `json:"error,omitempty"`
 }
 
-var base64ImageRegex = regexp.MustCompile(`data:image/\w+;base64,[A-Za-z0-9+/=]+`)
+var base64ImageRegex = regexp.MustCompile(`data:image/\w+;base64,[A-Za-z0-9+/=\s]+`)
 
 func extractBase64Image(content string) string {
 	match := base64ImageRegex.FindString(content)
 	if match != "" {
-		return match
+		return strings.Join(strings.Fields(match), "")
 	}
 
-	if strings.HasPrefix(content, "data:image/") && len(content) > 100 {
-		return content
+	trimmed := strings.TrimSpace(content)
+	if strings.HasPrefix(trimmed, "data:image/") && len(trimmed) > 100 {
+		return trimmed
 	}
 
 	return ""
@@ -416,7 +547,64 @@ func isTryOnDevMode() bool {
 	return os.Getenv("TRYON_DEV_MODE") == "true"
 }
 
+var (
+	devPlaceholderPath     string
+	devPlaceholderPathOnce sync.Once
+)
+
+func getDevPlaceholderPath() string {
+	devPlaceholderPathOnce.Do(func() {
+		path, err := generatePlaceholderImageFixed()
+		if err != nil {
+			fmt.Printf("[tryon] fixed placeholder error: %v, using timestamped fallback\n", err)
+			path, _ = generatePlaceholderImage()
+		}
+		devPlaceholderPath = path
+	})
+	return devPlaceholderPath
+}
+
+func generatePlaceholderImageFixed() (string, error) {
+	uploadDir := "uploads/products/tryon"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		return "", fmt.Errorf("mkdir error: %v", err)
+	}
+
+	filename := uploadDir + "/dev_placeholder.png"
+	if _, err := os.Stat(filename); err == nil {
+		return "/" + filename, nil
+	}
+
+	img, err := generatePlaceholderImageBytes()
+	if err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(filename, img, 0644); err != nil {
+		return "", fmt.Errorf("write error: %v", err)
+	}
+	return "/" + filename, nil
+}
+
 func generatePlaceholderImage() (string, error) {
+	uploadDir := "uploads/products/tryon"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		return "", fmt.Errorf("mkdir error: %v", err)
+	}
+
+	img, err := generatePlaceholderImageBytes()
+	if err != nil {
+		return "", err
+	}
+
+	filename := fmt.Sprintf("%s/dev_%d.png", uploadDir, time.Now().UnixNano())
+	if err := os.WriteFile(filename, img, 0644); err != nil {
+		return "", fmt.Errorf("write error: %v", err)
+	}
+
+	return "/" + filename, nil
+}
+
+func generatePlaceholderImageBytes() ([]byte, error) {
 	width, height := 512, 512
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
@@ -445,18 +633,107 @@ func generatePlaceholderImage() (string, error) {
 
 	var buf bytes.Buffer
 	if err := png.Encode(&buf, img); err != nil {
-		return "", fmt.Errorf("png encode error: %v", err)
+		return nil, fmt.Errorf("png encode error: %v", err)
+	}
+	return buf.Bytes(), nil
+}
+
+func resizeImageToMaxDimension(data []byte, maxDim int) ([]byte, string, error) {
+	mime := http.DetectContentType(data)
+
+	var src image.Image
+	var err error
+	switch {
+	case strings.Contains(mime, "jpeg") || strings.Contains(mime, "jpg"):
+		src, err = jpeg.Decode(bytes.NewReader(data))
+	case strings.Contains(mime, "png"):
+		src, err = png.Decode(bytes.NewReader(data))
+	case strings.Contains(mime, "webp"):
+		src, err = webp.Decode(bytes.NewReader(data))
+	default:
+		src, _, err = image.Decode(bytes.NewReader(data))
+	}
+	if err != nil {
+		return nil, "", fmt.Errorf("decode error (%s): %v", mime, err)
 	}
 
-	uploadDir := "uploads/products/tryon"
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		return "", fmt.Errorf("mkdir error: %v", err)
+	bounds := src.Bounds()
+	w := bounds.Dx()
+	h := bounds.Dy()
+
+	src = flattenOnWhite(src, bounds)
+	bounds = src.Bounds()
+
+	if w <= maxDim && h <= maxDim {
+		var buf bytes.Buffer
+		if err := jpeg.Encode(&buf, src, &jpeg.Options{Quality: tryOnImageQuality}); err != nil {
+			return nil, "", fmt.Errorf("encode error: %v", err)
+		}
+		return buf.Bytes(), "image/jpeg", nil
 	}
 
-	filename := fmt.Sprintf("%s/dev_%d.png", uploadDir, time.Now().UnixNano())
-	if err := os.WriteFile(filename, buf.Bytes(), 0644); err != nil {
-		return "", fmt.Errorf("write error: %v", err)
+	var newW, newH int
+	if w > h {
+		newW = maxDim
+		newH = int(float64(h) * float64(maxDim) / float64(w))
+	} else {
+		newH = maxDim
+		newW = int(float64(w) * float64(maxDim) / float64(h))
 	}
 
-	return "/" + filename, nil
+	dst := image.NewRGBA(image.Rect(0, 0, newW, newH))
+	xdraw.CatmullRom.Scale(dst, dst.Bounds(), src, bounds, draw.Over, nil)
+
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, dst, &jpeg.Options{Quality: tryOnImageQuality}); err != nil {
+		return nil, "", fmt.Errorf("encode error: %v", err)
+	}
+	return buf.Bytes(), "image/jpeg", nil
+}
+
+func flattenOnWhite(src image.Image, bounds image.Rectangle) image.Image {
+	hasAlpha := false
+	for y := bounds.Min.Y; y < bounds.Max.Y && !hasAlpha; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			_, _, _, a := src.At(x, y).RGBA()
+			if a != 0xffff {
+				hasAlpha = true
+				break
+			}
+		}
+	}
+	if !hasAlpha {
+		return src
+	}
+	white := image.NewRGBA(bounds)
+	draw.Draw(white, bounds, image.NewUniform(color.White), image.Point{}, draw.Src)
+	draw.Draw(white, bounds, src, bounds.Min, draw.Over)
+	return white
+}
+
+func fetchImageFromURL(imageURL string) ([]byte, error) {
+	if strings.HasPrefix(imageURL, "/") {
+		baseURL := os.Getenv("APP_URL")
+		if baseURL == "" {
+			baseURL = "http://localhost:8080"
+		}
+		imageURL = strings.TrimSuffix(baseURL, "/") + imageURL
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(imageURL)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
