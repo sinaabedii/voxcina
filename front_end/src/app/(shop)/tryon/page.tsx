@@ -1136,47 +1136,39 @@ export default function TryOnRoomPage() {
                       </motion.div>
                     )}
 
-                    {/* Negotiation opener selection cards */}
-                    {showNegotiationPrompt && activeItem && (
-                      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-3 space-y-2">
-                        <div className="flex items-start gap-1.5">
-                          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-voxcina-blue flex items-center justify-center shadow-inset-button">
-                            <Sparkles className="h-3 w-3 text-voxcina-cream" />
-                          </div>
-                          <div className="bg-white dark:bg-voxcina-blue/25 rounded-xl rounded-tl-sm border border-secondary-400 dark:border-voxcina-blue/30 px-3 py-2 text-xs text-voxcina-blue dark:text-voxcina-cream">
-                            برای شروع مذاکره، یکی از گزینه‌ها رو انتخاب کن:
-                          </div>
-                        </div>
-                        {NEGOTIATION_OPENERS.map((opener, i) => (
-                          <button
-                            key={i}
-                            onClick={() => handleSelectOpener(opener.text, activeItem)}
-                            className="w-full flex items-center gap-2.5 p-2.5 rounded-xl bg-white dark:bg-voxcina-blue/25 border border-secondary-400 dark:border-voxcina-blue/30 hover:border-voxcina-blue/40 dark:hover:border-voxcina-cream/40 hover:bg-voxcina-blue/[0.04] dark:hover:bg-voxcina-cream/[0.04] transition-all text-right group"
-                          >
-                            <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-voxcina-blue/10 dark:bg-voxcina-cream/10 flex items-center justify-center group-hover:bg-voxcina-blue/20 dark:group-hover:bg-voxcina-cream/20 transition-colors">
-                              <opener.icon className="h-3.5 w-3.5 text-voxcina-blue dark:text-voxcina-cream" />
-                            </div>
-                            <span className="text-xs text-voxcina-blue dark:text-voxcina-cream leading-relaxed">{opener.text}</span>
-                          </button>
-                        ))}
-                      </motion.div>
-                    )}
-
                     <div ref={chatEndRef} />
                   </div>
 
-                  {/* Quick-reply chips */}
-                  {!chatLoading && resultImage && chatMessages.length > 0 && (
-                    <div className="flex gap-1.5 mt-2 flex-shrink-0 overflow-x-auto scrollbar-hide">
-                      {QUICK_REPLIES.map((text) => (
-                        <button
-                          key={text}
-                          onClick={() => handleQuickReply(text)}
-                          className="flex-shrink-0 text-[10px] px-2.5 py-1.5 rounded-full bg-white dark:bg-voxcina-blue/30 border border-secondary-400 dark:border-voxcina-blue/40 text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:bg-voxcina-blue/[0.08] dark:hover:bg-voxcina-cream/[0.08] hover:text-voxcina-blue dark:hover:text-voxcina-cream transition-all"
-                        >
-                          {text}
-                        </button>
-                      ))}
+                  {/* Suggestions above input */}
+                  {resultImage && !chatLoading && (
+                    <div className="flex-shrink-0 space-y-2 mt-2">
+                      {showNegotiationPrompt && activeItem && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {NEGOTIATION_OPENERS.map((opener, i) => (
+                            <button
+                              key={i}
+                              onClick={() => handleSelectOpener(opener.text, activeItem)}
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white dark:bg-voxcina-blue/30 border border-secondary-400 dark:border-voxcina-blue/40 text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:border-voxcina-blue/40 dark:hover:border-voxcina-cream/40 hover:bg-voxcina-blue/[0.08] dark:hover:bg-voxcina-cream/[0.08] hover:text-voxcina-blue dark:hover:text-voxcina-cream transition-all text-xs"
+                            >
+                              <opener.icon className="h-3 w-3" />
+                              {opener.text}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {chatMessages.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {QUICK_REPLIES.map((text) => (
+                            <button
+                              key={text}
+                              onClick={() => handleQuickReply(text)}
+                              className="text-[10px] px-2.5 py-1.5 rounded-full bg-white dark:bg-voxcina-blue/30 border border-secondary-400 dark:border-voxcina-blue/40 text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:bg-voxcina-blue/[0.08] dark:hover:bg-voxcina-cream/[0.08] hover:text-voxcina-blue dark:hover:text-voxcina-cream transition-all"
+                            >
+                              {text}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
