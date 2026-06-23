@@ -858,38 +858,6 @@ export default function TryOnRoomPage() {
             >
               {/* Always-visible chat card */}
               <div className="flex flex-col flex-1 min-h-0">
-                {/* Product info + complementary recommendation */}
-                {activeItem && (
-                  <div className="px-3 pb-2 flex-shrink-0">
-                    <div className="flex items-center gap-3 bg-voxcina-blue/[0.03] dark:bg-voxcina-cream/[0.04] rounded-xl p-2.5 border border-secondary-300/60 dark:border-voxcina-blue/20">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-voxcina-blue dark:text-voxcina-cream truncate">{activeItem.product.name}</p>
-                        <p className="text-[11px] text-voxcina-blue/50 dark:text-voxcina-cream/50 mt-0.5">
-                          {activeItem.colorVariant.colorName} · {formatPrice(activeItem.product.price)}
-                        </p>
-                      </div>
-                      {complementaryItems && (
-                        <button
-                          onClick={() => handleTryOn(complementaryItems.item, complementaryItems.index)}
-                          disabled={!uploadedFile || isProcessing}
-                          className="flex items-center gap-2 bg-background rounded-lg p-1.5 pr-2 hover:bg-voxcina-blue/[0.04] transition-all disabled:opacity-40 border border-secondary-300 dark:border-voxcina-blue/20"
-                        >
-                          <div className="w-10 h-10 rounded-lg overflow-hidden bg-voxcina-cream/50 dark:bg-voxcina-blue/20 flex-shrink-0">
-                            <BackendImage src={getCartItemImage(complementaryItems.item.cartItem)} alt={complementaryItems.item.product.name} className="w-full h-full object-cover" />
-                          </div>
-                          <div className="text-right max-w-[120px]">
-                            <p className="text-[10px] font-medium text-voxcina-blue dark:text-voxcina-cream truncate">{complementaryItems.item.product.name}</p>
-                            <p className="text-[9px] text-pink-600 dark:text-pink-400 flex items-center gap-0.5 mt-0.5">
-                              <Shirt className="h-2.5 w-2.5" />
-                              پرو کن
-                            </p>
-                          </div>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-
                 {/* Chat section */}
                 <div className="flex flex-col flex-1 min-h-0 px-3 pb-3">
                   <div className="flex flex-col flex-1 min-h-0 bg-white dark:bg-voxcina-blue/20 rounded-xl border border-secondary-400 dark:border-voxcina-blue/30 overflow-hidden p-3">
