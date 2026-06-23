@@ -114,10 +114,10 @@ export default function BeforeAfterSlider({
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white dark:bg-voxcina-cream shadow-lg flex items-center justify-center">
           <div className="flex items-center gap-0.5 text-voxcina-blue dark:text-voxcina-blue">
             <svg width="8" height="14" viewBox="0 0 8 14" fill="none">
-              <path d="M7 1L1 7L7 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M1 1L7 7L1 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             <svg width="8" height="14" viewBox="0 0 8 14" fill="none">
-              <path d="M1 1L7 7L1 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M7 1L1 7L7 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
         </div>

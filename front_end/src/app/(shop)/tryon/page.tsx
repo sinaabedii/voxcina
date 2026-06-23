@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback } fr
 import Link from "next/link";
 import {
   Camera, Shirt, ShoppingBag, Tag, Send,
-  Sparkles, User, Upload, Lock, Check, X, RefreshCw, Maximize2,
+  Sparkles, User, Upload, Lock, Check, X, RefreshCw, Maximize2, Layers,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
@@ -70,16 +70,13 @@ const RECOMMENDATION_TEMPLATES: Record<string, Record<string, (a: string, b: str
   },
 };
 
-const QUICK_REPLIES = [
-  "بیشتر تخفیف بده",
-  "می‌خوام بخرم",
-  "یه ست پیشنهاد بده",
-];
+const QUICK_REPLIES: string[] = [];
 
 const NEGOTIATION_OPENERS = [
   { icon: Tag, text: "سلام! می‌خوام یه تخفیف خوب برای این محصول بگیرم." },
   { icon: Sparkles, text: "سلام سارا! این قیمت برام کمی بالاست، می‌تونی کمک کنی؟" },
   { icon: ShoppingBag, text: "سلام! اگه تخفیف خوبی بدی همین الان خرید می‌کنم." },
+  { icon: Layers, text: "یه ست پیشنهاد بده" },
 ];
 
 function getCartItemImage(item: CartItem): string {
