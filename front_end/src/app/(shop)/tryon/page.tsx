@@ -856,7 +856,7 @@ export default function TryOnRoomPage() {
               {/* Always-visible chat card */}
               <div className="flex flex-col flex-1 min-h-0">
                 {/* Chat section */}
-                <div className="flex flex-col flex-1 min-h-0 px-3 pb-3">
+                <div className="flex flex-col flex-1 min-h-0 px-3 py-3">
                   <div className="flex flex-col flex-1 min-h-0 bg-white dark:bg-voxcina-blue/20 rounded-xl border border-secondary-400 dark:border-voxcina-blue/30 overflow-hidden p-3">
                   {/* Chat header */}
                   <div className="flex items-center gap-2.5 mb-2.5 flex-shrink-0">
