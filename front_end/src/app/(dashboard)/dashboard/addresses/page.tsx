@@ -635,26 +635,6 @@ export default function AddressesPage() {
                 />
               </div>
 
-              {formData.address && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="p-3 rounded-xl bg-voxcina-cream/30 dark:bg-voxcina-blue/10 border border-secondary-200 dark:border-voxcina-blue/30"
-                >
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-4 w-4 text-voxcina-blue dark:text-voxcina-cream flex-shrink-0 mt-0.5" />
-                    <div className="min-w-0">
-                      <p className="text-[10px] text-voxcina-blue/50 dark:text-voxcina-cream/50 mb-0.5">
-                        آدرس انتخاب‌شده
-                      </p>
-                      <p className="text-sm text-voxcina-blue dark:text-voxcina-cream leading-relaxed">
-                        {formData.address}
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
               {!formData.address && (
                 <p className="text-xs text-voxcina-blue/40 dark:text-voxcina-cream/40 text-center">
                   لطفاً یک نقطه روی نقشه انتخاب کنید
