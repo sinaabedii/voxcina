@@ -145,7 +145,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
 
   const searchAddress = useCallback(
     async (term: string) => {
-      if (!term.trim()) {
+      if (!term.trim() || !MAP_KEY) {
         setSearchResults([]);
         return;
       }
@@ -157,7 +157,8 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
           lng: String(center.lng),
         });
         const res = await fetch(
-          `/api/neshan/search?${params.toString()}`
+          `https://api.neshan.org/v1/search?${params.toString()}`,
+          { headers: { "Api-Key": MAP_KEY } }
         );
         if (!res.ok) throw new Error("search failed");
         const data = await res.json();
