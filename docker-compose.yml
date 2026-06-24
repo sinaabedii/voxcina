@@ -82,6 +82,8 @@ services:
       args:
         - HTTP_PROXY=http://host.docker.internal:10809
         - HTTPS_PROXY=http://host.docker.internal:10809
+        - NEXT_PUBLIC_NESHAN_API_KEY=${NEXT_PUBLIC_NESHAN_API_KEY}
+        - NEXT_PUBLIC_GA_ID=${NEXT_PUBLIC_GA_ID}
       extra_hosts:
         - "host.docker.internal:host-gateway"
     restart: unless-stopped

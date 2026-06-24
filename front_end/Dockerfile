@@ -10,11 +10,17 @@ ENV HTTP_PROXY=${HTTP_PROXY} \
     http_proxy=${HTTP_PROXY} \
     https_proxy=${HTTPS_PROXY}
 
+# NEXT_PUBLIC_* vars must be available at build time (Next.js inlines them into the JS bundle)
+ARG NEXT_PUBLIC_NESHAN_API_KEY
+ARG NEXT_PUBLIC_GA_ID
+
 # Set environment variables to skip API calls during build
 ENV NODE_ENV=production \
     NEXT_PUBLIC_API_URL="" \
     GO_BACKEND_URL="" \
-    NEXT_PUBLIC_API_BASE_URL=""
+    NEXT_PUBLIC_API_BASE_URL="" \
+    NEXT_PUBLIC_NESHAN_API_KEY=${NEXT_PUBLIC_NESHAN_API_KEY} \
+    NEXT_PUBLIC_GA_ID=${NEXT_PUBLIC_GA_ID}
 
 # 1️⃣ install deps first for better Docker cache
 COPY package*.json ./
