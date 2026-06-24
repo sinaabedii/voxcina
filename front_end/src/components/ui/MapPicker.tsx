@@ -25,7 +25,7 @@ interface SearchResult {
 
 const MAP_KEY = process.env.NEXT_PUBLIC_NESHAN_API_KEY;
 
-const MapPicker: React.FC<MapPickerProps> = ({ location, onChange }) => {
+const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressResolved }) => {
   const mapRef = useRef<any>(null);
   const markerRef = useRef<InstanceType<typeof NeshanMarker> | null>(null);
   const [mounted, setMounted] = useState(false);
