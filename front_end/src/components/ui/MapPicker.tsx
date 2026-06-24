@@ -24,7 +24,6 @@ interface SearchResult {
 }
 
 const MAP_KEY = process.env.NEXT_PUBLIC_NESHAN_API_KEY;
-const SERVICE_KEY = process.env.NEXT_PUBLIC_NESHAN_SERVICE_API_KEY;
 
 const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressResolved }) => {
   const mapRef = useRef<any>(null);
@@ -58,16 +57,14 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
   );
 
   const reverseGeocode = useCallback(async (lat: number, lng: number) => {
-    if (!SERVICE_KEY) return;
     setResolvingAddress(true);
     try {
       const res = await fetch(
-        `https://api.neshan.org/v1/reverse?lat=${lat}&lng=${lng}`,
-        { headers: { "Api-Key": SERVICE_KEY } }
+        `/api/neshan/reverse?lat=${lat}&lng=${lng}`
       );
       if (!res.ok) throw new Error("reverse geocode failed");
       const data = await res.json();
-      const addr = data.formatted_address || data.address || "";
+      const addr = data.formatted_address || data.address || data.formattedAddress || "";
       onResolvedAddress(addr);
     } catch {
       onResolvedAddress("");
@@ -148,7 +145,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
 
   const searchAddress = useCallback(
     async (term: string) => {
-      if (!term.trim() || !SERVICE_KEY) {
+      if (!term.trim()) {
         setSearchResults([]);
         return;
       }
@@ -160,8 +157,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
           lng: String(center.lng),
         });
         const res = await fetch(
-          `https://api.neshan.org/v1/search?${params.toString()}`,
-          { headers: { "Api-Key": SERVICE_KEY } }
+          `/api/neshan/search?${params.toString()}`
         );
         if (!res.ok) throw new Error("search failed");
         const data = await res.json();

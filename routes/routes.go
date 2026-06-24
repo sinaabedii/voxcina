@@ -19,6 +19,10 @@ func NewRouter() *mux.Router {
 	// Health check endpoint
 	api.HandleFunc("/health", handlers.HealthCheck).Methods(http.MethodGet)
 
+	// Neshan Map API proxy (public, no auth — service key stays server-side)
+	api.HandleFunc("/neshan/reverse", handlers.NeshanReverseGeocode).Methods(http.MethodGet)
+	api.HandleFunc("/neshan/search", handlers.NeshanSearchAddress).Methods(http.MethodGet)
+
 	// Public User Auth routes
 	api.HandleFunc("/users/register", handlers.Register).Methods(http.MethodPost)
 	api.HandleFunc("/users/login", handlers.Login).Methods(http.MethodPost)
