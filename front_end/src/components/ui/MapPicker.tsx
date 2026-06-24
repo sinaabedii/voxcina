@@ -205,7 +205,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
     const lat = r.location.y;
     const lng = r.location.x;
     onChangeRef.current({ lat, lng });
-    onResolvedAddressRef.current?.(r.address || r.title);
+    onAddressResolvedRef.current?.(r.address || r.title);
     setSearchTerm("");
     setShowResults(false);
     setSearchResults([]);
