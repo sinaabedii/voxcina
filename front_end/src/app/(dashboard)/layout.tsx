@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuthStore } from "@/store/auth-store";
+import { useCartStore } from "@/store/cart-store";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import { localStorageManager } from "@/lib/local-storage-manager";
 import Sidebar from "@/components/layout/Sidebar";
@@ -25,6 +26,8 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { user, logout } = useAuthStore();
+  const { cart } = useCartStore();
+  const itemCount = cart.items.reduce((count, item) => count + item.quantity, 0);
   const router = useRouter();
   
   // Use the new protected route hook (Requirements 3.1, 3.3, 3.5)
@@ -117,18 +120,6 @@ export default function DashboardLayout({
             </Link>
           </div>
 
-          <div className="hidden md:flex items-center bg-voxcina-cream/30 dark:bg-voxcina-blue/30 rounded-xl w-80 px-3 py-2 border border-voxcina-cream/50 dark:border-voxcina-blue/50 shadow-inner-soft backdrop-blur-sm">
-            <Search
-              size={18}
-              className="text-voxcina-blue/60 dark:text-voxcina-cream/60 ml-2"
-            />
-            <input
-              type="text"
-              placeholder="جستجو در فروشگاه..."
-              className="bg-transparent border-none focus:outline-none text-sm w-full text-voxcina-blue dark:text-voxcina-cream placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50"
-            />
-          </div>
-
           <div className="flex items-center gap-1 sm:gap-3">
             <motion.button
               className="p-2 text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream rounded-full hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 relative transition-colors"
@@ -146,9 +137,11 @@ export default function DashboardLayout({
             >
               <ShoppingCart size={18} />
               <span className="sr-only">سبد خرید</span>
-              <span className="absolute top-0 right-0 w-4 h-4 bg-voxcina-blue dark:bg-voxcina-cream rounded-full text-white dark:text-voxcina-blue text-[10px] flex items-center justify-center">
-                3
-              </span>
+              {itemCount > 0 && (
+                <span className="absolute top-0 right-0 min-w-4 h-4 px-1 bg-voxcina-blue dark:bg-voxcina-cream rounded-full text-white dark:text-voxcina-blue text-[10px] flex items-center justify-center">
+                  {itemCount > 99 ? "99+" : itemCount}
+                </span>
+              )}
             </Link>
 
             <div className="relative">
@@ -308,9 +301,11 @@ export default function DashboardLayout({
         <Link href="/cart" className="flex flex-col items-center group">
           <div className="p-2 text-voxcina-blue/70 group-hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:group-hover:text-voxcina-cream rounded-full group-hover:bg-voxcina-cream/30 dark:group-hover:bg-voxcina-blue/30 transition-colors relative">
             <ShoppingCart size={18} />
-            <span className="absolute top-0 right-0 w-4 h-4 bg-voxcina-blue dark:bg-voxcina-cream rounded-full text-white dark:text-voxcina-blue text-[10px] flex items-center justify-center">
-              3
-            </span>
+            {itemCount > 0 && (
+              <span className="absolute top-0 right-0 min-w-4 h-4 px-1 bg-voxcina-blue dark:bg-voxcina-cream rounded-full text-white dark:text-voxcina-blue text-[10px] flex items-center justify-center">
+                {itemCount > 99 ? "99+" : itemCount}
+              </span>
+            )}
           </div>
           <span className="text-xs mt-1 text-voxcina-blue/70 dark:text-voxcina-cream/70 group-hover:text-voxcina-blue dark:group-hover:text-voxcina-cream transition-colors">
             سبد خرید
