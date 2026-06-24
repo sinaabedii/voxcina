@@ -118,7 +118,7 @@ func SearchAddress(term string, lat, lng float64) ([]NeshanSearchItem, error) {
 	}
 
 	if result.Status != "OK" && len(result.Items) == 0 {
-		return nil, fmt.Errorf("neshan search failed: %s", result.ErrorMessage)
+		return nil, fmt.Errorf("neshan search failed: %s (body=%s)", result.ErrorMessage, string(body))
 	}
 
 	if result.Items == nil {
