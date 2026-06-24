@@ -24,6 +24,7 @@ interface SearchResult {
 }
 
 const MAP_KEY = process.env.NEXT_PUBLIC_NESHAN_API_KEY;
+const SERVICE_KEY = process.env.NEXT_PUBLIC_NESHAN_SERVICE_API_KEY;
 
 const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressResolved }) => {
   const mapRef = useRef<any>(null);
@@ -38,7 +39,6 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
   const [resolvingAddress, setResolvingAddress] = useState(false);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
 
   const isDefaultLocation = location.lat === 0 && location.lng === 0;
   const center = isDefaultLocation ? DEFAULT_CENTER : location;
@@ -58,12 +58,12 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
   );
 
   const reverseGeocode = useCallback(async (lat: number, lng: number) => {
-    if (!MAP_KEY) return;
+    if (!SERVICE_KEY) return;
     setResolvingAddress(true);
     try {
       const res = await fetch(
         `https://api.neshan.org/v1/reverse?lat=${lat}&lng=${lng}`,
-        { headers: { "Api-Key": MAP_KEY } }
+        { headers: { "Api-Key": SERVICE_KEY } }
       );
       if (!res.ok) throw new Error("reverse geocode failed");
       const data = await res.json();
@@ -80,20 +80,24 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
     (lat: number, lng: number, flyTo = true) => {
       const map = mapRef.current;
       if (!map) return;
-      if (markerRef.current) {
-        markerRef.current.setLngLat([lng, lat]);
-      } else {
-        const el = document.createElement("div");
-        el.style.cssText = `
-          background: #1A3C69;
-          width: 30px;
-          height: 30px;
-          border-radius: 50% 50% 50% 0;
-          transform: rotate(-45deg);
-          border: 3px solid white;
-          box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-        `;
-        el.innerHTML = `<div style="background:white;width:8px;height:8px;border-radius:50%;transform:rotate(45deg);margin:8px auto 0;"></div>`;
+
+      markerRef.current?.remove();
+      markerRef.current = null;
+
+      const el = document.createElement("div");
+      el.className = "voxcina-marker";
+      el.style.cssText = `
+        background: #1A3C69;
+        width: 30px;
+        height: 30px;
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        border: 3px solid white;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      `;
+      el.innerHTML = '<div style="background:white;width:8px;height:8px;border-radius:50%;margin:8px auto 0;"></div>';
+
+      requestAnimationFrame(() => {
         const marker = new nmp_mapboxgl.Marker({ element: el, draggable: true })
           .setLngLat([lng, lat])
           .addTo(map as unknown as mapboxgl.Map);
@@ -103,7 +107,8 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
           reverseGeocode(dLat, dLng);
         });
         markerRef.current = marker;
-      }
+      });
+
       if (flyTo) {
         map.flyTo({ center: [lng, lat], zoom: PICKED_ZOOM, duration: 800 });
       }
@@ -143,7 +148,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
 
   const searchAddress = useCallback(
     async (term: string) => {
-      if (!term.trim() || !MAP_KEY) {
+      if (!term.trim() || !SERVICE_KEY) {
         setSearchResults([]);
         return;
       }
@@ -156,7 +161,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
         });
         const res = await fetch(
           `https://api.neshan.org/v1/search?${params.toString()}`,
-          { headers: { "Api-Key": MAP_KEY } }
+          { headers: { "Api-Key": SERVICE_KEY } }
         );
         if (!res.ok) throw new Error("search failed");
         const data = await res.json();
@@ -348,24 +353,6 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
       <p className="text-[10px] text-voxcina-blue/40 dark:text-voxcina-cream/40">
         برای انتخاب دقیق، روی نقشه کلیک کنید یا نشانگر را بکشید
       </p>
-
-      {resolvedAddress && !resolvingAddress && (
-        <div className="mt-2">
-          <button
-            type="button"
-            onClick={() => {
-              setIsEditing(true);
-              setResolvedAddress("");
-            }}
-            className="text-xs text-voxcina-blue/50 hover:text-voxcina-blue dark:text-voxcina-cream/50 dark:hover:text-voxcina-cream flex items-center gap-1"
-          >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            ویرایش آدرس
-          </button>
-        </div>
-      )}
     </div>
   );
 };
