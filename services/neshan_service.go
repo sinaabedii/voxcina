@@ -65,17 +65,27 @@ func ReverseGeocode(lat, lng float64) (*NeshanReverseResult, error) {
 		return nil, err
 	}
 
-	if result.Address == "" && result.Neighbourhood == "" && result.City == "" {
+	parts := []string{}
+	if result.Address != "" {
+		parts = append(parts, result.Address)
+	} else if result.Neighbourhood != "" {
+		parts = append(parts, result.Neighbourhood)
+	}
+	if result.City != "" {
+		parts = append(parts, result.City)
+	}
+	if result.State != "" {
+		parts = append(parts, result.State)
+	}
+
+	if len(parts) == 0 {
 		return nil, fmt.Errorf("neshan reverse geocode returned empty response: %s", string(body))
 	}
 
 	if result.FormattedAddress == "" {
-		result.FormattedAddress = result.Address
-		if result.FormattedAddress == "" {
-			result.FormattedAddress = result.Neighbourhood
-		}
-		if result.City != "" {
-			result.FormattedAddress += "، " + result.City
+		result.FormattedAddress = parts[0]
+		for i := 1; i < len(parts); i++ {
+			result.FormattedAddress += "، " + parts[i]
 		}
 	}
 
