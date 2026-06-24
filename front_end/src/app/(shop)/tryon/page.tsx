@@ -698,18 +698,20 @@ export default function TryOnRoomPage() {
               variants={itemVariants}
             >
               {uploadedPreview ? (
-                <div className="relative rounded-xl overflow-hidden border border-secondary-300 dark:border-voxcina-blue/20">
-                  <img src={uploadedPreview} alt="تصویر شما" className="w-full aspect-[16/9] object-cover" />
-                  <div className="absolute bottom-2 right-2 bg-voxcina-blue/90 backdrop-blur-sm text-voxcina-cream text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-inset-button">
-                    <Camera className="h-3 w-3" />
-                    تصویر شما
+                <div className="flex items-center gap-3 p-2.5">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border border-secondary-300 dark:border-voxcina-blue/20">
+                    <img src={uploadedPreview} alt="تصویر شما" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-voxcina-blue dark:text-voxcina-cream">تصویر شما</p>
+                    <p className="text-[10px] text-voxcina-blue/40 dark:text-voxcina-cream/40 mt-0.5">عکس آپلود شده</p>
                   </div>
                   <button
                     type="button"
                     onClick={(e) => { e.preventDefault(); handleClearAll(); }}
-                    className="absolute top-2 left-2 w-8 h-8 bg-red-500/90 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                    className="flex-shrink-0 w-7 h-7 bg-red-500/90 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ) : (
