@@ -45,6 +45,9 @@ COPY --from=builder /app/public              ./public
 COPY --from=builder /app/package*.json       ./
 COPY --from=builder /app/node_modules        ./node_modules
 COPY --from=builder /app/next.config.js      ./
+COPY --from=builder /app/tsconfig.json       ./
+COPY --from=builder /app/tailwind.config.js  ./
+COPY --from=builder /app/postcss.config.js   ./
 
 # Create uploads directory structure inside public
 RUN mkdir -p ./public/uploads/products/main ./public/uploads/categories
