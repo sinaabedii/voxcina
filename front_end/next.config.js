@@ -7,6 +7,11 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react'], // Tree-shake icons (96 files use this)
   },
+
+  // Don't fail builds on lint errors (lint runs via `npm run lint` separately)
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   
   // Enable compression
   compress: true,

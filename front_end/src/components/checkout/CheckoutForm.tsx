@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MapPin, Plus, Home, Briefcase, Check } from "lucide-react";
+import dynamic from "next/dynamic";
+import { MapPin, Plus, Home, Briefcase, Check, Loader2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
@@ -8,7 +9,15 @@ import { Address } from "@/store/dashboard-store";
 import { useDashboardStore } from "@/store/dashboard-store";
 import { useLocality } from "@/hooks/useLocality";
 import { motion, AnimatePresence } from "framer-motion";
-import MapPicker from "@/components/ui/MapPicker";
+
+const MapPicker = dynamic(() => import("@/components/ui/MapPicker"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-64 rounded-xl border border-secondary-200 dark:border-voxcina-blue/30 bg-voxcina-cream/30 dark:bg-voxcina-blue/10 flex items-center justify-center">
+      <Loader2 className="h-5 w-5 text-voxcina-blue/50 dark:text-voxcina-cream/50 animate-spin" />
+    </div>
+  ),
+});
 
 interface CheckoutFormProps {
   onSelectAddress: (address: Address) => void;

@@ -28,7 +28,7 @@
       ]
     },
     "types": [
-      "leaflet"
+      "node"
     ]
   },
   "include": [

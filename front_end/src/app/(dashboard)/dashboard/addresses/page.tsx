@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/input";
@@ -23,7 +24,15 @@ import { useAuthStore } from "@/store/auth-store";
 import { motion, AnimatePresence } from "framer-motion";
 import { Address } from "@/types/user";
 import { toast } from "react-hot-toast";
-import MapPicker from "@/components/ui/MapPicker";
+
+const MapPicker = dynamic(() => import("@/components/ui/MapPicker"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-64 rounded-xl border border-secondary-200 dark:border-voxcina-blue/30 bg-voxcina-cream/30 dark:bg-voxcina-blue/10 flex items-center justify-center">
+      <Loader2 className="h-5 w-5 text-voxcina-blue/50 dark:text-voxcina-cream/50 animate-spin" />
+    </div>
+  ),
+});
 
 export default function AddressesPage() {
   const {
