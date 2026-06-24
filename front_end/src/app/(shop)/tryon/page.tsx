@@ -699,7 +699,7 @@ export default function TryOnRoomPage() {
             >
               {uploadedPreview ? (
                 <div className="relative rounded-xl overflow-hidden border border-secondary-300 dark:border-voxcina-blue/20">
-                  <img src={uploadedPreview} alt="تصویر شما" className="w-full aspect-[4/5] object-cover" />
+                  <img src={uploadedPreview} alt="تصویر شما" className="w-full aspect-[16/9] object-cover" />
                   <div className="absolute bottom-2 right-2 bg-voxcina-blue/90 backdrop-blur-sm text-voxcina-cream text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-inset-button">
                     <Camera className="h-3 w-3" />
                     تصویر شما
@@ -763,11 +763,10 @@ export default function TryOnRoomPage() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -6 }}
                       className={cn(
-                        "flex items-center gap-3 p-2.5 rounded-xl border transition-all duration-200 group",
-                        uploadedFile && "cursor-pointer",
+                        "flex items-center gap-3 p-2.5 rounded-xl border transition-all duration-200 cursor-pointer group",
                         activeItemIndex === idx
                           ? "border-voxcina-blue/40 dark:border-voxcina-cream/40 bg-voxcina-blue/[0.04] dark:bg-voxcina-cream/[0.04]"
-                          : uploadedFile ? "border-transparent hover:border-secondary-300 dark:hover:border-voxcina-blue/30 hover:bg-voxcina-blue/[0.04] dark:hover:bg-voxcina-cream/[0.04]" : "border-transparent",
+                          : "border-transparent hover:border-secondary-300 dark:hover:border-voxcina-blue/30 hover:bg-voxcina-blue/[0.04] dark:hover:bg-voxcina-cream/[0.04]",
                         !uploadedFile && "opacity-50"
                       )}
                       onClick={() => {
