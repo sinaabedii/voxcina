@@ -97,6 +97,8 @@ services:
       - SMSIR_TEMPLATE_ID=${SMSIR_TEMPLATE_ID}
       - INTERNAL_SECRET=${INTERNAL_SECRET}
       - NEXT_PUBLIC_GA_ID=${NEXT_PUBLIC_GA_ID}
+      - NEXT_PUBLIC_NESHAN_API_KEY=${NEXT_PUBLIC_NESHAN_API_KEY}
+      - NESHAN_SERVICE_API_KEY=${NESHAN_SERVICE_API_KEY}
     volumes:
       - ./uploads:/app/public/uploads
     depends_on:
