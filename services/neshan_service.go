@@ -12,19 +12,18 @@ import (
 const neshanAPIBase = "https://api.neshan.org/v1"
 
 type NeshanReverseResult struct {
-	Status          string `json:"status"`
-	FormattedAddress string `json:"formatted_address"`
-	Address         string `json:"address"`
-	Neighbourhood   string `json:"neighbourhood"`
-	City            string `json:"city"`
-	State           string `json:"state"`
-	ErrorMessage    string `json:"error_message"`
+	Neighbourhood     string `json:"neighbourhood"`
+	MunicipalityZone  string `json:"municipality_zone"`
+	Address           string `json:"address"`
+	City              string `json:"city"`
+	State             string `json:"state"`
+	FormattedAddress  string `json:"formatted_address"`
 }
 
 type NeshanSearchResult struct {
-	Status       string             `json:"status"`
 	Items        []NeshanSearchItem `json:"items"`
 	ErrorMessage string             `json:"error_message"`
+	Status       string             `json:"status"`
 }
 
 type NeshanSearchItem struct {
@@ -66,8 +65,18 @@ func ReverseGeocode(lat, lng float64) (*NeshanReverseResult, error) {
 		return nil, err
 	}
 
-	if result.Status != "OK" {
-		return nil, fmt.Errorf("neshan reverse geocode failed (status=%s, body=%s)", result.Status, string(body))
+	if result.Address == "" && result.Neighbourhood == "" && result.City == "" {
+		return nil, fmt.Errorf("neshan reverse geocode returned empty response: %s", string(body))
+	}
+
+	if result.FormattedAddress == "" {
+		result.FormattedAddress = result.Address
+		if result.FormattedAddress == "" {
+			result.FormattedAddress = result.Neighbourhood
+		}
+		if result.City != "" {
+			result.FormattedAddress += "، " + result.City
+		}
 	}
 
 	return &result, nil
@@ -108,8 +117,8 @@ func SearchAddress(term string, lat, lng float64) ([]NeshanSearchItem, error) {
 		return nil, err
 	}
 
-	if result.Status != "OK" {
-		return nil, fmt.Errorf("neshan search failed (status=%s, body=%s)", result.Status, string(body))
+	if result.Status != "OK" && len(result.Items) == 0 {
+		return nil, fmt.Errorf("neshan search failed: %s", result.ErrorMessage)
 	}
 
 	if result.Items == nil {
