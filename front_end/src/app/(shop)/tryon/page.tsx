@@ -717,30 +717,21 @@ export default function TryOnRoomPage() {
               ) : (
                 <label
                   className={cn(
-                    "block cursor-pointer p-6 transition-all",
+                    "flex items-center gap-3 p-2.5 cursor-pointer rounded-xl border-2 border-dashed transition-all",
                     dragOver
-                      ? "bg-voxcina-blue/[0.04]"
-                      : "hover:bg-voxcina-blue/[0.04] dark:hover:bg-voxcina-cream/[0.04]"
+                      ? "border-secondary-400 dark:border-voxcina-blue/40 bg-voxcina-blue/[0.04]"
+                      : "border-secondary-300 dark:border-voxcina-blue/20 hover:bg-voxcina-blue/[0.04] dark:hover:bg-voxcina-cream/[0.04]"
                   )}
                   onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleFileDrop}
                 >
-                  <div className={cn(
-                    "border-2 border-dashed rounded-xl py-8 px-4 text-center transition-all",
-                    dragOver
-                      ? "border-secondary-400 dark:border-voxcina-blue/40 bg-voxcina-blue/[0.02]"
-                      : "border-secondary-300 dark:border-voxcina-blue/20"
-                  )}>
-                    <div className="w-14 h-14 mx-auto rounded-2xl bg-background border border-secondary-300 dark:border-voxcina-blue/20 flex items-center justify-center mb-3 shadow-inset-button">
-                      <Upload className="h-7 w-7 text-voxcina-blue/30 dark:text-voxcina-cream/30" />
-                    </div>
-                    <p className="text-sm font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-1">
-                      عکس خود را اینجا رها کنید
-                    </p>
-                    <p className="text-xs text-voxcina-blue/40 dark:text-voxcina-cream/40">
-                      یا برای انتخاب کلیک کنید
-                    </p>
+                  <div className="w-16 h-16 rounded-xl flex-shrink-0 border border-secondary-300 dark:border-voxcina-blue/20 flex items-center justify-center bg-voxcina-blue/[0.04] dark:bg-voxcina-cream/[0.04]">
+                    <Upload className="h-6 w-6 text-voxcina-blue/40 dark:text-voxcina-cream/40" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70">عکس خود را آپلود کنید</p>
+                    <p className="text-[10px] text-voxcina-blue/40 dark:text-voxcina-cream/40 mt-0.5">اینجا رها کنید یا کلیک کنید</p>
                   </div>
                   <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
                 </label>
