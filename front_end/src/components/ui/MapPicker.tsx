@@ -49,6 +49,14 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange }) => {
     setMounted(true);
   }, []);
 
+  const onResolvedAddress = useCallback(
+    (address: string) => {
+      setResolvedAddress(address);
+      onAddressResolved?.(address);
+    },
+    [onAddressResolved]
+  );
+
   const reverseGeocode = useCallback(async (lat: number, lng: number) => {
     if (!MAP_KEY) return;
     setResolvingAddress(true);
@@ -219,14 +227,6 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange }) => {
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
-
-  const onResolvedAddress = useCallback(
-    (address: string) => {
-      setResolvedAddress(address);
-      onAddressResolved?.(address);
-    },
-    [onAddressResolved]
-  );
 
   if (!MAP_KEY) {
     return (
