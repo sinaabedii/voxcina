@@ -67,7 +67,7 @@ func ReverseGeocode(lat, lng float64) (*NeshanReverseResult, error) {
 	}
 
 	if result.Status != "OK" {
-		return nil, fmt.Errorf("neshan reverse geocode failed: %s", result.ErrorMessage)
+		return nil, fmt.Errorf("neshan reverse geocode failed (status=%s, body=%s)", result.Status, string(body))
 	}
 
 	return &result, nil
@@ -109,7 +109,7 @@ func SearchAddress(term string, lat, lng float64) ([]NeshanSearchItem, error) {
 	}
 
 	if result.Status != "OK" {
-		return nil, fmt.Errorf("neshan search failed: %s", result.ErrorMessage)
+		return nil, fmt.Errorf("neshan search failed (status=%s, body=%s)", result.Status, string(body))
 	}
 
 	if result.Items == nil {
