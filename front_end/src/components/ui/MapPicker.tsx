@@ -28,6 +28,12 @@ const MAP_KEY = process.env.NEXT_PUBLIC_NESHAN_API_KEY;
 const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressResolved }) => {
   const mapRef = useRef<any>(null);
   const markerRef = useRef<InstanceType<typeof NeshanMarker> | null>(null);
+  const onAddressResolvedRef = useRef(onAddressResolved);
+  onAddressResolvedRef.current = onAddressResolved;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const reverseGeocodeRef = useRef<((lat: number, lng: number) => void) | null>(null);
+  const placeMarkerRef = useRef<((lat: number, lng: number, flyTo?: boolean) => void) | null>(null);
   const [mounted, setMounted] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -52,9 +58,9 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
   const onResolvedAddress = useCallback(
     (address: string) => {
       setResolvedAddress(address);
-      onAddressResolved?.(address);
+      onAddressResolvedRef.current?.(address);
     },
-    [onAddressResolved]
+    []
   );
 
   const reverseGeocode = useCallback(async (lat: number, lng: number) => {
@@ -73,6 +79,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
       setResolvingAddress(false);
     }
   }, [onResolvedAddress]);
+  reverseGeocodeRef.current = reverseGeocode;
 
   const placeMarker = useCallback(
     (lat: number, lng: number, flyTo = true) => {
@@ -101,8 +108,8 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
           .addTo(map as unknown as mapboxgl.Map);
         marker.on("dragend", () => {
           const { lng: dLng, lat: dLat } = marker.getLngLat();
-          onChange({ lat: dLat, lng: dLng });
-          reverseGeocode(dLat, dLng);
+          onChangeRef.current({ lat: dLat, lng: dLng });
+          reverseGeocodeRef.current(dLat, dLng);
         });
         markerRef.current = marker;
       });
@@ -111,31 +118,33 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
         map.flyTo({ center: [lng, lat], zoom: PICKED_ZOOM, duration: 800 });
       }
     },
-    [onChange, reverseGeocode]
+    []
   );
+  placeMarkerRef.current = placeMarker;
 
   useEffect(() => {
     if (!mounted) return;
-    placeMarker(center.lat, center.lng, false);
+    placeMarkerRef.current?.(center.lat, center.lng, false);
     if (!isDefaultLocation) {
-      reverseGeocode(center.lat, center.lng);
+      reverseGeocodeRef.current?.(center.lat, center.lng);
     }
-  }, [mounted, center.lat, center.lng, isDefaultLocation, placeMarker, reverseGeocode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mounted) return;
     const onClick = (e: { lngLat: { lat: number; lng: number } }) => {
       const { lat, lng } = e.lngLat;
-      onChange({ lat, lng });
-      placeMarker(lat, lng, false);
-      reverseGeocode(lat, lng);
+      onChangeRef.current({ lat, lng });
+      placeMarkerRef.current?.(lat, lng, false);
+      reverseGeocodeRef.current?.(lat, lng);
     };
     map.on("click", onClick);
     return () => {
       map.off("click", onClick);
     };
-  }, [mounted, onChange, placeMarker, reverseGeocode]);
+  }, [mounted]);
 
   useEffect(() => {
     return () => {
@@ -195,12 +204,12 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
   const pickResult = (r: SearchResult) => {
     const lat = r.location.y;
     const lng = r.location.x;
-    onChange({ lat, lng });
-    setResolvedAddress(r.address || r.title);
+    onChangeRef.current({ lat, lng });
+    onResolvedAddressRef.current?.(r.address || r.title);
     setSearchTerm("");
     setShowResults(false);
     setSearchResults([]);
-    placeMarker(lat, lng, true);
+    placeMarkerRef.current?.(lat, lng, true);
   };
 
   const useMyLocation = () => {
@@ -214,9 +223,9 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
       (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
-        onChange({ lat, lng });
-        placeMarker(lat, lng, true);
-        reverseGeocode(lat, lng);
+        onChangeRef.current({ lat, lng });
+        placeMarkerRef.current?.(lat, lng, true);
+        reverseGeocodeRef.current?.(lat, lng);
         setLocating(false);
       },
       (err) => {
