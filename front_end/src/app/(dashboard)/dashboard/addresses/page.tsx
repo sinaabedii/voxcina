@@ -776,7 +776,25 @@ export default function AddressesPage() {
                 onChange={({ lat, lng }) =>
                   setFormData({ ...formData, latitude: lat, longitude: lng })
                 }
+                onAddressResolved={(address) => {
+                  setFormData(prev => ({ ...prev, address }));
+                }}
               />
+              {formData.address && (
+                <div className="text-xs text-voxcina-blue/60 dark:text-secondary-300 bg-secondary-50 dark:bg-voxcina-blue/10 p-2 rounded-lg border border-secondary-200 dark:border-voxcina-blue/30">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium">آدرس انتخاب‌شده از نقشه:</span>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, address: '' }))}
+                      className="text-red-500 hover:text-red-600 transition-colors"
+                    >
+                      پاک کردن
+                    </button>
+                  </div>
+                  <p className="leading-relaxed pr-16">{formData.address}</p>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center bg-gradient-to-r from-voxcina-blue/5 to-secondary-200/70 dark:from-voxcina-blue/10 dark:to-voxcina-blue/5 p-4 rounded-xl">

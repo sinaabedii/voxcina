@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 interface MapPickerProps {
   location: { lat: number; lng: number };
   onChange: (location: { lat: number; lng: number }) => void;
+  onAddressResolved?: (address: string) => void;
 }
 
 const DEFAULT_CENTER = { lat: 32.427908, lng: 53.688046 };
@@ -37,6 +38,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange }) => {
   const [resolvingAddress, setResolvingAddress] = useState(false);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   const isDefaultLocation = location.lat === 0 && location.lng === 0;
   const center = isDefaultLocation ? DEFAULT_CENTER : location;
@@ -58,13 +60,13 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange }) => {
       if (!res.ok) throw new Error("reverse geocode failed");
       const data = await res.json();
       const addr = data.formatted_address || data.address || "";
-      setResolvedAddress(addr);
+      onResolvedAddress(addr);
     } catch {
-      setResolvedAddress("");
+      onResolvedAddress("");
     } finally {
       setResolvingAddress(false);
     }
-  }, []);
+  }, [onResolvedAddress]);
 
   const placeMarker = useCallback(
     (lat: number, lng: number, flyTo = true) => {
@@ -218,6 +220,14 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange }) => {
     );
   };
 
+  const onResolvedAddress = useCallback(
+    (address: string) => {
+      setResolvedAddress(address);
+      onAddressResolved?.(address);
+    },
+    [onAddressResolved]
+  );
+
   if (!MAP_KEY) {
     return (
       <div className="w-full h-64 rounded-xl border border-dashed border-red-300 bg-red-50 dark:bg-red-900/20 flex items-center justify-center p-4 text-center text-sm text-red-700 dark:text-red-300">
@@ -338,8 +348,28 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange }) => {
       <p className="text-[10px] text-voxcina-blue/40 dark:text-voxcina-cream/40">
         برای انتخاب دقیق، روی نقشه کلیک کنید یا نشانگر را بکشید
       </p>
+
+      {resolvedAddress && !resolvingAddress && (
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={() => {
+              setIsEditing(true);
+              setResolvedAddress("");
+            }}
+            className="text-xs text-voxcina-blue/50 hover:text-voxcina-blue dark:text-voxcina-cream/50 dark:hover:text-voxcina-cream flex items-center gap-1"
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            ویرایش آدرس
+          </button>
+        </div>
+      )}
     </div>
   );
 };
+
+MapPicker.displayName = "MapPicker";
 
 export default MapPicker;
