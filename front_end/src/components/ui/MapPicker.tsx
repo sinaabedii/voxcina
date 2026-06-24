@@ -109,7 +109,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
         marker.on("dragend", () => {
           const { lng: dLng, lat: dLat } = marker.getLngLat();
           onChangeRef.current({ lat: dLat, lng: dLng });
-          reverseGeocodeRef.current(dLat, dLng);
+          reverseGeocodeRef.current?.(dLat, dLng);
         });
         markerRef.current = marker;
       });
