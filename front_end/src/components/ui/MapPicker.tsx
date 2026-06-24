@@ -45,6 +45,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
 
   const handleMapReady = useCallback((map: any) => {
     mapRef.current = map;
+    map.addControl(new nmp_mapboxgl.NavigationControl({ showCompass: false }), "top-left");
     setMounted(true);
   }, []);
 
