@@ -232,8 +232,21 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
     setLocationError(null);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
+        const lat = Number(pos.coords.latitude);
+        const lng = Number(pos.coords.longitude);
+
+        // Desktop browsers without GPS fall back to IP-based geolocation,
+        // which can be very inaccurate (sometimes in another country).
+        const insideIran = lat >= 25 && lat <= 40 && lng >= 44 && lng <= 63;
+        if (!insideIran) {
+          setLocationError(
+            `موقعیت شناسایی‌شده (${lat.toFixed(4)}, ${lng.toFixed(4)}) خارج از ایران است. روی نقشه کلیک کنید.`
+          );
+          setLocating(false);
+          return;
+        }
+
+        isInternalChangeRef.current = true;
         onChangeRef.current({ lat, lng });
         placeMarkerRef.current?.(lat, lng, true);
         reverseGeocodeRef.current?.(lat, lng);
