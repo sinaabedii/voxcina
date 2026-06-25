@@ -309,14 +309,15 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
         )}
       </div>
 
-      <div className="relative w-full h-64 rounded-xl overflow-hidden border border-secondary-200 dark:border-voxcina-blue/30">
+      <div className="relative w-full h-64 rounded-xl overflow-hidden border border-secondary-200 dark:border-voxcina-blue/30 [&_.mapboxgl-ctrl-logo]:hidden [&_.mapboxgl-ctrl-attrib-button]:hidden">
         <MapComponent
-          options={{
-            mapKey: MAP_KEY,
-            mapType: MapTypes.neshanVector,
-            center: [center.lng, center.lat],
-            zoom,
-          }}
+            options={{
+              mapKey: MAP_KEY,
+              mapType: MapTypes.neshanVector,
+              center: [center.lng, center.lat],
+              zoom,
+              mapTypeControllerOptions: { show: false },
+            }}
           mapSetter={handleMapReady}
         />
         {!mounted && (

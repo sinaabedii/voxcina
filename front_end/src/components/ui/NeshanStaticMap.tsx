@@ -76,7 +76,7 @@ const NeshanStaticMap: React.FC<NeshanStaticMapProps> = ({
   }
 
   return (
-    <div className={className}>
+    <div className={`${className} [&_.mapboxgl-ctrl-logo]:hidden [&_.mapboxgl-ctrl-attrib-button]:hidden`}>
       <MapComponent
         options={{
           mapKey: MAP_KEY,
