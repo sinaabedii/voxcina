@@ -843,7 +843,7 @@ export default function TryOnRoomPage() {
           {/* Right panel: result + chat */}
           <div className="min-h-0 flex flex-col flex-1">
             <motion.div
-              className="bg-background rounded-xl border border-secondary-400 dark:border-voxcina-blue/30 flex flex-col flex-1 min-h-0 overflow-hidden"
+              className="bg-background rounded-xl border border-secondary-400 dark:border-voxcina-blue/30 flex flex-col flex-1 min-h-0 max-h-[600px] overflow-hidden"
               variants={itemVariants}
             >
               {/* Always-visible chat card */}
