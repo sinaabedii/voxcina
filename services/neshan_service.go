@@ -137,3 +137,51 @@ func SearchAddress(term string, lat, lng float64) ([]NeshanSearchItem, error) {
 
 	return result.Items, nil
 }
+
+type NeshanGeocodeResult struct {
+	Location struct {
+		X float64 `json:"x"`
+		Y float64 `json:"y"`
+	} `json:"location"`
+	Status string `json:"status"`
+}
+
+func GeocodeAddress(address string) (*NeshanGeocodeResult, error) {
+	apiKey := os.Getenv("NESHAN_SERVICE_API_KEY")
+	if apiKey == "" {
+		return nil, fmt.Errorf("NESHAN_SERVICE_API_KEY is not set")
+	}
+
+	reqURL := fmt.Sprintf("https://api.neshan.org/v4/geocoding?%s", url.Values{
+		"address": {address},
+	}.Encode())
+
+	req, err := http.NewRequest("GET", reqURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Api-Key", apiKey)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var result NeshanGeocodeResult
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, err
+	}
+
+	if result.Status != "OK" {
+		return nil, fmt.Errorf("neshan geocode failed: status=%s body=%s", result.Status, string(body))
+	}
+
+	return &result, nil
+}

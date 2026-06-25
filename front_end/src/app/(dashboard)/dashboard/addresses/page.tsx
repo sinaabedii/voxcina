@@ -116,9 +116,30 @@ export default function AddressesPage() {
     }
   }, [formData.province, provinces]);
 
-  const searchCityOnMap = (provinceName: string, cityName: string) => {
+  const searchCityOnMap = async (provinceName: string, cityName: string) => {
     if (!cityName) return;
 
+    const address = provinceName ? `${cityName}، ${provinceName}` : cityName;
+    try {
+      const res = await fetch(
+        `/api/neshan/geocode?address=${encodeURIComponent(address)}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data.location) {
+          setFormData((prev) => ({
+            ...prev,
+            latitude: data.location.y,
+            longitude: data.location.x,
+          }));
+          return;
+        }
+      }
+    } catch {
+      // fall through to local fallback
+    }
+
+    // Fallback to hardcoded coordinates
     const coord = getCityCoordinate(cityName, provinceName);
     if (coord) {
       setFormData((prev) => ({

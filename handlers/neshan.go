@@ -74,3 +74,20 @@ func NeshanSearchAddress(w http.ResponseWriter, r *http.Request) {
 
 	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{"items": items})
 }
+
+func NeshanGeocode(w http.ResponseWriter, r *http.Request) {
+	address := r.URL.Query().Get("address")
+
+	if address == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "address query parameter is required")
+		return
+	}
+
+	result, err := services.GeocodeAddress(address)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, result)
+}
