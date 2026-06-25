@@ -18,6 +18,7 @@ interface TryOnState {
 
   setUploadedFile: (file: File | null) => void;
   setInspectedItem: (name: string, garmentType: string) => void;
+  clearInspectedItem: () => void;
   setCoupon: (code: string, value: number, validUntil: string) => void;
   clearCoupon: () => void;
   clearResult: () => void;
@@ -62,6 +63,9 @@ export const useTryOnStore = create<TryOnState>()(
 
     setInspectedItem: (name, garmentType) =>
       set({ inspectedItemName: name, inspectedGarmentType: garmentType }),
+
+    clearInspectedItem: () =>
+      set({ inspectedItemName: null, inspectedGarmentType: null }),
 
     setCoupon: (code, value, validUntil) =>
       set({ couponCode: code, couponValue: value, couponValidUntil: validUntil }),

@@ -123,6 +123,7 @@ export default function TryOnRoomPage() {
     inspectedItemName,
     inspectedGarmentType,
     setInspectedItem,
+    clearInspectedItem,
     couponCode,
     couponValue,
     couponValidUntil,
@@ -804,6 +805,13 @@ export default function TryOnRoomPage() {
                       )}
                       onClick={() => {
                         if (!uploadedFile || isProcessing) return;
+                        if (activeItemIndex === idx) {
+                          setActiveItemIndex(null);
+                          clearInspectedItem();
+                          clearCoupon();
+                          setCouponExpired(false);
+                          return;
+                        }
                         setActiveItemIndex(idx);
                         clearCoupon();
                         setCouponExpired(false);
