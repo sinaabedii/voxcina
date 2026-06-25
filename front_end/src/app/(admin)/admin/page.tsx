@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
+import { XCircle, TrendingUp } from "lucide-react";
 
 export default function AdminDashboardPage() {
   const { user, adminToken } = useAuthStore();
@@ -357,11 +358,42 @@ export default function AdminDashboardPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
-                    ارزش کل فروش
+                    ارزش فروش‌های موفق
                   </p>
                   <Link href="/admin/analytics" aria-label="آمار و تحلیل فروش">
                     <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
                       <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+                      <span className="sr-only">آمار و تحلیل فروش</span>
+                    </div>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div 
+            variants={itemVariants}
+            whileHover={{ y: -5 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-voxcina-cream">
+                  <XCircle className="w-5 h-5 text-red-500 dark:text-red-400 ml-2" />
+                  فروش‌های ناموفق
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-red-500 dark:text-red-400">
+                  {formatPrice(dashboardStats.totalSalesFailed)}
+                </div>
+                <div className="flex justify-between items-center">
+                  <p className="text-sm text-red-500/70 dark:text-red-400/70 mt-1">
+                    ارزش فروش‌های در انتظار/ناموفق
+                  </p>
+                  <Link href="/admin/analytics" aria-label="آمار و تحلیل فروش">
+                    <div className="h-8 w-8 flex items-center justify-center rounded-full bg-red-50 dark:bg-red-900/20">
+                      <ChevronRight className="h-5 w-5 text-red-500 dark:text-red-400" />
                       <span className="sr-only">آمار و تحلیل فروش</span>
                     </div>
                   </Link>

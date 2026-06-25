@@ -191,7 +191,7 @@ export default function ProductsPageContent({
         </div>
 
         <div className="flex items-center gap-2 md:gap-4 flex-wrap sm:flex-nowrap">
-          <div className="relative">
+          <div className="relative z-50">
             <select
               className="h-10 rounded-xl border border-voxcina-cream/50 dark:border-voxcina-blue/30 bg-white dark:bg-voxcina-blue/10 px-4 py-2 w-32 md:w-44 appearance-none focus:outline-none focus:ring-2 focus:ring-voxcina-blue/50 dark:focus:ring-voxcina-cream/50 text-voxcina-blue dark:text-voxcina-cream text-sm shadow-sm"
               value={filter.sort || ""}

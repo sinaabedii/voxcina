@@ -1,5 +1,8 @@
 
 uploads/*
+!uploads/avatars/
+!uploads/avatars/categories/
+!uploads/avatars/categories/*.svg
 Products/
 .env
 main

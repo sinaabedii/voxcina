@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Sparkles, MessageCircle, Zap, ArrowLeft, Bot, Shirt, Wand2 } from "lucide-react";
+import { Sparkles, Camera, Zap, ArrowLeft, Tag, Wand2 } from "lucide-react";
 
 const staggerContainer = {
   hidden: { opacity: 0 },
@@ -71,7 +71,7 @@ export default function AIAssistantPromo() {
                 <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/20 to-voxcina-blue/20 border border-cyan-400/30 backdrop-blur-md">
                   <Sparkles className="w-4 h-4 text-yellow-300" />
                   <span className="text-xs sm:text-sm font-medium text-cyan-100">
-                    قدرت هوش مصنوعی در خرید
+                    اتاق پرو مجازی با هوش مصنوعی
                   </span>
                 </span>
               </motion.div>
@@ -82,7 +82,7 @@ export default function AIAssistantPromo() {
               >
                 دستیار هوشمند
                 <span className="block mt-2 bg-gradient-to-r from-cyan-400 via-voxcina-blue to-purple-400 bg-clip-text text-transparent">
-                  استایلیست شخصی تو
+                  پرو مجازی و مذاکره تخفیف
                 </span>
               </motion.h2>
 
@@ -90,9 +90,8 @@ export default function AIAssistantPromo() {
                 className="text-sm sm:text-base md:text-lg text-slate-300/90 leading-relaxed max-w-lg"
                 variants={fadeInUp}
               >
-                با هوش مصنوعی وکسینا، دیگه نیازی به ساعت‌ها گشتن نیست! 
-                فقط بگو چی می‌خوای و ما بهترین پیشنهادها رو بر اساس سلیقه، 
-                بودجه و استایل شخصی‌ات بهت نشون می‌دیم.
+                عکس خودتو آپلود کن و با هوش مصنوعی لباس‌ها رو روی خودت ببین!
+                بعدش با سارا، فروشنده هوشمند وکسینا، برای تخفیف مذاکره کن.
               </motion.p>
 
               {/* Feature pills */}
@@ -101,9 +100,9 @@ export default function AIAssistantPromo() {
                 variants={fadeInUp}
               >
                 {[
-                  { icon: MessageCircle, text: "گفتگوی طبیعی" },
-                  { icon: Zap, text: "پاسخ فوری" },
-                  { icon: Shirt, text: "پیشنهاد شخصی" },
+                  { icon: Camera, text: "پرو مجازی" },
+                  { icon: Tag, text: "مذاکره تخفیف" },
+                  { icon: Zap, text: "پیشنهاد هوشمند" },
                 ].map((feature, index) => (
                   <div
                     key={index}
@@ -118,7 +117,7 @@ export default function AIAssistantPromo() {
               {/* CTA Button */}
               <motion.div variants={fadeInUp}>
                 <Link
-                  href="/assistant"
+                  href="/tryon"
                   className="group inline-flex items-center gap-3 px-6 sm:px-8 py-3 sm:py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-voxcina-blue text-white font-bold text-sm sm:text-base shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:scale-[1.02] transition-all duration-300"
                 >
                   <Wand2 className="w-5 h-5" />
@@ -133,9 +132,9 @@ export default function AIAssistantPromo() {
                 variants={fadeInUp}
               >
                 {[
-                  { value: "۱۰۰۰+", label: "پیشنهاد روزانه" },
+                  { value: "۱۰۰۰+", label: "پرو روزانه" },
                   { value: "۹۸٪", label: "رضایت کاربران" },
-                  { value: "۲۴/۷", label: "آنلاین و آماده" },
+                  { value: "۲۴/۷", label: "آماده مذاکره" },
                 ].map((stat, index) => (
                   <div key={index} className="text-center sm:text-right">
                     <div className="text-xl sm:text-2xl font-bold text-cyan-400">
@@ -164,50 +163,50 @@ export default function AIAssistantPromo() {
                   <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-gradient-to-r from-slate-900/90 to-slate-800/50">
                     <div className="relative">
                       <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-voxcina-blue flex items-center justify-center">
-                        <Bot className="w-5 h-5 text-white" />
+                        <Wand2 className="w-5 h-5 text-white" />
                       </div>
                       <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-slate-900" />
                     </div>
                     <div>
-                      <div className="text-sm font-semibold text-white">دستیار هوشمند</div>
+                      <div className="text-sm font-semibold text-white">اتاق پرو مجازی</div>
                       <div className="text-[10px] text-emerald-300">آنلاین</div>
                     </div>
                   </div>
 
-                  {/* Chat messages */}
+                  {/* Try-on mockup content */}
                   <div className="p-4 space-y-3">
-                    {/* User message */}
-                    <div className="flex justify-end">
-                      <div className="max-w-[80%] px-3 py-2 rounded-2xl rounded-tr-md bg-voxcina-blue text-white text-xs sm:text-sm">
-                        یه مانتو شیک برای مهمونی می‌خوام
+                    {/* Try-on result bubble */}
+                    <div className="flex justify-center">
+                      <div className="w-28 h-28 rounded-2xl bg-slate-800/60 border border-white/10 p-2 flex flex-col items-center gap-1.5">
+                        <div className="flex-1 w-full rounded-xl bg-gradient-to-br from-slate-700/50 to-slate-800/50 flex items-center justify-center overflow-hidden">
+                          <div className="w-full h-full flex items-center justify-center gap-0.5">
+                            <div className="w-1/2 h-4/5 rounded-lg bg-cyan-500/20 border border-cyan-400/30" />
+                            <ArrowLeft className="w-3 h-3 text-cyan-400" />
+                            <div className="w-1/2 h-4/5 rounded-lg bg-gradient-to-br from-cyan-400/40 to-voxcina-blue/40 border border-cyan-400/50" />
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-cyan-300">نتیجه پرو مجازی</span>
                       </div>
                     </div>
 
-                    {/* Bot message */}
+                    {/* Sara's message */}
                     <div className="flex justify-start">
                       <div className="max-w-[85%] px-3 py-2 rounded-2xl rounded-tl-md bg-slate-800/80 border border-white/10 text-slate-100 text-xs sm:text-sm">
                         <div className="flex items-center gap-1 mb-1 text-cyan-300 text-[10px]">
                           <Sparkles className="w-3 h-3" />
-                          <span>پاسخ هوش مصنوعی</span>
+                          <span>سارا - فروشنده هوشمند</span>
                         </div>
-                        بر اساس سلیقه‌ات، این مانتوهای شیک رو پیشنهاد می‌کنم! ✨
+                        چه استایل قشنگی شده! 🎉 می‌تونم یه تخفیف ویژه برات در نظر بگیرم
                       </div>
                     </div>
 
-                    {/* Product preview cards */}
-                    <div className="flex gap-2 overflow-hidden">
-                      {[1, 2].map((i) => (
-                        <div
-                          key={i}
-                          className="flex-1 rounded-xl bg-slate-800/60 border border-white/10 p-2"
-                        >
-                          <div className="aspect-square rounded-lg bg-gradient-to-br from-slate-700/50 to-slate-800/50 mb-2 flex items-center justify-center">
-                            <Shirt className="w-6 h-6 text-slate-500" />
-                          </div>
-                          <div className="h-2 w-3/4 rounded bg-slate-700/50" />
-                          <div className="h-2 w-1/2 rounded bg-cyan-500/30 mt-1" />
-                        </div>
-                      ))}
+                    {/* Coupon preview */}
+                    <div className="rounded-xl bg-slate-800/60 border border-emerald-500/30 p-3">
+                      <div className="flex items-center gap-2">
+                        <Tag className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-xs font-bold text-emerald-300">۱۵٪ تخفیف ویژه</span>
+                        <span className="mr-auto text-[10px] text-slate-400">۱۰:۰۰</span>
+                      </div>
                     </div>
                   </div>
 
@@ -215,7 +214,7 @@ export default function AIAssistantPromo() {
                   <div className="px-4 py-3 border-t border-white/10 bg-slate-950/50">
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-9 rounded-xl bg-slate-800/50 border border-white/10 flex items-center px-3">
-                        <span className="text-[11px] text-slate-500">پیام خود را بنویسید...</span>
+                        <span className="text-[11px] text-slate-500">بیشتر تخفیف بده...</span>
                       </div>
                       <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-voxcina-blue flex items-center justify-center">
                         <ArrowLeft className="w-4 h-4 text-white rotate-180" />

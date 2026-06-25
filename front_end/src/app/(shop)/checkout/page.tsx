@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Truck, AlertCircle, MapPin, Plus, Home, Briefcase, Edit, Loader2, User } from "lucide-react";
@@ -9,7 +10,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/input";
 import Modal from "@/components/ui/Modal";
-import MapPicker from "@/components/ui/MapPicker";
+
+const MapPicker = dynamic(() => import("@/components/ui/MapPicker"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-64 rounded-xl border border-secondary-200 dark:border-voxcina-blue/30 bg-voxcina-cream/30 dark:bg-voxcina-blue/10 flex items-center justify-center">
+      <Loader2 className="h-5 w-5 text-voxcina-blue/50 dark:text-voxcina-cream/50 animate-spin" />
+    </div>
+  ),
+});
 import PaymentMethods from "@/components/checkout/PaymentMethods";
 import ShippingMethodSelector from "@/components/checkout/ShippingMethodSelector";
 import CartSummary from "@/components/cart/CartSummary";

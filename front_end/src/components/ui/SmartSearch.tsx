@@ -436,7 +436,7 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
                             <p className="text-gray-700 font-semibold text-sm sm:text-base">
                               {results.length} محصول یافت شد برای{" "}
                               <span className="text-voxcina-blue">
-                                "{searchTerm}"
+                                &ldquo;{searchTerm}&rdquo;
                               </span>
                             </p>
                             <div className="text-xs text-gray-500 bg-white/70 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">

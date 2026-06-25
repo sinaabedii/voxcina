@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import {
   Mail,
@@ -10,117 +11,19 @@ import {
   MessageSquare,
   Clock,
   CheckCircle,
+  Loader2,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 
-type MapInstance = {
-  remove: () => void;
-} | null;
-
-const MapComponent = () => {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<MapInstance>(null);
-
-  useEffect(() => {
-    if (
-      typeof window !== "undefined" &&
-      mapRef.current &&
-      !mapInstanceRef.current
-    ) {
-      import("leaflet")
-        .then((L: any) => {
-          if (!mapRef.current) return;
-
-          try {
-            const map = L.map(mapRef.current).setView(
-              [35.762843063507674, 51.46413943689942],
-              15
-            );
-
-            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-              attribution:
-                '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            }).addTo(map);
-
-            const customIcon = L.divIcon({
-              className: "custom-marker",
-              html: `
-              <div style="
-                background: #1e40af;
-                width: 30px;
-                height: 30px;
-                border-radius: 50% 50% 50% 0;
-                transform: rotate(-45deg);
-                border: 3px solid white;
-                box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-              ">
-                <div style="
-                  background: white;
-                  width: 8px;
-                  height: 8px;
-                  border-radius: 50%;
-                  transform: rotate(45deg);
-                "></div>
-              </div>
-            `,
-              iconSize: [30, 30],
-              iconAnchor: [15, 30],
-              popupAnchor: [0, -30],
-            });
-
-            const marker = L.marker([35.762843063507674, 51.46413943689942], {
-              icon: customIcon,
-            }).addTo(map);
-
-            marker.bindPopup(`
-            <div style="text-align: center; font-family: 'Vazir', sans-serif; direction: rtl;">
-              <h3 style="margin: 0 0 8px 0; color: #1e40af; font-size: 16px;">دفتر مرکزی Voxcina</h3>
-              <p style="margin: 0; color: #6b7280; font-size: 14px;">تهران، پاسداران</p>
-            </div>
-          `);
-
-            mapInstanceRef.current = map;
-          } catch (error) {
-            console.error("Error initializing map:", error);
-          }
-        })
-        .catch((error) => {
-          console.error("Error loading Leaflet:", error);
-        });
-    }
-
-    return () => {
-      if (mapInstanceRef.current) {
-        try {
-          mapInstanceRef.current.remove();
-          mapInstanceRef.current = null;
-        } catch (error) {
-          console.error("Error cleaning up map:", error);
-        }
-      }
-    };
-  }, []);
-
-  return (
-    <>
-      <link
-        rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-        crossOrigin=""
-      />
-      <div
-        ref={mapRef}
-        className="w-full h-full rounded-xl sm:rounded-2xl overflow-hidden"
-        style={{ minHeight: "384px" }}
-      />
-    </>
-  );
-};
+const NeshanStaticMap = dynamic(() => import("@/components/ui/NeshanStaticMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center bg-voxcina-cream/30 dark:bg-voxcina-blue/20" style={{ minHeight: "384px" }}>
+      <Loader2 className="h-5 w-5 text-voxcina-blue/50 dark:text-voxcina-cream/50 animate-spin" />
+    </div>
+  ),
+});
 
 export default function ContactClient() {
   const [formData, setFormData] = useState({
@@ -535,7 +438,13 @@ export default function ContactClient() {
                 transition={{ duration: 0.5 }}
                 viewport={{ once: true, margin: "-100px" }}
               >
-                <MapComponent />
+                <NeshanStaticMap
+                  lat={35.762843063507674}
+                  lng={51.46413943689942}
+                  title="دفتر مرکزی Voxcina"
+                  address="تهران، پاسداران"
+                  className="w-full h-full"
+                />
               </motion.div>
             </div>
           </div>

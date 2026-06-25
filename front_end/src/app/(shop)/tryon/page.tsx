@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback } fr
 import Link from "next/link";
 import {
   Camera, Shirt, ShoppingBag, Tag, Send,
-  Sparkles, User, Upload, Lock, Check, X, RefreshCw, Maximize2,
+  Sparkles, User, Upload, Lock, Check, X, RefreshCw, Maximize2, Layers,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
@@ -70,16 +70,13 @@ const RECOMMENDATION_TEMPLATES: Record<string, Record<string, (a: string, b: str
   },
 };
 
-const QUICK_REPLIES = [
-  "بیشتر تخفیف بده",
-  "می‌خوام بخرم",
-  "یه ست پیشنهاد بده",
-];
+const QUICK_REPLIES: string[] = [];
 
 const NEGOTIATION_OPENERS = [
   { icon: Tag, text: "سلام! می‌خوام یه تخفیف خوب برای این محصول بگیرم." },
   { icon: Sparkles, text: "سلام سارا! این قیمت برام کمی بالاست، می‌تونی کمک کنی؟" },
   { icon: ShoppingBag, text: "سلام! اگه تخفیف خوبی بدی همین الان خرید می‌کنم." },
+  { icon: Layers, text: "یه ست پیشنهاد بده" },
 ];
 
 function getCartItemImage(item: CartItem): string {
@@ -701,47 +698,40 @@ export default function TryOnRoomPage() {
               variants={itemVariants}
             >
               {uploadedPreview ? (
-                <div className="relative rounded-xl overflow-hidden border border-secondary-300 dark:border-voxcina-blue/20">
-                  <img src={uploadedPreview} alt="تصویر شما" className="w-full aspect-[4/5] object-cover" />
-                  <div className="absolute bottom-2 right-2 bg-voxcina-blue/90 backdrop-blur-sm text-voxcina-cream text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-inset-button">
-                    <Camera className="h-3 w-3" />
-                    تصویر شما
+                <div className="flex items-center gap-3 p-2.5">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border border-secondary-300 dark:border-voxcina-blue/20">
+                    <img src={uploadedPreview} alt="تصویر شما" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-voxcina-blue dark:text-voxcina-cream">تصویر شما</p>
+                    <p className="text-[10px] text-voxcina-blue/40 dark:text-voxcina-cream/40 mt-0.5">عکس آپلود شده</p>
                   </div>
                   <button
                     type="button"
                     onClick={(e) => { e.preventDefault(); handleClearAll(); }}
-                    className="absolute top-2 left-2 w-8 h-8 bg-red-500/90 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                    className="flex-shrink-0 w-7 h-7 bg-red-500/90 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ) : (
                 <label
                   className={cn(
-                    "block cursor-pointer p-6 transition-all",
+                    "flex items-center gap-3 p-2.5 cursor-pointer rounded-xl border-2 border-dashed transition-all",
                     dragOver
-                      ? "bg-voxcina-blue/[0.04]"
-                      : "hover:bg-voxcina-blue/[0.04] dark:hover:bg-voxcina-cream/[0.04]"
+                      ? "border-secondary-400 dark:border-voxcina-blue/40 bg-voxcina-blue/[0.04]"
+                      : "border-secondary-300 dark:border-voxcina-blue/20 hover:bg-voxcina-blue/[0.04] dark:hover:bg-voxcina-cream/[0.04]"
                   )}
                   onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleFileDrop}
                 >
-                  <div className={cn(
-                    "border-2 border-dashed rounded-xl py-8 px-4 text-center transition-all",
-                    dragOver
-                      ? "border-secondary-400 dark:border-voxcina-blue/40 bg-voxcina-blue/[0.02]"
-                      : "border-secondary-300 dark:border-voxcina-blue/20"
-                  )}>
-                    <div className="w-14 h-14 mx-auto rounded-2xl bg-background border border-secondary-300 dark:border-voxcina-blue/20 flex items-center justify-center mb-3 shadow-inset-button">
-                      <Upload className="h-7 w-7 text-voxcina-blue/30 dark:text-voxcina-cream/30" />
-                    </div>
-                    <p className="text-sm font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-1">
-                      عکس خود را اینجا رها کنید
-                    </p>
-                    <p className="text-xs text-voxcina-blue/40 dark:text-voxcina-cream/40">
-                      یا برای انتخاب کلیک کنید
-                    </p>
+                  <div className="w-16 h-16 rounded-xl flex-shrink-0 border border-secondary-300 dark:border-voxcina-blue/20 flex items-center justify-center bg-voxcina-blue/[0.04] dark:bg-voxcina-cream/[0.04]">
+                    <Upload className="h-6 w-6 text-voxcina-blue/40 dark:text-voxcina-cream/40" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70">عکس خود را آپلود کنید</p>
+                    <p className="text-[10px] text-voxcina-blue/40 dark:text-voxcina-cream/40 mt-0.5">اینجا رها کنید یا کلیک کنید</p>
                   </div>
                   <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
                 </label>
@@ -858,40 +848,8 @@ export default function TryOnRoomPage() {
             >
               {/* Always-visible chat card */}
               <div className="flex flex-col flex-1 min-h-0">
-                {/* Product info + complementary recommendation */}
-                {activeItem && (
-                  <div className="px-3 pb-2 flex-shrink-0">
-                    <div className="flex items-center gap-3 bg-voxcina-blue/[0.03] dark:bg-voxcina-cream/[0.04] rounded-xl p-2.5 border border-secondary-300/60 dark:border-voxcina-blue/20">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-voxcina-blue dark:text-voxcina-cream truncate">{activeItem.product.name}</p>
-                        <p className="text-[11px] text-voxcina-blue/50 dark:text-voxcina-cream/50 mt-0.5">
-                          {activeItem.colorVariant.colorName} · {formatPrice(activeItem.product.price)}
-                        </p>
-                      </div>
-                      {complementaryItems && (
-                        <button
-                          onClick={() => handleTryOn(complementaryItems.item, complementaryItems.index)}
-                          disabled={!uploadedFile || isProcessing}
-                          className="flex items-center gap-2 bg-background rounded-lg p-1.5 pr-2 hover:bg-voxcina-blue/[0.04] transition-all disabled:opacity-40 border border-secondary-300 dark:border-voxcina-blue/20"
-                        >
-                          <div className="w-10 h-10 rounded-lg overflow-hidden bg-voxcina-cream/50 dark:bg-voxcina-blue/20 flex-shrink-0">
-                            <BackendImage src={getCartItemImage(complementaryItems.item.cartItem)} alt={complementaryItems.item.product.name} className="w-full h-full object-cover" />
-                          </div>
-                          <div className="text-right max-w-[120px]">
-                            <p className="text-[10px] font-medium text-voxcina-blue dark:text-voxcina-cream truncate">{complementaryItems.item.product.name}</p>
-                            <p className="text-[9px] text-pink-600 dark:text-pink-400 flex items-center gap-0.5 mt-0.5">
-                              <Shirt className="h-2.5 w-2.5" />
-                              پرو کن
-                            </p>
-                          </div>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-
                 {/* Chat section */}
-                <div className="flex flex-col flex-1 min-h-0 px-3 pb-3">
+                <div className="flex flex-col flex-1 min-h-0 px-3 py-3">
                   <div className="flex flex-col flex-1 min-h-0 bg-white dark:bg-voxcina-blue/20 rounded-xl border border-secondary-400 dark:border-voxcina-blue/30 overflow-hidden p-3">
                   {/* Chat header */}
                   <div className="flex items-center gap-2.5 mb-2.5 flex-shrink-0">
@@ -1168,47 +1126,39 @@ export default function TryOnRoomPage() {
                       </motion.div>
                     )}
 
-                    {/* Negotiation opener selection cards */}
-                    {showNegotiationPrompt && activeItem && (
-                      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-3 space-y-2">
-                        <div className="flex items-start gap-1.5">
-                          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-voxcina-blue flex items-center justify-center shadow-inset-button">
-                            <Sparkles className="h-3 w-3 text-voxcina-cream" />
-                          </div>
-                          <div className="bg-white dark:bg-voxcina-blue/25 rounded-xl rounded-tl-sm border border-secondary-400 dark:border-voxcina-blue/30 px-3 py-2 text-xs text-voxcina-blue dark:text-voxcina-cream">
-                            برای شروع مذاکره، یکی از گزینه‌ها رو انتخاب کن:
-                          </div>
-                        </div>
-                        {NEGOTIATION_OPENERS.map((opener, i) => (
-                          <button
-                            key={i}
-                            onClick={() => handleSelectOpener(opener.text, activeItem)}
-                            className="w-full flex items-center gap-2.5 p-2.5 rounded-xl bg-white dark:bg-voxcina-blue/25 border border-secondary-400 dark:border-voxcina-blue/30 hover:border-voxcina-blue/40 dark:hover:border-voxcina-cream/40 hover:bg-voxcina-blue/[0.04] dark:hover:bg-voxcina-cream/[0.04] transition-all text-right group"
-                          >
-                            <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-voxcina-blue/10 dark:bg-voxcina-cream/10 flex items-center justify-center group-hover:bg-voxcina-blue/20 dark:group-hover:bg-voxcina-cream/20 transition-colors">
-                              <opener.icon className="h-3.5 w-3.5 text-voxcina-blue dark:text-voxcina-cream" />
-                            </div>
-                            <span className="text-xs text-voxcina-blue dark:text-voxcina-cream leading-relaxed">{opener.text}</span>
-                          </button>
-                        ))}
-                      </motion.div>
-                    )}
-
                     <div ref={chatEndRef} />
                   </div>
 
-                  {/* Quick-reply chips */}
-                  {!chatLoading && resultImage && chatMessages.length > 0 && (
-                    <div className="flex gap-1.5 mt-2 flex-shrink-0 overflow-x-auto scrollbar-hide">
-                      {QUICK_REPLIES.map((text) => (
-                        <button
-                          key={text}
-                          onClick={() => handleQuickReply(text)}
-                          className="flex-shrink-0 text-[10px] px-2.5 py-1.5 rounded-full bg-white dark:bg-voxcina-blue/30 border border-secondary-400 dark:border-voxcina-blue/40 text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:bg-voxcina-blue/[0.08] dark:hover:bg-voxcina-cream/[0.08] hover:text-voxcina-blue dark:hover:text-voxcina-cream transition-all"
-                        >
-                          {text}
-                        </button>
-                      ))}
+                  {/* Suggestions above input */}
+                  {resultImage && !chatLoading && (
+                    <div className="flex-shrink-0 space-y-2 mt-2">
+                      {showNegotiationPrompt && activeItem && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {NEGOTIATION_OPENERS.map((opener, i) => (
+                            <button
+                              key={i}
+                              onClick={() => handleSelectOpener(opener.text, activeItem)}
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white dark:bg-voxcina-blue/30 border border-secondary-400 dark:border-voxcina-blue/40 text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:border-voxcina-blue/40 dark:hover:border-voxcina-cream/40 hover:bg-voxcina-blue/[0.08] dark:hover:bg-voxcina-cream/[0.08] hover:text-voxcina-blue dark:hover:text-voxcina-cream transition-all text-xs"
+                            >
+                              <opener.icon className="h-3 w-3" />
+                              {opener.text}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {chatMessages.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {QUICK_REPLIES.map((text) => (
+                            <button
+                              key={text}
+                              onClick={() => handleQuickReply(text)}
+                              className="text-[10px] px-2.5 py-1.5 rounded-full bg-white dark:bg-voxcina-blue/30 border border-secondary-400 dark:border-voxcina-blue/40 text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:bg-voxcina-blue/[0.08] dark:hover:bg-voxcina-cream/[0.08] hover:text-voxcina-blue dark:hover:text-voxcina-cream transition-all"
+                            >
+                              {text}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 

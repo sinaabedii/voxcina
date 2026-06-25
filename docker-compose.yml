@@ -39,6 +39,7 @@ services:
       - HTTPS_PROXY=${HTTPS_PROXY:-http://host.docker.internal:10809}
       - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1,mongo,docker.arvancloud.ir,::1}
       - TRYON_DEV_MODE=${TRYON_DEV_MODE:-false}
+      - NESHAN_SERVICE_API_KEY=${NESHAN_SERVICE_API_KEY}
     volumes:
       - ./uploads:/app/uploads
     extra_hosts:
@@ -82,6 +83,8 @@ services:
       args:
         - HTTP_PROXY=http://host.docker.internal:10809
         - HTTPS_PROXY=http://host.docker.internal:10809
+        - NEXT_PUBLIC_NESHAN_API_KEY=${NEXT_PUBLIC_NESHAN_API_KEY}
+        - NEXT_PUBLIC_GA_ID=${NEXT_PUBLIC_GA_ID}
       extra_hosts:
         - "host.docker.internal:host-gateway"
     restart: unless-stopped
@@ -97,6 +100,7 @@ services:
       - SMSIR_TEMPLATE_ID=${SMSIR_TEMPLATE_ID}
       - INTERNAL_SECRET=${INTERNAL_SECRET}
       - NEXT_PUBLIC_GA_ID=${NEXT_PUBLIC_GA_ID}
+      - NEXT_PUBLIC_NESHAN_API_KEY=${NEXT_PUBLIC_NESHAN_API_KEY}
     volumes:
       - ./uploads:/app/public/uploads
     depends_on:

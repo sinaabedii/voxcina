@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { getCityCoordinate } from "@/lib/iranCityCoordinates";
+import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/input";
@@ -16,6 +18,9 @@ import {
   AlertCircle,
   Loader2,
   User,
+  ArrowLeft,
+  ArrowRight,
+  Check,
 } from "lucide-react";
 import { useAddress } from "@/hooks/useAddress";
 import { useLocality } from "@/hooks/useLocality";
@@ -23,7 +28,15 @@ import { useAuthStore } from "@/store/auth-store";
 import { motion, AnimatePresence } from "framer-motion";
 import { Address } from "@/types/user";
 import { toast } from "react-hot-toast";
-import MapPicker from "@/components/ui/MapPicker";
+
+const MapPicker = dynamic(() => import("@/components/ui/MapPicker"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-64 rounded-xl border border-secondary-200 dark:border-voxcina-blue/30 bg-voxcina-cream/30 dark:bg-voxcina-blue/10 flex items-center justify-center">
+      <Loader2 className="h-5 w-5 text-voxcina-blue/50 dark:text-voxcina-cream/50 animate-spin" />
+    </div>
+  ),
+});
 
 export default function AddressesPage() {
   const {
@@ -43,6 +56,11 @@ export default function AddressesPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [operationLoading, setOperationLoading] = useState<string | null>(null);
+  const [wizardStep, setWizardStep] = useState(1);
+  const [pelak, setPelak] = useState("");
+  const [tabaghe, setTabaghe] = useState("");
+  const [vahed, setVahed] = useState("");
+  const provinceRef = useRef("");
 
   const [formData, setFormData] = useState({
     title: "",
@@ -65,6 +83,10 @@ export default function AddressesPage() {
   useEffect(() => {
     if (!isModalOpen) {
       setEditingAddress(null);
+      setWizardStep(1);
+      setPelak("");
+      setTabaghe("");
+      setVahed("");
       setFormData({
         title: "",
         firstName: "",
@@ -94,6 +116,43 @@ export default function AddressesPage() {
     }
   }, [formData.province, provinces]);
 
+  const searchCityOnMap = async (provinceName: string, cityName: string) => {
+    if (!cityName) return;
+
+    const address = provinceName ? `${cityName}، ${provinceName}` : cityName;
+    try {
+      const res = await fetch(
+        `/api/neshan/geocode?address=${encodeURIComponent(address)}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data.location) {
+          setFormData((prev) => ({
+            ...prev,
+            latitude: data.location.y,
+            longitude: data.location.x,
+          }));
+          return;
+        }
+      }
+    } catch {
+      // fall through to local fallback
+    }
+
+    // Fallback to hardcoded coordinates
+    const coord = getCityCoordinate(cityName, provinceName);
+    if (coord) {
+      setFormData((prev) => ({
+        ...prev,
+        latitude: coord.lat,
+        longitude: coord.lng,
+      }));
+      return;
+    }
+
+    toast.error("موقعیت این شهر در نقشه یافت نشد. لطفاً روی نقشه کلیک کنید.");
+  };
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -107,6 +166,7 @@ export default function AddressesPage() {
     } else if (name === "province") {
       // When province changes, also set the province code and reset city
       const selectedProvince = provinces.find((p) => p.province_name === value);
+      provinceRef.current = value;
       setFormData({
         ...formData,
         province: value,
@@ -153,6 +213,10 @@ export default function AddressesPage() {
       longitude: address.longitude || 0,
     });
     setEditingAddress(addressId);
+    setWizardStep(2);
+    setPelak("");
+    setTabaghe("");
+    setVahed("");
     setIsModalOpen(true);
   };
 
@@ -174,6 +238,10 @@ export default function AddressesPage() {
       longitude: 0,
     });
     setEditingAddress(null);
+    setWizardStep(1);
+    setPelak("");
+    setTabaghe("");
+    setVahed("");
     setIsModalOpen(true);
   };
 
@@ -218,6 +286,15 @@ export default function AddressesPage() {
       return;
     }
 
+    if (!pelak.trim()) {
+      toast.error("لطفاً پلاک را وارد کنید");
+      return;
+    }
+    if (!tabaghe.trim()) {
+      toast.error("لطفاً طبقه را وارد کنید");
+      return;
+    }
+
     // Validate location selection
     if (formData.latitude === 0 || formData.longitude === 0) {
       toast.error("لطفاً موقعیت را از نقشه انتخاب کنید");
@@ -226,8 +303,16 @@ export default function AddressesPage() {
 
     setIsSubmitting(true);
 
+    let fullAddress = formData.address;
+    fullAddress += "، پلاک " + pelak.trim();
+    fullAddress += "، طبقه " + tabaghe.trim();
+    if (vahed.trim()) {
+      fullAddress += "، واحد " + vahed.trim();
+    }
+
     const finalFormData = {
       ...formData,
+      address: fullAddress,
       title: formData.title || (formData.addressType === "home" ? "خانه" : "محل کار"),
     };
 
@@ -565,258 +650,242 @@ export default function AddressesPage() {
       <Modal
         isOpen={isModalOpen}
         onClose={() => !isSubmitting && setIsModalOpen(false)}
-        title={editingAddress ? "ویرایش آدرس" : "افزودن آدرس جدید"}
+        title={
+          wizardStep === 1
+            ? "انتخاب موقعیت روی نقشه"
+            : editingAddress
+            ? "ویرایش آدرس"
+            : "افزودن آدرس جدید"
+        }
+        contentClassName="max-w-2xl"
       >
         <form onSubmit={handleSubmit}>
-          <div className="space-y-5">
-            <div className="flex flex-col space-y-2">
-              <label className="text-sm font-medium mb-1 text-voxcina-blue dark:text-secondary-200">نوع آدرس</label>
-              <div className="flex space-x-4 space-x-reverse">
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="radio"
-                    name="addressType"
-                    value="home"
-                    checked={formData.addressType === "home"}
-                    onChange={handleChange}
-                    disabled={isSubmitting}
-                    className="sr-only"
-                  />
-                  <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center border-2 mr-2 transition-all duration-300 ${
-                      formData.addressType === "home"
-                        ? "border-voxcina-blue bg-voxcina-blue/5 text-voxcina-blue dark:bg-voxcina-blue/20 dark:text-secondary-200 scale-110"
-                        : "border-secondary-200 text-voxcina-blue/40 dark:border-voxcina-darkBlue/30 dark:text-secondary-400"
-                    } ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}
+          {/* ======== STEP 1: Map Selection ======== */}
+          {wizardStep === 1 && (
+            <div className="space-y-4">
+              {/* Province + City — select first to focus the map */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium block mb-1 text-voxcina-blue dark:text-secondary-200">استان *</label>
+                  <select
+                    name="province"
+                    value={formData.province}
+                    onChange={(e) => {
+                      handleChange(e);
+                      const selectedProvince = provinces.find(p => p.province_name === e.target.value);
+                      if (selectedProvince) {
+                        searchCityOnMap(e.target.value, "");
+                      }
+                    }}
+                    required
+                    disabled={isSubmitting || loadingProvinces}
+                    className="w-full rounded-xl border border-secondary-200 dark:border-voxcina-darkBlue/30 bg-white dark:bg-voxcina-darkBlue/20 px-3 py-2 text-sm focus:outline-none focus:border-voxcina-blue focus:ring-2 focus:ring-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Home className="w-5 h-5" />
-                  </div>
-                  <span className="text-voxcina-blue dark:text-secondary-200 mr-2">خانه</span>
-                </label>
-
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="radio"
-                    name="addressType"
-                    value="work"
-                    checked={formData.addressType === "work"}
-                    onChange={handleChange}
-                    disabled={isSubmitting}
-                    className="sr-only"
-                  />
-                  <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center border-2 mr-2 transition-all duration-300 ${
-                      formData.addressType === "work"
-                        ? "border-voxcina-blue bg-voxcina-blue/5 text-voxcina-blue dark:bg-voxcina-blue/20 dark:text-secondary-200 scale-110"
-                        : "border-secondary-200 text-voxcina-blue/40 dark:border-voxcina-darkBlue/30 dark:text-secondary-400"
-                    } ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}
+                    <option value="">انتخاب استان</option>
+                    {loadingProvinces ? (
+                      <option value="">در حال بارگذاری...</option>
+                    ) : (
+                      provinces.map((p) => (
+                        <option key={p.province_code} value={p.province_name}>
+                          {p.province_name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium block mb-1 text-voxcina-blue dark:text-secondary-200">شهر *</label>
+                  <select
+                    name="city"
+                    value={formData.city}
+                    onChange={(e) => {
+                      handleChange(e);
+                      searchCityOnMap(provinceRef.current, e.target.value);
+                    }}
+                    required
+                    disabled={isSubmitting || loadingCities}
+                    className="w-full rounded-xl border border-secondary-200 dark:border-voxcina-darkBlue/30 bg-white dark:bg-voxcina-darkBlue/20 px-3 py-2 text-sm focus:outline-none focus:border-voxcina-blue focus:ring-2 focus:ring-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Briefcase className="w-5 h-5" />
-                  </div>
-                  <span className="text-voxcina-blue dark:text-secondary-200 mr-2">محل کار</span>
-                </label>
+                    <option value="">انتخاب شهر</option>
+                    {loadingCities ? (
+                      <option value="">در حال بارگذاری...</option>
+                    ) : (
+                      cities.map((c) => (
+                        <option key={c.city_code} value={c.city_name}>
+                          {c.city_name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
               </div>
-            </div>
 
-            <Input
-              label="عنوان آدرس (اختیاری)"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-              disabled={isSubmitting}
-              placeholder={
-                formData.addressType === "home"
-                  ? "مثال: خانه، منزل پدری"
-                  : "مثال: دفتر، شرکت"
-              }
-              className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
-            />
+              <div className="relative w-full h-[360px] rounded-xl overflow-hidden border border-secondary-200 dark:border-voxcina-blue/30">
+                <MapPicker
+                  location={{ lat: formData.latitude, lng: formData.longitude }}
+                  onChange={({ lat, lng }) =>
+                    setFormData({ ...formData, latitude: lat, longitude: lng })
+                  }
+                  onAddressResolved={(address) => {
+                    setFormData(prev => ({ ...prev, address }));
+                  }}
+                />
+              </div>
 
-            <div className="flex justify-end mb-2">
-              {user && (
+              {!formData.address && (
+                <p className="text-xs text-voxcina-blue/40 dark:text-voxcina-cream/40 text-center">
+                  لطفاً یک نقطه روی نقشه انتخاب کنید
+                </p>
+              )}
+
+              <div className="flex justify-between items-center pt-2">
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const nameParts = user.name?.split(' ') || [];
-                    const firstName = nameParts[0] || '';
-                    const lastName = nameParts.slice(1).join(' ') || '';
-                    setFormData(prev => ({
-                      ...prev,
-                      firstName,
-                      lastName,
-                      phoneNumber: user.phone || prev.phoneNumber,
-                    }));
-                    toast.success("اطلاعات شما از پروفایل کاربری وارد شد");
-                  }}
+                  onClick={() => setIsModalOpen(false)}
                   disabled={isSubmitting}
-                  className="text-xs rounded-lg border-voxcina-blue/30 text-voxcina-blue dark:border-voxcina-cream/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-cream/5"
+                  className="rounded-xl border-secondary-200 dark:border-voxcina-darkBlue/30 text-voxcina-blue dark:text-secondary-200 hover:bg-secondary-100 dark:hover:bg-voxcina-darkBlue/20"
                 >
-                  <User className="w-3 h-3 ml-1" />
-                  استفاده از اطلاعات پروفایل
+                  انصراف
                 </Button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="نام *"
-                name="firstName"
-                value={formData.firstName}
-                onChange={handleChange}
-                required
-                disabled={isSubmitting}
-                className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
-              />
-              <Input
-                label="نام خانوادگی *"
-                name="lastName"
-                value={formData.lastName}
-                onChange={handleChange}
-                required
-                disabled={isSubmitting}
-                className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
-              />
-            </div>
-
-            <Input
-              label="شماره تماس *"
-              name="phoneNumber"
-              value={formData.phoneNumber}
-              onChange={handleChange}
-              placeholder="مثال: ۰۹۱۲۱۲۳۴۵۶۷"
-              required
-              disabled={isSubmitting}
-              className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
-            />
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium block mb-1 text-voxcina-blue dark:text-secondary-200">استان *</label>
-                <select
-                  name="province"
-                  value={formData.province}
-                  onChange={handleChange}
-                  required
-                  disabled={isSubmitting || loadingProvinces}
-                  className="w-full rounded-xl border border-secondary-200 dark:border-voxcina-darkBlue/30 bg-white dark:bg-voxcina-darkBlue/20 px-3 py-2 text-sm focus:outline-none focus:border-voxcina-blue focus:ring-2 focus:ring-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                <Button
+                  type="button"
+                  variant="primary"
+                  disabled={!formData.address || formData.latitude === 0}
+                  onClick={() => setWizardStep(2)}
+                  className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-soft hover:shadow-medium transition-all duration-300 flex items-center gap-2"
                 >
-                  <option value="">انتخاب استان</option>
-                  {loadingProvinces ? (
-                    <option value="">در حال بارگذاری...</option>
-                  ) : (
-                    provinces.map((p) => (
-                      <option key={p.province_code} value={p.province_name}>
-                        {p.province_name}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium block mb-1 text-voxcina-blue dark:text-secondary-200">شهر *</label>
-                <select
-                  name="city"
-                  value={formData.city}
-                  onChange={handleChange}
-                  required
-                  disabled={isSubmitting || loadingCities}
-                  className="w-full rounded-xl border border-secondary-200 dark:border-voxcina-darkBlue/30 bg-white dark:bg-voxcina-darkBlue/20 px-3 py-2 text-sm focus:outline-none focus:border-voxcina-blue focus:ring-2 focus:ring-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="">انتخاب شهر</option>
-                  {loadingCities ? (
-                    <option value="">در حال بارگذاری...</option>
-                  ) : (
-                    cities.map((c) => (
-                      <option key={c.city_code} value={c.city_name}>
-                        {c.city_name}
-                      </option>
-                    ))
-                  )}
-                </select>
+                  تایید و ادامه
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
               </div>
             </div>
+          )}
 
-            <Input
-              label="آدرس کامل *"
-              name="address"
-              value={formData.address}
-              onChange={handleChange}
-              placeholder="مثال: خیابان اصلی، کوچه فرعی، پلاک ۱۲، واحد ۳"
-              required
-              disabled={isSubmitting}
-              className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
-            />
+          {/* ======== STEP 2: Address Details ======== */}
+          {wizardStep === 2 && (
+            <div className="space-y-3">
+              {/* Address (Neshan-filled, editable) */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-sm font-medium text-voxcina-blue dark:text-secondary-200">آدرس *</label>
+                  <button
+                    type="button"
+                    onClick={() => setWizardStep(1)}
+                    className="text-xs text-voxcina-blue/50 hover:text-voxcina-blue dark:text-voxcina-cream/50 dark:hover:text-voxcina-cream flex items-center gap-1 transition-colors"
+                  >
+                    <ArrowRight className="w-3 h-3" />
+                    تغییر موقعیت
+                  </button>
+                </div>
+                <textarea
+                  name="address"
+                  value={formData.address}
+                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                  placeholder="آدرس از روی نقشه انتخاب می‌شود"
+                  required
+                  disabled={isSubmitting}
+                  rows={2}
+                  className="w-full rounded-xl border border-secondary-200 dark:border-voxcina-darkBlue/30 bg-white dark:bg-voxcina-darkBlue/20 px-3 py-2 text-sm focus:outline-none focus:border-voxcina-blue focus:ring-2 focus:ring-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 disabled:opacity-50 disabled:cursor-not-allowed resize-none"
+                />
+              </div>
 
-            <Input
-              label="کد پستی *"
-              name="postalCode"
-              value={formData.postalCode}
-              onChange={handleChange}
-              placeholder="مثال: ۱۲۳۴۵۶۷۸۹۰"
-              required
-              disabled={isSubmitting}
-              className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
-            />
+              {/* پلاک / طبقه / واحد */}
+              <div className="grid grid-cols-3 gap-3">
+                <Input label="پلاک *" name="pelak" value={pelak} onChange={(e) => setPelak(e.target.value)} placeholder="مثال: ۱۲" disabled={isSubmitting} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
+                <Input label="طبقه *" name="tabaghe" value={tabaghe} onChange={(e) => setTabaghe(e.target.value)} placeholder="مثال: ۳" disabled={isSubmitting} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
+                <Input label="واحد" name="vahed" value={vahed} onChange={(e) => setVahed(e.target.value)} placeholder="اختیاری" disabled={isSubmitting} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
+              </div>
 
-            <div className="flex flex-col space-y-2">
-              <label className="text-sm font-medium mb-1 text-voxcina-blue dark:text-secondary-200">موقعیت روی نقشه *</label>
-              <MapPicker
-                location={{ lat: formData.latitude, lng: formData.longitude }}
-                onChange={({ lat, lng }) =>
-                  setFormData({ ...formData, latitude: lat, longitude: lng })
-                }
-              />
+              <div className="border-t border-secondary-200 dark:border-voxcina-blue/20"></div>
+
+              {/* Receiver info with profile fill */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-medium text-voxcina-blue dark:text-secondary-200">اطلاعات گیرنده</label>
+                  {user && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const nameParts = user.name?.split(' ') || [];
+                        const firstName = nameParts[0] || '';
+                        const lastName = nameParts.slice(1).join(' ') || '';
+                        setFormData(prev => ({
+                          ...prev,
+                          firstName,
+                          lastName,
+                          phoneNumber: user.phone || prev.phoneNumber,
+                        }));
+                        toast.success("اطلاعات شما از پروفایل وارد شد");
+                      }}
+                      disabled={isSubmitting}
+                      className="text-[10px] rounded-lg border-voxcina-blue/30 text-voxcina-blue dark:border-voxcina-cream/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-cream/5 px-2 py-0.5 h-7"
+                    >
+                      <User className="w-3 h-3 ml-1" />
+                      دریافت از پروفایل
+                    </Button>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <Input label="نام *" name="firstName" value={formData.firstName} onChange={handleChange} required disabled={isSubmitting} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
+                  <Input label="نام خانوادگی *" name="lastName" value={formData.lastName} onChange={handleChange} required disabled={isSubmitting} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
+                  <Input label="شماره تماس *" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} placeholder="۰۹۱۲۱۲۳۴۵۶۷" required disabled={isSubmitting} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
+                </div>
+              </div>
+
+              <div className="border-t border-secondary-200 dark:border-voxcina-blue/20"></div>
+
+              {/* Address type */}
+              <div className="flex flex-col space-y-2">
+                <label className="text-sm font-medium text-voxcina-blue dark:text-secondary-200">نوع آدرس</label>
+                <div className="flex gap-3">
+                  <label className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                    formData.addressType === "home"
+                      ? "border-voxcina-blue bg-voxcina-blue/5 text-voxcina-blue dark:bg-voxcina-blue/20 dark:text-secondary-200"
+                      : "border-secondary-200 text-voxcina-blue/50 dark:border-voxcina-darkBlue/30 dark:text-secondary-400 hover:border-voxcina-blue/30"
+                  } ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}>
+                    <input type="radio" name="addressType" value="home" checked={formData.addressType === "home"} onChange={handleChange} disabled={isSubmitting} className="sr-only" />
+                    <Home className="w-4 h-4" />
+                    <span className="text-sm font-medium">خانه</span>
+                  </label>
+                  <label className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                    formData.addressType === "work"
+                      ? "border-voxcina-blue bg-voxcina-blue/5 text-voxcina-blue dark:bg-voxcina-blue/20 dark:text-secondary-200"
+                      : "border-secondary-200 text-voxcina-blue/50 dark:border-voxcina-darkBlue/30 dark:text-secondary-400 hover:border-voxcina-blue/30"
+                  } ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}>
+                    <input type="radio" name="addressType" value="work" checked={formData.addressType === "work"} onChange={handleChange} disabled={isSubmitting} className="sr-only" />
+                    <Briefcase className="w-4 h-4" />
+                    <span className="text-sm font-medium">محل کار</span>
+                  </label>
+                </div>
+              </div>
+
+              <Input label="عنوان آدرس (اختیاری)" name="title" value={formData.title} onChange={handleChange} disabled={isSubmitting} placeholder={formData.addressType === "home" ? "مثال: خانه، منزل پدری" : "مثال: دفتر، شرکت"} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
+
+              <Input label="کد پستی *" name="postalCode" value={formData.postalCode} onChange={handleChange} placeholder="مثال: ۱۲۳۴۵۶۷۸۹۰" required disabled={isSubmitting} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
+
+              <div className="flex items-center bg-gradient-to-r from-voxcina-blue/5 to-secondary-200/70 dark:from-voxcina-blue/10 dark:to-voxcina-blue/5 p-3 rounded-xl">
+                <input type="checkbox" id="isDefault" name="isDefault" checked={formData.isDefault} onChange={handleChange} disabled={isSubmitting} className="ml-2 h-4 w-4 rounded border-secondary-300 text-voxcina-blue focus:ring-voxcina-blue/30 disabled:opacity-50" />
+                <label htmlFor="isDefault" className="text-sm text-voxcina-blue dark:text-secondary-200">تنظیم به عنوان آدرس پیش‌فرض</label>
+              </div>
+
+              <div className="flex justify-between items-center pt-4 border-t border-secondary-200 dark:border-voxcina-blue/20">
+                <Button type="button" variant="outline" onClick={() => setWizardStep(1)} disabled={isSubmitting} className="rounded-xl border-secondary-200 dark:border-voxcina-darkBlue/30 text-voxcina-blue dark:text-secondary-200 hover:bg-secondary-100 dark:hover:bg-voxcina-darkBlue/20 flex items-center gap-1">
+                  <ArrowRight className="w-4 h-4" />
+                  مرحله قبل
+                </Button>
+                <Button type="submit" variant="primary" disabled={isSubmitting} className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-soft hover:shadow-medium transition-all duration-300">
+                  {isSubmitting ? (
+                    <><Loader2 className="w-4 h-4 ml-2 animate-spin" />{editingAddress ? "در حال ویرایش..." : "در حال ذخیره..."}</>
+                  ) : (
+                    <><Check className="w-4 h-4 ml-1" />{editingAddress ? "ویرایش آدرس" : "ذخیره آدرس"}</>
+                  )}
+                </Button>
+              </div>
             </div>
-
-            <div className="flex items-center bg-gradient-to-r from-voxcina-blue/5 to-secondary-200/70 dark:from-voxcina-blue/10 dark:to-voxcina-blue/5 p-4 rounded-xl">
-              <input
-                type="checkbox"
-                id="isDefault"
-                name="isDefault"
-                checked={formData.isDefault}
-                onChange={handleChange}
-                disabled={isSubmitting}
-                className="ml-2 h-4 w-4 rounded border-secondary-300 text-voxcina-blue focus:ring-voxcina-blue/30 disabled:opacity-50"
-              />
-              <label
-                htmlFor="isDefault"
-                className="text-sm text-voxcina-blue dark:text-secondary-200"
-              >
-                تنظیم به عنوان آدرس پیش‌فرض
-              </label>
-            </div>
-
-            <div className="flex justify-end space-x-2 space-x-reverse pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsModalOpen(false)}
-                disabled={isSubmitting}
-                className="rounded-xl border-secondary-200 dark:border-voxcina-darkBlue/30 text-voxcina-blue dark:text-secondary-200 hover:bg-secondary-100 dark:hover:bg-voxcina-darkBlue/20"
-              >
-                انصراف
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={isSubmitting}
-                className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-soft hover:shadow-medium transition-all duration-300"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                    {editingAddress ? "در حال ویرایش..." : "در حال افزودن..."}
-                  </>
-                ) : (
-                  <>
-                    {editingAddress ? "ویرایش آدرس" : "افزودن آدرس"}
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
+          )}
         </form>
       </Modal>
 

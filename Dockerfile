@@ -33,7 +33,7 @@ COPY --from=builder /build/config ./config
 COPY --from=builder /build/start.sh .
 
 # Create necessary directories with proper permissions
-RUN mkdir -p admin uploads/products/main uploads/categories && \
+RUN mkdir -p admin uploads/products/main uploads/categories uploads/avatars/categories && \
     chmod -R 777 uploads && \
     chmod +x start.sh
 

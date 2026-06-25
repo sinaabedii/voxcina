@@ -19,6 +19,11 @@ func NewRouter() *mux.Router {
 	// Health check endpoint
 	api.HandleFunc("/health", handlers.HealthCheck).Methods(http.MethodGet)
 
+	// Neshan Map API proxy (public, no auth — service key stays server-side)
+	api.HandleFunc("/neshan/reverse", handlers.NeshanReverseGeocode).Methods(http.MethodGet)
+	api.HandleFunc("/neshan/search", handlers.NeshanSearchAddress).Methods(http.MethodGet)
+	api.HandleFunc("/neshan/geocode", handlers.NeshanGeocode).Methods(http.MethodGet)
+
 	// Public User Auth routes
 	api.HandleFunc("/users/register", handlers.Register).Methods(http.MethodPost)
 	api.HandleFunc("/users/login", handlers.Login).Methods(http.MethodPost)
@@ -170,6 +175,9 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/categories", handlers.CreateCategory).
 		Methods(http.MethodPost)
 		// Moved to admin router
+
+	// Available category avatars (Admin) — dynamic list of files in uploads/avatars/categories/
+	adminRouter.HandleFunc("/avatars", handlers.ListAvatars).Methods(http.MethodGet)
 
 	// Vocabulary Mappings (Public for frontend dropdowns)
 	api.HandleFunc("/vocabulary-mappings", handlers.GetVocabularyMappings).Methods(http.MethodGet)

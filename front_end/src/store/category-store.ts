@@ -1,7 +1,7 @@
 import { create } from "zustand";
 // import { Category } from "@/types/product"; // Assuming Category is in product types, or adjust path
 // If Category type is in a different file, e.g., @/types/category, change the import accordingly.
-import { Category } from "@/types/category"; // Corrected import path
+import { Category, CategoryAvatar } from "@/types/category"; // Corrected import path
 
 // import { categories as mockCategories } from "@/data/categories"; // If you still need mock data for initial dev
 import { delay } from "@/lib/utils";
@@ -10,10 +10,13 @@ import { useAuthStore } from "./auth-store"; // Import auth store
 interface CategoryState {
   categories: Category[];
   activeCategory: Category | null;
+  avatars: CategoryAvatar[];
+  avatarsLoading: boolean;
   isLoading: boolean;
   error: string | null;
   fetchCategories: () => Promise<void>;
   fetchCategoryById: (id: string) => Promise<void>;
+  fetchAvatars: () => Promise<void>;
   getCategoryName: (categoryId: string) => string; // Add this method
   createCategory: (
     categoryData: FormData,
@@ -30,6 +33,8 @@ interface CategoryState {
 export const useCategoryStore = create<CategoryState>()((set, get) => ({
   categories: [], // Default to an empty array
   activeCategory: null,
+  avatars: [],
+  avatarsLoading: false,
   isLoading: false,
   error: null,
 
@@ -96,6 +101,28 @@ export const useCategoryStore = create<CategoryState>()((set, get) => ({
       });
     }
   },
+  fetchAvatars: async () => {
+    const { adminToken } = useAuthStore.getState();
+    if (!adminToken) return;
+    if (get().avatars.length > 0) return; // cached
+    set({ avatarsLoading: true });
+    try {
+      const response = await fetch("/api/admin/avatars", {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch avatars");
+      }
+      const data: CategoryAvatar[] = await response.json();
+      set({ avatars: Array.isArray(data) ? data : [], avatarsLoading: false });
+    } catch (error) {
+      set({
+        avatarsLoading: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  },
+
   getCategoryName: (categoryId: string, categoriesArray?: Category[]) => {
     const { categories } = get();
     const categoriesToUse = categoriesArray || categories;

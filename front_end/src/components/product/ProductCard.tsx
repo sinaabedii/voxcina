@@ -152,7 +152,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
           {/* Favorite button - on LEFT side */}
           <button
-            className={`absolute ${discount > 0 ? 'top-12' : 'top-2'} left-2 p-2 backdrop-blur-sm rounded-full z-10 transition-all duration-300 ${isProductFavorite
+            className={`absolute ${discount > 0 ? 'top-12' : 'top-2'} left-2 p-2 backdrop-blur-sm rounded-full transition-all duration-300 ${isProductFavorite
                 ? "bg-destructive/10 text-destructive"
                 : "bg-black/10 text-white hover:bg-white/20"
               }`}
