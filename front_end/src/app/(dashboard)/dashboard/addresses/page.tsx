@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { getCityCoordinate } from "@/lib/iranCityCoordinates";
 import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -115,30 +116,20 @@ export default function AddressesPage() {
     }
   }, [formData.province, provinces]);
 
-  const searchCityOnMap = async (provinceName: string, cityName: string) => {
+  const searchCityOnMap = (provinceName: string, cityName: string) => {
     if (!cityName) return;
-    const term = provinceName ? `${cityName}، ${provinceName}` : cityName;
-    try {
-      const res = await fetch(
-        `https://api.neshan.org/v1/search?term=${encodeURIComponent(term)}&lat=32.4&lng=53.6`,
-        { headers: { "Api-Key": process.env.NEXT_PUBLIC_NESHAN_API_KEY || "" } }
-      );
-      if (!res.ok) return;
-      const data = await res.json();
-      const items = data.items || [];
-      if (items.length > 0) {
-        const first = items[0];
-        setFormData(prev => ({
-          ...prev,
-          latitude: first.location.y,
-          longitude: first.location.x,
-        }));
-      } else {
-        toast.error("موقعیت این شهر یافت نشد");
-      }
-    } catch {
-      toast.error("خطا در جستجوی موقعیت شهر");
+
+    const coord = getCityCoordinate(cityName, provinceName);
+    if (coord) {
+      setFormData((prev) => ({
+        ...prev,
+        latitude: coord.lat,
+        longitude: coord.lng,
+      }));
+      return;
     }
+
+    toast.error("موقعیت این شهر در نقشه یافت نشد. لطفاً روی نقشه کلیک کنید.");
   };
 
   const handleChange = (

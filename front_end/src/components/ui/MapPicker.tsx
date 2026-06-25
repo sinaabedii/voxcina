@@ -35,7 +35,6 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
   const reverseGeocodeRef = useRef<((lat: number, lng: number) => void) | null>(null);
   const placeMarkerRef = useRef<((lat: number, lng: number, flyTo?: boolean) => void) | null>(null);
   const isInternalChangeRef = useRef(false);
-  const didMountRef = useRef(false);
   const [mounted, setMounted] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -151,10 +150,6 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
     if (!mounted) return;
     if (isInternalChangeRef.current) {
       isInternalChangeRef.current = false;
-      return;
-    }
-    if (!didMountRef.current) {
-      didMountRef.current = true;
       return;
     }
     const map = mapRef.current;
