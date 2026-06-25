@@ -32,18 +32,13 @@ const NeshanStaticMap: React.FC<NeshanStaticMapProps> = ({
       if (markerRef.current) return;
       const el = document.createElement("div");
       el.style.cssText = `
-        background: #1e40af;
-        width: 30px;
-        height: 30px;
-        border-radius: 50% 50% 50% 0;
-        transform: rotate(-45deg);
+        width: 28px;
+        height: 28px;
+        background: #1A3C69;
         border: 3px solid white;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        border-radius: 50%;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.3);
       `;
-      el.innerHTML = `<div style="background:white;width:8px;height:8px;border-radius:50%;transform:rotate(45deg);"></div>`;
 
       const marker = new nmp_mapboxgl.Marker({ element: el })
         .setLngLat([lng, lat])
@@ -52,7 +47,7 @@ const NeshanStaticMap: React.FC<NeshanStaticMapProps> = ({
       if (title || address) {
         const popupHtml = `
           <div style="text-align: center; font-family: 'Vazir', sans-serif; direction: rtl; padding: 4px 8px;">
-            ${title ? `<h3 style="margin: 0 0 4px 0; color: #1e40af; font-size: 14px; font-weight: bold;">${title}</h3>` : ""}
+            ${title ? `<h3 style="margin: 0 0 4px 0; color: #1A3C69; font-size: 14px; font-weight: bold;">${title}</h3>` : ""}
             ${address ? `<p style="margin: 0; color: #6b7280; font-size: 12px;">${address}</p>` : ""}
           </div>
         `;

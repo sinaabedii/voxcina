@@ -92,15 +92,14 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
       const el = document.createElement("div");
       el.className = "voxcina-marker";
       el.style.cssText = `
+        width: 28px;
+        height: 28px;
         background: #1A3C69;
-        width: 30px;
-        height: 30px;
-        border-radius: 50% 50% 50% 0;
-        transform: rotate(-45deg);
         border: 3px solid white;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        border-radius: 50%;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+        cursor: pointer;
       `;
-      el.innerHTML = '<div style="background:white;width:8px;height:8px;border-radius:50%;margin:8px auto 0;"></div>';
 
       requestAnimationFrame(() => {
         const marker = new nmp_mapboxgl.Marker({ element: el, draggable: true })
