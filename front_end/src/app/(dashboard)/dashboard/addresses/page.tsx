@@ -657,7 +657,7 @@ export default function AddressesPage() {
             ? "ویرایش آدرس"
             : "افزودن آدرس جدید"
         }
-        contentClassName={wizardStep === 1 ? "max-w-2xl" : ""}
+        contentClassName="max-w-2xl"
       >
         <form onSubmit={handleSubmit}>
           {/* ======== STEP 1: Map Selection ======== */}
@@ -764,7 +764,7 @@ export default function AddressesPage() {
 
           {/* ======== STEP 2: Address Details ======== */}
           {wizardStep === 2 && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* Address (Neshan-filled, editable) */}
               <div>
                 <div className="flex items-center justify-between mb-1">
@@ -785,7 +785,7 @@ export default function AddressesPage() {
                   placeholder="آدرس از روی نقشه انتخاب می‌شود"
                   required
                   disabled={isSubmitting}
-                  rows={3}
+                  rows={2}
                   className="w-full rounded-xl border border-secondary-200 dark:border-voxcina-darkBlue/30 bg-white dark:bg-voxcina-darkBlue/20 px-3 py-2 text-sm focus:outline-none focus:border-voxcina-blue focus:ring-2 focus:ring-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 disabled:opacity-50 disabled:cursor-not-allowed resize-none"
                 />
               </div>
@@ -801,8 +801,8 @@ export default function AddressesPage() {
 
               {/* Receiver info with profile fill */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium text-voxcina-blue dark:text-secondary-200">اطلاعات گیرنده</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-medium text-voxcina-blue dark:text-secondary-200">اطلاعات گیرنده</label>
                   {user && (
                     <Button
                       type="button"
@@ -821,18 +821,18 @@ export default function AddressesPage() {
                         toast.success("اطلاعات شما از پروفایل وارد شد");
                       }}
                       disabled={isSubmitting}
-                      className="text-[11px] rounded-lg border-voxcina-blue/30 text-voxcina-blue dark:border-voxcina-cream/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-cream/5 px-2.5 py-1"
+                      className="text-[10px] rounded-lg border-voxcina-blue/30 text-voxcina-blue dark:border-voxcina-cream/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-cream/5 px-2 py-0.5 h-7"
                     >
                       <User className="w-3 h-3 ml-1" />
                       دریافت از پروفایل
                     </Button>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="grid grid-cols-3 gap-3">
                   <Input label="نام *" name="firstName" value={formData.firstName} onChange={handleChange} required disabled={isSubmitting} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
                   <Input label="نام خانوادگی *" name="lastName" value={formData.lastName} onChange={handleChange} required disabled={isSubmitting} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
+                  <Input label="شماره تماس *" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} placeholder="۰۹۱۲۱۲۳۴۵۶۷" required disabled={isSubmitting} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
                 </div>
-                <Input label="شماره تماس *" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} placeholder="مثال: ۰۹۱۲۱۲۳۴۵۶۷" required disabled={isSubmitting} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
               </div>
 
               <div className="border-t border-secondary-200 dark:border-voxcina-blue/20"></div>
@@ -866,7 +866,7 @@ export default function AddressesPage() {
 
               <Input label="کد پستی *" name="postalCode" value={formData.postalCode} onChange={handleChange} placeholder="مثال: ۱۲۳۴۵۶۷۸۹۰" required disabled={isSubmitting} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
 
-              <div className="flex items-center bg-gradient-to-r from-voxcina-blue/5 to-secondary-200/70 dark:from-voxcina-blue/10 dark:to-voxcina-blue/5 p-4 rounded-xl">
+              <div className="flex items-center bg-gradient-to-r from-voxcina-blue/5 to-secondary-200/70 dark:from-voxcina-blue/10 dark:to-voxcina-blue/5 p-3 rounded-xl">
                 <input type="checkbox" id="isDefault" name="isDefault" checked={formData.isDefault} onChange={handleChange} disabled={isSubmitting} className="ml-2 h-4 w-4 rounded border-secondary-300 text-voxcina-blue focus:ring-voxcina-blue/30 disabled:opacity-50" />
                 <label htmlFor="isDefault" className="text-sm text-voxcina-blue dark:text-secondary-200">تنظیم به عنوان آدرس پیش‌فرض</label>
               </div>
