@@ -66,16 +66,16 @@ func ReverseGeocode(lat, lng float64) (*NeshanReverseResult, error) {
 	}
 
 	parts := []string{}
-	if result.Address != "" {
-		parts = append(parts, result.Address)
-	} else if result.Neighbourhood != "" {
-		parts = append(parts, result.Neighbourhood)
+	if result.State != "" {
+		parts = append(parts, result.State)
 	}
 	if result.City != "" {
 		parts = append(parts, result.City)
 	}
-	if result.State != "" {
-		parts = append(parts, result.State)
+	if result.Address != "" {
+		parts = append(parts, result.Address)
+	} else if result.Neighbourhood != "" {
+		parts = append(parts, result.Neighbourhood)
 	}
 
 	if len(parts) == 0 {
