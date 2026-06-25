@@ -106,9 +106,12 @@ func runAvatarMigration(database *mongo.Database) error {
 func pickAvatarFile(slug, name string) (string, bool) {
 	slugNorm := strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(slug, "_", "-"), "  ", " "))
 	nameNorm := strings.ToLower(name)
-	needle := slugNorm + " " + nameNorm
+	// Pad with spaces on both sides so we can do whole-word matching —
+	// this stops "men" from matching inside "women".
+	needle := " " + slugNorm + " " + nameNorm + " "
 	for _, m := range avatarSlugMap {
-		if strings.Contains(needle, m.match) {
+		matchPadded := " " + m.match + " "
+		if strings.Contains(needle, matchPadded) {
 			blue := m.file + ".svg"
 			if fileExists(blue) {
 				return blue, true
