@@ -18,15 +18,20 @@ import (
 // first fragment that is contained in the category's slug or name, so partial
 // matches work. Anything that does not match is left untouched and can be
 // assigned manually in the admin panel.
+//
+// Order matters: more specific fragments must come first so that e.g.
+// "short-sleeve" wins over "shirt".
 var avatarSlugMap = []struct {
 	match string
 	file  string
 }{
+	{"long-sleeve", "long-sleeved-shirt"},
+	{"short-sleeve", "short-sleeved-shirt"},
+	{"long_sleeve", "long-sleeved-shirt"},
+	{"short_sleeve", "short-sleeved-shirt"},
 	{"men", "men"},
 	{"women", "women"},
 	{"shirt", "shirt"},
-	{"long-sleeve", "long-sleeved-shirt"},
-	{"short-sleeve", "short-sleeved-shirt"},
 	{"پیراهن", "shirt"},
 	{"مردانه", "men"},
 	{"زنانه", "women"},
@@ -98,7 +103,9 @@ func runAvatarMigration(database *mongo.Database) error {
 }
 
 func pickAvatarFile(slug, name string) (string, bool) {
-	needle := strings.ToLower(slug + " " + name)
+	slugNorm := strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(slug, "_", "-"), "  ", " "))
+	nameNorm := strings.ToLower(name)
+	needle := slugNorm + " " + nameNorm
 	for _, m := range avatarSlugMap {
 		if strings.Contains(needle, m.match) {
 			blue := m.file + ".svg"
