@@ -13,9 +13,10 @@ interface MapPickerProps {
   onAddressResolved?: (address: string) => void;
 }
 
-const DEFAULT_CENTER = { lat: 32.427908, lng: 53.688046 };
-const DEFAULT_ZOOM = 5;
-const PICKED_ZOOM = 16;
+const DEFAULT_CENTER = { lat: 35.6892, lng: 51.389 }; // Tehran
+const DEFAULT_ZOOM = 11;
+const EXTERNAL_ZOOM = 13; // city selection / existing address
+const PICKED_ZOOM = 16;   // user click / drag for precise selection
 
 interface SearchResult {
   title: string;
@@ -48,7 +49,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
 
   const isDefaultLocation = location.lat === 0 && location.lng === 0;
   const center = isDefaultLocation ? DEFAULT_CENTER : location;
-  const zoom = isDefaultLocation ? DEFAULT_ZOOM : PICKED_ZOOM;
+  const zoom = isDefaultLocation ? DEFAULT_ZOOM : EXTERNAL_ZOOM;
 
   const handleMapReady = useCallback((map: any) => {
     mapRef.current = map;
@@ -154,7 +155,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
     }
     const map = mapRef.current;
     if (!map) return;
-    map.flyTo({ center: [center.lng, center.lat], zoom: PICKED_ZOOM, duration: 800 });
+    map.flyTo({ center: [center.lng, center.lat], zoom: EXTERNAL_ZOOM, duration: 800 });
     placeMarkerRef.current?.(center.lat, center.lng, false);
     reverseGeocodeRef.current?.(center.lat, center.lng);
   }, [mounted, center.lat, center.lng]);
