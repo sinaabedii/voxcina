@@ -114,6 +114,28 @@ export default function AddressesPage() {
     }
   }, [formData.province, provinces]);
 
+  const searchCityOnMap = async (provinceName: string, cityName: string) => {
+    if (!cityName) return;
+    const term = provinceName ? `${cityName}، ${provinceName}` : cityName;
+    try {
+      const res = await fetch(
+        `https://api.neshan.org/v1/search?term=${encodeURIComponent(term)}&lat=32.4&lng=53.6`,
+        { headers: { "Api-Key": process.env.NEXT_PUBLIC_NESHAN_API_KEY || "" } }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      const items = data.items || [];
+      if (items.length > 0) {
+        const first = items[0];
+        setFormData(prev => ({
+          ...prev,
+          latitude: first.location.y,
+          longitude: first.location.x,
+        }));
+      }
+    } catch {}
+  };
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -623,7 +645,64 @@ export default function AddressesPage() {
           {/* ======== STEP 1: Map Selection ======== */}
           {wizardStep === 1 && (
             <div className="space-y-4">
-              <div className="relative w-full h-[420px] rounded-xl overflow-hidden border border-secondary-200 dark:border-voxcina-blue/30">
+              {/* Province + City — select first to focus the map */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium block mb-1 text-voxcina-blue dark:text-secondary-200">استان *</label>
+                  <select
+                    name="province"
+                    value={formData.province}
+                    onChange={(e) => {
+                      handleChange(e);
+                      const selectedProvince = provinces.find(p => p.province_name === e.target.value);
+                      if (selectedProvince) {
+                        searchCityOnMap(e.target.value, "");
+                      }
+                    }}
+                    required
+                    disabled={isSubmitting || loadingProvinces}
+                    className="w-full rounded-xl border border-secondary-200 dark:border-voxcina-darkBlue/30 bg-white dark:bg-voxcina-darkBlue/20 px-3 py-2 text-sm focus:outline-none focus:border-voxcina-blue focus:ring-2 focus:ring-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="">انتخاب استان</option>
+                    {loadingProvinces ? (
+                      <option value="">در حال بارگذاری...</option>
+                    ) : (
+                      provinces.map((p) => (
+                        <option key={p.province_code} value={p.province_name}>
+                          {p.province_name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium block mb-1 text-voxcina-blue dark:text-secondary-200">شهر *</label>
+                  <select
+                    name="city"
+                    value={formData.city}
+                    onChange={(e) => {
+                      handleChange(e);
+                      searchCityOnMap(formData.province, e.target.value);
+                    }}
+                    required
+                    disabled={isSubmitting || loadingCities}
+                    className="w-full rounded-xl border border-secondary-200 dark:border-voxcina-darkBlue/30 bg-white dark:bg-voxcina-darkBlue/20 px-3 py-2 text-sm focus:outline-none focus:border-voxcina-blue focus:ring-2 focus:ring-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="">انتخاب شهر</option>
+                    {loadingCities ? (
+                      <option value="">در حال بارگذاری...</option>
+                    ) : (
+                      cities.map((c) => (
+                        <option key={c.city_code} value={c.city_name}>
+                          {c.city_name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              </div>
+
+              <div className="relative w-full h-[360px] rounded-xl overflow-hidden border border-secondary-200 dark:border-voxcina-blue/30">
                 <MapPicker
                   location={{ lat: formData.latitude, lng: formData.longitude }}
                   onChange={({ lat, lng }) =>
@@ -668,54 +747,6 @@ export default function AddressesPage() {
           {/* ======== STEP 2: Address Details ======== */}
           {wizardStep === 2 && (
             <div className="space-y-4">
-              {/* Province + City */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium block mb-1 text-voxcina-blue dark:text-secondary-200">استان *</label>
-                  <select
-                    name="province"
-                    value={formData.province}
-                    onChange={handleChange}
-                    required
-                    disabled={isSubmitting || loadingProvinces}
-                    className="w-full rounded-xl border border-secondary-200 dark:border-voxcina-darkBlue/30 bg-white dark:bg-voxcina-darkBlue/20 px-3 py-2 text-sm focus:outline-none focus:border-voxcina-blue focus:ring-2 focus:ring-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <option value="">انتخاب استان</option>
-                    {loadingProvinces ? (
-                      <option value="">در حال بارگذاری...</option>
-                    ) : (
-                      provinces.map((p) => (
-                        <option key={p.province_code} value={p.province_name}>
-                          {p.province_name}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium block mb-1 text-voxcina-blue dark:text-secondary-200">شهر *</label>
-                  <select
-                    name="city"
-                    value={formData.city}
-                    onChange={handleChange}
-                    required
-                    disabled={isSubmitting || loadingCities}
-                    className="w-full rounded-xl border border-secondary-200 dark:border-voxcina-darkBlue/30 bg-white dark:bg-voxcina-darkBlue/20 px-3 py-2 text-sm focus:outline-none focus:border-voxcina-blue focus:ring-2 focus:ring-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <option value="">انتخاب شهر</option>
-                    {loadingCities ? (
-                      <option value="">در حال بارگذاری...</option>
-                    ) : (
-                      cities.map((c) => (
-                        <option key={c.city_code} value={c.city_name}>
-                          {c.city_name}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-              </div>
-
               {/* Address (Neshan-filled, editable) */}
               <div>
                 <div className="flex items-center justify-between mb-1">

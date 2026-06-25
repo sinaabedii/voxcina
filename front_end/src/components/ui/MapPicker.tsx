@@ -34,6 +34,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
   onChangeRef.current = onChange;
   const reverseGeocodeRef = useRef<((lat: number, lng: number) => void) | null>(null);
   const placeMarkerRef = useRef<((lat: number, lng: number, flyTo?: boolean) => void) | null>(null);
+  const isInternalChangeRef = useRef(false);
   const [mounted, setMounted] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -107,6 +108,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
           .addTo(map as unknown as mapboxgl.Map);
         marker.on("dragend", () => {
           const { lng: dLng, lat: dLat } = marker.getLngLat();
+          isInternalChangeRef.current = true;
           onChangeRef.current({ lat: dLat, lng: dLng });
           reverseGeocodeRef.current?.(dLat, dLng);
         });
@@ -135,6 +137,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
     if (!map || !mounted) return;
     const onClick = (e: { lngLat: { lat: number; lng: number } }) => {
       const { lat, lng } = e.lngLat;
+      isInternalChangeRef.current = true;
       onChangeRef.current({ lat, lng });
       placeMarkerRef.current?.(lat, lng, false);
       reverseGeocodeRef.current?.(lat, lng);
@@ -144,6 +147,19 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
       map.off("click", onClick);
     };
   }, [mounted]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    if (isInternalChangeRef.current) {
+      isInternalChangeRef.current = false;
+      return;
+    }
+    const map = mapRef.current;
+    if (!map) return;
+    map.flyTo({ center: [center.lng, center.lat], zoom: PICKED_ZOOM, duration: 800 });
+    placeMarkerRef.current?.(center.lat, center.lng, false);
+    reverseGeocodeRef.current?.(center.lat, center.lng);
+  }, [mounted, center.lat, center.lng]);
 
   useEffect(() => {
     return () => {
