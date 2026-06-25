@@ -143,6 +143,7 @@ export default function TryOnRoomPage() {
   const [tryOnCount, setTryOnCount] = useState(0);
   const [showNegotiationPrompt, setShowNegotiationPrompt] = useState(false);
   const [compareModalData, setCompareModalData] = useState<{ beforeImage: string; afterImage: string } | null>(null);
+  const [mobileTab, setMobileTab] = useState<"products" | "chat">("products");
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
@@ -269,6 +270,10 @@ export default function TryOnRoomPage() {
     setCouponExpired(false);
     const garmentType = item.colorVariant.tryOnGarmentType || "upper_body";
     setInspectedItem(item.product.name, garmentType);
+
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setMobileTab("chat");
+    }
 
     const processingId = Date.now();
     const procMsg: ChatMessage = {
@@ -564,6 +569,7 @@ export default function TryOnRoomPage() {
     setCompareModalData(null);
     setShowNegotiationPrompt(false);
     negotiationInitializedRef.current = false;
+    setMobileTab("products");
   };
 
   const handleClearResult = () => {
@@ -684,6 +690,37 @@ export default function TryOnRoomPage() {
       )}
 
       {eligibleItems.length > 0 && (
+        <div className="lg:hidden flex-shrink-0 mb-3 flex bg-background rounded-xl border border-secondary-400 dark:border-voxcina-blue/30 p-1">
+          <button
+            type="button"
+            onClick={() => setMobileTab("products")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all",
+              mobileTab === "products"
+                ? "bg-voxcina-blue text-voxcina-cream shadow-inset-button"
+                : "text-voxcina-blue/60 dark:text-voxcina-cream/60"
+            )}
+          >
+            <Shirt className="h-3.5 w-3.5" />
+            محصولات ({eligibleItems.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab("chat")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all",
+              mobileTab === "chat"
+                ? "bg-voxcina-blue text-voxcina-cream shadow-inset-button"
+                : "text-voxcina-blue/60 dark:text-voxcina-cream/60"
+            )}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            گفتگو با سارا
+          </button>
+        </div>
+      )}
+
+      {eligibleItems.length > 0 && (
         <motion.div
           className="flex flex-col lg:flex-row gap-4 md:gap-5 flex-1 min-h-0"
           variants={containerVariants}
@@ -691,7 +728,10 @@ export default function TryOnRoomPage() {
           animate="visible"
         >
           {/* Left sidebar: photo upload + cart items */}
-          <div className="lg:w-[360px] xl:w-[400px] flex-shrink-0 space-y-3 overflow-y-auto scrollbar-thin">
+          <div className={cn(
+            "w-full lg:w-[360px] xl:w-[400px] flex-shrink-0 flex-1 lg:flex-initial max-lg:min-h-0 space-y-3 overflow-y-auto scrollbar-thin",
+            mobileTab === "products" ? "block" : "hidden lg:block"
+          )}>
             {/* Photo upload — large drop zone */}
             <motion.div
               className="bg-background rounded-xl border border-secondary-300 dark:border-voxcina-blue/20 overflow-hidden"
@@ -841,7 +881,10 @@ export default function TryOnRoomPage() {
           </div>
 
           {/* Right panel: result + chat */}
-          <div className="min-h-0 flex flex-col flex-1">
+          <div className={cn(
+            "min-h-0 flex-col flex-1",
+            mobileTab === "chat" ? "flex" : "hidden lg:flex"
+          )}>
             <motion.div
               className="bg-background rounded-xl border border-secondary-400 dark:border-voxcina-blue/30 flex flex-col flex-1 min-h-0 max-h-[600px] overflow-hidden"
               variants={itemVariants}
