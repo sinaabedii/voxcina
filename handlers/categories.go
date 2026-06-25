@@ -179,6 +179,11 @@ func CreateCategory(w http.ResponseWriter, r *http.Request) {
 	description := r.FormValue("description")
 	parentIDStr := r.FormValue("parent_id") // Corrected to snake_case
 	showInHeaderStr := r.FormValue("show_in_header")
+	avatar := r.FormValue("avatar")
+	if avatar != "" && !ValidateAvatarPath(avatar) {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid avatar path")
+		return
+	}
 	showInHeader := false
 	if showInHeaderStr == "true" || showInHeaderStr == "1" {
 		showInHeader = true
@@ -266,6 +271,7 @@ func CreateCategory(w http.ResponseWriter, r *http.Request) {
 		Slug:        slug,
 		Description: description,
 		Image:       imagePath,
+		Avatar:      avatar,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 		IsActive:    true,
@@ -358,6 +364,11 @@ func UpdateCategory(w http.ResponseWriter, r *http.Request) {
 	parentIDStr := r.FormValue("parent_id")
 	isActiveStr := r.FormValue("is_active") // Get is_active string value
 	showInHeaderStr := r.FormValue("show_in_header")
+	avatarStr := r.FormValue("avatar")
+	if avatarStr != "" && !ValidateAvatarPath(avatarStr) {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid avatar path")
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -437,6 +448,14 @@ func UpdateCategory(w http.ResponseWriter, r *http.Request) {
 		parsedShowInHeader := showInHeaderStr == "true" || showInHeaderStr == "1"
 		update["show_in_header"] = parsedShowInHeader
 		existingCategory.ShowInHeader = parsedShowInHeader // Update for response
+	}
+
+	// Handle avatar. An empty value clears it; a non-empty value replaces it.
+	if r.Form != nil {
+		if _, ok := r.Form["avatar"]; ok {
+			update["avatar"] = avatarStr
+			existingCategory.Avatar = avatarStr
+		}
 	}
 
 	file, handler, err := r.FormFile("image")

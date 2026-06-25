@@ -23,6 +23,7 @@ func main() {
 	seedDB := flag.Bool("seed", false, "Seed the database with initial data")
 	healthCheck := flag.Bool("healthcheck", false, "Check MongoDB connection")
 	checkVocab := flag.Bool("check-vocab", false, "Check vocabulary mappings count")
+	migrateAvatars := flag.Bool("migrate-avatars", false, "Backfill the avatar field for existing categories")
 	flag.Parse()
 
 	// Load configuration
@@ -87,6 +88,12 @@ func main() {
 		}
 		log.Println("Database seeding completed!")
 		return
+	}
+
+	// Backfill category avatars if requested
+	if *migrateAvatars {
+		log.Println("Running avatar migration...")
+		os.Exit(avatarMigrationEntryPoint(database))
 	}
 
 	// Setup API router

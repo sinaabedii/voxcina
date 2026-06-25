@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { X, Loader2 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { Category } from "@/types/category";
+import AvatarPicker from "@/components/admin/AvatarPicker";
 
 interface CategoryModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ export default function CategoryModal({
   const [isActive, setIsActive] = useState(editingCategory?.is_active ?? true);
   const [showInHeader, setShowInHeader] = useState(editingCategory?.show_in_header ?? false);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [avatar, setAvatar] = useState(editingCategory?.avatar || "");
 
   // Update state when editingCategory changes
   useEffect(() => {
@@ -40,6 +42,7 @@ export default function CategoryModal({
       setParentId(editingCategory.parent_id || null);
       setIsActive(editingCategory.is_active ?? true);
       setShowInHeader(editingCategory.show_in_header ?? false);
+      setAvatar(editingCategory.avatar || "");
       setImageFile(null); // Reset image file when switching to edit mode
     } else {
       // Reset to empty state for adding new category
@@ -49,6 +52,7 @@ export default function CategoryModal({
       setParentId(null);
       setIsActive(true);
       setShowInHeader(false);
+      setAvatar("");
       setImageFile(null);
     }
   }, [editingCategory]);
@@ -63,6 +67,8 @@ export default function CategoryModal({
     if (parentId) formData.append("parent_id", parentId);
     formData.append("is_active", String(isActive));
     formData.append("show_in_header", String(showInHeader));
+    // Always send the avatar field (empty string clears it, otherwise sets it)
+    formData.append("avatar", avatar || "");
     if (imageFile) {
       formData.append("image", imageFile);
     }
@@ -78,6 +84,7 @@ export default function CategoryModal({
     setParentId(null);
     setIsActive(true);
     setShowInHeader(false);
+    setAvatar("");
     setImageFile(null);
     onClose();
   };
@@ -161,6 +168,12 @@ export default function CategoryModal({
                   ))
               )}
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
+              آواتار دسته‌بندی
+            </label>
+            <AvatarPicker value={avatar} onChange={setAvatar} />
           </div>
           <div>
             <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
