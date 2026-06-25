@@ -68,6 +68,7 @@ export interface DashboardStats {
   totalOrders: number;
   pendingOrders: number;
   totalSales: number;
+  totalSalesFailed: number;
   activeDiscounts: number;
   totalCategories: number;
   totalBrands: number;

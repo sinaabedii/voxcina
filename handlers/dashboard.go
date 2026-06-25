@@ -36,24 +36,42 @@ func DashboardStatsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	dbStats["pendingReviews"] = pendingReviews
 
-	// Total sales: sum total_amount of all active orders
+	// Total successful sales: sum total_amount of orders with payment_status "paid"
 	ordersColl := db.Database.Collection("orders")
-	totalSalesAgg := []bson.M{
-		{"$match": bson.M{"is_active": true}},
+	totalSalesSuccessAgg := []bson.M{
+		{"$match": bson.M{"is_active": true, "payment_status": "paid"}},
 		{"$group": bson.M{"_id": nil, "total": bson.M{"$sum": "$total_amount"}}},
 	}
-	var salesResult []bson.M
-	cursor, err := ordersColl.Aggregate(ctx, totalSalesAgg)
+	var salesSuccessResult []bson.M
+	cursor, err := ordersColl.Aggregate(ctx, totalSalesSuccessAgg)
 	if err == nil {
-		err = cursor.All(ctx, &salesResult)
+		err = cursor.All(ctx, &salesSuccessResult)
 	}
-	totalSales := 0.0
-	if err == nil && len(salesResult) > 0 {
-		if v, ok := salesResult[0]["total"].(float64); ok {
-			totalSales = v
+	totalSalesSuccess := 0.0
+	if err == nil && len(salesSuccessResult) > 0 {
+		if v, ok := salesSuccessResult[0]["total"].(float64); ok {
+			totalSalesSuccess = v
 		}
 	}
-	dbStats["totalSales"] = totalSales
+	dbStats["totalSales"] = totalSalesSuccess
+
+	// Total unsuccessful/pending sales: sum total_amount of orders with payment_status "pending" or "failed"
+	totalSalesFailedAgg := []bson.M{
+		{"$match": bson.M{"is_active": true, "payment_status": bson.M{"$in": []string{"pending", "failed"}}}},
+		{"$group": bson.M{"_id": nil, "total": bson.M{"$sum": "$total_amount"}}},
+	}
+	var salesFailedResult []bson.M
+	cursor, err = ordersColl.Aggregate(ctx, totalSalesFailedAgg)
+	if err == nil {
+		err = cursor.All(ctx, &salesFailedResult)
+	}
+	totalSalesFailed := 0.0
+	if err == nil && len(salesFailedResult) > 0 {
+		if v, ok := salesFailedResult[0]["total"].(float64); ok {
+			totalSalesFailed = v
+		}
+	}
+	dbStats["totalSalesFailed"] = totalSalesFailed
 
 	utils.JSONResponse(w, http.StatusOK, dbStats)
 } 
