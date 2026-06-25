@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -65,9 +66,9 @@ func runAvatarMigration(database *mongo.Database) error {
 	var updated, skipped int
 	for cursor.Next(ctx) {
 		var cat struct {
-			ID   bson.ObjectID `bson:"_id"`
-			Name string        `bson:"name"`
-			Slug string        `bson:"slug"`
+			ID   primitive.ObjectID `bson:"_id"`
+			Name string             `bson:"name"`
+			Slug string             `bson:"slug"`
 		}
 		if err := cursor.Decode(&cat); err != nil {
 			log.Printf("migration: decode error: %v", err)
