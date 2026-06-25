@@ -176,15 +176,15 @@ export default async function RootLayout({
         <link
           rel="preload"
           as="font"
-          href="/fonts/iransansx-regular.woff"
-          type="font/woff"
+          href="/fonts/iransansx-regular.woff2"
+          type="font/woff2"
           crossOrigin="anonymous"
         />
         <link
           rel="preload"
           as="font"
-          href="/fonts/iransansx-bold.woff"
-          type="font/woff"
+          href="/fonts/iransansx-bold.woff2"
+          type="font/woff2"
           crossOrigin="anonymous"
         />
         

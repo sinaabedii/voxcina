@@ -4,13 +4,10 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useProductStore } from "@/store/product-store";
-import { useCartStore } from "@/store/cart-store";
 import ProductGrid from "@/components/product/ProductGrid";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { Product, ColorVariantListItem } from "@/types/product";
-import { FaArrowLeft } from "react-icons/fa";
+import { ColorVariantListItem } from "@/types/product";
 import Button from "@/components/ui/Button";
 
 interface CollectionResponse {
@@ -29,7 +26,6 @@ export default function CollectionPage() {
   const params = useParams();
   const collectionValue = params.collectionValue as string;
 
-  const { addItem: addItemToCart } = useCartStore();
   const [collectionData, setCollectionData] = useState<CollectionResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,12 +50,6 @@ export default function CollectionPage() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleAddToCart = (item: ColorVariantListItem) => {
-    // For cart, we need to fetch the full product
-    // This is a simplified version - in production, fetch full product first
-    console.log(`${item.name} added to cart`);
   };
 
   const getCollectionTitle = (collection: string) => {
@@ -146,21 +136,7 @@ export default function CollectionPage() {
                 {getCollectionDescription(collectionData.collection)}
               </motion.p>
 
-              <motion.div
-                className="flex flex-col sm:flex-row gap-4 justify-center items-center"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-              >
-                <Link href="/" className="flex items-center gap-2 text-white/90 hover:text-white transition-colors">
-                  <FaArrowLeft />
-                  <span>بازگشت به خانه</span>
-                </Link>
 
-                <span className="text-white/70">
-                  {collectionData.pagination.totalProducts} محصول
-                </span>
-              </motion.div>
             </div>
           </div>
 
@@ -190,12 +166,6 @@ export default function CollectionPage() {
               </div>
             ) : (
               <>
-                <div className="mb-8 text-center">
-                  <p className="text-gray-600">
-                    نمایش {collectionData.data.length} محصول از مجموع {collectionData.pagination.totalProducts} محصول
-                  </p>
-                </div>
-
                 <ProductGrid
                   items={collectionData.data}
                   columns={4}

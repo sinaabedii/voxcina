@@ -100,7 +100,7 @@ export const FOOTER_LINKS = {
     { label: "پرسش‌های متداول", href: "/faq" },
   ],
   socialMedia: [
-    { label: "اینستاگرام", href: "https://instagram.com" },
+    { label: "اینستاگرام", href: "https://instagram.com/voxcina" },
     { label: "تلگرام", href: "https://telegram.org" },
     { label: "توییتر", href: "https://twitter.com" },
     { label: "یوتیوب", href: "https://youtube.com" },

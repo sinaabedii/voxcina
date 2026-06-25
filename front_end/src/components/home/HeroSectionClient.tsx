@@ -153,7 +153,7 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({
             className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center"
           >
             <Link
-              href="/categories/summer"
+              href="/collection/%D8%AA%D8%A7%D8%A8%D8%B3%D8%AA%D8%A7%D9%86"
               className="relative overflow-hidden bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-6 sm:px-8 py-2.5 sm:py-3 md:py-4 rounded-full font-medium text-sm sm:text-base md:text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 w-full sm:w-auto"
             >
               <span className="relative z-10 flex items-center justify-center gap-3">

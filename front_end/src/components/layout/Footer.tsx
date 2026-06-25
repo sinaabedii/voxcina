@@ -133,7 +133,7 @@ const Footer = () => {
                     href={link.href}
                     className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-secondary text-foreground hover:bg-primary hover:text-primary-foreground transition-all duration-300 shadow-soft hover:shadow-medium hover:scale-105 transform"
                     target="_blank"
-                    rel="noopener noreferrer"
+                    rel="nofollow noopener noreferrer"
                     aria-label={link.label}
                   >
                     {getSocialIcon(link.label)}

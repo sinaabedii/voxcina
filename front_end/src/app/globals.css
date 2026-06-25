@@ -12,21 +12,24 @@
   font-family: "IranSansX";
   font-weight: 400;
   font-display: swap;
-  src: url("/fonts/iransansx-regular.woff") format("woff");
+  src: url("/fonts/iransansx-regular.woff2") format("woff2"),
+       url("/fonts/iransansx-regular.woff") format("woff");
 }
 
 @font-face {
   font-family: "IranSansX";
   font-weight: 300;
   font-display: swap;
-  src: url("/fonts/iransansx-light.woff") format("woff");
+  src: url("/fonts/iransansx-light.woff2") format("woff2"),
+       url("/fonts/iransansx-light.woff") format("woff");
 }
 
 @font-face {
   font-family: "IranSansX";
   font-weight: 700;
   font-display: swap;
-  src: url("/fonts/iransansx-bold.woff") format("woff");
+  src: url("/fonts/iransansx-bold.woff2") format("woff2"),
+       url("/fonts/iransansx-bold.woff") format("woff");
 }
 
 :root {
