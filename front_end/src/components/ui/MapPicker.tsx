@@ -35,6 +35,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
   const reverseGeocodeRef = useRef<((lat: number, lng: number) => void) | null>(null);
   const placeMarkerRef = useRef<((lat: number, lng: number, flyTo?: boolean) => void) | null>(null);
   const isInternalChangeRef = useRef(false);
+  const didMountRef = useRef(false);
   const [mounted, setMounted] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -102,18 +103,16 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
         cursor: pointer;
       `;
 
-      requestAnimationFrame(() => {
-        const marker = new nmp_mapboxgl.Marker({ element: el, draggable: true })
-          .setLngLat([lng, lat])
-          .addTo(map as unknown as mapboxgl.Map);
-        marker.on("dragend", () => {
-          const { lng: dLng, lat: dLat } = marker.getLngLat();
-          isInternalChangeRef.current = true;
-          onChangeRef.current({ lat: dLat, lng: dLng });
-          reverseGeocodeRef.current?.(dLat, dLng);
-        });
-        markerRef.current = marker;
+      const marker = new nmp_mapboxgl.Marker({ element: el, draggable: true })
+        .setLngLat([lng, lat])
+        .addTo(map as unknown as mapboxgl.Map);
+      marker.on("dragend", () => {
+        const { lng: dLng, lat: dLat } = marker.getLngLat();
+        isInternalChangeRef.current = true;
+        onChangeRef.current({ lat: dLat, lng: dLng });
+        reverseGeocodeRef.current?.(dLat, dLng);
       });
+      markerRef.current = marker;
 
       if (flyTo) {
         map.flyTo({ center: [lng, lat], zoom: PICKED_ZOOM, duration: 800 });
@@ -152,6 +151,10 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
     if (!mounted) return;
     if (isInternalChangeRef.current) {
       isInternalChangeRef.current = false;
+      return;
+    }
+    if (!didMountRef.current) {
+      didMountRef.current = true;
       return;
     }
     const map = mapRef.current;

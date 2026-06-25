@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -59,6 +59,7 @@ export default function AddressesPage() {
   const [pelak, setPelak] = useState("");
   const [tabaghe, setTabaghe] = useState("");
   const [vahed, setVahed] = useState("");
+  const provinceRef = useRef("");
 
   const [formData, setFormData] = useState({
     title: "",
@@ -132,8 +133,12 @@ export default function AddressesPage() {
           latitude: first.location.y,
           longitude: first.location.x,
         }));
+      } else {
+        toast.error("موقعیت این شهر یافت نشد");
       }
-    } catch {}
+    } catch {
+      toast.error("خطا در جستجوی موقعیت شهر");
+    }
   };
 
   const handleChange = (
@@ -149,6 +154,7 @@ export default function AddressesPage() {
     } else if (name === "province") {
       // When province changes, also set the province code and reset city
       const selectedProvince = provinces.find((p) => p.province_name === value);
+      provinceRef.current = value;
       setFormData({
         ...formData,
         province: value,
@@ -682,7 +688,7 @@ export default function AddressesPage() {
                     value={formData.city}
                     onChange={(e) => {
                       handleChange(e);
-                      searchCityOnMap(formData.province, e.target.value);
+                      searchCityOnMap(provinceRef.current, e.target.value);
                     }}
                     required
                     disabled={isSubmitting || loadingCities}
