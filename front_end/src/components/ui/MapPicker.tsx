@@ -169,39 +169,36 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
 
   const searchAddress = useCallback(
     async (term: string) => {
-      if (!term.trim() || !MAP_KEY) {
+      if (!term.trim()) {
         setSearchResults([]);
         return;
       }
       setSearching(true);
       try {
-        const params = new URLSearchParams({
-          term,
-          lat: String(center.lat),
-          lng: String(center.lng),
-        });
         const res = await fetch(
-          `https://api.neshan.org/v1/search?${params.toString()}`,
-          { headers: { "Api-Key": MAP_KEY } }
+          `/api/neshan/geocode?address=${encodeURIComponent(term)}`
         );
-        if (!res.ok) throw new Error("search failed");
+        if (!res.ok) throw new Error("geocode failed");
         const data = await res.json();
-        const items: SearchResult[] = (data.items || []).map(
-          (it: { title: string; address: string; location: { x: number; y: number } }) => ({
-            title: it.title,
-            address: it.address,
-            location: it.location,
-          })
-        );
-        setSearchResults(items);
-        setShowResults(true);
+        if (data.location) {
+          setSearchResults([
+            {
+              title: term,
+              address: "",
+              location: { x: data.location.x, y: data.location.y },
+            },
+          ]);
+          setShowResults(true);
+        } else {
+          setSearchResults([]);
+        }
       } catch {
         setSearchResults([]);
       } finally {
         setSearching(false);
       }
     },
-    [center.lat, center.lng]
+    []
   );
 
   useEffect(() => {
@@ -244,11 +241,15 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
       },
       (err) => {
         setLocating(false);
-        setLocationError(
-          err.code === err.PERMISSION_DENIED
-            ? "دسترسی به موقعیت مکانی رد شد"
-            : "خطا در دریافت موقعیت مکانی"
-        );
+        if (err.code === err.PERMISSION_DENIED) {
+          setLocationError("دسترسی به موقعیت مکانی رد شد. لطفاً از نوار آدرس اجازه دهید.");
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          setLocationError("موقعیت مکانی در دسترس نیست (معمولاً در کامپیوترهای بدون GPS رخ می‌دهد).");
+        } else if (err.code === err.TIMEOUT) {
+          setLocationError("دریافت موقعیت مکانی زمان‌بر شد. لطفاً روی نقشه کلیک کنید.");
+        } else {
+          setLocationError("خطا در دریافت موقعیت مکانی. لطفاً روی نقشه کلیک کنید.");
+        }
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
