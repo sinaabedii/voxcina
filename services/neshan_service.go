@@ -73,9 +73,13 @@ func ReverseGeocode(lat, lng float64) (*NeshanReverseResult, error) {
 		parts = append(parts, result.City)
 	}
 	if result.Address != "" {
-		parts = append(parts, result.Address)
-	} else if result.Neighbourhood != "" {
-		parts = append(parts, result.Neighbourhood)
+		parts = append(parts, "خیابان "+result.Address)
+	}
+	if result.Neighbourhood != "" {
+		parts = append(parts, "محله "+result.Neighbourhood)
+	}
+	if result.MunicipalityZone != "" {
+		parts = append(parts, "منطقه "+result.MunicipalityZone)
 	}
 
 	if len(parts) == 0 {

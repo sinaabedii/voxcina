@@ -46,6 +46,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
   const [resolvingAddress, setResolvingAddress] = useState(false);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [geocodeError, setGeocodeError] = useState<string | null>(null);
 
   const isDefaultLocation = location.lat === 0 && location.lng === 0;
   const center = isDefaultLocation ? DEFAULT_CENTER : location;
@@ -67,15 +68,22 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
 
   const reverseGeocode = useCallback(async (lat: number, lng: number) => {
     setResolvingAddress(true);
+    setGeocodeError(null);
     try {
       const res = await fetch(
         `/api/neshan/reverse?lat=${lat}&lng=${lng}`
       );
       if (!res.ok) throw new Error("reverse geocode failed");
       const data = await res.json();
-      const addr = data.formatted_address || data.address || data.formattedAddress || "";
+      const addr =
+        data.formatted_address ||
+        data.formattedAddress ||
+        data.address ||
+        "";
+      if (!addr) throw new Error("empty address");
       onResolvedAddress(addr);
     } catch {
+      setGeocodeError("دریافت آدرس با خطا مواجه شد. لطفاً روی نقشه کلیک کنید.");
       onResolvedAddress("");
     } finally {
       setResolvingAddress(false);
@@ -166,6 +174,12 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
       markerRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (!locationError) return;
+    const timer = setTimeout(() => setLocationError(null), 5000);
+    return () => clearTimeout(timer);
+  }, [locationError]);
 
   const searchAddress = useCallback(
     async (term: string) => {
@@ -355,7 +369,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
         )}
       </div>
 
-      {(resolvedAddress || resolvingAddress) && (
+      {(resolvedAddress || resolvingAddress || geocodeError) && (
         <div className="flex items-start gap-2 p-2.5 rounded-xl bg-voxcina-cream/30 dark:bg-voxcina-blue/10 border border-secondary-200 dark:border-voxcina-blue/30">
           <MapPin className="h-3.5 w-3.5 text-voxcina-blue dark:text-voxcina-cream flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
@@ -368,6 +382,8 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
                   <Loader2 className="h-3 w-3 animate-spin" />
                   در حال دریافت آدرس...
                 </span>
+              ) : geocodeError ? (
+                <span className="text-red-600 dark:text-red-400">{geocodeError}</span>
               ) : (
                 resolvedAddress
               )}
