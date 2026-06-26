@@ -1118,7 +1118,7 @@ export default function TryOnRoomPage() {
                       <button
                         type="button"
                         onClick={handleStartNewRoom}
-                        className="flex items-center gap-0.5 text-[10px] font-medium text-voxcina-blue/40 hover:text-voxcina-blue/70 dark:text-voxcina-cream/40 dark:hover:text-voxcina-cream/70 transition-colors"
+                        className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold text-voxcina-cream bg-voxcina-blue/90 hover:bg-voxcina-blue rounded-lg shadow-inset-button transition-all"
                       >
                         <Plus className="h-3 w-3" />
                         {' جدید'}
