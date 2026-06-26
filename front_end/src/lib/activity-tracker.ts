@@ -61,6 +61,8 @@ class ActivityTracker {
   private flushInterval = 5000; // 5 seconds
   private flushTimer: NodeJS.Timeout | null = null;
   private pageLoadTime: number = Date.now();
+  private readonly sessionKey = 'activity_session_id';
+  private readonly sessionDuration = 30 * 60 * 1000; // 30 minutes
 
   constructor() {
     this.sessionId = this.getOrCreateSessionId();
@@ -72,33 +74,54 @@ class ActivityTracker {
    * Get or create a unique session ID
    */
   private getOrCreateSessionId(): string {
-    const SESSION_KEY = 'activity_session_id';
-    const SESSION_DURATION = 30 * 60 * 1000; // 30 minutes
-
-    // SSR / build-time guard: localStorage is undefined on the server.
-    // Return a throwaway session id; it will be replaced on the client when
-    // the singleton hydrates.
-    if (typeof localStorage === 'undefined') {
-      return `ssr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const storage = this.getStorage();
+    if (!storage) {
+      return this.createSessionId();
     }
 
-    const stored = localStorage.getItem(SESSION_KEY);
-    const storedTime = localStorage.getItem(`${SESSION_KEY}_time`);
+    try {
+      const stored = storage.getItem(this.sessionKey);
+      const storedTime = storage.getItem(`${this.sessionKey}_time`);
 
-    if (stored && storedTime) {
-      const elapsed = Date.now() - parseInt(storedTime, 10);
-      if (elapsed < SESSION_DURATION) {
-        // Extend session
-        localStorage.setItem(`${SESSION_KEY}_time`, Date.now().toString());
-        return stored;
+      if (stored && storedTime) {
+        const elapsed = Date.now() - parseInt(storedTime, 10);
+        if (elapsed < this.sessionDuration) {
+          // Extend session
+          storage.setItem(`${this.sessionKey}_time`, Date.now().toString());
+          return stored;
+        }
       }
-    }
 
-    // Create new session
-    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    localStorage.setItem(SESSION_KEY, newSessionId);
-    localStorage.setItem(`${SESSION_KEY}_time`, Date.now().toString());
-    return newSessionId;
+      // Create new session
+      const newSessionId = this.createSessionId();
+      storage.setItem(this.sessionKey, newSessionId);
+      storage.setItem(`${this.sessionKey}_time`, Date.now().toString());
+      return newSessionId;
+    } catch {
+      return this.createSessionId();
+    }
+  }
+
+  private createSessionId(): string {
+    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * Some real mobile browsers expose localStorage but throw when it is used
+   * due to private browsing, restricted WebViews, or blocked storage.
+   */
+  private getStorage(): Storage | null {
+    if (typeof window === 'undefined') return null;
+
+    try {
+      const storage = window.localStorage;
+      const testKey = '__activity_storage_test__';
+      storage.setItem(testKey, testKey);
+      storage.removeItem(testKey);
+      return storage;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -393,6 +416,7 @@ class ActivityTracker {
    * Flush queued activities to backend
    */
   public flush(immediate: boolean = false): void {
+    if (typeof window === 'undefined') return;
     if (this.queue.length === 0) return;
 
     const activities = [...this.queue];
@@ -406,24 +430,30 @@ class ActivityTracker {
     // Send to backend
     const endpoint = '/api/activity/track/batch';
 
-    if (immediate && navigator.sendBeacon) {
-      // Use sendBeacon for immediate flush (like on page unload)
-      const blob = new Blob([JSON.stringify(activities)], { type: 'application/json' });
-      navigator.sendBeacon(endpoint, blob);
-    } else {
-      // Normal fetch request
-      fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(activities),
-        keepalive: immediate, // Keep connection alive for immediate flush
-      }).catch((error) => {
-        console.error('Failed to send activity data:', error);
-        // Re-queue failed activities
-        this.queue.unshift(...activities);
-      });
+    try {
+      if (immediate && typeof navigator !== 'undefined' && navigator.sendBeacon) {
+        // Use sendBeacon for immediate flush (like on page unload)
+        const blob = new Blob([JSON.stringify(activities)], { type: 'application/json' });
+        const accepted = navigator.sendBeacon(endpoint, blob);
+        if (!accepted) this.queue.unshift(...activities);
+      } else if (typeof fetch !== 'undefined') {
+        // Normal fetch request
+        fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(activities),
+          keepalive: immediate, // Keep connection alive for immediate flush
+        }).catch((error) => {
+          console.error('Failed to send activity data:', error);
+          // Re-queue failed activities
+          this.queue.unshift(...activities);
+        });
+      }
+    } catch (error) {
+      console.error('Failed to send activity data:', error);
+      this.queue.unshift(...activities);
     }
   }
 
@@ -431,8 +461,13 @@ class ActivityTracker {
    * Clear session (useful for logout)
    */
   public clearSession(): void {
-    localStorage.removeItem('activity_session_id');
-    localStorage.removeItem('activity_session_id_time');
+    const storage = this.getStorage();
+    try {
+      storage?.removeItem(this.sessionKey);
+      storage?.removeItem(`${this.sessionKey}_time`);
+    } catch {
+      // Ignore storage failures; clearSession should still rotate memory state.
+    }
     this.sessionId = this.getOrCreateSessionId();
   }
 }
@@ -446,7 +481,9 @@ if (typeof window !== 'undefined') {
   // expected to fire their own structured product_click event (e.g. product
   // cards), so we skip them here to avoid duplicate tracking.
   document.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement;
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+
     const link = target.closest('a');
 
     if (link && link.href && link.getAttribute('data-activity-tracked') !== 'true') {
