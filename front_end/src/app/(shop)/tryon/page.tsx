@@ -735,6 +735,17 @@ export default function TryOnRoomPage() {
 
   const handleApplyCoupon = async () => {
     if (!couponCode || couponApplying || couponExpired) return;
+
+    if (recommendedProduct) {
+      const inCart = useCartStore.getState().cart.items.some(
+        (item) => item.productId === recommendedProduct.product_id
+      );
+      if (!inCart) {
+        toast.warning("این کد تخفیف زمانی اعمال می شود که محصول پیشنهادی رو هم خرید کنی");
+        return;
+      }
+    }
+
     setCouponApplying(true);
     try {
       const res = await fetch("/api/tryon/apply-negotiated-coupon", {
