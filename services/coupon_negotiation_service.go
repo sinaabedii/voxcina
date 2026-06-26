@@ -27,6 +27,8 @@ type NegotiateRequest struct {
 	TryonProductID       string            `json:"tryon_product_id"`
 	TryonColor           string            `json:"tryon_color"`
 	ComplementaryProducts []CouponCartItem  `json:"complementary_products,omitempty"`
+	TryonID              string            `json:"tryon_id,omitempty"`
+	ChatID               string            `json:"chat_id,omitempty"`
 }
 
 type CouponChatMessage struct {

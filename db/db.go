@@ -77,6 +77,12 @@ func Connect(cfg *config.Config) *mongo.Database {
 		// Non-critical, continue anyway
 	}
 
+	// Create virtual try-on + tryon chat indexes
+	if err := CreateTryonIndexes(); err != nil {
+		log.Printf("Warning: Could not ensure tryon indexes: %v", err)
+		// Non-critical, continue anyway
+	}
+
 	log.Println("Database connected and indexes ensured.")
 	return Database
 }

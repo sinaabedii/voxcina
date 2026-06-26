@@ -19,6 +19,10 @@ import BackendImage from "@/components/BackendImage";
 import BeforeAfterSlider from "@/components/ui/BeforeAfterSlider";
 import CountdownTimer from "@/components/ui/CountdownTimer";
 import { activityTracker } from "@/lib/activity-tracker";
+import {
+  TryonChatMessage as DbTryonChatMessage,
+  makeMessageId as makeDbMessageId,
+} from "@/lib/tryon-api";
 
 interface TryOnEligibleItem {
   cartItem: CartItem;
@@ -118,6 +122,8 @@ export default function TryOnRoomPage() {
     isProcessing,
     error,
     setUploadedFile,
+    setUploadedPreview,
+    setResultImage,
     startTryOn,
     clear,
     clearResult,
@@ -130,6 +136,15 @@ export default function TryOnRoomPage() {
     couponValidUntil,
     setCoupon,
     clearCoupon,
+    chatId,
+    persistedMessages,
+    persistedTryons,
+    isLoadingSession,
+    ensureChatId,
+    loadSession,
+    persistMessage,
+    persistTryonMessage,
+    setCurrentTryonId,
   } = useTryOnStore();
 
   const [activeItemIndex, setActiveItemIndex] = useState<number | null>(null);
@@ -250,6 +265,83 @@ export default function TryOnRoomPage() {
     }
   }, [eligibleItems.length, chatMessages.length]);
 
+  // Load persisted chat session for this user on mount
+  useEffect(() => {
+    if (!isAuthorized) return;
+    const id = ensureChatId();
+    loadSession(id).then(() => {
+      // restore handled by store.loadSession (sets persistedMessages/persistedTryons)
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthorized]);
+
+  // When persisted messages are loaded, hydrate local chat state and
+  // re-apply tryon cards. Only hydrate once per chat_id.
+  const hydratedForChatIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!chatId) return;
+    if (hydratedForChatIdRef.current === chatId) return;
+    if (isLoadingSession) return;
+    if (persistedMessages.length === 0) {
+      hydratedForChatIdRef.current = chatId;
+      return;
+    }
+    const restored: ChatMessage[] = persistedMessages.map((m) => {
+      if (m.role === "tryon" && m.tryon_data) {
+        return {
+          role: "tryon",
+          content: m.content,
+          tryonData: {
+            roomNumber: m.tryon_data.room_number,
+            beforeImage: m.tryon_data.before_image,
+            afterImage: m.tryon_data.after_image,
+            productName: m.tryon_data.product_name,
+            tryonId: m.tryon_data.tryon_id,
+          },
+        };
+      }
+      if (m.role === "user" || m.role === "agent") {
+        return { role: m.role as "user" | "agent", content: m.content };
+      }
+      return { role: "agent", content: m.content };
+    });
+    setChatMessages(restored);
+    hydratedForChatIdRef.current = chatId;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatId, isLoadingSession]);
+
+  // When persisted tryons are loaded, apply last successful result to UI
+  const restoredFromDbRef = useRef(false);
+  useEffect(() => {
+    if (restoredFromDbRef.current) return;
+    if (!persistedTryons.length) return;
+    const done = persistedTryons.filter((t) => t.status === "done");
+    if (!done.length) return;
+    const last = done[done.length - 1];
+    if (last.result_image_url && !resultImage) {
+      setResultImage(last.result_image_url);
+    }
+    if (last.garment_product_name && !inspectedItemName) {
+      setInspectedItem(last.garment_product_name, last.garment_type);
+    }
+    if (last.tryon_id) {
+      setCurrentTryonId(last.tryon_id);
+    }
+    if (last.person_image_url && !uploadedPreview) {
+      setUploadedPreview(last.person_image_url);
+    }
+    restoredFromDbRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [persistedTryons.length]);
+
+  // Reset hydration flag when the user starts a fresh room (after clear)
+  useEffect(() => {
+    if (!chatId) {
+      hydratedForChatIdRef.current = null;
+      restoredFromDbRef.current = false;
+    }
+  }, [chatId]);
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) setUploadedFile(file);
@@ -313,6 +405,21 @@ export default function TryOnRoomPage() {
     setChatMessages((prev) => prev.map((m) =>
       m.tryonData?.processingId === processingId ? newMsg : m
     ));
+
+    // Persist the tryon card to the chat transcript
+    const colorVariant = item.colorVariant;
+    const liveState = useTryOnStore.getState();
+    persistTryonMessage({
+      tryon_id: liveState.currentTryonId || "",
+      product_id: item.product.id,
+      product_name: item.product.name,
+      color: colorVariant?.colorName || colorVariant?.color,
+      size: item.cartItem.size,
+      garment_type: garmentType,
+      before_image: store.uploadedPreview || "",
+      after_image: store.resultImage || "",
+      room_number: newCount,
+    });
 
     if (!negotiationInitializedRef.current) {
       negotiationInitializedRef.current = true;
@@ -415,6 +522,17 @@ export default function TryOnRoomPage() {
     const userMsg: ChatMessage = { role: "user", content: message };
     setChatMessages((prev) => [...prev, userMsg]);
 
+    // Persist user message
+    persistMessage({
+      id: makeDbMessageId(),
+      role: "user",
+      content: message,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Snapshot live state for the body
+    const liveState = useTryOnStore.getState();
+
     try {
       const tryonCtx = `${targetItem.product.name} - ${targetItem.colorVariant.colorName} - ${formatPrice(targetItem.product.price)}`;
       const res = await fetch("/api/tryon/negotiate-stream", {
@@ -430,6 +548,8 @@ export default function TryOnRoomPage() {
           tryon_context: tryonCtx,
           tryon_product_id: targetItem.product.id,
           tryon_color: targetItem.colorVariant.color,
+          tryon_id: liveState.currentTryonId || "",
+          chat_id: liveState.chatId || "",
         }),
       });
 
@@ -493,6 +613,31 @@ export default function TryOnRoomPage() {
                   : undefined;
                 setRecommendedProduct((match || data.complementary_products[0]) as RecommendedProduct);
               }
+
+              // Persist agent message (with tool call if present) and coupon
+              const agentPersistMsg: DbTryonChatMessage = {
+                id: makeDbMessageId(),
+                role: "agent",
+                content: agentContent,
+                timestamp: new Date().toISOString(),
+              };
+              if (data.coupon) {
+                agentPersistMsg.tool_call = {
+                  name: "offer_coupon",
+                  arguments: {
+                    product_id: targetItem.product.id,
+                    comp_product_id: (data.coupon as any).comp_product_id || "",
+                    message: agentContent,
+                  },
+                  result: {
+                    code: (data.coupon as any).code,
+                    value: (data.coupon as any).value,
+                    valid_until: (data.coupon as any).valid_until,
+                    product_ids: (data.coupon as any).product_ids || [],
+                  },
+                };
+              }
+              persistMessage(agentPersistMsg);
             } else if (data.type === "error") {
               throw new Error(data.error || "خطا در مذاکره");
             }
@@ -517,6 +662,12 @@ export default function TryOnRoomPage() {
         }
         copy.push(errMsg);
         return copy;
+      });
+      persistMessage({
+        id: makeDbMessageId(),
+        role: "agent",
+        content: errMsg.content,
+        timestamp: new Date().toISOString(),
       });
     } finally {
       setChatLoading(false);

@@ -1,4 +1,26 @@
 import { create } from "zustand";
+import {
+  VirtualTryon,
+  TryonChat,
+  TryonChatMessage,
+  TryonChatSession,
+  appendTryonMessages,
+  getTryonSession,
+  linkTryonToChat,
+  makeMessageId,
+} from "@/lib/tryon-api";
+
+interface PersistedTryon {
+  tryon_id: string;
+  product_id?: string;
+  product_name?: string;
+  color?: string;
+  size?: string;
+  garment_type: string;
+  before_image: string;
+  after_image: string;
+  room_number: number;
+}
 
 interface TryOnState {
   uploadedFile: File | null;
@@ -16,7 +38,18 @@ interface TryOnState {
 
   __tryOnAbortController: AbortController | null;
 
+  // Persisted session linkage
+  chatId: string | null;
+  currentTryonId: string | null;
+
+  // Restored state from DB
+  isLoadingSession: boolean;
+  persistedMessages: TryonChatMessage[];
+  persistedTryons: VirtualTryon[];
+
   setUploadedFile: (file: File | null) => void;
+  setUploadedPreview: (preview: string | null) => void;
+  setResultImage: (url: string | null) => void;
   setInspectedItem: (name: string, garmentType: string) => void;
   clearInspectedItem: () => void;
   setCoupon: (code: string, value: number, validUntil: string) => void;
@@ -24,11 +57,30 @@ interface TryOnState {
   clearResult: () => void;
   clear: () => void;
   startTryOn: (garmentImageUrl: string, garmentType: string) => Promise<void>;
+
+  // Persistence actions
+  ensureChatId: () => string;
+  setCurrentTryonId: (id: string | null) => void;
+  setChatId: (id: string | null) => void;
+  loadSession: (chatId: string) => Promise<void>;
+  restoreTryon: (tryon: PersistedTryon) => void;
+  persistMessage: (msg: TryonChatMessage) => Promise<void>;
+  persistTryonMessage: (data: PersistedTryon) => Promise<void>;
+  resetPersistedState: () => void;
 }
+
+const CHAT_ID_LS_KEY = "voxcina_tryon_chat_id";
 
 function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("authToken");
+}
+
+function generateChatId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return "tchat-" + (crypto as Crypto).randomUUID().replace(/-/g, "").slice(0, 16);
+  }
+  return "tchat-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 }
 
 export const useTryOnStore = create<TryOnState>()(
@@ -47,6 +99,13 @@ export const useTryOnStore = create<TryOnState>()(
     couponValidUntil: null,
     __tryOnAbortController: null,
 
+    chatId: null,
+    currentTryonId: null,
+
+    isLoadingSession: false,
+    persistedMessages: [],
+    persistedTryons: [],
+
     setUploadedFile: (file) => {
       if (!file) {
         set({ uploadedFile: null, uploadedPreview: null });
@@ -60,6 +119,10 @@ export const useTryOnStore = create<TryOnState>()(
       };
       reader.readAsDataURL(file);
     },
+
+    setUploadedPreview: (preview) => set({ uploadedPreview: preview }),
+
+    setResultImage: (url) => set({ resultImage: url }),
 
     setInspectedItem: (name, garmentType) =>
       set({ inspectedItemName: name, inspectedGarmentType: garmentType }),
@@ -91,6 +154,9 @@ export const useTryOnStore = create<TryOnState>()(
       if (state.__tryOnAbortController) {
         state.__tryOnAbortController.abort();
       }
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(CHAT_ID_LS_KEY);
+      }
       set({
         uploadedFile: null,
         uploadedPreview: null,
@@ -103,6 +169,10 @@ export const useTryOnStore = create<TryOnState>()(
         couponValue: null,
         couponValidUntil: null,
         __tryOnAbortController: null,
+        chatId: null,
+        currentTryonId: null,
+        persistedMessages: [],
+        persistedTryons: [],
       });
     },
 
@@ -116,6 +186,9 @@ export const useTryOnStore = create<TryOnState>()(
         return;
       }
 
+      // Ensure a chat_id exists for this room before generating
+      const chatId = get().ensureChatId();
+
       // Abort any previous try-on stream
       get().__tryOnAbortController?.abort();
       const abortController = new AbortController();
@@ -128,6 +201,10 @@ export const useTryOnStore = create<TryOnState>()(
         formData.append("person_image", uploadedFile);
         formData.append("garment_image_url", garmentImageUrl);
         formData.append("garment_type", garmentType);
+        formData.append("chat_id", chatId);
+
+        // Product metadata is attached by the page-level wrapper (see
+        // tryon page's handleTryOn). The store stays product-agnostic.
 
         const res = await fetch("/api/tryon/generate", {
           method: "POST",
@@ -147,7 +224,11 @@ export const useTryOnStore = create<TryOnState>()(
 
         const data = await res.json();
         const taskId = data?.task_id as string | undefined;
+        const tryonId = data?.tryon_id as string | undefined;
         if (!taskId) throw new Error("شناسه تسک در پاسخ وجود ندارد");
+        if (tryonId) {
+          set({ currentTryonId: tryonId });
+        }
 
         await waitForTryOnTask(taskId, token, abortController.signal, (image) => {
           if (!abortController.signal.aborted) {
@@ -163,8 +244,146 @@ export const useTryOnStore = create<TryOnState>()(
         }
       }
     },
+
+    ensureChatId: () => {
+      const existing = get().chatId;
+      if (existing) return existing;
+      if (typeof window === "undefined") {
+        return generateChatId();
+      }
+      const stored = localStorage.getItem(CHAT_ID_LS_KEY);
+      if (stored) {
+        set({ chatId: stored });
+        return stored;
+      }
+      const fresh = generateChatId();
+      localStorage.setItem(CHAT_ID_LS_KEY, fresh);
+      set({ chatId: fresh });
+      return fresh;
+    },
+
+    setCurrentTryonId: (id) => set({ currentTryonId: id }),
+    setChatId: (id) => {
+      if (typeof window !== "undefined") {
+        if (id) {
+          localStorage.setItem(CHAT_ID_LS_KEY, id);
+        } else {
+          localStorage.removeItem(CHAT_ID_LS_KEY);
+        }
+      }
+      set({ chatId: id });
+    },
+
+    loadSession: async (chatId: string) => {
+      set({ isLoadingSession: true });
+      try {
+        const data = await getTryonSession(chatId);
+        if (data?.success) {
+          set({
+            chatId: data.chat.chat_id,
+            persistedMessages: data.chat.messages || [],
+            persistedTryons: data.tryons || [],
+          });
+          // Restore last coupon if present
+          const lastCouponMsg = [...(data.chat.messages || [])]
+            .reverse()
+            .find((m) => m.tool_call?.name === "offer_coupon" && m.tool_call.result);
+          if (lastCouponMsg?.tool_call?.result) {
+            const r = lastCouponMsg.tool_call.result;
+            if (typeof r.code === "string" && typeof r.value === "number" && typeof r.valid_until === "string") {
+              set({
+                couponCode: r.code,
+                couponValue: r.value,
+                couponValidUntil: r.valid_until,
+              });
+            }
+          }
+          // Restore last tryon result image if no live resultImage
+          if (!get().resultImage && data.tryons?.length) {
+            const lastDone = [...data.tryons].reverse().find((t) => t.status === "done");
+            if (lastDone?.result_image_url) {
+              set({ resultImage: lastDone.result_image_url });
+            }
+            const last = data.tryons[data.tryons.length - 1];
+            if (last) {
+              set({ currentTryonId: last.tryon_id });
+            }
+          }
+        }
+      } catch {
+        // ignore — empty state
+      } finally {
+        set({ isLoadingSession: false });
+      }
+    },
+
+    restoreTryon: (tryon: PersistedTryon) => {
+      // Used when loading a session to apply its last result to UI
+      set({
+        resultImage: tryon.after_image,
+        uploadedPreview: tryon.before_image,
+        inspectedItemName: tryon.product_name || null,
+        inspectedGarmentType: tryon.garment_type || null,
+      });
+    },
+
+    persistMessage: async (msg: TryonChatMessage) => {
+      const { chatId } = get();
+      if (!chatId) return;
+      try {
+        await appendTryonMessages({ chat_id: chatId, messages: [msg] });
+      } catch {
+        // non-blocking; server is best-effort
+      }
+    },
+
+    persistTryonMessage: async (data: PersistedTryon) => {
+      const { chatId } = get();
+      if (!chatId) return;
+      const msg: TryonChatMessage = {
+        id: makeMessageId(),
+        role: "tryon",
+        content: `اتاق پرو ${toPersianDigits(data.room_number)}`,
+        timestamp: new Date().toISOString(),
+        tryon_data: {
+          room_number: data.room_number,
+          before_image: data.before_image,
+          after_image: data.after_image,
+          product_id: data.product_id,
+          product_name: data.product_name || "",
+          color: data.color,
+          size: data.size,
+          garment_type: data.garment_type,
+          tryon_id: data.tryon_id,
+        },
+      };
+      try {
+        await appendTryonMessages({ chat_id: chatId, messages: [msg] });
+        // Also link the tryon_id to the chat in case the message insert was skipped
+        try {
+          await linkTryonToChat({ chat_id: chatId, tryon_id: data.tryon_id });
+        } catch {
+          // ignore
+        }
+      } catch {
+        // non-blocking
+      }
+    },
+
+    resetPersistedState: () =>
+      set({
+        chatId: null,
+        currentTryonId: null,
+        persistedMessages: [],
+        persistedTryons: [],
+        isLoadingSession: false,
+      }),
   })
 );
+
+function toPersianDigits(n: number): string {
+  return n.toLocaleString("fa-IR", { useGrouping: false });
+}
 
 async function waitForTryOnTask(
   taskId: string,

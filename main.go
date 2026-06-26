@@ -67,6 +67,9 @@ func main() {
 	handlers.InitUserActivityService(database)
 	log.Println("User activity service initialized")
 
+	// Initialize virtual try-on + tryon chat services
+	handlers.InitVirtualTryonService(database)
+	log.Println("Virtual tryon service initialized")
 	// Initialize Zibal payment service
 	handlers.InitZibalService()
 	log.Println("Zibal payment service initialized")

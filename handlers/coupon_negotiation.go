@@ -55,6 +55,8 @@ func NegotiateCoupon(w http.ResponseWriter, r *http.Request) {
 
 	if result.Coupon != nil {
 		coupon := buildNegotiatedCoupon(req, result.Coupon, userID, result.Reply)
+		coupon.TryonID = req.TryonID
+		coupon.ChatID = req.ChatID
 		if err := saveNegotiatedCoupon(context.Background(), coupon); err != nil {
 			utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در ذخیره کوپن")
 			return
@@ -104,6 +106,8 @@ func NegotiateCouponStream(w http.ResponseWriter, r *http.Request) {
 
 	if coupon != nil {
 		nc := buildNegotiatedCoupon(req, coupon, userID, "")
+		nc.TryonID = req.TryonID
+		nc.ChatID = req.ChatID
 		if err := saveNegotiatedCoupon(context.Background(), nc); err != nil {
 			fmt.Printf("[negotiate-stream] coupon save error: %v\n", err)
 		}

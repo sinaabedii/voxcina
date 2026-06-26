@@ -1,9 +1,13 @@
 package handlers
 
 import (
+	"backEnd/models"
+	"backEnd/services"
 	"backEnd/utils"
 	"bytes"
+	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -23,6 +27,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/image/webp"
 	xdraw "golang.org/x/image/draw"
 )
@@ -66,8 +73,64 @@ type tryOnTask struct {
 
 var tryOnTasks sync.Map
 
+var virtualTryonService *services.VirtualTryonService
+var tryonChatService *services.TryonChatService
+
+func InitVirtualTryonService(db *mongo.Database) {
+	virtualTryonService = services.NewVirtualTryonService(db)
+	tryonChatService = services.NewTryonChatService(db)
+}
+
 func init() {
 	go cleanupTryOnTasks()
+}
+
+func generateTryOnUUID() string {
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		return fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	return "tryon-" + hex.EncodeToString(b)
+}
+
+func generateChatUUID() string {
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		return fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	return "tchat-" + hex.EncodeToString(b)
+}
+
+func savePersonImage(personBytes []byte) (url string, hash string, err error) {
+	hashBytes := sha256.Sum256(personBytes)
+	hash = hex.EncodeToString(hashBytes[:])
+
+	ext := ".jpg"
+	mime := http.DetectContentType(personBytes)
+	if strings.Contains(mime, "png") {
+		ext = ".png"
+	} else if strings.Contains(mime, "webp") {
+		ext = ".webp"
+	}
+
+	uploadDir := "uploads/tryon/persons"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		return "", "", fmt.Errorf("mkdir error: %v", err)
+	}
+
+	filename := fmt.Sprintf("%s/%s%s", uploadDir, strings.ReplaceAll(hash, "/", "_"), ext)
+	filename = strings.ReplaceAll(filename, "\\", "_")
+	// Hash is 64 hex chars, no slashes, but defensive
+
+	if _, err := os.Stat(filename); err == nil {
+		// already persisted (dedup hit)
+		return "/" + filename, hash, nil
+	}
+
+	if err := os.WriteFile(filename, personBytes, 0644); err != nil {
+		return "", "", fmt.Errorf("write error: %v", err)
+	}
+	return "/" + filename, hash, nil
 }
 
 func generateTryOnTaskID() string {
@@ -100,6 +163,12 @@ func cleanupTryOnTasks() {
 
 func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("[tryon] --- VirtualTryOn START ---")
+
+	userID, _, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "لطفاً وارد شوید")
+		return
+	}
 
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		fmt.Printf("[tryon] ParseMultipartForm error: %v\n", err)
@@ -154,13 +223,67 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Printf("[tryon] person image size: %d bytes\n", len(personBytes))
 
+	personImageURL, personImageHash, err := savePersonImage(personBytes)
+	if err != nil {
+		fmt.Printf("[tryon] save person image error: %v\n", err)
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در ذخیره تصویر شخص")
+		return
+	}
+	fmt.Printf("[tryon] person image persisted at %s\n", personImageURL)
+
 	garmentType := r.FormValue("garment_type")
 	if garmentType == "" {
 		garmentType = "upper_body"
 	}
 	fmt.Printf("[tryon] garment_type: %s\n", garmentType)
 
+	garmentProductIDStr := r.FormValue("garment_product_id")
+	garmentProductName := r.FormValue("garment_product_name")
+	garmentColor := r.FormValue("garment_color")
+	garmentSize := r.FormValue("garment_size")
+	chatIDParam := r.FormValue("chat_id")
+
 	taskID := generateTryOnTaskID()
+	tryonID := generateTryOnUUID()
+	chatID := chatIDParam
+	if chatID == "" {
+		chatID = generateChatUUID()
+	}
+	fmt.Printf("[tryon] tryon_id=%s chat_id=%s\n", tryonID, chatID)
+
+	var garmentProductObjID primitive.ObjectID
+	if garmentProductIDStr != "" {
+		if objID, err := primitive.ObjectIDFromHex(garmentProductIDStr); err == nil {
+			garmentProductObjID = objID
+		}
+	}
+
+	tryonDoc := &models.VirtualTryon{
+		TryonID:           tryonID,
+		UserID:            userID,
+		TaskID:            taskID,
+		Status:            models.TryonStatusProcessing,
+		PersonImageURL:    personImageURL,
+		PersonImageHash:   personImageHash,
+		GarmentImageURL:   garmentURL,
+		GarmentProductID:  garmentProductObjID,
+		GarmentProductName: garmentProductName,
+		GarmentColor:      garmentColor,
+		GarmentSize:       garmentSize,
+		GarmentType:       garmentType,
+		CreatedAt:         time.Now(),
+	}
+	if virtualTryonService != nil {
+		if err := virtualTryonService.Create(r.Context(), tryonDoc); err != nil {
+			fmt.Printf("[tryon] persist virtual_tryons error: %v\n", err)
+		}
+	}
+	if tryonChatService != nil {
+		if err := tryonChatService.LinkTryon(r.Context(), chatID, userID, tryonID); err != nil {
+			fmt.Printf("[tryon] link tryon to chat error: %v\n", err)
+		}
+	}
+
 	task := &tryOnTask{
 		ID:        taskID,
 		Status:    "processing",
@@ -170,12 +293,16 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("[tryon] task %s created, starting goroutine\n", taskID)
 
 	go func() {
+		startTime := time.Now()
 		defer func() {
 			if rec := recover(); rec != nil {
 				fmt.Printf("[tryon-%s] PANIC: %v\n%s\n", taskID, rec, string(debug.Stack()))
 				task.Status = "error"
 				task.Error = "خطای داخلی سرور"
 				tryOnTasks.Store(taskID, task)
+				if virtualTryonService != nil {
+					_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
+				}
 			}
 		}()
 
@@ -184,6 +311,9 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			task.Status = "done"
 			task.Image = getDevPlaceholderPath()
 			tryOnTasks.Store(taskID, task)
+			if virtualTryonService != nil {
+				_ = virtualTryonService.Complete(context.Background(), tryonID, task.Image, "dev-placeholder", "", time.Since(startTime).Milliseconds())
+			}
 			return
 		}
 
@@ -194,6 +324,9 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			task.Status = "error"
 			task.Error = "خطا در پردازش تصویر شخص"
 			tryOnTasks.Store(taskID, task)
+			if virtualTryonService != nil {
+				_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
+			}
 			return
 		}
 		resizedGarment, _, err := resizeImageToMaxDimension(garmentBytes, tryOnMaxImageDimension)
@@ -202,6 +335,9 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			task.Status = "error"
 			task.Error = "خطا در پردازش تصویر لباس"
 			tryOnTasks.Store(taskID, task)
+			if virtualTryonService != nil {
+				_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
+			}
 			return
 		}
 		fmt.Printf("[tryon-%s] resized person=%d garment=%d bytes\n", taskID, len(resizedPerson), len(resizedGarment))
@@ -306,6 +442,9 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			task.Status = "error"
 			task.Error = errMsg
 			tryOnTasks.Store(taskID, task)
+			if virtualTryonService != nil {
+				_ = virtualTryonService.Fail(context.Background(), tryonID, errMsg, time.Since(startTime).Milliseconds())
+			}
 			return
 		}
 
@@ -315,6 +454,9 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			task.Status = "error"
 			task.Error = "خطا در پردازش پاسخ"
 			tryOnTasks.Store(taskID, task)
+			if virtualTryonService != nil {
+				_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
+			}
 			return
 		}
 
@@ -323,6 +465,9 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			task.Status = "error"
 			task.Error = "سرویس پرو مجازی با خطا مواجه شد"
 			tryOnTasks.Store(taskID, task)
+			if virtualTryonService != nil {
+				_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
+			}
 			return
 		}
 
@@ -331,6 +476,9 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			task.Status = "error"
 			task.Error = "پاسخی از سرویس دریافت نشد"
 			tryOnTasks.Store(taskID, task)
+			if virtualTryonService != nil {
+				_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
+			}
 			return
 		}
 
@@ -347,6 +495,9 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 					task.Status = "error"
 					task.Error = "خطا در ذخیره تصویر"
 					tryOnTasks.Store(taskID, task)
+					if virtualTryonService != nil {
+						_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
+					}
 					return
 				}
 			}
@@ -359,6 +510,9 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 				task.Status = "error"
 				task.Error = "تصویری توسط سرویس تولید نشد"
 				tryOnTasks.Store(taskID, task)
+				if virtualTryonService != nil {
+					_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
+				}
 				return
 			}
 			savedPath, err = saveTryOnImage(imageDataURL)
@@ -367,6 +521,9 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 				task.Status = "error"
 				task.Error = "خطا در ذخیره تصویر"
 				tryOnTasks.Store(taskID, task)
+				if virtualTryonService != nil {
+					_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
+				}
 				return
 			}
 		}
@@ -375,13 +532,18 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 		task.Status = "done"
 		task.Image = savedPath
 		tryOnTasks.Store(taskID, task)
+		if virtualTryonService != nil {
+			_ = virtualTryonService.Complete(context.Background(), tryonID, savedPath, tryOnModel, prompt, time.Since(startTime).Milliseconds())
+		}
 		fmt.Printf("[tryon-%s] task completed\n", taskID)
 	}()
 
 	utils.JSONResponse(w, http.StatusOK, map[string]string{
-		"task_id": taskID,
+		"task_id":  taskID,
+		"tryon_id": tryonID,
+		"chat_id":  chatID,
 	})
-	fmt.Printf("[tryon] --- VirtualTryOn END (task=%s) ---\n", taskID)
+	fmt.Printf("[tryon] --- VirtualTryOn END (task=%s tryon=%s chat=%s) ---\n", taskID, tryonID, chatID)
 }
 
 func VirtualTryOnStatus(w http.ResponseWriter, r *http.Request) {
@@ -745,4 +907,298 @@ func fetchImageFromURL(imageURL string) ([]byte, error) {
 		return nil, err
 	}
 	return data, nil
+}
+
+// ListUserTryons handles GET /api/tryon/history
+// Returns all tryons for the authenticated user, paginated.
+func ListUserTryons(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.ErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+	userID, statusCode, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.ErrorResponse(w, statusCode, "لطفاً وارد شوید")
+		return
+	}
+	page := utils.GetIntFromQuery(r, "page", 1)
+	limit := utils.GetIntFromQuery(r, "limit", 20)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	tryons, total, err := virtualTryonService.ListByUser(ctx, userID, page, limit)
+	if err != nil {
+		fmt.Printf("[tryon-history] error: %v\n", err)
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در دریافت تاریخچه پرو")
+		return
+	}
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"tryons":  tryons,
+		"total":   total,
+		"page":    page,
+		"limit":   limit,
+		"pages":   (total + int64(limit) - 1) / int64(limit),
+	})
+}
+
+// GetTryonByID handles GET /api/tryon/{tryonId}
+// Returns one tryon + the chat_id of its room.
+func GetTryonByID(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.ErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+	userID, statusCode, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.ErrorResponse(w, statusCode, "لطفاً وارد شوید")
+		return
+	}
+	vars := mux.Vars(r)
+	tryonID := vars["tryonId"]
+	if tryonID == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "tryon_id الزامی است")
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	t, err := virtualTryonService.GetByTryonID(ctx, tryonID)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در دریافت پرو")
+		return
+	}
+	if t == nil {
+		utils.ErrorResponse(w, http.StatusNotFound, "پرو یافت نشد")
+		return
+	}
+	if t.UserID != userID {
+		utils.ErrorResponse(w, http.StatusForbidden, "دسترسی غیرمجاز")
+		return
+	}
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"tryon":   t,
+	})
+}
+
+// ListTryonSessions handles GET /api/tryon/sessions
+// Returns a list of fitting rooms for the authenticated user.
+func ListTryonSessions(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.ErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+	userID, statusCode, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.ErrorResponse(w, statusCode, "لطفاً وارد شوید")
+		return
+	}
+	page := utils.GetIntFromQuery(r, "page", 1)
+	limit := utils.GetIntFromQuery(r, "limit", 20)
+	includeArchived := r.URL.Query().Get("include_archived") == "true"
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	sessions, total, err := tryonChatService.ListSessionsByUser(ctx, userID, page, limit, includeArchived)
+	if err != nil {
+		fmt.Printf("[tryon-sessions] error: %v\n", err)
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در دریافت جلسات پرو")
+		return
+	}
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+		"success":  true,
+		"sessions": sessions,
+		"total":    total,
+		"page":     page,
+		"limit":    limit,
+		"pages":    (total + int64(limit) - 1) / int64(limit),
+	})
+}
+
+// GetTryonSession handles GET /api/tryon/sessions/{chatId}
+// Returns the full chat transcript + linked tryons for one room.
+func GetTryonSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.ErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+	userID, statusCode, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.ErrorResponse(w, statusCode, "لطفاً وارد شوید")
+		return
+	}
+	vars := mux.Vars(r)
+	chatID := vars["chatId"]
+	if chatID == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "chat_id الزامی است")
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	chat, err := tryonChatService.GetByChatID(ctx, chatID)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در دریافت جلسه پرو")
+		return
+	}
+	if chat == nil || chat.UserID != userID {
+		utils.ErrorResponse(w, http.StatusNotFound, "جلسه پرو یافت نشد")
+		return
+	}
+
+	tryons, _ := virtualTryonService.ListByChat(ctx, userID, chat.TryonIDs)
+
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"chat":    chat,
+		"tryons":  tryons,
+	})
+}
+
+// DeleteTryonSession handles DELETE /api/tryon/sessions/{chatId}
+func DeleteTryonSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		utils.ErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+	userID, statusCode, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.ErrorResponse(w, statusCode, "لطفاً وارد شوید")
+		return
+	}
+	vars := mux.Vars(r)
+	chatID := vars["chatId"]
+	if chatID == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "chat_id الزامی است")
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := tryonChatService.Delete(ctx, chatID, userID); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در حذف جلسه پرو")
+		return
+	}
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "جلسه پرو حذف شد",
+	})
+}
+
+// AppendTryonMessages handles POST /api/tryon/sessions/messages
+// Appends one or more messages to a fitting-room chat. Used by the
+// frontend to persist chat turns, tryon cards, and tool calls.
+func AppendTryonMessages(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.ErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+	userID, statusCode, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.ErrorResponse(w, statusCode, "لطفاً وارد شوید")
+		return
+	}
+
+	var req struct {
+		ChatID  string                   `json:"chat_id"`
+		Messages []models.TryonChatMessage `json:"messages"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "فرمت درخواست نامعتبر است")
+		return
+	}
+	if req.ChatID == "" || len(req.Messages) == 0 {
+		utils.ErrorResponse(w, http.StatusBadRequest, "chat_id و messages الزامی هستند")
+		return
+	}
+
+	// Default timestamps + IDs
+	now := time.Now()
+	for i := range req.Messages {
+		if req.Messages[i].ID == "" {
+			req.Messages[i].ID = primitive.NewObjectID().Hex()
+		}
+		if req.Messages[i].Timestamp.IsZero() {
+			req.Messages[i].Timestamp = now
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := tryonChatService.AppendMessages(ctx, req.ChatID, req.Messages, userID); err != nil {
+		fmt.Printf("[tryon-messages] append error: %v\n", err)
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در ذخیره پیام‌ها")
+		return
+	}
+
+	// Record coupons + recommended products into metadata
+	for _, m := range req.Messages {
+		if m.ToolCall != nil && m.ToolCall.Name == "offer_coupon" {
+			if r, ok := m.ToolCall.Result["code"].(string); ok && r != "" {
+				_ = tryonChatService.AddCouponCode(ctx, req.ChatID, r)
+			}
+		}
+		if m.TryonData != nil && m.TryonData.ProductID != primitive.NilObjectID {
+			_ = tryonChatService.AddRecommendedProduct(ctx, req.ChatID, m.TryonData.ProductID.Hex())
+		}
+	}
+
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"chat_id": req.ChatID,
+		"count":   len(req.Messages),
+	})
+}
+
+// LinkTryon handles POST /api/tryon/link
+// Adds a tryon_id to a chat's tryon_ids list.
+func LinkTryon(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.ErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+	userID, statusCode, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.ErrorResponse(w, statusCode, "لطفاً وارد شوید")
+		return
+	}
+	var req struct {
+		ChatID  string `json:"chat_id"`
+		TryonID string `json:"tryon_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "فرمت درخواست نامعتبر است")
+		return
+	}
+	if req.ChatID == "" || req.TryonID == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "chat_id و tryon_id الزامی هستند")
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := tryonChatService.LinkTryon(ctx, req.ChatID, userID, req.TryonID); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در اتصال پرو به جلسه")
+		return
+	}
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{"success": true})
+}
+
+// TryonStatusFromDB is a helper used by status-stream to also surface
+// the persisted status. Currently a no-op wrapper; reserved for
+// future use.
+func tryonStatusFromDB(taskID string) *models.VirtualTryon {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if virtualTryonService == nil {
+		return nil
+	}
+	t, err := virtualTryonService.GetByTaskID(ctx, taskID)
+	if err != nil || t == nil {
+		return nil
+	}
+	return t
 }

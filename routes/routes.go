@@ -91,6 +91,15 @@ func NewRouter() *mux.Router {
 	tryonRouter.HandleFunc("/negotiate-stream", handlers.NegotiateCouponStream).Methods(http.MethodPost)
 	tryonRouter.HandleFunc("/apply-negotiated-coupon", handlers.ApplyNegotiatedCoupon).Methods(http.MethodPost)
 
+	// Persisted try-on history + chat sessions
+	tryonRouter.HandleFunc("/history", handlers.ListUserTryons).Methods(http.MethodGet)
+	tryonRouter.HandleFunc("/sessions/messages", handlers.AppendTryonMessages).Methods(http.MethodPost)
+	tryonRouter.HandleFunc("/sessions", handlers.ListTryonSessions).Methods(http.MethodGet)
+	tryonRouter.HandleFunc("/sessions/{chatId}", handlers.GetTryonSession).Methods(http.MethodGet)
+	tryonRouter.HandleFunc("/sessions/{chatId}", handlers.DeleteTryonSession).Methods(http.MethodDelete)
+	tryonRouter.HandleFunc("/link", handlers.LinkTryon).Methods(http.MethodPost)
+	tryonRouter.HandleFunc("/{tryonId}", handlers.GetTryonByID).Methods(http.MethodGet)
+
 	// Chat Management & History endpoints
 	api.HandleFunc("/chat/save", handlers.SaveChatMessage).Methods(http.MethodPost)
 	api.HandleFunc("/chat/history/{chatId}", handlers.GetChatHistory).Methods(http.MethodGet)

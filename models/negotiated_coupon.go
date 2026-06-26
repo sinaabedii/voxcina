@@ -30,5 +30,7 @@ type NegotiatedCoupon struct {
 	ValidUntil   time.Time            `bson:"valid_until" json:"valid_until"`
 	Used         bool                 `bson:"used" json:"used"`
 	Conversation []CouponMessage      `bson:"conversation" json:"conversation"`
+	TryonID      string               `bson:"tryon_id,omitempty" json:"tryon_id,omitempty"`
+	ChatID       string               `bson:"chat_id,omitempty" json:"chat_id,omitempty"`
 	CreatedAt    time.Time            `bson:"created_at" json:"created_at"`
 }
