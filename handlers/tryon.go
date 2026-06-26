@@ -38,7 +38,8 @@ const tryOnModel = "google/gemini-2.5-flash-image"
 const tryOnMaxImageDimension = 1024
 const tryOnImageQuality = 85
 const tryOnTaskTTL = 30 * time.Minute
-const tryOnCleanupInterval = 5 * time.Minute
+const tryOnFinishedGrace = 2 * time.Minute
+const tryOnCleanupInterval = 1 * time.Minute
 
 const tryOnPromptUpper = "Replace upper garment with attached garment. Preserve exact face, pose, background, and lighting. Add natural armpit and chest folds matching light direction. Ensure shoulder seams align with natural shoulders and collar sits naturally at neckline. No warping, bleeding, or artifacts. Output only image."
 
@@ -145,18 +146,28 @@ func cleanupTryOnTasks() {
 	ticker := time.NewTicker(tryOnCleanupInterval)
 	defer ticker.Stop()
 	for range ticker.C {
-		cutoff := time.Now().Add(-tryOnTaskTTL)
-		var removed int
+		now := time.Now()
+		hardCutoff := now.Add(-tryOnTaskTTL)
+		finishedCutoff := now.Add(-tryOnFinishedGrace)
+		var removedStale, removedFinished int
 		tryOnTasks.Range(func(key, value interface{}) bool {
 			task := value.(*tryOnTask)
-			if task.CreatedAt.Before(cutoff) {
-				tryOnTasks.Delete(key)
-				removed++
+			switch task.Status {
+			case "done", "error":
+				if task.CreatedAt.Before(finishedCutoff) {
+					tryOnTasks.Delete(key)
+					removedFinished++
+				}
+			default:
+				if task.CreatedAt.Before(hardCutoff) {
+					tryOnTasks.Delete(key)
+					removedStale++
+				}
 			}
 			return true
 		})
-		if removed > 0 {
-			fmt.Printf("[tryon-cleanup] removed %d stale tasks\n", removed)
+		if removedFinished > 0 || removedStale > 0 {
+			fmt.Printf("[tryon-cleanup] removed %d finished, %d stale\n", removedFinished, removedStale)
 		}
 	}
 }
