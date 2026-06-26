@@ -307,6 +307,14 @@ export default function TryOnRoomPage() {
       return { role: "agent", content: m.content };
     });
     setChatMessages(restored);
+    // Restore recommended product from the last agent message with a tool_call
+    const lastRecMsg = [...persistedMessages].reverse().find(
+      (m) => m.role === "agent" && (m.tool_call?.result as any)?.recommended_product
+    );
+    if (lastRecMsg?.tool_call?.result) {
+      const rp = (lastRecMsg.tool_call.result as any).recommended_product;
+      if (rp) setRecommendedProduct(rp as RecommendedProduct);
+    }
     hydratedForChatIdRef.current = chatId;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId, isLoadingSession]);
@@ -631,12 +639,14 @@ export default function TryOnRoomPage() {
                 setCoupon(c.code, c.value, c.valid_until);
                 setCouponExpired(false);
               }
+              let recProduct: RecommendedProduct | null = null;
               if (data.complementary_products?.length > 0) {
                 const compID = data.coupon ? (data.coupon as any).comp_product_id : undefined;
                 const match = compID
                   ? data.complementary_products.find((p: any) => p.product_id === compID)
                   : undefined;
-                setRecommendedProduct((match || data.complementary_products[0]) as RecommendedProduct);
+                recProduct = (match || data.complementary_products[0]) as RecommendedProduct;
+                setRecommendedProduct(recProduct);
               }
 
               // Persist agent message (with tool call if present) and coupon
@@ -659,6 +669,7 @@ export default function TryOnRoomPage() {
                     value: (data.coupon as any).value,
                     valid_until: (data.coupon as any).valid_until,
                     product_ids: (data.coupon as any).product_ids || [],
+                    ...(recProduct && { recommended_product: recProduct }),
                   },
                 };
               }
