@@ -34,9 +34,9 @@ docker compose logs -f server     # Backend logs
 ## Architecture
 
 - **Go module name is `backEnd`** (not `shop`). All imports use `backEnd/...`
-- Backend: `handlers/` -> `services/` -> MongoDB. Routes in `routes/routes.go` (366 lines, Gorilla Mux)
+- Backend: `handlers/` -> `services/` -> MongoDB. Routes in `routes/routes.go` (Gorilla Mux)
 - Frontend: Page -> Zustand store (`store/` 17 stores) -> API -> Go backend
-- Next.js proxies `/api/*` to Go (except `/api/postex/*`, `/api/uploads/*`, `/api/instagram/*`, `/api/sitemap`, `/api/tryon/negotiate` handled by Next.js API routes)
+- Next.js proxies `/api/*` to Go, **except these handled by Next.js**: `/api/postex/*`, `/api/uploads/*`, `/api/instagram/*`, `/api/sitemap`, `/api/locality/*`, `/api/tryon/negotiate` and `/api/tryon/negotiate-stream` (latter two are passthroughs to Go, just rewritten so the streaming `text/event-stream` response isn't proxied by Next.js's default body buffering)
 - `/uploads/*` served by Go from `./uploads/`; frontend rewrites to backend
 - Auth: JWT Bearer token. `middlewares.AuthMiddleware` for users, `AdminAuthMiddleware` for admin (checks `role == "admin"`)
 - `start.sh` waits for MongoDB, auto-seeds if `vocabulary_mappings` is empty
@@ -126,3 +126,64 @@ iptables -A INPUT -p tcp --dport 10809 -j DROP
 - **OpenRouter models:** images passed as URLs (OpenRouter fetches them)
 - **Local models (Ollama):** all local models are multimodal — images converted to base64 via `resolveImageBase64` in `services/ai_metadata_service.go`
 - To add a local vision model: add its name to `isLocalModel()` in `ai_metadata_service.go`
+
+## Virtual Try-On Persistence
+
+The tryon flow is fully persisted. **No TTL — all data is kept forever.**
+
+### Collections
+- **`virtual_tryons`** — one doc per try-on generation. Fields: `tryon_id`, `user_id`, `status` (processing/done/error), `task_id`, `person_image_url` (persisted to disk), `person_image_hash` (sha256, used for dedup), `garment_image_url`, `garment_product_id`, `garment_product_name`, `garment_color`, `garment_size`, `garment_type`, `result_image_url`, `prompt_text`, `model_used`, `error`, `duration_ms`, timestamps. Indexes in `db/tryon_indexes.go`.
+- **`tryon_chats`** — one doc per fitting room (can outlive one tryon). Fields: `chat_id`, `user_id`, `tryon_ids[]`, `messages[]` (polymorphic: `user`/`agent`/`tool`/`tryon`/`system`), `metadata` (counters, `coupons_offered[]`, `products_recommended[]`, `device_type`/`browser`/`os`), `status`, `title`, timestamps.
+- **`negotiated_coupons`** — extended with `tryon_id` + `chat_id` fields for linkage.
+
+### Endpoints (all behind `AuthMiddleware`)
+- `POST /api/tryon/generate` — creates `virtual_tryons` doc + `tryon_chats` link; returns `{task_id, tryon_id, chat_id}`
+- `GET /api/tryon/sessions` — list user's fitting rooms (paginated, latest first)
+- `GET /api/tryon/sessions/{chatId}` — full chat + linked tryons
+- `DELETE /api/tryon/sessions/{chatId}` — soft delete
+- `POST /api/tryon/sessions/messages` — append messages (used by frontend after each turn)
+- `GET /api/tryon/history` — list all tryons for the user
+- `GET /api/tryon/{tryonId}` — single tryon
+- `POST /api/tryon/link` — add `tryon_id` to chat's `tryon_ids` array (idempotent)
+
+### Frontend integration
+- `front_end/src/store/tryon-store.ts` — extended with `chatId`, `currentTryonId`, `loadSession(chatId)`, `persistMessage`, `persistTryonMessage`. `chatId` is stored in `localStorage` under `voxcina_tryon_chat_id`.
+- `front_end/src/lib/tryon-api.ts` — typed client for all tryon endpoints.
+- The `/tryon` page calls `loadSession(chatId)` on mount → restores chat messages + last tryon result from MongoDB. Persists each turn (user message, agent message with tool_call, tryon card). **No UI changes to the page — persistence is added via the store + API only.**
+
+### Tryon page is auth-only
+- `useProtectedRoute({requiredAuth:true})` in `tryon/page.tsx` redirects unauthenticated users.
+- `user_id` is mandatory on `virtual_tryons` and `tryon_chats` — there is no `session_id` field and no anonymous backfill.
+- All new tryon API routes sit behind `AuthMiddleware`; unauthenticated requests return 401.
+
+### In-memory task cache (`tryOnTasks` in `handlers/tryon.go`)
+Transient `sync.Map` keyed by `task_id`. The SSE stream (`/api/tryon/status-stream`) reads from this map while a task is in-flight. Two cleanup policies (`cleanupTryOnTasks` goroutine, 1-min tick):
+- **`done` or `error`**: removed 5 min after `CreatedAt` (grace for in-flight SSE clients)
+- **`processing`**: removed 30 min after `CreatedAt` (hard cap for crashed goroutines)
+
+The in-memory map eviction does **not** affect MongoDB persistence. Logs use `[tryon-cleanup] removed N finished, M stale` format.
+
+### Negotiation tool call
+LLM-driven coupon offering via OpenRouter's `google/gemma-4-31b-it` (fallback `qwen/qwen3.5-27b`) with a mandatory `offer_coupon` tool. When the model calls the tool, the backend generates a `TRYN-XXXXXXXX` code, saves it to `negotiated_coupons` with `tryon_id` + `chat_id`, and the SSE `done` event includes the coupon. The frontend persists the agent message with the embedded `tool_call` (name, arguments, result) so reload restores the coupon state.
+
+## User Activity Tracking
+
+The `/api/activity/track` and `/api/activity/track/batch` endpoints are **public** (no `AuthMiddleware`). They accept `sessionId` from the request body and store it; `user_id` is only attached if the request goes through `AuthMiddleware` (the `GetUserActivities` retrieval routes do, the public track routes do not).
+
+The frontend `activity-tracker.ts` singleton always sends `sessionId` from localStorage (`activity_session_id` key, 30-min sliding window). Therefore **activities are stored with `session_id`, not `user_id`, for every page** — including the tryon page even though it's auth-gated.
+
+If a feature needs `user_id`-linked activities, you must either:
+1. Move the activity endpoint behind `AuthMiddleware` (affects all pages), or
+2. Add a separate authed endpoint for that specific activity.
+
+The activity tracker is invoked from:
+- `front_end/src/lib/activity-tracker.ts` (singleton, queue + 5s flush, `sendBeacon` on `beforeunload`)
+- `front_end/src/components/product/ProductCard.tsx` → `product_click`
+- `front_end/src/components/product/ProductActions.tsx` → `product_view`, `image_viewed`, `color_click`
+- `front_end/src/app/(shop)/cart/page.tsx` → `checkout_started`
+- `front_end/src/app/(shop)/checkout/page.tsx` → `order_placed`
+- `front_end/src/app/(shop)/checkout/callback/page.tsx` → `payment_success` / `payment_failed`
+- `front_end/src/app/(shop)/tryon/page.tsx` → `image_viewed` (per tryon) + `chat_started` (once per session, context=`coupon_negotiation`)
+- Global anchor click listener in `activity-tracker.ts` for outbound navigations
+
+Activity constants live in `models/user_activity.go` (prefixed `Activity*`). The collection has a 180-day TTL via `ExpiresAt`. Indexes in `db/user_activity_indexes.go`.
