@@ -140,9 +140,9 @@ func (s *TryonChatService) LinkTryon(ctx context.Context, chatID string, userID 
 		"$set":      bson.M{"updated_at": time.Now()},
 		"$setOnInsert": bson.M{
 			"created_at": time.Now(),
+			"user_id":    userID,
 			"status":     models.TryonChatStatusActive,
 			"messages":   []models.TryonChatMessage{},
-			"tryon_ids":  []string{tryonID},
 		},
 	}
 	_, err := s.collection.UpdateOne(ctx, filter, update, options.Update().SetUpsert(true))
