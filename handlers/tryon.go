@@ -38,7 +38,7 @@ const tryOnModel = "google/gemini-2.5-flash-image"
 const tryOnMaxImageDimension = 1024
 const tryOnImageQuality = 85
 const tryOnTaskTTL = 30 * time.Minute
-const tryOnFinishedGrace = 2 * time.Minute
+const tryOnFinishedGrace = 5 * time.Minute
 const tryOnCleanupInterval = 1 * time.Minute
 
 const tryOnPromptUpper = "Replace upper garment with attached garment. Preserve exact face, pose, background, and lighting. Add natural armpit and chest folds matching light direction. Ensure shoulder seams align with natural shoulders and collar sits naturally at neckline. No warping, bleeding, or artifacts. Output only image."
