@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback } fr
 import Link from "next/link";
 import {
   Camera, Shirt, ShoppingBag, Tag, Send,
-  Sparkles, User, Upload, Lock, Check, X, RefreshCw, Maximize2, Layers,
+  Sparkles, User, Upload, Lock, Check, X, RefreshCw, Maximize2, Layers, Plus,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
@@ -145,6 +145,7 @@ export default function TryOnRoomPage() {
     persistMessage,
     persistTryonMessage,
     setCurrentTryonId,
+    startNewRoom,
   } = useTryOnStore();
 
   const [activeItemIndex, setActiveItemIndex] = useState<number | null>(null);
@@ -261,7 +262,7 @@ export default function TryOnRoomPage() {
 
   useEffect(() => {
     if (eligibleItems.length > 0 && chatMessages.length === 0 && !negotiationInitializedRef.current) {
-      setChatMessages([{ role: "agent", content: "سلام! من سارا هستم. لباست رو پرو کن و باهات تخفیف مذاکره می‌کنم" }]);
+      setChatMessages([{ role: "agent", content: "سلام! من سارا هستم. لباست رو پرو کن و کمکت می کنم تجربه بهتری داشته باشی" }]);
     }
   }, [eligibleItems.length, chatMessages.length]);
 
@@ -756,6 +757,20 @@ export default function TryOnRoomPage() {
     setMobileTab("products");
   };
 
+  const handleStartNewRoom = useCallback(() => {
+    startNewRoom();
+    setActiveItemIndex(null);
+    setChatMessages([]);
+    setCouponApplied(false);
+    setCouponExpired(false);
+    setTryOnCount(0);
+    setCompareModalData(null);
+    setShowNegotiationPrompt(false);
+    negotiationInitializedRef.current = false;
+    hydratedForChatIdRef.current = null;
+    restoredFromDbRef.current = false;
+  }, [startNewRoom]);
+
   const handleClearResult = () => {
     clearResult();
   };
@@ -1086,17 +1101,29 @@ export default function TryOnRoomPage() {
                 <div className="flex flex-col flex-1 min-h-0 px-3 py-3">
                   <div className="flex flex-col flex-1 min-h-0 bg-white dark:bg-voxcina-blue/20 rounded-xl border border-secondary-400 dark:border-voxcina-blue/30 overflow-hidden p-3">
                   {/* Chat header */}
-                  <div className="flex items-center gap-2.5 mb-2.5 flex-shrink-0">
-                    <div className="relative flex-shrink-0">
-                      <div className="w-9 h-9 rounded-full bg-voxcina-blue flex items-center justify-center shadow-inset-button">
-                        <Sparkles className="h-4 w-4 text-voxcina-cream" />
+                  <div className="flex items-center gap-2.5 mb-2.5 flex-shrink-0 w-full justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="relative flex-shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-voxcina-blue flex items-center justify-center shadow-inset-button">
+                          <Sparkles className="h-4 w-4 text-voxcina-cream" />
+                        </div>
+                        <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-white dark:border-voxcina-blue/10" />
                       </div>
-                      <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-white dark:border-voxcina-blue/10" />
+                      <div>
+                        <span className="text-sm font-bold text-voxcina-blue dark:text-voxcina-cream">سارا</span>
+                        <span className="text-[10px] text-voxcina-blue/50 dark:text-voxcina-cream/50 block -mt-0.5">فروشنده هوشمند</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-sm font-bold text-voxcina-blue dark:text-voxcina-cream">سارا</span>
-                      <span className="text-[10px] text-voxcina-blue/50 dark:text-voxcina-cream/50 block -mt-0.5">فروشنده هوشمند</span>
-                    </div>
+                    <span>
+                      <button
+                        type="button"
+                        onClick={handleStartNewRoom}
+                        className="flex items-center gap-0.5 text-[10px] font-medium text-voxcina-blue/40 hover:text-voxcina-blue/70 dark:text-voxcina-cream/40 dark:hover:text-voxcina-cream/70 transition-colors"
+                      >
+                        <Plus className="h-3 w-3" />
+                        {' جدید'}
+                      </button>
+                    </span>
                   </div>
 
                   {/* Messages container */}

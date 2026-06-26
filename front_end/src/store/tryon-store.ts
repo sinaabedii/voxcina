@@ -67,6 +67,7 @@ interface TryOnState {
   persistMessage: (msg: TryonChatMessage) => Promise<void>;
   persistTryonMessage: (data: PersistedTryon) => Promise<void>;
   resetPersistedState: () => void;
+  startNewRoom: () => void;
 }
 
 const CHAT_ID_LS_KEY = "voxcina_tryon_chat_id";
@@ -378,6 +379,31 @@ export const useTryOnStore = create<TryOnState>()(
         persistedTryons: [],
         isLoadingSession: false,
       }),
+
+    startNewRoom: () => {
+      const state = get();
+      if (state.__tryOnAbortController) {
+        state.__tryOnAbortController.abort();
+      }
+      const freshId = generateChatId();
+      if (typeof window !== "undefined") {
+        localStorage.setItem(CHAT_ID_LS_KEY, freshId);
+      }
+      set({
+        __tryOnAbortController: null,
+        chatId: freshId,
+        currentTryonId: null,
+        persistedMessages: [],
+        persistedTryons: [],
+        isLoadingSession: false,
+        resultImage: null,
+        inspectedItemName: null,
+        inspectedGarmentType: null,
+        couponCode: null,
+        couponValue: null,
+        couponValidUntil: null,
+      });
+    },
   })
 );
 
