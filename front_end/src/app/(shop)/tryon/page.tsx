@@ -18,6 +18,7 @@ import Button from "@/components/ui/Button";
 import BackendImage from "@/components/BackendImage";
 import BeforeAfterSlider from "@/components/ui/BeforeAfterSlider";
 import CountdownTimer from "@/components/ui/CountdownTimer";
+import { activityTracker } from "@/lib/activity-tracker";
 import {
   TryonChatMessage as DbTryonChatMessage,
   makeMessageId as makeDbMessageId,
@@ -420,11 +421,42 @@ export default function TryOnRoomPage() {
       room_number: newCount,
     });
 
+    // Activity tracking — tryon page is auth-gated (useProtectedRoute
+    // requiredAuth:true) so every visitor is a logged-in user. The
+    // activity tracker attaches user_id from the JWT context; no
+    // session_id / anonymous fallback is needed here. Other activity
+    // sections (cart, checkout, product pages) are untouched.
+    const activityMeta: Record<string, unknown> = {
+      tryon_id: liveState.currentTryonId || "",
+      chat_id: liveState.chatId || "",
+      product_id: item.product.id,
+      product_name: item.product.name,
+      garment_type: garmentType,
+      room_number: newCount,
+      color: colorVariant?.colorName || colorVariant?.color,
+      size: item.cartItem.size,
+    };
+    activityTracker.trackImageViewed(
+      item.product.id,
+      item.product.name,
+      0,
+      1,
+      "tryon_result",
+      undefined,
+      { ...activityMeta, stage: "after_generation" }
+    );
+
     if (!negotiationInitializedRef.current) {
       negotiationInitializedRef.current = true;
       setCouponApplied(false);
       setCouponExpired(false);
       setShowNegotiationPrompt(true);
+      activityTracker.trackChatStarted({
+        ...activityMeta,
+        context: "coupon_negotiation",
+        trigger: "post_tryon",
+        cartItemCount: cart.items.length,
+      });
     }
   };
 
