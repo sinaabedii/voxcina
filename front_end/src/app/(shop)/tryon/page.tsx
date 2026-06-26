@@ -229,7 +229,7 @@ export default function TryOnRoomPage() {
   }, [inspectedGarmentType, activeItemIndex, eligibleItems]);
 
   const steps = [
-    { label: "آپلود عکس", done: !!uploadedFile },
+    { label: "آپلود عکس", done: !!(uploadedFile || uploadedPreview) },
     { label: "انتخاب لباس", done: activeItemIndex !== null },
     { label: "نتیجه + مذاکره", done: !!resultImage && !error },
   ];
@@ -1010,10 +1010,10 @@ export default function TryOnRoomPage() {
                         activeItemIndex === idx
                           ? "border-voxcina-blue/40 dark:border-voxcina-cream/40 bg-voxcina-blue/[0.04] dark:bg-voxcina-cream/[0.04]"
                           : "border-transparent hover:border-secondary-300 dark:hover:border-voxcina-blue/30 hover:bg-voxcina-blue/[0.04] dark:hover:bg-voxcina-cream/[0.04]",
-                        !uploadedFile && "opacity-50"
+                        !(uploadedFile || uploadedPreview) && "opacity-50"
                       )}
                       onClick={() => {
-                        if (!uploadedFile || isProcessing) return;
+                        if (!(uploadedFile || uploadedPreview) || isProcessing) return;
                         if (activeItemIndex === idx) {
                           setActiveItemIndex(null);
                           clearInspectedItem();
@@ -1045,13 +1045,13 @@ export default function TryOnRoomPage() {
                           ? "bg-voxcina-blue text-voxcina-cream shadow-inset-button"
                           : "bg-voxcina-blue/10 dark:bg-voxcina-blue/20 text-voxcina-blue/40 dark:text-voxcina-cream/40 group-hover:bg-voxcina-blue/20 dark:group-hover:bg-voxcina-cream/20"
                       )}>
-                        {uploadedFile ? <Shirt className="h-3.5 w-3.5" /> : <Lock className="h-3 w-3" />}
+                        {(uploadedFile || uploadedPreview) ? <Shirt className="h-3.5 w-3.5" /> : <Lock className="h-3 w-3" />}
                       </div>
                     </motion.div>
                   ))}
                 </AnimatePresence>
               </div>
-              {!uploadedFile && (
+              {!(uploadedFile || uploadedPreview) && (
                 <p className="text-[10px] text-voxcina-blue/40 dark:text-voxcina-cream/40 mt-2 text-center flex items-center justify-center gap-1">
                   <Lock className="h-3 w-3" />
                   ابتدا عکس خود را آپلود کنید
@@ -1069,10 +1069,10 @@ export default function TryOnRoomPage() {
                     handleTryOn(eligibleItems[activeItemIndex], activeItemIndex);
                   }
                 }}
-                disabled={!uploadedFile || activeItemIndex === null || isProcessing}
+                disabled={!(uploadedFile || uploadedPreview) || activeItemIndex === null || isProcessing}
                 className={cn(
                   "w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-300",
-                  !uploadedFile || activeItemIndex === null || isProcessing
+                  !(uploadedFile || uploadedPreview) || activeItemIndex === null || isProcessing
                     ? "bg-voxcina-blue/10 dark:bg-voxcina-blue/20 text-voxcina-blue/30 dark:text-voxcina-cream/30 cursor-not-allowed"
                     : "bg-voxcina-blue text-voxcina-cream shadow-inset-button hover:opacity-90 active:opacity-80"
                 )}
