@@ -499,7 +499,7 @@ export default function TryOnRoomPage() {
       images: rec.image ? [rec.image] : [],
       tryOnImage: rec.image,
       tryOnGarmentType: "upper_body",
-      sizes: [],
+      sizes: rec.size ? [{ size: rec.size, quantity: 99, sku: "" }] : [],
     }],
     category_ids: [],
     brand_id: "",
