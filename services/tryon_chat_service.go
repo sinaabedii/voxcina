@@ -106,12 +106,10 @@ func (s *TryonChatService) AppendMessages(ctx context.Context, chatID string, me
 			"metadata.total_messages": len(messages),
 		},
 		"$setOnInsert": bson.M{
-			"created_at":    now,
-			"user_id":       userID,
-			"status":        models.TryonChatStatusActive,
-			"tryon_ids":     []string{},
-			"metadata.coupons_offered":      []string{},
-			"metadata.products_recommended": []string{},
+			"created_at": now,
+			"user_id":    userID,
+			"status":     models.TryonChatStatusActive,
+			"tryon_ids":  []string{},
 		},
 	}
 
@@ -141,12 +139,10 @@ func (s *TryonChatService) LinkTryon(ctx context.Context, chatID string, userID 
 		"$addToSet": bson.M{"tryon_ids": tryonID},
 		"$set":      bson.M{"updated_at": time.Now()},
 		"$setOnInsert": bson.M{
-			"created_at":    time.Now(),
-			"status":        models.TryonChatStatusActive,
-			"messages":      []models.TryonChatMessage{},
-			"tryon_ids":     []string{tryonID},
-			"metadata.coupons_offered":      []string{},
-			"metadata.products_recommended": []string{},
+			"created_at": time.Now(),
+			"status":     models.TryonChatStatusActive,
+			"messages":   []models.TryonChatMessage{},
+			"tryon_ids":  []string{tryonID},
 		},
 	}
 	_, err := s.collection.UpdateOne(ctx, filter, update, options.Update().SetUpsert(true))

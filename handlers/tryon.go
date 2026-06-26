@@ -1181,6 +1181,7 @@ func LinkTryon(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := tryonChatService.LinkTryon(ctx, req.ChatID, userID, req.TryonID); err != nil {
+		fmt.Printf("[tryon-link] error: %v\n", err)
 		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در اتصال پرو به جلسه")
 		return
 	}
