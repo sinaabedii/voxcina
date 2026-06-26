@@ -1131,6 +1131,30 @@ export default function TryOnRoomPage() {
                     ref={chatContainerRef}
                     className="flex-1 min-h-0 overflow-y-auto scrollbar-thin space-y-1.5 rounded-xl bg-voxcina-blue/[0.06] dark:bg-voxcina-cream/[0.05] border border-secondary-400 dark:border-voxcina-blue/30 p-3"
                   >
+                    {isLoadingSession ? (
+                      <div className="space-y-3 p-2">
+                        <div className="flex items-start gap-1.5">
+                          <div className="w-7 h-7 rounded-full bg-voxcina-blue/10 dark:bg-voxcina-cream/10 animate-pulse flex-shrink-0" />
+                          <div className="space-y-1.5 flex-1 max-w-[65%]">
+                            <div className="h-3 bg-voxcina-blue/10 dark:bg-voxcina-cream/10 rounded-xl animate-pulse" />
+                            <div className="h-3 bg-voxcina-blue/10 dark:bg-voxcina-cream/10 rounded-xl animate-pulse w-4/5" />
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-1.5 flex-row-reverse">
+                          <div className="w-7 h-7 rounded-full bg-voxcina-blue/10 dark:bg-voxcina-cream/10 animate-pulse flex-shrink-0" />
+                          <div className="space-y-1.5 flex-1 max-w-[45%]">
+                            <div className="h-3 bg-voxcina-blue/10 dark:bg-voxcina-cream/10 rounded-xl animate-pulse" />
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-1.5">
+                          <div className="w-7 h-7 rounded-full bg-voxcina-blue/10 dark:bg-voxcina-cream/10 animate-pulse flex-shrink-0" />
+                          <div className="space-y-1.5 flex-1 max-w-[75%]">
+                            <div className="h-3 bg-voxcina-blue/10 dark:bg-voxcina-cream/10 rounded-xl animate-pulse" />
+                            <div className="h-3 bg-voxcina-blue/10 dark:bg-voxcina-cream/10 rounded-xl animate-pulse w-3/5" />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
                     <AnimatePresence>
                       {chatMessages.map((msg, idx) => {
                         const prevMsg = chatMessages[idx - 1];
@@ -1229,6 +1253,7 @@ export default function TryOnRoomPage() {
                         );
                       })}
                     </AnimatePresence>
+                    )}
 
                     {/* Typing indicator as inline bubble */}
                     {chatLoading && (
