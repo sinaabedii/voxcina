@@ -41,6 +41,7 @@ import { useTryOnStore } from "@/store/tryon-store";
 import { useAuthStore } from "@/store/auth-store";
 import { useBrandStore } from "@/store/brand-store";
 import { useProductStore } from "@/store/product-store";
+import { activityTracker, ActivityType } from "@/lib/activity-tracker";
 import BackendImage from "@/components/BackendImage";
 import { ImageSkeleton } from "@/components/ui/Loading";
 
@@ -89,6 +90,10 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
 
   const imageContainerRef = useRef<HTMLDivElement>(null);
+  const imageViewStartRef = useRef<number>(Date.now());
+  const lastImageSourceRef = useRef<string>('initial');
+  const productViewStartRef = useRef<number>(Date.now());
+  const productViewReportedRef = useRef<boolean>(false);
 
   const { addItem } = useCartStore();
   const { submitReview } = useReviewStore();
@@ -213,15 +218,47 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     setSelectedColor(undefined);
   };
 
+  const handleColorChange = (colorName: string | undefined) => {
+    setSelectedColor(colorName);
+    if (product) {
+      const variant = product.colorVariants?.find(cv => cv.colorName === colorName);
+      const inStock = variant?.sizes?.some(s => s.quantity > 0);
+      activityTracker.trackColorClick(
+        product.id,
+        product.name,
+        colorName,
+        variant?.color,
+        {
+          swatchImage: variant?.swatchImage,
+          hasStock: inStock,
+        }
+      );
+    }
+  };
+
   const avgRating = reviews.length > 0
     ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
     : 0;
 
-  // Add to recently viewed on mount
+  // Add to recently viewed on mount + track product view (with dwell-time duration on unmount)
   useEffect(() => {
-    if (product) {
-      addRecentlyViewed(product);
-    }
+    if (!product) return;
+    addRecentlyViewed(product);
+    productViewStartRef.current = Date.now();
+    productViewReportedRef.current = false;
+    activityTracker.trackProductView(product.id, product.name);
+    return () => {
+      if (productViewReportedRef.current) return;
+      const duration = Date.now() - productViewStartRef.current;
+      activityTracker.track({
+        activityType: ActivityType.PRODUCT_VIEW,
+        productId: product.id,
+        productName: product.name,
+        duration,
+        metadata: { source: 'unmount_dwell' },
+      });
+      productViewReportedRef.current = true;
+    };
   }, [product, addRecentlyViewed]);
 
   // Fetch brand detail when product is loaded
@@ -256,10 +293,33 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
       const allLoaded = newImages.every(img => loadedImages.has(img));
       if (!allLoaded) {
         setImagesLoading(true);
+        lastImageSourceRef.current = 'color_change';
         setSelectedImage(0);
       }
     }
   }, [selectedColor]);
+
+  // Track image gallery interaction: when selectedImage changes, report the
+  // time the user spent on the previous image. Source is captured by the
+  // helpers below (handlePrevImage, handleNextImage, thumbnail click, etc.).
+  useEffect(() => {
+    if (!product) return;
+    const total = productImages?.length || 0;
+    if (total === 0) return;
+    const now = Date.now();
+    const dwell = now - imageViewStartRef.current;
+    imageViewStartRef.current = now;
+    const safeIndex = Math.min(selectedImage, total - 1);
+    activityTracker.trackImageViewed(
+      product.id,
+      product.name,
+      safeIndex,
+      total,
+      lastImageSourceRef.current,
+      dwell,
+    );
+    lastImageSourceRef.current = 'navigation';
+  }, [selectedImage, productImages, product]);
 
   // Handle image load completion
   const handleImageLoad = (imageSrc: string) => {
@@ -286,9 +346,17 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!productImages.length) return;
       if (e.key === "ArrowLeft") {
-        setSelectedImage((prev) => prev < productImages.length - 1 ? prev + 1 : prev);
+        setSelectedImage((prev) => {
+          if (prev >= productImages.length - 1) return prev;
+          lastImageSourceRef.current = 'keyboard';
+          return prev + 1;
+        });
       } else if (e.key === "ArrowRight") {
-        setSelectedImage((prev) => (prev > 0 ? prev - 1 : prev));
+        setSelectedImage((prev) => {
+          if (prev <= 0) return prev;
+          lastImageSourceRef.current = 'keyboard';
+          return prev - 1;
+        });
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -328,12 +396,36 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   };
 
   const handlePrevImage = () => {
-    setSelectedImage((prev) => (prev > 0 ? prev - 1 : prev));
+    setSelectedImage((prev) => {
+      if (prev <= 0) return prev;
+      lastImageSourceRef.current = 'arrow';
+      return prev - 1;
+    });
   };
 
   const handleNextImage = () => {
     if (!productImages) return;
-    setSelectedImage((prev) => prev < (productImages?.length || 1) - 1 ? prev + 1 : prev);
+    setSelectedImage((prev) => {
+      if (prev >= (productImages?.length || 1) - 1) return prev;
+      lastImageSourceRef.current = 'arrow';
+      return prev + 1;
+    });
+  };
+
+  const handleZoomToggle = () => {
+    setIsZoomed((prev) => {
+      const next = !prev;
+      if (product) {
+        activityTracker.trackImageViewed(
+          product.id,
+          product.name,
+          selectedImage,
+          productImages?.length || 0,
+          next ? 'zoom_in' : 'zoom_out',
+        );
+      }
+      return next;
+    });
   };
 
   const handleShareProduct = () => {
@@ -395,7 +487,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
         >
           {productImages && productImages.length > 0 ? (
             <>
-              <div className="relative w-full h-full" onClick={() => setIsZoomed(!isZoomed)}>
+              <div className="relative w-full h-full" onClick={handleZoomToggle}>
                 {(imagesLoading && !isMainImageLoaded) && (
                   <ImageSkeleton className="absolute inset-0 z-10 rounded-2xl" />
                 )}
@@ -454,7 +546,10 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
                     ? "border-voxcina-blue dark:border-voxcina-cream ring-2 ring-voxcina-blue/30 dark:ring-voxcina-cream/30 shadow-sm"
                     : "border-voxcina-cream/50 dark:border-voxcina-blue/30 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/50 bg-white dark:bg-zinc-900"
                 }`}
-                onClick={() => setSelectedImage(index)}
+                onClick={() => {
+                  lastImageSourceRef.current = 'thumbnail';
+                  setSelectedImage(index);
+                }}
               >
                 <div className="relative w-full h-full">
                   {(imagesLoading && !loadedImages.has(image)) && (
@@ -532,7 +627,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
               isAvailable: !selectedSize || availableColorsForSelectedSize.some(ac => ac.color === c.color)
             }))}
             selectedColor={selectedColor}
-            onColorChange={setSelectedColor}
+            onColorChange={handleColorChange}
           />
         )}
 

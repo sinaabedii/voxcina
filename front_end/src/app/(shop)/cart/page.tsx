@@ -9,6 +9,7 @@ import { formatPrice } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
+import { activityTracker } from "@/lib/activity-tracker";
 import { CartItem } from '@/types/cart';
 
 /**
@@ -497,7 +498,14 @@ export default function CartPage() {
                   transition={{ duration: 0.2 }}
                   className="mt-6"
                 >
-                  <Link href="/checkout" className="block">
+                  <Link href="/checkout" className="block" onClick={() => {
+                    activityTracker.trackCheckoutStarted({
+                      source: 'cart_page',
+                      cartItemCount: cart.items.length,
+                      cartTotal: summary.subtotal - summary.discount,
+                      hasPromoCode: !!promoCode?.isValid,
+                    });
+                  }}>
                     <Button
                       variant="primary"
                       size="lg"

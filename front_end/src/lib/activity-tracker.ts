@@ -75,6 +75,13 @@ class ActivityTracker {
     const SESSION_KEY = 'activity_session_id';
     const SESSION_DURATION = 30 * 60 * 1000; // 30 minutes
 
+    // SSR / build-time guard: localStorage is undefined on the server.
+    // Return a throwaway session id; it will be replaced on the client when
+    // the singleton hydrates.
+    if (typeof localStorage === 'undefined') {
+      return `ssr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+
     const stored = localStorage.getItem(SESSION_KEY);
     const storedTime = localStorage.getItem(`${SESSION_KEY}_time`);
 
@@ -281,6 +288,95 @@ class ActivityTracker {
   }
 
   /**
+   * Track a product click from a card/link with structured product context.
+   * Use this for product card clicks; the global anchor listener auto-tracks
+   * other links as product_click (with link text/href only).
+   */
+  public trackProductClick(productId: string, productName?: string, metadata?: Record<string, any>): void {
+    this.track({
+      activityType: ActivityType.PRODUCT_CLICK,
+      productId,
+      productName,
+      metadata: { source: 'product_card', ...metadata },
+    });
+  }
+
+  /**
+   * Track a color selection on the product detail page.
+   * Pass undefined colorName to record a color deselection.
+   */
+  public trackColorClick(productId: string, productName: string | undefined, colorName: string | undefined, colorHex?: string, metadata?: Record<string, any>): void {
+    this.track({
+      activityType: ActivityType.PRODUCT_CLICK,
+      productId,
+      productName,
+      metadata: {
+        source: 'color_selector',
+        clickType: colorName ? 'color_selected' : 'color_deselected',
+        colorName: colorName ?? null,
+        colorHex: colorHex ?? null,
+        ...metadata,
+      },
+    });
+  }
+
+  /**
+   * Track when a product image is selected in the gallery.
+   * `source` describes how the user got there: 'thumbnail' | 'arrow' | 'keyboard' | 'lightbox'.
+   * Duration is the time (ms) the user spent on the previous image (0 for the first one).
+   */
+  public trackImageViewed(productId: string, productName: string | undefined, imageIndex: number, totalImages: number, source: string, duration?: number, metadata?: Record<string, any>): void {
+    this.track({
+      activityType: ActivityType.IMAGE_VIEWED,
+      productId,
+      productName,
+      duration,
+      metadata: {
+        imageIndex,
+        totalImages,
+        source,
+        ...metadata,
+      },
+    });
+  }
+
+  /**
+   * Track successful payment verification (authoritative backend-confirmed).
+   * Force-flushes the queue because this is a high-value terminal event.
+   */
+  public trackPaymentSuccess(orderId: string, metadata?: Record<string, any>): void {
+    this.track({
+      activityType: ActivityType.PAYMENT_SUCCESS,
+      orderId,
+      metadata,
+    });
+    this.flush(true);
+  }
+
+  /**
+   * Track a failed or abandoned payment.
+   * `reason` is one of: 'cancelled' | 'abandoned' | 'gateway_failed' | 'verify_failed'.
+   */
+  public trackPaymentFailed(orderId: string | null, reason: string, metadata?: Record<string, any>): void {
+    this.track({
+      activityType: ActivityType.PAYMENT_FAILED,
+      orderId: orderId ?? undefined,
+      metadata: { reason, ...metadata },
+    });
+  }
+
+  /**
+   * Track start of a conversation (e.g. coupon negotiation chatbot).
+   * Pass `metadata.context` to disambiguate the conversation type.
+   */
+  public trackChatStarted(metadata?: Record<string, any>): void {
+    this.track({
+      activityType: ActivityType.CHAT_STARTED,
+      metadata,
+    });
+  }
+
+  /**
    * Schedule a flush
    */
   private scheduleFlush(): void {
@@ -346,18 +442,21 @@ export const activityTracker = new ActivityTracker();
 
 // Auto-track common events
 if (typeof window !== 'undefined') {
-  // Track clicks on links
+  // Track clicks on links. Links with `data-activity-tracked="true"` are
+  // expected to fire their own structured product_click event (e.g. product
+  // cards), so we skip them here to avoid duplicate tracking.
   document.addEventListener('click', (e) => {
     const target = e.target as HTMLElement;
     const link = target.closest('a');
-    
-    if (link && link.href) {
+
+    if (link && link.href && link.getAttribute('data-activity-tracked') !== 'true') {
       const href = link.getAttribute('href');
       if (href && !href.startsWith('#')) {
         activityTracker.track({
           activityType: ActivityType.PRODUCT_CLICK,
           metadata: {
-            linkText: link.textContent,
+            source: 'global_link',
+            linkText: link.textContent?.trim().slice(0, 200),
             linkHref: href,
           },
         });

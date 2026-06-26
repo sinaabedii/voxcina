@@ -18,6 +18,7 @@ import Button from "@/components/ui/Button";
 import BackendImage from "@/components/BackendImage";
 import BeforeAfterSlider from "@/components/ui/BeforeAfterSlider";
 import CountdownTimer from "@/components/ui/CountdownTimer";
+import { activityTracker } from "@/lib/activity-tracker";
 
 interface TryOnEligibleItem {
   cartItem: CartItem;
@@ -318,6 +319,13 @@ export default function TryOnRoomPage() {
       setCouponApplied(false);
       setCouponExpired(false);
       setShowNegotiationPrompt(true);
+      activityTracker.trackChatStarted({
+        context: "coupon_negotiation",
+        trigger: "post_tryon",
+        tryOnProductId: item.product.id,
+        tryOnProductName: item.product.name,
+        cartItemCount: cart.items.length,
+      });
     }
   };
 

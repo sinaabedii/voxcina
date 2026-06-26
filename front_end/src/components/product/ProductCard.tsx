@@ -11,6 +11,7 @@ import Button from "@/components/ui/Button";
 import { toast } from "react-toastify";
 import { useDashboardStore } from "@/store/dashboard-store";
 import { motion, AnimatePresence } from "framer-motion";
+import { activityTracker } from "@/lib/activity-tracker";
 
 interface ProductCardProps {
   item: ColorVariantListItem;
@@ -50,6 +51,17 @@ const ProductCard: React.FC<ProductCardProps> = ({
   const handleOpenModal = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsModalOpen(true);
+  };
+
+  const handleProductClick = () => {
+    activityTracker.trackProductClick(productId, name, {
+      colorName,
+      colorHex: color,
+      inStock,
+      brand,
+      price,
+      listPosition: undefined,
+    });
   };
 
   const handleCloseModal = () => {
@@ -92,6 +104,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
     <>
       <Link
         href={`/products/${productId}?color=${encodeURIComponent(color)}`}
+        data-activity-tracked="true"
+        onClick={handleProductClick}
         className={`product-card group block rounded-xl overflow-hidden transition-all duration-300 ${glassEffect
             ? "glass-effect backdrop-blur-sm hover:bg-card/90"
             : "bg-card border border-border/10"

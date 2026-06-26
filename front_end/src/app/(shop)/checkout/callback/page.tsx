@@ -7,6 +7,7 @@ import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Link from "next/link";
 import { useCart } from "@/hooks/useCart";
+import { activityTracker } from "@/lib/activity-tracker";
 
 function CallbackContent() {
   const searchParams = useSearchParams();
@@ -59,6 +60,11 @@ function CallbackContent() {
         clearCart();
         setStatus("success");
         setMessage("پرداخت با موفقیت انجام شد");
+        activityTracker.trackPaymentSuccess(orderIdParam ?? "", {
+          trackId: trackIdParam,
+          gateway: searchParams.get("gateway") ?? undefined,
+          source: "payment_callback",
+        });
         setTimeout(() => {
           router.push(`/checkout/success?orderId=${orderIdParam}&trackId=${trackIdParam}`);
         }, 1500);
@@ -66,9 +72,21 @@ function CallbackContent() {
         // User pressed back on payment page
         setStatus("abandoned");
         setMessage("پرداخت تکمیل نشد. میتوانید دوباره تلاش کنید.");
+        activityTracker.trackPaymentFailed(orderIdParam, "abandoned", {
+          trackId: trackIdParam,
+          source: "payment_callback",
+        });
       } else {
         setStatus("failed");
         setMessage(paymentStatus === "cancelled" ? "پرداخت توسط شما لغو شد" : "پرداخت ناموفق بود");
+        activityTracker.trackPaymentFailed(
+          orderIdParam,
+          paymentStatus === "cancelled" ? "cancelled" : "gateway_failed",
+          {
+            trackId: trackIdParam,
+            source: "payment_callback",
+          }
+        );
       }
     };
 

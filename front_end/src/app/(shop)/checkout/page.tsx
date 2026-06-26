@@ -31,6 +31,7 @@ import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import { Address } from "@/types/user";
 import { ShippingMethod } from "@/services/shipping/types";
 import { formatPrice, generateId } from "@/lib/utils";
+import { activityTracker } from "@/lib/activity-tracker";
 import { toast } from "react-hot-toast";
 
 export default function CheckoutPage() {
@@ -439,6 +440,14 @@ export default function CheckoutPage() {
 
       const orderData = await orderResponse.json();
       const orderId = orderData.id;
+
+      activityTracker.trackOrderPlaced(orderId, totalAmount, {
+        paymentMethod: selectedPaymentMethod,
+        gateway: selectedPaymentMethod === "online" ? selectedGateway : undefined,
+        shippingMethod: selectedShippingMethod?.id,
+        itemCount: cart.items.length,
+        source: "checkout_page",
+      });
 
       // Step 2: Handle payment based on selected method
       if (selectedPaymentMethod === "online") {
