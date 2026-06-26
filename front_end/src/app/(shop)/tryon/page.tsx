@@ -387,6 +387,16 @@ export default function TryOnRoomPage() {
     setChatMessages((prev) => [...prev, procMsg]);
 
     try {
+      // After reload, uploadedFile is null but uploadedPreview is set from DB.
+      // Recreate the File from the persisted image URL so it gets sent in the
+      // tryon request.
+      if (!uploadedFile && uploadedPreview) {
+        const imgRes = await fetch(uploadedPreview);
+        const blob = await imgRes.blob();
+        const ext = blob.type === "image/png" ? "png" : "jpg";
+        const file = new File([blob], `person.${ext}`, { type: blob.type || "image/jpeg" });
+        useTryOnStore.setState({ uploadedFile: file });
+      }
       await startTryOn(item.colorVariant.tryOnImage!, garmentType);
     } catch {
       setChatMessages((prev) => prev.filter((m) => m.tryonData?.processingId !== processingId));
