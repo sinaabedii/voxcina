@@ -38,7 +38,7 @@ export default function ClientLayout({
     <AuthProvider>
       {children}
       {isHomePage && <ChatBot />}
-      {isHomePage && <AssistantWidget />}
+      {/* {isHomePage && <AssistantWidget />} */}
     </AuthProvider>
   );
 }

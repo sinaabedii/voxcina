@@ -37,12 +37,15 @@ type CouponChatMessage struct {
 }
 
 type CouponCartItem struct {
-	ProductID   string  `json:"product_id"`
-	ProductName string  `json:"product_name"`
-	Price       float64 `json:"price"`
-	Color       string  `json:"color,omitempty"`
-	Size        string  `json:"size,omitempty"`
-	Image       string  `json:"image,omitempty"`
+	ProductID        string  `json:"product_id"`
+	ProductName      string  `json:"product_name"`
+	Price            float64 `json:"price"`
+	Color            string  `json:"color,omitempty"`
+	ColorName        string  `json:"color_name,omitempty"`
+	Size             string  `json:"size,omitempty"`
+	Image            string  `json:"image,omitempty"`
+	SelectedColor    string  `json:"selected_color,omitempty"`
+	Product          any     `json:"product,omitempty"`
 }
 
 type NegotiateResponse struct {
@@ -129,7 +132,18 @@ func buildSellerMessages(req NegotiateRequest) []map[string]interface{} {
 
 	complementaryCtx := ""
 	if len(req.ComplementaryProducts) > 0 {
-		compJSON, _ := json.Marshal(req.ComplementaryProducts)
+		lightweight := make([]map[string]interface{}, 0, len(req.ComplementaryProducts))
+		for _, cp := range req.ComplementaryProducts {
+			lightweight = append(lightweight, map[string]interface{}{
+				"product_id":   cp.ProductID,
+				"product_name": cp.ProductName,
+				"price":        cp.Price,
+				"color":        cp.Color,
+				"color_name":   cp.ColorName,
+				"size":         cp.Size,
+			})
+		}
+		compJSON, _ := json.Marshal(lightweight)
 		complementaryCtx = fmt.Sprintf("\nComplementary products available for recommendation (not in customer cart):\n%s\n", string(compJSON))
 	}
 

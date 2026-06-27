@@ -57,7 +57,10 @@ interface RecommendedProduct {
   price: number;
   image: string;
   color?: string;
+  color_name?: string;
   size?: string;
+  selected_color?: string;
+  product?: Product;
 }
 
 const RECOMMENDATION_TEMPLATES: Record<string, Record<string, (a: string, b: string) => string>> = {
@@ -486,42 +489,68 @@ export default function TryOnRoomPage() {
     sendNegotiationMessage(text, item);
   };
 
-  const buildMinimalRecommendedProduct = (rec: RecommendedProduct): Product => ({
-    id: rec.product_id,
-    name: rec.product_name,
-    description: "",
-    price: rec.price,
-    originalPrice: rec.price,
-    mainImages: rec.image ? [rec.image] : [],
-    colorVariants: [{
-      color: rec.color || "",
-      colorName: "",
-      images: rec.image ? [rec.image] : [],
-      tryOnImage: rec.image,
-      tryOnGarmentType: "upper_body",
-      sizes: rec.size ? [{ size: rec.size, quantity: 99, sku: "" }] : [],
-    }],
-    category_ids: [],
-    brand_id: "",
-    attributes: [],
-    is_flash_sale: false,
-    is_active: true,
-    inStock: true,
-    created_at: "",
-    updated_at: "",
-  });
+  const buildRecommendedProduct = (rec: RecommendedProduct): Product => {
+    if (rec.product) return rec.product;
+    return {
+      id: rec.product_id,
+      name: rec.product_name,
+      description: "",
+      price: rec.price,
+      originalPrice: rec.price,
+      mainImages: rec.image ? [rec.image] : [],
+      colorVariants: [{
+        color: rec.color || "",
+        colorName: rec.color_name || "",
+        images: rec.image ? [rec.image] : [],
+        tryOnImage: rec.image,
+        tryOnGarmentType: "upper_body",
+        sizes: rec.size ? [{ size: rec.size, quantity: 99, sku: "" }] : [],
+      }],
+      category_ids: [],
+      brand_id: "",
+      attributes: [],
+      is_flash_sale: false,
+      is_active: true,
+      inStock: true,
+      created_at: "",
+      updated_at: "",
+    };
+  };
+
+  const getRecommendedColor = (rec: RecommendedProduct): string | undefined => {
+    return rec.selected_color || rec.color || undefined;
+  };
+
+  const getRecommendedSize = (rec: RecommendedProduct): string | undefined => {
+    if (rec.size) return rec.size;
+    if (!rec.product) return undefined;
+    const color = getRecommendedColor(rec);
+    const cv = rec.product.colorVariants?.find(v => v.color === color);
+    return cv?.sizes?.[0]?.size;
+  };
+
+  const getRecommendedDisplayImage = (rec: RecommendedProduct): string | null => {
+    if (rec.product) {
+      const color = getRecommendedColor(rec);
+      const cv = rec.product.colorVariants?.find(v => v.color === color);
+      if (cv?.images?.[0]) return cv.images[0];
+    }
+    return rec.image || null;
+  };
 
   const tryOnRecommendedProduct = async (rec: RecommendedProduct) => {
+    const color = getRecommendedColor(rec);
+    const size = getRecommendedSize(rec);
     const currentItems = computeEligibleItems(useCartStore.getState().cart.items);
     let index = currentItems.findIndex(
-      (ei) => ei.product.id === rec.product_id && ei.colorVariant.color === (rec.color || "")
+      (ei) => ei.product.id === rec.product_id && ei.colorVariant.color === (color || "")
     );
     if (index === -1) {
-      const minimalProduct = buildMinimalRecommendedProduct(rec);
-      await addItem(minimalProduct, 1, rec.size, rec.color || undefined);
+      const product = buildRecommendedProduct(rec);
+      await addItem(product, 1, size, color);
       const updatedItems = computeEligibleItems(useCartStore.getState().cart.items);
       index = updatedItems.findIndex(
-        (ei) => ei.product.id === rec.product_id && ei.colorVariant.color === (rec.color || "")
+        (ei) => ei.product.id === rec.product_id && ei.colorVariant.color === (color || "")
       );
       if (index !== -1) {
         await handleTryOn(updatedItems[index], index);
@@ -532,13 +561,15 @@ export default function TryOnRoomPage() {
   };
 
   const addRecommendedToCart = async (rec: RecommendedProduct) => {
+    const color = getRecommendedColor(rec);
+    const size = getRecommendedSize(rec);
     const currentItems = computeEligibleItems(useCartStore.getState().cart.items);
     const exists = currentItems.some(
-      (ei) => ei.product.id === rec.product_id && ei.colorVariant.color === (rec.color || "")
+      (ei) => ei.product.id === rec.product_id && ei.colorVariant.color === (color || "")
     );
     if (!exists) {
-      const minimalProduct = buildMinimalRecommendedProduct(rec);
-      await addItem(minimalProduct, 1, rec.size, rec.color || undefined);
+      const product = buildRecommendedProduct(rec);
+      await addItem(product, 1, size, color);
       toast.success("به سبد خرید اضافه شد");
     } else {
       toast.info("این محصول در سبد خرید شما موجود است");
@@ -1388,13 +1419,18 @@ export default function TryOnRoomPage() {
                           <Sparkles className="h-3.5 w-3.5 text-voxcina-blue dark:text-voxcina-cream animate-badge-float" />
                           <p className="text-[11px] font-bold text-voxcina-blue dark:text-voxcina-cream">پیشنهاد فروشنده</p>
                         </div>
-                        <div className="flex items-center gap-3 mb-2">
+                        <Link
+                          href={`/products/${recommendedProduct.product_id}?color=${encodeURIComponent(getRecommendedColor(recommendedProduct) || "")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 mb-2 group"
+                        >
                           <div className="w-14 h-14 rounded-xl overflow-hidden bg-background border border-secondary-300 dark:border-voxcina-blue/20 flex-shrink-0">
-                            {recommendedProduct.image ? (
+                            {getRecommendedDisplayImage(recommendedProduct) ? (
                               <BackendImage
-                                src={recommendedProduct.image}
+                                src={getRecommendedDisplayImage(recommendedProduct)!}
                                 alt={recommendedProduct.product_name}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
@@ -1403,10 +1439,10 @@ export default function TryOnRoomPage() {
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-voxcina-blue dark:text-voxcina-cream truncate">{recommendedProduct.product_name}</p>
+                            <p className="text-xs font-medium text-voxcina-blue dark:text-voxcina-cream truncate group-hover:underline">{recommendedProduct.product_name}</p>
                             <p className="text-[11px] font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-0.5">{formatPrice(recommendedProduct.price)}</p>
                           </div>
-                        </div>
+                        </Link>
                         <div className="flex gap-2">
                           <Button
                             variant="primary"

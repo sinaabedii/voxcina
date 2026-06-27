@@ -354,6 +354,8 @@ func findComplementaryProducts(productID, color string) ([]services.CouponCartIt
 			if cv.TryOnImage != "" {
 				item.Image = cv.TryOnImage
 				item.Color = cv.Color
+				item.ColorName = cv.ColorName
+				item.SelectedColor = cv.Color
 				if len(cv.Sizes) > 0 {
 					item.Size = cv.Sizes[0].Size
 				}
@@ -365,6 +367,8 @@ func findComplementaryProducts(productID, color string) ([]services.CouponCartIt
 				if len(cv.Images) > 0 {
 					item.Image = cv.Images[0]
 					item.Color = cv.Color
+					item.ColorName = cv.ColorName
+					item.SelectedColor = cv.Color
 					if len(cv.Sizes) > 0 {
 						item.Size = cv.Sizes[0].Size
 					}
@@ -372,6 +376,8 @@ func findComplementaryProducts(productID, color string) ([]services.CouponCartIt
 				}
 			}
 		}
+		productCopy := p
+		item.Product = &productCopy
 		result = append(result, item)
 	}
 
