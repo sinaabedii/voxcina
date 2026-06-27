@@ -24,9 +24,10 @@ export const useCart = () => {
     product: Product,
     quantity: number = 1,
     size?: string,
-    color?: string
+    color?: string,
+    colorName?: string
   ) => {
-    addItem(product, quantity, size, color);
+    addItem(product, quantity, size, color, colorName);
   };
 
   // Update item quantity using productId, size, color (new data structure)

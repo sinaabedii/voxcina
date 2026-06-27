@@ -133,7 +133,7 @@ func enrichVariantFromProduct(product *models.Product, variant models.CartVarian
 	}
 
 	for _, colorVariant := range product.ColorVariants {
-		if colorVariant.Color == variant.Color {
+		if colorVariant.Color == variant.Color || (colorVariant.Color == "" && colorVariant.ColorName != "" && colorVariant.ColorName == variant.Color) {
 			enriched.ColorName = colorVariant.ColorName
 			for _, sizeVariant := range colorVariant.Sizes {
 				if sizeVariant.Size == variant.Size {
@@ -186,7 +186,7 @@ func updateCartAndRespond(ctx context.Context, w http.ResponseWriter, cart *mode
 // Returns the available stock and an error if validation fails.
 func validateVariantStock(product *models.Product, color, size string, requestedQty int) (int, int, error) {
 	for _, colorVariant := range product.ColorVariants {
-		if colorVariant.Color == color {
+		if colorVariant.Color == color || (colorVariant.Color == "" && colorVariant.ColorName != "" && colorVariant.ColorName == color) {
 			for _, sizeVariant := range colorVariant.Sizes {
 				if sizeVariant.Size == size {
 					if requestedQty > sizeVariant.Quantity {
@@ -637,7 +637,8 @@ func AddItemToExistingCart(w http.ResponseWriter, r *http.Request) {
 	existingQuantity := 0
 	for i, item := range cart.Items {
 		if item.ProductID == productID && item.Variant.Size == enrichedVariant.Size &&
-			item.Variant.Color == enrichedVariant.Color {
+			(item.Variant.Color == enrichedVariant.Color ||
+				(item.Variant.Color == "" && item.Variant.ColorName != "" && item.Variant.ColorName == enrichedVariant.Color)) {
 			itemIndex = i
 			existingQuantity = item.Quantity
 			break
@@ -754,7 +755,8 @@ func UpdateCart(w http.ResponseWriter, r *http.Request) {
 	itemIndex := -1
 	for i, item := range cart.Items {
 		if item.ProductID == productID && item.Variant.Size == requestData.Variant.Size &&
-			item.Variant.Color == requestData.Variant.Color {
+			(item.Variant.Color == requestData.Variant.Color ||
+				(item.Variant.Color == "" && item.Variant.ColorName != "" && item.Variant.ColorName == requestData.Variant.Color)) {
 			itemIndex = i
 			break
 		}
@@ -832,7 +834,8 @@ func RemoveFromCart(w http.ResponseWriter, r *http.Request) {
 	newItems := []models.CartItem{}
 	for _, item := range cart.Items {
 		if item.ProductID == productID && item.Variant.Size == variantSize &&
-			item.Variant.Color == variantColor {
+			(item.Variant.Color == variantColor ||
+				(item.Variant.Color == "" && item.Variant.ColorName != "" && item.Variant.ColorName == variantColor)) {
 			itemFoundAndRemoved = true
 			// Skip this item to remove it
 		} else {

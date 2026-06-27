@@ -89,8 +89,11 @@ const NEGOTIATION_OPENERS = [
 
 function getCartItemImage(item: CartItem): string {
   if (!item.product) return "";
-  if (item.color && item.product.colorVariants?.length) {
-    const matched = item.product.colorVariants.find((cv) => cv.color === item.color || cv.colorName === item.color);
+  if (item.product.colorVariants?.length) {
+    const matched = item.product.colorVariants.find((cv) =>
+      (item.color && (cv.color === item.color || cv.colorName === item.color)) ||
+      (item.colorName && (cv.color === item.colorName || cv.colorName === item.colorName))
+    );
     if (matched?.images?.length) return matched.images[0];
   }
   if (item.product.mainImages?.length) return item.product.mainImages[0];
@@ -175,8 +178,11 @@ export default function TryOnRoomPage() {
     return items
       .filter((item) => item.product?.colorVariants?.length)
       .map((item) => {
-        const colorVariant = item.color
-          ? item.product.colorVariants.find((cv) => cv.color === item.color || cv.colorName === item.color)
+        const colorVariant = (item.color || item.colorName)
+          ? item.product.colorVariants.find((cv) =>
+              (item.color && (cv.color === item.color || cv.colorName === item.color)) ||
+              (item.colorName && (cv.color === item.colorName || cv.colorName === item.colorName))
+            )
           : item.product.colorVariants[0];
         return colorVariant?.tryOnImage
           ? { cartItem: item, colorVariant, product: item.product }
@@ -525,14 +531,14 @@ export default function TryOnRoomPage() {
     if (rec.size) return rec.size;
     if (!rec.product) return undefined;
     const color = getRecommendedColor(rec);
-    const cv = rec.product.colorVariants?.find(v => v.color === color);
+    const cv = rec.product.colorVariants?.find(v => v.color === color || v.colorName === color);
     return cv?.sizes?.[0]?.size;
   };
 
   const getRecommendedDisplayImage = (rec: RecommendedProduct): string | null => {
     if (rec.product) {
       const color = getRecommendedColor(rec);
-      const cv = rec.product.colorVariants?.find(v => v.color === color);
+      const cv = rec.product.colorVariants?.find(v => v.color === color || v.colorName === color);
       if (cv?.images?.[0]) return cv.images[0];
     }
     return rec.image || null;
@@ -541,16 +547,17 @@ export default function TryOnRoomPage() {
   const tryOnRecommendedProduct = async (rec: RecommendedProduct) => {
     const color = getRecommendedColor(rec);
     const size = getRecommendedSize(rec);
+    const colorName = rec.color_name || color;
     const currentItems = computeEligibleItems(useCartStore.getState().cart.items);
     let index = currentItems.findIndex(
-      (ei) => ei.product.id === rec.product_id && ei.colorVariant.color === (color || "")
+      (ei) => ei.product.id === rec.product_id && (ei.colorVariant.color === color || ei.colorVariant.colorName === color)
     );
     if (index === -1) {
       const product = buildRecommendedProduct(rec);
-      await addItem(product, 1, size, color);
+      await addItem(product, 1, size, color, colorName);
       const updatedItems = computeEligibleItems(useCartStore.getState().cart.items);
       index = updatedItems.findIndex(
-        (ei) => ei.product.id === rec.product_id && ei.colorVariant.color === (color || "")
+        (ei) => ei.product.id === rec.product_id && (ei.colorVariant.color === color || ei.colorVariant.colorName === color)
       );
       if (index !== -1) {
         await handleTryOn(updatedItems[index], index);
@@ -563,13 +570,14 @@ export default function TryOnRoomPage() {
   const addRecommendedToCart = async (rec: RecommendedProduct) => {
     const color = getRecommendedColor(rec);
     const size = getRecommendedSize(rec);
+    const colorName = rec.color_name || color;
     const currentItems = computeEligibleItems(useCartStore.getState().cart.items);
     const exists = currentItems.some(
-      (ei) => ei.product.id === rec.product_id && ei.colorVariant.color === (color || "")
+      (ei) => ei.product.id === rec.product_id && (ei.colorVariant.color === color || ei.colorVariant.colorName === color)
     );
     if (!exists) {
       const product = buildRecommendedProduct(rec);
-      await addItem(product, 1, size, color);
+      await addItem(product, 1, size, color, colorName);
       toast.success("به سبد خرید اضافه شد");
     } else {
       toast.info("این محصول در سبد خرید شما موجود است");

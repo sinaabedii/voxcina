@@ -19,8 +19,11 @@ import { CartItem } from '@/types/cart';
  * @returns The image URL or null if no image is available
  */
 const getCartItemImage = (item: CartItem): string | null => {
-  if (item.color && item.product.colorVariants) {
-    const colorVariant = item.product.colorVariants.find(cv => cv.color === item.color || cv.colorName === item.color);
+  if (item.product.colorVariants) {
+    const colorVariant = item.product.colorVariants.find(cv =>
+      (item.color && (cv.color === item.color || cv.colorName === item.color)) ||
+      (item.colorName && (cv.color === item.colorName || cv.colorName === item.colorName))
+    );
     if (colorVariant?.images?.[0]) return colorVariant.images[0];
   }
   if (item.product.mainImages?.[0]) return item.product.mainImages[0];
@@ -310,21 +313,40 @@ export default function CartPage() {
                               سایز: {item.size}
                             </span>
                           )}
-                          {item.color && (
-                            <span className="bg-voxcina-cream/30 dark:bg-voxcina-blue/20 px-2 py-0.5 rounded-md flex items-center">
-                              رنگ:
-                              <span
-                                className="inline-block w-3 h-3 rounded-full mr-1 ml-1 border border-voxcina-cream dark:border-voxcina-blue/40"
-                                style={{ backgroundColor: item.color }}
-                              />
-                              {/* Display color name - prefer from cart item, fallback to colorVariants */}
-                              {(item.colorName || item.product.colorVariants?.find(cv => cv.color === item.color || cv.colorName === item.color)?.colorName) && (
+                          {item.color || item.colorName ? (
+                            <span className="bg-voxcina-cream/30 dark:bg-voxcina-blue/20 px-2 py-0.5 rounded-md flex items-center gap-1">
+                              <span className="inline-block w-3 h-3 rounded-full border border-voxcina-cream dark:border-voxcina-blue/40 overflow-hidden flex-shrink-0"
+                                style={(() => {
+                                  const cv = item.product.colorVariants?.find(cv =>
+                                    (item.color && (cv.color === item.color || cv.colorName === item.color)) ||
+                                    (item.colorName && (cv.color === item.colorName || cv.colorName === item.colorName))
+                                  );
+                                  if (cv?.swatchImage) return {};
+                                  const hex = item.color?.startsWith('#') ? item.color : cv?.color?.startsWith('#') ? cv.color : undefined;
+                                  return hex ? { backgroundColor: hex } : {};
+                                })()}
+                              >
+                                {(() => {
+                                  const cv = item.product.colorVariants?.find(cv =>
+                                    (item.color && (cv.color === item.color || cv.colorName === item.color)) ||
+                                    (item.colorName && (cv.color === item.colorName || cv.colorName === item.colorName))
+                                  );
+                                  return cv?.swatchImage ? <img src={cv.swatchImage} alt="" className="w-full h-full object-cover" /> : null;
+                                })()}
+                              </span>
+                              {(item.colorName || item.product.colorVariants?.find(cv =>
+                                (item.color && (cv.color === item.color || cv.colorName === item.color)) ||
+                                (item.colorName && (cv.color === item.colorName || cv.colorName === item.colorName))
+                              )?.colorName) && (
                                 <span className="mr-1">
-                                  {item.colorName || item.product.colorVariants?.find(cv => cv.color === item.color || cv.colorName === item.color)?.colorName}
+                                  {item.colorName || item.product.colorVariants?.find(cv =>
+                                    (item.color && (cv.color === item.color || cv.colorName === item.color)) ||
+                                    (item.colorName && (cv.color === item.colorName || cv.colorName === item.colorName))
+                                  )?.colorName}
                                 </span>
                               )}
                             </span>
-                          )}
+                          ) : null}
                         </div>
 
                         <div className="flex items-center justify-between mt-4">

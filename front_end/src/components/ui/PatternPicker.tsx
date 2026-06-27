@@ -227,11 +227,14 @@ export default function PatternPicker({
                 </div>
               )}
 
-              {/* Color name input for pattern mode */}
+              {/* Color name input for pattern mode — also syncs color field */}
               <input
                 type="text"
                 value={colorName}
-                onChange={(e) => onColorNameChange(e.target.value)}
+                onChange={(e) => {
+                  onColorNameChange(e.target.value);
+                  onColorChange(e.target.value);
+                }}
                 placeholder="نام رنگ/طرح (مثلاً: چهارخانه آبی)"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
               />

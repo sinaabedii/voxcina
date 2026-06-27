@@ -376,10 +376,12 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
       alert("ترکیب سایز و رنگ انتخابی موجود نیست");
       return;
     }
-    const colorHex = selectedColor
-      ? product?.colorVariants?.find(cv => cv.colorName === selectedColor)?.color || selectedColor
-      : selectedColor;
-    addItem(product, quantity, selectedSize, colorHex);
+    const selectedVariant = selectedColor
+      ? product?.colorVariants?.find(cv => cv.colorName === selectedColor)
+      : undefined;
+    const colorVal = selectedVariant?.color || selectedColor;
+    const colorName = selectedVariant?.colorName || selectedColor;
+    addItem(product, quantity, selectedSize, colorVal, colorName);
     toast.success("محصول به سبد خرید اضافه شد");
   };
 

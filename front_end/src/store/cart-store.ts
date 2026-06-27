@@ -116,7 +116,8 @@ interface CartStore {
     product: Product,
     quantity: number,
     size?: string,
-    color?: string
+    color?: string,
+    colorName?: string
   ) => Promise<void>;
   updateItemQuantity: (
     productId: string, 
@@ -462,7 +463,9 @@ export const useCartStore = create<CartStore>()(
         }
       },
 
-      addItem: async (product, quantity, size, color) => {
+      addItem: async (product, quantity, size, color, colorName) => {
+        // Derive colorName from product if not provided
+        const resolvedColorName = colorName || (color && product?.colorVariants?.find(cv => cv.color === color || cv.colorName === color)?.colorName) || color;
         // Task 9.4: Use unified operation guard
         await withOperationGuard('addItem', async () => {
           const { cart: currentLocalCart } = get();
@@ -478,7 +481,7 @@ export const useCartStore = create<CartStore>()(
               const result = await makeCartApiRequest<any>(
                 '/api/cart/item',
                 'POST',
-                { productId: product.id, quantity, variant: { size, color } }
+                { productId: product.id, quantity, variant: { size, color, colorName: resolvedColorName } }
               );
               
               if (!result.ok) {
@@ -507,6 +510,7 @@ export const useCartStore = create<CartStore>()(
                   quantity: quantity,
                   size: size,
                   color: color,
+                  colorName: resolvedColorName,
                   price: product.price,
                 };
                 updatedItems = [...currentLocalCart.items, newItem];
@@ -539,17 +543,19 @@ export const useCartStore = create<CartStore>()(
                 quantity: quantity,
                 size: size,
                 color: color,
+                colorName: resolvedColorName,
                 price: product.price,
               };
               updatedItems = [...currentLocalCart.items, newItem];
             }
             set({
               cart: { ...currentLocalCart, items: updatedItems, updatedAt: new Date().toISOString() },
-              error: error instanceof Error ? error.message : 'Error adding item',
               isLoading: false,
-              syncCompleted: false, // allow re-sync on next add
             });
-            get().calculateSummary();
+            get().calculateSummary(); // Calculate summary for local changes
+          } finally {
+            set({ isLoading: false });
+            get().calculateSummary(); // Calculate summary for complete operation
           }
         });
       },
