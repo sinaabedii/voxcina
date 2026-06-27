@@ -90,7 +90,7 @@ const NEGOTIATION_OPENERS = [
 function getCartItemImage(item: CartItem): string {
   if (!item.product) return "";
   if (item.color && item.product.colorVariants?.length) {
-    const matched = item.product.colorVariants.find((cv) => cv.color === item.color);
+    const matched = item.product.colorVariants.find((cv) => cv.color === item.color || cv.colorName === item.color);
     if (matched?.images?.length) return matched.images[0];
   }
   if (item.product.mainImages?.length) return item.product.mainImages[0];
@@ -176,7 +176,7 @@ export default function TryOnRoomPage() {
       .filter((item) => item.product?.colorVariants?.length)
       .map((item) => {
         const colorVariant = item.color
-          ? item.product.colorVariants.find((cv) => cv.color === item.color)
+          ? item.product.colorVariants.find((cv) => cv.color === item.color || cv.colorName === item.color)
           : item.product.colorVariants[0];
         return colorVariant?.tryOnImage
           ? { cartItem: item, colorVariant, product: item.product }

@@ -19,14 +19,11 @@ import { CartItem } from '@/types/cart';
  * @returns The image URL or null if no image is available
  */
 const getCartItemImage = (item: CartItem): string | null => {
-  // First, try to get image from the selected color variant
   if (item.color && item.product.colorVariants) {
-    const colorVariant = item.product.colorVariants.find(cv => cv.color === item.color);
+    const colorVariant = item.product.colorVariants.find(cv => cv.color === item.color || cv.colorName === item.color);
     if (colorVariant?.images?.[0]) return colorVariant.images[0];
   }
-  // Fallback to main images
   if (item.product.mainImages?.[0]) return item.product.mainImages[0];
-  // Last resort: first color variant's first image
   if (item.product.colorVariants?.[0]?.images?.[0]) return item.product.colorVariants[0].images[0];
   return null;
 };
@@ -321,9 +318,9 @@ export default function CartPage() {
                                 style={{ backgroundColor: item.color }}
                               />
                               {/* Display color name - prefer from cart item, fallback to colorVariants */}
-                              {(item.colorName || item.product.colorVariants?.find(cv => cv.color === item.color)?.colorName) && (
+                              {(item.colorName || item.product.colorVariants?.find(cv => cv.color === item.color || cv.colorName === item.color)?.colorName) && (
                                 <span className="mr-1">
-                                  {item.colorName || item.product.colorVariants?.find(cv => cv.color === item.color)?.colorName}
+                                  {item.colorName || item.product.colorVariants?.find(cv => cv.color === item.color || cv.colorName === item.color)?.colorName}
                                 </span>
                               )}
                             </span>
