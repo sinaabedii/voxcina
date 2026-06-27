@@ -830,6 +830,7 @@ export default function TryOnRoomPage() {
     startNewRoom();
     setActiveItemIndex(null);
     setChatMessages([]);
+    setRecommendedProduct(null);
     setCouponApplied(false);
     setCouponExpired(false);
     setTryOnCount(0);
