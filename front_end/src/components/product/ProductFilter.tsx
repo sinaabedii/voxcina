@@ -8,6 +8,7 @@ import Button from "@/components/ui/Button";
 import { SORT_OPTIONS } from "@/lib/constants";
 import { motion } from "framer-motion";
 import { useCategoryStore } from "@/store/category-store"; // path may differ
+import { getCanonicalColor } from "@/lib/product-variants";
 
 interface ProductFilterProps {
   onClose?: () => void;
@@ -18,6 +19,7 @@ interface ProductFilterProps {
 interface ColorOption {
   code: string;
   name: string;
+  swatchImage?: string;
 }
 
 const ProductFilter: React.FC<ProductFilterProps> = ({
@@ -50,8 +52,9 @@ const ProductFilter: React.FC<ProductFilterProps> = ({
 
   // Extract all unique colors from product color variants
   const allColors = products.map((product) => ({
-    code: product.colorVariant.color,
-    name: product.colorVariant.colorName || product.colorVariant.color
+    code: getCanonicalColor(product.colorVariant) || product.colorVariant.colorName,
+    name: product.colorVariant.colorName || getCanonicalColor(product.colorVariant) || "",
+    swatchImage: product.colorVariant.swatchImage,
   }));
   
   // Create unique color objects
@@ -61,6 +64,7 @@ const ProductFilter: React.FC<ProductFilterProps> = ({
     return {
       code: colorCode,
       name: found?.name || colorCode,
+      swatchImage: found?.swatchImage,
     };
   }).sort((a, b) => a.name.localeCompare(b.name));
 
@@ -286,17 +290,21 @@ const ProductFilter: React.FC<ProductFilterProps> = ({
                   key={color.code}
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
-                  className={`w-6 h-6 rounded-full border shadow-soft transition-all duration-200 ${
-                    (localFilter.colors || []).includes(color.code)
-                      ? "border-primary ring-2 ring-primary/30"
-                      : "border-border/30 hover:border-primary/30"
-                  }`}
-                  style={{ backgroundColor: color.code }}
-                  onClick={() => handleColorChange(color.code)}
-                  title={color.name}
-                  aria-label={`رنگ ${color.name}`}
-                />
-              ))}
+	                  className={`w-6 h-6 rounded-full border shadow-soft transition-all duration-200 ${
+	                    (localFilter.colors || []).includes(color.code)
+	                      ? "border-primary ring-2 ring-primary/30"
+	                      : "border-border/30 hover:border-primary/30"
+	                  }`}
+	                  style={!color.swatchImage && color.code.startsWith("#") ? { backgroundColor: color.code } : undefined}
+	                  onClick={() => handleColorChange(color.code)}
+	                  title={color.name}
+	                  aria-label={`رنگ ${color.name}`}
+	                >
+	                  {color.swatchImage ? (
+	                    <img src={color.swatchImage} alt="" className="w-full h-full rounded-full object-cover" />
+	                  ) : null}
+	                </motion.button>
+	              ))}
             </div>
           </div>
         )}

@@ -540,7 +540,7 @@ export default function AdminProductsPage() {
                                   <div
                                     key={idx}
                                     className="w-4 h-4 rounded-full border border-gray-300 dark:border-gray-600 overflow-hidden"
-                                    style={!cv.swatchImage ? { backgroundColor: cv.color || '#ccc' } : undefined}
+                                    style={!cv.swatchImage && cv.color?.startsWith("#") ? { backgroundColor: cv.color } : undefined}
                                     title={cv.colorName || cv.color}
                                   >
                                     {cv.swatchImage && (
@@ -700,4 +700,4 @@ export default function AdminProductsPage() {
       </motion.div>
     </div>
   );
-} 
+}

@@ -391,7 +391,7 @@ export default function CheckoutPage() {
         product_id: item.productId,
         variant: {
           color: item.color || "",
-          color_name: item.colorName || "",
+          colorName: item.colorName || "",
           size: item.size || "",
         },
         quantity: item.quantity,

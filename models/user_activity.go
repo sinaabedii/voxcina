@@ -10,6 +10,7 @@ import (
 type UserActivity struct {
 	ID           primitive.ObjectID     `bson:"_id,omitempty" json:"id,omitempty"`
 	UserID       primitive.ObjectID     `bson:"user_id,omitempty" json:"userId,omitempty"`       // Nil for anonymous users
+	UserName     string                 `bson:"user_name,omitempty" json:"userName,omitempty"`   // Snapshot of authenticated user's full name
 	SessionID    string                 `bson:"session_id" json:"sessionId"`                     // Browser session ID
 	ActivityType string                 `bson:"activity_type" json:"activityType"`               // Type of activity
 	

@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ColorVariantListItem } from "@/types/product";
 import ProductCard from "@/components/product/ProductCard";
 import { Button, SectionTitle } from "@/components/ui";
+import { getCanonicalColor } from "@/lib/product-variants";
 
 interface ProductCarouselSectionProps {
   title: string;
@@ -145,8 +146,8 @@ export default function ProductCarouselSection({
             onMouseLeave={handleMouseLeave}
           >
             {products.map((product) => (
-              <div
-                key={`${product.productId}-${product.colorVariant.color}`}
+	              <div
+	                key={`${product.productId}-${getCanonicalColor(product.colorVariant) || product.colorVariant.colorName}`}
                 className="flex-shrink-0 w-[160px] sm:w-[200px] md:w-[220px] lg:w-[250px] snap-start"
               >
                 <ProductCard item={product} />

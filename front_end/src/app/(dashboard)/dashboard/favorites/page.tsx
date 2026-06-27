@@ -12,6 +12,7 @@ import Button from '@/components/ui/Button';
 import { useRouter } from 'next/navigation';
 import { getBrandName, getCategoryName } from "@/lib/utils";
 import { toast } from 'react-toastify';
+import { getCanonicalColor } from '@/lib/product-variants';
 
 export default function FavoritesPage() {
   const { products, isLoading, brands, categories } = useProductStore();
@@ -78,7 +79,8 @@ export default function FavoritesPage() {
   };
 
   const handleAddToCart = async (item: ColorVariantListItem) => {
-    const itemKey = `${item.productId}-${item.colorVariant.color}`;
+    const selectedColor = getCanonicalColor(item.colorVariant) || item.colorVariant.colorName;
+    const itemKey = `${item.productId}-${selectedColor}`;
     setAddingToCart(itemKey);
     
     try {
@@ -105,7 +107,7 @@ export default function FavoritesPage() {
       // Get first available size for this color
       const firstAvailableSize = item.colorVariant.sizes.find(s => s.quantity > 0)?.size;
       
-      await addItem(product, 1, firstAvailableSize, item.colorVariant.color);
+      await addItem(product, 1, firstAvailableSize, selectedColor, item.colorVariant.colorName);
       toast.success(`${item.name} به سبد خرید اضافه شد`);
     } catch (error) {
       toast.error('خطا در افزودن به سبد خرید');
@@ -291,9 +293,9 @@ export default function FavoritesPage() {
             initial="hidden"
             animate="visible"
           >
-            {favoriteProducts.map((product) => (
-              <motion.div 
-                key={`${product.productId}-${product.colorVariant.color}`} 
+	            {favoriteProducts.map((product) => (
+	              <motion.div
+	                key={`${product.productId}-${getCanonicalColor(product.colorVariant) || product.colorVariant.colorName}`}
                 variants={itemVariants}
                 className={isRemoving === product.productId ? 'scale-95 opacity-50' : ''}
                 transition={{ duration: 0.3 }}
@@ -337,12 +339,12 @@ export default function FavoritesPage() {
                           {new Intl.NumberFormat('fa-IR').format(product.price)} تومان
                         </div>
                         
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="p-2 text-voxcina-blue hover:text-voxcina-darkBlue hover:bg-voxcina-blue/5 dark:text-secondary-200 dark:hover:bg-voxcina-blue/20 rounded-full"
-                          onClick={() => router.push(`/products/${product.productId}?color=${encodeURIComponent(product.colorVariant.color)}`)}
-                        >
+	                        <Button
+	                          variant="ghost"
+	                          size="sm"
+	                          className="p-2 text-voxcina-blue hover:text-voxcina-darkBlue hover:bg-voxcina-blue/5 dark:text-secondary-200 dark:hover:bg-voxcina-blue/20 rounded-full"
+	                          onClick={() => router.push(`/products/${product.productId}?color=${encodeURIComponent(getCanonicalColor(product.colorVariant) || product.colorVariant.colorName)}`)}
+	                        >
                           <ArrowRight className="w-4 h-4" />
                         </Button>
                       </div>
@@ -351,11 +353,11 @@ export default function FavoritesPage() {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="w-full rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-secondary-200 hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20 transition-colors"
-                          onClick={() => handleAddToCart(product)}
-                          disabled={!product.inStock || addingToCart === `${product.productId}-${product.colorVariant.color}`}
-                        >
-                          {addingToCart === `${product.productId}-${product.colorVariant.color}` ? (
+	                          className="w-full rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-secondary-200 hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20 transition-colors"
+	                          onClick={() => handleAddToCart(product)}
+	                          disabled={!product.inStock || addingToCart === `${product.productId}-${getCanonicalColor(product.colorVariant) || product.colorVariant.colorName}`}
+	                        >
+	                          {addingToCart === `${product.productId}-${getCanonicalColor(product.colorVariant) || product.colorVariant.colorName}` ? (
                             <>
                               <Check className="w-4 h-4 ml-2" />
                               اضافه شد

@@ -584,7 +584,7 @@ export default function OrderTrackingPage() {
                 </h3>
 
                 <p className="text-voxcina-blue/70 dark:text-secondary-300 relative z-10 text-center">
-                  با ورود به حساب کاربری خود و مراجعه به بخش "سفارش‌های من"
+                  با ورود به حساب کاربری خود و مراجعه به بخش «سفارش‌های من»
                   می‌توانید تمامی سفارش‌های خود را مشاهده کنید.
                 </p>
               </motion.div>

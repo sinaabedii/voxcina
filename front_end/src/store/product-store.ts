@@ -8,6 +8,7 @@ import {
   ColorVariantListItem,
 } from "@/types/product";
 import { getBrandName, getCategoryName } from "@/lib/utils";
+import { getCanonicalColor } from "@/lib/product-variants";
 import { Brand } from "@/types/brand";
 import { Category } from "@/types/category";
 import { useAuthStore } from "./auth-store";
@@ -251,12 +252,13 @@ export const useProductStore = create<ProductState>()(
             }
           }
 
-          // Color - Check the colorVariant of this item
-          if (filter.colors && filter.colors.length > 0) {
-            if (!filter.colors.includes(item.colorVariant.color)) {
-              return false;
-            }
-          }
+	          // Color - Check the colorVariant of this item
+	          if (filter.colors && filter.colors.length > 0) {
+	            const itemColor = getCanonicalColor(item.colorVariant) || item.colorVariant.colorName;
+	            if (!filter.colors.includes(itemColor)) {
+	              return false;
+	            }
+	          }
 
           // Size - Check available sizes in the color variant
           if (filter.sizes && filter.sizes.length > 0) {

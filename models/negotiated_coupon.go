@@ -16,6 +16,7 @@ type CartItemSnapshot struct {
 	ProductName string  `bson:"product_name" json:"product_name"`
 	Price       float64 `bson:"price" json:"price"`
 	Color       string  `bson:"color,omitempty" json:"color,omitempty"`
+	ColorName   string  `bson:"color_name,omitempty" json:"color_name,omitempty"`
 	Size        string  `bson:"size,omitempty" json:"size,omitempty"`
 }
 

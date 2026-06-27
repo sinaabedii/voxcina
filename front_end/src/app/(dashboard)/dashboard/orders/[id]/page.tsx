@@ -249,11 +249,11 @@ const OrderDetailPage = () => {
                     <h4 className="font-semibold text-gray-800 dark:text-gray-200">
                       {item.product.name || `محصول شناسه: ${item.product.id}`}
                             </h4>
-                    {(item.variant.size !== 'N/A' || item.variant.color !== 'N/A') && (
+                    {(item.variant.size !== 'N/A' || item.variant.color !== 'N/A' || item.variant.colorName) && (
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                         {item.variant.size !== 'N/A' && `سایز: ${item.variant.size}`}
-                        {item.variant.size !== 'N/A' && item.variant.color !== 'N/A' && ', '}
-                        {item.variant.color !== 'N/A' && `رنگ: ${item.variant.color}`}
+                        {item.variant.size !== 'N/A' && (item.variant.color !== 'N/A' || item.variant.colorName) && ', '}
+                        {(item.variant.color !== 'N/A' || item.variant.colorName) && `رنگ: ${item.variant.colorName || item.variant.color}`}
                         </p>
                                       )}
                     <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">

@@ -1,5 +1,6 @@
 import { ColorVariantListItem } from "@/types/product";
 import ProductCard from "./ProductCard";
+import { getCanonicalColor } from "@/lib/product-variants";
 
 interface ProductGridProps {
   items: ColorVariantListItem[]; // Changed from products: Product[]
@@ -28,7 +29,7 @@ export default function ProductGrid({
     <div className={`grid ${gridCols[columns]} gap-4 md:gap-6`}>
       {items.map((item, index) => (
         <ProductCard
-          key={`${item.productId}-${item.colorVariant.color}`}
+          key={`${item.productId}-${getCanonicalColor(item.colorVariant) || item.colorVariant.colorName}`}
           item={item}
           glassEffect={glassEffect}
         />

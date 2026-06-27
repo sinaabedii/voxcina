@@ -16,6 +16,7 @@ import { useProductStore } from "@/store/product-store";
 import { formatPrice } from "@/lib/utils";
 import { ColorVariantListItem } from "@/types/product";
 import { motion, AnimatePresence } from "framer-motion";
+import { getCanonicalColor } from "@/lib/product-variants";
 
 interface SmartSearchProps {
   isOpen?: boolean;
@@ -447,25 +448,26 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
 
                         <div className="max-h-64 sm:max-h-80 md:max-h-96 overflow-y-auto">
                           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 p-3 sm:p-4 md:p-6">
-                            {results.map((item, index) => {
-                              const brandName = getBrandName(
-                                item.brand_id,
-                                brands
-                              );
-                              const categoryName = getCategoryName(
-                                item.category_ids,
-                                categories
-                              );
+	                            {results.map((item, index) => {
+	                              const brandName = getBrandName(
+	                                item.brand_id,
+	                                brands
+	                              );
+	                              const categoryName = getCategoryName(
+	                                item.category_ids,
+	                                categories
+	                              );
+	                              const selectedColor = getCanonicalColor(item.colorVariant) || item.colorVariant.colorName;
 
-                              return (
-                                <motion.div
-                                  key={`${item.productId}-${item.colorVariant.color}`}
+	                              return (
+	                                <motion.div
+	                                  key={`${item.productId}-${selectedColor}`}
                                   initial={{ opacity: 0, y: 20 }}
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ delay: index * 0.1 }}
                                 >
-                                  <Link
-                                    href={`/products/${item.productId}?color=${encodeURIComponent(item.colorVariant.color)}`}
+	                                  <Link
+	                                    href={`/products/${item.productId}?color=${encodeURIComponent(selectedColor)}`}
                                     className="group block p-2 sm:p-3 md:p-4 rounded-lg sm:rounded-xl md:rounded-2xl hover:bg-gradient-to-br hover:from-voxcina-lightCream hover:to-primary-50 transition-all duration-300 border border-transparent hover:border-primary-200 hover:shadow-medium"
                                     onClick={onClose}
                                   >

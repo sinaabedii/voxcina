@@ -4,6 +4,7 @@ import { formatPrice, cn, getDiscountPercentage } from "@/lib/utils";
 import { ColorVariantListItem } from "@/types/product";
 import BackendImage from "@/components/BackendImage";
 import { Eye, ShoppingCart, Heart } from "lucide-react";
+import { getCanonicalColor } from "@/lib/product-variants";
 
 interface ProductGridItemProps {
   item: ColorVariantListItem;
@@ -39,6 +40,8 @@ export default function ProductGridItem({
 
   // آماده‌سازی آدرس تصویر - use colorVariant images
   const imageSrc = item.colorVariant.images?.[0] || "/images/products/placeholder.jpg";
+  const selectedColor = getCanonicalColor(item.colorVariant) || item.colorVariant.colorName;
+  const productHref = `/products/${item.productId}?color=${encodeURIComponent(selectedColor)}`;
 
   return (
     <motion.div
@@ -67,7 +70,7 @@ export default function ProductGridItem({
         </div>
       )}
 
-      <Link href={`/products/${item.productId}?color=${encodeURIComponent(item.colorVariant.color)}`} className="relative aspect-square overflow-hidden">
+      <Link href={productHref} className="relative aspect-square overflow-hidden">
         <div className="relative w-full h-full">
           <BackendImage
             src={imageSrc}
@@ -82,7 +85,7 @@ export default function ProductGridItem({
           <button
             onClick={(e) => {
               e.preventDefault();
-              window.location.href = `/products/${item.productId}?color=${encodeURIComponent(item.colorVariant.color)}`;
+              window.location.href = productHref;
             }}
             className="bg-white/90 dark:bg-voxcina-blue/90 text-voxcina-blue dark:text-white p-2 rounded-full shadow-md hover:bg-white dark:hover:bg-voxcina-blue transition-colors"
             title="مشاهده محصول"
@@ -122,7 +125,7 @@ export default function ProductGridItem({
       </Link>
 
       <div className="p-4 flex flex-col flex-grow">
-        <Link href={`/products/${item.productId}?color=${encodeURIComponent(item.colorVariant.color)}`}>
+        <Link href={productHref}>
           <h3 className="text-voxcina-blue dark:text-voxcina-cream font-medium mb-1 truncate hover:text-voxcina-darkBlue dark:hover:text-white transition-colors">
             {item.name}
           </h3>
@@ -154,4 +157,4 @@ export default function ProductGridItem({
       </div>
     </motion.div>
   );
-} 
+}

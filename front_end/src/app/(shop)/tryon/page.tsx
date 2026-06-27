@@ -23,6 +23,12 @@ import {
   TryonChatMessage as DbTryonChatMessage,
   makeMessageId as makeDbMessageId,
 } from "@/lib/tryon-api";
+import {
+  findColorVariant,
+  getCanonicalColor,
+  getCartItemImage,
+  getProductDisplayImage,
+} from "@/lib/product-variants";
 
 interface TryOnEligibleItem {
   cartItem: CartItem;
@@ -86,20 +92,6 @@ const NEGOTIATION_OPENERS = [
   { icon: ShoppingBag, text: "سلام! اگه تخفیف خوبی بدی همین الان خرید می‌کنم." },
   { icon: Layers, text: "یه ست پیشنهاد بده" },
 ];
-
-function getCartItemImage(item: CartItem): string {
-  if (!item.product) return "";
-  if (item.product.colorVariants?.length) {
-    const matched = item.product.colorVariants.find((cv) =>
-      (item.color && (cv.color === item.color || cv.colorName === item.color)) ||
-      (item.colorName && (cv.color === item.colorName || cv.colorName === item.colorName))
-    );
-    if (matched?.images?.length) return matched.images[0];
-  }
-  if (item.product.mainImages?.length) return item.product.mainImages[0];
-  if (item.product.colorVariants?.[0]?.images?.length) return item.product.colorVariants[0].images[0];
-  return "";
-}
 
 function getComplementaryType(garmentType: string): string {
   if (garmentType === "upper_body") return "lower_body";
@@ -178,12 +170,7 @@ export default function TryOnRoomPage() {
     return items
       .filter((item) => item.product?.colorVariants?.length)
       .map((item) => {
-        const colorVariant = (item.color || item.colorName)
-          ? item.product.colorVariants.find((cv) =>
-              (item.color && (cv.color === item.color || cv.colorName === item.color)) ||
-              (item.colorName && (cv.color === item.colorName || cv.colorName === item.colorName))
-            )
-          : item.product.colorVariants[0];
+        const colorVariant = findColorVariant(item.product, item.color, item.colorName) || item.product.colorVariants[0];
         return colorVariant?.tryOnImage
           ? { cartItem: item, colorVariant, product: item.product }
           : null;
@@ -497,6 +484,8 @@ export default function TryOnRoomPage() {
 
   const buildRecommendedProduct = (rec: RecommendedProduct): Product => {
     if (rec.product) return rec.product;
+    const selectedColor = rec.selected_color || rec.color || rec.color_name || "";
+    const selectedColorName = rec.color_name || rec.selected_color || rec.color || "";
     return {
       id: rec.product_id,
       name: rec.product_name,
@@ -505,8 +494,8 @@ export default function TryOnRoomPage() {
       originalPrice: rec.price,
       mainImages: rec.image ? [rec.image] : [],
       colorVariants: [{
-        color: rec.color || "",
-        colorName: rec.color_name || "",
+        color: selectedColor,
+        colorName: selectedColorName,
         images: rec.image ? [rec.image] : [],
         tryOnImage: rec.image,
         tryOnGarmentType: "upper_body",
@@ -524,41 +513,50 @@ export default function TryOnRoomPage() {
   };
 
   const getRecommendedColor = (rec: RecommendedProduct): string | undefined => {
-    return rec.selected_color || rec.color || undefined;
+    const variant = rec.product
+      ? findColorVariant(rec.product, rec.selected_color || rec.color, rec.color_name)
+      : undefined;
+    return getCanonicalColor(variant) || rec.selected_color || rec.color || rec.color_name || undefined;
+  };
+
+  const getRecommendedColorName = (rec: RecommendedProduct): string | undefined => {
+    const variant = rec.product
+      ? findColorVariant(rec.product, rec.selected_color || rec.color, rec.color_name)
+      : undefined;
+    return variant?.colorName || rec.color_name || rec.selected_color || rec.color || undefined;
   };
 
   const getRecommendedSize = (rec: RecommendedProduct): string | undefined => {
     if (rec.size) return rec.size;
     if (!rec.product) return undefined;
     const color = getRecommendedColor(rec);
-    const cv = rec.product.colorVariants?.find(v => v.color === color || v.colorName === color);
+    const cv = findColorVariant(rec.product, color, rec.color_name);
     return cv?.sizes?.[0]?.size;
   };
 
   const getRecommendedDisplayImage = (rec: RecommendedProduct): string | null => {
-    if (rec.product) {
-      const color = getRecommendedColor(rec);
-      const cv = rec.product.colorVariants?.find(v => v.color === color || v.colorName === color);
-      if (cv?.images?.[0]) return cv.images[0];
-    }
+    const image = getProductDisplayImage(rec.product, getRecommendedColor(rec), getRecommendedColorName(rec));
+    if (image) return image;
     return rec.image || null;
+  };
+
+  const matchesRecommendedVariant = (item: TryOnEligibleItem, rec: RecommendedProduct): boolean => {
+    const color = getRecommendedColor(rec);
+    const colorName = getRecommendedColorName(rec);
+    return item.product.id === rec.product_id && !!findColorVariant([item.colorVariant], color, colorName);
   };
 
   const tryOnRecommendedProduct = async (rec: RecommendedProduct) => {
     const color = getRecommendedColor(rec);
     const size = getRecommendedSize(rec);
-    const colorName = rec.color_name || color;
+    const colorName = getRecommendedColorName(rec);
     const currentItems = computeEligibleItems(useCartStore.getState().cart.items);
-    let index = currentItems.findIndex(
-      (ei) => ei.product.id === rec.product_id && (ei.colorVariant.color === color || ei.colorVariant.colorName === color)
-    );
+    let index = currentItems.findIndex((ei) => matchesRecommendedVariant(ei, rec));
     if (index === -1) {
       const product = buildRecommendedProduct(rec);
       await addItem(product, 1, size, color, colorName);
       const updatedItems = computeEligibleItems(useCartStore.getState().cart.items);
-      index = updatedItems.findIndex(
-        (ei) => ei.product.id === rec.product_id && (ei.colorVariant.color === color || ei.colorVariant.colorName === color)
-      );
+      index = updatedItems.findIndex((ei) => matchesRecommendedVariant(ei, rec));
       if (index !== -1) {
         await handleTryOn(updatedItems[index], index);
       }
@@ -570,11 +568,9 @@ export default function TryOnRoomPage() {
   const addRecommendedToCart = async (rec: RecommendedProduct) => {
     const color = getRecommendedColor(rec);
     const size = getRecommendedSize(rec);
-    const colorName = rec.color_name || color;
+    const colorName = getRecommendedColorName(rec);
     const currentItems = computeEligibleItems(useCartStore.getState().cart.items);
-    const exists = currentItems.some(
-      (ei) => ei.product.id === rec.product_id && (ei.colorVariant.color === color || ei.colorVariant.colorName === color)
-    );
+    const exists = currentItems.some((ei) => matchesRecommendedVariant(ei, rec));
     if (!exists) {
       const product = buildRecommendedProduct(rec);
       await addItem(product, 1, size, color, colorName);
@@ -584,13 +580,15 @@ export default function TryOnRoomPage() {
     }
   };
 
-  const buildCartContext = (): { product_id: string; product_name: string; price: number; color?: string; size?: string }[] => {
+  const buildCartContext = (): { product_id: string; product_name: string; price: number; color?: string; color_name?: string; selected_color?: string; size?: string }[] => {
     const latestItems = computeEligibleItems(useCartStore.getState().cart.items);
     return latestItems.map((ei) => ({
       product_id: ei.product.id,
       product_name: ei.product.name,
       price: ei.product.price,
-      color: ei.cartItem.colorName || ei.colorVariant.colorName,
+      color: getCanonicalColor(ei.colorVariant) || ei.cartItem.color,
+      color_name: ei.cartItem.colorName || ei.colorVariant.colorName,
+      selected_color: getCanonicalColor(ei.colorVariant) || ei.cartItem.color,
       size: ei.cartItem.size,
     }));
   };
@@ -629,7 +627,7 @@ export default function TryOnRoomPage() {
           cart_items: buildCartContext(),
           tryon_context: tryonCtx,
           tryon_product_id: targetItem.product.id,
-          tryon_color: targetItem.colorVariant.color,
+          tryon_color: getCanonicalColor(targetItem.colorVariant) || targetItem.colorVariant.colorName,
           tryon_id: liveState.currentTryonId || "",
           chat_id: liveState.chatId || "",
         }),
@@ -1089,7 +1087,7 @@ export default function TryOnRoomPage() {
                       }}
                     >
                       <div className="w-16 h-16 rounded-xl overflow-hidden bg-voxcina-blue/[0.04] dark:bg-voxcina-cream/[0.04] flex-shrink-0 border border-secondary-300/60 dark:border-voxcina-blue/20">
-                        <BackendImage src={getCartItemImage(item.cartItem)} alt={item.product.name} className="w-full h-full object-cover" />
+                        <BackendImage src={getCartItemImage(item.cartItem) || ""} alt={item.product.name} className="w-full h-full object-cover" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-voxcina-blue dark:text-voxcina-cream truncate leading-tight">{item.product.name}</p>

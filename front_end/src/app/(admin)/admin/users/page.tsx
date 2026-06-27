@@ -808,7 +808,7 @@ export default function AdminUsersPage() {
             </div>
             <div className="p-4">
               <p className="text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                آیا از حذف کاربر "{userToDelete.name}" مطمئن هستید؟ این عمل قابل بازگشت نیست.
+                آیا از حذف کاربر «{userToDelete.name}» مطمئن هستید؟ این عمل قابل بازگشت نیست.
               </p>
             </div>
             <div className="p-4 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 flex justify-end gap-2">
@@ -864,7 +864,7 @@ export default function AdminUsersPage() {
             </div>
             <div className="p-4">
               <p className="text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                آیا از {userToChangeStatus.isActive === true ? 'غیرفعال‌سازی' : 'فعال‌سازی'} کاربر "{userToChangeStatus.name}" مطمئن هستید؟
+                آیا از {userToChangeStatus.isActive === true ? 'غیرفعال‌سازی' : 'فعال‌سازی'} کاربر «{userToChangeStatus.name}» مطمئن هستید؟
               </p>
             </div>
             <div className="p-4 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 flex justify-end gap-2">

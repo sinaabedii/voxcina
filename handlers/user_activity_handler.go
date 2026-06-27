@@ -8,7 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 
@@ -18,10 +20,51 @@ import (
 )
 
 var activityService *services.UserActivityService
+var activityUserCollection *mongo.Collection
 
 // InitUserActivityService initializes the user activity service
 func InitUserActivityService(db *mongo.Database) {
 	activityService = services.NewUserActivityService(db)
+	activityUserCollection = db.Collection("users")
+}
+
+func resolveActivityUser(ctx context.Context, r *http.Request) (primitive.ObjectID, string) {
+	var userID primitive.ObjectID
+
+	if userIDCtx := r.Context().Value("userID"); userIDCtx != nil {
+		if uid, ok := userIDCtx.(primitive.ObjectID); ok {
+			userID = uid
+		}
+	}
+
+	if userID.IsZero() {
+		authHeader := r.Header.Get("Authorization")
+		parts := strings.Split(authHeader, " ")
+		if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+			claims := &Claims{}
+			token, err := jwt.ParseWithClaims(parts[1], claims, func(token *jwt.Token) (interface{}, error) {
+				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, jwt.ErrSignatureInvalid
+				}
+				return GetJWTKey(), nil
+			})
+			if err == nil && token.Valid {
+				userID = claims.UserID
+			}
+		}
+	}
+
+	if userID.IsZero() || activityUserCollection == nil {
+		return userID, ""
+	}
+
+	var user struct {
+		Name string `bson:"name"`
+	}
+	if err := activityUserCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&user); err != nil {
+		return userID, ""
+	}
+	return userID, user.Name
 }
 
 // TrackActivity handles POST /api/activity/track
@@ -38,11 +81,14 @@ func TrackActivity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Extract user ID from context if authenticated
-	if userIDCtx := r.Context().Value("userID"); userIDCtx != nil {
-		if userID, ok := userIDCtx.(primitive.ObjectID); ok {
-			activity.UserID = userID
-		}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	activity.UserID = primitive.ObjectID{}
+	activity.UserName = ""
+	if userID, userName := resolveActivityUser(ctx, r); !userID.IsZero() {
+		activity.UserID = userID
+		activity.UserName = userName
 	}
 
 	// Extract IP address
@@ -55,9 +101,6 @@ func TrackActivity(w http.ResponseWriter, r *http.Request) {
 	activity.DeviceType = detectDeviceType(activity.UserAgent)
 	activity.Browser = detectBrowser(activity.UserAgent)
 	activity.OS = detectOS(activity.UserAgent)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	if err := activityService.TrackActivity(ctx, &activity); err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to track activity")
@@ -84,13 +127,10 @@ func TrackBatchActivities(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Extract user ID from context if authenticated
-	var userID primitive.ObjectID
-	if userIDCtx := r.Context().Value("userID"); userIDCtx != nil {
-		if uid, ok := userIDCtx.(primitive.ObjectID); ok {
-			userID = uid
-		}
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	userID, userName := resolveActivityUser(ctx, r)
 
 	// Enrich each activity with request metadata
 	ipAddress := getClientIP(r)
@@ -100,8 +140,11 @@ func TrackBatchActivities(w http.ResponseWriter, r *http.Request) {
 	os := detectOS(userAgent)
 
 	for i := range activities {
+		activities[i].UserID = primitive.ObjectID{}
+		activities[i].UserName = ""
 		if !userID.IsZero() {
 			activities[i].UserID = userID
+			activities[i].UserName = userName
 		}
 		activities[i].IPAddress = ipAddress
 		activities[i].UserAgent = userAgent
@@ -109,9 +152,6 @@ func TrackBatchActivities(w http.ResponseWriter, r *http.Request) {
 		activities[i].Browser = browser
 		activities[i].OS = os
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
 
 	if err := activityService.TrackBatch(ctx, activities); err != nil {
 		utils.ErrorResponse(

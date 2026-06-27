@@ -364,14 +364,16 @@ export default function AdminOrderDetailsPage() {
                         {item.variant?.size && (
                           <span>سایز: {item.variant.size}</span>
                         )}
-                        {item.variant?.color && (
+                        {(item.variant?.color || item.variant?.colorName) && (
                           <span className="flex items-center gap-1">
                             رنگ:
-                            <span
-                              className="w-4 h-4 rounded-full border border-gray-300"
-                              style={{ backgroundColor: item.variant.color }}
-                            />
-                            {item.variant.colorName}
+                            {item.variant.color?.startsWith("#") && (
+                              <span
+                                className="w-4 h-4 rounded-full border border-gray-300"
+                                style={{ backgroundColor: item.variant.color }}
+                              />
+                            )}
+                            {item.variant.colorName || item.variant.color}
                           </span>
                         )}
                       </div>
@@ -777,7 +779,7 @@ export default function AdminOrderDetailsPage() {
                 <div className="space-y-3">
                   <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 rounded-lg p-3">
                     <p className="text-sm text-amber-700 dark:text-amber-400">
-                      آیا از تغییر وضعیت به "{getStatusTextFromEntry(selectedStatus)}" اطمینان دارید؟
+                      آیا از تغییر وضعیت به «{getStatusTextFromEntry(selectedStatus)}» اطمینان دارید؟
                     </p>
                   </div>
                   

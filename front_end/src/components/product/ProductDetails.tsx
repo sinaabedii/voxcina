@@ -18,6 +18,7 @@ import Button from "@/components/ui/Button";
 import { useCart } from "@/hooks/useCart";
 import { motion } from "framer-motion";
 import { useReviewStore } from "@/store/review-store";
+import { getCanonicalColor } from "@/lib/product-variants";
 
 interface ProductDetailsProps {
   product: Product;
@@ -112,7 +113,8 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
       product,
       quantity,
       selectedSize,
-      selectedColorVariant.color
+      getCanonicalColor(selectedColorVariant) || selectedColorVariant.colorName,
+      selectedColorVariant.colorName
     );
   };
 
@@ -238,20 +240,24 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
                   const hasStock = colorVariant.sizes.some(s => s.quantity > 0);
 
                   return (
-                    <motion.button
-                      key={colorVariant.color}
-                      whileHover={{ scale: hasStock ? 1.1 : 1 }}
-                      whileTap={{ scale: hasStock ? 0.95 : 1 }}
-                      disabled={!hasStock}
-                      className={`w-8 h-8 rounded-full border-2 shadow-soft transition-all duration-200 ${selectedColorIndex === idx
-                          ? "border-primary ring-2 ring-primary/30"
-                          : "border-transparent hover:border-primary/20"
-                        } ${!hasStock ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      style={{ backgroundColor: colorVariant.color }}
-                      onClick={() => hasStock && handleColorChange(idx)}
-                      title={`${colorVariant.colorName}${!hasStock ? ' (ناموجود)' : ''}`}
-                    />
-                  );
+	                    <motion.button
+	                      key={getCanonicalColor(colorVariant) || colorVariant.colorName}
+	                      whileHover={{ scale: hasStock ? 1.1 : 1 }}
+	                      whileTap={{ scale: hasStock ? 0.95 : 1 }}
+	                      disabled={!hasStock}
+	                      className={`w-8 h-8 rounded-full border-2 shadow-soft transition-all duration-200 overflow-hidden ${selectedColorIndex === idx
+	                          ? "border-primary ring-2 ring-primary/30"
+	                          : "border-transparent hover:border-primary/20"
+	                        } ${!hasStock ? 'opacity-50 cursor-not-allowed' : ''}`}
+	                      style={!colorVariant.swatchImage && colorVariant.color?.startsWith("#") ? { backgroundColor: colorVariant.color } : undefined}
+	                      onClick={() => hasStock && handleColorChange(idx)}
+	                      title={`${colorVariant.colorName}${!hasStock ? ' (ناموجود)' : ''}`}
+	                    >
+	                      {colorVariant.swatchImage ? (
+	                        <img src={colorVariant.swatchImage} alt="" className="w-full h-full object-cover" />
+	                      ) : null}
+	                    </motion.button>
+	                  );
                 })}
               </div>
             </div>

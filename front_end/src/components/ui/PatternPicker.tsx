@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Cropper, { Area } from "react-easy-crop";
 import { X, Upload, Image as ImageIcon, ZoomIn, Palette, Check } from "lucide-react";
 import { getCroppedImg, createImageObjectUrl } from "@/lib/image-crop";
@@ -34,6 +34,12 @@ export default function PatternPicker({
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>(swatchImage || "");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (mode === "pattern" && color !== "") {
+      onColorChange("");
+    }
+  }, [mode, color, onColorChange]);
 
   const onCropComplete = useCallback((_: Area, croppedPixels: Area) => {
     setCroppedAreaPixels(croppedPixels);
@@ -87,10 +93,14 @@ export default function PatternPicker({
 
   const handleModeSwitch = (newMode: Mode) => {
     if (newMode === "pattern" && !previewUrl) {
+      onColorChange("");
       setMode(newMode);
     } else if (newMode === "solid") {
       handleClearSwatch();
     } else {
+      if (newMode === "pattern") {
+        onColorChange("");
+      }
       setMode(newMode);
     }
   };
@@ -163,7 +173,7 @@ export default function PatternPicker({
             <div className="relative">
               <div
                 className="w-20 h-20 rounded-full border-2 border-gray-300 overflow-hidden bg-gray-100 flex items-center justify-center"
-                style={previewUrl ? {} : { backgroundColor: color || "#ccc" }}
+                style={previewUrl || !color.startsWith("#") ? {} : { backgroundColor: color }}
               >
                 {previewUrl ? (
                   <img
@@ -227,13 +237,12 @@ export default function PatternPicker({
                 </div>
               )}
 
-              {/* Color name input for pattern mode — also syncs color field */}
+              {/* Color name input for pattern mode */}
               <input
                 type="text"
                 value={colorName}
                 onChange={(e) => {
                   onColorNameChange(e.target.value);
-                  onColorChange(e.target.value);
                 }}
                 placeholder="نام رنگ/طرح (مثلاً: چهارخانه آبی)"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"

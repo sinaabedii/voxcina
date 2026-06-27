@@ -41,7 +41,7 @@ import { useTryOnStore } from "@/store/tryon-store";
 import { useAuthStore } from "@/store/auth-store";
 import { useBrandStore } from "@/store/brand-store";
 import { useProductStore } from "@/store/product-store";
-import { activityTracker, ActivityType } from "@/lib/activity-tracker";
+import { activityTracker } from "@/lib/activity-tracker";
 import BackendImage from "@/components/BackendImage";
 import { ImageSkeleton } from "@/components/ui/Loading";
 
@@ -240,24 +240,29 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
     : 0;
 
-  // Add to recently viewed on mount + track product view (with dwell-time duration on unmount)
+  // Add to recently viewed on mount, then record one product_view with dwell time when the visit ends.
   useEffect(() => {
     if (!product) return;
     addRecentlyViewed(product);
     productViewStartRef.current = Date.now();
     productViewReportedRef.current = false;
-    activityTracker.trackProductView(product.id, product.name);
-    return () => {
+
+    const reportProductView = () => {
       if (productViewReportedRef.current) return;
-      const duration = Date.now() - productViewStartRef.current;
-      activityTracker.track({
-        activityType: ActivityType.PRODUCT_VIEW,
-        productId: product.id,
-        productName: product.name,
-        duration,
-        metadata: { source: 'unmount_dwell' },
-      });
       productViewReportedRef.current = true;
+      activityTracker.trackProductView(
+        product.id,
+        product.name,
+        Date.now() - productViewStartRef.current,
+        { source: 'product_detail_dwell' },
+        true
+      );
+    };
+
+    document.addEventListener('visibilitychange', reportProductView, { once: true });
+    return () => {
+      document.removeEventListener('visibilitychange', reportProductView);
+      reportProductView();
     };
   }, [product, addRecentlyViewed]);
 

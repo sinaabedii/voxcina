@@ -3,6 +3,8 @@
  * Tracks user interactions and sends them to the backend for analytics
  */
 
+import { localStorageManager } from "@/lib/local-storage-manager";
+
 // Activity types matching backend constants
 export const ActivityType = {
   PAGE_VIEW: 'page_view',
@@ -61,8 +63,10 @@ class ActivityTracker {
   private flushInterval = 5000; // 5 seconds
   private flushTimer: NodeJS.Timeout | null = null;
   private pageLoadTime: number = Date.now();
+  private recentProductViews = new Map<string, number>();
   private readonly sessionKey = 'activity_session_id';
   private readonly sessionDuration = 30 * 60 * 1000; // 30 minutes
+  private readonly productViewDedupeWindow = 30 * 1000;
 
   constructor() {
     this.sessionId = this.getOrCreateSessionId();
@@ -215,12 +219,34 @@ class ActivityTracker {
   /**
    * Track product view
    */
-  public trackProductView(productId: string, productName?: string): void {
+  public trackProductView(
+    productId: string,
+    productName?: string,
+    duration?: number,
+    metadata?: Record<string, any>,
+    immediate: boolean = false
+  ): void {
+    const pagePath = typeof window !== 'undefined' ? window.location.pathname : '';
+    const key = `${productId}:${pagePath}`;
+    const now = Date.now();
+    const lastViewedAt = this.recentProductViews.get(key);
+
+    if (lastViewedAt && now - lastViewedAt < this.productViewDedupeWindow) {
+      return;
+    }
+
+    this.recentProductViews.set(key, now);
     this.track({
       activityType: ActivityType.PRODUCT_VIEW,
       productId,
       productName,
+      pagePath,
+      duration,
+      metadata,
     });
+    if (immediate) {
+      this.flush(true);
+    }
   }
 
   /**
@@ -429,9 +455,14 @@ class ActivityTracker {
 
     // Send to backend
     const endpoint = '/api/activity/track/batch';
+    const token = localStorageManager.getAccessToken();
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
 
     try {
-      if (immediate && typeof navigator !== 'undefined' && navigator.sendBeacon) {
+      if (immediate && !token && typeof navigator !== 'undefined' && navigator.sendBeacon) {
         // Use sendBeacon for immediate flush (like on page unload)
         const blob = new Blob([JSON.stringify(activities)], { type: 'application/json' });
         const accepted = navigator.sendBeacon(endpoint, blob);
@@ -440,9 +471,7 @@ class ActivityTracker {
         // Normal fetch request
         fetch(endpoint, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify(activities),
           keepalive: immediate, // Keep connection alive for immediate flush
         }).catch((error) => {

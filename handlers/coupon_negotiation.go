@@ -148,6 +148,7 @@ func buildNegotiatedCoupon(req services.NegotiateRequest, coupon *services.Negot
 			ProductName: item.ProductName,
 			Price:       item.Price,
 			Color:       item.Color,
+			ColorName:   item.ColorName,
 			Size:        item.Size,
 		})
 	}
@@ -274,7 +275,7 @@ func findComplementaryProducts(productID, color string) ([]services.CouponCartIt
 
 	var sourceGarmentType string
 	for _, cv := range product.ColorVariants {
-		if color != "" && cv.Color != color {
+		if color != "" && !colorVariantMatches(cv, color, color) {
 			continue
 		}
 		if cv.TryOnGarmentType != "" {
@@ -353,9 +354,9 @@ func findComplementaryProducts(productID, color string) ([]services.CouponCartIt
 		for _, cv := range p.ColorVariants {
 			if cv.TryOnImage != "" {
 				item.Image = cv.TryOnImage
-				item.Color = cv.Color
+				item.Color = canonicalColorValue(cv)
 				item.ColorName = cv.ColorName
-				item.SelectedColor = cv.Color
+				item.SelectedColor = canonicalColorValue(cv)
 				if len(cv.Sizes) > 0 {
 					item.Size = cv.Sizes[0].Size
 				}
@@ -366,9 +367,9 @@ func findComplementaryProducts(productID, color string) ([]services.CouponCartIt
 			for _, cv := range p.ColorVariants {
 				if len(cv.Images) > 0 {
 					item.Image = cv.Images[0]
-					item.Color = cv.Color
+					item.Color = canonicalColorValue(cv)
 					item.ColorName = cv.ColorName
-					item.SelectedColor = cv.Color
+					item.SelectedColor = canonicalColorValue(cv)
 					if len(cv.Sizes) > 0 {
 						item.Size = cv.Sizes[0].Size
 					}

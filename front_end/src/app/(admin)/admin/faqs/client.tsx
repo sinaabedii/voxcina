@@ -227,7 +227,7 @@ export default function ClientFaqsPage() {
                 هیچ سوال متداولی پیدا نشد
               </h3>
               <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4 max-w-md">
-                می‌توانید با کلیک روی دکمه "افزودن سوال متداول" اولین سوال را ثبت کنید.
+                می‌توانید با کلیک روی دکمه «افزودن سوال متداول» اولین سوال را ثبت کنید.
               </p>
               <Button
                 variant="primary"

@@ -11,25 +11,7 @@ import Input from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { activityTracker } from "@/lib/activity-tracker";
 import { CartItem } from '@/types/cart';
-
-/**
- * Helper function to get the appropriate image for a cart item
- * Prioritizes: selected color variant image > main images > first color variant image
- * @param item - The cart item to get the image for
- * @returns The image URL or null if no image is available
- */
-const getCartItemImage = (item: CartItem): string | null => {
-  if (item.product.colorVariants) {
-    const colorVariant = item.product.colorVariants.find(cv =>
-      (item.color && (cv.color === item.color || cv.colorName === item.color)) ||
-      (item.colorName && (cv.color === item.colorName || cv.colorName === item.colorName))
-    );
-    if (colorVariant?.images?.[0]) return colorVariant.images[0];
-  }
-  if (item.product.mainImages?.[0]) return item.product.mainImages[0];
-  if (item.product.colorVariants?.[0]?.images?.[0]) return item.product.colorVariants[0].images[0];
-  return null;
-};
+import { getCartItemColorKey, getCartItemImage, getCartItemVariant } from "@/lib/product-variants";
 
 export default function CartPage() {
   const {
@@ -84,7 +66,7 @@ export default function CartPage() {
   }, [warnings, dismissCartWarnings]);
 
   // Helper to get item key for optimistic updates
-  const getItemKey = (item: CartItem) => `${item.productId}-${item.size || ''}-${item.color || ''}`;
+  const getItemKey = (item: CartItem) => `${item.productId}-${item.size || ''}-${getCartItemColorKey(item)}`;
   
   // Get displayed quantity (pending or actual)
   const getDisplayQuantity = (item: CartItem): number => {
@@ -101,11 +83,11 @@ export default function CartPage() {
     
     // Then update the backend - if it fails, the pending state will be cleared
     // and the actual quantity from the store will be shown
-    updateItemQuantity(item.productId, quantity, item.size, item.color);
+    updateItemQuantity(item.productId, quantity, item.size, item.color, item.colorName);
   };
 
   const handleRemoveItem = (item: CartItem) => {
-    removeItem(item.productId, item.size, item.color);
+    removeItem(item.productId, item.size, item.color, item.colorName);
   };
 
   const handleApplyPromoCode = () => {
@@ -317,32 +299,20 @@ export default function CartPage() {
                             <span className="bg-voxcina-cream/30 dark:bg-voxcina-blue/20 px-2 py-0.5 rounded-md flex items-center gap-1">
                               <span className="inline-block w-3 h-3 rounded-full border border-voxcina-cream dark:border-voxcina-blue/40 overflow-hidden flex-shrink-0"
                                 style={(() => {
-                                  const cv = item.product.colorVariants?.find(cv =>
-                                    (item.color && (cv.color === item.color || cv.colorName === item.color)) ||
-                                    (item.colorName && (cv.color === item.colorName || cv.colorName === item.colorName))
-                                  );
+                                  const cv = getCartItemVariant(item);
                                   if (cv?.swatchImage) return {};
                                   const hex = item.color?.startsWith('#') ? item.color : cv?.color?.startsWith('#') ? cv.color : undefined;
                                   return hex ? { backgroundColor: hex } : {};
                                 })()}
                               >
                                 {(() => {
-                                  const cv = item.product.colorVariants?.find(cv =>
-                                    (item.color && (cv.color === item.color || cv.colorName === item.color)) ||
-                                    (item.colorName && (cv.color === item.colorName || cv.colorName === item.colorName))
-                                  );
+                                  const cv = getCartItemVariant(item);
                                   return cv?.swatchImage ? <img src={cv.swatchImage} alt="" className="w-full h-full object-cover" /> : null;
                                 })()}
                               </span>
-                              {(item.colorName || item.product.colorVariants?.find(cv =>
-                                (item.color && (cv.color === item.color || cv.colorName === item.color)) ||
-                                (item.colorName && (cv.color === item.colorName || cv.colorName === item.colorName))
-                              )?.colorName) && (
+                              {(item.colorName || getCartItemVariant(item)?.colorName) && (
                                 <span className="mr-1">
-                                  {item.colorName || item.product.colorVariants?.find(cv =>
-                                    (item.color && (cv.color === item.color || cv.colorName === item.color)) ||
-                                    (item.colorName && (cv.color === item.colorName || cv.colorName === item.colorName))
-                                  )?.colorName}
+                                  {item.colorName || getCartItemVariant(item)?.colorName}
                                 </span>
                               )}
                             </span>

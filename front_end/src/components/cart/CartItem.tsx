@@ -5,6 +5,7 @@ import { formatPrice } from "@/lib/utils";
 import { useCart } from "@/hooks/useCart";
 import { motion } from "framer-motion";
 import Image from "next/image";
+import { getCartItemImage, getCartItemVariant } from "@/lib/product-variants";
 
 interface CartItemProps {
   item: CartItemType;
@@ -38,17 +39,7 @@ const CartItem: React.FC<CartItemProps> = ({ item }) => {
     >
       <div className="w-full sm:w-24 h-24 mb-4 sm:mb-0">
         {(() => {
-          // Get image from mainImages or colorVariants based on selected color
-          const getProductImage = () => {
-            if (item.color && item.product.colorVariants) {
-              const colorVariant = item.product.colorVariants.find(cv => cv.color === item.color);
-              if (colorVariant?.images?.[0]) return colorVariant.images[0];
-            }
-            if (item.product.mainImages?.[0]) return item.product.mainImages[0];
-            if (item.product.colorVariants?.[0]?.images?.[0]) return item.product.colorVariants[0].images[0];
-            return null;
-          };
-          const imageSrc = getProductImage();
+	          const imageSrc = getCartItemImage(item);
           
           return imageSrc ? (
             <motion.div 
@@ -83,19 +74,26 @@ const CartItem: React.FC<CartItemProps> = ({ item }) => {
               سایز: {item.size}
             </span>
           )}
-          {item.color && (
-            <span className="bg-secondary/50 px-2 py-0.5 rounded-md text-xs flex items-center">
-              رنگ:
-              <span
-                className="inline-block w-3 h-3 rounded-full mr-1 ml-1 border border-border/20"
-                style={{ backgroundColor: item.color }}
-              />
-              {/* Display color name - prefer from cart item, fallback to colorVariants */}
-              {(item.colorName || item.product.colorVariants?.find(cv => cv.color === item.color)?.colorName) && (
-                <span className="mr-1">
-                  {item.colorName || item.product.colorVariants?.find(cv => cv.color === item.color)?.colorName}
-                </span>
-              )}
+	          {(item.color || item.colorName) && (
+	            <span className="bg-secondary/50 px-2 py-0.5 rounded-md text-xs flex items-center">
+	              رنگ:
+	              <span
+	                className="inline-block w-3 h-3 rounded-full mr-1 ml-1 border border-border/20 overflow-hidden"
+	                style={(() => {
+	                  const variant = getCartItemVariant(item);
+	                  const hex = item.color?.startsWith('#') ? item.color : variant?.color?.startsWith('#') ? variant.color : undefined;
+	                  return hex ? { backgroundColor: hex } : {};
+	                })()}
+	              >
+	                {getCartItemVariant(item)?.swatchImage ? (
+	                  <img src={getCartItemVariant(item)?.swatchImage} alt="" className="w-full h-full object-cover" />
+	                ) : null}
+	              </span>
+	              {(item.colorName || getCartItemVariant(item)?.colorName) && (
+	                <span className="mr-1">
+	                  {item.colorName || getCartItemVariant(item)?.colorName}
+	                </span>
+	              )}
             </span>
           )}
         </div>

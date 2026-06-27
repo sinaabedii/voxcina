@@ -12,6 +12,7 @@ import { toast } from "react-toastify";
 import { useDashboardStore } from "@/store/dashboard-store";
 import { motion, AnimatePresence } from "framer-motion";
 import { activityTracker } from "@/lib/activity-tracker";
+import { getCanonicalColor } from "@/lib/product-variants";
 
 interface ProductCardProps {
   item: ColorVariantListItem;
@@ -34,6 +35,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
   // Extract data from the color variant list item
   const { productId, colorVariant, name, price, originalPrice, brand, inStock } = item;
   const { color, colorName, swatchImage, images, sizes } = colorVariant;
+  const selectedColor = getCanonicalColor(colorVariant) || colorName;
+  const productHref = `/products/${productId}?color=${encodeURIComponent(selectedColor)}`;
 
   // Display the first image from this color's images
   const displayImage = images && images.length > 0 ? images[0] : null;
@@ -92,7 +95,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
           inStock: true,
           created_at: item.created_at,
           updated_at: item.created_at,
-        } as any, 1, selectedSize, color);
+        } as any, 1, selectedSize, selectedColor, colorName);
 
         handleCloseModal();
         toast.success("محصول به سبد خرید اضافه شد");
@@ -103,7 +106,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   return (
     <>
       <Link
-        href={`/products/${productId}?color=${encodeURIComponent(color)}`}
+        href={productHref}
         data-activity-tracked="true"
         onClick={handleProductClick}
         className={`product-card group block rounded-xl overflow-hidden transition-all duration-300 ${glassEffect
@@ -153,10 +156,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
           {/* Color indicator badge */}
           <div className="absolute bottom-3 right-3 flex gap-1">
-            <div
-              className="w-7 h-7 rounded-full border-2 border-white shadow-md overflow-hidden"
-              style={!swatchImage ? { backgroundColor: color } : undefined}
-              title={colorName}
+	            <div
+	              className="w-7 h-7 rounded-full border-2 border-white shadow-md overflow-hidden"
+	              style={!swatchImage && color?.startsWith("#") ? { backgroundColor: color } : undefined}
+	              title={colorName}
             >
               {swatchImage && (
                 <img src={swatchImage} alt={colorName} className="w-full h-full object-cover" />

@@ -127,24 +127,7 @@ func getActiveCartForUser(ctx context.Context, userID primitive.ObjectID) (*mode
 // enrichVariantFromProduct finds ColorName and SKU for a variant from the product's ColorVariants.
 // Returns an enriched CartVariant with ColorName and SKU populated.
 func enrichVariantFromProduct(product *models.Product, variant models.CartVariant) models.CartVariant {
-	enriched := models.CartVariant{
-		Size:  variant.Size,
-		Color: variant.Color,
-	}
-
-	for _, colorVariant := range product.ColorVariants {
-		if colorVariant.Color == variant.Color || (colorVariant.Color == "" && colorVariant.ColorName != "" && colorVariant.ColorName == variant.Color) {
-			enriched.ColorName = colorVariant.ColorName
-			for _, sizeVariant := range colorVariant.Sizes {
-				if sizeVariant.Size == variant.Size {
-					enriched.SKU = sizeVariant.SKU
-					break
-				}
-			}
-			break
-		}
-	}
-
+	enriched, _, _, _ := enrichCartVariantFromProduct(product, variant)
 	return enriched
 }
 
@@ -184,32 +167,36 @@ func updateCartAndRespond(ctx context.Context, w http.ResponseWriter, cart *mode
 
 // validateVariantStock validates that a variant exists and has sufficient stock.
 // Returns the available stock and an error if validation fails.
-func validateVariantStock(product *models.Product, color, size string, requestedQty int) (int, int, error) {
-	for _, colorVariant := range product.ColorVariants {
-		if colorVariant.Color == color || (colorVariant.Color == "" && colorVariant.ColorName != "" && colorVariant.ColorName == color) {
-			for _, sizeVariant := range colorVariant.Sizes {
-				if sizeVariant.Size == size {
-					if requestedQty > sizeVariant.Quantity {
-						return sizeVariant.Quantity, http.StatusBadRequest, fmt.Errorf(
-							"not enough stock. Available: %d, Requested: %d",
-							sizeVariant.Quantity, requestedQty,
-						)
-					}
-					return sizeVariant.Quantity, 0, nil
-				}
-			}
-			// Size not found for this color
-			return 0, http.StatusBadRequest, fmt.Errorf(
-				"invalid variant: size '%s' not found for color '%s'",
-				size, color,
-			)
+func validateVariantStock(product *models.Product, variant models.CartVariant, requestedQty int) (int, int, error) {
+	colorVariant, _, ok := findColorVariant(product, variant.Color, variant.ColorName)
+	if !ok {
+		color := variant.Color
+		if color == "" {
+			color = variant.ColorName
 		}
+		return 0, http.StatusBadRequest, fmt.Errorf(
+			"invalid variant: color '%s' not found for this product",
+			color,
+		)
 	}
-	// Color not found
-	return 0, http.StatusBadRequest, fmt.Errorf(
-		"invalid variant: color '%s' not found for this product",
-		color,
-	)
+
+	sizeVariant, _, ok := findSizeVariant(colorVariant, variant.Size)
+	if !ok {
+		color := canonicalColorValue(colorVariant)
+		return 0, http.StatusBadRequest, fmt.Errorf(
+			"invalid variant: size '%s' not found for color '%s'",
+			variant.Size, color,
+		)
+	}
+
+	if requestedQty > sizeVariant.Quantity {
+		return sizeVariant.Quantity, http.StatusBadRequest, fmt.Errorf(
+			"not enough stock. Available: %d, Requested: %d",
+			sizeVariant.Quantity, requestedQty,
+		)
+	}
+
+	return sizeVariant.Quantity, 0, nil
 }
 
 // --- End Helper Functions ---
@@ -281,13 +268,7 @@ func prepareCartResponse(ctx context.Context, cart models.Cart) (CartResponse, e
 			)
 		}
 
-		// Get legacy image from MainImages or first ColorVariant for backward compatibility
-		productImage := ""
-		if len(product.MainImages) > 0 {
-			productImage = product.MainImages[0]
-		} else if len(product.ColorVariants) > 0 && len(product.ColorVariants[0].Images) > 0 {
-			productImage = product.ColorVariants[0].Images[0]
-		}
+		productImage := selectedVariantImage(product, item.Variant.Color, item.Variant.ColorName)
 
 		responseItems = append(responseItems, CartItemResponse{
 			Product: ProductResponse{
@@ -422,10 +403,19 @@ func CreateOrReplaceCart(w http.ResponseWriter, r *http.Request) {
 	// If an active cart already exists, seed mergeMap with its current items
 	if existingErr == nil {
 		for _, it := range existingCart.Items {
+			var product models.Product
+			if err := productsCollection.FindOne(ctx, bson.M{"_id": it.ProductID}).Decode(&product); err != nil {
+				continue
+			}
+			normalizedVariant, _, sizeIdx, ok := enrichCartVariantFromProduct(&product, it.Variant)
+			if !ok || sizeIdx == -1 {
+				continue
+			}
+			it.Variant = normalizedVariant
 			k := itemKey{
 				ProductID: it.ProductID,
 				Size:      it.Variant.Size,
-				Color:     it.Variant.Color,
+				Color:     variantKeyColor(it.Variant),
 			}
 			copyItem := it // create copy to avoid referencing loop var
 			mergeMap[k] = &copyItem
@@ -475,12 +465,13 @@ func CreateOrReplaceCart(w http.ResponseWriter, r *http.Request) {
 
 		k := itemKey{
 			ProductID: productIDObj,
-			Size:      reqItem.Variant.Size,
-			Color:     reqItem.Variant.Color,
+			Size:      enrichedVariant.Size,
+			Color:     variantKeyColor(enrichedVariant),
 		}
 		if existing, ok := mergeMap[k]; ok {
 			existing.Quantity += reqItem.Quantity // increment quantity
-			// Update ColorName and SKU
+			// Update variant fields in case old cart data was missing ColorName/SKU.
+			existing.Variant.Color = enrichedVariant.Color
 			existing.Variant.ColorName = enrichedVariant.ColorName
 			existing.Variant.SKU = enrichedVariant.SKU
 		} else {
@@ -598,7 +589,7 @@ func AddItemToExistingCart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate that the requested color+size combination exists and has stock
-	availableStock, statusCode, err := validateVariantStock(&product, requestData.Variant.Color, requestData.Variant.Size, requestData.Quantity)
+	availableStock, statusCode, err := validateVariantStock(&product, requestData.Variant, requestData.Quantity)
 	if err != nil {
 		utils.ErrorResponse(w, statusCode, err.Error())
 		return
@@ -636,9 +627,7 @@ func AddItemToExistingCart(w http.ResponseWriter, r *http.Request) {
 	itemIndex := -1
 	existingQuantity := 0
 	for i, item := range cart.Items {
-		if item.ProductID == productID && item.Variant.Size == enrichedVariant.Size &&
-			(item.Variant.Color == enrichedVariant.Color ||
-				(item.Variant.Color == "" && item.Variant.ColorName != "" && item.Variant.ColorName == enrichedVariant.Color)) {
+		if item.ProductID == productID && cartVariantsMatch(item.Variant, enrichedVariant) {
 			itemIndex = i
 			existingQuantity = item.Quantity
 			break
@@ -659,6 +648,7 @@ func AddItemToExistingCart(w http.ResponseWriter, r *http.Request) {
 		// Update quantity of existing item
 		cart.Items[itemIndex].Quantity = totalQuantity
 		// Also update ColorName and SKU in case they were missing before
+		cart.Items[itemIndex].Variant.Color = enrichedVariant.Color
 		cart.Items[itemIndex].Variant.ColorName = enrichedVariant.ColorName
 		cart.Items[itemIndex].Variant.SKU = enrichedVariant.SKU
 	} else {
@@ -726,7 +716,7 @@ func UpdateCart(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Validate variant exists and has sufficient stock
-		_, statusCode, err := validateVariantStock(&product, requestData.Variant.Color, requestData.Variant.Size, requestData.Quantity)
+		_, statusCode, err := validateVariantStock(&product, requestData.Variant, requestData.Quantity)
 		if err != nil {
 			// Translate error messages to Persian for user-facing errors
 			if statusCode == http.StatusBadRequest {
@@ -754,9 +744,7 @@ func UpdateCart(w http.ResponseWriter, r *http.Request) {
 
 	itemIndex := -1
 	for i, item := range cart.Items {
-		if item.ProductID == productID && item.Variant.Size == requestData.Variant.Size &&
-			(item.Variant.Color == requestData.Variant.Color ||
-				(item.Variant.Color == "" && item.Variant.ColorName != "" && item.Variant.ColorName == requestData.Variant.Color)) {
+		if item.ProductID == productID && cartVariantsMatch(item.Variant, requestData.Variant) {
 			itemIndex = i
 			break
 		}
@@ -781,7 +769,7 @@ func UpdateCart(w http.ResponseWriter, r *http.Request) {
 }
 
 // RemoveFromCart removes an item from the user's cart based on ProductID and Variant from query params.
-// Expected query params: productId, variantSize, variantColor
+// Expected query params: productId, variantSize, variantColor, variantColorName
 func RemoveFromCart(w http.ResponseWriter, r *http.Request) {
 	userID, statusCode, err := getUserIDFromContext(r)
 	if err != nil {
@@ -793,6 +781,7 @@ func RemoveFromCart(w http.ResponseWriter, r *http.Request) {
 	productIDStr := queryParams.Get("productId")
 	variantSize := queryParams.Get("variantSize")
 	variantColor := queryParams.Get("variantColor")
+	variantColorName := queryParams.Get("variantColorName")
 
 	if productIDStr == "" {
 		utils.ErrorResponse(
@@ -832,10 +821,13 @@ func RemoveFromCart(w http.ResponseWriter, r *http.Request) {
 
 	itemFoundAndRemoved := false
 	newItems := []models.CartItem{}
+	requestedVariant := models.CartVariant{
+		Size:      variantSize,
+		Color:     variantColor,
+		ColorName: variantColorName,
+	}
 	for _, item := range cart.Items {
-		if item.ProductID == productID && item.Variant.Size == variantSize &&
-			(item.Variant.Color == variantColor ||
-				(item.Variant.Color == "" && item.Variant.ColorName != "" && item.Variant.ColorName == variantColor)) {
+		if item.ProductID == productID && cartVariantsMatch(item.Variant, requestedVariant) {
 			itemFoundAndRemoved = true
 			// Skip this item to remove it
 		} else {

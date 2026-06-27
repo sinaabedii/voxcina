@@ -89,13 +89,7 @@ func newOrderAPIResponse(
 				item.ProductID.Hex(),
 			)
 		}
-		// Get product image from mainImages or first color variant
-		productImage := ""
-		if len(product.MainImages) > 0 {
-			productImage = product.MainImages[0]
-		} else if len(product.ColorVariants) > 0 && len(product.ColorVariants[0].Images) > 0 {
-			productImage = product.ColorVariants[0].Images[0]
-		}
+		productImage := selectedVariantImage(product, item.Variant.Color, item.Variant.ColorName)
 
 		populatedItems = append(populatedItems, OrderItemAPIResponse{
 			Product: OrderProductResponse{
@@ -150,31 +144,25 @@ func validateInventory(ctx context.Context, items []models.OrderItem) (bool, str
 			return false, fmt.Sprintf("خطا در بررسی موجودی محصول: %v", err)
 		}
 
-		// Find the color variant and size
-		found := false
-		for _, colorVariant := range product.ColorVariants {
-			if colorVariant.Color == item.Variant.Color {
-				for _, sizeVariant := range colorVariant.Sizes {
-					if sizeVariant.Size == item.Variant.Size {
-						found = true
-						if sizeVariant.Quantity < item.Quantity {
-							return false, fmt.Sprintf(
-								"موجودی کافی برای %s (رنگ: %s، سایز: %s) وجود ندارد. موجودی: %d، درخواست: %d",
-								product.Name, colorVariant.ColorName, sizeVariant.Size,
-								sizeVariant.Quantity, item.Quantity,
-							)
-						}
-						break
-					}
-				}
-				break
-			}
-		}
-
-		if !found {
+		colorVariant, _, ok := findColorVariant(&product, item.Variant.Color, item.Variant.ColorName)
+		if !ok {
 			return false, fmt.Sprintf(
 				"تنوع انتخاب شده (رنگ: %s، سایز: %s) برای محصول %s یافت نشد",
 				item.Variant.Color, item.Variant.Size, product.Name,
+			)
+		}
+		sizeVariant, _, ok := findSizeVariant(colorVariant, item.Variant.Size)
+		if !ok {
+			return false, fmt.Sprintf(
+				"تنوع انتخاب شده (رنگ: %s، سایز: %s) برای محصول %s یافت نشد",
+				colorVariant.ColorName, item.Variant.Size, product.Name,
+			)
+		}
+		if sizeVariant.Quantity < item.Quantity {
+			return false, fmt.Sprintf(
+				"موجودی کافی برای %s (رنگ: %s، سایز: %s) وجود ندارد. موجودی: %d، درخواست: %d",
+				product.Name, colorVariant.ColorName, sizeVariant.Size,
+				sizeVariant.Quantity, item.Quantity,
 			)
 		}
 	}
@@ -194,32 +182,15 @@ func reduceInventory(ctx context.Context, items []models.OrderItem) error {
 			return fmt.Errorf("failed to find product %s: %w", item.ProductID.Hex(), err)
 		}
 
-		// Find the color variant index and size index
-		colorIdx := -1
-		sizeIdx := -1
-		for ci, cv := range product.ColorVariants {
-			if cv.Color == item.Variant.Color {
-				colorIdx = ci
-				for si, sv := range cv.Sizes {
-					if sv.Size == item.Variant.Size {
-						sizeIdx = si
-						break
-					}
-				}
-				break
-			}
-		}
-
-		if colorIdx == -1 || sizeIdx == -1 {
+		_, colorIdx, sizeIdx, ok := normalizeOrderVariantFromProduct(&product, item.Variant)
+		if !ok || colorIdx == -1 || sizeIdx == -1 {
 			return fmt.Errorf("variant not found for product %s", item.ProductID.Hex())
 		}
 
 		// Update the specific size quantity using array indices
 		updatePath := fmt.Sprintf("color_variants.%d.sizes.%d.quantity", colorIdx, sizeIdx)
 		filter := bson.M{
-			"_id":                       item.ProductID,
-			"color_variants.color":      item.Variant.Color,
-			"color_variants.sizes.size": item.Variant.Size,
+			"_id": item.ProductID,
 		}
 		update := bson.M{
 			"$inc": bson.M{
@@ -270,22 +241,8 @@ func restoreInventory(ctx context.Context, items []models.OrderItem) error {
 			return fmt.Errorf("failed to find product %s: %w", item.ProductID.Hex(), err)
 		}
 
-		colorIdx := -1
-		sizeIdx := -1
-		for ci, cv := range product.ColorVariants {
-			if cv.Color == item.Variant.Color {
-				colorIdx = ci
-				for si, sv := range cv.Sizes {
-					if sv.Size == item.Variant.Size {
-						sizeIdx = si
-						break
-					}
-				}
-				break
-			}
-		}
-
-		if colorIdx == -1 || sizeIdx == -1 {
+		_, colorIdx, sizeIdx, ok := normalizeOrderVariantFromProduct(&product, item.Variant)
+		if !ok || colorIdx == -1 || sizeIdx == -1 {
 			continue // Skip if variant not found (product might have been modified)
 		}
 
@@ -499,20 +456,15 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Get product image from mainImages or first color variant
-		productImage := ""
-		if len(product.MainImages) > 0 {
-			productImage = product.MainImages[0]
-		} else if len(product.ColorVariants) > 0 && len(product.ColorVariants[0].Images) > 0 {
-			productImage = product.ColorVariants[0].Images[0]
-		}
+		normalizedVariant, _, _, _ := normalizeOrderVariantFromProduct(&product, item.Variant)
+		productImage := selectedVariantImage(product, normalizedVariant.Color, normalizedVariant.ColorName)
 
 		// Create order item with product snapshot
 		itemWithSnapshot := models.OrderItem{
 			ProductID:       item.ProductID,
 			ProductName:     product.Name,
 			ProductImage:    productImage,
-			Variant:         item.Variant,
+			Variant:         normalizedVariant,
 			Quantity:        item.Quantity,
 			PriceAtPurchase: item.PriceAtPurchase,
 		}

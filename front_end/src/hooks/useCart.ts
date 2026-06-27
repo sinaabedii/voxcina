@@ -35,16 +35,17 @@ export const useCart = () => {
     productId: string,
     quantity: number,
     size?: string,
-    color?: string
+    color?: string,
+    colorName?: string
   ) => {
-    storeUpdateItemQuantity(productId, quantity, size, color);
+    storeUpdateItemQuantity(productId, quantity, size, color, colorName);
   };
 
   // Increase quantity by finding item by id, then using productId/size/color
   const increaseQuantity = (itemId: string) => {
     const item = cart.items.find((item) => item.id === itemId);
     if (item) {
-      storeUpdateItemQuantity(item.productId, item.quantity + 1, item.size, item.color);
+      storeUpdateItemQuantity(item.productId, item.quantity + 1, item.size, item.color, item.colorName);
     }
   };
 
@@ -52,9 +53,9 @@ export const useCart = () => {
   const decreaseQuantity = (itemId: string) => {
     const item = cart.items.find((item) => item.id === itemId);
     if (item && item.quantity > 1) {
-      storeUpdateItemQuantity(item.productId, item.quantity - 1, item.size, item.color);
+      storeUpdateItemQuantity(item.productId, item.quantity - 1, item.size, item.color, item.colorName);
     } else if (item) {
-      storeRemoveItem(item.productId, item.size, item.color);
+      storeRemoveItem(item.productId, item.size, item.color, item.colorName);
     }
   };
 
@@ -62,7 +63,7 @@ export const useCart = () => {
   const removeItem = (itemId: string) => {
     const item = cart.items.find((item) => item.id === itemId);
     if (item) {
-      storeRemoveItem(item.productId, item.size, item.color);
+      storeRemoveItem(item.productId, item.size, item.color, item.colorName);
     }
   };
 

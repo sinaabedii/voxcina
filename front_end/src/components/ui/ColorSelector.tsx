@@ -55,7 +55,7 @@ const ColorSelector: React.FC<ColorSelectorProps> = ({
   };
 
   const classes = sizeClasses[size];
-  const selectedColorObj = colors.find(c => c.color === selectedColor);
+  const selectedColorObj = colors.find(c => c.color === selectedColor || c.colorName === selectedColor);
 
   return (
     <div className={cn("mb-6", className)}>
@@ -98,10 +98,10 @@ const ColorSelector: React.FC<ColorSelectorProps> = ({
                   className={cn(classes.inner, "rounded-full block object-cover")}
                 />
               ) : (
-                <span
-                  className={cn(classes.inner, "rounded-full block")}
-                  style={{ backgroundColor: colorObj.color }}
-                />
+	                <span
+	                  className={cn(classes.inner, "rounded-full block")}
+	                  style={colorObj.color?.startsWith("#") ? { backgroundColor: colorObj.color } : undefined}
+	                />
               )}
               {isSelected && (
                 <CheckCircle
