@@ -712,7 +712,7 @@ func cropToAspectRatio(data []byte, targetW, targetH int) ([]byte, string, error
 	targetRatio := float64(targetW) / float64(targetH)
 	currentRatio := float64(w) / float64(h)
 
-	const tolerance = 0.02
+	const tolerance = 0.05
 	if currentRatio >= targetRatio-tolerance && currentRatio <= targetRatio+tolerance {
 		var buf bytes.Buffer
 		if err := jpeg.Encode(&buf, src, &jpeg.Options{Quality: tryOnImageQuality}); err != nil {

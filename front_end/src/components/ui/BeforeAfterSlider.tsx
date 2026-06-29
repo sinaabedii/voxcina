@@ -74,7 +74,7 @@ export default function BeforeAfterSlider({
       <img
         src={beforeImage}
         alt={beforeLabel}
-        className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+        className="absolute inset-0 w-full h-full object-contain pointer-events-none"
         draggable={false}
       />
       <div className="absolute bottom-2 right-2 bg-background/85 dark:bg-voxcina-blue/85 backdrop-blur-sm text-voxcina-blue dark:text-voxcina-cream text-[10px] px-2 py-0.5 rounded-md pointer-events-none">
@@ -89,7 +89,7 @@ export default function BeforeAfterSlider({
         <img
           src={afterImage}
           alt={afterLabel}
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-contain"
           draggable={false}
         />
         <div className="absolute bottom-2 left-2 bg-voxcina-blue/85 dark:bg-voxcina-cream/85 backdrop-blur-sm text-voxcina-cream dark:text-voxcina-blue text-[10px] px-2 py-0.5 rounded-md">
