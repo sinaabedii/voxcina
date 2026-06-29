@@ -285,14 +285,30 @@ export default function TryOnRoomPage() {
       hydratedForChatIdRef.current = chatId;
       return;
     }
+    // Build a map of tryon_id → person_image_url from persisted tryons
+    // so we can replace dead blob URLs with stable backend URLs.
+    const tryonPersonImageMap = new Map<string, string>();
+    for (const t of persistedTryons) {
+      if (t.tryon_id && t.person_image_url) {
+        tryonPersonImageMap.set(t.tryon_id, t.person_image_url);
+      }
+    }
+
     const restored: ChatMessage[] = persistedMessages.map((m) => {
       if (m.role === "tryon" && m.tryon_data) {
+        let beforeImg = m.tryon_data.before_image || "";
+        // Blob URLs are session-specific and die on reload.
+        // Replace with the backend person_image_url from the linked tryon.
+        if (beforeImg.startsWith("blob:") && m.tryon_data.tryon_id) {
+          const backendUrl = tryonPersonImageMap.get(m.tryon_data.tryon_id);
+          if (backendUrl) beforeImg = backendUrl;
+        }
         return {
           role: "tryon",
           content: m.content,
           tryonData: {
             roomNumber: m.tryon_data.room_number,
-            beforeImage: m.tryon_data.before_image,
+            beforeImage: beforeImg,
             afterImage: m.tryon_data.after_image,
             productName: m.tryon_data.product_name,
             tryonId: m.tryon_data.tryon_id,
