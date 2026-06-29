@@ -18,6 +18,7 @@ import Button from "@/components/ui/Button";
 import BackendImage from "@/components/BackendImage";
 import BeforeAfterSlider from "@/components/ui/BeforeAfterSlider";
 import CountdownTimer from "@/components/ui/CountdownTimer";
+import ImageCropModal from "@/components/ui/ImageCropModal";
 import { activityTracker } from "@/lib/activity-tracker";
 import {
   TryonChatMessage as DbTryonChatMessage,
@@ -160,6 +161,7 @@ export default function TryOnRoomPage() {
   const [showNegotiationPrompt, setShowNegotiationPrompt] = useState(false);
   const [compareModalData, setCompareModalData] = useState<{ beforeImage: string; afterImage: string } | null>(null);
   const [mobileTab, setMobileTab] = useState<"products" | "chat">("products");
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
@@ -347,9 +349,19 @@ export default function TryOnRoomPage() {
     }
   }, [chatId]);
 
+  const openCropModal = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImageToCrop(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    // reset file input so the same file can be re-selected after cancel
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setUploadedFile(file);
+    if (file) openCropModal(file);
   };
 
   const handleFileDrop = (e: React.DragEvent) => {
@@ -357,7 +369,7 @@ export default function TryOnRoomPage() {
     setDragOver(false);
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith("image/")) {
-      setUploadedFile(file);
+      openCropModal(file);
     } else if (file) {
       toast.error("لطفاً یک فایل تصویری انتخاب کنید");
     }
@@ -1589,6 +1601,17 @@ export default function TryOnRoomPage() {
           </div>
         </motion.div>
       )}
+
+      {/* Image crop modal — shown when user selects/drops a photo */}
+      <ImageCropModal
+        isOpen={!!imageToCrop}
+        imageSrc={imageToCrop || ""}
+        onConfirm={(croppedFile, previewUrl) => {
+          useTryOnStore.setState({ uploadedFile: croppedFile, uploadedPreview: previewUrl });
+          setImageToCrop(null);
+        }}
+        onCancel={() => setImageToCrop(null)}
+      />
     </div>
   );
 }

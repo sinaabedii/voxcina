@@ -11,6 +11,16 @@ export async function getCroppedImg(
   outputSize: number = 160,
   quality: number = 0.85
 ): Promise<Blob> {
+  return getCroppedImgWithDimensions(imageSrc, crop, outputSize, outputSize, quality);
+}
+
+export async function getCroppedImgWithDimensions(
+  imageSrc: string,
+  crop: CropArea,
+  outputWidth: number,
+  outputHeight: number,
+  quality: number = 0.85
+): Promise<Blob> {
   const image = new Image();
   image.crossOrigin = "anonymous";
   await new Promise<void>((resolve, reject) => {
@@ -22,8 +32,8 @@ export async function getCroppedImg(
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d")!;
 
-  canvas.width = outputSize;
-  canvas.height = outputSize;
+  canvas.width = outputWidth;
+  canvas.height = outputHeight;
 
   ctx.drawImage(
     image,
@@ -33,8 +43,8 @@ export async function getCroppedImg(
     crop.height,
     0,
     0,
-    outputSize,
-    outputSize
+    outputWidth,
+    outputHeight
   );
 
   return new Promise<Blob>((resolve, reject) => {
@@ -43,7 +53,7 @@ export async function getCroppedImg(
         if (blob) resolve(blob);
         else reject(new Error("Canvas toBlob failed"));
       },
-      "image/webp",
+      "image/jpeg",
       quality
     );
   });
