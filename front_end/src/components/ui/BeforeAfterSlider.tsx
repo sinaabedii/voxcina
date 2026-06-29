@@ -19,7 +19,6 @@ export default function BeforeAfterSlider({
 }: BeforeAfterSliderProps) {
   const [sliderPos, setSliderPos] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
-  const [ratio, setRatio] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const updateSlider = useCallback((clientX: number) => {
@@ -63,18 +62,11 @@ export default function BeforeAfterSlider({
     }
   };
 
-  const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = e.currentTarget;
-    if (img.naturalWidth && img.naturalHeight) {
-      setRatio(img.naturalWidth / img.naturalHeight);
-    }
-  }, []);
-
   return (
     <div
       ref={containerRef}
       className={`relative overflow-hidden select-none cursor-ew-resize ${className}`}
-      style={ratio ? { aspectRatio: String(ratio) } : undefined}
+      style={{ aspectRatio: "3/4" }}
       onMouseDown={startDrag}
       onTouchStart={startDrag}
     >
@@ -82,7 +74,7 @@ export default function BeforeAfterSlider({
       <img
         src={beforeImage}
         alt={beforeLabel}
-        className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+        className="absolute inset-0 w-full h-full object-cover pointer-events-none"
         draggable={false}
       />
       <div className="absolute bottom-2 right-2 bg-background/85 dark:bg-voxcina-blue/85 backdrop-blur-sm text-voxcina-blue dark:text-voxcina-cream text-[10px] px-2 py-0.5 rounded-md pointer-events-none">
@@ -97,9 +89,8 @@ export default function BeforeAfterSlider({
         <img
           src={afterImage}
           alt={afterLabel}
-          className="absolute inset-0 w-full h-full object-contain"
+          className="absolute inset-0 w-full h-full object-cover"
           draggable={false}
-          onLoad={handleImageLoad}
         />
         <div className="absolute bottom-2 left-2 bg-voxcina-blue/85 dark:bg-voxcina-cream/85 backdrop-blur-sm text-voxcina-cream dark:text-voxcina-blue text-[10px] px-2 py-0.5 rounded-md">
           {afterLabel}

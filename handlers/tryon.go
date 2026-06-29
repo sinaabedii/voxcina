@@ -41,11 +41,11 @@ const tryOnTaskTTL = 30 * time.Minute
 const tryOnFinishedGrace = 5 * time.Minute
 const tryOnCleanupInterval = 1 * time.Minute
 
-const tryOnPromptUpper = "Replace upper garment with attached garment. Preserve exact face, pose, background, and lighting. Add natural armpit and chest folds matching light direction. Ensure shoulder seams align with natural shoulders and collar sits naturally at neckline. No warping, bleeding, or artifacts. Output only image."
+const tryOnPromptUpper = "Replace upper garment with attached garment. Preserve exact face, pose, background, and lighting. Add natural armpit and chest folds matching light direction. Ensure shoulder seams align with natural shoulders and collar sits naturally at neckline. No warping, bleeding, or artifacts. Output in 3:4 portrait aspect ratio. Output only image."
 
-const tryOnPromptLower = "Replace lower garment with attached garment. Preserve exact face, pose, background, and lighting. Add natural waistband and knee folds matching light direction. Ensure waist transition is seamless with realistic drape around hips and thighs. No warping, bleeding, or artifacts. Output only image."
+const tryOnPromptLower = "Replace lower garment with attached garment. Preserve exact face, pose, background, and lighting. Add natural waistband and knee folds matching light direction. Ensure waist transition is seamless with realistic drape around hips and thighs. No warping, bleeding, or artifacts. Output in 3:4 portrait aspect ratio. Output only image."
 
-const tryOnPromptDress = "Replace full-body garment with attached garment. Preserve exact face, pose, background, and lighting. Add natural folds at shoulders, chest, and waist matching light direction. Ensure the garment wraps naturally around torso and drapes realistically over hips. No warping, bleeding, or artifacts. Output only image."
+const tryOnPromptDress = "Replace full-body garment with attached garment. Preserve exact face, pose, background, and lighting. Add natural folds at shoulders, chest, and waist matching light direction. Ensure the garment wraps naturally around torso and drapes realistically over hips. No warping, bleeding, or artifacts. Output in 3:4 portrait aspect ratio. Output only image."
 
 func getTryOnPrompt(garmentType string) string {
 	switch garmentType {
@@ -686,6 +686,62 @@ func extractBase64Image(content string) string {
 	return ""
 }
 
+func cropToAspectRatio(data []byte, targetW, targetH int) ([]byte, string, error) {
+	mime := http.DetectContentType(data)
+
+	var src image.Image
+	var err error
+	switch {
+	case strings.Contains(mime, "jpeg") || strings.Contains(mime, "jpg"):
+		src, err = jpeg.Decode(bytes.NewReader(data))
+	case strings.Contains(mime, "png"):
+		src, err = png.Decode(bytes.NewReader(data))
+	case strings.Contains(mime, "webp"):
+		src, err = webp.Decode(bytes.NewReader(data))
+	default:
+		src, _, err = image.Decode(bytes.NewReader(data))
+	}
+	if err != nil {
+		return nil, "", fmt.Errorf("decode error: %v", err)
+	}
+
+	bounds := src.Bounds()
+	w := bounds.Dx()
+	h := bounds.Dy()
+
+	targetRatio := float64(targetW) / float64(targetH)
+	currentRatio := float64(w) / float64(h)
+
+	const tolerance = 0.02
+	if currentRatio >= targetRatio-tolerance && currentRatio <= targetRatio+tolerance {
+		var buf bytes.Buffer
+		if err := jpeg.Encode(&buf, src, &jpeg.Options{Quality: tryOnImageQuality}); err != nil {
+			return nil, "", fmt.Errorf("encode error: %v", err)
+		}
+		return buf.Bytes(), "image/jpeg", nil
+	}
+
+	var cropW, cropH int
+	if currentRatio > targetRatio {
+		cropH = h
+		cropW = int(float64(h) * targetRatio)
+	} else {
+		cropW = w
+		cropH = int(float64(w) / targetRatio)
+	}
+
+	x0 := bounds.Min.X + (w-cropW)/2
+	y0 := bounds.Min.Y + (h-cropH)/2
+	cropped := image.NewRGBA(image.Rect(0, 0, cropW, cropH))
+	draw.Draw(cropped, cropped.Bounds(), src, image.Point{x0, y0}, draw.Src)
+
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, cropped, &jpeg.Options{Quality: tryOnImageQuality}); err != nil {
+		return nil, "", fmt.Errorf("encode error: %v", err)
+	}
+	return buf.Bytes(), "image/jpeg", nil
+}
+
 func saveTryOnImage(dataURL string) (string, error) {
 	parts := strings.SplitN(dataURL, ",", 2)
 	if len(parts) != 2 {
@@ -697,11 +753,9 @@ func saveTryOnImage(dataURL string) (string, error) {
 		return "", fmt.Errorf("base64 decode error: %v", err)
 	}
 
-	ext := ".png"
-	if strings.Contains(parts[0], "jpeg") || strings.Contains(parts[0], "jpg") {
-		ext = ".jpg"
-	} else if strings.Contains(parts[0], "webp") {
-		ext = ".webp"
+	croppedData, _, err := cropToAspectRatio(rawData, 3, 4)
+	if err != nil {
+		return "", fmt.Errorf("crop error: %v", err)
 	}
 
 	uploadDir := "uploads/products/tryon"
@@ -709,8 +763,8 @@ func saveTryOnImage(dataURL string) (string, error) {
 		return "", fmt.Errorf("mkdir error: %v", err)
 	}
 
-	filename := fmt.Sprintf("%s/%d%s", uploadDir, time.Now().UnixNano(), ext)
-	if err := os.WriteFile(filename, rawData, 0644); err != nil {
+	filename := fmt.Sprintf("%s/%d.jpg", uploadDir, time.Now().UnixNano())
+	if err := os.WriteFile(filename, croppedData, 0644); err != nil {
 		return "", fmt.Errorf("write error: %v", err)
 	}
 
@@ -779,7 +833,7 @@ func generatePlaceholderImage() (string, error) {
 }
 
 func generatePlaceholderImageBytes() ([]byte, error) {
-	width, height := 512, 512
+	width, height := 384, 512
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 
