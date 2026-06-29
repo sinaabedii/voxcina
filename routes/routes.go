@@ -340,6 +340,8 @@ func NewRouter() *mux.Router {
 		Methods(http.MethodGet)
 	api.HandleFunc("/discounts/{id}", handlers.UpdateDiscount).Methods(http.MethodPut)
 	api.HandleFunc("/discounts/{id}", handlers.DeleteDiscount).Methods(http.MethodDelete)
+	api.HandleFunc("/discounts/activate", handlers.ActivateDiscount).Methods(http.MethodPost)
+	api.HandleFunc("/discounts/deactivate", handlers.DeactivateDiscount).Methods(http.MethodPost)
 
 	// Admin Dashboard Statistics
 	adminRouter.HandleFunc("/dashboard-stats", handlers.DashboardStatsHandler).Methods("GET")

@@ -235,13 +235,12 @@ func ApplyNegotiatedCoupon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = collection.UpdateOne(ctx,
-		bson.M{"_id": coupon.ID},
-		bson.M{"$set": bson.M{"used": true}},
-	)
-	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در ثبت استفاده از کوپن")
-		return
+	// Note: used flag is set by the frontend via POST /api/discounts/activate
+	// after the discount is successfully applied to the cart.
+
+	productIDStrings := make([]string, 0, len(coupon.ProductIDs))
+	for _, pid := range coupon.ProductIDs {
+		productIDStrings = append(productIDStrings, pid.Hex())
 	}
 
 	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
@@ -254,6 +253,7 @@ func ApplyNegotiatedCoupon(w http.ResponseWriter, r *http.Request) {
 			"min_order_amount":   0,
 			"valid_to":           coupon.ValidUntil.Format(time.RFC3339),
 			"description":        "کد تخفیف اختصاصی شما",
+			"product_ids":        productIDStrings,
 		},
 	})
 }

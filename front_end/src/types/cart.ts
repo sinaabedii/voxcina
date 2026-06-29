@@ -46,4 +46,6 @@ export interface PromoCode {
   expireDate?: string;
   description?: string;
   errorMessage?: string;
+  type?: "admin" | "negotiated";
+  productIds?: string[];
 }

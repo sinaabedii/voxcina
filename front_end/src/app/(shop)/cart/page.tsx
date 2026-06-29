@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { activityTracker } from "@/lib/activity-tracker";
 import { CartItem } from '@/types/cart';
 import { getCartItemColorKey, getCartItemImage, getCartItemVariant } from "@/lib/product-variants";
+import ConfirmRemoveModal from "@/components/ui/ConfirmRemoveModal";
 
 export default function CartPage() {
   const {
@@ -50,6 +51,12 @@ export default function CartPage() {
   
   const [promoInput, setPromoInput] = useState("");
   const [promoError, setPromoError] = useState("");
+  const [removeModal, setRemoveModal] = useState<{
+    isOpen: boolean;
+    item: CartItem | null;
+    willInvalidate: boolean;
+    productName: string;
+  }>({ isOpen: false, item: null, willInvalidate: false, productName: "" });
   const warnings = getCartWarnings();
 
   // Note: Cart sync is handled by the auth subscription in cart-store.ts
@@ -86,8 +93,47 @@ export default function CartPage() {
     updateItemQuantity(item.productId, quantity, item.size, item.color, item.colorName);
   };
 
+  const willVoucherSurvive = (item: CartItem): boolean => {
+    if (!promoCode?.isValid) return true;
+
+    if (promoCode.type === "negotiated") {
+      if (promoCode.productIds?.length) {
+        return !promoCode.productIds.includes(item.productId);
+      }
+      return true;
+    }
+
+    if (promoCode.type === "admin") {
+      const remainingSubtotal = summary.subtotal - (item.price * item.quantity);
+      if (promoCode.minPurchase > 0 && remainingSubtotal < promoCode.minPurchase) {
+        return false;
+      }
+      return true;
+    }
+
+    return true;
+  };
+
   const handleRemoveItem = (item: CartItem) => {
-    removeItem(item.productId, item.size, item.color, item.colorName);
+    if (promoCode?.isValid) {
+      setRemoveModal({
+        isOpen: true,
+        item,
+        willInvalidate: !willVoucherSurvive(item),
+        productName: item.product?.name || "محصول",
+      });
+    } else {
+      removeItem(item.productId, item.size, item.color, item.colorName);
+    }
+  };
+
+  const confirmRemove = () => {
+    if (!removeModal.item) return;
+    if (removeModal.willInvalidate) {
+      removePromoCode();
+    }
+    removeItem(removeModal.item.productId, removeModal.item.size, removeModal.item.color, removeModal.item.colorName);
+    setRemoveModal({ isOpen: false, item: null, willInvalidate: false, productName: "" });
   };
 
   const handleApplyPromoCode = () => {
@@ -527,6 +573,15 @@ export default function CartPage() {
           </div>
         </motion.div>
       </div>
+
+      <ConfirmRemoveModal
+        isOpen={removeModal.isOpen}
+        onClose={() => setRemoveModal({ isOpen: false, item: null, willInvalidate: false, productName: "" })}
+        onConfirm={confirmRemove}
+        productName={removeModal.productName}
+        willInvalidate={removeModal.willInvalidate}
+        voucherCode={removeModal.willInvalidate ? promoCode?.code : undefined}
+      />
     </div>
   );
 }

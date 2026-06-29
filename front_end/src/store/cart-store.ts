@@ -162,7 +162,7 @@ interface CartStore {
   ) => Promise<void>;
   clearCart: () => Promise<void>;
   applyPromoCode: (code: string) => Promise<void>;
-  applyNegotiatedDiscount: (discount: { code: string; discountPercentage: number; min_order_amount?: number; valid_to?: string; description?: string; maxDiscount?: number }) => void;
+  applyNegotiatedDiscount: (discount: { code: string; discountPercentage: number; min_order_amount?: number; valid_to?: string; description?: string; maxDiscount?: number; productIds?: string[] }) => void;
   removePromoCode: () => void;
   calculateSummary: () => void;
   cleanupSubscriptions: () => void;
@@ -774,7 +774,13 @@ export const useCartStore = create<CartStore>()(
             return;
           }
 
-          set({ promoCode: { code, isValid: true, errorMessage: '', discountPercentage, maxDiscount, expireDate: discount.valid_to, minPurchase, description: discount.type === 'percentage' ? `${discount.value}٪ تخفیف` : `${formatPrice(discount.value)} تومان تخفیف` }, error: null });
+          set({ promoCode: { code, isValid: true, errorMessage: '', discountPercentage, maxDiscount, expireDate: discount.valid_to, minPurchase, description: discount.type === 'percentage' ? `${discount.value}٪ تخفیف` : `${formatPrice(discount.value)} تومان تخفیف`, type: 'admin' }, error: null });
+          // Increment usage count in backend
+          fetch('/api/discounts/activate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code }),
+          }).catch(() => {});
         } catch {
           set({ error: 'خطا در بررسی کد تخفیف', promoCode: { code, isValid: false, errorMessage: 'خطای شبکه', discountPercentage: 0, maxDiscount: 0, expireDate: '', minPurchase: 0 } });
         }
@@ -792,14 +798,31 @@ export const useCartStore = create<CartStore>()(
             expireDate: discount.valid_to || "",
             description: discount.description || "کد تخفیف اختصاصی شما",
             errorMessage: "",
+            type: "negotiated",
+            productIds: discount.productIds || [],
           },
           error: null,
         });
         get().calculateSummary();
+        // Mark as used in backend
+        fetch('/api/discounts/activate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: discount.code }),
+        }).catch(() => {});
       },
 
       removePromoCode: () => {
-        set({ promoCode: null, error: null }); // Clear any promo related errors
+        const { promoCode } = get();
+        if (promoCode?.code) {
+          // Decrement usage count in backend (fire-and-forget)
+          fetch('/api/discounts/deactivate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: promoCode.code }),
+          }).catch(() => {});
+        }
+        set({ promoCode: null, error: null });
         get().calculateSummary();
       },
       cleanupSubscriptions: () => {

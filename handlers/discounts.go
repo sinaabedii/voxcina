@@ -603,3 +603,91 @@ func GetUserPromotions(w http.ResponseWriter, r *http.Request) {
 
 	utils.JSONResponse(w, http.StatusOK, promotions)
 }
+
+// ActivateDiscount increments usage count when a voucher is applied to the cart.
+// POST /api/discounts/activate
+// Works for both admin discounts (increments used_count) and negotiated coupons (sets used=true).
+func ActivateDiscount(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Code string `json:"code"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "فرمت درخواست نامعتبر است")
+		return
+	}
+	if req.Code == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "کد تخفیف الزامی است")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Try admin discount first
+	discountColl := db.Database.Collection("discounts")
+	res, err := discountColl.UpdateOne(ctx,
+		bson.M{"code": req.Code},
+		bson.M{"$inc": bson.M{"used_count": 1}},
+	)
+	if err == nil && res.MatchedCount > 0 {
+		utils.JSONResponse(w, http.StatusOK, map[string]bool{"success": true})
+		return
+	}
+
+	// Try negotiated coupon
+	negotiatedColl := db.Database.Collection("negotiated_coupons")
+	res, err = negotiatedColl.UpdateOne(ctx,
+		bson.M{"code": req.Code},
+		bson.M{"$set": bson.M{"used": true}},
+	)
+	if err == nil && res.MatchedCount > 0 {
+		utils.JSONResponse(w, http.StatusOK, map[string]bool{"success": true})
+		return
+	}
+
+	utils.ErrorResponse(w, http.StatusNotFound, "کد تخفیف یافت نشد")
+}
+
+// DeactivateDiscount decrements usage count when a voucher is removed from the cart.
+// POST /api/discounts/deactivate
+// Works for both admin discounts (decrements used_count, floored at 0) and negotiated coupons (sets used=false).
+func DeactivateDiscount(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Code string `json:"code"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "فرمت درخواست نامعتبر است")
+		return
+	}
+	if req.Code == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "کد تخفیف الزامی است")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Try admin discount first — decrement used_count, ensure it doesn't go below 0
+	discountColl := db.Database.Collection("discounts")
+	res, err := discountColl.UpdateOne(ctx,
+		bson.M{"code": req.Code, "used_count": bson.M{"$gt": 0}},
+		bson.M{"$inc": bson.M{"used_count": -1}},
+	)
+	if err == nil && res.MatchedCount > 0 {
+		utils.JSONResponse(w, http.StatusOK, map[string]bool{"success": true})
+		return
+	}
+
+	// Try negotiated coupon — set used back to false
+	negotiatedColl := db.Database.Collection("negotiated_coupons")
+	res, err = negotiatedColl.UpdateOne(ctx,
+		bson.M{"code": req.Code},
+		bson.M{"$set": bson.M{"used": false}},
+	)
+	if err == nil && res.MatchedCount > 0 {
+		utils.JSONResponse(w, http.StatusOK, map[string]bool{"success": true})
+		return
+	}
+
+	utils.ErrorResponse(w, http.StatusNotFound, "کد تخفیف یافت نشد")
+}
