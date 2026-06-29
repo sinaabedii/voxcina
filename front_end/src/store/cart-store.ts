@@ -162,7 +162,7 @@ interface CartStore {
   ) => Promise<void>;
   clearCart: () => Promise<void>;
   applyPromoCode: (code: string) => Promise<void>;
-  applyNegotiatedDiscount: (discount: { code: string; discountPercentage: number; min_order_amount?: number; valid_to?: string; description?: string; maxDiscount?: number; productIds?: string[] }) => void;
+  applyNegotiatedDiscount: (discount: { code: string; discountPercentage: number; min_order_amount?: number; valid_to?: string; description?: string; maxDiscount?: number; product_ids?: string[]; productIds?: string[] }) => void;
   removePromoCode: () => void;
   calculateSummary: () => void;
   cleanupSubscriptions: () => void;
@@ -799,7 +799,7 @@ export const useCartStore = create<CartStore>()(
             description: discount.description || "کد تخفیف اختصاصی شما",
             errorMessage: "",
             type: "negotiated",
-            productIds: discount.productIds || [],
+            productIds: discount.product_ids || discount.productIds || [],
           },
           error: null,
         });
