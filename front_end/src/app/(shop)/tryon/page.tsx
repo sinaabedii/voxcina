@@ -393,7 +393,6 @@ export default function TryOnRoomPage() {
 
   const handleTryOn = async (item: TryOnEligibleItem, index: number) => {
     setActiveItemIndex(index);
-    setCouponExpired(false);
     const garmentType = item.colorVariant.tryOnGarmentType || "upper_body";
     setInspectedItem(item.product.name, garmentType);
 
@@ -1103,11 +1102,9 @@ export default function TryOnRoomPage() {
                         if (activeItemIndex === idx) {
                           setActiveItemIndex(null);
                           clearInspectedItem();
-                          setCouponExpired(false);
                           return;
                         }
                         setActiveItemIndex(idx);
-                        setCouponExpired(false);
                         const garmentType = item.colorVariant.tryOnGarmentType || "upper_body";
                         setInspectedItem(item.product.name, garmentType);
                       }}
@@ -1368,16 +1365,13 @@ export default function TryOnRoomPage() {
 
                     {/* Coupon card with countdown */}
                     {couponCode && (
-                      <motion.div
+                      <div
                         className={cn(
-                          "rounded-lg p-2.5 mt-2.5",
+                          "rounded-lg p-2.5 mt-2.5 transition-colors",
                           couponExpired
                             ? "bg-background border border-gray-300 dark:border-gray-700"
                             : "bg-background border border-emerald-400/40 dark:border-emerald-500/40"
                         )}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ type: "spring", damping: 25, stiffness: 400 }}
                       >
                         <div className="flex items-center gap-1.5">
                           <Tag className={cn(
@@ -1435,16 +1429,13 @@ export default function TryOnRoomPage() {
                             </div>
                           </>
                         )}
-                      </motion.div>
+                      </div>
                     )}
 
                     {/* Recommended product card */}
                     {recommendedProduct && (
-                      <motion.div
+                      <div
                         className="bg-background border border-secondary-400 dark:border-voxcina-blue/30 rounded-xl p-3 mt-3"
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ type: "spring", damping: 25, stiffness: 400 }}
                       >
                         <div className="flex items-center gap-1.5 mb-2">
                           <Sparkles className="h-3.5 w-3.5 text-voxcina-blue dark:text-voxcina-cream animate-badge-float" />
@@ -1508,7 +1499,7 @@ export default function TryOnRoomPage() {
                             {recommendedAdding ? "..." : "پرو کن"}
                           </Button>
                         </div>
-                      </motion.div>
+                      </div>
                     )}
 
                     <div ref={chatEndRef} />
