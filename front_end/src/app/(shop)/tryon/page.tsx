@@ -334,7 +334,10 @@ export default function TryOnRoomPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId, isLoadingSession]);
 
-  // When persisted tryons are loaded, apply last successful result to UI
+  // When persisted tryons are loaded, restore garment/inspected-item UI state.
+  // uploadedPreview, resultImage, and currentTryonId are already restored by
+  // loadSession() in the store — this effect only fills in the page-local state
+  // (inspectedItem) that the store doesn't own.
   const restoredFromDbRef = useRef(false);
   useEffect(() => {
     if (restoredFromDbRef.current) return;
@@ -342,17 +345,8 @@ export default function TryOnRoomPage() {
     const done = persistedTryons.filter((t) => t.status === "done");
     if (!done.length) return;
     const last = done[done.length - 1];
-    if (last.result_image_url && !resultImage) {
-      setResultImage(last.result_image_url);
-    }
     if (last.garment_product_name && !inspectedItemName) {
       setInspectedItem(last.garment_product_name, last.garment_type);
-    }
-    if (last.tryon_id) {
-      setCurrentTryonId(last.tryon_id);
-    }
-    if (last.person_image_url && !uploadedPreview) {
-      setUploadedPreview(last.person_image_url);
     }
     restoredFromDbRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps

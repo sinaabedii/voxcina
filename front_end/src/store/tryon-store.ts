@@ -302,16 +302,24 @@ export const useTryOnStore = create<TryOnState>()(
               });
             }
           }
-          // Restore last tryon result image if no live resultImage
-          if (!get().resultImage && data.tryons?.length) {
+          // Restore last tryon state if no live result
+          if (data.tryons?.length) {
             const lastDone = [...data.tryons].reverse().find((t) => t.status === "done");
-            if (lastDone?.result_image_url) {
-              set({ resultImage: lastDone.result_image_url });
-            }
             const last = data.tryons[data.tryons.length - 1];
-            if (last) {
-              set({ currentTryonId: last.tryon_id });
+            const patch: Partial<TryOnState> = {};
+            if (!get().resultImage && lastDone?.result_image_url) {
+              patch.resultImage = lastDone.result_image_url;
             }
+            // Always restore the person image preview from the most recent tryon
+            // (person_image_url is a stable backend URL, not a blob — safe across reloads)
+            const previewSource = lastDone ?? last;
+            if (!get().uploadedPreview && previewSource?.person_image_url) {
+              patch.uploadedPreview = previewSource.person_image_url;
+            }
+            if (last?.tryon_id) {
+              patch.currentTryonId = last.tryon_id;
+            }
+            if (Object.keys(patch).length) set(patch);
           }
         }
       } catch {
