@@ -858,6 +858,11 @@ export default function TryOnRoomPage() {
     }
   };
 
+  const handleClearImage = () => {
+    setUploadedFile(null);
+    setActiveItemIndex(null);
+  };
+
   const handleClearAll = () => {
     clear();
     setActiveItemIndex(null);
@@ -1064,7 +1069,7 @@ export default function TryOnRoomPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={(e) => { e.preventDefault(); handleClearAll(); }}
+                    onClick={(e) => { e.preventDefault(); handleClearImage(); }}
                     className="flex-shrink-0 w-7 h-7 bg-red-500/90 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
                   >
                     <X className="h-3.5 w-3.5" />
