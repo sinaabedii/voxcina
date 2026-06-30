@@ -1396,7 +1396,6 @@ export default function TryOnRoomPage() {
                                 validUntil={couponValidUntil}
                                 onExpire={() => {
                                   setCouponExpired(true);
-                                  toast.warning("کد تخفیف شما منقضی شد!");
                                 }}
                                 className="text-[10px]"
                               />

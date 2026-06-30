@@ -430,6 +430,7 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		Items           []models.OrderItem `json:"items"`
 		TotalAmount     float64            `json:"totalAmount"`
 		ShippingAddress models.Address     `json:"shippingAddress"`
+		PromoCode       string             `json:"promoCode,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&orderData); err != nil {
@@ -439,6 +440,55 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	// Validate promo code if provided
+	if orderData.PromoCode != "" {
+		now := time.Now()
+
+		// First check if it's a negotiated coupon (TRYN-XXX)
+		var nc models.NegotiatedCoupon
+		err := db.Database.Collection("negotiated_coupons").FindOne(ctx, bson.M{"code": orderData.PromoCode}).Decode(&nc)
+		if err == nil {
+			// Found as negotiated coupon — validate
+			if nc.Used {
+				utils.ErrorResponse(w, http.StatusBadRequest, "این کد تخفیف قبلاً استفاده شده است")
+				return
+			}
+			if now.After(nc.ValidUntil) {
+				utils.ErrorResponse(w, http.StatusBadRequest, "کد تخفیف شما منقضی شده است")
+				return
+			}
+			// Check user ownership
+			if nc.UserID != userID {
+				utils.ErrorResponse(w, http.StatusBadRequest, "این کد تخفیف متعلق به شما نیست")
+				return
+			}
+		} else if err != mongo.ErrNoDocuments {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در بررسی کد تخفیف")
+			return
+		} else {
+			// Not a negotiated coupon — check regular discounts collection
+			var discount models.Discount
+			err := db.Database.Collection("discounts").FindOne(ctx, bson.M{"code": orderData.PromoCode}).Decode(&discount)
+			if err != nil {
+				if err == mongo.ErrNoDocuments {
+					utils.ErrorResponse(w, http.StatusBadRequest, "کد تخفیف نامعتبر است")
+				} else {
+					utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در بررسی کد تخفیف")
+				}
+				return
+			}
+			// Validate regular discount
+			if now.Before(discount.ValidFrom) || now.After(discount.ValidTo) {
+				utils.ErrorResponse(w, http.StatusBadRequest, "کد تخفیف منقضی شده است")
+				return
+			}
+			if discount.MaxUses > 0 && discount.UsedCount >= discount.MaxUses {
+				utils.ErrorResponse(w, http.StatusBadRequest, "کد تخفیف به سقف مصرف رسیده است")
+				return
+			}
+		}
+	}
 
 	// Fetch product snapshots for each order item
 	productsCollection := db.Database.Collection("products")

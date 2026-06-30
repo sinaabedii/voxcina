@@ -36,7 +36,7 @@ import { toast } from "react-hot-toast";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cart, summary, clearCart } = useCart();
+  const { cart, summary, clearCart, promoCode, removePromoCode } = useCart();
   const { createOrder } = useDashboardStore();
   const { user } = useAuthStore();
   
@@ -430,11 +430,26 @@ export default function CheckoutPage() {
           items: orderItems,
           totalAmount: totalAmount,
           shippingAddress: shippingAddress,
+          promoCode: promoCode?.code && promoCode.isValid ? promoCode.code : undefined,
         }),
       });
 
       if (!orderResponse.ok) {
         const errorData = await orderResponse.json();
+        // If the error is about the promo code, remove it from cart and show specific message
+        if (errorData.error && (
+          errorData.error.includes("کد تخفیف") ||
+          errorData.error.includes("منقضی") ||
+          errorData.error.includes("استفاده شده") ||
+          errorData.error.includes("نامعتبر") ||
+          errorData.error.includes("سقف مصرف") ||
+          errorData.error.includes("تعلق")
+        )) {
+          removePromoCode();
+          toast.error(errorData.error);
+          setIsProcessing(false);
+          return;
+        }
         throw new Error(errorData.error || "خطا در ثبت سفارش");
       }
 
