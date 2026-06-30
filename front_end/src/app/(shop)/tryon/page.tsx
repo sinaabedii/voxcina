@@ -393,7 +393,6 @@ export default function TryOnRoomPage() {
 
   const handleTryOn = async (item: TryOnEligibleItem, index: number) => {
     setActiveItemIndex(index);
-    clearCoupon();
     setCouponExpired(false);
     const garmentType = item.colorVariant.tryOnGarmentType || "upper_body";
     setInspectedItem(item.product.name, garmentType);
@@ -1104,12 +1103,10 @@ export default function TryOnRoomPage() {
                         if (activeItemIndex === idx) {
                           setActiveItemIndex(null);
                           clearInspectedItem();
-                          clearCoupon();
                           setCouponExpired(false);
                           return;
                         }
                         setActiveItemIndex(idx);
-                        clearCoupon();
                         setCouponExpired(false);
                         const garmentType = item.colorVariant.tryOnGarmentType || "upper_body";
                         setInspectedItem(item.product.name, garmentType);
