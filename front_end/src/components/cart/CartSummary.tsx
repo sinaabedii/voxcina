@@ -11,12 +11,14 @@ interface CartSummaryProps {
   showCheckoutButton?: boolean;
   shippingCost?: number; // Optional override for shipping cost (used in checkout with dynamic shipping)
   showShipping?: boolean; // Whether to show shipping (hide on cart page, show on checkout)
+  readOnly?: boolean; // Hide promo input and remove button (used in checkout)
 }
 
 const CartSummary: React.FC<CartSummaryProps> = ({
   showCheckoutButton = true,
   shippingCost,
   showShipping = true,
+  readOnly = false,
 }) => {
   const { summary, promoCode, applyPromoCode, removePromoCode } = useCart();
   
@@ -114,17 +116,19 @@ const CartSummary: React.FC<CartSummaryProps> = ({
                         </span>
                       )}
                     </div>
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="text-sm hover:text-success/80 transition-colors duration-200 p-1 rounded-full hover:bg-success/5"
-                      onClick={() => removePromoCode()}
-                    >
-                      <X className="h-4 w-4" />
-                    </motion.button>
+                    {!readOnly && (
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="text-sm hover:text-success/80 transition-colors duration-200 p-1 rounded-full hover:bg-success/5"
+                        onClick={() => removePromoCode()}
+                      >
+                        <X className="h-4 w-4" />
+                      </motion.button>
+                    )}
                   </div>
                 </motion.div>
-              ) : (
+              ) : !readOnly ? (
                 <motion.div 
                   key="promo-input"
                   initial={{ opacity: 0 }}
@@ -165,7 +169,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
 
 
                 </motion.div>
-              )}
+              ) : null}
             </AnimatePresence>
           </div>
 

@@ -804,6 +804,7 @@ export default function CheckoutPage() {
           <CartSummary 
             showCheckoutButton={false} 
             shippingCost={selectedShippingMethod?.price}
+            readOnly
           />
         </motion.div>
       </motion.div>
