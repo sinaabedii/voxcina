@@ -22,7 +22,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
   showShipping = true,
   readOnly = false,
 }) => {
-  const { summary, promoCode, applyPromoCode, removePromoCode } = useCart();
+  const { cart, summary, promoCode, applyPromoCode, removePromoCode } = useCart();
   
   // Use provided shipping cost or fall back to cart summary shipping
   const effectiveShipping = shippingCost !== undefined ? shippingCost : summary.shipping;
@@ -181,7 +181,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
           
           <div className="mt-2 flex items-center justify-center text-xs text-muted-foreground">
             <ShoppingBag className="ml-1 h-3 w-3" />
-            {summary.items?.length || 0} محصول در سبد خرید
+            {cart.items.length} محصول در سبد خرید
           </div>
         </div>
       </div>
