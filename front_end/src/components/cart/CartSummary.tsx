@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/hooks/useCart";
+import { useCartStore } from "@/store/cart-store";
 import { formatPrice } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/input";
 import { Receipt, Tag, ShoppingBag, CreditCard, Percent, CheckCircle, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "react-toastify";
 
 interface CartSummaryProps {
   showCheckoutButton?: boolean;
@@ -33,11 +35,16 @@ const CartSummary: React.FC<CartSummaryProps> = ({
 
   const handleApplyPromoCode = async () => {
     if (!promoInput.trim()) {
-      setPromoError("لطفا کد تخفیف را وارد کنید");
+      toast.warning("لطفا کد تخفیف را وارد کنید");
       return;
     }
 
     await applyPromoCode(promoInput);
+    // Check if there's an error after applying
+    const currentPromo = useCartStore.getState().promoCode;
+    if (currentPromo && !currentPromo.isValid && currentPromo.errorMessage) {
+      toast.error(currentPromo.errorMessage);
+    }
     setPromoError("");
   };
 
@@ -142,7 +149,6 @@ const CartSummary: React.FC<CartSummaryProps> = ({
                       placeholder="کد تخفیف"
                       value={promoInput}
                       onChange={(e) => setPromoInput(e.target.value)}
-                      error={promoError || (promoCode?.errorMessage ?? "")}
                       className="ml-2"
                       leftElement={<Tag className="h-4 w-4" />}
                     />
@@ -154,20 +160,6 @@ const CartSummary: React.FC<CartSummaryProps> = ({
                       اعمال
                     </Button>
                   </div>
-                  <AnimatePresence>
-                    {(promoError || promoCode?.errorMessage) && (
-                      <motion.p 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="text-xs text-destructive mr-1 animate-fadeIn pt-1"
-                      >
-                        {promoError || promoCode?.errorMessage}
-                      </motion.p>
-                    )}
-                  </AnimatePresence>
-
-
                 </motion.div>
               ) : null}
             </AnimatePresence>
