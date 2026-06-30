@@ -261,8 +261,16 @@ export default function TryOnRoomPage() {
 
   useEffect(() => {
     if (eligibleItems.length > 0 && chatMessages.length === 0 && !negotiationInitializedRef.current) {
-      setChatMessages([{ role: "agent", content: "سلام! من سارا هستم. لباست رو پرو کن و کمکت می کنم تجربه بهتری داشته باشی" }]);
+      const welcomeText = "سلام! من سارا هستم. لباست رو پرو کن و کمکت می کنم تجربه بهتری داشته باشی";
+      setChatMessages([{ role: "agent", content: welcomeText }]);
+      persistMessage({
+        id: makeDbMessageId(),
+        role: "agent",
+        content: welcomeText,
+        timestamp: new Date().toISOString(),
+      });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eligibleItems.length, chatMessages.length]);
 
   // Load persisted chat session for this user on mount
@@ -333,6 +341,24 @@ export default function TryOnRoomPage() {
     hydratedForChatIdRef.current = chatId;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId, isLoadingSession]);
+
+  // After hydration, restore negotiation prompt visibility.
+  // Show prompts if a try-on result exists and the user hasn't used an opener yet.
+  const negotiationRestoredRef = useRef(false);
+  useEffect(() => {
+    if (negotiationRestoredRef.current) return;
+    if (!hydratedForChatIdRef.current || isLoadingSession) return;
+    if (!resultImage || chatMessages.length === 0) return;
+
+    negotiationRestoredRef.current = true;
+    const openerTexts = new Set(NEGOTIATION_OPENERS.map((o) => o.text));
+    const userUsedOpener = chatMessages.some((m) => m.role === "user" && openerTexts.has(m.content));
+    if (!userUsedOpener) {
+      setShowNegotiationPrompt(true);
+      negotiationInitializedRef.current = true;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultImage, chatMessages.length, isLoadingSession]);
 
   // When persisted tryons are loaded, restore garment/inspected-item UI state.
   // uploadedPreview, resultImage, and currentTryonId are already restored by
@@ -847,6 +873,7 @@ export default function TryOnRoomPage() {
     setCompareModalData(null);
     setShowNegotiationPrompt(false);
     negotiationInitializedRef.current = false;
+    negotiationRestoredRef.current = false;
     setMobileTab("products");
   };
 
@@ -861,6 +888,7 @@ export default function TryOnRoomPage() {
     setCompareModalData(null);
     setShowNegotiationPrompt(false);
     negotiationInitializedRef.current = false;
+    negotiationRestoredRef.current = false;
     hydratedForChatIdRef.current = null;
     restoredFromDbRef.current = false;
   }, [startNewRoom]);
