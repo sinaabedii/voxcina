@@ -259,20 +259,6 @@ export default function TryOnRoomPage() {
     return () => window.removeEventListener("keydown", handleKey);
   }, []);
 
-  useEffect(() => {
-    if (eligibleItems.length > 0 && chatMessages.length === 0 && !negotiationInitializedRef.current) {
-      const welcomeText = "سلام! من سارا هستم. لباست رو پرو کن و کمکت می کنم تجربه بهتری داشته باشی";
-      setChatMessages([{ role: "agent", content: welcomeText }]);
-      persistMessage({
-        id: makeDbMessageId(),
-        role: "agent",
-        content: welcomeText,
-        timestamp: new Date().toISOString(),
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eligibleItems.length, chatMessages.length]);
-
   // Load persisted chat session for this user on mount
   useEffect(() => {
     if (!isAuthorized) return;
@@ -283,64 +269,73 @@ export default function TryOnRoomPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthorized]);
 
-  // When persisted messages are loaded, hydrate local chat state and
-  // re-apply tryon cards. Only hydrate once per chat_id.
+  // Single hydration effect: restore persisted messages OR show welcome on first visit.
+  // Consolidates welcome + hydration to eliminate race conditions that caused
+  // duplicate welcome messages.
   const hydratedForChatIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!chatId) return;
     if (hydratedForChatIdRef.current === chatId) return;
     if (isLoadingSession) return;
-    if (persistedMessages.length === 0) {
-      hydratedForChatIdRef.current = chatId;
-      return;
-    }
-    // Build a map of tryon_id → person_image_url from persisted tryons
-    // so we can replace dead blob URLs with stable backend URLs.
-    const tryonPersonImageMap = new Map<string, string>();
-    for (const t of persistedTryons) {
-      if (t.tryon_id && t.person_image_url) {
-        tryonPersonImageMap.set(t.tryon_id, t.person_image_url);
+
+    if (persistedMessages.length > 0) {
+      // Restore from DB
+      const tryonPersonImageMap = new Map<string, string>();
+      for (const t of persistedTryons) {
+        if (t.tryon_id && t.person_image_url) {
+          tryonPersonImageMap.set(t.tryon_id, t.person_image_url);
+        }
       }
+
+      const restored: ChatMessage[] = persistedMessages.map((m) => {
+        if (m.role === "tryon" && m.tryon_data) {
+          let beforeImg = m.tryon_data.before_image || "";
+          if (beforeImg.startsWith("blob:") && m.tryon_data.tryon_id) {
+            const backendUrl = tryonPersonImageMap.get(m.tryon_data.tryon_id);
+            if (backendUrl) beforeImg = backendUrl;
+          }
+          return {
+            role: "tryon",
+            content: m.content,
+            tryonData: {
+              roomNumber: m.tryon_data.room_number,
+              beforeImage: beforeImg,
+              afterImage: m.tryon_data.after_image,
+              productName: m.tryon_data.product_name,
+              tryonId: m.tryon_data.tryon_id,
+            },
+          };
+        }
+        if (m.role === "user" || m.role === "agent") {
+          return { role: m.role as "user" | "agent", content: m.content };
+        }
+        return { role: "agent", content: m.content };
+      });
+      setChatMessages(restored);
+
+      // Restore recommended product from the last agent message with a tool_call
+      const lastRecMsg = [...persistedMessages].reverse().find(
+        (m) => m.role === "agent" && (m.tool_call?.result as any)?.recommended_product
+      );
+      if (lastRecMsg?.tool_call?.result) {
+        const rp = (lastRecMsg.tool_call.result as any).recommended_product;
+        if (rp) setRecommendedProduct(rp as RecommendedProduct);
+      }
+    } else if (eligibleItems.length > 0 && chatMessages.length === 0) {
+      // First visit — no persisted messages, cart has eligible items: show welcome
+      const welcomeText = "سلام! من سارا هستم. لباست رو پرو کن و کمکت می کنم تجربه بهتری داشته باشی";
+      setChatMessages([{ role: "agent", content: welcomeText }]);
+      persistMessage({
+        id: makeDbMessageId(),
+        role: "agent",
+        content: welcomeText,
+        timestamp: new Date().toISOString(),
+      });
     }
 
-    const restored: ChatMessage[] = persistedMessages.map((m) => {
-      if (m.role === "tryon" && m.tryon_data) {
-        let beforeImg = m.tryon_data.before_image || "";
-        // Blob URLs are session-specific and die on reload.
-        // Replace with the backend person_image_url from the linked tryon.
-        if (beforeImg.startsWith("blob:") && m.tryon_data.tryon_id) {
-          const backendUrl = tryonPersonImageMap.get(m.tryon_data.tryon_id);
-          if (backendUrl) beforeImg = backendUrl;
-        }
-        return {
-          role: "tryon",
-          content: m.content,
-          tryonData: {
-            roomNumber: m.tryon_data.room_number,
-            beforeImage: beforeImg,
-            afterImage: m.tryon_data.after_image,
-            productName: m.tryon_data.product_name,
-            tryonId: m.tryon_data.tryon_id,
-          },
-        };
-      }
-      if (m.role === "user" || m.role === "agent") {
-        return { role: m.role as "user" | "agent", content: m.content };
-      }
-      return { role: "agent", content: m.content };
-    });
-    setChatMessages(restored);
-    // Restore recommended product from the last agent message with a tool_call
-    const lastRecMsg = [...persistedMessages].reverse().find(
-      (m) => m.role === "agent" && (m.tool_call?.result as any)?.recommended_product
-    );
-    if (lastRecMsg?.tool_call?.result) {
-      const rp = (lastRecMsg.tool_call.result as any).recommended_product;
-      if (rp) setRecommendedProduct(rp as RecommendedProduct);
-    }
     hydratedForChatIdRef.current = chatId;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatId, isLoadingSession]);
+  }, [chatId, isLoadingSession, eligibleItems.length]);
 
   // After hydration, restore negotiation prompt visibility.
   // Show prompts if a try-on result exists and the user hasn't used an opener yet.
