@@ -915,6 +915,18 @@ export default function TryOnRoomPage() {
 
   const activeItem = activeItemIndex !== null ? eligibleItems[activeItemIndex] : null;
 
+  // Find the negotiation target: prefer the actively selected item, then
+  // fall back to the item matching the last try-on's inspected name, then
+  // the first eligible item. Used by negotiation prompts which should work
+  // even when no product is explicitly selected (e.g. after page reload).
+  const negotiationTargetItem: TryOnEligibleItem | null =
+    activeItem
+    ?? (inspectedItemName
+      ? eligibleItems.find((el) => el.product.name === inspectedItemName) ?? null
+      : null)
+    ?? eligibleItems[0]
+    ?? null;
+
   return (
     <div ref={pageRef} className="container py-4 md:py-6 flex flex-col overflow-hidden">
       {/* Header with highlighter */}
@@ -1534,12 +1546,12 @@ export default function TryOnRoomPage() {
                   {/* Suggestions above input */}
                   {resultImage && !chatLoading && (
                     <div className="flex-shrink-0 space-y-2 mt-2">
-                      {showNegotiationPrompt && activeItem && (
+                      {showNegotiationPrompt && negotiationTargetItem && (
                         <div className="flex flex-wrap gap-1.5">
                           {NEGOTIATION_OPENERS.map((opener, i) => (
                             <button
                               key={i}
-                              onClick={() => handleSelectOpener(opener.text, activeItem)}
+                              onClick={() => handleSelectOpener(opener.text, negotiationTargetItem)}
                               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white dark:bg-voxcina-blue/30 border border-secondary-400 dark:border-voxcina-blue/40 text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:border-voxcina-blue/40 dark:hover:border-voxcina-cream/40 hover:bg-voxcina-blue/[0.08] dark:hover:bg-voxcina-cream/[0.08] hover:text-voxcina-blue dark:hover:text-voxcina-cream transition-all text-xs"
                             >
                               <opener.icon className="h-3 w-3" />
