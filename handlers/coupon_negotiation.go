@@ -199,7 +199,8 @@ func ApplyNegotiatedCoupon(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Code string `json:"code"`
+		Code     string   `json:"code"`
+		CartItems []string `json:"cart_items,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "فرمت درخواست نامعتبر است")
@@ -233,6 +234,23 @@ func ApplyNegotiatedCoupon(w http.ResponseWriter, r *http.Request) {
 	if time.Now().After(coupon.ValidUntil) {
 		utils.ErrorResponse(w, http.StatusGone, "کد تخفیف منقضی شده است")
 		return
+	}
+
+	// Validate that all required products are in the cart
+	if len(coupon.ProductIDs) > 0 && len(req.CartItems) > 0 {
+		for _, requiredPID := range coupon.ProductIDs {
+			found := false
+			for _, cartPID := range req.CartItems {
+				if cartPID == requiredPID.Hex() {
+					found = true
+					break
+				}
+			}
+			if !found {
+				utils.ErrorResponse(w, http.StatusBadRequest, "این کد تخفیف زمانی اعمال می شود که هر دو محصول اصلی و پیشنهادی در سبد خرید باشند")
+				return
+			}
+		}
 	}
 
 	// Note: used flag is set by the frontend via POST /api/discounts/activate

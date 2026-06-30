@@ -35,6 +35,7 @@ interface TryOnState {
   couponCode: string | null;
   couponValue: number | null;
   couponValidUntil: string | null;
+  couponProductIds: string[];
 
   __tryOnAbortController: AbortController | null;
 
@@ -52,7 +53,7 @@ interface TryOnState {
   setResultImage: (url: string | null) => void;
   setInspectedItem: (name: string, garmentType: string) => void;
   clearInspectedItem: () => void;
-  setCoupon: (code: string, value: number, validUntil: string) => void;
+  setCoupon: (code: string, value: number, validUntil: string, productIds?: string[]) => void;
   clearCoupon: () => void;
   clearResult: () => void;
   clear: () => void;
@@ -98,6 +99,7 @@ export const useTryOnStore = create<TryOnState>()(
     couponCode: null,
     couponValue: null,
     couponValidUntil: null,
+    couponProductIds: [],
     __tryOnAbortController: null,
 
     chatId: null,
@@ -131,11 +133,11 @@ export const useTryOnStore = create<TryOnState>()(
     clearInspectedItem: () =>
       set({ inspectedItemName: null, inspectedGarmentType: null }),
 
-    setCoupon: (code, value, validUntil) =>
-      set({ couponCode: code, couponValue: value, couponValidUntil: validUntil }),
+    setCoupon: (code, value, validUntil, productIds) =>
+      set({ couponCode: code, couponValue: value, couponValidUntil: validUntil, couponProductIds: productIds || [] }),
 
     clearCoupon: () =>
-      set({ couponCode: null, couponValue: null, couponValidUntil: null }),
+      set({ couponCode: null, couponValue: null, couponValidUntil: null, couponProductIds: [] }),
 
     clearResult: () => {
       const state = get();
@@ -169,6 +171,7 @@ export const useTryOnStore = create<TryOnState>()(
         couponCode: null,
         couponValue: null,
         couponValidUntil: null,
+        couponProductIds: [],
         __tryOnAbortController: null,
         chatId: null,
         currentTryonId: null,
@@ -402,6 +405,7 @@ export const useTryOnStore = create<TryOnState>()(
         couponCode: null,
         couponValue: null,
         couponValidUntil: null,
+        couponProductIds: [],
       });
     },
   })

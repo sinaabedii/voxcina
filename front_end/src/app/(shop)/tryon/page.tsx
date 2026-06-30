@@ -133,6 +133,7 @@ export default function TryOnRoomPage() {
     couponCode,
     couponValue,
     couponValidUntil,
+    couponProductIds,
     setCoupon,
     clearCoupon,
     chatId,
@@ -709,7 +710,7 @@ export default function TryOnRoomPage() {
 
               if (data.coupon) {
                 const c = data.coupon as CouponOffer;
-                setCoupon(c.code, c.value, c.valid_until);
+                setCoupon(c.code, c.value, c.valid_until, c.product_ids);
                 setCouponExpired(false);
               }
               let recProduct: RecommendedProduct | null = null;
@@ -799,25 +800,28 @@ export default function TryOnRoomPage() {
   const handleApplyCoupon = async () => {
     if (!couponCode || couponApplying || couponExpired) return;
 
-    if (recommendedProduct) {
-      const inCart = useCartStore.getState().cart.items.some(
-        (item) => item.productId === recommendedProduct.product_id
+    // Check that ALL required products (main + complementary) are in cart
+    if (couponProductIds.length > 0) {
+      const cartItems = useCartStore.getState().cart.items;
+      const missingProducts = couponProductIds.filter(
+        (pid) => !cartItems.some((item) => item.productId === pid)
       );
-      if (!inCart) {
-        toast.warning("این کد تخفیف زمانی اعمال می شود که محصول پیشنهادی رو هم خرید کنی");
+      if (missingProducts.length > 0) {
+        toast.warning("این کد تخفیف زمانی اعمال می شود که هر دو محصول اصلی و پیشنهادی در سبد خرید باشند");
         return;
       }
     }
 
     setCouponApplying(true);
     try {
+      const cartProductIds = useCartStore.getState().cart.items.map((item) => item.productId);
       const res = await fetch("/api/tryon/apply-negotiated-coupon", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("authToken")}`,
         },
-        body: JSON.stringify({ code: couponCode }),
+        body: JSON.stringify({ code: couponCode, cart_items: cartProductIds }),
       });
 
       if (!res.ok) {
