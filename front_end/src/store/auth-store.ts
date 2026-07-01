@@ -553,7 +553,7 @@ export const useAuthStore = create<AuthStore>()(
         }
 
         try {
-          const response = await fetch("/api/admin/users", {
+          const response = await fetch("/api/admin/users?limit=10000", {
             method: "GET",
             headers: {
               "Content-Type": "application/json",

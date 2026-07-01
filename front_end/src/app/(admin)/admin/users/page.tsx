@@ -274,7 +274,7 @@ export default function AdminUsersPage() {
         transition={{ duration: 0.5 }}
       >
         <h1 className="text-2xl md:text-3xl font-bold text-voxcina-blue dark:text-voxcina-cream mb-4 md:mb-0 relative inline-block">
-          <span className="relative z-10">مدیریت کاربران ({sortedUsers.length})</span>
+          <span className="relative z-10">مدیریت کاربران ({allUsers.length})</span>
           <span className="absolute bottom-1 left-0 w-full h-3 bg-voxcina-cream dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
         </h1>
       </motion.div>
