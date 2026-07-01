@@ -115,16 +115,12 @@ export default function CartPage() {
   };
 
   const handleRemoveItem = (item: CartItem) => {
-    if (promoCode?.isValid) {
-      setRemoveModal({
-        isOpen: true,
-        item,
-        willInvalidate: !willVoucherSurvive(item),
-        productName: item.product?.name || "محصول",
-      });
-    } else {
-      removeItem(item.productId, item.size, item.color, item.colorName);
-    }
+    setRemoveModal({
+      isOpen: true,
+      item,
+      willInvalidate: promoCode?.isValid ? !willVoucherSurvive(item) : false,
+      productName: item.product?.name || "محصول",
+    });
   };
 
   const confirmRemove = () => {
