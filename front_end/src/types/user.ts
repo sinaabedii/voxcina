@@ -17,6 +17,8 @@ export interface User {
   lastAppOpen?: string;
   appPlatform?: "android" | "ios" | "unknown";
   appVersion?: string;
+  // Auth tracking
+  lastLogin?: string;
 }
 
 export interface Address {

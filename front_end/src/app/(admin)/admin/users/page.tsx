@@ -20,6 +20,7 @@ import {
   SlidersHorizontal,
   Loader2,
   Smartphone,
+  Clock,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { useAdminUsersStore } from "@/store/auth-store";
@@ -435,6 +436,7 @@ export default function AdminUsersPage() {
                         <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 uppercase tracking-wider">نقش</th>
                         <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 uppercase tracking-wider">وضعیت</th>
                         <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 uppercase tracking-wider">اپلیکیشن</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 uppercase tracking-wider">آخرین ورود</th>
                         <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 uppercase tracking-wider">تاریخ عضویت</th>
                         <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 uppercase tracking-wider">عملیات</th>
                       </tr>
@@ -479,6 +481,11 @@ export default function AdminUsersPage() {
                                     {user.appPlatform === 'android' ? 'اندروید' : user.appPlatform === 'ios' ? 'iOS' : 'موبایل'}
                                   </span>
                                 </div>
+                                {user.appVersion && (
+                                  <span className="text-xs text-voxcina-blue/40 dark:text-voxcina-cream/40 mt-0.5">
+                                    v{user.appVersion}
+                                  </span>
+                                )}
                                 {user.lastAppOpen && (
                                   <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50 mt-1">
                                     {formatRelativeTime(user.lastAppOpen)}
@@ -487,6 +494,18 @@ export default function AdminUsersPage() {
                               </div>
                             ) : (
                               <span className="text-xs text-voxcina-blue/40 dark:text-voxcina-cream/40">—</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                            {user.lastLogin ? (
+                              <div className="flex flex-col">
+                                <span>{formatDate(user.lastLogin)}</span>
+                                <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50 mt-0.5">
+                                  {formatRelativeTime(user.lastLogin)}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-voxcina-blue/40 dark:text-voxcina-cream/40">—</span>
                             )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">
@@ -577,6 +596,14 @@ export default function AdminUsersPage() {
                         {user.hasMobileApp && user.lastAppOpen && (
                           <div className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50">
                             آخرین فعالیت اپ: {formatRelativeTime(user.lastAppOpen)}
+                            {user.appVersion && <span className="mr-2 text-voxcina-blue/40 dark:text-voxcina-cream/40">v{user.appVersion}</span>}
+                          </div>
+                        )}
+
+                        {user.lastLogin && (
+                          <div className="flex items-center gap-1 text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50">
+                            <Clock className="h-3 w-3 flex-shrink-0" />
+                            <span>آخرین ورود: {formatRelativeTime(user.lastLogin)}</span>
                           </div>
                         )}
                         

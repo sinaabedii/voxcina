@@ -276,6 +276,11 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Update last_login timestamp (fire-and-forget, don't fail the login if this errors)
+	now := time.Now()
+	userCollection.UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{"$set": bson.M{"last_login": now}})
+	user.LastLogin = &now
+
 	// Return user info, access token, and refresh token
 	userResponse := struct {
 		models.User
@@ -1441,6 +1446,11 @@ func LoginViaSMS(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error generating refresh token: "+err.Error())
 		return
 	}
+	// Update last_login timestamp (fire-and-forget)
+	now := time.Now()
+	userCollection.UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{"$set": bson.M{"last_login": now}})
+	user.LastLogin = &now
+
 	// Return user and tokens
 	resp := struct { models.User; Token string `json:"token"`; RefreshToken string `json:"refreshToken"` }{User: user, Token: accessToken, RefreshToken: refreshToken}
 	utils.JSONResponse(w, http.StatusOK, resp)

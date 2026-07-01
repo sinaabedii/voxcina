@@ -583,6 +583,11 @@ export const useAuthStore = create<AuthStore>()(
             addresses: u.addresses || [],
             phone: u.phone_number || u.phone,
             avatar: u.avatar,
+            hasMobileApp: u.has_mobile_app || u.hasMobileApp || false,
+            lastAppOpen: u.last_app_open || u.lastAppOpen,
+            appPlatform: u.app_platform || u.appPlatform,
+            appVersion: u.app_version || u.appVersion,
+            lastLogin: u.last_login || u.lastLogin,
           })) : [];
 
           set({ allUsers: users, isLoading: false, error: null });

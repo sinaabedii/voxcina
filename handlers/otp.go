@@ -314,6 +314,7 @@ func VerifySignupOTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create user
+	now := time.Now()
 	user := models.User{
 		ID:           primitive.NewObjectID(),
 		Name:         otp.FirstName + " " + otp.LastName,
@@ -322,8 +323,9 @@ func VerifySignupOTP(w http.ResponseWriter, r *http.Request) {
 		Addresses:    []models.Address{}, // Initialize with empty slice
 		Role:         RoleCustomer,
 		IsActive:     true,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		CreatedAt:    now,
+		UpdatedAt:    now,
+		LastLogin:    &now,
 	}
 
 	_, err = userCollection.InsertOne(ctx, user)

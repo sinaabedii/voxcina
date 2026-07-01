@@ -48,4 +48,7 @@ type User struct {
 	LastAppOpen  *time.Time `bson:"last_app_open,omitempty" json:"last_app_open,omitempty"`  // Timestamp of last app activity
 	AppPlatform  string     `bson:"app_platform,omitempty"  json:"app_platform,omitempty"`   // "android" or "ios"
 	AppVersion   string     `bson:"app_version,omitempty"   json:"app_version,omitempty"`    // Version of the mobile app (e.g., "1.2.3")
+
+	// Auth tracking
+	LastLogin *time.Time `bson:"last_login,omitempty" json:"last_login,omitempty"` // Timestamp of last successful login
 }
