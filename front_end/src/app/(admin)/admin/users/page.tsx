@@ -419,7 +419,7 @@ export default function AdminUsersPage() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
               <CardTitle className="text-2xl font-semibold text-voxcina-blue dark:text-voxcina-cream mb-2 sm:mb-0">
                 <Users className="inline-block mr-3 text-voxcina-blue dark:text-voxcina-cream h-7 w-7" />
-                لیست کاربران ({currentUsers.length})
+                لیست کاربران
               </CardTitle>
             </div>
           </CardHeader>
