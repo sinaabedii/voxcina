@@ -21,6 +21,7 @@ import Link from "next/link";
 import { useOrderStore } from "@/store/order-store";
 import { Order } from "@/types/order";
 import { formatPrice, formatDate } from "@/lib/utils";
+import { downloadInvoice } from "@/components/OrderInvoice";
 
 type OrderStatus =
   | "all"
