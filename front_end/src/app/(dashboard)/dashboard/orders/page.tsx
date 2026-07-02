@@ -427,11 +427,7 @@ export default function OrdersPage() {
                           <button
                             className="p-1 hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-blue/20 rounded-full transition-colors text-voxcina-blue/60 dark:text-voxcina-cream/60"
                             title="دانلود فاکتور"
-                            onClick={() =>
-                              alert(
-                                `دانلود فاکتور برای سفارش ${order.order_number}`
-                              )
-                            }
+                            onClick={() => downloadInvoice(order)}
                           >
                             <Download className="h-5 w-5" />
                           </button>
