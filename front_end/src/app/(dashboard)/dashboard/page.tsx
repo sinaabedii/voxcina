@@ -23,9 +23,9 @@ export default function DashboardPage() {
   const { user, getProfile, isLoading: userLoading } = useAuthStore();
   const { cart, syncCartWithBackend, isLoading: cartLoading } = useCartStore();
   const { orders, fetchUserOrders } = useDashboardStore();
-  const [activeTab, setActiveTab] = useState("all");
   const [showWelcome, setShowWelcome] = useState(true);
   const [loading, setLoading] = useState(true);
+
 
   useEffect(() => {
     async function fetchAll() {
@@ -49,20 +49,13 @@ export default function DashboardPage() {
     cartItems: cart.items.length,
   };
 
-  const sortedOrders = [...orders].sort((a: any, b: any) => {
-    const da = new Date(a.created_at || a.createdAt || a.date || 0).getTime();
-    const db = new Date(b.created_at || b.createdAt || b.date || 0).getTime();
-    return db - da;
-  });
-  const filteredOrders =
-    activeTab === "all"
-      ? sortedOrders
-      : sortedOrders.filter((order) => {
-          if (activeTab === "pending")
-            return order.status === "processing" || order.status === "shipping" || order.status === "pending";
-          if (activeTab === "delivered") return order.status === "delivered";
-          return true;
-        });
+  const recentOrders = [...orders]
+    .sort((a: any, b: any) => {
+      const da = new Date(a.created_at || a.createdAt || a.date || 0).getTime();
+      const db = new Date(b.created_at || b.createdAt || b.date || 0).getTime();
+      return db - da;
+    })
+    .slice(0, 5);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -324,49 +317,14 @@ export default function DashboardPage() {
         initial="hidden"
         animate="visible"
       >
-        <motion.div
-          variants={itemVariants}
-          className="flex justify-between items-center mb-4"
-        >
+        <motion.div variants={itemVariants} className="mb-4">
           <h2 className="text-xl font-semibold flex items-center text-voxcina-blue dark:text-voxcina-cream">
             <Clock className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
-            سفارش‌های اخیر
+            سفارشهای اخیر
           </h2>
-          <div className="bg-voxcina-cream/50 dark:bg-voxcina-blue/20 rounded-xl p-1 flex shadow-inner-soft backdrop-blur-sm">
-            <button
-              className={`px-3 py-1 text-sm rounded-lg transition-all ${
-                activeTab === "all"
-                  ? "bg-white dark:bg-voxcina-blue/40 shadow-sm text-voxcina-blue dark:text-voxcina-cream"
-                  : "text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:bg-white/50 dark:hover:bg-voxcina-blue/30"
-              }`}
-              onClick={() => setActiveTab("all")}
-            >
-              همه
-            </button>
-            <button
-              className={`px-3 py-1 text-sm rounded-lg transition-all ${
-                activeTab === "pending"
-                  ? "bg-white dark:bg-voxcina-blue/40 shadow-sm text-voxcina-blue dark:text-voxcina-cream"
-                  : "text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:bg-white/50 dark:hover:bg-voxcina-blue/30"
-              }`}
-              onClick={() => setActiveTab("pending")}
-            >
-              در انتظار
-            </button>
-            <button
-              className={`px-3 py-1 text-sm rounded-lg transition-all ${
-                activeTab === "delivered"
-                  ? "bg-white dark:bg-voxcina-blue/40 shadow-sm text-voxcina-blue dark:text-voxcina-cream"
-                  : "text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:bg-white/50 dark:hover:bg-voxcina-blue/30"
-              }`}
-              onClick={() => setActiveTab("delivered")}
-            >
-              تحویل شده
-            </button>
-          </div>
         </motion.div>
 
-        {filteredOrders.length > 0 ? (
+        {recentOrders.length > 0 ? (
           <motion.div variants={itemVariants}>
             <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-md overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
               <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-voxcina-blue/20 scrollbar-track-voxcina-cream/50 dark:scrollbar-thumb-voxcina-cream/30 dark:scrollbar-track-voxcina-blue/20">
@@ -389,7 +347,7 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredOrders.map((order, index) => (
+                     {recentOrders.map((order, index) => (
                       <motion.tr
                         key={order.id}
                         className="border-b border-voxcina-cream/30 dark:border-voxcina-blue/10 hover:bg-voxcina-cream/20 dark:hover:bg-voxcina-blue/5 transition-colors"
@@ -438,17 +396,9 @@ export default function DashboardPage() {
                   <AlertCircle className="h-8 w-8 text-voxcina-blue/50 dark:text-voxcina-cream/50" />
                 </div>
                 <h3 className="text-lg font-semibold mb-2 text-voxcina-blue dark:text-voxcina-cream">سفارشی یافت نشد</h3>
-                <p className="text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-6">
-                  هیچ سفارشی با این وضعیت وجود ندارد
+                <p className="text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                  هنوز هیچ سفارشی ثبت نکرده‌اید
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setActiveTab("all")}
-                  className="rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
-                >
-                  نمایش همه سفارش‌ها
-                </Button>
               </CardContent>
             </Card>
           </motion.div>
