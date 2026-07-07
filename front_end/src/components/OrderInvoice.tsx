@@ -186,8 +186,8 @@ function generateInvoiceHTML(order: Order): string {
     }
     
     .info-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
+      display: flex;
+      flex-direction: column;
       gap: 20px;
       margin-bottom: 40px;
     }
@@ -401,22 +401,6 @@ function generateInvoiceHTML(order: Order): string {
             <span class="info-label">نام فروشگاه:</span>
             <span class="info-value">وکسینا</span>
           </div>
-          <div class="info-row">
-            <span class="info-label">آدرس:</span>
-            <span class="info-value" style="max-width: 200px; text-align: left;">تهران، پاسداران، بوستان پنجم، کوی گلشن، پلاک ۱۴</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">تلفن:</span>
-            <span class="info-value">۰۲۱-۲۲۳۲۵۶۵۳</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">ایمیل:</span>
-            <span class="info-value">info@voxcina.com</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">وب‌سایت:</span>
-            <span class="info-value">voxcina.com</span>
-          </div>
         </div>
         
         <div class="info-card">
@@ -515,7 +499,13 @@ function generateInvoiceHTML(order: Order): string {
     
     <div class="footer">
       <div style="border-top: 3px solid #1a3c69; padding-top: 24px; margin-bottom: 20px;">
-        <p style="font-size: 16px; font-weight: 700; color: #1a3c69; margin-bottom: 8px;">فروشگاه آنلاین پوشاک وکسینا</p>
+        <p style="font-size: 16px; font-weight: 700; color: #1a3c69; margin-bottom: 16px;">وکسینا — فروشگاه آنلاین پوشاک</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; font-size: 13px; color: #4b5563;">
+          <span>📍 تهران، پاسداران، بوستان پنجم، کوی گلشن، پلاک ۱۴</span>
+          <span>📞 ۰۲۱-۲۲۳۲۵۶۵۳</span>
+          <span>✉️ info@voxcina.com</span>
+          <span>🌐 voxcina.com</span>
+        </div>
       </div>
       <p class="thanks">از خرید شما متشکریم!</p>
       <p>برای پیگیری سفارش یا ارتباط با پشتیبانی، به پنل کاربری خود مراجعه کنید.</p>
