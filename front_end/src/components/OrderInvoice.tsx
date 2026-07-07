@@ -515,13 +515,7 @@ function generateInvoiceHTML(order: Order): string {
     
     <div class="footer">
       <div style="border-top: 3px solid #1a3c69; padding-top: 24px; margin-bottom: 20px;">
-        <p style="font-size: 16px; font-weight: 700; color: #1a3c69; margin-bottom: 16px;">وکسینا — فروشگاه آنلاین پوشاک</p>
-        <div style="display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; font-size: 13px; color: #4b5563;">
-          <span>📍 تهران، پاسداران، بوستان پنجم، کوی گلشن، پلاک ۱۴</span>
-          <span>📞 ۰۲۱-۲۲۳۲۵۶۵۳</span>
-          <span>✉️ info@voxcina.com</span>
-          <span>🌐 voxcina.com</span>
-        </div>
+        <p style="font-size: 16px; font-weight: 700; color: #1a3c69; margin-bottom: 8px;">فروشگاه آنلاین پوشاک وکسینا</p>
       </div>
       <p class="thanks">از خرید شما متشکریم!</p>
       <p>برای پیگیری سفارش یا ارتباط با پشتیبانی، به پنل کاربری خود مراجعه کنید.</p>
