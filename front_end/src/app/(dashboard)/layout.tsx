@@ -110,7 +110,7 @@ export default function DashboardLayout({
 
             <Link href="/" className="flex items-center">
               <Image
-                src="/images/Logo/WXTransparent-org.png"
+                src="/images/Logo/BlueXTransparent.png"
                 alt="Voxcina"
                 width={120}
                 height={40}
@@ -246,7 +246,7 @@ export default function DashboardLayout({
               >
                 <div className="p-4 border-b border-voxcina-cream/30 dark:border-voxcina-blue/30 flex items-center justify-between">
                   <Image
-                    src="/images/Logo/WXTransparent-org.png"
+                    src="/images/Logo/BlueXTransparent.png"
                     alt="Voxcina"
                     width={100}
                     height={32}
