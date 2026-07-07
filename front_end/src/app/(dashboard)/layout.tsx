@@ -97,7 +97,7 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-voxcina-blue/95 transition-all duration-300">
-      <header className="bg-white/80 dark:bg-voxcina-blue/90 border-b border-voxcina-cream/30 dark:border-voxcina-blue/30 py-3 px-4 md:px-6 sticky top-0 z-30 shadow-sm backdrop-blur-sm">
+      <header className="bg-white/80 dark:bg-voxcina-blue/90 border-b border-voxcina-cream/30 dark:border-voxcina-blue/30 py-3 px-4 md:px-6 sticky top-0 z-40 shadow-sm backdrop-blur-sm">
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
             <button
