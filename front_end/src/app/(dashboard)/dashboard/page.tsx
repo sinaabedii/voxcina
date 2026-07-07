@@ -12,7 +12,7 @@ import {
   ShoppingCart,
   Calendar,
   Clock,
-  ChevronRight,
+  ChevronLeft,
   AlertCircle,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
@@ -222,7 +222,7 @@ export default function DashboardPage() {
                     {stats.pendingOrders} سفارش در انتظار ارسال
                   </p>
                   <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
-                    <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+                    <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
                   </div>
                 </div>
               </CardContent>
@@ -248,7 +248,7 @@ export default function DashboardPage() {
                     آدرس ذخیره شده
                   </p>
                   <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
-                    <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+                    <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
                   </div>
                 </div>
               </CardContent>
@@ -274,7 +274,7 @@ export default function DashboardPage() {
                     محصول در سبد خرید
                   </p>
                   <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
-                    <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+                    <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
                   </div>
                 </div>
               </CardContent>
@@ -302,7 +302,7 @@ export default function DashboardPage() {
                     سفارش تکمیل شده
                   </p>
                   <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
-                    <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+                    <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
                   </div>
                 </div>
               </CardContent>
@@ -378,7 +378,7 @@ export default function DashboardPage() {
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
                           >
-                            <ChevronRight className="h-5 w-5" />
+                            <ChevronLeft className="h-5 w-5" />
                           </motion.button>
                         </td>
                       </motion.tr>
