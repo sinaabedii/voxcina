@@ -397,13 +397,6 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
     
     <div class="content">
       <div class="info-grid">
-        <div class="info-card">
-          <h3>اطلاعات فروشنده</h3>
-          <div class="info-row">
-            <span class="info-label">نام فروشگاه:</span>
-            <span class="info-value">وکسینا</span>
-          </div>
-        </div>
         
         <div class="info-card">
           <h3>اطلاعات سفارش</h3>
