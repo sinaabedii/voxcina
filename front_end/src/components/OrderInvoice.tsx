@@ -44,14 +44,14 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
 
   const itemsHTML = order.items.map((item, idx) => `
     <tr style="border-bottom: 1px solid #e5e7eb;">
-      <td style="padding: 12px; text-align: center; color: #6b7280;">${idx + 1}</td>
-      <td style="padding: 12px; font-weight: 500; color: #1f2937;">${item.product.name}</td>
-      <td style="padding: 12px; text-align: center; color: #6b7280;">
+      <td style="padding: 6px 4px; text-align: center; color: #6b7280; font-size: 11px;">${idx + 1}</td>
+      <td style="padding: 6px 4px; font-weight: 500; color: #1f2937; font-size: 11px;">${item.product.name}</td>
+      <td style="padding: 6px 4px; text-align: center; color: #6b7280; font-size: 11px;">
         ${item.variant.size} ${item.variant.colorName ? `- ${item.variant.colorName}` : ''}
       </td>
-      <td style="padding: 12px; text-align: center; color: #6b7280;">${item.quantity}</td>
-      <td style="padding: 12px; text-align: left; color: #1f2937;">${formatPrice(item.price_at_purchase)}</td>
-      <td style="padding: 12px; text-align: left; font-weight: 600; color: #1f2937;">
+      <td style="padding: 6px 4px; text-align: center; color: #6b7280; font-size: 11px;">${item.quantity}</td>
+      <td style="padding: 6px 4px; text-align: left; color: #1f2937; font-size: 11px;">${formatPrice(item.price_at_purchase)}</td>
+      <td style="padding: 6px 4px; text-align: left; font-weight: 600; color: #1f2937; font-size: 11px;">
         ${formatPrice(item.price_at_purchase * item.quantity)}
       </td>
     </tr>
@@ -77,42 +77,22 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
     body {
       font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: #f9fafb;
-      padding: 20px;
+      padding: 5px;
       color: #1f2937;
-      line-height: 1.6;
+      line-height: 1.4;
     }
     
     .invoice {
-      max-width: 800px;
+      max-width: 100%;
       margin: 0 auto;
       background: white;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      border-radius: 12px;
-      overflow: hidden;
     }
     
     .header {
       background: linear-gradient(135deg, #1a3c69 0%, #2d5a9e 100%);
       color: white;
-      padding: 40px;
+      padding: 16px 20px;
       position: relative;
-      overflow: hidden;
-    }
-    
-    .header::before {
-      content: '';
-      position: absolute;
-      top: -50%;
-      right: -50%;
-      width: 200%;
-      height: 200%;
-      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-      animation: pulse 4s ease-in-out infinite;
-    }
-    
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); opacity: 0.5; }
-      50% { transform: scale(1.1); opacity: 0.8; }
     }
     
     .header-content {
@@ -126,16 +106,15 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
     .logo-section {
       display: flex;
       align-items: center;
-      gap: 20px;
+      gap: 10px;
     }
     
     .logo {
-      width: 80px;
-      height: 80px;
+      width: 45px;
+      height: 45px;
       background: white;
-      border-radius: 12px;
-      padding: 10px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      padding: 5px;
     }
     
     .logo img {
@@ -145,13 +124,13 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
     }
     
     .brand-info h1 {
-      font-size: 28px;
+      font-size: 16px;
       font-weight: 700;
-      margin-bottom: 4px;
+      margin-bottom: 0;
     }
     
     .brand-info p {
-      font-size: 14px;
+      font-size: 11px;
       opacity: 0.9;
     }
     
@@ -160,44 +139,41 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
     }
     
     .invoice-title h2 {
-      font-size: 32px;
+      font-size: 18px;
       font-weight: 700;
-      margin-bottom: 8px;
+      margin-bottom: 2px;
     }
     
     .invoice-title .order-number {
-      font-size: 16px;
+      font-size: 11px;
       opacity: 0.9;
       font-weight: 500;
     }
     
     .status-badge {
       display: inline-block;
-      padding: 8px 20px;
-      border-radius: 20px;
-      font-size: 14px;
+      padding: 3px 12px;
+      border-radius: 12px;
+      font-size: 10px;
       font-weight: 600;
-      margin-top: 12px;
+      margin-top: 4px;
       background: ${statusColor};
       color: white;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
     
     .order-details {
-      position: relative;
-      z-index: 1;
       display: flex;
       flex-wrap: wrap;
-      gap: 20px 40px;
-      margin-top: 24px;
-      padding-top: 24px;
+      gap: 4px 20px;
+      margin-top: 10px;
+      padding-top: 8px;
       border-top: 1px solid rgba(255,255,255,0.2);
     }
     
     .order-detail-item {
       display: flex;
-      gap: 8px;
-      font-size: 14px;
+      gap: 4px;
+      font-size: 11px;
     }
     
     .order-detail-item .detail-label {
@@ -209,45 +185,34 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
     }
     
     .content {
-      padding: 40px;
+      padding: 16px;
     }
     
     .info-grid {
       display: flex;
       flex-direction: column;
-      gap: 20px;
-      margin-bottom: 40px;
+      gap: 8px;
+      margin-bottom: 12px;
     }
     
     .info-card {
       background: #f9fafb;
-      border-radius: 12px;
-      padding: 24px;
+      border-radius: 6px;
+      padding: 10px 12px;
       border: 1px solid #e5e7eb;
     }
     
     .info-card h3 {
-      font-size: 16px;
+      font-size: 12px;
       font-weight: 600;
       color: #1a3c69;
-      margin-bottom: 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    
-    .info-card h3::before {
-      content: '';
-      width: 4px;
-      height: 20px;
-      background: #1a3c69;
-      border-radius: 2px;
+      margin-bottom: 6px;
     }
     
     .info-row {
       display: flex;
       justify-content: space-between;
-      padding: 8px 0;
+      padding: 3px 0;
       border-bottom: 1px solid #e5e7eb;
     }
     
@@ -257,44 +222,33 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
     
     .info-label {
       color: #6b7280;
-      font-size: 14px;
+      font-size: 11px;
     }
     
     .info-value {
       font-weight: 500;
       color: #1f2937;
-      font-size: 14px;
+      font-size: 11px;
     }
     
     .items-section {
-      margin-bottom: 40px;
+      margin-bottom: 10px;
     }
     
     .items-section h3 {
-      font-size: 18px;
+      font-size: 13px;
       font-weight: 600;
       color: #1a3c69;
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    
-    .items-section h3::before {
-      content: '';
-      width: 4px;
-      height: 24px;
-      background: #1a3c69;
-      border-radius: 2px;
+      margin-bottom: 8px;
     }
     
     table {
       width: 100%;
       border-collapse: collapse;
       background: white;
-      border-radius: 8px;
+      border-radius: 4px;
       overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      border: 1px solid #e5e7eb;
     }
     
     thead {
@@ -303,82 +257,82 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
     }
     
     th {
-      padding: 16px 12px;
+      padding: 6px 6px;
       text-align: right;
       font-weight: 600;
-      font-size: 14px;
+      font-size: 11px;
     }
     
     th:nth-child(1) { text-align: center; }
     th:nth-child(3), th:nth-child(4) { text-align: center; }
     th:nth-child(5), th:nth-child(6) { text-align: left; }
     
-    tbody tr:hover {
+    tbody tr:nth-child(even) {
       background: #f9fafb;
     }
     
     .totals-section {
       background: #f9fafb;
-      border-radius: 12px;
-      padding: 24px;
+      border-radius: 6px;
+      padding: 10px 12px;
       border: 1px solid #e5e7eb;
     }
     
     .total-row {
       display: flex;
       justify-content: space-between;
-      padding: 12px 0;
+      padding: 5px 0;
       border-bottom: 1px solid #e5e7eb;
     }
     
     .total-row:last-child {
       border-bottom: none;
-      padding-top: 16px;
-      margin-top: 8px;
+      padding-top: 8px;
+      margin-top: 4px;
       border-top: 2px solid #1a3c69;
     }
     
     .total-label {
       color: #6b7280;
-      font-size: 15px;
+      font-size: 12px;
     }
     
     .total-value {
       font-weight: 600;
       color: #1f2937;
-      font-size: 15px;
+      font-size: 12px;
     }
     
     .total-row:last-child .total-label {
-      font-size: 18px;
+      font-size: 14px;
       font-weight: 700;
       color: #1a3c69;
     }
     
     .total-row:last-child .total-value {
-      font-size: 20px;
+      font-size: 16px;
       font-weight: 700;
       color: #1a3c69;
     }
     
     .footer {
       background: #f9fafb;
-      padding: 30px 40px;
+      padding: 10px 16px;
       text-align: center;
       border-top: 1px solid #e5e7eb;
     }
     
     .footer p {
       color: #6b7280;
-      font-size: 13px;
-      margin-bottom: 8px;
+      font-size: 10px;
+      margin-bottom: 2px;
     }
     
     .footer .thanks {
       color: #1a3c69;
-      font-size: 16px;
+      font-size: 12px;
       font-weight: 600;
-      margin-bottom: 12px;
+      margin-bottom: 4px;
     }
     
     @media print {
@@ -394,7 +348,7 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
       
       @page {
         margin: 0.5cm;
-        size: A4;
+        size: A5 portrait;
       }
     }
   </style>
@@ -518,9 +472,9 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
     </div>
     
     <div class="footer">
-      <div style="border-top: 3px solid #1a3c69; padding-top: 24px; margin-bottom: 20px;">
-        <p style="font-size: 16px; font-weight: 700; color: #1a3c69; margin-bottom: 16px;">وکسینا — فروشگاه آنلاین پوشاک</p>
-        <div style="display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; font-size: 13px; color: #4b5563;">
+      <div style="border-top: 2px solid #1a3c69; padding-top: 8px; margin-bottom: 6px;">
+        <p style="font-size: 11px; font-weight: 700; color: #1a3c69; margin-bottom: 4px;">وکسینا — فروشگاه آنلاین پوشاک</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; font-size: 10px; color: #4b5563;">
           <span>📍 تهران، پاسداران، بوستان پنجم، کوی گلشن، پلاک ۱۴</span>
           <span>📞 ۰۲۱-۲۲۳۲۵۶۵۳</span>
           <span>✉️ info@voxcina.com</span>
@@ -528,10 +482,7 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
         </div>
       </div>
       <p class="thanks">از خرید شما متشکریم!</p>
-      <p>برای پیگیری سفارش یا ارتباط با پشتیبانی، به پنل کاربری خود مراجعه کنید.</p>
-      <p style="margin-top: 16px; font-size: 12px; color: #9ca3af;">
-        این فاکتور به صورت الکترونیکی صادر شده و معتبر می‌باشد.
-      </p>
+      <p>فاکتور الکترونیکی معتبر</p>
     </div>
   </div>
 </body>
