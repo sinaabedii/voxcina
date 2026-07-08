@@ -6,7 +6,8 @@ interface OrderInvoiceProps {
 }
 
 export function downloadInvoice(order: Order) {
-  const invoiceHTML = generateInvoiceHTML(order);
+  const baseUrl = window.location.origin;
+  const invoiceHTML = generateInvoiceHTML(order, baseUrl);
   
   const printWindow = window.open('', '_blank', 'width=800,height=1000');
   if (!printWindow) {
@@ -24,7 +25,7 @@ export function downloadInvoice(order: Order) {
   };
 }
 
-function generateInvoiceHTML(order: Order): string {
+function generateInvoiceHTML(order: Order, baseUrl: string): string {
   const itemsTotal = order.items.reduce((sum, item) => sum + (item.price_at_purchase * item.quantity), 0);
   const shippingCost = order.shipping_cost || 0;
   const discount = order.discount_amount || 0;
@@ -63,6 +64,7 @@ function generateInvoiceHTML(order: Order): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>فاکتور سفارش ${order.order_number}</title>
+  <base href="${baseUrl}">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap');
     
@@ -378,7 +380,7 @@ function generateInvoiceHTML(order: Order): string {
       <div class="header-content">
         <div class="logo-section">
           <div class="logo">
-            <img src="/images/BlueXTransparent.png" alt="Voxcina Logo">
+            <img src="/images/Logo/WXTransparent-org.png" alt="Voxcina Logo">
           </div>
           <div class="brand-info">
             <h1>وکسینا</h1>
