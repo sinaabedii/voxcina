@@ -135,7 +135,7 @@ export default function DashboardPage() {
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-lg font-bold mb-1 text-voxcina-blue dark:text-voxcina-cream">
-                  سلام {user?.name || "کاربر عزیز"}!
+                  سلام {user?.name?.split(" ")[0] || "کاربر"} عزیز!
                 </h2>
                 <p className="text-sm text-voxcina-blue/80 dark:text-voxcina-cream/90">
                   به داشبورد شخصی خود خوش آمدید. از اینجا می‌توانید سفارش‌ها،
