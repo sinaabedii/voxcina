@@ -380,7 +380,7 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
       <div class="header-content">
         <div class="logo-section">
           <div class="logo">
-            <img src="/images/Logo/WXTransparent-org.png" alt="Voxcina Logo">
+            <img src="/images/Logo/BlueXTransparent.png" alt="Voxcina Logo">
           </div>
           <div class="brand-info">
             <h1>وکسینا</h1>
