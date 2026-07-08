@@ -426,7 +426,7 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
         </div>
         <div class="order-detail-item">
           <span class="detail-label">وضعیت پرداخت:</span>
-          <span class="detail-value">${order.payment_status === 'paid' ? 'پرداخت شده' : order.payment_status === 'pending' ? 'در انتظار' : order.payment_status}</span>
+          <span class="detail-value">${order.payment_status === 'paid' ? 'پرداخت شده' : order.payment_status === 'pending' ? 'در انتظار پرداخت' : order.payment_status === 'failed' ? 'ناموفق' : order.payment_status === 'refunded' ? 'مسترد شده' : order.payment_status === 'cancelled' ? 'لغو شده' : order.payment_status}</span>
         </div>
         ${order.tracking_code ? `
         <div class="order-detail-item">
