@@ -60,7 +60,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowWelcome(false);
-    }, 5000);
+    }, 9000);
 
     return () => clearTimeout(timer);
   }, []);
@@ -122,7 +122,7 @@ export default function DashboardPage() {
           transition={{ duration: 0.5 }}
         >
           <motion.div
-            className="bg-gradient-to-r from-voxcina-cream to-voxcina-lightCream dark:from-voxcina-blue/10 dark:to-voxcina-blue/5 p-6 rounded-2xl border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm backdrop-blur-sm"
+            className="bg-gradient-to-r from-voxcina-cream to-voxcina-lightCream dark:from-voxcina-blue/10 dark:to-voxcina-blue/5 p-4 rounded-2xl border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm backdrop-blur-sm"
             animate={{
               boxShadow: [
                 "0 4px 12px rgba(26, 60, 105, 0.1)",
@@ -134,15 +134,15 @@ export default function DashboardPage() {
           >
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="text-xl font-bold mb-2 text-voxcina-blue dark:text-voxcina-cream">
+                <h2 className="text-lg font-bold mb-1 text-voxcina-blue dark:text-voxcina-cream">
                   سلام {user?.name || "کاربر عزیز"}!
                 </h2>
-                <p className="text-voxcina-blue/80 dark:text-voxcina-cream/90">
+                <p className="text-sm text-voxcina-blue/80 dark:text-voxcina-cream/90">
                   به داشبورد شخصی خود خوش آمدید. از اینجا می‌توانید سفارش‌ها،
                   آدرس‌ها و تنظیمات حساب خود را مدیریت کنید.
                 </p>
                 <motion.div
-                  className="flex gap-2 mt-4"
+                  className="flex gap-2 mt-2"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.5 }}
