@@ -59,6 +59,10 @@ type NegotiateCouponOut struct {
 	ValidUntil    string   `json:"valid_until"`
 	ProductIDs    []string `json:"product_ids"`
 	CompProductID string   `json:"comp_product_id,omitempty"`
+	MainColor     string   `json:"main_color,omitempty"`
+	MainColorName string   `json:"main_color_name,omitempty"`
+	CompColor     string   `json:"comp_color,omitempty"`
+	CompColorName string   `json:"comp_color_name,omitempty"`
 }
 
 type couponToolParams struct {
@@ -323,6 +327,17 @@ func buildCouponResponse(req NegotiateRequest, params *couponToolParams) *Negoti
 		productIDs = append(productIDs, params.CompProductID)
 	}
 
+	var compColor, compColorName string
+	if params.CompProductID != "" {
+		for _, cp := range req.ComplementaryProducts {
+			if cp.ProductID == params.CompProductID {
+				compColor = cp.Color
+				compColorName = cp.ColorName
+				break
+			}
+		}
+	}
+
 	return &NegotiateResponse{
 		Reply: params.Message,
 		Coupon: &NegotiateCouponOut{
@@ -331,6 +346,10 @@ func buildCouponResponse(req NegotiateRequest, params *couponToolParams) *Negoti
 			ValidUntil:    validUntil,
 			ProductIDs:    productIDs,
 			CompProductID: params.CompProductID,
+			MainColor:     req.TryonColor,
+			MainColorName: req.TryonColor,
+			CompColor:     compColor,
+			CompColorName: compColorName,
 		},
 	}
 }

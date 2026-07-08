@@ -171,18 +171,83 @@ func buildNegotiatedCoupon(req services.NegotiateRequest, coupon *services.Negot
 		})
 	}
 
+	requiredProducts := buildRequiredProducts(req, coupon)
+
 	return models.NegotiatedCoupon{
-		Code:         coupon.Code,
-		UserID:       userID,
-		ProductIDs:   productIDs,
-		CartSnapshot: cartSnapshot,
-		Type:         "percentage",
-		Value:        coupon.Value,
-		ValidUntil:   validUntil,
-		Used:         false,
-		Conversation: conversation,
-		CreatedAt:    time.Now(),
+		Code:             coupon.Code,
+		UserID:           userID,
+		ProductIDs:       productIDs,
+		RequiredProducts: requiredProducts,
+		CartSnapshot:     cartSnapshot,
+		Type:             "percentage",
+		Value:            coupon.Value,
+		ValidUntil:       validUntil,
+		Used:             false,
+		Conversation:     conversation,
+		CreatedAt:        time.Now(),
 	}
+}
+
+func buildRequiredProducts(req services.NegotiateRequest, coupon *services.NegotiateCouponOut) []models.RequiredProduct {
+	ctx := context.Background()
+	collection := db.Database.Collection("products")
+	result := make([]models.RequiredProduct, 0, len(coupon.ProductIDs))
+
+	for i, pid := range coupon.ProductIDs {
+		objID, err := primitive.ObjectIDFromHex(pid)
+		if err != nil {
+			continue
+		}
+
+		var product models.Product
+		if err := collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&product); err != nil {
+			continue
+		}
+
+		var color, colorName, image string
+		if i == 0 {
+			color = req.TryonColor
+			colorName = req.TryonColor
+		} else if coupon.CompProductID != "" && pid == coupon.CompProductID {
+			for _, cp := range req.ComplementaryProducts {
+				if cp.ProductID == coupon.CompProductID {
+					color = cp.Color
+					colorName = cp.ColorName
+					if cp.Image != "" {
+						image = cp.Image
+					}
+					break
+				}
+			}
+		}
+
+		if cv, _, ok := findColorVariant(&product, color, colorName); ok {
+			color = canonicalColorValue(cv)
+			colorName = cv.ColorName
+			if image == "" && len(cv.Images) > 0 {
+				image = cv.Images[0]
+			}
+			if image == "" && cv.TryOnImage != "" {
+				image = cv.TryOnImage
+			}
+		} else if len(product.ColorVariants) > 0 {
+			cv := product.ColorVariants[0]
+			color = canonicalColorValue(cv)
+			colorName = cv.ColorName
+			if image == "" && len(cv.Images) > 0 {
+				image = cv.Images[0]
+			}
+		}
+
+		result = append(result, models.RequiredProduct{
+			ProductID: objID,
+			Color:     color,
+			ColorName: colorName,
+			Image:     image,
+		})
+	}
+
+	return result
 }
 
 func saveNegotiatedCoupon(ctx context.Context, coupon models.NegotiatedCoupon) error {

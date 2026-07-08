@@ -71,3 +71,25 @@ export interface UserTargetingStats {
   inactiveUsers: number;
   newUsers: number;
 }
+
+export interface VoucherProduct {
+  id: string;
+  name: string;
+  image: string;
+  color: string;
+  color_name: string;
+  in_stock: boolean;
+}
+
+export interface UserVoucher {
+  id: string;
+  type: "negotiated" | "targeted";
+  code: string;
+  discount_type: "percentage" | "fixed";
+  value: number;
+  valid_until: string;
+  valid_from?: string;
+  min_order_amount?: number;
+  required_products: VoucherProduct[];
+  description: string;
+}

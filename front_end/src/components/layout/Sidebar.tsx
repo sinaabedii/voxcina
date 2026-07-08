@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { User, Package, MapPin, Heart, LogOut, Settings, Menu, X } from "lucide-react";
+import { User, Package, MapPin, Heart, LogOut, Settings, Menu, X, Ticket } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
 import { motion, AnimatePresence } from "framer-motion";
@@ -34,6 +34,11 @@ const Sidebar = () => {
       name: "علاقه‌مندی‌ها",
       href: "/dashboard/favorites",
       icon: <Heart className="w-4 h-4 sm:w-5 sm:h-5" />,
+    },
+    {
+      name: "تخفیف‌های من",
+      href: "/dashboard/discounts",
+      icon: <Ticket className="w-4 h-4 sm:w-5 sm:h-5" />,
     },
     {
       name: "تنظیمات حساب",
