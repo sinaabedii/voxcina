@@ -65,7 +65,7 @@ export default function SettingsPage() {
     try {
       await updateUser({
         name: formData.name,
-        phone: formData.phone,
+        email: formData.email,
       });
       setSuccessMessage("اطلاعات شخصی با موفقیت به‌روزرسانی شد");
 
@@ -227,12 +227,11 @@ export default function SettingsPage() {
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
-                      disabled
                       leftElement={
                         <Mail className="h-4 w-4 text-voxcina-blue/60 dark:text-secondary-300" />
                       }
-                      helperText="ایمیل قابل تغییر نیست"
                       className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
+                      placeholder="example@email.com"
                     />
 
                     <Input
@@ -240,11 +239,12 @@ export default function SettingsPage() {
                       name="phone"
                       value={formData.phone}
                       onChange={handleChange}
+                      disabled
                       leftElement={
                         <Smartphone className="h-4 w-4 text-voxcina-blue/60 dark:text-secondary-300" />
                       }
+                      helperText="شماره موبایل قابل تغییر نیست"
                       className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
-                      placeholder="مثال: ۰۹۱۲۱۲۳۴۵۶۷"
                     />
 
                     <div className="pt-4 flex justify-end">

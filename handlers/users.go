@@ -376,7 +376,7 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	var payload struct {
 		Name  *string `json:"name,omitempty"`  // Pointer to distinguish between empty string and not provided
-		Phone *string `json:"phone,omitempty"` // Pointer for optional update
+		Email *string `json:"email,omitempty"` // Pointer for optional update
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -398,11 +398,11 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if payload.Name == nil && payload.Phone == nil {
+	if payload.Name == nil && payload.Email == nil {
 		utils.ErrorResponse(
 			w,
 			http.StatusBadRequest,
-			"No fields to update. Provide name and/or phone.",
+			"No fields to update. Provide name and/or email.",
 		)
 		return
 	}
@@ -416,8 +416,8 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	if payload.Name != nil {
 		updateFields["name"] = *payload.Name
 	}
-	if payload.Phone != nil {
-		updateFields["phone"] = *payload.Phone // Allow setting phone to empty string if desired by client
+	if payload.Email != nil {
+		updateFields["email"] = *payload.Email
 	}
 
 	if len(updateFields) == 0 { // Should be caught by earlier check, but as safeguard
