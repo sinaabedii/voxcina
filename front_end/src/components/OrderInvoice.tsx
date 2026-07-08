@@ -86,6 +86,9 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
       max-width: 100%;
       margin: 0 auto;
       background: white;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
     }
     
     .header {
@@ -320,6 +323,7 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
       padding: 10px 16px;
       text-align: center;
       border-top: 1px solid #e5e7eb;
+      margin-top: auto;
     }
     
     .footer p {

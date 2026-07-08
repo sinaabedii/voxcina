@@ -1,6 +1,6 @@
 {
   "system_config": {
-    "format": "G-CC-BSCSZ",
+    "format": "G-CC-BSCZ",
     "description": "Voxcina Apparel SKU System - 7 Character Format",
     "logic": {
       "G": "Gender (M=Men, F=Women, D=Kids, B=Unisex)",
@@ -95,7 +95,7 @@
     "W": "Brand W",
     "X": "Brand X",
     "Y": "Brand Y",
-    "Z": "Brand Z"
+    "Z": "متفرقه"
   },
   "categories": [
     {
