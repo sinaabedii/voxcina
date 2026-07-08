@@ -18,6 +18,7 @@ import {
   Menu,
   X,
   LogOut,
+  Home,
 } from "lucide-react";
 
 export default function DashboardLayout({
@@ -121,6 +122,14 @@ export default function DashboardLayout({
           </div>
 
           <div className="flex items-center gap-1 sm:gap-3">
+            <Link
+              href="/"
+              className="p-2 text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream rounded-full hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
+              aria-label="صفحه اصلی"
+            >
+              <Home size={18} />
+            </Link>
+
             <motion.button
               className="p-2 text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream rounded-full hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 relative transition-colors"
               whileHover={{ scale: 1.05 }}
@@ -282,6 +291,14 @@ export default function DashboardLayout({
       </div>
 
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-voxcina-blue/90 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 py-3 px-4 flex justify-around items-center z-30 backdrop-blur-sm shadow-md">
+        <Link href="/" className="flex flex-col items-center group">
+          <div className="p-2 text-voxcina-blue/70 group-hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:group-hover:text-voxcina-cream rounded-full group-hover:bg-voxcina-cream/30 dark:group-hover:bg-voxcina-blue/30 transition-colors">
+            <Home size={18} />
+          </div>
+          <span className="text-xs mt-1 text-voxcina-blue/70 dark:text-voxcina-cream/70 group-hover:text-voxcina-blue dark:group-hover:text-voxcina-cream transition-colors">
+            خانه
+          </span>
+        </Link>
         <Link href="/dashboard" className="flex flex-col items-center group">
           <div className="p-2 text-voxcina-blue/70 group-hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:group-hover:text-voxcina-cream rounded-full group-hover:bg-voxcina-cream/30 dark:group-hover:bg-voxcina-blue/30 transition-colors">
             <User size={18} />
