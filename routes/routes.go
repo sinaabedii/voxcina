@@ -50,6 +50,7 @@ func NewRouter() *mux.Router {
 	userAuthRouter.HandleFunc("/logout", handlers.Logout).Methods(http.MethodPost)
 	userAuthRouter.HandleFunc("/profile", handlers.GetProfile).Methods(http.MethodGet)
 	userAuthRouter.HandleFunc("/profile", handlers.UpdateProfile).Methods(http.MethodPut)
+	userAuthRouter.HandleFunc("/password", handlers.ChangePassword).Methods(http.MethodPut)
 	// Mobile app activity tracking
 	userAuthRouter.HandleFunc("/app-activity", handlers.RecordAppActivity).Methods(http.MethodPost)
 	// User promotions

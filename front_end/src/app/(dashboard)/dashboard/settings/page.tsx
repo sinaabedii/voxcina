@@ -12,8 +12,6 @@ import {
   Eye,
   EyeOff,
   ShieldCheck,
-  BellRing,
-  Camera,
   Smartphone,
   LogOut,
   AlertCircle,
@@ -32,67 +30,56 @@ export default function SettingsPage() {
   const [formData, setFormData] = useState({
     name: user?.name || "",
     email: user?.email || "",
-    // phone: user?.phone || "",
+    phone: user?.phone || "",
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
-    // receiveEmails: user?.preferences?.receiveEmails || false,
-    // receiveNotifications: user?.preferences?.receiveNotifications || true,
-    // twoFactorAuth: user?.preferences?.twoFactorAuth || false,
   });
 
   useEffect(() => {
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        name: user.name || "",
+        email: user.email || "",
+        phone: user.phone || "",
+      }));
+    }
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 800);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-
-    if (type === "checkbox") {
-      setFormData({ ...formData, [name]: checked });
-    } else {
-      setFormData({ ...formData, [name]: value });
-    }
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
   };
 
-  const handleProfileSubmit = (e: React.FormEvent) => {
+  const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSuccessMessage(null);
     setErrorMessage(null);
 
-    const submitBtn = document.getElementById("profile-submit-btn");
-    if (submitBtn) {
-      submitBtn.setAttribute("disabled", "true");
-      setTimeout(() => {
-        try {
-          updateUser({
-            name: formData.name,
-            // phone: formData.phone,
-            // preferences: {
-            //   receiveEmails: formData.receiveEmails,
-            //   receiveNotifications: formData.receiveNotifications,
-            //   twoFactorAuth: formData.twoFactorAuth,
-            // },
-          });
-          setSuccessMessage("اطلاعات شخصی با موفقیت به‌روزرسانی شد");
+    try {
+      await updateUser({
+        name: formData.name,
+        phone: formData.phone,
+      });
+      setSuccessMessage("اطلاعات شخصی با موفقیت به‌روزرسانی شد");
 
-          setTimeout(() => {
-            setSuccessMessage(null);
-          }, 5000);
-        } catch (error) {
-          setErrorMessage("خطا در به‌روزرسانی اطلاعات. لطفا دوباره تلاش کنید.");
-        } finally {
-          submitBtn.removeAttribute("disabled");
-        }
-      }, 1000);
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 5000);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "خطا در به‌روزرسانی اطلاعات. لطفا دوباره تلاش کنید."
+      );
     }
   };
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSuccessMessage(null);
     setErrorMessage(null);
@@ -107,28 +94,44 @@ export default function SettingsPage() {
       return;
     }
 
-    const submitBtn = document.getElementById("password-submit-btn");
-    if (submitBtn) {
-      submitBtn.setAttribute("disabled", "true");
-      setTimeout(() => {
-        try {
-          setSuccessMessage("رمز عبور با موفقیت تغییر یافت");
-          setFormData({
-            ...formData,
-            currentPassword: "",
-            newPassword: "",
-            confirmPassword: "",
-          });
+    try {
+      const token = localStorage.getItem("auth-storage");
+      const parsedToken = token ? JSON.parse(token) : null;
+      const accessToken = parsedToken?.state?.accessToken || localStorage.getItem("access_token");
 
-          setTimeout(() => {
-            setSuccessMessage(null);
-          }, 5000);
-        } catch (error) {
-          setErrorMessage("خطا در تغییر رمز عبور. لطفا دوباره تلاش کنید.");
-        } finally {
-          submitBtn.removeAttribute("disabled");
-        }
-      }, 1000);
+      const response = await fetch("/api/users/password", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          current_password: formData.currentPassword,
+          new_password: formData.newPassword,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "خطا در تغییر رمز عبور");
+      }
+
+      setSuccessMessage("رمز عبور با موفقیت تغییر یافت");
+      setFormData({
+        ...formData,
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 5000);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "خطا در تغییر رمز عبور. لطفا دوباره تلاش کنید."
+      );
     }
   };
 
@@ -205,13 +208,6 @@ export default function SettingsPage() {
                             </span>
                           )}
                         </div>
-                        <motion.button 
-                          className="absolute bottom-0 right-0 bg-voxcina-blue text-white p-1.5 rounded-full shadow-soft hover:bg-voxcina-darkBlue transition-colors"
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                        >
-                          <Camera className="w-4 h-4" />
-                        </motion.button>
                       </div>
                     </div>
 
@@ -239,7 +235,7 @@ export default function SettingsPage() {
                       className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
                     />
 
-                    {/* <Input
+                    <Input
                       label="شماره موبایل"
                       name="phone"
                       value={formData.phone}
@@ -251,94 +247,9 @@ export default function SettingsPage() {
                       placeholder="مثال: ۰۹۱۲۱۲۳۴۵۶۷"
                     />
 
-                    <div className="pt-3 border-t border-secondary-100 dark:border-voxcina-darkBlue/20">
-                      <h3 className="font-medium text-voxcina-blue dark:text-secondary-200 mb-3">
-                        تنظیمات اطلاع‌رسانی
-                      </h3>
-
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-start">
-                            <BellRing className="w-5 h-5 text-voxcina-blue/60 dark:text-secondary-300 mt-0.5 ml-3" />
-                            <div>
-                              <h4 className="font-medium text-voxcina-blue dark:text-secondary-200">
-                                دریافت اعلان‌ها
-                              </h4>
-                              <p className="text-xs text-voxcina-blue/70 dark:text-secondary-300">
-                                اعلان‌های مهم مانند وضعیت سفارش و تخفیف‌ها
-                              </p>
-                            </div>
-                          </div>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              name="receiveNotifications"
-                              checked={formData.receiveNotifications}
-                              onChange={handleChange}
-                              className="sr-only"
-                            />
-                            <div
-                              className={`w-11 h-6 rounded-full transition-colors ${
-                                formData.receiveNotifications
-                                  ? "bg-voxcina-blue"
-                                  : "bg-secondary-300 dark:bg-voxcina-darkBlue/50"
-                              }`}
-                            >
-                              <div
-                                className={`w-5 h-5 rounded-full bg-white transform transition-transform ${
-                                  formData.receiveNotifications
-                                    ? "translate-x-5 rtl:-translate-x-5"
-                                    : "translate-x-1 rtl:-translate-x-1"
-                                }`}
-                              ></div>
-                            </div>
-                          </label>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-start">
-                            <Mail className="w-5 h-5 text-voxcina-blue/60 dark:text-secondary-300 mt-0.5 ml-3" />
-                            <div>
-                              <h4 className="font-medium text-voxcina-blue dark:text-secondary-200">
-                                دریافت خبرنامه
-                              </h4>
-                              <p className="text-xs text-voxcina-blue/70 dark:text-secondary-300">
-                                اطلاع از آخرین محصولات و پیشنهادات ویژه
-                              </p>
-                            </div>
-                          </div>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              name="receiveEmails"
-                              checked={formData.receiveEmails}
-                              onChange={handleChange}
-                              className="sr-only"
-                            />
-                            <div
-                              className={`w-11 h-6 rounded-full transition-colors ${
-                                formData.receiveEmails
-                                  ? "bg-voxcina-blue"
-                                  : "bg-secondary-300 dark:bg-voxcina-darkBlue/50"
-                              }`}
-                            >
-                              <div
-                                className={`w-5 h-5 rounded-full bg-white transform transition-transform ${
-                                  formData.receiveEmails
-                                    ? "translate-x-5 rtl:-translate-x-5"
-                                    : "translate-x-1 rtl:-translate-x-1"
-                                }`}
-                              ></div>
-                            </div>
-                          </label>
-                        </div>
-                      </div>
-                    </div> */}
-
                     <div className="pt-4 flex justify-end">
                       <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                         <Button
-                          id="profile-submit-btn"
                           type="submit"
                           variant="primary"
                           className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-soft hover:shadow-medium transition-all duration-300"
@@ -462,7 +373,6 @@ export default function SettingsPage() {
                     <div className="pt-4 flex justify-end">
                       <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                         <Button
-                          id="password-submit-btn"
                           type="submit"
                           variant="primary"
                           className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-soft hover:shadow-medium transition-all duration-300"
@@ -493,40 +403,6 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="p-6">
                 <div className="space-y-5">
-                  <div className="flex items-center justify-between bg-secondary-100 dark:bg-voxcina-blue/10 p-4 rounded-xl">
-                    <div className="flex items-start">
-                      <div className="w-10 h-10 rounded-full bg-secondary-200 dark:bg-voxcina-blue/20 flex items-center justify-center ml-3 flex-shrink-0">
-                        <Smartphone className="w-5 h-5 text-voxcina-blue dark:text-secondary-200" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-voxcina-blue dark:text-secondary-200">
-                          احراز هویت دو مرحله‌ای
-                        </h4>
-                        <p className="text-xs text-voxcina-blue/70 dark:text-secondary-300">
-                          تأیید ورود با کد یکبار مصرف از طریق پیامک
-                        </p>
-                      </div>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="twoFactorAuth"
-                        // Update this to use a local state variable instead of formData
-                        checked={false}
-                        // Update this to be a no-op or use a different state variable
-                        onChange={() => {}}
-                        className="sr-only"
-                      />
-                      <div
-                        className={`w-11 h-6 rounded-full transition-colors bg-secondary-300 dark:bg-voxcina-darkBlue/50`}
-                      >
-                        <div
-                          className={`w-5 h-5 rounded-full bg-white transform transition-transform translate-x-1 rtl:-translate-x-1`}
-                        ></div>
-                      </div>
-                    </label>
-                  </div>
-
                   <div className="border-t border-secondary-100 dark:border-voxcina-darkBlue/20 pt-5">
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                       <button

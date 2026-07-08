@@ -469,6 +469,104 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, http.StatusOK, updatedUser)
 }
 
+// ChangePassword handles PUT /api/users/password
+// Requires authentication - UserID should be available in request context
+func ChangePassword(w http.ResponseWriter, r *http.Request) {
+	userIDCtx := r.Context().Value("userID")
+	if userIDCtx == nil {
+		utils.ErrorResponse(
+			w,
+			http.StatusUnauthorized,
+			"User not authenticated or userID not found in context",
+		)
+		return
+	}
+	userID, ok := userIDCtx.(primitive.ObjectID)
+	if !ok {
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Invalid userID format in context",
+		)
+		return
+	}
+
+	var payload struct {
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Invalid request payload: "+err.Error(),
+		)
+		return
+	}
+
+	if payload.CurrentPassword == "" || payload.NewPassword == "" {
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"Current password and new password are required",
+		)
+		return
+	}
+
+	if len(payload.NewPassword) < 8 {
+		utils.ErrorResponse(
+			w,
+			http.StatusBadRequest,
+			"New password must be at least 8 characters long",
+		)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	userCollection := db.Database.Collection("users")
+
+	var user models.User
+	if err := userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&user); err != nil {
+		utils.ErrorResponse(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(payload.CurrentPassword)); err != nil {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "Current password is incorrect")
+		return
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(payload.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error hashing password: "+err.Error(),
+		)
+		return
+	}
+
+	updateDoc := bson.M{"$set": bson.M{"password_hash": string(hashedPassword), "updated_at": time.Now()}}
+	result, err := userCollection.UpdateOne(ctx, bson.M{"_id": userID}, updateDoc)
+	if err != nil {
+		utils.ErrorResponse(
+			w,
+			http.StatusInternalServerError,
+			"Error updating password: "+err.Error(),
+		)
+		return
+	}
+
+	if result.MatchedCount == 0 {
+		utils.ErrorResponse(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Password changed successfully"})
+}
+
 // Logout handles POST /api/users/logout
 // For JWT, logout is primarily client-side (deleting the token).
 // This endpoint acknowledges the logout request.
