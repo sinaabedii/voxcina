@@ -183,6 +183,31 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
     
+    .order-details {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px 40px;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .order-detail-item {
+      display: flex;
+      gap: 8px;
+      font-size: 14px;
+    }
+    
+    .order-detail-item .detail-label {
+      opacity: 0.8;
+    }
+    
+    .order-detail-item .detail-value {
+      font-weight: 600;
+    }
+    
     .content {
       padding: 40px;
     }
@@ -393,34 +418,34 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
           <div class="status-badge">${order.status_text}</div>
         </div>
       </div>
+      
+      <div class="order-details">
+        <div class="order-detail-item">
+          <span class="detail-label">تاریخ ثبت:</span>
+          <span class="detail-value">${order.jalali_created_at || order.created_at}</span>
+        </div>
+        <div class="order-detail-item">
+          <span class="detail-label">وضعیت پرداخت:</span>
+          <span class="detail-value">${order.payment_status === 'paid' ? 'پرداخت شده' : order.payment_status === 'pending' ? 'در انتظار' : order.payment_status}</span>
+        </div>
+        ${order.tracking_code ? `
+        <div class="order-detail-item">
+          <span class="detail-label">کد رهگیری:</span>
+          <span class="detail-value">${order.tracking_code}</span>
+        </div>
+        ` : ''}
+        ${order.discount_code ? `
+        <div class="order-detail-item">
+          <span class="detail-label">کد تخفیف:</span>
+          <span class="detail-value">${order.discount_code}</span>
+        </div>
+        ` : ''}
+      </div>
     </div>
     
     <div class="content">
       <div class="info-grid">
         
-        <div class="info-card">
-          <h3>اطلاعات سفارش</h3>
-          <div class="info-row">
-            <span class="info-label">تاریخ ثبت:</span>
-            <span class="info-value">${order.jalali_created_at || order.created_at}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">وضعیت پرداخت:</span>
-            <span class="info-value">${order.payment_status === 'paid' ? 'پرداخت شده' : order.payment_status === 'pending' ? 'در انتظار' : order.payment_status}</span>
-          </div>
-          ${order.tracking_code ? `
-          <div class="info-row">
-            <span class="info-label">کد رهگیری:</span>
-            <span class="info-value">${order.tracking_code}</span>
-          </div>
-          ` : ''}
-          ${order.discount_code ? `
-          <div class="info-row">
-            <span class="info-label">کد تخفیف:</span>
-            <span class="info-value">${order.discount_code}</span>
-          </div>
-          ` : ''}
-        </div>
         
         <div class="info-card">
           <h3>آدرس تحویل</h3>
