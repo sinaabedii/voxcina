@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { useGSAP } from "@gsap/react";
-import { gsap } from "@/lib/gsap";
+import { gsap, ScrollTrigger } from "@/lib/gsap";
 import { ColorVariantListItem } from "@/types/product";
 import BackendImage from "@/components/BackendImage";
 import { getCanonicalColor } from "@/lib/product-variants";
@@ -97,6 +97,15 @@ export default function StuckProductGrid({ title, items }: StuckProductGridProps
 
             gsap.set(cells, { autoAlpha: 0, z: -900, filter: "blur(6px)" });
 
+            // Fast/momentum scrolling runs on a separate thread than the JS
+            // that drives ScrollTrigger, so a quick flick can blow straight
+            // past this pinned section before the scrub calculations catch
+            // up — visually "skipping" the pin and jumping to the content
+            // below. ScrollTrigger.normalizeScroll(true) forces scrolling
+            // onto the JS thread so pin/scrub timing stays in sync even
+            // during fast scrolls (see GSAP docs for normalizeScroll()).
+            const normalizer = ScrollTrigger.normalizeScroll(true);
+
             const tl = gsap.timeline({
               scrollTrigger: {
                 trigger: section,
@@ -105,6 +114,7 @@ export default function StuckProductGrid({ title, items }: StuckProductGridProps
                 scrub: 1,
                 pin: true,
                 anticipatePin: 1,
+                fastScrollEnd: true,
               },
               defaults: { ease: "none" },
             });
@@ -129,6 +139,7 @@ export default function StuckProductGrid({ title, items }: StuckProductGridProps
             return () => {
               tl.scrollTrigger?.kill();
               tl.kill();
+              normalizer?.kill();
             };
           }
 
@@ -176,6 +187,11 @@ export default function StuckProductGrid({ title, items }: StuckProductGridProps
                 height={340}
                 className="h-full w-full rounded-xl object-cover shadow-strong"
               />
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent px-2 py-2.5">
+                <p className="truncate text-center text-xs sm:text-sm font-medium text-white">
+                  {slot.item.name}
+                </p>
+              </div>
             </div>
           ))}
 
@@ -241,9 +257,12 @@ export function StuckProductGridMobile({ title, items }: StuckProductGridProps) 
             return (
               <div
                 key={`${item.productId}-${color}-${i}`}
-                className="h-56 w-40 shrink-0 overflow-hidden rounded-xl shadow-strong"
+                className="relative h-56 w-40 shrink-0 overflow-hidden rounded-xl shadow-strong"
               >
                 <BackendImage src={image} alt={item.name} width={160} height={224} className="h-full w-full object-cover" />
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent px-2 py-2">
+                  <p className="truncate text-center text-xs font-medium text-white">{item.name}</p>
+                </div>
               </div>
             );
           })}

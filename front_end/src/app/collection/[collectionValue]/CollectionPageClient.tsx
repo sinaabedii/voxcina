@@ -2,9 +2,9 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { Package } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Package, ArrowRight } from "lucide-react";
 import { Flip } from "@/lib/gsap";
-import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import Button from "@/components/ui/Button";
 import { ColorVariantListItem, PaginationInfo } from "@/types/product";
@@ -35,6 +35,7 @@ export default function CollectionPageClient({
   currentPage,
   initialFilters,
 }: CollectionPageClientProps) {
+  const router = useRouter();
   const [introDone, setIntroDone] = useState(false);
   const pendingFlipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
 
@@ -51,6 +52,14 @@ export default function CollectionPageClient({
     return qs ? `${base}?${qs}` : base;
   };
 
+  const handleBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push("/products");
+    }
+  };
+
   return (
     <>
       {!introDone && (
@@ -61,7 +70,15 @@ export default function CollectionPageClient({
         />
       )}
 
-      <Header />
+      <button
+        type="button"
+        onClick={handleBack}
+        aria-label="بازگشت"
+        className="fixed top-4 right-4 sm:top-6 sm:right-6 z-50 flex items-center gap-2 rounded-full bg-white/90 dark:bg-voxcina-blue/90 backdrop-blur-sm px-4 py-2.5 text-sm font-medium text-voxcina-blue dark:text-voxcina-cream shadow-medium hover:bg-white dark:hover:bg-voxcina-blue transition-colors"
+      >
+        <ArrowRight className="w-4 h-4" />
+        <span>بازگشت</span>
+      </button>
 
       <main className="min-h-screen bg-background">
         <StuckProductGrid title={title} items={items} />
