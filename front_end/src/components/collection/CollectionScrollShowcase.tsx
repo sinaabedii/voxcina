@@ -86,6 +86,8 @@ export default function CollectionScrollShowcase({ items }: CollectionScrollShow
   const applyTransforms = (p: number) => {
     const vw = typeof window !== "undefined" ? window.innerWidth / 100 : 12;
     const vh = typeof window !== "undefined" ? window.innerHeight / 100 : 8;
+    const desktopScatter = typeof window !== "undefined" && window.innerWidth >= 1024;
+    const scatterScale = desktopScatter ? 1.5 : 1;
     // `p` is the global scroll progress (0..1). Each product has its own
     // "focus" point at k/(N-1); as `p` passes it the product flies forward
     // through the scene: far (translateZ < 0) → full depth (z = 0) → passed
@@ -103,8 +105,8 @@ export default function CollectionScrollShowcase({ items }: CollectionScrollShow
       const ad = Math.abs(d);
       const z = d * SPACING; // <0 far, 0 focused, >0 passed
       const pos = rng[k] ?? { x: 0, y: 0, rot: 0 };
-      const x = pos.x * vw; // constant scattered offset (NOT pulled to center)
-      const y = pos.y * vh;
+      const x = pos.x * scatterScale * vw; // constant scattered offset (NOT pulled to center)
+      const y = pos.y * scatterScale * vh;
       const opacity = Math.max(0, 1 - ad * 0.7);
       // Blur is the most expensive property on mobile GPUs, so we quantize it
       // into coarse 2px steps and only rewrite `filter` when the step changes
