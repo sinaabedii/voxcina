@@ -9,6 +9,7 @@ import Button from "@/components/ui/Button";
 import { ColorVariantListItem } from "@/types/product";
 import CollectionIntro from "@/components/collection/CollectionIntro";
 import CollectionScrollShowcase from "@/components/collection/CollectionScrollShowcase";
+import TexturedBackground from "@/components/ui/TexturedBackground";
 
 interface CollectionPageClientProps {
   title: string;
@@ -52,19 +53,22 @@ export default function CollectionPageClient({
         <span>بازگشت</span>
       </button>
 
-      <main className="min-h-screen bg-background">
+      <main className="relative isolate min-h-screen">
         {items.length === 0 ? (
-          <div className="container py-24 text-center">
-            <Package className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-4">محصولی در این کالکشن یافت نشد</h2>
-            <p className="text-muted-foreground mb-8">
-              در حال حاضر محصولی در این کالکشن موجود نیست.
-            </p>
-            <Link href="/products">
-              <Button variant="primary" size="lg">
-                مشاهده همه محصولات
-              </Button>
-            </Link>
+          <div className="py-24 text-center">
+            <TexturedBackground withLogo={false} />
+            <div className="container">
+              <Package className="w-16 h-16 text-voxcina-blue/40 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold mb-4 text-voxcina-blue">محصولی در این کالکشن یافت نشد</h2>
+              <p className="text-voxcina-blue/70 mb-8">
+                در حال حاضر محصولی در این کالکشن موجود نیست.
+              </p>
+              <Link href="/products">
+                <Button variant="primary" size="lg">
+                  مشاهده همه محصولات
+                </Button>
+              </Link>
+            </div>
           </div>
         ) : (
           <CollectionScrollShowcase items={items} />

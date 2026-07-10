@@ -3,6 +3,7 @@
 import { useRef, useState, useCallback } from "react";
 import { useGSAP } from "@gsap/react";
 import { gsap, SplitText } from "@/lib/gsap";
+import TexturedBackground from "@/components/ui/TexturedBackground";
 
 interface CollectionIntroProps {
   title: string;
@@ -184,7 +185,7 @@ export default function CollectionIntro({
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-voxcina-blue text-voxcina-cream overflow-hidden"
+      className="fixed inset-0 z-[60] flex flex-col items-center justify-center text-voxcina-blue overflow-hidden"
       style={{ perspective: "1200px" }}
       role="presentation"
       aria-hidden={isExiting}
@@ -192,20 +193,30 @@ export default function CollectionIntro({
       onWheel={triggerExit}
       onTouchStart={triggerExit}
     >
-      {/* Curtain panels used for the exit wipe */}
+      {/* Curtain panels used for the exit wipe — each carries its half of the
+          textured brand surface, so the wipe splits the background apart and
+          genuinely reveals the page underneath. */}
       <div
         ref={topPanelRef}
-        className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-voxcina-blue"
+        className="pointer-events-none absolute inset-x-0 top-0 h-1/2 overflow-hidden"
         style={{ transform: "translateY(0)" }}
-      />
+      >
+        <div className="absolute inset-x-0 top-0 h-[200%]">
+          <TexturedBackground />
+        </div>
+      </div>
       <div
         ref={bottomPanelRef}
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-voxcina-blue"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 overflow-hidden"
         style={{ transform: "translateY(0)" }}
-      />
+      >
+        <div className="absolute inset-x-0 bottom-0 h-[200%]">
+          <TexturedBackground withLogo={false} />
+        </div>
+      </div>
 
       <div className="relative z-10 flex flex-col items-center px-6 text-center" style={{ transformStyle: "preserve-3d" }}>
-        <span className="mb-3 text-xs sm:text-sm tracking-widest text-voxcina-cream/60">
+        <span className="mb-3 text-xs sm:text-sm tracking-widest text-voxcina-blue/60">
           کالکشن
         </span>
         <h1
@@ -218,7 +229,7 @@ export default function CollectionIntro({
         {tagline && (
           <p
             ref={taglineRef}
-            className="mt-6 max-w-xl text-sm sm:text-base md:text-lg text-voxcina-cream/80"
+            className="mt-6 max-w-xl text-sm sm:text-base md:text-lg text-voxcina-blue/80"
           >
             {tagline}
           </p>
@@ -228,7 +239,7 @@ export default function CollectionIntro({
       <div className="absolute bottom-8 left-0 right-0 flex justify-center">
         <span
           ref={labelRef}
-          className="text-xs sm:text-sm tracking-widest text-voxcina-cream/50"
+          className="text-xs sm:text-sm tracking-widest text-voxcina-blue/60"
         >
           {cyclingLabels[0]}
         </span>

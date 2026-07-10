@@ -6,6 +6,7 @@ import { useGSAP } from "@gsap/react";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
 import { ColorVariantListItem } from "@/types/product";
 import BackendImage from "@/components/BackendImage";
+import TexturedBackground from "@/components/ui/TexturedBackground";
 import { formatPrice, getDiscountPercentage } from "@/lib/utils";
 import { getCanonicalColor } from "@/lib/product-variants";
 import { activityTracker } from "@/lib/activity-tracker";
@@ -199,7 +200,8 @@ export default function CollectionScrollShowcase({ items }: CollectionScrollShow
   // Reduced-motion (or pre-hydration fallback) → plain scrollable grid.
   if (reduced) {
     return (
-      <section className="min-h-screen bg-voxcina-blue px-4 py-20 sm:px-6">
+      <section className="relative isolate min-h-screen px-4 py-20 sm:px-6">
+        <TexturedBackground />
         <div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
           {items.map((item, i) => (
             <ProductCard key={`${item.productId}-${i}`} item={item} index={i} />
@@ -210,7 +212,8 @@ export default function CollectionScrollShowcase({ items }: CollectionScrollShow
   }
 
   return (
-    <section ref={sectionRef} className="relative isolate bg-voxcina-blue">
+    <section ref={sectionRef} className="relative isolate">
+      <TexturedBackground />
       <div className="sticky top-0 flex h-[100svh] w-full flex-col items-center justify-center overflow-hidden">
         {/* Odometer counter — the numbers stay visually ordered in RTL */}
         <div
@@ -218,22 +221,22 @@ export default function CollectionScrollShowcase({ items }: CollectionScrollShow
           dir="ltr"
           aria-label={`محصول ${active + 1} از ${total}`}
         >
-          <div className="flex h-[4.5rem] w-44 items-center justify-center rounded-[2rem] bg-[#303030] px-3 shadow-[0_14px_32px_rgba(0,0,0,0.2)] sm:h-24 sm:w-52 sm:rounded-[2.25rem]">
+          <div className="flex h-[4.5rem] w-44 items-center justify-center rounded-[2rem] bg-voxcina-blue px-3 shadow-[0_14px_32px_rgba(10,27,60,0.25)] ring-1 ring-white/10 sm:h-24 sm:w-52 sm:rounded-[2.25rem]">
             <div className="grid w-full grid-cols-[1fr_1.35fr_1fr] items-center text-center tabular-nums">
-              <span className="text-lg font-semibold tracking-tight text-white/30 sm:text-xl">
+              <span className="text-lg font-semibold tracking-tight text-voxcina-cream/40 sm:text-xl">
                 {(prevIdx + 1).toLocaleString("fa-IR")}
               </span>
-              <span className="text-[2.8rem] font-bold leading-none tracking-tight text-white sm:text-6xl">
+              <span className="text-[2.8rem] font-bold leading-none tracking-tight text-voxcina-cream sm:text-6xl">
                 {(active + 1).toLocaleString("fa-IR")}
               </span>
-              <span className="text-lg font-semibold tracking-tight text-white/30 sm:text-xl">
+              <span className="text-lg font-semibold tracking-tight text-voxcina-cream/40 sm:text-xl">
                 {(nextIdx + 1).toLocaleString("fa-IR")}
               </span>
             </div>
           </div>
-          <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-white/15">
+          <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-voxcina-blue/15">
             <div
-              className="h-full rounded-full bg-white/75 transition-[width] duration-100"
+              className="h-full rounded-full bg-voxcina-blue/70 transition-[width] duration-100"
               style={{ width: `${total > 1 ? (active / (total - 1)) * 100 : 100}%` }}
             />
           </div>
@@ -322,14 +325,14 @@ function ProductCard({
         )}
       </div>
 
-      <div className="mt-4 flex flex-col items-center text-center text-voxcina-cream">
+      <div className="mt-4 flex flex-col items-center text-center text-voxcina-blue">
         <h3 className="line-clamp-1 max-w-full text-base font-medium sm:text-lg">
           {item.name}
         </h3>
         <div className="mt-1.5 flex items-center gap-2">
           <span className="text-lg font-bold sm:text-xl">{formatPrice(item.price)}</span>
           {discount > 0 && (
-            <span className="text-sm text-voxcina-cream/50 line-through">
+            <span className="text-sm text-voxcina-blue/50 line-through">
               {formatPrice(item.originalPrice)}
             </span>
           )}
