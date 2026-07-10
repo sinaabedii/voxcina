@@ -1,16 +1,30 @@
-"use client";
+import { Metadata } from "next";
+import { Suspense } from "react";
+import {
+  serverFetch,
+  buildApiUrl,
+  CACHE_TIMES,
+} from "@/lib/server-api";
+import {
+  ColorVariantListItem,
+  PaginationInfo,
+} from "@/types/product";
+import { APP_NAME } from "@/lib/constants";
+import BreadcrumbSchema, { BreadcrumbItem } from "@/components/SEO/BreadcrumbSchema";
+import ItemListSchema, { ItemListItem } from "@/components/SEO/ItemListSchema";
+import { Loading } from "@/components/ui";
+import CollectionPageClient from "./CollectionPageClient";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import Link from "next/link";
-import { motion } from "framer-motion";
-import ProductGrid from "@/components/product/ProductGrid";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
-import { ColorVariantListItem } from "@/types/product";
-import Button from "@/components/ui/Button";
+interface CollectionPageProps {
+  params: Promise<{ collectionValue: string }>;
+  searchParams: Promise<{
+    page?: string;
+    sort?: string;
+    inStockOnly?: string;
+  }>;
+}
 
-interface CollectionResponse {
+interface CollectionApiResponse {
   data: ColorVariantListItem[];
   pagination: {
     totalPages: number;
@@ -18,194 +32,219 @@ interface CollectionResponse {
     nextPage?: number;
     prevPage?: number;
     totalProducts: number;
+    totalItems: number;
   };
   collection: string;
 }
 
-export default function CollectionPage() {
-  const params = useParams();
-  const collectionValue = params.collectionValue as string;
+const COLLECTION_TITLES: Record<string, string> = {
+  "بهار": "کالکشن بهار",
+  "تابستان": "کالکشن تابستان",
+  "پاییز": "کالکشن پاییز",
+  "زمستان": "کالکشن زمستان",
+};
 
-  const [collectionData, setCollectionData] = useState<CollectionResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const COLLECTION_TAGLINES: Record<string, string> = {
+  "بهار": "مجموعهای از محصولات زیبا و رنگارنگ برای فصل بهار",
+  "تابستان": "لباسهای خنک و راحت برای روزهای گرم تابستان",
+  "پاییز": "استایلهای گرم و شیک برای روزهای پاییزی",
+  "زمستان": "پوشاک گرم و مد روز برای فصل سرد زمستان",
+};
 
-  useEffect(() => {
-    if (collectionValue) {
-      fetchCollectionProducts();
+function getCollectionTitle(collection: string): string {
+  return COLLECTION_TITLES[collection] || `کالکشن ${collection}`;
+}
+
+function getCollectionTagline(collection: string): string {
+  return COLLECTION_TAGLINES[collection] || `محصولات ویژه کالکشن ${collection}`;
+}
+
+function buildPageUrl(
+  page: number,
+  collectionValue: string,
+  searchParams: Record<string, string | undefined>
+): string {
+  const params = new URLSearchParams();
+  Object.entries(searchParams).forEach(([key, value]) => {
+    if (value && key !== "page") {
+      params.set(key, value);
     }
-  }, [collectionValue]);
+  });
+  if (page > 1) {
+    params.set("page", String(page));
+  }
+  const queryString = params.toString();
+  const baseUrl = `/collection/${collectionValue}`;
+  return queryString ? `${baseUrl}?${queryString}` : baseUrl;
+}
 
-  const fetchCollectionProducts = async (page: number = 1) => {
-    try {
-      setIsLoading(true);
-      const response = await fetch(`/api/products/collection/${collectionValue}?page=${page}&limit=20`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch collection products');
+/**
+ * Server-side collection data fetching for SSR.
+ */
+async function getCollectionData(
+  collectionValue: string,
+  searchParams: { page?: string; sort?: string; inStockOnly?: string }
+) {
+  const decodedCollection = decodeURIComponent(collectionValue);
+
+  const queryParams: Record<string, string | undefined> = {
+    page: searchParams.page || "1",
+    limit: "20",
+  };
+  if (searchParams.sort) {
+    queryParams.sort = searchParams.sort;
+  }
+  if (searchParams.inStockOnly === "true") {
+    queryParams.inStockOnly = "true";
+  }
+
+  const endpoint = buildApiUrl(
+    `/api/products/collection/${encodeURIComponent(decodedCollection)}`,
+    queryParams
+  );
+
+  const response = await serverFetch<CollectionApiResponse>(endpoint, {
+    revalidate: CACHE_TIMES.PRODUCTS_LIST,
+    tags: ["products", `collection-${decodedCollection}`],
+  });
+
+  const items: ColorVariantListItem[] = response?.data || [];
+  const pagination: PaginationInfo | null = response
+    ? {
+        totalPages: response.pagination.totalPages,
+        currentPage: response.pagination.currentPage,
+        nextPage: response.pagination.nextPage,
+        prevPage: response.pagination.prevPage,
+        totalItems: response.pagination.totalItems ?? response.pagination.totalProducts,
       }
-      const data: CollectionResponse = await response.json();
-      setCollectionData(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setIsLoading(false);
-    }
+    : null;
+
+  return { collection: decodedCollection, items, pagination };
+}
+
+export async function generateMetadata({ params, searchParams }: CollectionPageProps): Promise<Metadata> {
+  const { collectionValue } = await params;
+  const search = await searchParams;
+  const data = await getCollectionData(collectionValue, search);
+
+  const title = getCollectionTitle(data.collection);
+  const description = getCollectionTagline(data.collection);
+  const page = parseInt(search.page || "1", 10);
+  const totalPages = data.pagination?.totalPages || 1;
+
+  const siteUrl = "https://voxcina.com";
+  const canonicalUrl = `${siteUrl}${buildPageUrl(page, collectionValue, search)}`;
+
+  const alternates: Metadata["alternates"] = {
+    canonical: canonicalUrl,
+    languages: {
+      "fa-IR": canonicalUrl,
+      "x-default": canonicalUrl,
+    },
   };
 
-  const getCollectionTitle = (collection: string) => {
-    const titles: { [key: string]: string } = {
-      'بهار': 'کالکشن بهار',
-      'تابستان': 'کالکشن تابستان',
-      'پاییز': 'کالکشن پاییز',
-      'زمستان': 'کالکشن زمستان',
-    };
-    return titles[collection] || `کالکشن ${collection}`;
-  };
-
-  const getCollectionDescription = (collection: string) => {
-    const descriptions: { [key: string]: string } = {
-      'بهار': 'مجموعه‌ای از محصولات زیبا و رنگارنگ برای فصل بهار',
-      'تابستان': 'لباس‌های خنک و راحت برای روزهای گرم تابستان',
-      'پاییز': 'استایل‌های گرم و شیک برای روزهای پاییزی',
-      'زمستان': 'پوشاک گرم و مد روز برای فصل سرد زمستان',
-    };
-    return descriptions[collection] || `محصولات ویژه کالکشن ${collection}`;
-  };
-
-  if (isLoading) {
-    return (
-      <>
-        <Header />
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="relative w-16 h-16 mx-auto mb-4">
-              <div className="absolute inset-0 border-4 border-secondary-200 rounded-full"></div>
-              <div className="absolute inset-0 border-4 border-t-voxcina-blue rounded-full animate-spin"></div>
-            </div>
-            <p className="text-voxcina-blue">در حال بارگذاری...</p>
-          </div>
-        </div>
-        <Footer />
-      </>
-    );
+  const other: Record<string, string> = {};
+  if (page > 1) {
+    other["prev"] = `${siteUrl}${buildPageUrl(page - 1, collectionValue, search)}`;
+  }
+  if (page < totalPages) {
+    other["next"] = `${siteUrl}${buildPageUrl(page + 1, collectionValue, search)}`;
   }
 
-  if (error || !collectionData) {
-    return (
-      <>
-        <Header />
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-voxcina-blue mb-4">خطا در بارگذاری</h1>
-            <p className="text-gray-600 mb-6">{error || 'کالکشن یافت نشد'}</p>
-            <Link href="/">
-              <Button variant="primary">
-                بازگشت به خانه
-              </Button>
-            </Link>
-          </div>
-        </div>
-        <Footer />
-      </>
-    );
-  }
+  return {
+    title: page > 1 ? `${title} - صفحه ${page}` : title,
+    description: `${description} از فروشگاه آنلاین ${APP_NAME}. جدیدترین محصولات با بهترین قیمت.`,
+    keywords: [data.collection, "کالکشن", "خرید آنلاین", "فروشگاه اینترنتی", "وکسینا"],
+    openGraph: {
+      title: `${title} | ${APP_NAME}`,
+      description,
+      locale: "fa_IR",
+      type: "website",
+      url: canonicalUrl,
+    },
+    alternates,
+    other: Object.keys(other).length > 0 ? other : undefined,
+  };
+}
+
+/**
+ * Collection Page — Server Component.
+ *
+ * Fetches collection products server-side (SSR/ISR) and hands off to the
+ * client component for the GSAP-powered intro, stuck-grid showcase, and
+ * interactive filter/sort/pagination UI.
+ */
+export default async function CollectionPage({ params, searchParams }: CollectionPageProps) {
+  const { collectionValue } = await params;
+  const search = await searchParams;
+
+  const data = await getCollectionData(collectionValue, search);
+
+  const { collection, items, pagination } = data;
+  const currentPage = parseInt(search.page || "1", 10);
+
+  const title = getCollectionTitle(collection);
+  const tagline = getCollectionTagline(collection);
+
+  const breadcrumbItems: BreadcrumbItem[] = [
+    { name: "خانه", url: "/" },
+    { name: title, url: `/collection/${collectionValue}` },
+  ];
+
+  const itemListItems: ItemListItem[] = items.map((item) => ({
+    name: item.name,
+    url: `/products/${item.productId}`,
+    image: item.colorVariant?.images?.[0] || "",
+    price: item.price,
+    availability: item.inStock ? "InStock" : "OutOfStock",
+  }));
 
   return (
     <>
-      <Header />
-      <div className="min-h-screen bg-gray-50">
-        {/* Hero Section */}
-        <section className="relative bg-gradient-to-br from-voxcina-blue to-primary-600 text-white py-16 md:py-24">
-          <div className="container mx-auto px-4">
-            <div className="max-w-4xl mx-auto text-center">
-              <motion.h1
-                className="text-4xl md:text-6xl font-bold mb-6"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-              >
-                {getCollectionTitle(collectionData.collection)}
-              </motion.h1>
+      <BreadcrumbSchema items={breadcrumbItems} />
 
-              <motion.p
-                className="text-lg md:text-xl mb-8 text-white/90"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-              >
-                {getCollectionDescription(collectionData.collection)}
-              </motion.p>
+      {items.length > 0 && (
+        <ItemListSchema
+          listName={title}
+          description={tagline}
+          listUrl={`/collection/${collectionValue}`}
+          items={itemListItems}
+        />
+      )}
 
+      <nav aria-label="Pagination" className="sr-only">
+        {currentPage > 1 && (
+          <a href={buildPageUrl(currentPage - 1, collectionValue, search)} rel="prev">
+            صفحه قبل
+          </a>
+        )}
+        {pagination && currentPage < pagination.totalPages && (
+          <a href={buildPageUrl(currentPage + 1, collectionValue, search)} rel="next">
+            صفحه بعد
+          </a>
+        )}
+      </nav>
 
-            </div>
+      <Suspense
+        fallback={
+          <div className="container py-16 flex items-center justify-center min-h-[60vh]">
+            <Loading size="lg" text="در حال بارگذاری محصولات..." />
           </div>
-
-          {/* Background decoration */}
-          <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
-            <div className="absolute -top-40 -right-40 w-80 h-80 bg-white/10 rounded-full blur-3xl"></div>
-            <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white/5 rounded-full blur-3xl"></div>
-          </div>
-        </section>
-
-        {/* Products Section */}
-        <section className="py-12 md:py-16">
-          <div className="container mx-auto px-4">
-            {collectionData.data.length === 0 ? (
-              <div className="text-center py-16">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                  محصولی در این کالکشن یافت نشد
-                </h2>
-                <p className="text-gray-600 mb-8">
-                  در حال حاضر محصولی در این کالکشن موجود نیست.
-                </p>
-                <Link href="/products">
-                  <Button variant="primary" size="lg">
-                    مشاهده همه محصولات
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <>
-                <ProductGrid
-                  items={collectionData.data}
-                  columns={4}
-                  glassEffect={false}
-                />
-
-                {/* Pagination */}
-                {collectionData.pagination.totalPages > 1 && (
-                  <div className="mt-12 flex justify-center">
-                    <div className="flex items-center gap-2">
-                      {collectionData.pagination.prevPage && (
-                        <Button
-                          variant="outline"
-                          onClick={() => fetchCollectionProducts(collectionData.pagination.prevPage)}
-                        >
-                          قبلی
-                        </Button>
-                      )}
-
-                      <span className="px-4 py-2 bg-voxcina-blue text-white rounded-lg">
-                        صفحه {collectionData.pagination.currentPage} از {collectionData.pagination.totalPages}
-                      </span>
-
-                      {collectionData.pagination.nextPage && (
-                        <Button
-                          variant="outline"
-                          onClick={() => fetchCollectionProducts(collectionData.pagination.nextPage)}
-                        >
-                          بعدی
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </section>
-      </div>
-      <Footer />
+        }
+      >
+        <CollectionPageClient
+          collectionValue={collectionValue}
+          title={title}
+          tagline={tagline}
+          items={items}
+          pagination={pagination}
+          currentPage={currentPage}
+          initialFilters={{
+            sort: search.sort,
+            inStockOnly: search.inStockOnly === "true",
+          }}
+        />
+      </Suspense>
     </>
   );
 }

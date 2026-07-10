@@ -2009,17 +2009,39 @@ func GetProductsByCollection(w http.ResponseWriter, r *http.Request) {
 		"is_active":  true,
 	}
 
+	// Filter by in_stock (only products with inventory > 0)
+	if r.URL.Query().Get("in_stock") == "true" || r.URL.Query().Get("inStockOnly") == "true" {
+		filter["in_stock"] = true
+	}
+
 	totalProducts, err := productsCollection.CountDocuments(ctx, filter)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error counting products")
 		return
 	}
 
-	// Prepare find options (pagination & sorting by newest)
+	// Prepare find options (pagination & sorting)
 	opts := options.Find().
 		SetSkip(int64(skip)).
-		SetLimit(int64(limit)).
-		SetSort(bson.M{"created_at": -1})
+		SetLimit(int64(limit))
+
+	// Handle sort parameter (mirrors ListProducts sorting logic)
+	sortParam := r.URL.Query().Get("sort")
+	switch sortParam {
+	case "newest":
+		opts.SetSort(bson.D{{Key: "created_at", Value: -1}})
+	case "price-asc":
+		opts.SetSort(bson.D{{Key: "price", Value: 1}})
+	case "price-desc":
+		opts.SetSort(bson.D{{Key: "price", Value: -1}})
+	case "popular":
+		opts.SetSort(bson.D{{Key: "review_count", Value: -1}, {Key: "average_rating", Value: -1}})
+	case "discount":
+		opts.SetSort(bson.D{{Key: "original_price", Value: -1}})
+	default:
+		// Default: sort by newest
+		opts.SetSort(bson.D{{Key: "created_at", Value: -1}})
+	}
 
 	cursor, err := productsCollection.Find(ctx, filter, opts)
 	if err != nil {
@@ -2092,6 +2114,7 @@ func GetProductsByCollection(w http.ResponseWriter, r *http.Request) {
 		NextPage      *int  `json:"nextPage,omitempty"`
 		PrevPage      *int  `json:"prevPage,omitempty"`
 		TotalProducts int64 `json:"totalProducts"`
+		TotalItems    int64 `json:"totalItems"`
 	}
 
 	type collectionResponse struct {
@@ -2108,6 +2131,7 @@ func GetProductsByCollection(w http.ResponseWriter, r *http.Request) {
 			NextPage:      nextPage,
 			PrevPage:      prevPage,
 			TotalProducts: totalProducts,
+			TotalItems:    totalProducts,
 		},
 		Collection: collectionValue,
 	}
