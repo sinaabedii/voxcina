@@ -58,8 +58,17 @@ export default function CollectionIntro({
 
       const mm = gsap.matchMedia();
 
+      // NOTE: gsap.matchMedia() only invokes the handler when at least one of
+      // the given conditions matches. Passing a single "reduce" query means
+      // the handler (which contains ALL the animation setup) would never run
+      // for the vast majority of users who don't have reduced-motion enabled.
+      // Pairing it with its complement ("no-preference") guarantees exactly
+      // one condition always matches, so the handler always runs.
       mm.add(
-        { reduceMotion: "(prefers-reduced-motion: reduce)" },
+        {
+          reduceMotion: "(prefers-reduced-motion: reduce)",
+          noPreference: "(prefers-reduced-motion: no-preference)",
+        },
         (context) => {
           const { reduceMotion } = context.conditions as { reduceMotion: boolean };
 
