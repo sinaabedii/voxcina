@@ -54,10 +54,12 @@ interface ActivityData {
   orderValue?: number;
   duration?: number;
   metadata?: Record<string, any>;
+  deviceType?: string;
 }
 
 class ActivityTracker {
   private sessionId: string;
+  private clientDeviceType: string = '';
   private queue: ActivityData[] = [];
   private batchSize = 10;
   private flushInterval = 5000; // 5 seconds
@@ -71,6 +73,9 @@ class ActivityTracker {
 
   constructor() {
     this.sessionId = this.getOrCreateSessionId();
+    if (typeof window !== 'undefined') {
+      this.clientDeviceType = this.detectClientDeviceType();
+    }
     this.initPageViewTracking();
     this.initBeforeUnloadTracking();
   }
@@ -109,6 +114,28 @@ class ActivityTracker {
 
   private createSessionId(): string {
     return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  private detectClientDeviceType(): string {
+    const ua = navigator.userAgent.toLowerCase();
+    const isIPad = /ipad/.test(ua) || (/macintosh/.test(ua) && navigator.maxTouchPoints > 1 && 'ontouchend' in document);
+    if (isIPad || /tablet|playbook|silk/.test(ua)) {
+      return 'tablet';
+    }
+    if (/android/.test(ua)) {
+      return /mobile/.test(ua) ? 'mobile' : 'tablet';
+    }
+    if (/mobile|iphone|ipod|blackberry|iemobile|opera mini/.test(ua)) {
+      return 'mobile';
+    }
+    const width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+    if (width <= 480) {
+      return 'mobile';
+    }
+    if (width <= 1024 && (navigator.maxTouchPoints > 1 || 'ontouchend' in document)) {
+      return 'tablet';
+    }
+    return 'desktop';
   }
 
   /**
@@ -193,6 +220,7 @@ class ActivityTracker {
     const activity: ActivityData = {
       activityType: data.activityType,
       sessionId: this.sessionId,
+      deviceType: data.deviceType || this.clientDeviceType,
       pagePath: data.pagePath || (typeof window !== 'undefined' ? window.location.pathname : ''),
       pageTitle: data.pageTitle || (typeof window !== 'undefined' ? document.title : ''),
       referrer: data.referrer || (typeof window !== 'undefined' ? document.referrer : ''),

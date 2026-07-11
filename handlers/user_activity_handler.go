@@ -60,12 +60,18 @@ func resolveActivityUser(ctx context.Context, r *http.Request) (primitive.Object
 	}
 
 	var user struct {
-		Name string `bson:"name"`
+		Name  string `bson:"name"`
+		Phone string `bson:"phone"`
 	}
 	if err := activityUserCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&user); err != nil {
+		log.Printf("Error resolving activity user name for ID %s: %v", userID.Hex(), err)
 		return userID, ""
 	}
-	return userID, user.Name
+	name := user.Name
+	if name == "" {
+		name = user.Phone
+	}
+	return userID, name
 }
 
 // TrackActivity handles POST /api/activity/track
@@ -99,9 +105,11 @@ func TrackActivity(w http.ResponseWriter, r *http.Request) {
 	activity.UserAgent = r.UserAgent()
 
 	// Parse device info from User-Agent
-	activity.DeviceType = detectDeviceType(activity.UserAgent)
+	if activity.DeviceType == "" {
+		activity.DeviceType = detectDeviceType(activity.UserAgent)
+	}
 	activity.Browser = detectBrowser(activity.UserAgent)
-	activity.OS = detectOS(activity.UserAgent)
+	activity.OS = detectOS(activity.UserAgent, activity.DeviceType)
 
 	if err := activityService.TrackActivity(ctx, &activity); err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to track activity")
@@ -136,9 +144,8 @@ func TrackBatchActivities(w http.ResponseWriter, r *http.Request) {
 	// Enrich each activity with request metadata
 	ipAddress := getClientIP(r)
 	userAgent := r.UserAgent()
-	deviceType := detectDeviceType(userAgent)
+	defaultDeviceType := detectDeviceType(userAgent)
 	browser := detectBrowser(userAgent)
-	os := detectOS(userAgent)
 
 	for i := range activities {
 		activities[i].UserID = primitive.ObjectID{}
@@ -149,9 +156,11 @@ func TrackBatchActivities(w http.ResponseWriter, r *http.Request) {
 		}
 		activities[i].IPAddress = ipAddress
 		activities[i].UserAgent = userAgent
-		activities[i].DeviceType = deviceType
+		if activities[i].DeviceType == "" {
+			activities[i].DeviceType = defaultDeviceType
+		}
 		activities[i].Browser = browser
-		activities[i].OS = os
+		activities[i].OS = detectOS(userAgent, activities[i].DeviceType)
 	}
 
 	if err := activityService.TrackBatch(ctx, activities); err != nil {
@@ -512,12 +521,11 @@ func getClientIP(r *http.Request) string {
 func detectDeviceType(userAgent string) string {
 	ua := strings.ToLower(userAgent)
 
-	if strings.Contains(ua, "mobile") || strings.Contains(ua, "android") ||
-		strings.Contains(ua, "iphone") {
-		return "mobile"
-	}
-	if strings.Contains(ua, "tablet") || strings.Contains(ua, "ipad") {
+	if strings.Contains(ua, "ipad") || strings.Contains(ua, "tablet") || (strings.Contains(ua, "android") && !strings.Contains(ua, "mobile")) {
 		return "tablet"
+	}
+	if strings.Contains(ua, "mobile") || strings.Contains(ua, "android") || strings.Contains(ua, "iphone") {
+		return "mobile"
 	}
 	return "desktop"
 }
@@ -526,7 +534,7 @@ func detectDeviceType(userAgent string) string {
 func detectBrowser(userAgent string) string {
 	ua := strings.ToLower(userAgent)
 
-	if strings.Contains(ua, "edg/") {
+	if strings.Contains(ua, "edg/") || strings.Contains(ua, "edge/") {
 		return "Edge"
 	}
 	if strings.Contains(ua, "chrome/") {
@@ -544,14 +552,17 @@ func detectBrowser(userAgent string) string {
 	return "Unknown"
 }
 
-// detectOS detects operating system from User-Agent
-func detectOS(userAgent string) string {
+// detectOS detects operating system from User-Agent and device type
+func detectOS(userAgent string, deviceType string) string {
 	ua := strings.ToLower(userAgent)
 
 	if strings.Contains(ua, "windows") {
 		return "Windows"
 	}
 	if strings.Contains(ua, "mac os") || strings.Contains(ua, "macos") {
+		if deviceType == "tablet" {
+			return "iOS"
+		}
 		return "macOS"
 	}
 	if strings.Contains(ua, "linux") {
