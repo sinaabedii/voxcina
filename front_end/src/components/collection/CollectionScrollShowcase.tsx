@@ -217,7 +217,7 @@ export default function CollectionScrollShowcase({ items }: CollectionScrollShow
       <div className="sticky top-0 flex h-[100svh] w-full flex-col items-center justify-center overflow-hidden">
         {/* Odometer counter — the numbers stay visually ordered in RTL */}
         <div
-          className="pointer-events-none absolute top-28 left-1/2 -translate-x-1/2 z-20"
+          className="pointer-events-none absolute top-4 sm:top-6 left-1/2 -translate-x-1/2 z-20"
           dir="ltr"
           aria-label={`محصول ${active + 1} از ${total}`}
         >
