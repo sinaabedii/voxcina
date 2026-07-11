@@ -27,6 +27,7 @@ import {
   Headphones,
   HelpCircle,
   Image,
+  Activity,
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -115,6 +116,12 @@ export default function AdminLayout({
       href: "/admin/users",
       icon: <Users className="w-5 h-5 ml-3" />,
       section: "users",
+    },
+    {
+      name: "فعالیت کاربران",
+      href: "/admin/activity",
+      icon: <Activity className="w-5 h-5 ml-3" />,
+      section: "activity",
     },
     {
       name: "تخفیف‌ها",
