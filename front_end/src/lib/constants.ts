@@ -185,25 +185,25 @@ export const PAYMENT_GATEWAYS = [
   {
     id: "zibal",
     name: "زیبال",
-    logo: "/images/payment/zibal.png",
+    logo: "/images/payment/zibal.svg",
     enabled: true,
   },
   {
     id: "digipay",
     name: "دیجی‌پی",
-    logo: "/images/payment/digipay.png",
+    logo: "/images/payment/digipay.svg",
     enabled: true,
   },
   {
     id: "zarinpal",
     name: "زرین‌پال",
-    logo: "/images/payment/zarinpal.png",
+    logo: "/images/payment/zarinpal.svg",
     enabled: false, // Not implemented yet
   },
   {
     id: "mellat",
     name: "به‌پرداخت ملت",
-    logo: "/images/payment/mellat.png",
+    logo: "/images/payment/mellat.svg",
     enabled: false, // Not implemented yet
   },
 ];

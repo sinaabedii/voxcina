@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FOOTER_LINKS, APP_NAME } from "@/lib/constants";
 import { useNavigation } from "@/context/navigation";
 import Image from "next/image";
+import Script from "next/script";
 import {
   Instagram,
   Twitter,
@@ -164,6 +165,12 @@ const Footer = () => {
                     />
                     <span className="sr-only">نماد اعتماد الکترونیکی</span>
                   </a>
+                </div>
+
+                <div className="bg-white shadow-soft rounded-md p-1 h-16 w-16 flex items-center justify-center">
+                  <div id="zibal">
+                    <Script src="https://zibal.ir/trust/scripts/zibal-trust-v4.js" type="text/javascript" />
+                  </div>
                 </div>
                 
               </div>

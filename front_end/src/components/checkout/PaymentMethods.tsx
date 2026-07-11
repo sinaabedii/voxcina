@@ -1,8 +1,9 @@
 import React from "react";
-import { CreditCard, Wallet, Truck, Shield, ExternalLink } from "lucide-react";
+import { CreditCard, Wallet, Truck, Shield, ExternalLink, Check } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { PAYMENT_METHODS, PAYMENT_GATEWAYS } from "@/lib/constants";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 
 interface PaymentMethodsProps {
   onSelectMethod: (methodId: string) => void;
@@ -20,21 +21,23 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
   const getPaymentIcon = (id: string) => {
     switch (id) {
       case "online":
-        return <CreditCard className="w-5 h-5 ml-3 text-primary" />;
+        return <CreditCard className="w-5 h-5 ml-2" />;
       case "wallet":
-        return <Wallet className="w-5 h-5 ml-3 text-primary" />;
+        return <Wallet className="w-5 h-5 ml-2" />;
       case "cod":
-        return <Truck className="w-5 h-5 ml-3 text-primary" />;
+        return <Truck className="w-5 h-5 ml-2" />;
       default:
-        return <CreditCard className="w-5 h-5 ml-3 text-primary" />;
+        return <CreditCard className="w-5 h-5 ml-2" />;
     }
   };
 
+  const enabledGateways = PAYMENT_GATEWAYS.filter((g) => g.enabled);
+
   return (
-    <Card className="voxcina-card animate-fadeIn">
-      <CardHeader>
-        <CardTitle className="text-primary flex items-center">
-          <CreditCard className="ml-2 h-5 w-5" />
+    <Card className="border border-voxcina-cream/30 dark:border-voxcina-blue/30 bg-white/90 dark:bg-voxcina-blue/10 shadow-sm rounded-2xl backdrop-blur-sm animate-fadeIn">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-voxcina-cream">
+          <CreditCard className="w-5 h-5 ml-2" />
           روش پرداخت
         </CardTitle>
       </CardHeader>
@@ -43,12 +46,12 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
           {PAYMENT_METHODS.map((method) => (
             <motion.div
               key={method.id}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
+              whileHover={{ y: -2 }}
+              transition={{ duration: 0.2 }}
               className={`border rounded-xl p-4 cursor-pointer transition-all duration-200 ${
                 selectedMethod === method.id
-                  ? "border-primary bg-primary/5 shadow-soft"
-                  : "border-border/10 hover:border-primary/30 hover:shadow-soft"
+                  ? "border-voxcina-blue bg-voxcina-blue/5 dark:border-voxcina-cream dark:bg-voxcina-cream/5 shadow-soft"
+                  : "border-voxcina-cream/30 dark:border-voxcina-blue/30 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/30"
               }`}
               onClick={() => onSelectMethod(method.id)}
             >
@@ -59,62 +62,70 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
                   name="payment-method"
                   checked={selectedMethod === method.id}
                   onChange={() => onSelectMethod(method.id)}
-                  className="ml-2 text-primary focus:ring-primary/30"
+                  className="ml-2 text-voxcina-blue"
                 />
                 <label
                   htmlFor={`payment-${method.id}`}
-                  className="flex items-center font-medium cursor-pointer hover:text-primary transition-colors duration-200"
+                  className="flex items-center font-medium cursor-pointer text-voxcina-blue dark:text-voxcina-cream"
                 >
                   {getPaymentIcon(method.id)}
                   {method.title}
                 </label>
               </div>
-              <p className="text-sm text-muted-foreground mt-2 mr-6">
+              <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-2 mr-7">
                 {method.description}
               </p>
 
-              {/* Gateway Selection for Online Payment */}
-              {method.id === "online" && selectedMethod === "online" && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="mt-4 border-t border-border/10 pt-4 mr-6"
-                >
-                  <p className="text-sm font-medium mb-3">درگاه پرداخت:</p>
-                  <div className="flex flex-wrap gap-3">
-                    {PAYMENT_GATEWAYS.filter((g) => g.enabled).map((gateway) => (
-                      <div
-                        key={gateway.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectGateway?.(gateway.id);
-                        }}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-all duration-200 ${
-                          selectedGateway === gateway.id
-                            ? "border-primary bg-primary/10"
-                            : "border-border/20 hover:border-primary/50"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          checked={selectedGateway === gateway.id}
-                          onChange={() => onSelectGateway?.(gateway.id)}
-                          className="text-primary"
-                        />
-                        <CreditCard className="w-5 h-5 text-primary" />
-                        <span className="text-sm font-medium">{gateway.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div className="mt-4 p-3 bg-secondary/30 rounded-lg text-xs text-muted-foreground flex items-start">
-                    <ExternalLink className="w-4 h-4 ml-2 mt-0.5 text-primary flex-shrink-0" />
-                    <span>پس از تأیید سفارش، به درگاه پرداخت منتقل خواهید شد.</span>
-                  </div>
-                </motion.div>
-              )}
+              <AnimatePresence>
+                {method.id === "online" && selectedMethod === "online" && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="mt-4 border-t border-voxcina-cream/20 dark:border-voxcina-blue/20 pt-4 mr-1"
+                  >
+                    <p className="text-sm font-medium mb-3 text-voxcina-blue dark:text-voxcina-cream">درگاه پرداخت:</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {enabledGateways.map((gateway) => (
+                        <div
+                          key={gateway.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectGateway?.(gateway.id);
+                          }}
+                          className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all duration-200 ${
+                            selectedGateway === gateway.id
+                              ? "border-voxcina-blue bg-voxcina-blue/5 dark:border-voxcina-cream dark:bg-voxcina-cream/5 shadow-soft"
+                              : "border-voxcina-cream/30 dark:border-voxcina-blue/30 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/30"
+                          }`}
+                        >
+                          <div className="relative w-10 h-7 flex-shrink-0 flex items-center justify-center bg-white dark:bg-voxcina-darkBlue/40 rounded-md p-1">
+                            <Image
+                              src={gateway.logo}
+                              alt={gateway.name}
+                              width={80}
+                              height={28}
+                              className="object-contain max-h-5"
+                            />
+                          </div>
+                          <span className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream flex-1">
+                            {gateway.name}
+                          </span>
+                          {selectedGateway === gateway.id && (
+                            <Check className="w-4 h-4 text-voxcina-blue dark:text-voxcina-cream flex-shrink-0" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="mt-4 p-3 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-lg text-xs text-voxcina-blue/70 dark:text-voxcina-cream/70 flex items-start">
+                      <ExternalLink className="w-4 h-4 ml-2 mt-0.5 text-voxcina-blue dark:text-voxcina-cream flex-shrink-0" />
+                      <span>پس از تأیید سفارش، به درگاه پرداخت منتقل خواهید شد.</span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               
               {method.id === "wallet" && selectedMethod === "wallet" && (
                 <motion.div
@@ -122,14 +133,16 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.3 }}
-                  className="mt-4 border-t border-border/10 pt-4 mr-6"
+                  className="mt-4 border-t border-voxcina-cream/20 dark:border-voxcina-blue/20 pt-4 mr-1"
                 >
-                  <div className="flex items-center justify-between bg-secondary/30 p-3 rounded-lg">
+                  <div className="flex items-center justify-between bg-voxcina-blue/5 dark:bg-voxcina-blue/10 p-3 rounded-lg">
                     <div>
-                      <p className="text-sm text-foreground">موجودی کیف پول</p>
-                      <p className="text-lg font-bold text-primary">۱,۲۵۰,۰۰۰ تومان</p>
+                      <p className="text-sm text-voxcina-blue dark:text-voxcina-cream">موجودی کیف پول</p>
+                      <p className="text-lg font-bold text-voxcina-blue dark:text-voxcina-cream">۱,۲۵۰,۰۰۰ تومان</p>
                     </div>
-                    <button className="voxcina-button-secondary text-xs">افزایش موجودی</button>
+                    <button className="text-xs border border-voxcina-blue/30 dark:border-voxcina-cream/30 text-voxcina-blue dark:text-voxcina-cream px-3 py-1.5 rounded-lg hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-cream/5 transition-colors">
+                      افزایش موجودی
+                    </button>
                   </div>
                 </motion.div>
               )}
@@ -137,9 +150,9 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
           ))}
         </div>
         
-        <div className="flex items-center mt-6 pt-4 border-t border-border/10">
-          <Shield className="w-5 h-5 ml-2 text-primary" />
-          <span className="text-sm text-muted-foreground">پرداخت امن با رمز دوم پویا</span>
+        <div className="flex items-center mt-6 pt-4 border-t border-voxcina-cream/20 dark:border-voxcina-blue/20">
+          <Shield className="w-5 h-5 ml-2 text-voxcina-blue dark:text-voxcina-cream" />
+          <span className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">پرداخت امن با رمز دوم پویا</span>
         </div>
       </CardContent>
     </Card>
