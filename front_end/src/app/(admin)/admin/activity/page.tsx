@@ -112,6 +112,30 @@ const describeActivity = (a: AdminActivity): string => {
   }
 };
 
+const getPaginationItems = (currentPage: number, totalPages: number): Array<number | "ellipsis-left" | "ellipsis-right"> => {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const pages = new Set<number>([1, totalPages, currentPage]);
+  for (let page = currentPage - 1; page <= currentPage + 1; page += 1) {
+    if (page > 1 && page < totalPages) pages.add(page);
+  }
+
+  const visiblePages = [...pages].sort((a, b) => a - b);
+  const items: Array<number | "ellipsis-left" | "ellipsis-right"> = [];
+
+  visiblePages.forEach((visiblePage, index) => {
+    const previousPage = visiblePages[index - 1];
+    if (index > 0 && visiblePage - previousPage > 1) {
+      items.push(index === 1 ? "ellipsis-left" : "ellipsis-right");
+    }
+    items.push(visiblePage);
+  });
+
+  return items;
+};
+
 export default function AdminActivityPage() {
   const { adminToken } = useAuthStore();
   const [activities, setActivities] = useState<AdminActivity[]>([]);
@@ -311,12 +335,31 @@ export default function AdminActivityPage() {
           </Card>
 
           {totalPages > 1 && (
-            <div className="flex justify-center mt-8">
-              <div className="flex items-center space-x-1 space-x-reverse bg-white dark:bg-voxcina-blue/30 rounded-xl p-1 shadow-sm">
+            <div className="mt-8 flex flex-col gap-3 rounded-2xl border border-voxcina-cream/50 bg-white/70 p-3 shadow-sm dark:border-voxcina-blue/20 dark:bg-voxcina-blue/10 sm:flex-row sm:items-center sm:justify-between">
+              <span className="text-center text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 sm:text-right">
+                صفحه {page.toLocaleString("fa-IR")} از {totalPages.toLocaleString("fa-IR")}
+              </span>
+              <div className="flex items-center justify-center gap-1" dir="ltr">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={`rounded-lg ${
+                  aria-label="صفحه اول"
+                  className={`rounded-lg px-2 ${
+                    page === 1
+                      ? "text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed"
+                      : "text-voxcina-blue dark:text-voxcina-cream"
+                  }`}
+                  onClick={() => paginate(1)}
+                  disabled={page === 1}
+                >
+                  <span className="text-xs font-semibold">اول</span>
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label="صفحه قبل"
+                  className={`rounded-lg px-2 ${
                     page === 1
                       ? "text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed"
                       : "text-voxcina-blue dark:text-voxcina-cream"
@@ -324,29 +367,38 @@ export default function AdminActivityPage() {
                   onClick={() => paginate(page - 1)}
                   disabled={page === 1}
                 >
-                  <ChevronRight className="h-5 w-5" />
+                  <ChevronLeft className="h-5 w-5" />
                 </Button>
 
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
+                {getPaginationItems(page, totalPages).map((item, index) => item === "ellipsis-left" || item === "ellipsis-right" ? (
+                  <span
+                    key={`${item}-${index}`}
+                    className="flex h-9 min-w-9 items-center justify-center px-1 text-sm text-voxcina-blue/50 dark:text-voxcina-cream/50"
+                    aria-hidden="true"
+                  >
+                    ...
+                  </span>
+                ) : (
                   <Button
-                    key={number}
-                    variant={page === number ? "primary" : "ghost"}
+                    key={item}
+                    variant={page === item ? "primary" : "ghost"}
                     size="sm"
                     className={`rounded-lg ${
-                      page === number
+                      page === item
                         ? "bg-voxcina-blue text-white dark:bg-voxcina-cream dark:text-voxcina-blue"
                         : "text-voxcina-blue dark:text-voxcina-cream"
                     }`}
-                    onClick={() => paginate(number)}
+                    onClick={() => paginate(item)}
                   >
-                    {number}
+                    {item.toLocaleString("fa-IR")}
                   </Button>
                 ))}
 
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={`rounded-lg ${
+                  aria-label="صفحه بعد"
+                  className={`rounded-lg px-2 ${
                     page === totalPages
                       ? "text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed"
                       : "text-voxcina-blue dark:text-voxcina-cream"
@@ -354,7 +406,22 @@ export default function AdminActivityPage() {
                   onClick={() => paginate(page + 1)}
                   disabled={page === totalPages}
                 >
-                  <ChevronLeft className="h-5 w-5" />
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label="صفحه آخر"
+                  className={`rounded-lg ${
+                    page === totalPages
+                      ? "text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed"
+                      : "text-voxcina-blue dark:text-voxcina-cream"
+                  }`}
+                  onClick={() => paginate(totalPages)}
+                  disabled={page === totalPages}
+                >
+                  <span className="text-xs font-semibold">آخر</span>
                 </Button>
               </div>
             </div>
