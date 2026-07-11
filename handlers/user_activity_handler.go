@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -214,6 +215,95 @@ func GetUserActivities(w http.ResponseWriter, r *http.Request) {
 		"success":    true,
 		"activities": activities,
 		"count":      len(activities),
+	})
+}
+
+// GetAllActivities handles GET /api/admin/activity/logs
+// Returns a paginated list of all user activity events (Admin only).
+func GetAllActivities(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.ErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	q := r.URL.Query()
+
+	limit := 20
+	if l := q.Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 {
+			limit = v
+		}
+	}
+
+	page := 1
+	if p := q.Get("page"); p != "" {
+		if v, err := strconv.Atoi(p); err == nil && v > 0 {
+			page = v
+		}
+	}
+
+	skip := (page - 1) * limit
+	if s := q.Get("skip"); s != "" {
+		if v, err := strconv.Atoi(s); err == nil && v >= 0 {
+			skip = v
+		}
+	}
+
+	filter := models.ActivityFilter{
+		Limit: limit,
+		Skip:  skip,
+	}
+
+	if types := q.Get("types"); types != "" {
+		filter.ActivityTypes = strings.Split(types, ",")
+	}
+	if userID := q.Get("user_id"); userID != "" {
+		if id, err := primitive.ObjectIDFromHex(userID); err == nil {
+			filter.UserID = id
+		}
+	}
+	if deviceType := q.Get("device_type"); deviceType != "" {
+		filter.DeviceType = deviceType
+	}
+	if from := q.Get("from"); from != "" {
+		if parsed, err := time.Parse(time.RFC3339, from); err == nil {
+			filter.FromDate = parsed
+		} else if parsed, err := time.Parse("2006-01-02", from); err == nil {
+			filter.FromDate = parsed
+		}
+	}
+	if to := q.Get("to"); to != "" {
+		if parsed, err := time.Parse(time.RFC3339, to); err == nil {
+			filter.ToDate = parsed
+		} else if parsed, err := time.Parse("2006-01-02", to); err == nil {
+			filter.ToDate = parsed
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	activities, total, err := activityService.GetAllActivities(ctx, filter)
+	if err != nil {
+		log.Printf("Error getting all activities: %v", err)
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to get activities")
+		return
+	}
+
+	totalPages := 0
+	if limit > 0 {
+		totalPages = int((total + int64(limit) - 1) / int64(limit))
+	}
+
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+		"success":    true,
+		"activities": activities,
+		"pagination": map[string]interface{}{
+			"page":       page,
+			"limit":      limit,
+			"total":      total,
+			"totalPages": totalPages,
+		},
 	})
 }
 

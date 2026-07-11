@@ -64,6 +64,7 @@ class ActivityTracker {
   private flushTimer: NodeJS.Timeout | null = null;
   private pageLoadTime: number = Date.now();
   private recentProductViews = new Map<string, number>();
+  private pageViewInterval: NodeJS.Timeout | null = null;
   private readonly sessionKey = 'activity_session_id';
   private readonly sessionDuration = 30 * 60 * 1000; // 30 minutes
   private readonly productViewDedupeWindow = 30 * 1000;
@@ -152,7 +153,18 @@ class ActivityTracker {
 
       // For Next.js/React Router, you might use their router events
       // This is a fallback that checks periodically
-      setInterval(checkPathChange, 1000);
+      this.pageViewInterval = setInterval(checkPathChange, 1000);
+    }
+  }
+
+  /**
+   * Stop automatic page-view tracking and clean up the interval.
+   * Call this on pages/components where polling-based tracking is unwanted.
+   */
+  public stopPageViewTracking(): void {
+    if (this.pageViewInterval) {
+      clearInterval(this.pageViewInterval);
+      this.pageViewInterval = null;
     }
   }
 
@@ -462,18 +474,32 @@ class ActivityTracker {
     };
 
     try {
-      if (immediate && !token && typeof navigator !== 'undefined' && navigator.sendBeacon) {
-        // Use sendBeacon for immediate flush (like on page unload)
-        const blob = new Blob([JSON.stringify(activities)], { type: 'application/json' });
-        const accepted = navigator.sendBeacon(endpoint, blob);
-        if (!accepted) this.queue.unshift(...activities);
+      if (immediate && typeof fetch !== 'undefined') {
+        // On page unload use fetch with keepalive: true so the Authorization
+        // header is preserved for authenticated users. sendBeacon cannot set
+        // custom headers, so it is only used as a fallback for anonymous users
+        // if the keepalive fetch fails.
+        fetch(endpoint, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(activities),
+          keepalive: true,
+        }).catch((error) => {
+          console.error('Failed to send activity data:', error);
+          // Re-queue failed activities
+          this.queue.unshift(...activities);
+          // Fallback to sendBeacon for anonymous users; it cannot carry the JWT.
+          if (!token && typeof navigator !== 'undefined' && navigator.sendBeacon) {
+            const blob = new Blob([JSON.stringify(activities)], { type: 'application/json' });
+            navigator.sendBeacon(endpoint, blob);
+          }
+        });
       } else if (typeof fetch !== 'undefined') {
         // Normal fetch request
         fetch(endpoint, {
           method: 'POST',
           headers,
           body: JSON.stringify(activities),
-          keepalive: immediate, // Keep connection alive for immediate flush
         }).catch((error) => {
           console.error('Failed to send activity data:', error);
           // Re-queue failed activities

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { useAuthStore } from "@/store/auth-store";
 import { useDashboardStore } from "@/store/dashboard-store";
@@ -15,6 +15,7 @@ import {
   Calendar,
   Clock,
   ChevronRight,
+  ChevronLeft,
   AlertCircle,
   Tags,
   DollarSign,
@@ -25,7 +26,7 @@ import {
   FileText,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, formatDate } from "@/lib/utils";
 import { XCircle, TrendingUp } from "lucide-react";
 
 export default function AdminDashboardPage() {
@@ -37,6 +38,13 @@ export default function AdminDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [ordersError, setOrdersError] = useState<string | null>(null);
+
+  // Activity logs state
+  const [activities, setActivities] = useState<AdminActivity[]>([]);
+  const [activityPage, setActivityPage] = useState(1);
+  const [activityTotalPages, setActivityTotalPages] = useState(1);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityError, setActivityError] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -69,6 +77,42 @@ export default function AdminDashboardPage() {
       loadRecentOrders();
     }
   }, [adminToken, fetchDashboardStats, fetchRecentOrders]);
+
+  // Fetch paginated user activity logs for the admin activity tab
+  const fetchActivities = useCallback(
+    async (page: number) => {
+      if (!adminToken) return;
+      setActivityLoading(true);
+      setActivityError(null);
+      try {
+        const params = new URLSearchParams({ page: String(page), limit: "20" });
+        const response = await fetch(`/api/admin/activity/logs?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${adminToken}` },
+        });
+        if (!response.ok) {
+          throw new Error("Failed to fetch activity logs");
+        }
+        const data = await response.json();
+        setActivities(Array.isArray(data.activities) ? data.activities : []);
+        setActivityPage(data.pagination?.page ?? page);
+        setActivityTotalPages(data.pagination?.totalPages ?? 1);
+      } catch (error) {
+        console.error("Failed to fetch activity logs:", error);
+        setActivityError("خطا در بارگذاری لاگ فعالیت کاربران");
+        setActivities([]);
+      } finally {
+        setActivityLoading(false);
+      }
+    },
+    [adminToken]
+  );
+
+  // Load activity logs when the activity tab is active
+  useEffect(() => {
+    if (activeTab === "activity" && adminToken) {
+      fetchActivities(activityPage);
+    }
+  }, [activeTab, adminToken, activityPage, fetchActivities]);
 
   const filteredOrders =
     activeTab === "all"
@@ -474,17 +518,19 @@ export default function AdminDashboardPage() {
         >
           <h2 className="text-xl font-semibold flex items-center text-voxcina-blue dark:text-voxcina-cream">
             <Clock className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
-            سفارش‌های اخیر
+            {activeTab === "activity" ? "لاگ فعالیت کاربران" : "سفارشهای اخیر"}
           </h2>
-          <Link href="/admin/orders">
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
-            >
-              مشاهده همه
-            </Button>
-          </Link>
+          {activeTab !== "activity" && (
+            <Link href="/admin/orders">
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
+              >
+                مشاهده همه
+              </Button>
+            </Link>
+          )}
         </motion.div>
 
         {/* Enhanced Filter Tabs with better styling */}
@@ -544,11 +590,30 @@ export default function AdminDashboardPage() {
               >
                 تحویل شده
               </button>
+              <button
+                onClick={() => setActiveTab("activity")}
+                className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 ${
+                  activeTab === "activity"
+                    ? "bg-voxcina-blue text-white shadow-lg shadow-voxcina-blue/20 dark:bg-voxcina-cream dark:text-voxcina-blue dark:shadow-voxcina-cream/20"
+                    : "text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:bg-voxcina-cream/50 dark:hover:bg-voxcina-blue/20 hover:text-voxcina-blue dark:hover:text-voxcina-cream"
+                }`}
+              >
+                لاگ فعالیت
+              </button>
             </div>
           </div>
         </motion.div>
 
-        {isLoading ? (
+        {activeTab === "activity" ? (
+          <ActivityLogsSection
+            activities={activities}
+            loading={activityLoading}
+            error={activityError}
+            page={activityPage}
+            totalPages={activityTotalPages}
+            onPageChange={setActivityPage}
+          />
+        ) : isLoading ? (
           <motion.div 
             variants={itemVariants}
             className="flex flex-col items-center justify-center"
@@ -896,6 +961,254 @@ interface LinkProps {
   href: string;
   children: React.ReactNode;
   className?: string;
+}
+
+interface AdminActivity {
+  id?: string;
+  userId?: string;
+  userName?: string;
+  sessionId?: string;
+  activityType?: string;
+  pagePath?: string;
+  pageTitle?: string;
+  productId?: string;
+  productName?: string;
+  searchQuery?: string;
+  searchResults?: number;
+  orderId?: string;
+  orderValue?: number;
+  ipAddress?: string;
+  deviceType?: string;
+  browser?: string;
+  os?: string;
+  duration?: number;
+  createdAt?: string;
+  metadata?: Record<string, any>;
+}
+
+// Persian label for each activity type
+const activityLabels: Record<string, string> = {
+  page_view: "مشاهده صفحه",
+  product_view: "مشاهده محصول",
+  product_click: "کلیک محصول",
+  add_to_cart: "افزودن به سبد",
+  remove_from_cart: "حذف از سبد",
+  add_to_wishlist: "افزودن به علاقهمندی",
+  remove_from_wishlist: "حذف از علاقهمندی",
+  search: "جستجو",
+  login: "ورود",
+  logout: "خروج",
+  register: "ثبتنام",
+  checkout_started: "شروع تسویه",
+  checkout_completed: "تکمیل تسویه",
+  order_placed: "ثبت سفارش",
+  payment_success: "پرداخت موفق",
+  payment_failed: "پرداخت ناموفق",
+  category_view: "مشاهده دستهبندی",
+  filter_applied: "اعمال فیلتر",
+  sort_applied: "اعمال مرتبسازی",
+  review_submitted: "ثبت نظر",
+  newsletter_subscribe: "عضویت خبرنامه",
+  chat_started: "شروع گفتگو",
+  chat_message: "پیام گفتگو",
+  video_played: "پخش ویدیو",
+  image_viewed: "مشاهده تصویر",
+  download: "دانلود",
+  share: "اشتراکگذاری",
+  error: "خطا",
+};
+
+// Build a short, human-readable description of an activity record
+const describeActivity = (a: AdminActivity): string => {
+  switch (a.activityType) {
+    case "page_view":
+      return a.pagePath || a.pageTitle || "—";
+    case "product_view":
+    case "product_click":
+    case "image_viewed":
+      return a.productName || "—";
+    case "search":
+      return a.searchQuery
+        ? `${a.searchQuery}${a.searchResults != null ? ` (${a.searchResults} نتیجه)` : ""}`
+        : "—";
+    case "order_placed":
+    case "payment_success":
+    case "payment_failed":
+    case "checkout_completed":
+      return a.orderId ? `سفارش ${a.orderId}` : "—";
+    case "category_view":
+      return a.pageTitle || a.pagePath || "—";
+    default:
+      return a.pageTitle || a.pagePath || "—";
+  }
+};
+
+const deviceIcons: Record<string, string> = {
+  mobile: "📱",
+  tablet: "📟",
+  desktop: "🖥️",
+};
+
+// Renders the paginated user activity logs for the admin dashboard.
+function ActivityLogsSection({
+  activities,
+  loading,
+  error,
+  page,
+  totalPages,
+  onPageChange,
+}: {
+  activities: AdminActivity[];
+  loading: boolean;
+  error: string | null;
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) {
+  const paginate = (pageNumber: number) => {
+    if (pageNumber > 0 && pageNumber <= totalPages) {
+      onPageChange(pageNumber);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card className="border border-voxcina-cream/60 dark:border-voxcina-blue/30 shadow-lg rounded-3xl backdrop-blur-sm bg-gradient-to-br from-white/95 to-voxcina-cream/20 dark:from-voxcina-blue/15 dark:to-voxcina-blue/5 p-12 max-w-lg mx-auto relative overflow-hidden">
+        <div className="text-center relative z-10">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-voxcina-blue/10 dark:bg-voxcina-cream/10 mb-4 mx-auto">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-voxcina-blue/20 dark:border-voxcina-cream/20 border-t-voxcina-blue dark:border-t-voxcina-cream"></div>
+          </div>
+          <p className="text-lg text-voxcina-blue dark:text-voxcina-cream font-medium">در حال بارگذاری لاگ فعالیتها...</p>
+        </div>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="border border-red-200/60 dark:border-red-800/40 shadow-lg rounded-3xl backdrop-blur-sm bg-gradient-to-br from-red-50/95 to-red-100/20 dark:from-red-900/15 dark:to-red-900/5 p-12 max-w-lg mx-auto relative overflow-hidden">
+        <div className="text-center relative z-10">
+          <h3 className="text-xl font-bold mb-3 text-red-700 dark:text-red-400">خطا در بارگذاری</h3>
+          <p className="text-red-600/70 dark:text-red-400/70 mb-8 leading-relaxed">{error}</p>
+        </div>
+      </Card>
+    );
+  }
+
+  if (activities.length === 0) {
+    return (
+      <Card className="border border-voxcina-cream/60 dark:border-voxcina-blue/30 shadow-lg rounded-3xl backdrop-blur-sm bg-gradient-to-br from-white/95 to-voxcina-cream/20 dark:from-voxcina-blue/15 dark:to-voxcina-blue/5 p-12 max-w-lg mx-auto relative overflow-hidden">
+        <div className="text-center relative z-10">
+          <h3 className="text-xl font-bold mb-3 text-voxcina-blue dark:text-voxcina-cream">هیچ فعالیتی یافت نشد</h3>
+          <p className="text-voxcina-blue/60 dark:text-voxcina-cream/60 leading-relaxed">
+            هنوز هیچ رویداد فعالیتی در سیستم ثبت نشده است.
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <motion.div>
+      <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-md overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
+        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-voxcina-blue/20 scrollbar-track-voxcina-cream/50 dark:scrollbar-thumb-voxcina-cream/30 dark:scrollbar-track-voxcina-blue/20">
+          <table className="w-full">
+            <thead className="bg-voxcina-cream/50 dark:bg-voxcina-blue/20">
+              <tr>
+                <th className="text-right p-4 text-voxcina-blue/80 dark:text-voxcina-cream/80 font-medium">کاربر</th>
+                <th className="text-right p-4 text-voxcina-blue/80 dark:text-voxcina-cream/80 font-medium">نوع فعالیت</th>
+                <th className="text-right p-4 text-voxcina-blue/80 dark:text-voxcina-cream/80 font-medium">جزئیات</th>
+                <th className="text-right p-4 text-voxcina-blue/80 dark:text-voxcina-cream/80 font-medium">دستگاه</th>
+                <th className="text-right p-4 text-voxcina-blue/80 dark:text-voxcina-cream/80 font-medium">آیپی</th>
+                <th className="text-right p-4 text-voxcina-blue/80 dark:text-voxcina-cream/80 font-medium">تاریخ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activities.map((a, index) => (
+                <motion.tr
+                  key={a.id || index}
+                  className="border-b border-voxcina-cream/30 dark:border-voxcina-blue/10 hover:bg-voxcina-cream/20 dark:hover:bg-voxcina-blue/5 transition-colors"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.03 }}
+                >
+                  <td className="p-4 font-medium text-voxcina-blue dark:text-voxcina-cream">
+                    {a.userName || (a.userId ? "کاربر ثبت شده" : "مهمان")}
+                  </td>
+                  <td className="p-4 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                    {activityLabels[a.activityType || ""] || a.activityType || "نامشخص"}
+                  </td>
+                  <td className="p-4 text-voxcina-blue/70 dark:text-voxcina-cream/70 max-w-xs truncate">
+                    {describeActivity(a)}
+                  </td>
+                  <td className="p-4 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                    {deviceIcons[a.deviceType || ""] || "—"}{" "}
+                    {a.deviceType || "—"}
+                  </td>
+                  <td className="p-4 text-voxcina-blue/70 dark:text-voxcina-cream/70 dir-ltr text-left">
+                    {a.ipAddress || "—"}
+                  </td>
+                  <td className="p-4 text-voxcina-blue/70 dark:text-voxcina-cream/70 whitespace-nowrap">
+                    {formatDate(a.createdAt || "")}
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {totalPages > 1 && (
+        <div className="flex justify-center mt-8">
+          <div className="flex items-center space-x-1 space-x-reverse bg-white dark:bg-voxcina-blue/30 rounded-xl p-1 shadow-sm">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`rounded-lg ${
+                page === 1
+                  ? "text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed"
+                  : "text-voxcina-blue dark:text-voxcina-cream"
+              }`}
+              onClick={() => paginate(page - 1)}
+              disabled={page === 1}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
+              <Button
+                key={number}
+                variant={page === number ? "primary" : "ghost"}
+                size="sm"
+                className={`rounded-lg ${
+                  page === number
+                    ? "bg-voxcina-blue text-white dark:bg-voxcina-cream dark:text-voxcina-blue"
+                    : "text-voxcina-blue dark:text-voxcina-cream"
+                }`}
+                onClick={() => paginate(number)}
+              >
+                {number}
+              </Button>
+            ))}
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`rounded-lg ${
+                page === totalPages
+                  ? "text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed"
+                  : "text-voxcina-blue dark:text-voxcina-cream"
+              }`}
+              onClick={() => paginate(page + 1)}
+              disabled={page === totalPages}
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
 }
 
 const Link = ({ href, children, className = "" }: LinkProps) => {

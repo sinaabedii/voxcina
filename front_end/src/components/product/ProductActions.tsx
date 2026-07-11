@@ -90,7 +90,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
 
   const imageContainerRef = useRef<HTMLDivElement>(null);
-  const imageViewStartRef = useRef<number>(Date.now());
+  const imageViewStartRef = useRef<number>(0); // 0 = sentinel for the first image view
   const lastImageSourceRef = useRef<string>('initial');
   const productViewStartRef = useRef<number>(Date.now());
   const productViewReportedRef = useRef<boolean>(false);
@@ -259,7 +259,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
       );
     };
 
-    document.addEventListener('visibilitychange', reportProductView, { once: true });
+    document.addEventListener('visibilitychange', reportProductView);
     return () => {
       document.removeEventListener('visibilitychange', reportProductView);
       reportProductView();
@@ -312,7 +312,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     const total = productImages?.length || 0;
     if (total === 0) return;
     const now = Date.now();
-    const dwell = now - imageViewStartRef.current;
+    const dwell = imageViewStartRef.current === 0 ? 0 : now - imageViewStartRef.current;
     imageViewStartRef.current = now;
     const safeIndex = Math.min(selectedImage, total - 1);
     activityTracker.trackImageViewed(

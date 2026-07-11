@@ -217,24 +217,24 @@ export default function CollectionScrollShowcase({ items }: CollectionScrollShow
       <div className="sticky top-0 flex h-[100svh] w-full flex-col items-center justify-center overflow-hidden">
         {/* Odometer counter — the numbers stay visually ordered in RTL */}
         <div
-          className="pointer-events-none absolute top-4 sm:top-6 left-1/2 -translate-x-1/2 z-20"
+          className="pointer-events-none absolute top-28 left-1/2 -translate-x-1/2 z-20"
           dir="ltr"
           aria-label={`محصول ${active + 1} از ${total}`}
         >
-          <div className="flex h-14 w-36 items-center justify-center rounded-2xl bg-voxcina-blue px-3 shadow-[0_14px_32px_rgba(10,27,60,0.25)] ring-1 ring-white/10 sm:h-16 sm:w-40 sm:rounded-[1.75rem]">
+          <div className="flex h-[4.5rem] w-44 items-center justify-center rounded-[2rem] bg-voxcina-blue px-3 shadow-[0_14px_32px_rgba(10,27,60,0.25)] ring-1 ring-white/10 sm:h-24 sm:w-52 sm:rounded-[2.25rem]">
             <div className="grid w-full grid-cols-[1fr_1.35fr_1fr] items-center text-center tabular-nums">
-              <span className="text-sm font-semibold tracking-tight text-voxcina-cream/40 sm:text-base">
+              <span className="text-lg font-semibold tracking-tight text-voxcina-cream/40 sm:text-xl">
                 {(prevIdx + 1).toLocaleString("fa-IR")}
               </span>
-              <span className="text-3xl font-bold leading-none tracking-tight text-voxcina-cream sm:text-4xl">
+              <span className="text-[2.8rem] font-bold leading-none tracking-tight text-voxcina-cream sm:text-6xl">
                 {(active + 1).toLocaleString("fa-IR")}
               </span>
-              <span className="text-sm font-semibold tracking-tight text-voxcina-cream/40 sm:text-base">
+              <span className="text-lg font-semibold tracking-tight text-voxcina-cream/40 sm:text-xl">
                 {(nextIdx + 1).toLocaleString("fa-IR")}
               </span>
             </div>
           </div>
-          <div className="mt-1.5 h-0.5 w-full overflow-hidden rounded-full bg-voxcina-blue/15">
+          <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-voxcina-blue/15">
             <div
               className="h-full rounded-full bg-voxcina-blue/70 transition-[width] duration-100"
               style={{ width: `${total > 1 ? (active / (total - 1)) * 100 : 100}%` }}

@@ -354,6 +354,7 @@ func NewRouter() *mux.Router {
 
 	// Admin User Activity Analytics
 	adminRouter.HandleFunc("/activity/funnel", handlers.GetConversionFunnel).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/activity/logs", handlers.GetAllActivities).Methods(http.MethodGet)
 
 	// --- Blog Post Routes ---
 	// Public blog routes (no authentication required)

@@ -25,6 +25,53 @@ func NewUserActivityService(database *mongo.Database) *UserActivityService {
 	}
 }
 
+// asInt64 coerces common MongoDB numeric types to int64.
+func asInt64(v interface{}) int64 {
+	switch val := v.(type) {
+	case int64:
+		return val
+	case int32:
+		return int64(val)
+	case int:
+		return int64(val)
+	case float64:
+		return int64(val)
+	}
+	return 0
+}
+
+// asInt coerces common MongoDB numeric types to int.
+func asInt(v interface{}) int {
+	switch val := v.(type) {
+	case int64:
+		return int(val)
+	case int32:
+		return int(val)
+	case int:
+		return val
+	case float64:
+		return int(val)
+	}
+	return 0
+}
+
+// asFloat64 coerces common MongoDB numeric types to float64.
+func asFloat64(v interface{}) float64 {
+	switch val := v.(type) {
+	case float64:
+		return val
+	case float32:
+		return float64(val)
+	case int64:
+		return float64(val)
+	case int32:
+		return float64(val)
+	case int:
+		return float64(val)
+	}
+	return 0
+}
+
 // TrackActivity saves a user activity event to the database
 func (s *UserActivityService) TrackActivity(ctx context.Context, activity *models.UserActivity) error {
 	if activity.ID.IsZero() {
@@ -137,6 +184,75 @@ func (s *UserActivityService) GetUserActivities(ctx context.Context, filter mode
 	}
 	
 	return activities, nil
+}
+
+// GetAllActivities retrieves a paginated list of activity events for admin
+// views. Unlike GetUserActivities it does not force a user scope and returns
+// the total matching document count so the caller can build pagination.
+func (s *UserActivityService) GetAllActivities(ctx context.Context, filter models.ActivityFilter) ([]models.UserActivity, int64, error) {
+	query := bson.M{}
+
+	if !filter.UserID.IsZero() {
+		query["user_id"] = filter.UserID
+	}
+
+	if filter.SessionID != "" {
+		query["session_id"] = filter.SessionID
+	}
+
+	if len(filter.ActivityTypes) > 0 {
+		query["activity_type"] = bson.M{"$in": filter.ActivityTypes}
+	}
+
+	if !filter.ProductID.IsZero() {
+		query["product_id"] = filter.ProductID
+	}
+
+	if !filter.CategoryID.IsZero() {
+		query["category_id"] = filter.CategoryID
+	}
+
+	if !filter.FromDate.IsZero() || !filter.ToDate.IsZero() {
+		dateQuery := bson.M{}
+		if !filter.FromDate.IsZero() {
+			dateQuery["$gte"] = filter.FromDate
+		}
+		if !filter.ToDate.IsZero() {
+			dateQuery["$lte"] = filter.ToDate
+		}
+		query["created_at"] = dateQuery
+	}
+
+	if filter.DeviceType != "" {
+		query["device_type"] = filter.DeviceType
+	}
+
+	total, err := s.collection.CountDocuments(ctx, query)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if filter.Limit == 0 {
+		filter.Limit = 20
+	}
+
+	opts := options.Find().
+		SetSort(bson.D{{Key: "created_at", Value: -1}}).
+		SetLimit(int64(filter.Limit)).
+		SetSkip(int64(filter.Skip))
+
+	cursor, err := s.collection.Find(ctx, query, opts)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer cursor.Close(ctx)
+
+	var activities []models.UserActivity
+	if err := cursor.All(ctx, &activities); err != nil {
+		return nil, 0, err
+	}
+
+	return activities, total, nil
 }
 
 // GetRecentlyViewedProducts retrieves recently viewed products for a user
@@ -271,9 +387,7 @@ func (s *UserActivityService) GetUserActivitySummary(ctx context.Context, userID
 	// Parse total activities
 	if totalActivities, ok := result["totalActivities"].(primitive.A); ok && len(totalActivities) > 0 {
 		if countDoc, ok := totalActivities[0].(bson.M); ok {
-			if count, ok := countDoc["count"].(int32); ok {
-				summary.TotalActivities = int64(count)
-			}
+			summary.TotalActivities = asInt64(countDoc["count"])
 		}
 	}
 	
@@ -282,19 +396,19 @@ func (s *UserActivityService) GetUserActivitySummary(ctx context.Context, userID
 		for _, item := range activityCounts {
 			if activityDoc, ok := item.(bson.M); ok {
 				activityType, _ := activityDoc["_id"].(string)
-				count, _ := activityDoc["count"].(int32)
-				
+				count := asInt64(activityDoc["count"])
+
 				switch activityType {
 				case models.ActivityPageView:
-					summary.PageViews = int64(count)
+					summary.PageViews = count
 				case models.ActivityProductView:
-					summary.ProductViews = int64(count)
+					summary.ProductViews = count
 				case models.ActivityAddToCart:
-					summary.CartAdditions = int64(count)
+					summary.CartAdditions = count
 				case models.ActivitySearch:
-					summary.Searches = int64(count)
+					summary.Searches = count
 				case models.ActivityOrderPlaced:
-					summary.Orders = int64(count)
+					summary.Orders = count
 				}
 			}
 		}
@@ -303,9 +417,7 @@ func (s *UserActivityService) GetUserActivitySummary(ctx context.Context, userID
 	// Parse order stats
 	if orderStats, ok := result["orderStats"].(primitive.A); ok && len(orderStats) > 0 {
 		if statsDoc, ok := orderStats[0].(bson.M); ok {
-			if totalSpent, ok := statsDoc["totalSpent"].(float64); ok {
-				summary.TotalSpent = totalSpent
-			}
+			summary.TotalSpent = asFloat64(statsDoc["totalSpent"])
 		}
 	}
 	
@@ -323,9 +435,9 @@ func (s *UserActivityService) GetUserActivitySummary(ctx context.Context, userID
 		for _, item := range deviceBreakdown {
 			if deviceDoc, ok := item.(bson.M); ok {
 				deviceType, _ := deviceDoc["_id"].(string)
-				count, _ := deviceDoc["count"].(int32)
+				count := asInt(deviceDoc["count"])
 				if deviceType != "" {
-					summary.DeviceBreakdown[deviceType] = int(count)
+					summary.DeviceBreakdown[deviceType] = count
 				}
 			}
 		}
@@ -337,12 +449,12 @@ func (s *UserActivityService) GetUserActivitySummary(ctx context.Context, userID
 			if productDoc, ok := item.(bson.M); ok {
 				productID, _ := productDoc["_id"].(primitive.ObjectID)
 				productName, _ := productDoc["productName"].(string)
-				count, _ := productDoc["count"].(int32)
-				
+				count := asInt(productDoc["count"])
+
 				summary.MostViewedProducts = append(summary.MostViewedProducts, models.ProductViewCount{
 					ProductID:   productID,
 					ProductName: productName,
-					ViewCount:   int(count),
+					ViewCount:   count,
 				})
 			}
 		}
@@ -406,22 +518,12 @@ func (s *UserActivityService) GetConversionFunnel(ctx context.Context, fromDate,
 	
 	result := results[0]
 	funnel := &models.ConversionFunnel{}
-	
-	if val, ok := result["totalVisitors"].(int32); ok {
-		funnel.TotalVisitors = int64(val)
-	}
-	if val, ok := result["productViewers"].(int32); ok {
-		funnel.ProductViewers = int64(val)
-	}
-	if val, ok := result["cartAdders"].(int32); ok {
-		funnel.CartAdders = int64(val)
-	}
-	if val, ok := result["checkoutStarters"].(int32); ok {
-		funnel.CheckoutStarters = int64(val)
-	}
-	if val, ok := result["purchasers"].(int32); ok {
-		funnel.Purchasers = int64(val)
-	}
+
+	funnel.TotalVisitors = asInt64(result["totalVisitors"])
+	funnel.ProductViewers = asInt64(result["productViewers"])
+	funnel.CartAdders = asInt64(result["cartAdders"])
+	funnel.CheckoutStarters = asInt64(result["checkoutStarters"])
+	funnel.Purchasers = asInt64(result["purchasers"])
 	
 	// Calculate conversion rates
 	if funnel.TotalVisitors > 0 {
@@ -493,15 +595,9 @@ func (s *UserActivityService) GetSessionAnalytics(ctx context.Context, sessionID
 		analytics.EndTime = endTime.Time()
 		analytics.Duration = int(analytics.EndTime.Sub(analytics.StartTime).Seconds())
 	}
-	if pageViews, ok := result["pageViews"].(int32); ok {
-		analytics.PageViews = int(pageViews)
-	}
-	if productViews, ok := result["productViews"].(int32); ok {
-		analytics.ProductViews = int(productViews)
-	}
-	if cartAdds, ok := result["cartAdds"].(int32); ok {
-		analytics.AddToCartCount = int(cartAdds)
-	}
+	analytics.PageViews = asInt(result["pageViews"])
+	analytics.ProductViews = asInt(result["productViews"])
+	analytics.AddToCartCount = asInt(result["cartAdds"])
 	if converted, ok := result["converted"].(bool); ok {
 		analytics.Converted = converted
 	}
