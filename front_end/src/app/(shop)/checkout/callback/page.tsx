@@ -17,6 +17,7 @@ function CallbackContent() {
   const [message, setMessage] = useState("");
   const [orderId, setOrderId] = useState<string | null>(null);
   const [trackId, setTrackId] = useState<string | null>(null);
+  const [gateway, setGateway] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
 
   const handleRetryPayment = async () => {
@@ -28,10 +29,12 @@ function CallbackContent() {
     }
     setIsRetrying(true);
     try {
+      const body: { orderId: string; gateway?: string } = { orderId };
+      if (gateway) body.gateway = gateway;
       const res = await fetch("/api/payment/retry", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ orderId }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (data.payUrl) {
@@ -51,10 +54,12 @@ function CallbackContent() {
       const success = searchParams.get("success");
       const trackIdParam = searchParams.get("trackId");
       const orderIdParam = searchParams.get("orderId");
-      const paymentStatus = searchParams.get("status"); // New: backend-verified status
+      const paymentStatus = searchParams.get("status");
+      const gatewayParam = searchParams.get("gateway");
 
       setTrackId(trackIdParam);
       setOrderId(orderIdParam);
+      if (gatewayParam) setGateway(gatewayParam);
 
       if (success === "1") {
         clearCart();

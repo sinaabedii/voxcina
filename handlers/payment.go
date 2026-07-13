@@ -336,14 +336,14 @@ func DigipayPaymentCallback(w http.ResponseWriter, r *http.Request) {
 
 	verifyResp, err := gateway.VerifyPayment(ctx, verifyReq)
 	if err != nil || !verifyResp.Success {
-		redirectURL := fmt.Sprintf("%s/checkout/callback?success=0&error=verify_failed&orderId=%s",
+		redirectURL := fmt.Sprintf("%s/checkout/callback?success=0&error=verify_failed&orderId=%s&gateway=digipay",
 			appURL, attempt.OrderID.Hex())
 		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 		return
 	}
 
 	if err := FinalizeVerifiedPayment(attempt.ID, verifyResp.Amount, verifyResp.RefNumber); err != nil {
-		redirectURL := fmt.Sprintf("%s/checkout/callback?success=0&error=finalize_failed&orderId=%s",
+		redirectURL := fmt.Sprintf("%s/checkout/callback?success=0&error=finalize_failed&orderId=%s&gateway=digipay",
 			appURL, attempt.OrderID.Hex())
 		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 		return
@@ -368,13 +368,13 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if trackIDStr == "" {
-		http.Redirect(w, r, appURL+"/checkout/callback?success=0&error=missing_trackId", http.StatusFound)
+		http.Redirect(w, r, appURL+"/checkout/callback?success=0&error=missing_trackId&gateway=zibal", http.StatusFound)
 		return
 	}
 
 	trackID, err := strconv.ParseInt(trackIDStr, 10, 64)
 	if err != nil {
-		http.Redirect(w, r, appURL+"/checkout/callback?success=0&error=invalid_trackId", http.StatusFound)
+		http.Redirect(w, r, appURL+"/checkout/callback?success=0&error=invalid_trackId&gateway=zibal", http.StatusFound)
 		return
 	}
 
@@ -392,12 +392,12 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = ordersCol.FindOne(ctx, filter).Decode(&order); err != nil {
-		http.Redirect(w, r, appURL+"/checkout/callback?success=0&error=order_not_found", http.StatusFound)
+		http.Redirect(w, r, appURL+"/checkout/callback?success=0&error=order_not_found&gateway=zibal", http.StatusFound)
 		return
 	}
 
 	if order.PaymentStatus == "paid" {
-		redirectURL := fmt.Sprintf("%s/checkout/callback?success=1&trackId=%s&orderId=%s&status=paid",
+		redirectURL := fmt.Sprintf("%s/checkout/callback?success=1&trackId=%s&orderId=%s&status=paid&gateway=zibal",
 			appURL, trackIDStr, order.ID.Hex())
 		http.Redirect(w, r, redirectURL, http.StatusFound)
 		return
@@ -405,7 +405,7 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 
 	gateway := getGateway("zibal")
 	if gateway == nil {
-		http.Redirect(w, r, appURL+"/checkout/callback?success=0&error=gateway_unavailable", http.StatusFound)
+		http.Redirect(w, r, appURL+"/checkout/callback?success=0&error=gateway_unavailable&gateway=zibal", http.StatusFound)
 		return
 	}
 
@@ -465,7 +465,7 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	redirectURL := fmt.Sprintf("%s/checkout/callback?success=%s&trackId=%s&orderId=%s&status=%s",
+	redirectURL := fmt.Sprintf("%s/checkout/callback?success=%s&trackId=%s&orderId=%s&status=%s&gateway=zibal",
 		appURL, successParam, trackIDStr, order.ID.Hex(), paymentStatus)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
@@ -742,16 +742,6 @@ func RetryPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if payload.Gateway == "" {
-		payload.Gateway = "zibal"
-	}
-
-	gateway := getGateway(payload.Gateway)
-	if gateway == nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Unknown gateway")
-		return
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -773,6 +763,21 @@ func RetryPayment(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusNotFound, "سفارش قابل پرداخت یافت نشد")
+		return
+	}
+
+	// Determine gateway: use provided gateway, or order's stored gateway, or default to zibal
+	if payload.Gateway == "" {
+		if order.GatewayName != "" {
+			payload.Gateway = order.GatewayName
+		} else {
+			payload.Gateway = "zibal"
+		}
+	}
+
+	gateway := getGateway(payload.Gateway)
+	if gateway == nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Unknown gateway")
 		return
 	}
 
