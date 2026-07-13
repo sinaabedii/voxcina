@@ -27,6 +27,8 @@ const (
 type DigiPayService struct {
 	clientID     string
 	clientSecret string
+	bodyUsername string
+	bodyPassword string
 	baseURL      string
 	httpClient   *http.Client
 
@@ -42,9 +44,23 @@ func NewDigiPayService() *DigiPayService {
 		baseURL = "https://uat.mydigipay.info"
 	}
 
+	clientID := os.Getenv("DIGIPAY_CLIENT_ID")
+	clientSecret := os.Getenv("DIGIPAY_CLIENT_SECRET")
+
+	bodyUser := os.Getenv("DIGIPAY_USERNAME")
+	if bodyUser == "" {
+		bodyUser = clientID
+	}
+	bodyPass := os.Getenv("DIGIPAY_PASSWORD")
+	if bodyPass == "" {
+		bodyPass = clientSecret
+	}
+
 	return &DigiPayService{
-		clientID:     os.Getenv("DIGIPAY_CLIENT_ID"),
-		clientSecret: os.Getenv("DIGIPAY_CLIENT_SECRET"),
+		clientID:     clientID,
+		clientSecret: clientSecret,
+		bodyUsername: bodyUser,
+		bodyPassword: bodyPass,
 		baseURL:      baseURL,
 		httpClient:   &http.Client{Timeout: 30 * time.Second},
 	}
@@ -89,8 +105,8 @@ type digipayTokenResponse struct {
 
 func (d *DigiPayService) fetchToken(ctx context.Context) (string, time.Time, error) {
 	formData := url.Values{}
-	formData.Set("username", d.clientID)
-	formData.Set("password", d.clientSecret)
+	formData.Set("username", d.bodyUsername)
+	formData.Set("password", d.bodyPassword)
 	formData.Set("grant_type", "password")
 
 	body := strings.NewReader(formData.Encode())
