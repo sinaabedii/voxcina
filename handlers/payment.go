@@ -105,6 +105,17 @@ func RequestPayment(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// Fetch user to get phone number if not provided (required for DigiPay)
+	mobile := payload.Mobile
+	if mobile == "" {
+		usersCol := db.Database.Collection("users")
+		var user models.User
+		err := usersCol.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
+		if err == nil && user.Phone != "" {
+			mobile = user.Phone
+		}
+	}
+
 	ordersCol := db.Database.Collection("orders")
 	var order models.Order
 
@@ -167,7 +178,7 @@ func RequestPayment(w http.ResponseWriter, r *http.Request) {
 		Amount:      amountRials,
 		CallbackURL: callbackURL,
 		Description: description,
-		Mobile:      payload.Mobile,
+		Mobile:      mobile,
 		ProviderID:  providerID,
 	}
 
@@ -781,6 +792,15 @@ func RetryPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch user to get phone number (required for DigiPay)
+	usersCol := db.Database.Collection("users")
+	var user models.User
+	err = usersCol.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to fetch user information")
+		return
+	}
+
 	if time.Since(order.CreatedAt) > 30*time.Minute {
 		ordersCol.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
 			"$set": bson.M{
@@ -826,6 +846,7 @@ func RetryPayment(w http.ResponseWriter, r *http.Request) {
 		CallbackURL: callbackURL,
 		Description: fmt.Sprintf("Order %s - تلاش مجدد پرداخت", order.OrderNumber),
 		ProviderID:  providerID,
+		Mobile:      user.Phone,
 	}
 
 	payResp, err := gateway.RequestPayment(ctx, payReq)
