@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -104,18 +104,18 @@ type digipayTokenResponse struct {
 }
 
 func (d *DigiPayService) fetchToken(ctx context.Context) (string, time.Time, error) {
-	formData := url.Values{}
-	formData.Set("username", d.bodyUsername)
-	formData.Set("password", d.bodyPassword)
-	formData.Set("grant_type", "password")
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	w.WriteField("username", d.bodyUsername)
+	w.WriteField("password", d.bodyPassword)
+	w.WriteField("grant_type", "password")
+	w.Close()
 
-	body := strings.NewReader(formData.Encode())
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, d.baseURL+digipayAuthURL, body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, d.baseURL+digipayAuthURL, &buf)
 	if err != nil {
 		return "", time.Time{}, fmt.Errorf("failed to create token request: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Content-Type", w.FormDataContentType())
 	req.SetBasicAuth(d.clientID, d.clientSecret)
 
 	resp, err := d.httpClient.Do(req)
