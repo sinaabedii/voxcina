@@ -32,6 +32,7 @@ type VerifyRequest struct {
 	ExpectedAmount int64
 	ProviderID     string
 	CallbackType   int
+	TrackingCode   string // DigiPay: bank tracking code from callback
 }
 
 type VerifyResponse struct {

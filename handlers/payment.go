@@ -295,6 +295,7 @@ func DigipayPaymentCallback(w http.ResponseWriter, r *http.Request) {
 	providerID := r.FormValue("providerId")
 	gatewayRef := r.FormValue("ticket")
 	callbackTypeStr := r.FormValue("type")
+	trackingCode := r.FormValue("trackingCode")
 
 	if providerID == "" {
 		http.Redirect(w, r, appURL+"/checkout/callback?success=0&error=missing_providerId", http.StatusSeeOther)
@@ -330,6 +331,7 @@ func DigipayPaymentCallback(w http.ResponseWriter, r *http.Request) {
 		ExpectedAmount: attempt.ExpectedAmount,
 		ProviderID:     providerID,
 		CallbackType:   callbackType,
+		TrackingCode:   trackingCode,
 	}
 
 	verifyResp, err := gateway.VerifyPayment(ctx, verifyReq)

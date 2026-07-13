@@ -143,10 +143,11 @@ func (d *DigiPayService) fetchToken(ctx context.Context) (string, time.Time, err
 }
 
 type digipayTicketRequest struct {
-	CellNumber string `json:"cellNumber"`
-	Amount     int64  `json:"amount"`
-	ProviderID string `json:"providerId"`
-	CallbackURL string `json:"callbackUrl"`
+	CellNumber     string `json:"cellNumber"`
+	Amount         int64  `json:"amount"`
+	ProviderID     string `json:"providerId"`
+	CallbackURL    string `json:"callbackUrl"`
+	AdditionalInfo map[string]int `json:"additionalInfo"`
 }
 
 type digipayResult struct {
@@ -172,6 +173,9 @@ func (d *DigiPayService) RequestPayment(ctx context.Context, req *PaymentRequest
 		Amount:      req.Amount,
 		ProviderID:  req.ProviderID,
 		CallbackURL: req.CallbackURL,
+		AdditionalInfo: map[string]int{
+			"preferredGateway": 2, // IPG direct
+		},
 	}
 
 	bodyJSON, err := json.Marshal(ticketReq)
@@ -214,7 +218,7 @@ func (d *DigiPayService) RequestPayment(ctx context.Context, req *PaymentRequest
 
 	return &PaymentResponse{
 		GatewayRef: ticketResp.Ticket,
-		PayURL:     fmt.Sprintf("https://mydigipay.com/ipg/%s", ticketResp.Ticket),
+		PayURL:     ticketResp.RedirectURL,
 	}, nil
 }
 
@@ -237,8 +241,13 @@ func (d *DigiPayService) VerifyPayment(ctx context.Context, req *VerifyRequest) 
 
 	verifyURL := fmt.Sprintf("%s%s?type=%d", d.baseURL, digipayVerifyURL, req.CallbackType)
 
+	verifyTracking := req.TrackingCode
+	if verifyTracking == "" {
+		verifyTracking = req.GatewayRef
+	}
+
 	verifyBody, err := json.Marshal(map[string]string{
-		"trackingCode": req.GatewayRef,
+		"trackingCode": verifyTracking,
 		"providerId":   req.ProviderID,
 	})
 	if err != nil {
