@@ -382,7 +382,7 @@ func NewRouter() *mux.Router {
 
 	// Payment Callback (Public - no auth required)
 	api.HandleFunc("/payment/callback", handlers.PaymentCallback).Methods(http.MethodGet)
-	api.HandleFunc("/payment/digipay-callback", handlers.DigipayPaymentCallback).Methods(http.MethodPost)
+	api.HandleFunc("/payment/digipay-callback", handlers.DigipayPaymentCallback).Methods(http.MethodGet, http.MethodPost)
 
 	return router
 }
