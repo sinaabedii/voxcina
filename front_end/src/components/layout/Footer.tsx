@@ -150,13 +150,13 @@ const Footer = () => {
                     referrerPolicy='origin' 
                     target='_blank' 
                     rel='noopener noreferrer nofollow'
-                    href='https://trustseal.enamad.ir/?id=684494&Code=Zjpd4eaZhtqJbXoLvwbpf4pAXotCkI0Q'
+                    href='https://trustseal.enamad.ir/?id=684494&code=Zjpd4eaZhtqJbXoLvwbpf4pAXotCkI0Q'
                     className="block"
                     aria-label="نماد اعتماد الکترونیکی"
                   >
                     <img 
                       referrerPolicy='origin' 
-                      src='https://trustseal.enamad.ir/logo.aspx?id=684494&Code=Zjpd4eaZhtqJbXoLvwbpf4pAXotCkI0Q'
+                      src='https://trustseal.enamad.ir/logo.aspx?id=684494&code=Zjpd4eaZhtqJbXoLvwbpf4pAXotCkI0Q'
                       alt='نماد اعتماد الکترونیکی' 
                       style={{cursor:'pointer'}} 
                       data-code='Zjpd4eaZhtqJbXoLvwbpf4pAXotCkI0Q'
