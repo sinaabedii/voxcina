@@ -37,7 +37,10 @@ type DigiPayService struct {
 }
 
 func NewDigiPayService() *DigiPayService {
-	baseURL := "https://uat.mydigipay.info"
+	baseURL := os.Getenv("DIGIPAY_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://uat.mydigipay.info"
+	}
 
 	return &DigiPayService{
 		clientID:     os.Getenv("DIGIPAY_CLIENT_ID"),
