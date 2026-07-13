@@ -149,7 +149,7 @@ const Footer = () => {
                   <a 
                     referrerPolicy='origin' 
                     target='_blank' 
-                    rel='noopener noreferrer nofollow'
+                    rel='noopener nofollow'
                     href='https://trustseal.enamad.ir/?id=684494&code=Zjpd4eaZhtqJbXoLvwbpf4pAXotCkI0Q'
                     className="block"
                     aria-label="نماد اعتماد الکترونیکی"
