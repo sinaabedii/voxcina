@@ -167,8 +167,8 @@ const Footer = () => {
                   </a>
                 </div>
 
-                <div className="bg-white shadow-soft rounded-md p-1 h-16 w-16 flex items-center justify-center">
-                  <div id="zibal">
+                <div className="bg-white shadow-soft rounded-md p-1 h-16 w-16 flex items-center justify-center overflow-hidden">
+                  <div id="zibal" className="flex items-center justify-center w-full h-full [&_img]:!h-14 [&_img]:!w-auto [&_img]:border-0 [&_img]:object-contain">
                     <Script src="https://zibal.ir/trust/scripts/zibal-trust-v4.js" type="text/javascript" />
                   </div>
                 </div>
