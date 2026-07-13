@@ -187,24 +187,32 @@ export const PAYMENT_GATEWAYS = [
     name: "زیبال",
     logo: "/images/payment/zibal.svg",
     enabled: true,
+    description: "پرداخت با کارت‌های بانکی از طریق درگاه امن زیبال",
+    features: [],
   },
   {
     id: "digipay",
     name: "دیجی‌پی",
     logo: "/images/payment/digipay.svg",
     enabled: true,
+    description: "پرداخت با کارت، کیف پول یا اعتبار خرید (اقساطی)",
+    features: ["credit", "wallet", "installments"],
   },
   {
     id: "zarinpal",
     name: "زرین‌پال",
     logo: "/images/payment/zarinpal.svg",
-    enabled: false, // Not implemented yet
+    enabled: false,
+    description: "",
+    features: [],
   },
   {
     id: "mellat",
     name: "به‌پرداخت ملت",
     logo: "/images/payment/mellat.svg",
-    enabled: false, // Not implemented yet
+    enabled: false,
+    description: "",
+    features: [],
   },
 ];
 

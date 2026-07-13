@@ -1,5 +1,5 @@
 import React from "react";
-import { CreditCard, Wallet, Truck, Shield, ExternalLink, Check } from "lucide-react";
+import { CreditCard, Wallet, Truck, Shield, ExternalLink, Check, Calendar, Coins } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { PAYMENT_METHODS, PAYMENT_GATEWAYS } from "@/lib/constants";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,6 +11,12 @@ interface PaymentMethodsProps {
   selectedMethod?: string;
   selectedGateway?: string;
 }
+
+const GATEWAY_FEATURE_LABELS: Record<string, { label: string; icon: React.ReactNode }> = {
+  credit: { label: "اعتبار خرید", icon: <Coins className="w-3 h-3" /> },
+  wallet: { label: "کیف پول", icon: <Wallet className="w-3 h-3" /> },
+  installments: { label: "پرداخت اقساطی", icon: <Calendar className="w-3 h-3" /> },
+};
 
 const PaymentMethods: React.FC<PaymentMethodsProps> = ({
   onSelectMethod,
@@ -86,39 +92,100 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
                     className="mt-4 border-t border-voxcina-cream/20 dark:border-voxcina-blue/20 pt-4 mr-1"
                   >
                     <p className="text-sm font-medium mb-3 text-voxcina-blue dark:text-voxcina-cream">درگاه پرداخت:</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {enabledGateways.map((gateway) => (
-                        <div
-                          key={gateway.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectGateway?.(gateway.id);
-                          }}
-                          className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all duration-200 ${
-                            selectedGateway === gateway.id
-                              ? "border-voxcina-blue bg-voxcina-blue/5 dark:border-voxcina-cream dark:bg-voxcina-cream/5 shadow-soft"
-                              : "border-voxcina-cream/30 dark:border-voxcina-blue/30 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/30"
-                          }`}
-                        >
-                          <div className="relative w-10 h-7 flex-shrink-0 flex items-center justify-center bg-white dark:bg-voxcina-darkBlue/40 rounded-md p-1">
-                            <Image
-                              src={gateway.logo}
-                              alt={gateway.name}
-                              width={80}
-                              height={28}
-                              className="object-contain max-h-5"
-                            />
+                    <div className="space-y-3">
+                      {enabledGateways.map((gateway) => {
+                        const isSelected = selectedGateway === gateway.id;
+                        return (
+                          <div key={gateway.id}>
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSelectGateway?.(gateway.id);
+                              }}
+                              className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all duration-200 ${
+                                isSelected
+                                  ? "border-voxcina-blue bg-voxcina-blue/5 dark:border-voxcina-cream dark:bg-voxcina-cream/5 shadow-soft"
+                                  : "border-voxcina-cream/30 dark:border-voxcina-blue/30 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/30"
+                              }`}
+                            >
+                              <div className="relative w-12 h-8 flex-shrink-0 flex items-center justify-center bg-white dark:bg-voxcina-darkBlue/40 rounded-md p-1">
+                                <Image
+                                  src={gateway.logo}
+                                  alt={gateway.name}
+                                  width={80}
+                                  height={28}
+                                  className="object-contain max-h-6"
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">
+                                    {gateway.name}
+                                  </span>
+                                  {gateway.features.length > 0 && (
+                                    <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                      چند روش پرداخت
+                                    </span>
+                                  )}
+                                </div>
+                                {gateway.description && (
+                                  <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 mt-0.5">
+                                    {gateway.description}
+                                  </p>
+                                )}
+                              </div>
+                              {isSelected && (
+                                <Check className="w-4 h-4 text-voxcina-blue dark:text-voxcina-cream flex-shrink-0" />
+                              )}
+                            </div>
+
+                            {gateway.features.length > 0 && isSelected && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="mt-2 mr-2"
+                              >
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                  {gateway.features.map((feat) => {
+                                    const info = GATEWAY_FEATURE_LABELS[feat];
+                                    if (!info) return null;
+                                    return (
+                                      <span
+                                        key={feat}
+                                        className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-md bg-voxcina-blue/8 text-voxcina-blue dark:bg-voxcina-cream/8 dark:text-voxcina-cream"
+                                      >
+                                        {info.icon}
+                                        {info.label}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+
+                                {gateway.features.includes("credit") && (
+                                  <div className="p-3 rounded-lg bg-gradient-to-l from-emerald-50 to-teal-50 dark:from-emerald-900/10 dark:to-teal-900/10 border border-emerald-200/50 dark:border-emerald-700/30">
+                                    <div className="flex items-start gap-2">
+                                      <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mt-0.5 flex-shrink-0" />
+                                      <div className="text-xs text-emerald-800 dark:text-emerald-300 leading-5">
+                                        <span className="font-bold">خرید اقساطی با دیجی‌پی</span>
+                                        <span className="block mt-1">
+                                          مبلغ خرید را در <strong>۴ قسط</strong> پرداخت کنید. بدون نیاز به ضامن، فقط با اعتبارسنجی دیجی‌پی.
+                                        </span>
+                                        <span className="block mt-1 text-emerald-600 dark:text-emerald-400">
+                                          اعتبار خرید یا پرداخت تک‌مرحله‌ای نیز در دسترس است.
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </motion.div>
+                            )}
                           </div>
-                          <span className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream flex-1">
-                            {gateway.name}
-                          </span>
-                          {selectedGateway === gateway.id && (
-                            <Check className="w-4 h-4 text-voxcina-blue dark:text-voxcina-cream flex-shrink-0" />
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
-                    
+
                     <div className="mt-4 p-3 bg-voxcina-blue/5 dark:bg-voxcina-blue/10 rounded-lg text-xs text-voxcina-blue/70 dark:text-voxcina-cream/70 flex items-start">
                       <ExternalLink className="w-4 h-4 ml-2 mt-0.5 text-voxcina-blue dark:text-voxcina-cream flex-shrink-0" />
                       <span>پس از تأیید سفارش، به درگاه پرداخت منتقل خواهید شد.</span>
@@ -126,7 +193,7 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
                   </motion.div>
                 )}
               </AnimatePresence>
-              
+
               {method.id === "wallet" && selectedMethod === "wallet" && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
@@ -149,7 +216,7 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
             </motion.div>
           ))}
         </div>
-        
+
         <div className="flex items-center mt-6 pt-4 border-t border-voxcina-cream/20 dark:border-voxcina-blue/20">
           <Shield className="w-5 h-5 ml-2 text-voxcina-blue dark:text-voxcina-cream" />
           <span className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">پرداخت امن با رمز دوم پویا</span>
