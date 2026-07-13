@@ -143,11 +143,10 @@ func (d *DigiPayService) fetchToken(ctx context.Context) (string, time.Time, err
 }
 
 type digipayTicketRequest struct {
-	CellNumber     string `json:"cellNumber"`
-	Amount         int64  `json:"amount"`
-	ProviderID     string `json:"providerId"`
-	CallbackURL    string `json:"callbackUrl"`
-	AdditionalInfo map[string]int `json:"additionalInfo"`
+	CellNumber  string `json:"cellNumber"`
+	Amount      int64  `json:"amount"`
+	ProviderID  string `json:"providerId"`
+	CallbackURL string `json:"callbackUrl"`
 }
 
 type digipayResult struct {
@@ -168,14 +167,16 @@ func (d *DigiPayService) RequestPayment(ctx context.Context, req *PaymentRequest
 		return nil, fmt.Errorf("failed to get token: %w", err)
 	}
 
+	// No preferredGateway is set on purpose: DigiPay will show its own
+	// payment-method selection page (Wallet, Credit/BNPL, CPG, IPG), letting
+	// the user pay with their DigiPay credit/wallet account instead of only
+	// a bank card. Setting preferredGateway would force one specific
+	// gateway and hide the other options.
 	ticketReq := digipayTicketRequest{
 		CellNumber:  req.Mobile,
 		Amount:      req.Amount,
 		ProviderID:  req.ProviderID,
 		CallbackURL: req.CallbackURL,
-		AdditionalInfo: map[string]int{
-			"preferredGateway": 2, // IPG direct
-		},
 	}
 
 	bodyJSON, err := json.Marshal(ticketReq)
