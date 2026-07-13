@@ -145,7 +145,7 @@ const Footer = () => {
           <div className="mt-6 sm:mt-8 pt-6 sm:pt-4 border-t border-border/10 flex flex-col sm:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-4 order-2 sm:order-1">
               <div className="flex flex-wrap gap-3 justify-center">
-                <div className="bg-white shadow-soft rounded-md p-1 h-16 w-16 flex items-center justify-center">
+                <div className="bg-white shadow-soft rounded-md p-1 h-16 w-16 md:h-[76.8px] md:w-[76.8px] flex items-center justify-center">
                   <a 
                     referrerPolicy='origin' 
                     target='_blank' 
@@ -160,13 +160,13 @@ const Footer = () => {
                       alt='نماد اعتماد الکترونیکی' 
                       style={{cursor:'pointer'}} 
                       data-code='Zjpd4eaZhtqJbXoLvwbpf4pAXotCkI0Q'
-                      className="object-contain w-14 h-14"
+                      className="object-contain w-14 h-14 md:h-full md:w-full"
                     />
                     <span className="sr-only">نماد اعتماد الکترونیکی</span>
                   </a>
                 </div>
 
-                <div className="bg-white shadow-soft rounded-md p-1 h-16 w-16 flex items-center justify-center overflow-hidden">
+                <div className="bg-white shadow-soft rounded-md p-1 h-16 w-16 md:h-[76.8px] md:w-[76.8px] flex items-center justify-center overflow-hidden">
                   <a
                     href="#"
                     title="پرداخت آنلاین زیبال"
@@ -184,7 +184,7 @@ const Footer = () => {
                     <img
                       src="https://zibal.ir/trust/assets/1.png"
                       alt="پرداخت آنلاین زیبال"
-                      className="h-14 w-auto object-contain border-0"
+                      className="h-14 w-auto md:h-full object-contain border-0"
                     />
                   </a>
                 </div>
