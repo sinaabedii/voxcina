@@ -133,10 +133,16 @@ type digipayTicketRequest struct {
 	CallbackURL string `json:"callbackUrl"`
 }
 
-type digipayTicketResponse struct {
-	Ticket string `json:"ticket"`
-	Result int    `json:"result"`
+type digipayResult struct {
+	Status  int    `json:"status"`
 	Message string `json:"message"`
+	Level   string `json:"level"`
+}
+
+type digipayTicketResponse struct {
+	Ticket      string        `json:"ticket"`
+	Result      digipayResult `json:"result"`
+	RedirectURL string        `json:"redirectUrl"`
 }
 
 func (d *DigiPayService) RequestPayment(ctx context.Context, req *PaymentRequest) (*PaymentResponse, error) {
@@ -186,8 +192,8 @@ func (d *DigiPayService) RequestPayment(ctx context.Context, req *PaymentRequest
 		return nil, fmt.Errorf("failed to parse ticket response: %w", err)
 	}
 
-	if ticketResp.Result != 0 {
-		return nil, fmt.Errorf("digipay ticket creation failed: %s", ticketResp.Message)
+	if ticketResp.Result.Status != 0 {
+		return nil, fmt.Errorf("digipay ticket creation failed: %s", ticketResp.Result.Message)
 	}
 
 	return &PaymentResponse{
@@ -197,15 +203,14 @@ func (d *DigiPayService) RequestPayment(ctx context.Context, req *PaymentRequest
 }
 
 type digipayVerifyResponse struct {
-	Result         int    `json:"result"`
-	Message        string `json:"message"`
-	Ticket         string `json:"ticket"`
-	Amount         int64  `json:"amount"`
-	TrackingCode   string `json:"trackingCode"`
-	RRN            string `json:"rrn"`
-	Psp            string `json:"psp"`
-	CardNumber     string `json:"cardNumber"`
-	CardHolderName string `json:"cardHolderName"`
+	Result         digipayResult `json:"result"`
+	Ticket         string        `json:"ticket"`
+	Amount         int64         `json:"amount"`
+	TrackingCode   string        `json:"trackingCode"`
+	RRN            string        `json:"rrn"`
+	Psp            string        `json:"psp"`
+	CardNumber     string        `json:"cardNumber"`
+	CardHolderName string        `json:"cardHolderName"`
 }
 
 func (d *DigiPayService) VerifyPayment(ctx context.Context, req *VerifyRequest) (*VerifyResponse, error) {
@@ -214,9 +219,17 @@ func (d *DigiPayService) VerifyPayment(ctx context.Context, req *VerifyRequest) 
 		return nil, fmt.Errorf("failed to get token: %w", err)
 	}
 
-	verifyURL := fmt.Sprintf("%s%s/%s?type=%d", d.baseURL, digipayVerifyURL, url.PathEscape(req.GatewayRef), req.CallbackType)
+	verifyURL := fmt.Sprintf("%s%s?type=%d", d.baseURL, digipayVerifyURL, req.CallbackType)
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, verifyURL, nil)
+	verifyBody, err := json.Marshal(map[string]string{
+		"trackingCode": req.GatewayRef,
+		"providerId":   req.ProviderID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal verify body: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, verifyURL, bytes.NewReader(verifyBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create verify request: %w", err)
 	}
@@ -224,7 +237,6 @@ func (d *DigiPayService) VerifyPayment(ctx context.Context, req *VerifyRequest) 
 	httpReq.Header.Set("Agent", "WEB")
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Digipay-Version", digipayAPIVersion)
-	httpReq.ContentLength = 0
 
 	resp, err := d.httpClient.Do(httpReq)
 	if err != nil {
@@ -246,7 +258,7 @@ func (d *DigiPayService) VerifyPayment(ctx context.Context, req *VerifyRequest) 
 		return nil, fmt.Errorf("failed to parse verify response: %w", err)
 	}
 
-	success := verifyResp.Result == 0
+	success := verifyResp.Result.Status == 0
 
 	return &VerifyResponse{
 		Success:    success,
@@ -257,16 +269,15 @@ func (d *DigiPayService) VerifyPayment(ctx context.Context, req *VerifyRequest) 
 }
 
 type digipayInquiryResponse struct {
-	Result       int    `json:"result"`
-	Message      string `json:"message"`
-	Ticket       string `json:"ticket"`
-	Amount       int64  `json:"amount"`
-	TrackingCode string `json:"trackingCode"`
-	Status       string `json:"status"`
-	RRN          string `json:"rrn"`
-	Psp          string `json:"psp"`
-	CreatedAt    digipayTime `json:"createdAt"`
-	PaidAt       digipayTime `json:"paidAt"`
+	Result       digipayResult `json:"result"`
+	Ticket       string        `json:"ticket"`
+	Amount       int64         `json:"amount"`
+	TrackingCode string        `json:"trackingCode"`
+	Status       string        `json:"status"`
+	RRN          string        `json:"rrn"`
+	Psp          string        `json:"psp"`
+	CreatedAt    digipayTime   `json:"createdAt"`
+	PaidAt       digipayTime   `json:"paidAt"`
 }
 
 type digipayTime struct {
@@ -311,7 +322,7 @@ func (d *DigiPayService) InquiryPayment(ctx context.Context, req *InquiryRequest
 	}
 
 	return &InquiryResponse{
-		Success:   inquiryResp.Result == 0,
+		Success:   inquiryResp.Result.Status == 0,
 		Status:    inquiryResp.Status,
 		Amount:    inquiryResp.Amount,
 		RefNumber: inquiryResp.TrackingCode,
