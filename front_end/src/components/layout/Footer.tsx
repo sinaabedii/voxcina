@@ -5,7 +5,6 @@ import Link from "next/link";
 import { FOOTER_LINKS, APP_NAME } from "@/lib/constants";
 import { useNavigation } from "@/context/navigation";
 import Image from "next/image";
-import Script from "next/script";
 import {
   Instagram,
   Twitter,
@@ -168,9 +167,26 @@ const Footer = () => {
                 </div>
 
                 <div className="bg-white shadow-soft rounded-md p-1 h-16 w-16 flex items-center justify-center overflow-hidden">
-                  <div id="zibal" className="flex items-center justify-center w-full h-full [&_img]:!h-14 [&_img]:!w-auto [&_img]:border-0 [&_img]:object-contain">
-                    <Script src="https://zibal.ir/trust/scripts/zibal-trust-v4.js" type="text/javascript" />
-                  </div>
+                  <a
+                    href="#"
+                    title="پرداخت آنلاین زیبال"
+                    aria-label="پرداخت آنلاین زیبال"
+                    className="flex items-center justify-center w-full h-full"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.open(
+                        `https://gateway.zibal.ir/trustMe/${window.location.hostname}`,
+                        "_blank",
+                        "width=450,height=600,scrollbars=no,resizable=no"
+                      );
+                    }}
+                  >
+                    <img
+                      src="https://zibal.ir/trust/assets/1.png"
+                      alt="پرداخت آنلاین زیبال"
+                      className="h-14 w-auto object-contain border-0"
+                    />
+                  </a>
                 </div>
                 
               </div>
