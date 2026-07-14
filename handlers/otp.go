@@ -389,6 +389,7 @@ func VerifySignupOTP(w http.ResponseWriter, r *http.Request) {
 		"refreshToken": refreshTokenString,
 		"created_at":   user.CreatedAt,
 		"updated_at":   user.UpdatedAt,
+		"last_login":   user.LastLogin,
 	})
 }
 

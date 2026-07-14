@@ -240,6 +240,7 @@ export default function SignUpPage() {
         role: data.role,
         createdAt: data.created_at,
         updatedAt: data.updated_at,
+        lastLogin: data.last_login,
       });
       setIsAuthenticated(true);
 
