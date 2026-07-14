@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useBlogStore } from '@/store/blog-store';
+import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import BlogCard from './BlogCard';
 import BlogCategories from './BlogCategories';
 import BlogSearch from './BlogSearch';
@@ -16,91 +15,84 @@ interface BlogClientContentProps {
   initialCategories?: string[];
   /** Initial tags extracted from posts */
   initialTags?: string[];
+  /** Current page number */
+  currentPage?: number;
+  /** Total pages */
+  totalPages?: number;
+  /** Total posts count */
+  total?: number;
 }
 
 /**
  * Blog Client Content Component
  * 
  * Handles interactive filtering and search for blog posts.
- * Receives initial data from server for SSR, then hydrates for client-side interactions.
- * Requirements: 4.3, 5.3
+ * Uses server-side filtering via URL parameters.
  */
 export default function BlogClientContent({
   initialPosts = [],
   initialCategories = [],
   initialTags = [],
+  currentPage = 1,
+  totalPages = 1,
+  total = 0,
 }: BlogClientContentProps) {
   const searchParams = useSearchParams();
-  const {
-    posts: storePosts,
-    categories: storeCategories,
-    tags: storeTags,
-    fetchPosts,
-  } = useBlogStore();
+  const router = useRouter();
+  const pathname = usePathname();
 
-  // Use server-provided data initially, fall back to store data
-  const blogPosts = initialPosts.length > 0 ? initialPosts : storePosts;
-  const categories = initialCategories.length > 0 ? initialCategories : storeCategories;
-  const tags = initialTags.length > 0 ? initialTags : storeTags;
-
-  const [filteredPosts, setFilteredPosts] = useState(blogPosts);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
     searchParams.get('category')
   );
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
 
-  // Sync store with initial data if store is empty
-  useEffect(() => {
-    if (storePosts.length === 0 && initialPosts.length === 0) {
-      fetchPosts();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Update URL when filters change
+  const updateFilters = useCallback((filters: { category?: string | null; tag?: string; search?: string; page?: number }) => {
+    const params = new URLSearchParams(searchParams.toString());
 
-  // Update filtered posts when blogPosts changes (for initial render)
-  useEffect(() => {
-    setFilteredPosts(blogPosts);
-  }, [blogPosts]);
-
-  // Filter posts based on category, tag, and search term
-  useEffect(() => {
-    let result = [...blogPosts];
-
-    const categoryParam = searchParams.get('category');
-    const tagParam = searchParams.get('tag');
-    const searchParam = searchParams.get('search');
-
-    if (categoryParam) {
-      setSelectedCategory(categoryParam);
-      result = result.filter((post) => post.category === categoryParam);
-    } else if (selectedCategory) {
-      result = result.filter((post) => post.category === selectedCategory);
+    if (filters.category !== undefined) {
+      if (filters.category) {
+        params.set('category', filters.category);
+      } else {
+        params.delete('category');
+      }
     }
 
-    if (tagParam) {
-      result = result.filter((post) => post.tags.includes(tagParam));
+    if (filters.tag) {
+      params.set('tag', filters.tag);
+    } else {
+      params.delete('tag');
     }
 
-    if (searchParam || searchTerm) {
-      const term = searchParam || searchTerm;
-      result = result.filter(
-        (post) =>
-          post.title.toLowerCase().includes(term.toLowerCase()) ||
-          post.excerpt.toLowerCase().includes(term.toLowerCase()) ||
-          post.content.toLowerCase().includes(term.toLowerCase()) ||
-          post.tags.some((tag) => tag.toLowerCase().includes(term.toLowerCase()))
-      );
+    if (filters.search !== undefined) {
+      if (filters.search) {
+        params.set('search', filters.search);
+      } else {
+        params.delete('search');
+      }
     }
 
-    setFilteredPosts(result);
-  }, [searchParams, selectedCategory, searchTerm, blogPosts]);
+    if (filters.page) {
+      params.set('page', filters.page.toString());
+    } else {
+      params.delete('page');
+    }
+
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [searchParams, router, pathname]);
 
   const handleCategorySelect = (category: string | null) => {
     setSelectedCategory(category);
+    updateFilters({ category, page: 1 });
   };
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
+    updateFilters({ search: term, page: 1 });
+  };
+
+  const handlePageChange = (page: number) => {
+    updateFilters({ page });
   };
 
   return (
@@ -113,33 +105,51 @@ export default function BlogClientContent({
         <div className="lg:col-span-8">
           <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
             <BlogCategories
-              posts={blogPosts}
+              categories={initialCategories}
               selectedCategory={selectedCategory}
               onSelectCategory={handleCategorySelect}
             />
           </div>
 
-          {filteredPosts.length > 0 ? (
-            <div className="grid gap-4 sm:gap-6 sm:grid-cols-2">
-              {filteredPosts.map((post, index) => (
-                <div
-                  key={post.id}
-                  className={index === 0 ? "col-span-1 sm:col-span-2" : ""}
-                >
-                  <BlogCard
-                    post={post}
-                    variant={index === 0 ? "featured" : "default"}
-                  />
+          {initialPosts.length > 0 ? (
+            <>
+              <div className="grid gap-4 sm:gap-6 sm:grid-cols-2">
+                {initialPosts.map((post, index) => (
+                  <div
+                    key={post.id}
+                    className={index === 0 ? "col-span-1 sm:col-span-2" : ""}
+                  >
+                    <BlogCard
+                      post={post}
+                      variant={index === 0 ? "featured" : "default"}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex justify-center mt-8 gap-2">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      className={`px-3 py-1 rounded ${page === currentPage ? "bg-voxcina-blue text-white" : "bg-gray-200"}`}
+                      onClick={() => handlePageChange(page)}
+                      disabled={page === currentPage}
+                    >
+                      {page}
+                    </button>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           ) : (
             <div className="rounded-2xl bg-white p-6 md:p-8 text-center shadow-soft">
               <h3 className="mb-2 text-xl font-bold text-voxcina-blue">
-                مقاله‌ای یافت نشد!
+                مقالهای یافت نشد!
               </h3>
               <p className="text-sm md:text-base text-gray-600">
-                با معیارهای جستجوی فعلی هیچ مقاله‌ای یافت نشد. لطفاً جستجوی
+                با معیارهای جستجوی فعلی هیچ مقالهای یافت نشد. لطفاً جستجوی
                 دیگری را امتحان کنید.
               </p>
             </div>
@@ -148,10 +158,14 @@ export default function BlogClientContent({
 
         <div className="mt-8 lg:mt-0 lg:col-span-4">
           <div className="sticky top-24">
-            <BlogSidebar posts={blogPosts} categories={categories} tags={tags} />
+            <BlogSidebar 
+              categories={initialCategories} 
+              tags={initialTags}
+              totalPosts={total}
+            />
           </div>
         </div>
       </div>
     </>
   );
-} 
+}

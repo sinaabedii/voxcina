@@ -364,10 +364,23 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/blog/tags", handlers.GetBlogTags).Methods(http.MethodGet)
 
 	// Admin blog post management routes
-	adminRouter.HandleFunc("/blog-posts", handlers.GetAllBlogPosts).Methods(http.MethodGet)
-	adminRouter.HandleFunc("/blog-posts", handlers.CreateBlogPost).Methods(http.MethodPost)
-	adminRouter.HandleFunc("/blog-posts/{id}", handlers.UpdateBlogPost).Methods(http.MethodPut)
-	adminRouter.HandleFunc("/blog-posts/{id}", handlers.DeleteBlogPost).Methods(http.MethodDelete)
+	adminRouter.HandleFunc("/blog-posts", handlers.GetAdminBlogPosts).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/blog-posts/{id}/blocks", handlers.UpdateBlogPostBlocks).Methods(http.MethodPatch)
+	adminRouter.HandleFunc("/blog-posts/{id}/publish", handlers.PublishBlogPost).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/blog-posts/{id}/unpublish", handlers.UnpublishBlogPost).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/blog-posts/{id}/archive", handlers.ArchiveBlogPost).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/blog-posts/{id}/restore", handlers.RestoreBlogPost).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/blog-posts/{id}/media", handlers.UploadBlogMedia).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/blog-posts/{id}/media/{mediaId}", handlers.DeleteBlogMedia).Methods(http.MethodDelete)
+
+	// Admin pipeline run routes
+	adminRouter.HandleFunc("/blog-runs", handlers.CreatePipelineRun).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/blog-runs", handlers.GetPipelineRuns).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/blog-runs/{id}", handlers.GetPipelineRunByID).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/blog-runs/{id}/approve", handlers.ApprovePipelineRun).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/blog-runs/{id}/research", handlers.TriggerResearch).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/blog-runs/{id}/write", handlers.TriggerWriting).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/blog-runs/{id}/prompts", handlers.TriggerPromptGeneration).Methods(http.MethodPost)
 
 	// Fetch reviews written by a user (public)
 	api.HandleFunc("/users/{userId}/reviews", handlers.GetUserReviews).Methods(http.MethodGet)

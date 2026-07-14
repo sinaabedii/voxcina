@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { notFound } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import BlogClientContent from '@/components/blog/BlogClientContent';
@@ -9,19 +10,35 @@ import { serverFetchWithFallback, CACHE_TIMES } from '@/lib/server-api';
  * Blog Listing Page - Server Component
  * 
  * Fetches blog posts on the server for SEO and passes to client component.
- * Requirements: 4.3, 6.1
+ * Uses dynamic rendering for real-time data.
  */
-export default async function BlogPage() {
-  // Fetch blog posts on the server using absolute URLs for Docker compatibility
-  const response = await serverFetchWithFallback<{ data: BlogPost[] } | BlogPost[]>(
-    '/api/blog-posts',
-    { data: [] },
-    { revalidate: CACHE_TIMES.BLOG_POST, tags: ['blog'] }
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export default async function BlogPage({ searchParams }: { searchParams: { [key: string]: string | undefined } }) {
+  const { page = '1', limit = '10', category, tag, search } = searchParams;
+
+  // Build query string
+  const queryParams = new URLSearchParams();
+  queryParams.set('page', page);
+  queryParams.set('limit', limit);
+  if (category) queryParams.set('category', category);
+  if (tag) queryParams.set('tag', tag);
+  if (search) queryParams.set('search', search);
+
+  // Fetch blog posts on the server
+  const postsResponse = await serverFetchWithFallback<{ data: BlogPost[]; total: number; page: number; limit: number; totalPages: number } | BlogPost[]>(
+    `/api/blog-posts?${queryParams.toString()}`,
+    { data: [], total: 0, page: 1, limit: 10, totalPages: 0 },
+    { revalidate: false }
   );
 
   // Handle both array and paginated response formats
-  const posts = Array.isArray(response) ? response : response.data || [];
-  
+  const posts = Array.isArray(postsResponse) ? postsResponse : postsResponse.data || [];
+  const total = Array.isArray(postsResponse) ? postsResponse.length : postsResponse.total || 0;
+  const currentPage = Array.isArray(postsResponse) ? 1 : postsResponse.page || 1;
+  const totalPages = Array.isArray(postsResponse) ? 1 : postsResponse.totalPages || 1;
+
   // Extract unique categories and tags from posts
   const categories = Array.from(new Set(posts.map((p) => p.category))).filter(Boolean).sort();
   const tags = Array.from(new Set(posts.flatMap((p) => p.tags || []))).filter(Boolean).sort();
@@ -49,6 +66,9 @@ export default async function BlogPage() {
               initialPosts={posts}
               initialCategories={categories}
               initialTags={tags}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              total={total}
             />
           </Suspense>
         </div>

@@ -83,6 +83,18 @@ func Connect(cfg *config.Config) *mongo.Database {
 		// Non-critical, continue anyway
 	}
 
+	// Create blog AI pipeline indexes
+	if err := EnsureBlogIndexes(Database); err != nil {
+		log.Printf("Warning: Could not ensure blog indexes: %v", err)
+		// Non-critical, continue anyway
+	}
+
+	// Ensure blog collections exist
+	if err := EnsureBlogCollections(Database); err != nil {
+		log.Printf("Warning: Could not ensure blog collections: %v", err)
+		// Non-critical, continue anyway
+	}
+
 	log.Println("Database connected and indexes ensured.")
 	return Database
 }

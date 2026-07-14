@@ -103,7 +103,7 @@
       "gender_prefix": "M",
       "items": [
         {
-          "name": "تیشرت یقه گرد (Crew Neck)",
+          "name": "تیشرت ساده (basic)",
           "category_code": "10",
           "size_type": "clothing"
         },
@@ -128,13 +128,18 @@
           "size_type": "clothing"
         },
         {
-          "name": "تیشرت طرح‌دار/چاپی",
+          "name": "تیشرت باکسی (Boxy Fit)",
           "category_code": "15",
           "size_type": "clothing"
         },
         {
           "name": "تیشرت اسپرت",
           "category_code": "16",
+          "size_type": "clothing"
+        },
+        {
+          "name": "تیشرت ساده (basic T-shirt)",
+          "category_code": "17",
           "size_type": "clothing"
         }
       ]

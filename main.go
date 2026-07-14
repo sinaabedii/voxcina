@@ -83,6 +83,14 @@ func main() {
 	orderCleanupService.Start()
 	defer orderCleanupService.Stop()
 
+	// Initialize blog AI pipeline services
+	blogRepo := services.NewBlogRepository(database)
+	braveClient := services.NewBraveSearchClient()
+	structClient := services.NewOpenRouterStructuredClient()
+	blogWorker := services.NewBlogWorker(blogRepo, braveClient, structClient, cfg.BlogWorkerConcurrency, cfg.BlogMaxRetries)
+	blogWorker.Start()
+	log.Println("Blog AI pipeline worker started")
+
 	// Seed database if requested
 	if *seedDB {
 		log.Println("Seeding database...")

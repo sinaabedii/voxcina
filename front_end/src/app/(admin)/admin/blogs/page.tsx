@@ -1,136 +1,87 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
-import { Plus, Edit, Trash2, Search, FileText } from "lucide-react";
-import { useBlogStore } from "@/store/blog-store";
-import { BlogPost } from "@/types/blog";
-import { toast } from "react-hot-toast";
+import { Plus, FileText, Search, Filter } from "lucide-react";
+import { useBlogAdminStore } from "@/store/blog-admin-store";
+import { BlogPipelineRun } from "@/types/blog";
 
 export default function AdminBlogsPage() {
-  const {
-    posts,
-    fetchPosts,
-    createBlog,
-    updateBlog,
-    deleteBlog,
-    isLoading,
-  } = useBlogStore();
-
+  const router = useRouter();
+  const { currentRun, fetchRun, isLoading } = useBlogAdminStore();
+  const [runs, setRuns] = useState<BlogPipelineRun[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
-  const [formData, setFormData] = useState<Partial<BlogPost>>({
-    title: "",
-    slug: "",
-    excerpt: "",
-    content: "",
-    coverImage: "",
-    category: "",
-    tags: [],
-    readTime: 5,
-    isPublished: false,
-  } as any);
-  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
 
-  // Fetch posts on mount
   useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+    fetchRuns();
+  }, []);
 
-  // Derived list filtered by search
-  const filtered = posts.filter((p) =>
-    p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const fetchRuns = async () => {
+    try {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch("/api/admin/blog-runs", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-  // Pagination
-  const perPage = 7;
-  const totalPages = Math.ceil(filtered.length / perPage);
-  const paginated = filtered.slice((currentPage - 1) * perPage, currentPage * perPage);
+      if (!res.ok) {
+        throw new Error("Failed to fetch runs");
+      }
 
-  const resetForm = () => {
-    setFormData({
-      title: "",
-      slug: "",
-      excerpt: "",
-      content: "",
-      coverImage: "",
-      category: "",
-      tags: [],
-      readTime: 5,
-      isPublished: false,
-    } as any);
-    setCoverImageFile(null);
-  };
-
-  // Handlers
-  const handleSubmit = async () => {
-    if (!formData.title || !formData.content) {
-      toast.error("عنوان و محتوا الزامی است");
-      return;
-    }
-
-    const tagsArray = typeof formData.tags === "string"
-      ? (formData.tags as unknown as string).split(",").map((t) => t.trim())
-      : (formData.tags as string[]);
-
-    const blogForm = new FormData();
-    blogForm.append("title", formData.title!);
-    blogForm.append("slug", formData.slug || "");
-    blogForm.append("excerpt", formData.excerpt || "");
-    blogForm.append("content", formData.content || "");
-    blogForm.append("category", formData.category || "");
-    blogForm.append("tags", JSON.stringify(tagsArray));
-    blogForm.append("readTime", formData.readTime?.toString() || "5");
-    blogForm.append("isPublished", formData.isPublished ? "true" : "false");
-    if (coverImageFile) {
-      blogForm.append("coverImage", coverImageFile);
-    } else if (editingPost && formData.coverImage) {
-      blogForm.append("coverImage", formData.coverImage);
-    }
-
-    let success = null;
-    if (editingPost) {
-      success = await updateBlog(editingPost.id || editingPost._id!, blogForm);
-    } else {
-      success = await createBlog(blogForm);
-    }
-
-    if (success) {
-      toast.success(editingPost ? "مقاله بروزرسانی شد" : "مقاله ایجاد شد");
-      setIsModalOpen(false);
-      setEditingPost(null);
-      resetForm();
-    } else {
-      toast.error("عملیات انجام نشد");
+      const data = await res.json();
+      setRuns(data.data || []);
+    } catch (err) {
+      console.error("Error fetching runs:", err);
     }
   };
 
-  const openEdit = (post: BlogPost) => {
-    setEditingPost(post);
-    setFormData({
-      ...post,
-      tags: post.tags.join(", "),
-    } as any);
-    setCoverImageFile(null);
-    setIsModalOpen(true);
+  const filteredRuns = runs.filter((run) => {
+    const matchesSearch = run.topic?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" || run.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const perPage = 10;
+  const totalPages = Math.ceil(filteredRuns.length / perPage);
+  const paginatedRuns = filteredRuns.slice((currentPage - 1) * perPage, currentPage * perPage);
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      brief: "ایجاد خلاصه",
+      researching: "در حال تحقیق",
+      research_approved: "تحقیق تایید شد",
+      writing: "در حال نگارش",
+      content_approved: "محتوا تایید شد",
+      prompts: "در حال تولید پرامپت",
+      prompts_approved: "پرامپت تایید شد",
+      media_pending: "در انتظار رسانه",
+      ready: "آماده انتشار",
+      published: "منتشر شده",
+      archived: "بایگانی شده",
+    };
+    return labels[status] || status;
   };
 
-  const openAdd = () => {
-    resetForm();
-    setEditingPost(null);
-    setIsModalOpen(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (window.confirm("آیا از حذف این مقاله اطمینان دارید؟")) {
-      const ok = await deleteBlog(id);
-      if (ok) toast.success("مقاله حذف شد");
-      else toast.error("حذف ناموفق بود");
-    }
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      brief: "bg-gray-100 text-gray-800",
+      researching: "bg-blue-100 text-blue-800",
+      research_approved: "bg-green-100 text-green-800",
+      writing: "bg-yellow-100 text-yellow-800",
+      content_approved: "bg-green-100 text-green-800",
+      prompts: "bg-purple-100 text-purple-800",
+      prompts_approved: "bg-green-100 text-green-800",
+      media_pending: "bg-orange-100 text-orange-800",
+      ready: "bg-green-100 text-green-800",
+      published: "bg-emerald-100 text-emerald-800",
+      archived: "bg-gray-100 text-gray-600",
+    };
+    return colors[status] || "bg-gray-100 text-gray-800";
   };
 
   return (
@@ -138,9 +89,9 @@ export default function AdminBlogsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <FileText className="w-6 h-6" />
-          مقالات
+          مدیریت مقالات هوش مصنوعی
         </h1>
-        <Button onClick={openAdd} className="flex gap-1">
+        <Button onClick={() => router.push("/admin/blogs/new")} className="flex gap-1">
           <Plus className="w-4 h-4" />
           مقاله جدید
         </Button>
@@ -154,51 +105,73 @@ export default function AdminBlogsPage() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
+        <Filter className="w-4 h-4 text-gray-500" />
+        <select
+          className="input"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="all">همه وضعیتها</option>
+          <option value="brief">ایجاد خلاصه</option>
+          <option value="researching">در حال تحقیق</option>
+          <option value="research_approved">تحقیق تایید شد</option>
+          <option value="writing">در حال نگارش</option>
+          <option value="content_approved">محتوا تایید شد</option>
+          <option value="prompts">در حال تولید پرامپت</option>
+          <option value="prompts_approved">پرامپت تایید شد</option>
+          <option value="media_pending">در انتظار رسانه</option>
+          <option value="ready">آماده انتشار</option>
+          <option value="published">منتشر شده</option>
+          <option value="archived">بایگانی شده</option>
+        </select>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>لیست مقالات</CardTitle>
+          <CardTitle>لیست کارگاههای تولید</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="px-3 py-2 text-right">عنوان</th>
+                  <th className="px-3 py-2 text-right">موضوع</th>
                   <th className="px-3 py-2 text-right">دسته</th>
                   <th className="px-3 py-2 text-right">وضعیت</th>
+                  <th className="px-3 py-2 text-right">تاریخ ایجاد</th>
                   <th className="px-3 py-2 text-right">عملیات</th>
                 </tr>
               </thead>
               <tbody>
-                {paginated.map((post) => (
-                  <tr key={post.id || post._id} className="border-b">
+                {paginatedRuns.map((run) => (
+                  <tr key={run.id} className="border-b">
                     <td className="px-3 py-2 whitespace-nowrap max-w-[220px] truncate">
-                      {post.title}
+                      {run.topic}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap">{post.category}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">{run.category}</td>
                     <td className="px-3 py-2 whitespace-nowrap">
-                      {post.isPublished ? "منتشر شده" : "پیشنویس"}
+                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(run.status)}`}>
+                        {getStatusLabel(run.status)}
+                      </span>
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => openEdit(post)}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {new Date(run.created_at).toLocaleDateString("fa-IR")}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
                       <Button
-                        variant="danger"
+                        variant="outline"
                         size="sm"
-                        onClick={() => handleDelete(post.id || post._id!)}
+                        onClick={() => router.push(`/admin/blogs/${run.id}`)}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        مشاهده
                       </Button>
                     </td>
                   </tr>
                 ))}
-                {paginated.length === 0 && (
+                {paginatedRuns.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="text-center py-4">
-                      {isLoading ? "در حال بارگذاری..." : "مقاله‌ای یافت نشد"}
+                    <td colSpan={5} className="text-center py-4">
+                      {isLoading ? "در حال بارگذاری..." : "کارگاهی یافت نشد"}
                     </td>
                   </tr>
                 )}
@@ -206,14 +179,12 @@ export default function AdminBlogsPage() {
             </table>
           </div>
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex justify-center mt-4 gap-2">
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
                 <button
                   key={num}
-                  className={`px-3 py-1 rounded ${num === currentPage ? "bg-voxcina-blue text-white" : "bg-gray-200"
-                    }`}
+                  className={`px-3 py-1 rounded ${num === currentPage ? "bg-voxcina-blue text-white" : "bg-gray-200"}`}
                   onClick={() => setCurrentPage(num)}
                 >
                   {num}
@@ -223,86 +194,6 @@ export default function AdminBlogsPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg font-bold mb-4">
-              {editingPost ? "ویرایش مقاله" : "ایجاد مقاله"}
-            </h2>
-
-            {/* Form Fields */}
-            <div className="space-y-3">
-              <input
-                className="input w-full"
-                placeholder="عنوان *"
-                value={formData.title || ""}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              />
-              <input
-                className="input w-full"
-                placeholder="نامک (slug)"
-                value={formData.slug || ""}
-                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-              />
-              <input
-                className="input w-full"
-                placeholder="دسته"
-                value={formData.category || ""}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              />
-              <label className="block mb-1">کاور مقاله *</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setCoverImageFile(e.target.files?.[0] || null)}
-                className="input w-full"
-              />
-              {coverImageFile && (
-                <span className="text-xs text-gray-600">{coverImageFile.name}</span>
-              )}
-              <textarea
-                className="input w-full h-24"
-                placeholder="خلاصه"
-                value={formData.excerpt || ""}
-                onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
-              />
-              <textarea
-                className="input w-full h-40"
-                placeholder="محتوا (HTML) *"
-                value={formData.content || ""}
-                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              />
-              <input
-                className="input w-full"
-                placeholder="برچسب‌ها (با کاما جدا کنید)"
-                value={Array.isArray(formData.tags) ? (formData.tags as any).join(", ") : (formData.tags as unknown as string) || ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, tags: e.target.value.split(",").map((t) => t.trim()) })
-                }
-              />
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={Boolean(formData.isPublished)}
-                  onChange={(e) => setFormData({ ...formData, isPublished: e.target.checked })}
-                />
-                انتشار مقاله
-              </label>
-            </div>
-
-            <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => { setIsModalOpen(false); setEditingPost(null); }}>
-                لغو
-              </Button>
-              <Button onClick={handleSubmit}>
-                {editingPost ? "ذخیره تغییرات" : "ایجاد"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
-} 
+}
