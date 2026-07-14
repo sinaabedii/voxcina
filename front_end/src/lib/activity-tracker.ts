@@ -156,13 +156,28 @@ class ActivityTracker {
     }
   }
 
+  private isPageReload(): boolean {
+    try {
+      const entries = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
+      if (entries.length > 0 && entries[0].type === 'reload') {
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+    return false;
+  }
+
   /**
    * Track automatic page views
    */
   private initPageViewTracking() {
-    // Track initial page view
+    // Track initial page view — skip on reload since beforeunload already
+    // sent the final page_view with duration for the previous session.
     if (typeof window !== 'undefined') {
-      this.trackPageView();
+      if (!this.isPageReload()) {
+        this.trackPageView();
+      }
 
       // Track page views on route changes (for SPAs)
       let lastPath = window.location.pathname;
@@ -557,30 +572,3 @@ class ActivityTracker {
 
 // Export singleton instance
 export const activityTracker = new ActivityTracker();
-
-// Auto-track common events
-if (typeof window !== 'undefined') {
-  // Track clicks on links. Links with `data-activity-tracked="true"` are
-  // expected to fire their own structured product_click event (e.g. product
-  // cards), so we skip them here to avoid duplicate tracking.
-  document.addEventListener('click', (e) => {
-    const target = e.target;
-    if (!(target instanceof Element)) return;
-
-    const link = target.closest('a');
-
-    if (link && link.href && link.getAttribute('data-activity-tracked') !== 'true') {
-      const href = link.getAttribute('href');
-      if (href && !href.startsWith('#')) {
-        activityTracker.track({
-          activityType: ActivityType.PRODUCT_CLICK,
-          metadata: {
-            source: 'global_link',
-            linkText: link.textContent?.trim().slice(0, 200),
-            linkHref: href,
-          },
-        });
-      }
-    }
-  });
-}

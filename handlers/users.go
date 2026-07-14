@@ -1777,8 +1777,14 @@ func FilterUsers(w http.ResponseWriter, r *http.Request) {
 	filter := bson.M{"is_active": true}
 
 	// Filter by mobile app status
+	// When filtering for false, use $ne: true to match both "field is false" AND "field doesn't exist"
+	// Most users who never used the app don't have the field at all
 	if req.HasMobileApp != nil {
-		filter["has_mobile_app"] = *req.HasMobileApp
+		if *req.HasMobileApp {
+			filter["has_mobile_app"] = true
+		} else {
+			filter["has_mobile_app"] = bson.M{"$ne": true}
+		}
 	}
 
 	// Filter by registration date range
@@ -1970,8 +1976,14 @@ func GetFilteredUserCount(w http.ResponseWriter, r *http.Request) {
 	filter := bson.M{"is_active": true}
 
 	// Filter by mobile app status
+	// When filtering for false, use $ne: true to match both "field is false" AND "field doesn't exist"
+	// Most users who never used the app don't have the field at all
 	if req.HasMobileApp != nil {
-		filter["has_mobile_app"] = *req.HasMobileApp
+		if *req.HasMobileApp {
+			filter["has_mobile_app"] = true
+		} else {
+			filter["has_mobile_app"] = bson.M{"$ne": true}
+		}
 	}
 
 	// Filter by registration date range
