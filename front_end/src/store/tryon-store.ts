@@ -340,17 +340,18 @@ export const useTryOnStore = create<TryOnState>()(
     },
 
     persistMessage: async (msg: TryonChatMessage) => {
-      const { chatId } = get();
+      const { chatId, persistedMessages } = get();
       if (!chatId) return;
       try {
         await appendTryonMessages({ chat_id: chatId, messages: [msg] });
+        set({ persistedMessages: [...persistedMessages, msg] });
       } catch {
         // non-blocking; server is best-effort
       }
     },
 
     persistTryonMessage: async (data: PersistedTryon) => {
-      const { chatId } = get();
+      const { chatId, persistedMessages } = get();
       if (!chatId) return;
       const msg: TryonChatMessage = {
         id: makeMessageId(),
@@ -371,7 +372,7 @@ export const useTryOnStore = create<TryOnState>()(
       };
       try {
         await appendTryonMessages({ chat_id: chatId, messages: [msg] });
-        // Also link the tryon_id to the chat in case the message insert was skipped
+        set({ persistedMessages: [...persistedMessages, msg] });
         try {
           await linkTryonToChat({ chat_id: chatId, tryon_id: data.tryon_id });
         } catch {
