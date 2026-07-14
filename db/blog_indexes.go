@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -218,12 +219,16 @@ func EnsureBlogCollections(database *mongo.Database) error {
 	}
 
 	for _, collName := range collections {
-		_, err := database.Collection(collName).InsertOne(context.Background(), bson.M{"_id": bson.NewObjectID()})
+		// Use CreateCollection with valid options; suppress error if collection already exists
+		opts := options.CreateCollection()
+		err := database.CreateCollection(context.Background(), collName, opts)
 		if err != nil {
-			// Collection might already exist, that's fine
-			if err != mongo.ErrCollectionExists {
-				log.Printf("Warning: Could not ensure collection %s: %v", collName, err)
+			// If collection already exists, MongoDB returns NamespaceExists (48)
+			// We ignore that specific case and log others.
+			if mongo.IsDuplicateKeyError(err) || err.Error() == "collection already exists" {
+				continue
 			}
+			log.Printf("Warning: Could not ensure collection %s: %v", collName, err)
 		}
 	}
 
