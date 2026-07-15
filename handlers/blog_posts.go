@@ -296,8 +296,25 @@ func ApprovePipelineRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now()
+	var newStatus string
+	switch run.Status {
+	case models.PipelineResearching:
+		newStatus = models.PipelineResearchApproved
+	case models.PipelineResearchApproved:
+		newStatus = models.PipelineWriting
+	case models.PipelineWriting:
+		newStatus = models.PipelineContentApproved
+	case models.PipelinePrompts:
+		newStatus = models.PipelinePromptsApproved
+	case models.PipelinePromptsApproved:
+		newStatus = models.PipelineReady
+	default:
+		utils.ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Cannot approve from status '%s'", run.Status))
+		return
+	}
+
 	set := bson.M{
-		"status":     models.PipelineResearchApproved,
+		"status":     newStatus,
 		"approved_at": &now,
 		"updated_at": now,
 	}
@@ -307,7 +324,7 @@ func ApprovePipelineRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.JSONResponse(w, http.StatusOK, run)
+	utils.JSONResponse(w, http.StatusOK, map[string]string{"status": newStatus})
 }
 
 // ---------- Admin: Blog Posts ----------
@@ -714,8 +731,8 @@ func TriggerResearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if run.Status != models.PipelineBrief {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Can only trigger research from 'brief' status")
+	if run.Status != models.PipelineBrief && run.Status != models.PipelineResearching {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Can only trigger research from 'brief' or 'researching' status")
 		return
 	}
 

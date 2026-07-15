@@ -280,7 +280,7 @@ Generate comprehensive research for the following topic:
 
 **Topic:** %s
 **Audience:** %s
-**Desired Length:** %s
+**Desired Length:** %d
 **Tone:** %s
 **Keywords:** %s
 **Category:** %s

@@ -158,7 +158,7 @@ func (wa *WritingAgent) buildWritingPrompt(snapshot *ResearchSnapshot) string {
 
 **Topic:** %s
 **Audience:** %s
-**Desired Length:** %s words
+**Desired Length:** %d words
 **Tone:** %s
 **Category:** %s
 **Keywords:** %s

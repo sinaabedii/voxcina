@@ -29,7 +29,7 @@ export default function ResearchStage({ run, sources, onApprove, onTriggerResear
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onTriggerResearch} disabled={run.status !== "brief"}>
+          <Button variant="outline" onClick={onTriggerResearch} disabled={run.status !== "brief" && run.status !== "researching"}>
             شروع مجدد تحقیق
           </Button>
           <Button onClick={onApprove} disabled={run.status !== "research_approved"}>

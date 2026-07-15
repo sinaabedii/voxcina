@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
@@ -19,6 +20,7 @@ type BlogWorker struct {
 	repo         *BlogRepository
 	braveClient  *BraveSearchClient
 	structClient *OpenRouterStructuredClient
+	researchAgent *ResearchAgent
 	concurrency  int
 	maxRetries   int
 	running      bool
@@ -27,7 +29,7 @@ type BlogWorker struct {
 }
 
 // NewBlogWorker creates a new BlogWorker.
-func NewBlogWorker(repo *BlogRepository, braveClient *BraveSearchClient, structClient *OpenRouterStructuredClient, concurrency, maxRetries int) *BlogWorker {
+func NewBlogWorker(repo *BlogRepository, braveClient *BraveSearchClient, structClient *OpenRouterStructuredClient, researchAgent *ResearchAgent, concurrency, maxRetries int) *BlogWorker {
 	if concurrency <= 0 {
 		concurrency = 3
 	}
@@ -35,12 +37,13 @@ func NewBlogWorker(repo *BlogRepository, braveClient *BraveSearchClient, structC
 		maxRetries = 3
 	}
 	return &BlogWorker{
-		repo:         repo,
-		braveClient:  braveClient,
-		structClient: structClient,
-		concurrency:  concurrency,
-		maxRetries:   maxRetries,
-		stopCh:       make(chan struct{}),
+		repo:          repo,
+		braveClient:   braveClient,
+		structClient:  structClient,
+		researchAgent: researchAgent,
+		concurrency:   concurrency,
+		maxRetries:    maxRetries,
+		stopCh:        make(chan struct{}),
 	}
 }
 
@@ -171,39 +174,30 @@ func (w *BlogWorker) runStage(ctx context.Context, exec *models.BlogAgentExecuti
 	w.updatePipelineStatus(ctx, exec.PipelineRunID, stage)
 }
 
-// runResearch performs the research stage.
+// runResearch performs the research stage using the ResearchAgent.
 func (w *BlogWorker) runResearch(ctx context.Context, exec *models.BlogAgentExecution) (string, string, string, string, string, string, string, int, string) {
-	// Load pipeline run to get topic and keywords
 	run, err := w.repo.FindPipelineRunByID(ctx, exec.PipelineRunID)
 	if err != nil {
 		return "", "", fmt.Sprintf("failed to load pipeline run: %v", err), "", "", "", "", 0, ""
 	}
 
-	// Use Brave Search for research
-	var sources []LLMContextSource
-	for _, kw := range run.Keywords {
-		resp, err := w.braveClient.SearchLLMContext(ctx, kw, SearchOptions{Count: 3})
-		if err != nil {
-			// Fall back to web search
-			results, ferr := w.braveClient.SearchWeb(ctx, kw, SearchOptions{Count: 3})
-			if ferr != nil {
-				continue
-			}
-			for _, r := range results {
-				sources = append(sources, LLMContextSource{URL: r.URL, Title: r.Title, Snippet: r.Snippet})
-			}
-		} else {
-			sources = append(sources, resp.Data...)
-		}
+	brief := &models.GenerationBrief{
+		Topic:          run.Topic,
+		Locale:         run.Locale,
+		TargetAudience: run.TargetAudience,
+		DesiredLength:  run.DesiredLength,
+		Tone:           run.Tone,
+		Keywords:       run.Keywords,
+		Category:       run.Category,
 	}
 
-	// Build research summary
-	researchSummary := fmt.Sprintf("Researched %d sources for topic: %s", len(sources), run.Topic)
-	if len(sources) > 0 {
-		researchSummary += fmt.Sprintf(". Top sources: %s", sources[0].URL)
+	snapshot, err := w.researchAgent.RunResearch(ctx, run, brief)
+	if err != nil {
+		return "", "", fmt.Sprintf("research failed: %v", err), "", "", "openrouter", "qwen/qwen3.7-plus", 0, ""
 	}
 
-	return researchSummary, researchSummary, "", "blog.research", "1", "brave", "brave-search", len(sources), ""
+	outputJSON, _ := json.Marshal(snapshot)
+	return string(outputJSON), string(outputJSON), "", "blog.research", "1", "openrouter", "qwen/qwen3.7-plus", len(snapshot.Sources), ""
 }
 
 // runWrite performs the writing stage.
@@ -286,7 +280,7 @@ func (w *BlogWorker) updatePipelineStatus(ctx context.Context, runID primitive.O
 	var newStatus string
 	switch completedStage {
 	case models.StageResearch:
-		newStatus = models.PipelineResearchApproved
+		newStatus = models.PipelineResearching
 	case models.StageWrite:
 		newStatus = models.PipelineContentApproved
 	case models.StagePrompts:
