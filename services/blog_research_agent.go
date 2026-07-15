@@ -2,14 +2,13 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
-	"math/rand"
 	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"backEnd/models"
 )
@@ -67,6 +66,9 @@ type ResearchSnapshot struct {
 // RunResearch executes the research stage
 func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipelineRun, brief *models.GenerationBrief) (*ResearchSnapshot, error) {
 	log.Printf("[blog] Starting research for run %s, topic: %s", run.ID.Hex(), brief.Topic)
+	startTime := time.Now()
+	now := time.Now()
+	completedAt := &now
 
 	// Generate search queries
 	queries := ra.generateQueries(brief)
@@ -74,7 +76,13 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 
 	// Fetch research from Brave
 	allSources := make([]models.BlogResearchSource, 0)
-	allFindings := make([]ResearchFinding, 0)
+
+	type braveResult struct {
+		URL              string
+		Title            string
+		Snippet          string
+		ExtractedContent string
+	}
 
 	for _, query := range queries {
 		select {
@@ -84,41 +92,38 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 		}
 
 		// Try LLM Context first, fall back to web search
-		var sources []BraveSearchResult
-		var err error
+		var rawSources []braveResult
 
-		sources, err = ra.braveClient.SearchLLMContext(ctx, query, &BraveSearchOptions{
-			MaximumNumberOfURLs:        20,
-			MaximumNumberOfTokens:      8192,
-			MaximumNumberOfSnippets:    50,
-			ContextThresholdMode:       "balanced",
-		})
-
-		if err != nil {
-			log.Printf("[blog] LLM Context failed for query '%s': %v, trying web search", query, err)
-			sources, err = ra.braveClient.SearchWeb(ctx, query, &BraveSearchOptions{
-				Count: 20,
-			})
-			if err != nil {
-				log.Printf("[blog] Web search also failed for query '%s': %v", query, err)
+		llmResp, llmErr := ra.braveClient.SearchLLMContext(ctx, query, SearchOptions{Count: 20})
+		if llmErr != nil {
+			log.Printf("[blog] LLM Context failed for query '%s': %v, trying web search", query, llmErr)
+			webResults, werr := ra.braveClient.SearchWeb(ctx, query, SearchOptions{Count: 20})
+			if werr != nil {
+				log.Printf("[blog] Web search also failed for query '%s': %v", query, werr)
 				continue
+			}
+			for _, r := range webResults {
+				rawSources = append(rawSources, braveResult{URL: r.URL, Title: r.Title, Snippet: r.Snippet, ExtractedContent: r.Snippet})
+			}
+		} else {
+			for _, s := range llmResp.Data {
+				rawSources = append(rawSources, braveResult{URL: s.URL, Title: s.Title, Snippet: s.Snippet, ExtractedContent: s.Content})
 			}
 		}
 
 		// Process sources
-		for i, src := range sources {
+		for i, src := range rawSources {
 			source := models.BlogResearchSource{
-				PipelineRunID: run.ID,
-				Query:         query,
-				Provider:      "brave_llm_context",
-				URL:           src.URL,
-				Title:         src.Title,
-				Snippet:       src.Snippet,
+				PipelineRunID:    run.ID,
+				Query:            query,
+				Provider:         "brave_llm_context",
+				URL:              src.URL,
+				Title:            src.Title,
+				Snippet:          src.Snippet,
 				ExtractedContent: src.ExtractedContent,
-				SourceIndex:   i,
-				PublishedAt:   src.PublishedAt,
-				FetchedAt:     time.Now(),
-				CreatedAt:     time.Now(),
+				SourceIndex:      i,
+				FetchedAt:        time.Now(),
+				CreatedAt:        time.Now(),
 			}
 
 			// Extract claims from content
@@ -137,7 +142,7 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 
 	// Save sources to database
 	for _, source := range allSources {
-		if _, err := ra.repository.InsertResearchSource(ctx, source); err != nil {
+		if err := ra.repository.InsertResearchSource(ctx, &source); err != nil {
 			log.Printf("[blog] Warning: failed to save source %s: %v", source.URL, err)
 		}
 	}
@@ -148,28 +153,28 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 		Stage:         "research",
 		Attempt:       1,
 		InputSnapshot: bson.M{
-			"brief": brief,
+			"brief":   brief,
 			"queries": queries,
 		},
 		ParsedOutput: bson.M{
-			"findings":     researchOutput.Findings,
-			"outline":      researchOutput.Outline,
-			"uncertainties": researchOutput.Uncertainties,
-			"prohibited_claims": researchOutput.ProhibitedClaims,
+			"findings":            researchOutput.Findings,
+			"outline":             researchOutput.Outline,
+			"uncertainties":       researchOutput.Uncertainties,
+			"prohibited_claims":   researchOutput.ProhibitedClaims,
 			"recommended_category": researchOutput.RecommendedCategory,
-			"recommended_tags": researchOutput.RecommendedTags,
+			"recommended_tags":    researchOutput.RecommendedTags,
 		},
-		Provider:     "openrouter",
-		Model:        "qwen/qwen3.7-plus",
-		TokenUsage:   0, // Will be updated after actual call
-		DurationMs:   int64(time.Since(startTime).Milliseconds()),
-		Status:       "completed",
-		CreatedAt:    time.Now(),
-		StartedAt:    startTime,
-		CompletedAt:  time.Now(),
+		Provider:    "openrouter",
+		Model:       "qwen/qwen3.7-plus",
+		TokenUsage:  0,
+		DurationMs:  int64(time.Since(startTime).Milliseconds()),
+		Status:      "completed",
+		CreatedAt:   time.Now(),
+		StartedAt:   &startTime,
+		CompletedAt: completedAt,
 	}
 
-	if _, err := ra.repository.InsertAgentExecution(ctx, execution); err != nil {
+	if err := ra.repository.InsertAgentExecution(ctx, &execution); err != nil {
 		log.Printf("[blog] Warning: failed to save execution record: %v", err)
 	}
 
@@ -182,7 +187,7 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 
 	// Update run status
 	run.Status = "research_approved"
-	run.ApprovedAt = time.Now()
+	run.ApprovedAt = &now
 	if err := ra.repository.UpdatePipelineRun(ctx, run); err != nil {
 		return nil, fmt.Errorf("failed to update run status: %w", err)
 	}
@@ -411,11 +416,17 @@ func truncateString(s string, maxLen int) string {
 	return s[:maxLen] + "..."
 }
 
-// parseBSONToStruct converts BSON to struct (simplified version)
+// parseBSONToStruct converts a structured response or JSON string into the target struct.
 func parseBSONToStruct(bsonData interface{}, target interface{}) error {
-	// In a real implementation, this would use bson.Marshal/Unmarshal
-	// For now, we'll assume the data is already in the right format
-	return nil
+	switch v := bsonData.(type) {
+	case *StructuredResponse:
+		if v == nil || v.Content == "" {
+			return fmt.Errorf("empty structured response")
+		}
+		return json.Unmarshal([]byte(v.Content), target)
+	case string:
+		return json.Unmarshal([]byte(v), target)
+	default:
+		return fmt.Errorf("unsupported parse type %T", bsonData)
+	}
 }
-
-var startTime = time.Now()

@@ -100,7 +100,7 @@ func (w *BlogWorker) processNext(workerID int) {
 	// Try stages in order: research -> write -> prompts
 	stages := []string{models.StageResearch, models.StageWrite, models.StagePrompts}
 	for _, stage := range stages {
-		exec, err := w.findAndLease(ctx, stage, workerID)
+		exec, err := w.findAndLease(ctx, stage, fmt.Sprintf("%d", workerID))
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
 				continue
@@ -294,7 +294,7 @@ func (w *BlogWorker) updatePipelineStatus(ctx context.Context, runID primitive.O
 	}
 
 	if newStatus != "" && run.Status != newStatus {
-		w.repo.UpdatePipelineRun(ctx, runID, bson.M{
+		w.repo.UpdatePipelineRunStatus(ctx, runID, bson.M{
 			"status":     newStatus,
 			"updated_at": time.Now(),
 		})

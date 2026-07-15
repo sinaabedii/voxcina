@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -262,8 +263,8 @@ func resolveHost(host string) (netip.Addr, error) {
 	if len(addrs) == 0 {
 		return netip.Addr{}, fmt.Errorf("no addresses found for %s", host)
 	}
-	addr, ok := netip.ParseAddr(addrs[0].String())
-	if !ok {
+	addr, err := netip.ParseAddr(addrs[0].String())
+	if err != nil {
 		return netip.Addr{}, fmt.Errorf("invalid IP: %s", addrs[0])
 	}
 	return addr, nil

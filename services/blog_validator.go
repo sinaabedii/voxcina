@@ -231,3 +231,25 @@ func ValidateTextBlockNoHTML(blocks []models.BlogBlock) *ValidationResult {
 	}
 	return vr
 }
+
+// BlogValidator validates blog blocks and orchestrates all block-level checks.
+type BlogValidator struct{}
+
+// NewBlogValidator creates a new BlogValidator.
+func NewBlogValidator() *BlogValidator {
+	return &BlogValidator{}
+}
+
+// ValidateBlocks runs all block validations and returns a combined error if invalid.
+func (v *BlogValidator) ValidateBlocks(blocks []models.BlogBlock) error {
+	combined := &ValidationResult{}
+	combined.Errors = append(combined.Errors, ValidateBlockOrder(blocks).Errors...)
+	combined.Errors = append(combined.Errors, ValidateHeadingHierarchy(blocks).Errors...)
+	combined.Errors = append(combined.Errors, ValidateTextBlockNoHTML(blocks).Errors...)
+	combined.Errors = append(combined.Errors, ValidateImageCountPolicy(blocks).Errors...)
+
+	if !combined.IsValid() {
+		return fmt.Errorf("block validation failed: %s", combined.Error())
+	}
+	return nil
+}

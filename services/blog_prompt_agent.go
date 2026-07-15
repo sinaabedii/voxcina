@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"backEnd/models"
 )
@@ -46,6 +45,9 @@ type ImagePrompt struct {
 // RunPromptGeneration executes the prompt generation stage
 func (pa *PromptAgent) RunPromptGeneration(ctx context.Context, run *models.BlogPipelineRun, post *models.BlogPost) (*PromptOutput, error) {
 	log.Printf("[blog] Starting prompt generation for post %s", post.ID.Hex())
+	startTime := time.Now()
+	now := time.Now()
+	completedAt := &now
 
 	// Extract content from blocks
 	contentSummary := pa.extractContentSummary(post.Blocks)
@@ -88,17 +90,17 @@ func (pa *PromptAgent) RunPromptGeneration(ctx context.Context, run *models.Blog
 		DurationMs:    int64(time.Since(startTime).Milliseconds()),
 		Status:        "completed",
 		CreatedAt:     time.Now(),
-		StartedAt:     startTime,
-		CompletedAt:   time.Now(),
+		StartedAt:     &startTime,
+		CompletedAt:   completedAt,
 	}
 
-	if _, err := pa.repository.InsertAgentExecution(ctx, execution); err != nil {
+	if err := pa.repository.InsertAgentExecution(ctx, &execution); err != nil {
 		log.Printf("[blog] Warning: failed to save execution record: %v", err)
 	}
 
 	// Update run status
 	run.Status = "prompts_approved"
-	run.ApprovedAt = time.Now()
+	run.ApprovedAt = &now
 	if err := pa.repository.UpdatePipelineRun(ctx, run); err != nil {
 		return nil, fmt.Errorf("failed to update run status: %w", err)
 	}

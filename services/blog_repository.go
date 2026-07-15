@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -118,6 +119,75 @@ func (r *BlogRepository) InsertPost(ctx context.Context, post *models.BlogPost) 
 	return err
 }
 
+// InsertBlogPost is an alias for InsertPost used by the writing agent.
+func (r *BlogRepository) InsertBlogPost(ctx context.Context, post *models.BlogPost) error {
+	return r.InsertPost(ctx, post)
+}
+
+// UpdateBlogPost updates all mutable fields of a blog post by ID.
+func (r *BlogRepository) UpdateBlogPost(ctx context.Context, post *models.BlogPost) error {
+	set := bson.M{
+		"title":           post.Title,
+		"slug":            post.Slug,
+		"excerpt":         post.Excerpt,
+		"blocks":          post.Blocks,
+		"cover_image_id":  post.CoverImageID,
+		"category":        post.Category,
+		"tags":            post.Tags,
+		"status":          post.Status,
+		"pipeline_run_id": post.PipelineRunID,
+		"author_snapshot": post.AuthorSnapshot,
+		"read_time":       post.ReadTime,
+		"updated_at":      post.UpdatedAt,
+	}
+	if post.PublishedAt != nil {
+		set["published_at"] = post.PublishedAt
+	}
+	return r.UpdatePost(ctx, post.ID, set)
+}
+
+// GetBlogPostByID is an alias for FindPostByID used by the workflow.
+func (r *BlogRepository) GetBlogPostByID(ctx context.Context, id primitive.ObjectID) (*models.BlogPost, error) {
+	return r.FindPostByID(ctx, id)
+}
+
+// PublishMedia moves all media for a post into the published state.
+func (r *BlogRepository) PublishMedia(ctx context.Context, postID primitive.ObjectID) error {
+	media, err := r.FindMediaByPostID(ctx, postID)
+	if err != nil {
+		return err
+	}
+	for _, m := range media {
+		now := time.Now()
+		if err := r.UpdateMedia(ctx, m.ID, bson.M{
+			"public_path":  m.FilePath,
+			"published_at": &now,
+			"updated_at":   now,
+		}); err != nil {
+			log.Printf("[blog] Warning: failed to publish media %s: %v", m.ID.Hex(), err)
+		}
+	}
+	return nil
+}
+
+// UnpublishMedia moves all media for a post back to draft state.
+func (r *BlogRepository) UnpublishMedia(ctx context.Context, postID primitive.ObjectID) error {
+	media, err := r.FindMediaByPostID(ctx, postID)
+	if err != nil {
+		return err
+	}
+	for _, m := range media {
+		if err := r.UpdateMedia(ctx, m.ID, bson.M{
+			"public_path":  "",
+			"published_at": nil,
+			"updated_at":   time.Now(),
+		}); err != nil {
+			log.Printf("[blog] Warning: failed to unpublish media %s: %v", m.ID.Hex(), err)
+		}
+	}
+	return nil
+}
+
 // UpdatePost updates a blog post by ID with the given $set fields.
 func (r *BlogRepository) UpdatePost(ctx context.Context, id primitive.ObjectID, set bson.M) error {
 	collection := r.db.Collection("blog_posts")
@@ -208,11 +278,31 @@ func (r *BlogRepository) FindPipelineRunByID(ctx context.Context, id primitive.O
 	return &run, nil
 }
 
-// UpdatePipelineRun updates a pipeline run by ID.
-func (r *BlogRepository) UpdatePipelineRun(ctx context.Context, id primitive.ObjectID, set bson.M) error {
+// GetPipelineRunByID is an alias for FindPipelineRunByID used by the workflow.
+func (r *BlogRepository) GetPipelineRunByID(ctx context.Context, id primitive.ObjectID) (*models.BlogPipelineRun, error) {
+	return r.FindPipelineRunByID(ctx, id)
+}
+
+// UpdatePipelineRunStatus updates a pipeline run by ID with the given $set fields.
+func (r *BlogRepository) UpdatePipelineRunStatus(ctx context.Context, id primitive.ObjectID, set bson.M) error {
 	collection := r.db.Collection("blog_pipeline_runs")
 	_, err := collection.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": set})
 	return err
+}
+
+// UpdatePipelineRun updates a pipeline run entity by persisting its mutable fields.
+func (r *BlogRepository) UpdatePipelineRun(ctx context.Context, run *models.BlogPipelineRun) error {
+	set := bson.M{
+		"status":     run.Status,
+		"updated_at": run.UpdatedAt,
+	}
+	if run.ApprovedAt != nil {
+		set["approved_at"] = run.ApprovedAt
+	}
+	if run.PostID != "" {
+		set["post_id"] = run.PostID
+	}
+	return r.UpdatePipelineRunStatus(ctx, run.ID, set)
 }
 
 // ListPipelineRuns returns paginated pipeline runs.
@@ -245,6 +335,11 @@ func (r *BlogRepository) InsertExecution(ctx context.Context, exec *models.BlogA
 	collection := r.db.Collection("blog_agent_executions")
 	_, err := collection.InsertOne(ctx, exec)
 	return err
+}
+
+// InsertAgentExecution is an alias for InsertExecution used by the agents.
+func (r *BlogRepository) InsertAgentExecution(ctx context.Context, exec *models.BlogAgentExecution) error {
+	return r.InsertExecution(ctx, exec)
 }
 
 // FindExecutionsByRunID returns all executions for a pipeline run.

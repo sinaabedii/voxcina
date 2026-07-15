@@ -34,6 +34,9 @@ func NewWritingAgent(openRouter *OpenRouterStructuredClient, repository *BlogRep
 // RunWriting executes the writing stage
 func (wa *WritingAgent) RunWriting(ctx context.Context, run *models.BlogPipelineRun, snapshot *ResearchSnapshot) (*models.BlogPost, error) {
 	log.Printf("[blog] Starting writing for run %s, topic: %s", run.ID.Hex(), snapshot.GenerationBrief.Topic)
+	startTime := time.Now()
+	now := time.Now()
+	completedAt := &now
 
 	// Build writing prompt
 	prompt := wa.buildWritingPrompt(snapshot)
@@ -75,11 +78,11 @@ func (wa *WritingAgent) RunWriting(ctx context.Context, run *models.BlogPipeline
 		Category:        writingResult.RecommendedCategory,
 		Tags:            writingResult.RecommendedTags,
 		Status:          "content_review",
-		PipelineRunID:   run.ID,
+		PipelineRunID:   run.ID.Hex(),
 		ContentRevision: 1,
 		ContentHash:     contentHash,
 		ReadTime:        wa.calculateReadTime(writingResult.Blocks),
-		AuthorSnapshot: models.BlogAuthor{
+		AuthorSnapshot: models.AuthorSnapshot{
 			Name:   "تیم وکسینا",
 			Avatar: "/uploads/authors/default.jpg",
 		},
@@ -112,18 +115,18 @@ func (wa *WritingAgent) RunWriting(ctx context.Context, run *models.BlogPipeline
 		DurationMs:  int64(time.Since(startTime).Milliseconds()),
 		Status:      "completed",
 		CreatedAt:   time.Now(),
-		StartedAt:   startTime,
-		CompletedAt: time.Now(),
+		StartedAt:   &startTime,
+		CompletedAt: completedAt,
 	}
 
-	if _, err := wa.repository.InsertAgentExecution(ctx, execution); err != nil {
+	if err := wa.repository.InsertAgentExecution(ctx, &execution); err != nil {
 		log.Printf("[blog] Warning: failed to save execution record: %v", err)
 	}
 
 	// Update run status
-	run.PostID = post.ID
+	run.PostID = post.ID.Hex()
 	run.Status = "content_approved"
-	run.ApprovedAt = time.Now()
+	run.ApprovedAt = &now
 	if err := wa.repository.UpdatePipelineRun(ctx, run); err != nil {
 		return nil, fmt.Errorf("failed to update run status: %w", err)
 	}
@@ -364,4 +367,41 @@ func writingOutputSchema() map[string]interface{} {
 			"required": []string{"blocks", "excerpt"},
 		},
 	}
+}
+
+// generateSlug creates a URL-safe slug from a Persian/English title.
+func generateSlug(title string) string {
+	if title == "" {
+		return "untitled"
+	}
+	replacer := strings.NewReplacer(
+		" ", "-",
+		"‌", "-", // Persian ZWNJ
+		"،", "-",
+		"؟", "",
+		"!", "",
+		"?", "",
+		":", "",
+		";", "",
+		",", "",
+		".", "",
+		"(", "",
+		")", "",
+		"/", "-",
+	)
+	s := replacer.Replace(strings.ToLower(strings.TrimSpace(title)))
+	s = strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
+			return r
+		}
+		return -1
+	}, s)
+	for strings.Contains(s, "--") {
+		s = strings.ReplaceAll(s, "--", "-")
+	}
+	s = strings.Trim(s, "-")
+	if s == "" {
+		return "untitled"
+	}
+	return s
 }

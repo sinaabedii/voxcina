@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -34,6 +35,7 @@ const (
 	PipelineResearchApproved = "research_approved"
 	PipelineWriting          = "writing"
 	PipelineContentApproved  = "content_approved"
+	PipelinePrompts          = "prompts"
 	PipelinePromptsGenerated = "prompts_generated"
 	PipelinePromptsApproved  = "prompts_approved"
 	PipelineMediaPending     = "media_pending"
@@ -48,6 +50,17 @@ const (
 	StageWrite    = "write"
 	StagePrompts  = "prompts"
 )
+
+// Agent execution statuses.
+const (
+	ExecutionPending   = "pending"
+	ExecutionProcessing = "processing"
+	ExecutionCompleted  = "completed"
+	ExecutionFailed     = "failed"
+)
+
+// Claim is an alias for SourceClaim for ergonomic use in agent code.
+type Claim = SourceClaim
 
 // BlogBlock is a single content block within a blog post.
 type BlogBlock struct {
@@ -117,9 +130,8 @@ type BlogAgentExecution struct {
 	PipelineRunID primitive.ObjectID `bson:"pipeline_run_id" json:"pipelineRunId"`
 	Stage         string             `bson:"stage" json:"stage"`
 	Attempt       int                `bson:"attempt" json:"attempt"`
-	InputSnapshot string             `bson:"input_snapshot" json:"inputSnapshot"`
-	ParsedOutput  string             `bson:"parsed_output,omitempty" json:"parsedOutput,omitempty"`
-	RawResponse   string             `bson:"raw_response,omitempty" json:"rawResponse,omitempty"`
+	InputSnapshot bson.M             `bson:"input_snapshot,omitempty" json:"inputSnapshot,omitempty"`
+	ParsedOutput  bson.M             `bson:"parsed_output,omitempty" json:"parsedOutput,omitempty"`
 	PromptKey     string             `bson:"prompt_key,omitempty" json:"promptKey,omitempty"`
 	PromptVersion string             `bson:"prompt_version,omitempty" json:"promptVersion,omitempty"`
 	RenderedPrompt string            `bson:"rendered_prompt,omitempty" json:"renderedPrompt,omitempty"`

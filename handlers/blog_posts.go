@@ -10,7 +10,6 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -22,6 +21,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"backEnd/db"
 	"backEnd/models"
@@ -302,7 +302,7 @@ func ApprovePipelineRun(w http.ResponseWriter, r *http.Request) {
 		"updated_at": now,
 	}
 
-	if err := repo.UpdatePipelineRun(ctx, id, set); err != nil {
+	if err := repo.UpdatePipelineRunStatus(ctx, id, set); err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error approving pipeline run: "+err.Error())
 		return
 	}
@@ -326,9 +326,8 @@ func GetAdminBlogPosts(w http.ResponseWriter, r *http.Request) {
 		limit = 10
 	}
 
-	repo := services.NewBlogRepository(db.Database)
 	collection := db.Database.Collection("blog_posts")
-	opts := mongoOptions().SetSkip((page - 1) * limit).SetLimit(limit).SetSort(bson.D{{Key: "created_at", Value: -1}})
+	opts := options.Find().SetSkip((page - 1) * limit).SetLimit(limit).SetSort(bson.D{{Key: "created_at", Value: -1}})
 	cursor, err := collection.Find(ctx, bson.M{}, opts)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching blog posts: "+err.Error())
@@ -729,7 +728,7 @@ func TriggerResearch(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:     time.Now(),
 	}
 
-	if _, err := repo.InsertAgentExecution(ctx, execution); err != nil {
+	if err := repo.InsertAgentExecution(ctx, &execution); err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error queuing research: "+err.Error())
 		return
 	}
@@ -737,7 +736,7 @@ func TriggerResearch(w http.ResponseWriter, r *http.Request) {
 	// Update run status
 	run.Status = models.PipelineResearching
 	run.UpdatedAt = time.Now()
-	repo.UpdatePipelineRun(ctx, runID, bson.M{"status": run.Status, "updated_at": run.UpdatedAt})
+	repo.UpdatePipelineRunStatus(ctx, runID, bson.M{"status": run.Status, "updated_at": run.UpdatedAt})
 
 	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Research queued"})
 }
@@ -776,7 +775,7 @@ func TriggerWriting(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:     time.Now(),
 	}
 
-	if _, err := repo.InsertAgentExecution(ctx, execution); err != nil {
+	if err := repo.InsertAgentExecution(ctx, &execution); err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error queuing writing: "+err.Error())
 		return
 	}
@@ -784,7 +783,7 @@ func TriggerWriting(w http.ResponseWriter, r *http.Request) {
 	// Update run status
 	run.Status = models.PipelineWriting
 	run.UpdatedAt = time.Now()
-	repo.UpdatePipelineRun(ctx, runID, bson.M{"status": run.Status, "updated_at": run.UpdatedAt})
+	repo.UpdatePipelineRunStatus(ctx, runID, bson.M{"status": run.Status, "updated_at": run.UpdatedAt})
 
 	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Writing queued"})
 }
@@ -823,7 +822,7 @@ func TriggerPromptGeneration(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:     time.Now(),
 	}
 
-	if _, err := repo.InsertAgentExecution(ctx, execution); err != nil {
+	if err := repo.InsertAgentExecution(ctx, &execution); err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error queuing prompts: "+err.Error())
 		return
 	}
@@ -831,7 +830,7 @@ func TriggerPromptGeneration(w http.ResponseWriter, r *http.Request) {
 	// Update run status
 	run.Status = models.PipelinePrompts
 	run.UpdatedAt = time.Now()
-	repo.UpdatePipelineRun(ctx, runID, bson.M{"status": run.Status, "updated_at": run.UpdatedAt})
+	repo.UpdatePipelineRunStatus(ctx, runID, bson.M{"status": run.Status, "updated_at": run.UpdatedAt})
 
 	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Prompt generation queued"})
 }
@@ -884,8 +883,4 @@ func gcd(a, b int) int {
 		a, b = b, a%b
 	}
 	return a
-}
-
-func mongoOptions() *mongo.FindOptions {
-	return &mongo.FindOptions{}
 }

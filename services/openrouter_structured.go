@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -47,6 +48,19 @@ type StructuredResponse struct {
 		CompletionTokens int `json:"completion_tokens"`
 		TotalTokens      int `json:"total_tokens"`
 	}
+}
+
+// defaultStructuredModel is used by CallWithSchema when no model is specified.
+const defaultStructuredModel = "qwen/qwen3.7-plus"
+
+// CallWithSchema sends a single user prompt with a JSON schema and returns the parsed response.
+func (c *OpenRouterStructuredClient) CallWithSchema(ctx context.Context, prompt string, schema map[string]interface{}) (*StructuredResponse, error) {
+	req := StructuredRequest{
+		Model:    defaultStructuredModel,
+		Messages: []OpenRouterMessage{{Role: "user", Content: prompt}},
+		Schema:   schema,
+	}
+	return c.CallStructured(ctx, req)
 }
 
 // CallStructured sends a request with JSON schema and falls back to brace extraction.
