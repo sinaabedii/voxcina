@@ -1,17 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { useBlogAdminStore } from "@/store/blog-admin-store";
-import { GenerationBrief } from "@/types/blog";
+import { GenerationBrief, BlogCategory } from "@/types/blog";
 import { toast } from "react-hot-toast";
 
 export default function NewBlogPage() {
   const router = useRouter();
   const { createRun } = useBlogAdminStore();
 
+  const [categories, setCategories] = useState<BlogCategory[]>([]);
   const [formData, setFormData] = useState<GenerationBrief>({
     topic: "",
     locale: "fa",
@@ -20,11 +21,28 @@ export default function NewBlogPage() {
     tone: "professional",
     keywords: [],
     category: "",
-    sourcePreferences: {},
+    sourcePreferences: [],
     additionalNotes: "",
   });
 
   const [keywordsInput, setKeywordsInput] = useState("");
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch("/api/admin/blog-categories", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setCategories(data.filter((c: BlogCategory) => c.isActive));
+        }
+      } catch {
+        // silently fail — dropdown will be empty
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +52,6 @@ export default function NewBlogPage() {
       return;
     }
 
-    // Parse keywords
     const keywords = keywordsInput
       .split(",")
       .map((k) => k.trim())
@@ -82,12 +99,27 @@ export default function NewBlogPage() {
 
             <div>
               <label className="block mb-1 font-medium">دسته</label>
-              <input
+              <select
                 className="input w-full"
-                placeholder="دسته مقاله"
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              />
+              >
+                <option value="">انتخاب دسته...</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.name}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+              {categories.length === 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  هنوز دسته‌ای تعریف نشده است. از{" "}
+                  <a href="/admin/blogs/categories" className="text-voxcina-blue underline">
+                    صفحه مدیریت دسته‌ها
+                  </a>{" "}
+                  استفاده کنید.
+                </p>
+              )}
             </div>
 
             <div>

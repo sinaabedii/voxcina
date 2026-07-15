@@ -68,12 +68,9 @@ export default function BlogDetailPage() {
       };
       setCurrentStage(statusToStage[currentRun.status] || "brief");
 
-      // Load research sources if in research stage
-      if (currentRun.executions) {
-        const researchExec = currentRun.executions.find((e) => e.stage === "research");
-        if (researchExec?.parsed_output?.sources) {
-          setResearchSources(researchExec.parsed_output.sources);
-        }
+      // Load research sources from API response
+      if (currentRun.sources) {
+        setResearchSources(currentRun.sources);
       }
     }
   }, [currentRun]);
@@ -139,11 +136,11 @@ export default function BlogDetailPage() {
   };
 
   const handlePublish = async () => {
-    if (!currentRun?.post_id) {
+    if (!currentRun?.postId) {
       toast.error("مقاله یافت نشد");
       return;
     }
-    const success = await publishPost(currentRun.post_id);
+    const success = await publishPost(currentRun.postId);
     if (success) {
       toast.success("مقاله منتشر شد");
       await fetchRun(runID);
@@ -153,8 +150,8 @@ export default function BlogDetailPage() {
   };
 
   const handleUnpublish = async () => {
-    if (!currentRun?.post_id) return;
-    const success = await unpublishPost(currentRun.post_id);
+    if (!currentRun?.postId) return;
+    const success = await unpublishPost(currentRun.postId);
     if (success) {
       toast.success("مقاله غیرانتشار شد");
       await fetchRun(runID);
@@ -162,8 +159,8 @@ export default function BlogDetailPage() {
   };
 
   const handleArchive = async () => {
-    if (!currentRun?.post_id) return;
-    const success = await archivePost(currentRun.post_id);
+    if (!currentRun?.postId) return;
+    const success = await archivePost(currentRun.postId);
     if (success) {
       toast.success("مقاله بایگانی شد");
       await fetchRun(runID);

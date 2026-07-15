@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Button from "@/components/ui/Button";
 import { BlogPipelineRun } from "@/types/blog";
 
@@ -9,8 +10,31 @@ interface PromptsStageProps {
   onTriggerPrompts: () => void;
 }
 
+interface ImagePrompt {
+  id?: string;
+  slot: string;
+  prompt: string;
+  alt_text?: string;
+  caption?: string;
+}
+
 export default function PromptsStage({ run, onApprove, onTriggerPrompts }: PromptsStageProps) {
-  const prompts = run.image_prompts || [];
+  const promptsExec = useMemo(
+    () => run.executions?.find((e) => e.stage === "prompts"),
+    [run.executions]
+  );
+  const allPrompts: ImagePrompt[] = useMemo(() => {
+    const parsedOutput = promptsExec?.parsedOutput;
+    const coverPrompt = parsedOutput?.cover_prompt as string | undefined;
+    const inlinePrompts = (parsedOutput?.inline_prompts as ImagePrompt[]) || [];
+
+    const prompts: ImagePrompt[] = [];
+    if (coverPrompt) {
+      prompts.push({ slot: "cover", prompt: coverPrompt, id: "cover" });
+    }
+    prompts.push(...inlinePrompts);
+    return prompts;
+  }, [promptsExec]);
 
   return (
     <div className="space-y-6">
@@ -31,13 +55,13 @@ export default function PromptsStage({ run, onApprove, onTriggerPrompts }: Promp
         </div>
       </div>
 
-      {prompts.length === 0 ? (
+      {allPrompts.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
           هنوز پرامپتی تولید نشده است
         </div>
       ) : (
         <div className="space-y-4">
-          {prompts.map((prompt, index) => (
+          {allPrompts.map((prompt, index) => (
             <div key={prompt.id || index} className="border rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded">

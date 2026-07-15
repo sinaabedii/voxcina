@@ -105,7 +105,6 @@ export default function BlogClientContent({
         <div className="lg:col-span-8">
           <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
             <BlogCategories
-              categories={initialCategories}
               selectedCategory={selectedCategory}
               onSelectCategory={handleCategorySelect}
             />
@@ -159,9 +158,9 @@ export default function BlogClientContent({
         <div className="mt-8 lg:mt-0 lg:col-span-4">
           <div className="sticky top-24">
             <BlogSidebar 
+              posts={initialPosts}
               categories={initialCategories} 
               tags={initialTags}
-              totalPosts={total}
             />
           </div>
         </div>

@@ -22,7 +22,7 @@ export default function BriefStage({ run, onTriggerResearch }: BriefStageProps) 
         </div>
         <div>
           <label className="block mb-1 font-medium text-gray-700">Target Audience</label>
-          <p className="text-gray-900">{run.target_audience || "General"}</p>
+          <p className="text-gray-900">{run.targetAudience || "General"}</p>
         </div>
         <div>
           <label className="block mb-1 font-medium text-gray-700">Tone</label>
@@ -30,7 +30,7 @@ export default function BriefStage({ run, onTriggerResearch }: BriefStageProps) 
         </div>
         <div>
           <label className="block mb-1 font-medium text-gray-700">Desired Length</label>
-          <p className="text-gray-900">{run.desired_length || 1000} words</p>
+          <p className="text-gray-900">{run.desiredLength || 1000} words</p>
         </div>
         <div>
           <label className="block mb-1 font-medium text-gray-700">Keywords</label>
@@ -38,10 +38,10 @@ export default function BriefStage({ run, onTriggerResearch }: BriefStageProps) 
         </div>
       </div>
 
-      {run.additional_notes && (
+      {run.additionalNotes && (
         <div>
           <label className="block mb-1 font-medium text-gray-700">Additional Notes</label>
-          <p className="text-gray-900 whitespace-pre-wrap">{run.additional_notes}</p>
+          <p className="text-gray-900 whitespace-pre-wrap">{run.additionalNotes}</p>
         </div>
       )}
 

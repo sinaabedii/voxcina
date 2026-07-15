@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { BlogPost, BlogBlock } from '@/types/blog';
+import type { BlogPost, BlogBlock } from '@/types/blog';
 import { CalendarIcon, ClockIcon, ArrowRight as ArrowRightIcon } from 'lucide-react';
 import RelatedPosts from '@/components/blog/RelatedPosts';
 import BlogSidebar from '@/components/blog/BlogSidebar';
@@ -146,9 +146,9 @@ export default function BlogPostClientContent({ post }: BlogPostClientContentPro
             <div className="mt-6 lg:mt-0 lg:col-span-4">
               <div className="sticky top-24">
                 <BlogSidebar
+                  posts={[post]}
                   categories={[]}
                   tags={post.tags || []}
-                  totalPosts={0}
                 />
               </div>
             </div>

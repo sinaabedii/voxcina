@@ -360,11 +360,20 @@ func NewRouter() *mux.Router {
 	// Public blog routes (no authentication required)
 	api.HandleFunc("/blog-posts", handlers.GetBlogPosts).Methods(http.MethodGet)
 	api.HandleFunc("/blog-posts/{slug}", handlers.GetBlogPostBySlug).Methods(http.MethodGet)
-	api.HandleFunc("/blog/categories", handlers.GetBlogCategories).Methods(http.MethodGet)
+	api.HandleFunc("/blog/categories", handlers.GetBlogCategoriesPublic).Methods(http.MethodGet)
+	api.HandleFunc("/blog/categories/legacy", handlers.GetBlogCategories).Methods(http.MethodGet)
 	api.HandleFunc("/blog/tags", handlers.GetBlogTags).Methods(http.MethodGet)
 
 	// Admin blog post management routes
 	adminRouter.HandleFunc("/blog-posts", handlers.GetAdminBlogPosts).Methods(http.MethodGet)
+
+	// Admin blog category management routes
+	adminRouter.HandleFunc("/blog-categories", handlers.GetAdminBlogCategories).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/blog-categories", handlers.CreateBlogCategory).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/blog-categories/{id}", handlers.UpdateBlogCategory).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/blog-categories/{id}", handlers.DeleteBlogCategory).Methods(http.MethodDelete)
+	adminRouter.HandleFunc("/blog-categories/{id}/restore", handlers.RestoreBlogCategory).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/blog-categories/recount", handlers.RecountBlogCategories).Methods(http.MethodPost)
 	adminRouter.HandleFunc("/blog-posts/{id}/blocks", handlers.UpdateBlogPostBlocks).Methods(http.MethodPatch)
 	adminRouter.HandleFunc("/blog-posts/{id}/publish", handlers.PublishBlogPost).Methods(http.MethodPost)
 	adminRouter.HandleFunc("/blog-posts/{id}/unpublish", handlers.UnpublishBlogPost).Methods(http.MethodPost)

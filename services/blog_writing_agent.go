@@ -68,6 +68,12 @@ func (wa *WritingAgent) RunWriting(ctx context.Context, run *models.BlogPipeline
 	// Calculate content hash
 	contentHash := wa.calculateContentHash(writingResult.Blocks)
 
+	// Use admin's category if provided, otherwise fall back to AI's recommendation
+	category := writingResult.RecommendedCategory
+	if snapshot.GenerationBrief.Category != "" {
+		category = snapshot.GenerationBrief.Category
+	}
+
 	// Create blog post
 	post := models.BlogPost{
 		ID:              primitive.NewObjectID(),
@@ -75,7 +81,7 @@ func (wa *WritingAgent) RunWriting(ctx context.Context, run *models.BlogPipeline
 		Slug:            generateSlug(wa.extractTitle(writingResult.Blocks)),
 		Excerpt:         writingResult.Excerpt,
 		Blocks:          writingResult.Blocks,
-		Category:        writingResult.RecommendedCategory,
+		Category:        category,
 		Tags:            writingResult.RecommendedTags,
 		Status:          "content_review",
 		PipelineRunID:   run.ID.Hex(),

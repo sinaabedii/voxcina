@@ -91,6 +91,9 @@ func main() {
 	blogWorker.Start()
 	log.Println("Blog AI pipeline worker started")
 
+	// Migrate existing blog categories from posts to blog_categories collection
+	services.MigrateExistingCategories(database)
+
 	// Seed database if requested
 	if *seedDB {
 		log.Println("Seeding database...")

@@ -155,7 +155,7 @@ export default function AdminBlogsPage() {
                       </span>
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
-                      {new Date(run.created_at).toLocaleDateString("fa-IR")}
+                      {new Date(run.createdAt).toLocaleDateString("fa-IR")}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <Button

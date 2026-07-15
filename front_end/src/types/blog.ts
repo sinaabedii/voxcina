@@ -26,34 +26,12 @@ export interface BlogPost {
 
 export type Status =
   | "draft"
-  | "brief_created"
-  | "research_pending"
-  | "research_completed"
-  | "research_approved"
-  | "writing_pending"
-  | "content_draft"
-  | "content_approved"
-  | "prompts_pending"
-  | "media_ready"
-  | "preview_ready"
+  | "research_review"
+  | "content_review"
+  | "image_pending"
+  | "ready"
   | "published"
   | "archived";
-
-export interface PipelineRunID {
-  runID: string;
-}
-
-export interface ContentRevision {
-  revision: number;
-  timestamp: string;
-  author: string;
-  summary: string;
-}
-
-export interface ContentHash {
-  hash: string;
-  computedAt: string;
-}
 
 export interface AuthorSnapshot {
   name: string;
@@ -66,87 +44,70 @@ export interface BlogPipelineRun {
   id: string;
   topic: string;
   locale: string;
-  status: PipelineRunStatus;
-  postID?: string;
+  targetAudience: string;
+  desiredLength: number;
+  tone: string;
+  keywords: string[];
+  category: string;
+  sourcePreferences: string[];
+  additionalNotes?: string;
+  status: string;
+  postId?: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
   approvedAt?: string;
+  executions?: BlogAgentExecution[];
+  sources?: BlogResearchSource[];
 }
-
-export type PipelineRunStatus =
-  | "pending"
-  | "brief_created"
-  | "research_in_progress"
-  | "research_completed"
-  | "research_rejected"
-  | "writing_in_progress"
-  | "content_draft"
-  | "content_approved"
-  | "prompts_in_progress"
-  | "media_uploading"
-  | "ready_for_preview"
-  | "approved"
-  | "failed"
-  | "cancelled";
 
 export interface BlogAgentExecution {
   _id?: string;
   id: string;
-  runID: string;
-  stage: AgentStage;
+  pipelineRunId?: string;
+  stage: string;
   attempt: number;
-  inputSnapshot: Record<string, unknown>;
+  inputSnapshot?: Record<string, unknown>;
   parsedOutput?: Record<string, unknown>;
   rawResponse?: string;
-  promptKey: string;
-  promptVersion: string;
+  promptKey?: string;
+  promptVersion?: string;
   renderedPrompt?: string;
-  provider: string;
-  model: string;
-  tokenUsage?: TokenUsage;
+  provider?: string;
+  model?: string;
+  tokenUsage?: number;
+  costMetadata?: string;
   durationMs?: number;
-  status: ExecutionStatus;
+  status: string;
   error?: string;
-  startedAt: string;
+  retryCount?: number;
+  createdAt: string;
+  startedAt?: string;
   completedAt?: string;
-}
-
-export type AgentStage =
-  | "research"
-  | "outline"
-  | "writing"
-  | "image_prompts"
-  | "quality_check";
-
-export type ExecutionStatus = "pending" | "running" | "completed" | "failed";
-
-export interface TokenUsage {
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
 }
 
 export interface BlogResearchSource {
   _id?: string;
-  id: string;
-  runID: string;
+  id?: string;
+  pipelineRunId?: string;
   query: string;
   provider: string;
   url: string;
   title: string;
   snippet: string;
   extractedContent?: string;
-  claims: ResearchClaim[];
+  claims?: ResearchClaim[];
   publishedAt?: string;
-  fetchedAt: string;
+  fetchedAt?: string;
+  sourceIndex?: number;
+  createdAt?: string;
 }
 
 export interface ResearchClaim {
   claim: string;
   confidence: number;
   sourceURL?: string;
-  verified: boolean;
+  verified?: boolean;
 }
 
 export interface BlogMedia {
@@ -166,35 +127,22 @@ export interface BlogMedia {
 }
 
 export interface GenerationBrief {
-  _id?: string;
-  id: string;
-  runID: string;
   topic: string;
-  locale: string;
-  targetAudience: string;
-  desiredLength: number;
-  tone: string;
-  keywords: string[];
-  category: string;
-  sourcePreferences: SourcePreferences;
-  additionalNotes: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface SourcePreferences {
-  maxSources: number;
-  preferredProviders: string[];
-  excludeDomains: string[];
-  minDomainAuthority: number;
-  languagePreference: string;
+  locale?: string;
+  targetAudience?: string;
+  desiredLength?: number;
+  tone?: string;
+  keywords?: string[];
+  category?: string;
+  sourcePreferences?: string[];
+  additionalNotes?: string;
 }
 
 export type BlockType = "title" | "header" | "section" | "subsection" | "text" | "image";
 
 export interface BlogBlock {
   type: BlockType;
-  id: string;
+  id?: string;
   order: number;
   text?: string;
   imageSlotID?: string;
@@ -220,4 +168,16 @@ export interface BlogGenerationState {
   uncertainties: string[];
   prohibitedClaims: string[];
   researchSummary: string;
+}
+
+export interface BlogCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  order: number;
+  isActive: boolean;
+  postCount: number;
+  createdAt: string;
+  updatedAt: string;
 }

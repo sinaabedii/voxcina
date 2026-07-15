@@ -191,6 +191,19 @@ type BlogMedia struct {
 	PublishedAt   *time.Time         `bson:"published_at,omitempty" json:"publishedAt,omitempty"`
 }
 
+// BlogCategory is a structured category for blog posts.
+type BlogCategory struct {
+	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Name        string             `bson:"name" json:"name"`
+	Slug        string             `bson:"slug" json:"slug"`
+	Description string             `bson:"description,omitempty" json:"description,omitempty"`
+	Order       int                `bson:"order" json:"order"`
+	IsActive    bool               `bson:"is_active" json:"isActive"`
+	PostCount   int                `bson:"post_count" json:"postCount"`
+	CreatedAt   time.Time          `bson:"created_at" json:"createdAt"`
+	UpdatedAt   time.Time          `bson:"updated_at" json:"updatedAt"`
+}
+
 // GenerationBrief is the admin-facing input for starting a new pipeline run.
 type GenerationBrief struct {
 	Topic             string   `json:"topic"`

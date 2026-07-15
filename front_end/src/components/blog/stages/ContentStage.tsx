@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Button from "@/components/ui/Button";
 import { BlogPipelineRun, BlogBlock } from "@/types/blog";
 
@@ -10,7 +11,18 @@ interface ContentStageProps {
 }
 
 export default function ContentStage({ run, onApprove, onTriggerWriting }: ContentStageProps) {
-  const blocks = run.post?.blocks || [];
+  const writingExec = useMemo(
+    () => run.executions?.find((e) => e.stage === "write"),
+    [run.executions]
+  );
+  const blocks: BlogBlock[] = useMemo(
+    () => (writingExec?.parsedOutput?.blocks as BlogBlock[]) || [],
+    [writingExec]
+  );
+  const excerpt = useMemo(
+    () => (writingExec?.parsedOutput?.excerpt as string) || "",
+    [writingExec]
+  );
 
   return (
     <div className="space-y-6">
@@ -49,7 +61,7 @@ export default function ContentStage({ run, onApprove, onTriggerWriting }: Conte
               </div>
               {block.type === "image" ? (
                 <div className="text-sm text-gray-600">
-                  <p>جایگاه تصویر: {block.image_slot_id}</p>
+                  <p>جایگاه تصویر: {block.imageSlotID}</p>
                   {block.alt && <p className="mt-1">متن جایگزین: {block.alt}</p>}
                 </div>
               ) : (
@@ -60,10 +72,10 @@ export default function ContentStage({ run, onApprove, onTriggerWriting }: Conte
         </div>
       )}
 
-      {run.post?.excerpt && (
+      {excerpt && (
         <div className="border-t pt-4">
           <h4 className="font-bold text-gray-900 mb-2">خلاصه مقاله</h4>
-          <p className="text-gray-700">{run.post.excerpt}</p>
+          <p className="text-gray-700">{excerpt}</p>
         </div>
       )}
     </div>

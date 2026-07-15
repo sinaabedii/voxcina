@@ -199,6 +199,38 @@ func EnsureBlogIndexes(database *mongo.Database) error {
 
 	log.Println("✓ Blog media indexes created")
 
+	// ===== BLOG_CATEGORIES COLLECTION INDEXES =====
+	categoriesCollection := database.Collection("blog_categories")
+
+	// 1. Unique name index
+	_, err = categoriesCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "name", Value: 1}},
+		Options: options.Index().SetUnique(true).SetName("blog_categories_name_unique"),
+	})
+	if err != nil {
+		log.Printf("Warning: Could not ensure unique name index on blog_categories: %v", err)
+	}
+
+	// 2. Slug index for URL-based lookups
+	_, err = categoriesCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "slug", Value: 1}},
+		Options: options.Index().SetUnique(true).SetName("blog_categories_slug_unique"),
+	})
+	if err != nil {
+		log.Printf("Warning: Could not ensure unique slug index on blog_categories: %v", err)
+	}
+
+	// 3. Order index for sorted listing
+	_, err = categoriesCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "order", Value: 1}},
+		Options: options.Index().SetName("blog_categories_order"),
+	})
+	if err != nil {
+		log.Printf("Warning: Could not ensure order index on blog_categories: %v", err)
+	}
+
+	log.Println("✓ Blog categories indexes created")
+
 	return nil
 }
 
@@ -215,6 +247,7 @@ func EnsureBlogCollections(database *mongo.Database) error {
 		"blog_agent_executions",
 		"blog_research_sources",
 		"blog_media",
+		"blog_categories",
 	}
 
 	for _, collName := range collections {

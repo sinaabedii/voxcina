@@ -77,8 +77,9 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
       }
 
       const data = await res.json();
-      set({ currentRun: data.run, currentPost: data.run.post_id ? data.post : null, isLoading: false });
-      return data.run;
+      const run: BlogPipelineRun = { ...data.run, executions: data.executions, sources: data.sources };
+      set({ currentRun: run, currentPost: data.run.post_id ? data.post : null, isLoading: false });
+      return run;
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : "خطا در دریافت کارگاه",

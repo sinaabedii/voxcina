@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Button from "@/components/ui/Button";
 import { BlogPipelineRun, BlogResearchSource } from "@/types/blog";
 
@@ -11,6 +12,13 @@ interface ResearchStageProps {
 }
 
 export default function ResearchStage({ run, sources, onApprove, onTriggerResearch }: ResearchStageProps) {
+  const researchExec = useMemo(
+    () => run.executions?.find((e) => e.stage === "research"),
+    [run.executions]
+  );
+  const parsedOutput = researchExec?.parsedOutput;
+  const outline = parsedOutput?.outline as { title?: string; sections?: string[]; subsections?: string[]; key_points?: string[] } | undefined;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -55,11 +63,12 @@ export default function ResearchStage({ run, sources, onApprove, onTriggerResear
         </div>
       )}
 
-      {run.research_outline && (
+      {outline?.sections && outline.sections.length > 0 && (
         <div className="border-t pt-4">
           <h4 className="font-bold text-gray-900 mb-2">ساختار پیشنهادی مقاله</h4>
+          {outline.title && <p className="text-sm text-gray-700 mb-2">عنوان: {outline.title}</p>}
           <ul className="list-disc list-inside space-y-1 text-gray-700">
-            {run.research_outline.sections?.map((section, index) => (
+            {outline.sections.map((section, index) => (
               <li key={index}>{section}</li>
             ))}
           </ul>
