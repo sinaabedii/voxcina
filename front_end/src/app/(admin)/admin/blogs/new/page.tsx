@@ -31,7 +31,7 @@ export default function NewBlogPage() {
     const fetchCategories = async () => {
       try {
         const res = await fetch("/api/admin/blog-categories", {
-          headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
+          headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
         });
         if (res.ok) {
           const data = await res.json();

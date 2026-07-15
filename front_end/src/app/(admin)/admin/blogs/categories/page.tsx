@@ -15,7 +15,7 @@ export default function BlogCategoriesPage() {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch("/api/admin/blog-categories", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -40,7 +40,7 @@ export default function BlogCategoriesPage() {
       return;
     }
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch("/api/admin/blog-categories", {
         method: "POST",
         headers: {
@@ -69,7 +69,7 @@ export default function BlogCategoriesPage() {
       return;
     }
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/admin/blog-categories/${id}`, {
         method: "PUT",
         headers: {
@@ -95,7 +95,7 @@ export default function BlogCategoriesPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("آیا از حذف این دسته اطمینان دارید؟")) return;
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/admin/blog-categories/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
@@ -113,7 +113,7 @@ export default function BlogCategoriesPage() {
 
   const handleRestore = async (id: string) => {
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/admin/blog-categories/${id}/restore`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -131,7 +131,7 @@ export default function BlogCategoriesPage() {
 
   const handleRecount = async () => {
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch("/api/admin/blog-categories/recount", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },

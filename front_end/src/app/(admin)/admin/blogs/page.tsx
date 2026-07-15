@@ -22,7 +22,7 @@ export default function AdminBlogsPage() {
 
   const fetchRuns = async () => {
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch("/api/admin/blog-runs", {
         headers: {
           Authorization: `Bearer ${token}`,

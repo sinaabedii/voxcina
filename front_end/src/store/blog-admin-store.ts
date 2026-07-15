@@ -36,7 +36,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
   createRun: async (brief: GenerationBrief) => {
     set({ isLoading: true, error: null });
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch("/api/admin/blog-runs", {
         method: "POST",
         headers: {
@@ -65,7 +65,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
   fetchRun: async (runID: string) => {
     set({ isLoading: true, error: null });
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/admin/blog-runs/${runID}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -92,7 +92,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
   triggerResearch: async (runID: string) => {
     set({ isLoading: true, error: null });
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/admin/blog-runs/${runID}/research`, {
         method: "POST",
         headers: {
@@ -118,7 +118,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
   approveResearch: async (runID: string) => {
     set({ isLoading: true, error: null });
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/admin/blog-runs/${runID}/approve`, {
         method: "POST",
         headers: {
@@ -146,7 +146,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
   triggerWriting: async (runID: string) => {
     set({ isLoading: true, error: null });
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/admin/blog-runs/${runID}/write`, {
         method: "POST",
         headers: {
@@ -172,7 +172,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
   approveContent: async (runID: string) => {
     set({ isLoading: true, error: null });
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/admin/blog-runs/${runID}/approve`, {
         method: "POST",
         headers: {
@@ -199,7 +199,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
   triggerPrompts: async (runID: string) => {
     set({ isLoading: true, error: null });
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/admin/blog-runs/${runID}/prompts`, {
         method: "POST",
         headers: {
@@ -225,7 +225,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
   approvePrompts: async (runID: string) => {
     set({ isLoading: true, error: null });
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/admin/blog-runs/${runID}/approve`, {
         method: "POST",
         headers: {
@@ -252,7 +252,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
   updateBlocks: async (postID: string, blocks: BlogBlock[]) => {
     set({ isLoading: true, error: null });
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/admin/blog-posts/${postID}/blocks`, {
         method: "PATCH",
         headers: {
@@ -280,7 +280,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
   finalizeContent: async (postID: string) => {
     set({ isLoading: true, error: null });
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/admin/blog-posts/${postID}/finalize`, {
         method: "POST",
         headers: {
@@ -306,7 +306,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
   uploadMedia: async (postID: string, slot: string, file: File, alt: string) => {
     set({ isLoading: true, error: null });
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const formData = new FormData();
       formData.append("slot", slot);
       formData.append("file", file);
@@ -339,7 +339,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
   deleteMedia: async (mediaID: string) => {
     set({ isLoading: true, error: null });
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/admin/blog-media/${mediaID}`, {
         method: "DELETE",
         headers: {
@@ -365,7 +365,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
   publishPost: async (postID: string) => {
     set({ isLoading: true, error: null });
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/admin/blog-posts/${postID}/publish`, {
         method: "POST",
         headers: {
@@ -391,7 +391,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
   unpublishPost: async (postID: string) => {
     set({ isLoading: true, error: null });
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/admin/blog-posts/${postID}/unpublish`, {
         method: "POST",
         headers: {
@@ -417,7 +417,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
   archivePost: async (postID: string) => {
     set({ isLoading: true, error: null });
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/admin/blog-posts/${postID}/archive`, {
         method: "POST",
         headers: {
@@ -443,7 +443,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
   restorePost: async (postID: string) => {
     set({ isLoading: true, error: null });
     try {
-      const token = localStorage.getItem("adminToken");
+      const token = localStorage.getItem("authToken");
       const res = await fetch(`/api/admin/blog-posts/${postID}/restore`, {
         method: "POST",
         headers: {
