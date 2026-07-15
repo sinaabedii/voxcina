@@ -263,8 +263,14 @@ func (r *BlogRepository) AtomicStatusTransition(ctx context.Context, id primitiv
 // InsertPipelineRun inserts a new pipeline run.
 func (r *BlogRepository) InsertPipelineRun(ctx context.Context, run *models.BlogPipelineRun) error {
 	collection := r.db.Collection("blog_pipeline_runs")
-	_, err := collection.InsertOne(ctx, run)
-	return err
+	result, err := collection.InsertOne(ctx, run)
+	if err != nil {
+		return err
+	}
+	if oid, ok := result.InsertedID.(primitive.ObjectID); ok {
+		run.ID = oid
+	}
+	return nil
 }
 
 // FindPipelineRunByID returns a pipeline run by ID.
