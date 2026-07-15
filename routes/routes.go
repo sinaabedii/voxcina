@@ -372,6 +372,7 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/blog-categories", handlers.CreateBlogCategory).Methods(http.MethodPost)
 	adminRouter.HandleFunc("/blog-categories/{id}", handlers.UpdateBlogCategory).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/blog-categories/{id}", handlers.DeleteBlogCategory).Methods(http.MethodDelete)
+	adminRouter.HandleFunc("/blog-categories/{id}/hard", handlers.HardDeleteBlogCategory).Methods(http.MethodDelete)
 	adminRouter.HandleFunc("/blog-categories/{id}/restore", handlers.RestoreBlogCategory).Methods(http.MethodPost)
 	adminRouter.HandleFunc("/blog-categories/recount", handlers.RecountBlogCategories).Methods(http.MethodPost)
 	adminRouter.HandleFunc("/blog-posts/{id}/blocks", handlers.UpdateBlogPostBlocks).Methods(http.MethodPatch)

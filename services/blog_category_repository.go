@@ -101,6 +101,12 @@ func (r *BlogCategoryRepository) DeleteCategory(ctx context.Context, id primitiv
 	return err
 }
 
+// HardDeleteCategory permanently removes a category from the database.
+func (r *BlogCategoryRepository) HardDeleteCategory(ctx context.Context, id primitive.ObjectID) error {
+	_, err := r.collection().DeleteOne(ctx, bson.M{"_id": id})
+	return err
+}
+
 // RestoreCategory restores a soft-deleted category.
 func (r *BlogCategoryRepository) RestoreCategory(ctx context.Context, id primitive.ObjectID) error {
 	_, err := r.collection().UpdateOne(ctx, bson.M{"_id": id}, bson.M{

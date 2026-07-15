@@ -196,6 +196,40 @@ func DeleteBlogCategory(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Category deleted"})
 }
 
+// HardDeleteBlogCategory permanently removes a blog category.
+func HardDeleteBlogCategory(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	vars := mux.Vars(r)
+	id, err := primitive.ObjectIDFromHex(vars["id"])
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid category ID")
+		return
+	}
+
+	repo := services.NewBlogCategoryRepository(db.Database)
+
+	existing, err := repo.FindCategoryByID(ctx, id)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusNotFound, "Category not found")
+		return
+	}
+
+	// Check if category has posts
+	if existing.PostCount > 0 {
+		utils.ErrorResponse(w, http.StatusConflict, "Cannot delete category with existing posts. Reassign posts first.")
+		return
+	}
+
+	if err := repo.HardDeleteCategory(ctx, id); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to delete category")
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Category permanently deleted"})
+}
+
 // RestoreBlogCategory restores a soft-deleted blog category.
 func RestoreBlogCategory(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)

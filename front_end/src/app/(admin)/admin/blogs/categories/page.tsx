@@ -96,7 +96,7 @@ export default function BlogCategoriesPage() {
     if (!confirm("آیا از حذف این دسته اطمینان دارید؟")) return;
     try {
       const token = localStorage.getItem("authToken");
-      const res = await fetch(`/api/admin/blog-categories/${id}`, {
+      const res = await fetch(`/api/admin/blog-categories/${id}/hard`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -104,7 +104,8 @@ export default function BlogCategoriesPage() {
         toast.success("دسته حذف شد");
         fetchCategories();
       } else {
-        toast.error("خطا در حذف دسته");
+        const err = await res.json();
+        toast.error(err.error || "خطا در حذف دسته");
       }
     } catch {
       toast.error("خطا در حذف دسته");
@@ -280,7 +281,7 @@ export default function BlogCategoriesPage() {
                         </Button>
                         {cat.isActive ? (
                           <Button size="sm" variant="outline" onClick={() => handleDelete(cat.id)}>
-                            غیرفعال
+                            حذف
                           </Button>
                         ) : (
                           <Button size="sm" variant="outline" onClick={() => handleRestore(cat.id)}>
