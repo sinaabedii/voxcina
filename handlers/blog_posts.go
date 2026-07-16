@@ -10,6 +10,7 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -297,11 +298,13 @@ func ApprovePipelineRun(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now()
 	var newStatus string
+	var queueStage string
 	switch run.Status {
 	case models.PipelineResearching:
 		newStatus = models.PipelineResearchApproved
 	case models.PipelineResearchApproved:
 		newStatus = models.PipelineWriting
+		queueStage = models.StageWrite
 	case models.PipelineWriting:
 		newStatus = models.PipelineContentApproved
 	case models.PipelinePrompts:
@@ -322,6 +325,19 @@ func ApprovePipelineRun(w http.ResponseWriter, r *http.Request) {
 	if err := repo.UpdatePipelineRunStatus(ctx, id, set); err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error approving pipeline run: "+err.Error())
 		return
+	}
+
+	if queueStage != "" {
+		execution := models.BlogAgentExecution{
+			PipelineRunID: id,
+			Stage:         queueStage,
+			Attempt:       1,
+			Status:        models.ExecutionPending,
+			CreatedAt:     now,
+		}
+		if err := repo.InsertAgentExecution(ctx, &execution); err != nil {
+			log.Printf("[blog] Warning: failed to queue %s execution: %v", queueStage, err)
+		}
 	}
 
 	utils.JSONResponse(w, http.StatusOK, map[string]string{"status": newStatus})
@@ -900,4 +916,46 @@ func gcd(a, b int) int {
 		a, b = b, a%b
 	}
 	return a
+}
+
+// DeletePipelineRun deletes a pipeline run and all related data.
+func DeletePipelineRun(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+	id, err := primitive.ObjectIDFromHex(idStr)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid pipeline run ID")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+
+	repo := services.NewBlogRepository(db.Database)
+
+	run, err := repo.FindPipelineRunByID(ctx, id)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusNotFound, "Pipeline run not found")
+		return
+	}
+
+	// Delete related blog post if exists
+	if run.PostID != "" {
+		postOID, err := primitive.ObjectIDFromHex(run.PostID)
+		if err == nil {
+			repo.DeletePostByID(ctx, postOID)
+		}
+	}
+
+	// Delete executions, sources
+	repo.DeleteExecutionsByRunID(ctx, id)
+	repo.DeleteSourcesByRunID(ctx, id)
+
+	// Delete the run itself
+	if err := repo.DeletePipelineRunByID(ctx, id); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error deleting pipeline run: "+err.Error())
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "کارگاه حذف شد"})
 }

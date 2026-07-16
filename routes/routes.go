@@ -387,6 +387,7 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/blog-runs", handlers.CreatePipelineRun).Methods(http.MethodPost)
 	adminRouter.HandleFunc("/blog-runs", handlers.GetPipelineRuns).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/blog-runs/{id}", handlers.GetPipelineRunByID).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/blog-runs/{id}", handlers.DeletePipelineRun).Methods(http.MethodDelete)
 	adminRouter.HandleFunc("/blog-runs/{id}/approve", handlers.ApprovePipelineRun).Methods(http.MethodPost)
 	adminRouter.HandleFunc("/blog-runs/{id}/research", handlers.TriggerResearch).Methods(http.MethodPost)
 	adminRouter.HandleFunc("/blog-runs/{id}/write", handlers.TriggerWriting).Methods(http.MethodPost)

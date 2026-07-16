@@ -311,6 +311,24 @@ func (r *BlogRepository) UpdatePipelineRun(ctx context.Context, run *models.Blog
 	return r.UpdatePipelineRunStatus(ctx, run.ID, set)
 }
 
+// DeletePipelineRunByID deletes a pipeline run by ID.
+func (r *BlogRepository) DeletePipelineRunByID(ctx context.Context, id primitive.ObjectID) error {
+	_, err := r.db.Collection("blog_pipeline_runs").DeleteOne(ctx, bson.M{"_id": id})
+	return err
+}
+
+// DeleteExecutionsByRunID deletes all agent executions for a pipeline run.
+func (r *BlogRepository) DeleteExecutionsByRunID(ctx context.Context, runID primitive.ObjectID) error {
+	_, err := r.db.Collection("blog_agent_executions").DeleteMany(ctx, bson.M{"pipeline_run_id": runID})
+	return err
+}
+
+// DeleteSourcesByRunID deletes all research sources for a pipeline run.
+func (r *BlogRepository) DeleteSourcesByRunID(ctx context.Context, runID primitive.ObjectID) error {
+	_, err := r.db.Collection("blog_research_sources").DeleteMany(ctx, bson.M{"pipeline_run_id": runID})
+	return err
+}
+
 // ListPipelineRuns returns paginated pipeline runs.
 func (r *BlogRepository) ListPipelineRuns(ctx context.Context, page, limit int64) ([]models.BlogPipelineRun, int64, error) {
 	collection := r.db.Collection("blog_pipeline_runs")

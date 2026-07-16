@@ -29,6 +29,7 @@ export default function BlogDetailPage() {
   const {
     currentRun,
     fetchRun,
+    deleteRun,
     triggerResearch,
     approveResearch,
     triggerWriting,
@@ -167,6 +168,17 @@ export default function BlogDetailPage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm("آیا از حذف این کارگاه اطمینان دارید؟ تمام اطلاعات مرتبط حذف خواهد شد.")) return;
+    const success = await deleteRun(runID);
+    if (success) {
+      toast.success("کارگاه حذف شد");
+      router.push("/admin/blogs");
+    } else {
+      toast.error("خطا در حذف کارگاه");
+    }
+  };
+
   if (isLoading) {
     return <div className="py-8 text-center">در حال بارگذاری...</div>;
   }
@@ -196,8 +208,14 @@ export default function BlogDetailPage() {
     <div className="py-8 px-2 md:px-4">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">مدیریت مقاله: {currentRun.topic}</h1>
-        <Button variant="outline" onClick={() => router.back()}>
-          بازگشت
+        <div className="flex gap-2">
+          <Button variant="outline" className="text-red-600 border-red-300 hover:bg-red-50" onClick={handleDelete}>
+            حذف کارگاه
+          </Button>
+          <Button variant="outline" onClick={() => router.back()}>
+            بازگشت
+          </Button>
+        </div>
         </Button>
       </div>
 

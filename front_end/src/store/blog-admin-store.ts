@@ -11,6 +11,7 @@ interface BlogAdminState {
   // Actions
   createRun: (brief: GenerationBrief) => Promise<BlogPipelineRun | null>;
   fetchRun: (runID: string) => Promise<BlogPipelineRun | null>;
+  deleteRun: (runID: string) => Promise<boolean>;
   triggerResearch: (runID: string) => Promise<boolean>;
   approveResearch: (runID: string) => Promise<boolean>;
   triggerWriting: (runID: string) => Promise<boolean>;
@@ -86,6 +87,30 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
         isLoading: false,
       });
       return null;
+    }
+  },
+
+  deleteRun: async (runID: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const token = localStorage.getItem("authToken");
+      const res = await fetch(`/api/admin/blog-runs/${runID}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to delete run");
+      }
+
+      set({ currentRun: null, isLoading: false });
+      return true;
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : "خطا در حذف کارگاه",
+        isLoading: false,
+      });
+      return false;
     }
   },
 

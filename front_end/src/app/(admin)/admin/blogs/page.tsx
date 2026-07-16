@@ -7,6 +7,7 @@ import Button from "@/components/ui/Button";
 import { Plus, FileText, Search, Filter } from "lucide-react";
 import { useBlogAdminStore } from "@/store/blog-admin-store";
 import { BlogPipelineRun } from "@/types/blog";
+import { toast } from "react-hot-toast";
 
 export default function AdminBlogsPage() {
   const router = useRouter();
@@ -158,13 +159,36 @@ export default function AdminBlogsPage() {
                       {new Date(run.createdAt).toLocaleDateString("fa-IR")}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => router.push(`/admin/blogs/${run.id}`)}
-                      >
-                        مشاهده
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.push(`/admin/blogs/${run.id}`)}
+                        >
+                          مشاهده
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 border-red-300 hover:bg-red-50"
+                          onClick={async () => {
+                            if (!confirm("آیا از حذف این کارگاه اطمینان دارید؟")) return;
+                            const token = localStorage.getItem("authToken");
+                            const res = await fetch(`/api/admin/blog-runs/${run.id}`, {
+                              method: "DELETE",
+                              headers: { Authorization: `Bearer ${token}` },
+                            });
+                            if (res.ok) {
+                              toast.success("کارگاه حذف شد");
+                              fetchRuns();
+                            } else {
+                              toast.error("خطا در حذف");
+                            }
+                          }}
+                        >
+                          حذف
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
