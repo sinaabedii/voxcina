@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"math/rand"
 	"net/http"
@@ -95,15 +96,6 @@ func (c *OpenRouterStructuredClient) CallStructured(ctx context.Context, req Str
 		return nil, err
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/chat/completions", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, err
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-	httpReq.Header.Set("HTTP-Referer", os.Getenv("APP_URL"))
-	httpReq.Header.Set("X-Title", "Voxcina Blog AI")
-
 	// Retry with backoff + jitter (max 3 attempts)
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
@@ -112,9 +104,32 @@ func (c *OpenRouterStructuredClient) CallStructured(ctx context.Context, req Str
 			time.Sleep(sleep)
 		}
 
+		// Recreate request for each retry (body is consumed)
+		httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/chat/completions", bytes.NewBuffer(jsonData))
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+		httpReq.Header.Set("HTTP-Referer", os.Getenv("APP_URL"))
+		httpReq.Header.Set("X-Title", "Voxcina Blog AI")
+
 		resp, err := c.httpClient.Do(httpReq)
 		if err != nil {
 			lastErr = err
+			continue
+		}
+
+		// Check HTTP status before decoding
+		if resp.StatusCode != 200 {
+			bodyBytes, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			lastErr = fmt.Errorf("OpenRouter HTTP %d: %s", resp.StatusCode, string(bodyBytes)[:min(200, len(bodyBytes))])
+			// Don't retry on client errors
+			if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+				return nil, lastErr
+			}
 			continue
 		}
 
@@ -225,4 +240,11 @@ func extractJSONFromBraces(content string) string {
 		}
 	}
 	return ""
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
