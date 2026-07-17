@@ -89,7 +89,7 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 	} else {
 		for i, query := range queries {
 			if i > 0 {
-				time.Sleep(1500 * time.Millisecond) // Rate limit: free plan allows 1 req/sec
+				time.Sleep(10 * time.Second) // Rate limit: free plan allows 1 req/sec
 			}
 			select {
 			case <-ctx.Done():
