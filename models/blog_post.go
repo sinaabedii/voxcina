@@ -130,8 +130,9 @@ type BlogAgentExecution struct {
 	PipelineRunID primitive.ObjectID `bson:"pipeline_run_id" json:"pipelineRunId"`
 	Stage         string             `bson:"stage" json:"stage"`
 	Attempt       int                `bson:"attempt" json:"attempt"`
-	InputSnapshot bson.M             `bson:"input_snapshot,omitempty" json:"inputSnapshot,omitempty"`
-	ParsedOutput  bson.M             `bson:"parsed_output,omitempty" json:"parsedOutput,omitempty"`
+	InputSnapshot bson.M      `bson:"input_snapshot,omitempty" json:"inputSnapshot,omitempty"`
+	ParsedOutput  interface{} `bson:"parsed_output,omitempty" json:"parsedOutput,omitempty"`
+	RawResponse   string      `bson:"raw_response,omitempty" json:"rawResponse,omitempty"`
 	PromptKey     string             `bson:"prompt_key,omitempty" json:"promptKey,omitempty"`
 	PromptVersion string             `bson:"prompt_version,omitempty" json:"promptVersion,omitempty"`
 	RenderedPrompt string            `bson:"rendered_prompt,omitempty" json:"renderedPrompt,omitempty"`

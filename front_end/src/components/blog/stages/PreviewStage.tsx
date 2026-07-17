@@ -12,7 +12,7 @@ interface PreviewStageProps {
   onArchive: () => void;
 }
 
-function normalizeWriterOutput(parsedOutput: unknown): Record<string, unknown> | undefined {
+function normalizeWriterOutput(parsedOutput: unknown, rawResponse?: string): Record<string, unknown> | undefined {
   if (parsedOutput && typeof parsedOutput === "object") {
     return parsedOutput as Record<string, unknown>;
   }
@@ -21,6 +21,13 @@ function normalizeWriterOutput(parsedOutput: unknown): Record<string, unknown> |
       return JSON.parse(parsedOutput) as Record<string, unknown>;
     } catch {
       return { content: parsedOutput };
+    }
+  }
+  if (rawResponse && rawResponse.trim()) {
+    try {
+      return JSON.parse(rawResponse) as Record<string, unknown>;
+    } catch {
+      return { content: rawResponse };
     }
   }
   return undefined;
@@ -32,8 +39,8 @@ export default function PreviewStage({ run, onPublish, onUnpublish, onArchive }:
     [run.executions]
   );
   const output = useMemo(
-    () => normalizeWriterOutput(writingExec?.parsedOutput),
-    [writingExec?.parsedOutput]
+    () => normalizeWriterOutput(writingExec?.parsedOutput, writingExec?.rawResponse),
+    [writingExec?.parsedOutput, writingExec?.rawResponse]
   );
   const blocks: BlogBlock[] = useMemo(
     () => (output?.blocks as BlogBlock[]) || [],
