@@ -231,28 +231,27 @@ func (w *BlogWorker) runWrite(ctx context.Context, exec *models.BlogAgentExecuti
 	// Parse research output - handle both snapshot format and direct ResearchOutput format
 	var researchOutput ResearchOutput
 	if researchExec.ParsedOutput != nil {
-		outputJSON, _ := json.Marshal(researchExec.ParsedOutput)
-		jsonStr := string(outputJSON)
-		if len(jsonStr) > 500 {
-			jsonStr = jsonStr[:500]
-		}
-		log.Printf("[blog-worker] Research output JSON (first 500 chars): %s", jsonStr)
-		
-		// Try snapshot format first (has "output" field)
-		var snapshotWrapper struct {
-			Output ResearchOutput `json:"output"`
-		}
-		if err := json.Unmarshal(outputJSON, &snapshotWrapper); err != nil {
-			log.Printf("[blog-worker] Warning: snapshot wrapper parse failed: %v", err)
-		} else if len(snapshotWrapper.Output.Findings) > 0 {
-			researchOutput = snapshotWrapper.Output
-			log.Printf("[blog-worker] Successfully parsed research snapshot with %d findings", len(researchOutput.Findings))
+		// Convert bson.D/bson.M to regular map for proper JSON marshaling
+		outputJSON, err := json.Marshal(convertBSONToMap(researchExec.ParsedOutput))
+		if err != nil {
+			log.Printf("[blog-worker] Warning: failed to marshal research output: %v", err)
 		} else {
-			// Fall back to direct ResearchOutput format
-			if err := json.Unmarshal(outputJSON, &researchOutput); err != nil {
-				log.Printf("[blog-worker] Warning: direct research output parse failed: %v", err)
+			// Try snapshot format first (has "output" field)
+			var snapshotWrapper struct {
+				Output ResearchOutput `json:"output"`
+			}
+			if err := json.Unmarshal(outputJSON, &snapshotWrapper); err != nil {
+				log.Printf("[blog-worker] Warning: snapshot wrapper parse failed: %v", err)
+			} else if len(snapshotWrapper.Output.Findings) > 0 {
+				researchOutput = snapshotWrapper.Output
+				log.Printf("[blog-worker] Successfully parsed research snapshot with %d findings", len(researchOutput.Findings))
 			} else {
-				log.Printf("[blog-worker] Successfully parsed direct research output with %d findings", len(researchOutput.Findings))
+				// Fall back to direct ResearchOutput format
+				if err := json.Unmarshal(outputJSON, &researchOutput); err != nil {
+					log.Printf("[blog-worker] Warning: direct research output parse failed: %v", err)
+				} else {
+					log.Printf("[blog-worker] Successfully parsed direct research output with %d findings", len(researchOutput.Findings))
+				}
 			}
 		}
 	}
@@ -323,6 +322,32 @@ func (w *BlogWorker) runPrompts(ctx context.Context, exec *models.BlogAgentExecu
 	}
 
 	return resp.Content, resp.Content, "", "blog.prompts", "1", "openrouter", req.Model, resp.Usage.TotalTokens, ""
+}
+
+// convertBSONToMap recursively converts bson.D/bson.M structures to regular maps for JSON marshaling.
+func convertBSONToMap(v interface{}) interface{} {
+	switch val := v.(type) {
+	case bson.D:
+		m := make(map[string]interface{})
+		for _, e := range val {
+			m[e.Key] = convertBSONToMap(e.Value)
+		}
+		return m
+	case bson.M:
+		m := make(map[string]interface{})
+		for k, v := range val {
+			m[k] = convertBSONToMap(v)
+		}
+		return m
+	case []interface{}:
+		arr := make([]interface{}, len(val))
+		for i, v := range val {
+			arr[i] = convertBSONToMap(v)
+		}
+		return arr
+	default:
+		return v
+	}
 }
 
 // updatePipelineStatus updates the pipeline run status based on completed stage.
