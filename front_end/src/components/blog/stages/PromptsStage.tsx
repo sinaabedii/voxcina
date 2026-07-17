@@ -18,21 +18,47 @@ interface ImagePrompt {
   caption?: string;
 }
 
+function normalizePromptsOutput(parsedOutput: unknown, rawResponse?: string): Record<string, unknown> | undefined {
+  if (parsedOutput && typeof parsedOutput === "object") {
+    return parsedOutput as Record<string, unknown>;
+  }
+  if (typeof parsedOutput === "string" && parsedOutput.trim()) {
+    try {
+      return JSON.parse(parsedOutput) as Record<string, unknown>;
+    } catch {
+      return { content: parsedOutput };
+    }
+  }
+  if (rawResponse && rawResponse.trim()) {
+    try {
+      return JSON.parse(rawResponse) as Record<string, unknown>;
+    } catch {
+      return { content: rawResponse };
+    }
+  }
+  return undefined;
+}
+
 export default function PromptsStage({ run, onApprove, onTriggerPrompts }: PromptsStageProps) {
   const promptsExec = useMemo(
     () => run.executions?.find((e) => e.stage === "prompts"),
     [run.executions]
   );
   const allPrompts: ImagePrompt[] = useMemo(() => {
-    const parsedOutput = promptsExec?.parsedOutput;
-    const coverPrompt = parsedOutput?.cover_prompt as string | undefined;
-    const inlinePrompts = (parsedOutput?.inline_prompts as ImagePrompt[]) || [];
-
+    const output = normalizePromptsOutput(promptsExec?.parsedOutput, promptsExec?.rawResponse);
+    
     const prompts: ImagePrompt[] = [];
-    if (coverPrompt) {
-      prompts.push({ slot: "cover", prompt: coverPrompt, id: "cover" });
+    
+    if (output) {
+      const coverPrompt = output.cover_prompt as string | undefined;
+      const inlinePrompts = (output.inline_prompts as ImagePrompt[]) || [];
+      
+      if (coverPrompt) {
+        prompts.push({ slot: "cover", prompt: coverPrompt, id: "cover" });
+      }
+      prompts.push(...inlinePrompts);
     }
-    prompts.push(...inlinePrompts);
+    
     return prompts;
   }, [promptsExec]);
 
@@ -50,7 +76,11 @@ export default function PromptsStage({ run, onApprove, onTriggerPrompts }: Promp
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onTriggerPrompts} disabled={run.status !== "content_approved"}>
+          <Button
+            variant="outline"
+            onClick={onTriggerPrompts}
+            disabled={!["content_approved", "prompts_approved"].includes(run.status)}
+          >
             شروع تولید پرامپت
           </Button>
           <Button onClick={onApprove} disabled={run.status !== "prompts_approved"}>

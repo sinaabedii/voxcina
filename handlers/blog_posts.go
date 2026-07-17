@@ -878,10 +878,19 @@ func TriggerPromptGeneration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if run.Status != models.PipelineContentApproved {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Can only trigger prompts from 'content_approved' status")
+	// Allow triggering prompts from content_approved (initial) or restarting from prompts/prompts_approved
+	allowedStatuses := map[string]bool{
+		models.PipelineContentApproved: true,
+		models.PipelinePrompts:         true,
+		models.PipelinePromptsApproved: true,
+	}
+	if !allowedStatuses[run.Status] {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Can only trigger prompts from 'content_approved', 'prompts', or 'prompts_approved' status")
 		return
 	}
+
+	// Remove previous prompts executions for a clean restart
+	repo.DeleteExecutionsByStage(ctx, runID, models.StagePrompts)
 
 	// Queue prompts execution
 	execution := models.BlogAgentExecution{
@@ -897,12 +906,20 @@ func TriggerPromptGeneration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update run status
+	// Reset run state back to prompts
 	run.Status = models.PipelinePrompts
 	run.UpdatedAt = time.Now()
-	repo.UpdatePipelineRunStatus(ctx, runID, bson.M{"status": run.Status, "updated_at": run.UpdatedAt})
+	set := bson.M{
+		"status":      run.Status,
+		"updated_at":  run.UpdatedAt,
+		"approved_at": nil,
+	}
+	if err := repo.UpdatePipelineRunStatus(ctx, runID, set); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error resetting pipeline run: "+err.Error())
+		return
+	}
 
-	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Prompt generation queued"})
+	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Prompts queued and previous results cleared"})
 }
 
 // ---------- Helpers ----------
