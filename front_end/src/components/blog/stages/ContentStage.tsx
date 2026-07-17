@@ -11,17 +11,25 @@ interface ContentStageProps {
 }
 
 export default function ContentStage({ run, onApprove, onTriggerWriting }: ContentStageProps) {
+  const isWriting = run.status === "writing";
+  const isApproved = run.status === "content_approved";
+
   const writingExec = useMemo(
-    () => run.executions?.find((e) => e.stage === "write"),
+    () => run.executions?.find((e) => e.stage === "write" && e.status === "completed"),
     [run.executions]
   );
+  const parsedOutput = writingExec?.parsedOutput;
   const blocks: BlogBlock[] = useMemo(
-    () => (writingExec?.parsedOutput?.blocks as BlogBlock[]) || [],
-    [writingExec]
+    () => (parsedOutput?.blocks as BlogBlock[]) || [],
+    [parsedOutput]
   );
   const excerpt = useMemo(
-    () => (writingExec?.parsedOutput?.excerpt as string) || "",
-    [writingExec]
+    () => (parsedOutput?.excerpt as string) || "",
+    [parsedOutput]
+  );
+  const rawContent = useMemo(
+    () => (typeof parsedOutput === "string" ? parsedOutput : parsedOutput?.content as string) || "",
+    [parsedOutput]
   );
 
   return (
@@ -30,28 +38,37 @@ export default function ContentStage({ run, onApprove, onTriggerWriting }: Conte
         <div>
           <h3 className="text-lg font-bold text-gray-900">محتوای مقاله</h3>
           <p className="text-sm text-gray-600">
-            وضعیت: {["writing"].includes(run.status)
+            وضعیت: {isWriting
               ? "در حال نگارش..."
-              : ["content_approved", "prompts", "prompts_approved", "media_pending", "ready", "published"].includes(run.status)
-                ? "نگارش تکمیل شد"
+              : isApproved
+                ? "نگارش تکمیل شد - آماده تایید"
                 : "هنوز شروع نشده"}
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onTriggerWriting} disabled={run.status !== "research_approved"}>
+          <Button variant="outline" onClick={onTriggerWriting} disabled={isWriting}>
             شروع نگارش
           </Button>
-          <Button onClick={onApprove} disabled={run.status !== "content_approved"}>
+          <Button onClick={onApprove} disabled={!isApproved}>
             تایید و ادامه
           </Button>
         </div>
       </div>
 
-      {blocks.length === 0 ? (
+      {isWriting && (
+        <div className="text-center py-8">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-voxcina-blue mb-2"></div>
+          <p className="text-gray-500">در حال تولید محتوا...</p>
+        </div>
+      )}
+
+      {!isWriting && blocks.length === 0 && !rawContent && (
         <div className="text-center py-8 text-gray-500">
           هنوز محتوایی تولید نشده است
         </div>
-      ) : (
+      )}
+
+      {blocks.length > 0 && (
         <div className="space-y-4">
           {blocks.map((block, index) => (
             <div key={block.id || index} className="border rounded-lg p-4">
@@ -73,6 +90,13 @@ export default function ContentStage({ run, onApprove, onTriggerWriting }: Conte
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {!isWriting && blocks.length === 0 && rawContent && (
+        <div className="border rounded-lg p-6">
+          <h4 className="font-bold text-gray-900 mb-3">متن مقاله</h4>
+          <div className="text-gray-900 whitespace-pre-wrap leading-relaxed">{rawContent}</div>
         </div>
       )}
 
