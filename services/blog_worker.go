@@ -170,8 +170,10 @@ func (w *BlogWorker) runStage(ctx context.Context, exec *models.BlogAgentExecuti
 		log.Printf("[blog-worker] execution %s failed permanently: %s", exec.ID.Hex(), errMsg)
 	}
 
-	// Emit status update to pipeline run
-	w.updatePipelineStatus(ctx, exec.PipelineRunID, stage)
+	// Only advance pipeline status on success
+	if status == "completed" {
+		w.updatePipelineStatus(ctx, exec.PipelineRunID, stage)
+	}
 }
 
 // runResearch performs the research stage using the ResearchAgent.
@@ -217,7 +219,7 @@ func (w *BlogWorker) runWrite(ctx context.Context, exec *models.BlogAgentExecuti
 	}
 
 	req := StructuredRequest{
-		Model:    "google/gemma-4-31b-it",
+		Model:    "qwen/qwen3.7-plus",
 		Messages: messages,
 		MaxTokens: 4096,
 	}
@@ -245,7 +247,7 @@ func (w *BlogWorker) runPrompts(ctx context.Context, exec *models.BlogAgentExecu
 	}
 
 	req := StructuredRequest{
-		Model:    "google/gemma-4-31b-it",
+		Model:    "qwen/qwen3.7-plus",
 		Messages: messages,
 		Schema: map[string]interface{}{
 			"name": "image_prompts",
