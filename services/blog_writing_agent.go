@@ -336,7 +336,32 @@ func writingOutputSchema() map[string]interface{} {
 							"alt":         map[string]interface{}{"type": "string"},
 							"caption":     map[string]interface{}{"type": "string"},
 						},
-						"required": []string{"type", "order"},
+						"allOf": []map[string]interface{}{
+							{
+								"if": map[string]interface{}{
+									"properties": map[string]interface{}{
+										"type": map[string]interface{}{
+											"enum": []string{"title", "header", "section", "subsection", "text"},
+										},
+									},
+								},
+								"then": map[string]interface{}{
+									"required": []string{"type", "order", "text"},
+								},
+							},
+							{
+								"if": map[string]interface{}{
+									"properties": map[string]interface{}{
+										"type": map[string]interface{}{
+											"const": "image",
+										},
+									},
+								},
+								"then": map[string]interface{}{
+									"required": []string{"type", "order", "imageSlotID", "alt"},
+								},
+							},
+						},
 					},
 				},
 				"excerpt": map[string]interface{}{"type": "string"},

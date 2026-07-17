@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-
 	"backEnd/models"
 )
 
@@ -66,9 +64,7 @@ type ResearchSnapshot struct {
 // RunResearch executes the research stage
 func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipelineRun, brief *models.GenerationBrief) (*ResearchSnapshot, error) {
 	log.Printf("[blog] Starting research for run %s, topic: %s", run.ID.Hex(), brief.Topic)
-	startTime := time.Now()
 	now := time.Now()
-	completedAt := &now
 
 	// Generate search queries
 	queries := ra.generateQueries(brief)
@@ -148,37 +144,6 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 		if err := ra.repository.InsertResearchSource(ctx, &source); err != nil {
 			log.Printf("[blog] Warning: failed to save source %s: %v", source.URL, err)
 		}
-	}
-
-	// Save execution record
-	execution := models.BlogAgentExecution{
-		PipelineRunID: run.ID,
-		Stage:         "research",
-		Attempt:       1,
-		InputSnapshot: bson.M{
-			"brief":   brief,
-			"queries": queries,
-		},
-		ParsedOutput: bson.M{
-			"findings":            researchOutput.Findings,
-			"outline":             researchOutput.Outline,
-			"uncertainties":       researchOutput.Uncertainties,
-			"prohibited_claims":   researchOutput.ProhibitedClaims,
-			"recommended_category": researchOutput.RecommendedCategory,
-			"recommended_tags":    researchOutput.RecommendedTags,
-		},
-		Provider:    "openrouter",
-		Model:       "qwen/qwen3.7-plus",
-		TokenUsage:  0,
-		DurationMs:  int64(time.Since(startTime).Milliseconds()),
-		Status:      "completed",
-		CreatedAt:   time.Now(),
-		StartedAt:   &startTime,
-		CompletedAt: completedAt,
-	}
-
-	if err := ra.repository.InsertAgentExecution(ctx, &execution); err != nil {
-		log.Printf("[blog] Warning: failed to save execution record: %v", err)
 	}
 
 	snapshot := &ResearchSnapshot{

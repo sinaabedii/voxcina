@@ -37,7 +37,10 @@ export function delay(ms: number) {
 
 export function toEnglishNumber(num: string) {
   const charCodeZero = "۰".charCodeAt(0);
-  return num.replace(/[۰-۹]/g, (c) => String(c.charCodeAt(0) - charCodeZero));
+  const arabicCharCodeZero = "٠".charCodeAt(0);
+  return num
+    .replace(/[۰-۹]/g, (c) => String(c.charCodeAt(0) - charCodeZero))
+    .replace(/[٠-٩]/g, (c) => String(c.charCodeAt(0) - arabicCharCodeZero));
 }
 
 export function toPersianNumber(num: number | string) {

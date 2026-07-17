@@ -13,6 +13,7 @@ import CategoryModal from "@/components/admin/CategoryModal";
 import AddBrandModal from "@/components/admin/AddBrandModal";
 import ImageUploader, { ImageItem, getNewImageFiles } from "@/components/admin/ImageUploader";
 import PatternPicker from "@/components/ui/PatternPicker";
+import { toEnglishNumber } from "@/lib/utils";
 
 export default function AddProductPage() {
   const router = useRouter();
@@ -163,9 +164,11 @@ export default function AddProductPage() {
 
   const handleSizeChange = (colorIdx: number, sizeIdx: number, field: keyof SizeVariant, value: any) => {
     const updatedVariants = [...colorVariants];
+    // Normalize Persian/Arabic digits in size field
+    const normalizedValue = field === "size" ? toEnglishNumber(String(value)) : value;
     updatedVariants[colorIdx].sizes[sizeIdx] = {
       ...updatedVariants[colorIdx].sizes[sizeIdx],
-      [field]: value
+      [field]: normalizedValue
     };
     setColorVariants(updatedVariants);
   };

@@ -23,7 +23,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "@/store/cart-store";
 import { useReviewStore } from "@/store/review-store";
 import { useDashboardStore } from "@/store/dashboard-store";
-import { cn, formatPrice } from "@/lib/utils";
+import { cn, formatPrice, toEnglishNumber } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import QuantitySelector from "@/components/ui/QuantitySelector";
@@ -147,8 +147,10 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   const tryOnImage = getTryOnImage();
 
   // Extract available sizes and colors from colorVariants
+  // Normalize Persian/Arabic digits to Latin to prevent duplicate size buttons
+  const normalizeSize = (s: string) => toEnglishNumber(s).trim();
   const availableSizes = product?.colorVariants
-    ? [...new Set(product.colorVariants.flatMap((cv) => cv.sizes.map(s => s.size)))]
+    ? [...new Set(product.colorVariants.flatMap((cv) => cv.sizes.map(s => normalizeSize(s.size))))]
     : [];
 
   const availableColors = product?.colorVariants
@@ -160,14 +162,15 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     if (!product || !color) return availableSizes;
     const colorVariant = product.colorVariants.find(cv => cv.colorName === color);
     if (!colorVariant) return [];
-    return colorVariant.sizes.filter(s => s.quantity > 0).map(s => s.size);
+    return colorVariant.sizes.filter(s => s.quantity > 0).map(s => normalizeSize(s.size));
   };
 
   // Get available colors based on selected size
   const getAvailableColorsForSize = (size: string | undefined) => {
     if (!product || !size) return availableColors;
+    const normalizedTarget = normalizeSize(size);
     return product.colorVariants
-      .filter(cv => cv.sizes.some(s => s.size === size && s.quantity > 0))
+      .filter(cv => cv.sizes.some(s => normalizeSize(s.size) === normalizedTarget && s.quantity > 0))
       .map(cv => ({ color: cv.color, colorName: cv.colorName, swatchImage: cv.swatchImage }));
   };
 
@@ -176,7 +179,8 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     if (!product) return false;
     const colorVariant = product.colorVariants.find(cv => cv.colorName === color);
     if (!colorVariant) return false;
-    return colorVariant.sizes.some(s => s.size === size && s.quantity > 0);
+    const normalizedTarget = normalizeSize(size);
+    return colorVariant.sizes.some(s => normalizeSize(s.size) === normalizedTarget && s.quantity > 0);
   };
 
   // Get inventory count for selected variant
@@ -195,7 +199,8 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     if (!selectedColor || !selectedSize) return 0;
     const colorVariant = product.colorVariants.find(cv => cv.colorName === selectedColor);
     if (!colorVariant) return 0;
-    const sizeVariant = colorVariant.sizes.find(s => s.size === selectedSize);
+    const normalizedTarget = normalizeSize(selectedSize);
+    const sizeVariant = colorVariant.sizes.find(s => normalizeSize(s.size) === normalizedTarget);
     return sizeVariant?.quantity || 0;
   };
 

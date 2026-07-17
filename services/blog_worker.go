@@ -228,12 +228,22 @@ func (w *BlogWorker) runWrite(ctx context.Context, exec *models.BlogAgentExecuti
 		return "", "", fmt.Sprintf("failed to find research execution: %v", err), "", "", "", "", 0, ""
 	}
 
-	// Parse research output
+	// Parse research output - handle both snapshot format and direct ResearchOutput format
 	var researchOutput ResearchOutput
 	if researchExec.ParsedOutput != nil {
 		outputJSON, _ := json.Marshal(researchExec.ParsedOutput)
-		if err := json.Unmarshal(outputJSON, &researchOutput); err != nil {
-			log.Printf("[blog-worker] Warning: failed to parse research output: %v", err)
+		
+		// Try snapshot format first (has "output" field)
+		var snapshotWrapper struct {
+			Output ResearchOutput `json:"output"`
+		}
+		if err := json.Unmarshal(outputJSON, &snapshotWrapper); err == nil && len(snapshotWrapper.Output.Findings) > 0 {
+			researchOutput = snapshotWrapper.Output
+		} else {
+			// Fall back to direct ResearchOutput format
+			if err := json.Unmarshal(outputJSON, &researchOutput); err != nil {
+				log.Printf("[blog-worker] Warning: failed to parse research output: %v", err)
+			}
 		}
 	}
 

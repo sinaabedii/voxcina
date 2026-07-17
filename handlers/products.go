@@ -623,6 +623,13 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Normalize Persian/Arabic digits in size strings to prevent duplicates
+	for i := range colorVariants {
+		for j := range colorVariants[i].Sizes {
+			colorVariants[i].Sizes[j].Size = utils.NormalizePersianDigits(colorVariants[i].Sizes[j].Size)
+		}
+	}
+
 	// Process color variant images and try-on images
 	for i := range colorVariants {
 		colorVariant := &colorVariants[i]
@@ -880,6 +887,10 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 	var colorVariantItems []models.ColorVariantListItem
 	for _, product := range products {
 		for _, colorVariant := range product.ColorVariants {
+			// Normalize Persian/Arabic digits in size strings
+			for j := range colorVariant.Sizes {
+				colorVariant.Sizes[j].Size = utils.NormalizePersianDigits(colorVariant.Sizes[j].Size)
+			}
 			// Calculate total inventory for this color
 			totalInventory := 0
 			for _, size := range colorVariant.Sizes {
@@ -1045,16 +1056,15 @@ func GetProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Calculate InStock based on all color variants
+	// Also normalize Persian/Arabic digits in size strings
 	product.InStock = false
-	for _, colorVariant := range product.ColorVariants {
-		for _, size := range colorVariant.Sizes {
+	for i := range product.ColorVariants {
+		for j := range product.ColorVariants[i].Sizes {
+			size := &product.ColorVariants[i].Sizes[j]
+			size.Size = utils.NormalizePersianDigits(size.Size)
 			if size.Quantity > 0 {
 				product.InStock = true
-				break
 			}
-		}
-		if product.InStock {
-			break
 		}
 	}
 
@@ -1298,6 +1308,12 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if len(productUpdate.ColorVariants) > 0 {
+			// Normalize Persian/Arabic digits in size strings to prevent duplicates
+			for i := range productUpdate.ColorVariants {
+				for j := range productUpdate.ColorVariants[i].Sizes {
+					productUpdate.ColorVariants[i].Sizes[j].Size = utils.NormalizePersianDigits(productUpdate.ColorVariants[i].Sizes[j].Size)
+				}
+			}
 			update["color_variants"] = productUpdate.ColorVariants
 			somethingToUpdate = true
 		}
@@ -1659,6 +1675,12 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		if colorVariantsJSON := r.FormValue("colorVariants"); colorVariantsJSON != "" {
 			var colorVariants []models.ColorVariant
 			if err := json.Unmarshal([]byte(colorVariantsJSON), &colorVariants); err == nil {
+				// Normalize Persian/Arabic digits in size strings to prevent duplicates
+				for i := range colorVariants {
+					for j := range colorVariants[i].Sizes {
+						colorVariants[i].Sizes[j].Size = utils.NormalizePersianDigits(colorVariants[i].Sizes[j].Size)
+					}
+				}
 				// Process each color variant's images
 				for idx := range colorVariants {
 					colorImageOrderJSON := r.FormValue(fmt.Sprintf("colorImageOrder_%d", idx))
@@ -2059,6 +2081,10 @@ func GetProductsByCollection(w http.ResponseWriter, r *http.Request) {
 	var colorVariantItems []models.ColorVariantListItem
 	for _, product := range products {
 		for _, colorVariant := range product.ColorVariants {
+			// Normalize Persian/Arabic digits in size strings
+			for j := range colorVariant.Sizes {
+				colorVariant.Sizes[j].Size = utils.NormalizePersianDigits(colorVariant.Sizes[j].Size)
+			}
 			// Calculate total inventory for this color
 			totalInventory := 0
 			for _, size := range colorVariant.Sizes {

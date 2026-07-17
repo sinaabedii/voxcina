@@ -11,6 +11,7 @@ import Button from "@/components/ui/Button";
 import toast from "react-hot-toast";
 import ImageUploader, { ImageItem, getNewImageFiles, getExistingImagePaths, getImageOrderInfo, createImageItemFromUrl } from "@/components/admin/ImageUploader";
 import PatternPicker from "@/components/ui/PatternPicker";
+import { toEnglishNumber } from "@/lib/utils";
 
 export default function EditProductPage() {
   const router = useRouter();
@@ -205,9 +206,11 @@ export default function EditProductPage() {
 
   const handleSizeChange = (colorIdx: number, sizeIdx: number, field: keyof SizeVariant, value: any) => {
     const updatedVariants = [...colorVariants];
+    // Normalize Persian/Arabic digits in size field
+    const normalizedValue = field === "size" ? toEnglishNumber(String(value)) : value;
     updatedVariants[colorIdx].sizes[sizeIdx] = {
       ...updatedVariants[colorIdx].sizes[sizeIdx],
-      [field]: value
+      [field]: normalizedValue
     };
     setColorVariants(updatedVariants);
   };
