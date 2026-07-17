@@ -75,7 +75,7 @@ func (c *BraveSearchClient) SearchLLMContext(ctx context.Context, query string, 
 	}
 
 	body := map[string]interface{}{
-		"query": query,
+		"q": query,
 	}
 	if opts.Count > 0 {
 		body["count"] = opts.Count

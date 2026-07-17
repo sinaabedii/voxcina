@@ -87,7 +87,10 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 	if !ra.braveClient.IsAvailable() {
 		log.Printf("[blog] BRAVE_SEARCH_API_KEY not set, skipping web search - will generate research from LLM knowledge only")
 	} else {
-		for _, query := range queries {
+		for i, query := range queries {
+			if i > 0 {
+				time.Sleep(1200 * time.Millisecond) // Rate limit: free plan allows 1 req/sec
+			}
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
@@ -97,10 +100,14 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 			// Try LLM Context first, fall back to web search
 			var rawSources []braveResult
 
-			llmResp, llmErr := ra.braveClient.SearchLLMContext(ctx, query, SearchOptions{Count: 20})
+			llmResp, llmErr := ra.braveClient.SearchLLMContext(ctx, query, SearchOptions{Count: 5})
 			if llmErr != nil {
+				if strings.Contains(llmErr.Error(), "429") {
+					log.Printf("[blog] Rate limited for query '%s', skipping", query)
+					continue
+				}
 				log.Printf("[blog] LLM Context failed for query '%s': %v, trying web search", query, llmErr)
-				webResults, werr := ra.braveClient.SearchWeb(ctx, query, SearchOptions{Count: 20})
+				webResults, werr := ra.braveClient.SearchWeb(ctx, query, SearchOptions{Count: 5})
 				if werr != nil {
 					log.Printf("[blog] Web search also failed for query '%s': %v", query, werr)
 					continue
