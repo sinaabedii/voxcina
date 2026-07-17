@@ -331,7 +331,7 @@ func (w *BlogWorker) runPrompts(ctx context.Context, exec *models.BlogAgentExecu
 	return resp.Content, resp.Content, "", "blog.prompts", "1", "openrouter", req.Model, resp.Usage.TotalTokens, ""
 }
 
-// convertBSONToMap recursively converts bson.D/bson.M structures to regular maps for JSON marshaling.
+// convertBSONToMap recursively converts bson.D/bson.M/bson.A structures to regular maps for JSON marshaling.
 func convertBSONToMap(v interface{}) interface{} {
 	switch val := v.(type) {
 	case bson.D:
@@ -346,6 +346,12 @@ func convertBSONToMap(v interface{}) interface{} {
 			m[k] = convertBSONToMap(v)
 		}
 		return m
+	case bson.A:
+		arr := make([]interface{}, len(val))
+		for i, v := range val {
+			arr[i] = convertBSONToMap(v)
+		}
+		return arr
 	case []interface{}:
 		arr := make([]interface{}, len(val))
 		for i, v := range val {
