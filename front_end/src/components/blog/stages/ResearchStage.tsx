@@ -36,7 +36,7 @@ export default function ResearchStage({ run, sources, onApprove, onTriggerResear
           <Button variant="outline" onClick={onTriggerResearch} disabled={run.status !== "brief" && run.status !== "researching"}>
             شروع مجدد تحقیق
           </Button>
-          <Button onClick={onApprove} disabled={run.status !== "research_approved"}>
+          <Button onClick={onApprove} disabled={run.status !== "researching" && run.status !== "research_approved"}>
             تایید و ادامه
           </Button>
         </div>
