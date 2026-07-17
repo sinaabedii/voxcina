@@ -323,6 +323,12 @@ func (r *BlogRepository) DeleteExecutionsByRunID(ctx context.Context, runID prim
 	return err
 }
 
+// DeleteExecutionsByStage deletes agent executions for a specific stage.
+func (r *BlogRepository) DeleteExecutionsByStage(ctx context.Context, runID primitive.ObjectID, stage string) error {
+	_, err := r.db.Collection("blog_agent_executions").DeleteMany(ctx, bson.M{"pipeline_run_id": runID, "stage": stage})
+	return err
+}
+
 // DeleteSourcesByRunID deletes all research sources for a pipeline run.
 func (r *BlogRepository) DeleteSourcesByRunID(ctx context.Context, runID primitive.ObjectID) error {
 	_, err := r.db.Collection("blog_research_sources").DeleteMany(ctx, bson.M{"pipeline_run_id": runID})

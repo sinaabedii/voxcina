@@ -80,7 +80,6 @@ export default function BlogDetailPage() {
     const success = await triggerResearch(runID);
     if (success) {
       toast.success("تحقیق شروع شد");
-      await fetchRun(runID);
     } else {
       toast.error("خطا در شروع تحقیق");
     }

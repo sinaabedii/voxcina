@@ -126,10 +126,11 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
       });
 
       if (!res.ok) {
-        throw new Error("Failed to trigger research");
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to trigger research");
       }
 
-      set({ isLoading: false });
+      await get().fetchRun(runID);
       return true;
     } catch (err) {
       set({
@@ -152,12 +153,11 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
       });
 
       if (!res.ok) {
-        throw new Error("Failed to approve research");
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to approve research");
       }
 
-      // Refresh run data
       await get().fetchRun(runID);
-      set({ isLoading: false });
       return true;
     } catch (err) {
       set({

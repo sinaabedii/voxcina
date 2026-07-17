@@ -745,10 +745,14 @@ func TriggerResearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if run.Status != models.PipelineBrief && run.Status != models.PipelineResearching {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Can only trigger research from 'brief' or 'researching' status")
+	if run.Status != models.PipelineBrief && run.Status != models.PipelineResearching && run.Status != models.PipelineResearchApproved {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Can only trigger research from 'brief', 'researching', or 'research_approved' status")
 		return
 	}
+
+	// Delete old research executions and sources for a clean restart
+	repo.DeleteExecutionsByStage(ctx, runID, models.StageResearch)
+	repo.DeleteSourcesByRunID(ctx, runID)
 
 	// Queue research execution
 	execution := models.BlogAgentExecution{
