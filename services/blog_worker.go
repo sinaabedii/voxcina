@@ -232,6 +232,11 @@ func (w *BlogWorker) runWrite(ctx context.Context, exec *models.BlogAgentExecuti
 	var researchOutput ResearchOutput
 	if researchExec.ParsedOutput != nil {
 		outputJSON, _ := json.Marshal(researchExec.ParsedOutput)
+		jsonStr := string(outputJSON)
+		if len(jsonStr) > 500 {
+			jsonStr = jsonStr[:500]
+		}
+		log.Printf("[blog-worker] Research output JSON (first 500 chars): %s", jsonStr)
 		
 		// Try snapshot format first (has "output" field)
 		var snapshotWrapper struct {
