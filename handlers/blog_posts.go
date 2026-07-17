@@ -305,6 +305,9 @@ func ApprovePipelineRun(w http.ResponseWriter, r *http.Request) {
 		queueStage = models.StageWrite
 	case models.PipelineWriting:
 		newStatus = models.PipelineContentApproved
+	case models.PipelineContentApproved:
+		newStatus = models.PipelinePrompts
+		queueStage = models.StagePrompts
 	case models.PipelinePrompts:
 		newStatus = models.PipelinePromptsApproved
 	case models.PipelinePromptsApproved:
