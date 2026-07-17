@@ -89,7 +89,7 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 	} else {
 		for i, query := range queries {
 			if i > 0 {
-				time.Sleep(1200 * time.Millisecond) // Rate limit: free plan allows 1 req/sec
+				time.Sleep(1500 * time.Millisecond) // Rate limit: free plan allows 1 req/sec
 			}
 			select {
 			case <-ctx.Done():
@@ -97,28 +97,20 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 			default:
 			}
 
-			// Try LLM Context first, fall back to web search
+			// Use Web Search API (LLM Context requires paid plan)
 			var rawSources []braveResult
 
-			llmResp, llmErr := ra.braveClient.SearchLLMContext(ctx, query, SearchOptions{Count: 5})
-			if llmErr != nil {
-				if strings.Contains(llmErr.Error(), "429") {
+			webResults, werr := ra.braveClient.SearchWeb(ctx, query, SearchOptions{Count: 5})
+			if werr != nil {
+				if strings.Contains(werr.Error(), "429") {
 					log.Printf("[blog] Rate limited for query '%s', skipping", query)
-					continue
+				} else {
+					log.Printf("[blog] Web search failed for query '%s': %v", query, werr)
 				}
-				log.Printf("[blog] LLM Context failed for query '%s': %v, trying web search", query, llmErr)
-				webResults, werr := ra.braveClient.SearchWeb(ctx, query, SearchOptions{Count: 5})
-				if werr != nil {
-					log.Printf("[blog] Web search also failed for query '%s': %v", query, werr)
-					continue
-				}
-				for _, r := range webResults {
-					rawSources = append(rawSources, braveResult{URL: r.URL, Title: r.Title, Snippet: r.Snippet, ExtractedContent: r.Snippet})
-				}
-			} else {
-				for _, s := range llmResp.Data {
-					rawSources = append(rawSources, braveResult{URL: s.URL, Title: s.Title, Snippet: s.Snippet, ExtractedContent: s.Content})
-				}
+				continue
+			}
+			for _, r := range webResults {
+				rawSources = append(rawSources, braveResult{URL: r.URL, Title: r.Title, Snippet: r.Snippet, ExtractedContent: r.Snippet})
 			}
 
 			// Process sources
