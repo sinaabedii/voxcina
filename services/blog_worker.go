@@ -237,12 +237,17 @@ func (w *BlogWorker) runWrite(ctx context.Context, exec *models.BlogAgentExecuti
 		var snapshotWrapper struct {
 			Output ResearchOutput `json:"output"`
 		}
-		if err := json.Unmarshal(outputJSON, &snapshotWrapper); err == nil && len(snapshotWrapper.Output.Findings) > 0 {
+		if err := json.Unmarshal(outputJSON, &snapshotWrapper); err != nil {
+			log.Printf("[blog-worker] Warning: snapshot wrapper parse failed: %v", err)
+		} else if len(snapshotWrapper.Output.Findings) > 0 {
 			researchOutput = snapshotWrapper.Output
+			log.Printf("[blog-worker] Successfully parsed research snapshot with %d findings", len(researchOutput.Findings))
 		} else {
 			// Fall back to direct ResearchOutput format
 			if err := json.Unmarshal(outputJSON, &researchOutput); err != nil {
-				log.Printf("[blog-worker] Warning: failed to parse research output: %v", err)
+				log.Printf("[blog-worker] Warning: direct research output parse failed: %v", err)
+			} else {
+				log.Printf("[blog-worker] Successfully parsed direct research output with %d findings", len(researchOutput.Findings))
 			}
 		}
 	}
