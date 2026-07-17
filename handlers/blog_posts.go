@@ -300,8 +300,6 @@ func ApprovePipelineRun(w http.ResponseWriter, r *http.Request) {
 	var newStatus string
 	var queueStage string
 	switch run.Status {
-	case models.PipelineResearching:
-		newStatus = models.PipelineResearchApproved
 	case models.PipelineResearchApproved:
 		newStatus = models.PipelineWriting
 		queueStage = models.StageWrite

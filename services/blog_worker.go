@@ -280,7 +280,7 @@ func (w *BlogWorker) updatePipelineStatus(ctx context.Context, runID primitive.O
 	var newStatus string
 	switch completedStage {
 	case models.StageResearch:
-		newStatus = models.PipelineResearching
+		newStatus = models.PipelineResearchApproved
 	case models.StageWrite:
 		newStatus = models.PipelineContentApproved
 	case models.StagePrompts:
