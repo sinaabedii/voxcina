@@ -88,7 +88,9 @@ func main() {
 	braveClient := services.NewBraveSearchClient()
 	structClient := services.NewOpenRouterStructuredClient()
 	researchAgent := services.NewResearchAgent(braveClient, structClient, blogRepo)
-	blogWorker := services.NewBlogWorker(blogRepo, braveClient, structClient, researchAgent, cfg.BlogWorkerConcurrency, cfg.BlogMaxRetries)
+	blogValidator := services.NewBlogValidator()
+	writingAgent := services.NewWritingAgent(structClient, blogRepo, blogValidator)
+	blogWorker := services.NewBlogWorker(blogRepo, braveClient, structClient, researchAgent, writingAgent, cfg.BlogWorkerConcurrency, cfg.BlogMaxRetries)
 	blogWorker.Start()
 	log.Println("Blog AI pipeline worker started")
 

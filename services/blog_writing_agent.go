@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"backEnd/models"
@@ -34,9 +33,7 @@ func NewWritingAgent(openRouter *OpenRouterStructuredClient, repository *BlogRep
 // RunWriting executes the writing stage
 func (wa *WritingAgent) RunWriting(ctx context.Context, run *models.BlogPipelineRun, snapshot *ResearchSnapshot) (*models.BlogPost, error) {
 	log.Printf("[blog] Starting writing for run %s, topic: %s", run.ID.Hex(), snapshot.GenerationBrief.Topic)
-	startTime := time.Now()
 	now := time.Now()
-	completedAt := &now
 
 	// Build writing prompt
 	prompt := wa.buildWritingPrompt(snapshot)
@@ -102,33 +99,6 @@ func (wa *WritingAgent) RunWriting(ctx context.Context, run *models.BlogPipeline
 		return nil, fmt.Errorf("failed to save blog post: %w", err)
 	}
 
-	// Save execution record
-	execution := models.BlogAgentExecution{
-		PipelineRunID: run.ID,
-		Stage:         "write",
-		Attempt:       1,
-		InputSnapshot: bson.M{
-			"research_snapshot": snapshot,
-		},
-		ParsedOutput: bson.M{
-			"blocks":      writingResult.Blocks,
-			"excerpt":     writingResult.Excerpt,
-			"category":    writingResult.RecommendedCategory,
-			"tags":        writingResult.RecommendedTags,
-		},
-		Provider:    "openrouter",
-		Model:       "qwen/qwen3.7-plus",
-		DurationMs:  int64(time.Since(startTime).Milliseconds()),
-		Status:      "completed",
-		CreatedAt:   time.Now(),
-		StartedAt:   &startTime,
-		CompletedAt: completedAt,
-	}
-
-	if err := wa.repository.InsertAgentExecution(ctx, &execution); err != nil {
-		log.Printf("[blog] Warning: failed to save execution record: %v", err)
-	}
-
 	// Update run status
 	run.PostID = post.ID.Hex()
 	run.Status = "content_approved"
@@ -154,79 +124,84 @@ func (wa *WritingAgent) buildWritingPrompt(snapshot *ResearchSnapshot) string {
 	brief := snapshot.GenerationBrief
 	research := snapshot.Output
 
-	prompt := fmt.Sprintf(`You are a professional Persian fashion blogger writing for Voxcina, a Persian e-commerce platform.
+	// Determine target image count based on desired length
+	targetImages := 1
+	if brief.DesiredLength >= 1400 {
+		targetImages = 3
+	} else if brief.DesiredLength >= 800 {
+		targetImages = 2
+	}
 
-**Topic:** %s
-**Audience:** %s
-**Desired Length:** %d words
-**Tone:** %s
-**Category:** %s
-**Keywords:** %s
+	prompt := fmt.Sprintf(`You are a Persian fashion and lifestyle blogger for Voxcina, an Iranian e-commerce platform. Write engaging, native Persian content that feels authentic and conversational.
 
-**Research Findings:**
+**Assignment:**
+- Topic: %s
+- Audience: %s
+- Target length: %d words
+- Tone: %s
+- Category: %s
+- Keywords: %s
+
+**Research Summary:**
 %s
 
-**Recommended Outline:**
+**Outline:**
 - Title: %s
 - Sections: %s
-- Key Points: %s
+- Key points: %s
 
-**Uncertainties to Address:**
-%s
+**Constraints:**
+- Avoid: %s
+- Address uncertainties: %s
 
-**Prohibited Claims to Avoid:**
-%s
+**Content Structure Rules:**
+You MUST use exactly these 6 block types in order:
 
-**Instructions:**
-1. Write in native, fluent Persian (not translated-sounding)
-2. Use exactly these block types: title, header, section, subsection, text, image
-3. Structure:
-   - First block must be "title" (H1)
-   - Use "header" (H2) for main sections
-   - Use "section" (H3) for subsections
-   - Use "subsection" (H4) for sub-subsections
-   - Use "text" for paragraph content
-   - Use "image" for inline images (1-3 images based on length)
-4. Image placement:
-   - Under 800 words: 1 image
-   - 800-1400 words: 2 images
-   - Above 1400 words: 3 images
-   - Images must appear BETWEEN text blocks, never first or last
-5. Include a compelling excerpt (50-100 words)
-6. Recommend 3-5 tags
-7. Write engaging, informative content with practical tips
+1. "title" - Main article title (H1, exactly one, always first)
+2. "header" - Major section heading (H2)
+3. "section" - Subsection heading (H3)
+4. "subsection" - Minor heading (H4)
+5. "text" - Paragraph content (plain text only, no HTML/Markdown)
+6. "image" - Image placeholder with imageSlotID (e.g., "img-1", "img-2", "img-3")
 
-Return a JSON object with this structure:
+**Image Placement:**
+- Insert exactly %d image block(s) BETWEEN text blocks
+- Images must never be first or last
+- Space images evenly throughout the article
+- Each image block needs: type="image", imageSlotID="img-N", alt="descriptive text"
+
+**Heading Hierarchy:**
+- Start with title (H1)
+- Use header (H2) for main sections
+- Use section (H3) for subsections under headers
+- Use subsection (H4) sparingly for deeper nesting
+- Never skip levels (no H4 directly after H2)
+
+**Writing Guidelines:**
+- Write naturally in Persian, not translated-sounding
+- Be conversational and friendly, like talking to a friend
+- Include practical tips and actionable advice
+- Use short paragraphs (2-4 sentences)
+- Break up text with headings every 200-300 words
+- End with a conclusion or call-to-action
+
+**Output Format:**
+Return JSON with this exact structure:
 {
   "blocks": [
-    {
-      "type": "title",
-      "text": "article title",
-      "order": 0
-    },
-    {
-      "type": "text",
-      "text": "paragraph content",
-      "order": 1
-    },
-    {
-      "type": "image",
-      "imageSlotID": "img-1",
-      "alt": "description for accessibility",
-      "order": 2
-    },
+    {"type": "title", "text": "عنوان مقاله", "order": 0},
+    {"type": "text", "text": "مقدمه...", "order": 1},
+    {"type": "image", "imageSlotID": "img-1", "alt": "توضیح تصویر", "order": 2},
+    {"type": "header", "text": "بخش اول", "order": 3},
+    {"type": "text", "text": "محتوای بخش...", "order": 4},
     ...
   ],
-  "excerpt": "short description",
-  "recommended_category": "category name",
-  "recommended_tags": ["tag1", "tag2"]
+  "excerpt": "خلاصه 50-100 کلمه‌ای مقاله",
+  "recommended_category": "دسته‌بندی پیشنهادی",
+  "recommended_tags": ["برچسب1", "برچسب2", "برچسب3"]
 }
 
-IMPORTANT: 
-- Do NOT use HTML or Markdown in text blocks
-- Do NOT include any other block types
-- Ensure proper heading hierarchy (H1→H2→H3→H4, no skipping)
-- Write in Persian, but keep JSON keys in English`,
+IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, no code blocks.`,
 		brief.Topic,
 		brief.TargetAudience,
 		brief.DesiredLength,
@@ -237,8 +212,9 @@ IMPORTANT:
 		research.Outline.Title,
 		strings.Join(research.Outline.Sections, ", "),
 		strings.Join(research.Outline.KeyPoints, ", "),
-		strings.Join(research.Uncertainties, "\n"),
-		strings.Join(research.ProhibitedClaims, "\n"),
+		strings.Join(research.ProhibitedClaims, ", "),
+		strings.Join(research.Uncertainties, ", "),
+		targetImages,
 	)
 
 	return prompt

@@ -21,6 +21,7 @@ type BlogWorker struct {
 	braveClient  *BraveSearchClient
 	structClient *OpenRouterStructuredClient
 	researchAgent *ResearchAgent
+	writingAgent  *WritingAgent
 	concurrency  int
 	maxRetries   int
 	running      bool
@@ -29,7 +30,7 @@ type BlogWorker struct {
 }
 
 // NewBlogWorker creates a new BlogWorker.
-func NewBlogWorker(repo *BlogRepository, braveClient *BraveSearchClient, structClient *OpenRouterStructuredClient, researchAgent *ResearchAgent, concurrency, maxRetries int) *BlogWorker {
+func NewBlogWorker(repo *BlogRepository, braveClient *BraveSearchClient, structClient *OpenRouterStructuredClient, researchAgent *ResearchAgent, writingAgent *WritingAgent, concurrency, maxRetries int) *BlogWorker {
 	if concurrency <= 0 {
 		concurrency = 3
 	}
@@ -41,6 +42,7 @@ func NewBlogWorker(repo *BlogRepository, braveClient *BraveSearchClient, structC
 		braveClient:   braveClient,
 		structClient:  structClient,
 		researchAgent: researchAgent,
+		writingAgent:  writingAgent,
 		concurrency:   concurrency,
 		maxRetries:    maxRetries,
 		stopCh:        make(chan struct{}),
@@ -209,27 +211,58 @@ func (w *BlogWorker) runWrite(ctx context.Context, exec *models.BlogAgentExecuti
 		return "", "", fmt.Sprintf("failed to load pipeline run: %v", err), "", "", "", "", 0, ""
 	}
 
-	// Build writing prompt
-	systemPrompt := fmt.Sprintf(`You are a professional Persian-language blogger writing for an Iranian e-commerce site called Voxcina. Write a %d-word blog post about "%s" in a %s tone for %s audience. Include keywords: %v. Category: %s.`,
-		run.DesiredLength, run.Topic, run.Tone, run.TargetAudience, run.Keywords, run.Category)
-
-	messages := []OpenRouterMessage{
-		{Role: "system", Content: systemPrompt},
-		{Role: "user", Content: "Write the blog post now in Persian."},
+	// Build ResearchSnapshot from run brief and research execution
+	brief := &models.GenerationBrief{
+		Topic:          run.Topic,
+		Locale:         run.Locale,
+		TargetAudience: run.TargetAudience,
+		DesiredLength:  run.DesiredLength,
+		Tone:           run.Tone,
+		Keywords:       run.Keywords,
+		Category:       run.Category,
 	}
 
-	req := StructuredRequest{
-		Model:    "qwen/qwen3.7-plus",
-		Messages: messages,
-		MaxTokens: 4096,
-	}
-
-	resp, err := w.structClient.CallStructured(ctx, req)
+	// Get research execution to extract findings
+	researchExec, err := w.repo.FindCompletedExecution(ctx, run.ID, models.StageResearch)
 	if err != nil {
-		return "", "", fmt.Sprintf("LLM write failed: %v", err), "", "", "openrouter", req.Model, 0, ""
+		return "", "", fmt.Sprintf("failed to find research execution: %v", err), "", "", "", "", 0, ""
 	}
 
-	return resp.Content, resp.Content, "", "blog.write", "1", "openrouter", req.Model, resp.Usage.TotalTokens, ""
+	// Parse research output
+	var researchOutput ResearchOutput
+	if researchExec.ParsedOutput != nil {
+		outputJSON, _ := json.Marshal(researchExec.ParsedOutput)
+		if err := json.Unmarshal(outputJSON, &researchOutput); err != nil {
+			log.Printf("[blog-worker] Warning: failed to parse research output: %v", err)
+		}
+	}
+
+	// Get research sources
+	sources, _ := w.repo.FindSourcesByRunID(ctx, run.ID)
+
+	snapshot := &ResearchSnapshot{
+		Output:          researchOutput,
+		Sources:         sources,
+		GeneratedAt:     time.Now(),
+		GenerationBrief: *brief,
+	}
+
+	// Use WritingAgent to generate structured content
+	post, err := w.writingAgent.RunWriting(ctx, run, snapshot)
+	if err != nil {
+		return "", "", fmt.Sprintf("writing agent failed: %v", err), "", "", "openrouter", "qwen/qwen3.7-plus", 0, ""
+	}
+
+	// Serialize the writing result for storage
+	writingResult := map[string]interface{}{
+		"blocks":              post.Blocks,
+		"excerpt":             post.Excerpt,
+		"recommended_category": post.Category,
+		"recommended_tags":    post.Tags,
+	}
+	outputJSON, _ := json.Marshal(writingResult)
+
+	return string(outputJSON), string(outputJSON), "", "blog.write", "1", "openrouter", "qwen/qwen3.7-plus", 0, ""
 }
 
 // runPrompts performs the prompts generation stage (for image generation prompts).

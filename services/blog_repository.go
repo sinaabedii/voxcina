@@ -390,6 +390,21 @@ func (r *BlogRepository) FindExecutionsByRunID(ctx context.Context, runID primit
 	return execs, nil
 }
 
+// FindCompletedExecution returns the most recent completed execution for a run and stage.
+func (r *BlogRepository) FindCompletedExecution(ctx context.Context, runID primitive.ObjectID, stage string) (*models.BlogAgentExecution, error) {
+	collection := r.db.Collection("blog_agent_executions")
+	var exec models.BlogAgentExecution
+	err := collection.FindOne(ctx, bson.M{
+		"pipeline_run_id": runID,
+		"stage":           stage,
+		"status":          "completed",
+	}).Decode(&exec)
+	if err != nil {
+		return nil, err
+	}
+	return &exec, nil
+}
+
 // FindPendingExecution returns the next pending execution to lease.
 func (r *BlogRepository) FindPendingExecution(ctx context.Context, stage string) (*models.BlogAgentExecution, error) {
 	collection := r.db.Collection("blog_agent_executions")
@@ -441,7 +456,13 @@ func (r *BlogRepository) CompleteExecution(ctx context.Context, id primitive.Obj
 		set["error"] = error
 	}
 	if parsedOutput != "" {
-		set["parsed_output"] = parsedOutput
+		// Try to parse as JSON to store as object, otherwise store as string
+		var parsed interface{}
+		if err := json.Unmarshal([]byte(parsedOutput), &parsed); err == nil {
+			set["parsed_output"] = parsed
+		} else {
+			set["parsed_output"] = parsedOutput
+		}
 	}
 	if rawResponse != "" {
 		set["raw_response"] = rawResponse
