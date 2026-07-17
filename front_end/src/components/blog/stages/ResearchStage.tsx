@@ -25,7 +25,11 @@ export default function ResearchStage({ run, sources, onApprove, onTriggerResear
         <div>
           <h3 className="text-lg font-bold text-gray-900">منابع تحقیق</h3>
           <p className="text-sm text-gray-600">
-            وضعیت: {run.status === "researching" ? "در حال تحقیق..." : "تحقیق تکمیل شد"}
+            وضعیت: {["researching"].includes(run.status)
+              ? "در حال تحقیق..."
+              : ["research_approved", "writing", "content_approved", "prompts", "prompts_approved", "media_pending", "ready", "published"].includes(run.status)
+                ? "تحقیق تکمیل شد"
+                : "هنوز شروع نشده"}
           </p>
         </div>
         <div className="flex gap-2">

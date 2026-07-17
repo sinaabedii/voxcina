@@ -30,7 +30,11 @@ export default function ContentStage({ run, onApprove, onTriggerWriting }: Conte
         <div>
           <h3 className="text-lg font-bold text-gray-900">محتوای مقاله</h3>
           <p className="text-sm text-gray-600">
-            وضعیت: {run.status === "writing" ? "در حال نگارش..." : "نگارش تکمیل شد"}
+            وضعیت: {["writing"].includes(run.status)
+              ? "در حال نگارش..."
+              : ["content_approved", "prompts", "prompts_approved", "media_pending", "ready", "published"].includes(run.status)
+                ? "نگارش تکمیل شد"
+                : "هنوز شروع نشده"}
           </p>
         </div>
         <div className="flex gap-2">

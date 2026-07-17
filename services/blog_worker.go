@@ -97,7 +97,7 @@ func (w *BlogWorker) workerLoop(id int) {
 
 // processNext finds and processes the next pending execution for any stage.
 func (w *BlogWorker) processNext(workerID int) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
 	// Try stages in order: research -> write -> prompts

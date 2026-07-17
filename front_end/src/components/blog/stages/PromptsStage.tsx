@@ -42,7 +42,11 @@ export default function PromptsStage({ run, onApprove, onTriggerPrompts }: Promp
         <div>
           <h3 className="text-lg font-bold text-gray-900">پرامپتهای تصویر</h3>
           <p className="text-sm text-gray-600">
-            وضعیت: {run.status === "prompts" ? "در حال تولید..." : "تولید تکمیل شد"}
+            وضعیت: {["prompts"].includes(run.status)
+              ? "در حال تولید..."
+              : ["prompts_approved", "media_pending", "ready", "published"].includes(run.status)
+                ? "تولید تکمیل شد"
+                : "هنوز شروع نشده"}
           </p>
         </div>
         <div className="flex gap-2">

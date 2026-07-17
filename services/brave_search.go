@@ -36,6 +36,11 @@ func NewBraveSearchClient() *BraveSearchClient {
 	}
 }
 
+// IsAvailable returns true if the Brave Search API key is configured.
+func (c *BraveSearchClient) IsAvailable() bool {
+	return c.apiKey != ""
+}
+
 // SearchOptions configures a Brave Search request.
 type SearchOptions struct {
 	Count     int

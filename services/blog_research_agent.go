@@ -84,53 +84,57 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 		ExtractedContent string
 	}
 
-	for _, query := range queries {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-
-		// Try LLM Context first, fall back to web search
-		var rawSources []braveResult
-
-		llmResp, llmErr := ra.braveClient.SearchLLMContext(ctx, query, SearchOptions{Count: 20})
-		if llmErr != nil {
-			log.Printf("[blog] LLM Context failed for query '%s': %v, trying web search", query, llmErr)
-			webResults, werr := ra.braveClient.SearchWeb(ctx, query, SearchOptions{Count: 20})
-			if werr != nil {
-				log.Printf("[blog] Web search also failed for query '%s': %v", query, werr)
-				continue
-			}
-			for _, r := range webResults {
-				rawSources = append(rawSources, braveResult{URL: r.URL, Title: r.Title, Snippet: r.Snippet, ExtractedContent: r.Snippet})
-			}
-		} else {
-			for _, s := range llmResp.Data {
-				rawSources = append(rawSources, braveResult{URL: s.URL, Title: s.Title, Snippet: s.Snippet, ExtractedContent: s.Content})
-			}
-		}
-
-		// Process sources
-		for i, src := range rawSources {
-			source := models.BlogResearchSource{
-				PipelineRunID:    run.ID,
-				Query:            query,
-				Provider:         "brave_llm_context",
-				URL:              src.URL,
-				Title:            src.Title,
-				Snippet:          src.Snippet,
-				ExtractedContent: src.ExtractedContent,
-				SourceIndex:      i,
-				FetchedAt:        time.Now(),
-				CreatedAt:        time.Now(),
+	if !ra.braveClient.IsAvailable() {
+		log.Printf("[blog] BRAVE_SEARCH_API_KEY not set, skipping web search - will generate research from LLM knowledge only")
+	} else {
+		for _, query := range queries {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			default:
 			}
 
-			// Extract claims from content
-			claims := ra.extractClaims(src.ExtractedContent, src.URL)
-			source.Claims = claims
+			// Try LLM Context first, fall back to web search
+			var rawSources []braveResult
 
-			allSources = append(allSources, source)
+			llmResp, llmErr := ra.braveClient.SearchLLMContext(ctx, query, SearchOptions{Count: 20})
+			if llmErr != nil {
+				log.Printf("[blog] LLM Context failed for query '%s': %v, trying web search", query, llmErr)
+				webResults, werr := ra.braveClient.SearchWeb(ctx, query, SearchOptions{Count: 20})
+				if werr != nil {
+					log.Printf("[blog] Web search also failed for query '%s': %v", query, werr)
+					continue
+				}
+				for _, r := range webResults {
+					rawSources = append(rawSources, braveResult{URL: r.URL, Title: r.Title, Snippet: r.Snippet, ExtractedContent: r.Snippet})
+				}
+			} else {
+				for _, s := range llmResp.Data {
+					rawSources = append(rawSources, braveResult{URL: s.URL, Title: s.Title, Snippet: s.Snippet, ExtractedContent: s.Content})
+				}
+			}
+
+			// Process sources
+			for i, src := range rawSources {
+				source := models.BlogResearchSource{
+					PipelineRunID:    run.ID,
+					Query:            query,
+					Provider:         "brave_llm_context",
+					URL:              src.URL,
+					Title:            src.Title,
+					Snippet:          src.Snippet,
+					ExtractedContent: src.ExtractedContent,
+					SourceIndex:      i,
+					FetchedAt:        time.Now(),
+					CreatedAt:        time.Now(),
+				}
+
+				// Extract claims from content
+				claims := ra.extractClaims(src.ExtractedContent, src.URL)
+				source.Claims = claims
+
+				allSources = append(allSources, source)
+			}
 		}
 	}
 
