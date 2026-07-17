@@ -232,10 +232,17 @@ func (w *BlogWorker) runWrite(ctx context.Context, exec *models.BlogAgentExecuti
 	var researchOutput ResearchOutput
 	if researchExec.ParsedOutput != nil {
 		// Convert bson.D/bson.M to regular map for proper JSON marshaling
-		outputJSON, err := json.Marshal(convertBSONToMap(researchExec.ParsedOutput))
+		converted := convertBSONToMap(researchExec.ParsedOutput)
+		outputJSON, err := json.Marshal(converted)
 		if err != nil {
 			log.Printf("[blog-worker] Warning: failed to marshal research output: %v", err)
 		} else {
+			jsonStr := string(outputJSON)
+			if len(jsonStr) > 1000 {
+				jsonStr = jsonStr[:1000]
+			}
+			log.Printf("[blog-worker] Converted research output JSON (first 1000 chars): %s", jsonStr)
+			
 			// Try snapshot format first (has "output" field)
 			var snapshotWrapper struct {
 				Output ResearchOutput `json:"output"`
