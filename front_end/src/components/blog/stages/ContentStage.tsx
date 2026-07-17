@@ -10,6 +10,22 @@ interface ContentStageProps {
   onTriggerWriting: () => void;
 }
 
+// The backend sometimes stores the writer output as a JSON string instead of
+// a parsed object. Normalize it so the UI always renders structured blocks.
+function normalizeWriterOutput(parsedOutput: unknown): Record<string, unknown> | undefined {
+  if (parsedOutput && typeof parsedOutput === "object") {
+    return parsedOutput as Record<string, unknown>;
+  }
+  if (typeof parsedOutput === "string" && parsedOutput.trim()) {
+    try {
+      return JSON.parse(parsedOutput) as Record<string, unknown>;
+    } catch {
+      return { content: parsedOutput };
+    }
+  }
+  return undefined;
+}
+
 export default function ContentStage({ run, onApprove, onTriggerWriting }: ContentStageProps) {
   const isWriting = run.status === "writing";
   const isApproved = run.status === "content_approved";
@@ -18,19 +34,27 @@ export default function ContentStage({ run, onApprove, onTriggerWriting }: Conte
     () => run.executions?.find((e) => e.stage === "write" && e.status === "completed"),
     [run.executions]
   );
-  const parsedOutput = writingExec?.parsedOutput;
+  const output = useMemo(
+    () => normalizeWriterOutput(writingExec?.parsedOutput),
+    [writingExec?.parsedOutput]
+  );
   const blocks: BlogBlock[] = useMemo(
-    () => (parsedOutput?.blocks as BlogBlock[]) || [],
-    [parsedOutput]
+    () => (output?.blocks as BlogBlock[]) || [],
+    [output]
   );
   const excerpt = useMemo(
-    () => (parsedOutput?.excerpt as string) || "",
-    [parsedOutput]
+    () => (output?.excerpt as string) || "",
+    [output]
   );
-  const rawContent = useMemo(
-    () => (typeof parsedOutput === "string" ? parsedOutput : parsedOutput?.content as string) || "",
-    [parsedOutput]
-  );
+  const rawContent = useMemo(() => {
+    if (output?.content && typeof output.content === "string") {
+      return output.content;
+    }
+    if (output && !blocks.length && typeof writingExec?.parsedOutput === "string") {
+      return writingExec.parsedOutput;
+    }
+    return "";
+  }, [output, blocks.length, writingExec?.parsedOutput]);
 
   return (
     <div className="space-y-6">

@@ -12,18 +12,35 @@ interface PreviewStageProps {
   onArchive: () => void;
 }
 
+function normalizeWriterOutput(parsedOutput: unknown): Record<string, unknown> | undefined {
+  if (parsedOutput && typeof parsedOutput === "object") {
+    return parsedOutput as Record<string, unknown>;
+  }
+  if (typeof parsedOutput === "string" && parsedOutput.trim()) {
+    try {
+      return JSON.parse(parsedOutput) as Record<string, unknown>;
+    } catch {
+      return { content: parsedOutput };
+    }
+  }
+  return undefined;
+}
+
 export default function PreviewStage({ run, onPublish, onUnpublish, onArchive }: PreviewStageProps) {
   const writingExec = useMemo(
     () => run.executions?.find((e) => e.stage === "write"),
     [run.executions]
   );
-  const parsedOutput = writingExec?.parsedOutput;
-  const blocks: BlogBlock[] = useMemo(
-    () => (parsedOutput?.blocks as BlogBlock[]) || [],
-    [parsedOutput]
+  const output = useMemo(
+    () => normalizeWriterOutput(writingExec?.parsedOutput),
+    [writingExec?.parsedOutput]
   );
-  const excerpt = (parsedOutput?.excerpt as string) || "";
-  const tags = (parsedOutput?.tags as string[]) || [];
+  const blocks: BlogBlock[] = useMemo(
+    () => (output?.blocks as BlogBlock[]) || [],
+    [output]
+  );
+  const excerpt = (output?.excerpt as string) || "";
+  const tags = (output?.tags as string[]) || (output?.recommended_tags as string[]) || [];
 
   return (
     <div className="space-y-6">

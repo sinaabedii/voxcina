@@ -796,12 +796,35 @@ func TriggerWriting(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if run.Status != models.PipelineResearchApproved {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Can only trigger writing from 'research_approved' status")
+	// Allow the initial write from research_approved and also allow rewriting from
+	// any later content stage. In both cases we clear old write/prompts results
+	// so the UI and DB stay in sync.
+	allowedStatuses := map[string]bool{
+		models.PipelineResearchApproved: true,
+		models.PipelineContentApproved:  true,
+		models.PipelinePrompts:          true,
+		models.PipelinePromptsApproved:  true,
+		models.PipelineMediaPending:     true,
+		models.PipelineReady:            true,
+	}
+	if !allowedStatuses[run.Status] {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Can only trigger writing from 'research_approved', 'content_approved', 'prompts', 'prompts_approved', 'media_pending' or 'ready' status")
 		return
 	}
 
-	// Queue write execution
+	// Remove previous writer agent results and any downstream (prompts) results.
+	repo.DeleteExecutionsByStage(ctx, runID, models.StageWrite)
+	repo.DeleteExecutionsByStage(ctx, runID, models.StagePrompts)
+
+	// Remove the linked blog post draft so the rewrite starts from a clean state.
+	if run.PostID != "" {
+		if postOID, err := primitive.ObjectIDFromHex(run.PostID); err == nil {
+			repo.DeletePostByID(ctx, postOID)
+		}
+		run.PostID = ""
+	}
+
+	// Queue a fresh write execution.
 	execution := models.BlogAgentExecution{
 		PipelineRunID: runID,
 		Stage:         models.StageWrite,
@@ -815,12 +838,21 @@ func TriggerWriting(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update run status
+	// Reset run state back to writing.
 	run.Status = models.PipelineWriting
 	run.UpdatedAt = time.Now()
-	repo.UpdatePipelineRunStatus(ctx, runID, bson.M{"status": run.Status, "updated_at": run.UpdatedAt})
+	set := bson.M{
+		"status":      run.Status,
+		"updated_at":  run.UpdatedAt,
+		"post_id":     "",
+		"approved_at": nil,
+	}
+	if err := repo.UpdatePipelineRunStatus(ctx, runID, set); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error resetting pipeline run: "+err.Error())
+		return
+	}
 
-	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Writing queued"})
+	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Writing queued and previous results cleared"})
 }
 
 // TriggerPromptGeneration starts the prompt generation agent for a pipeline run
