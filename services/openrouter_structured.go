@@ -10,6 +10,7 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -24,11 +25,23 @@ type OpenRouterStructuredClient struct {
 
 // NewOpenRouterStructuredClient creates a new client.
 func NewOpenRouterStructuredClient() *OpenRouterStructuredClient {
+	transport := &http.Transport{}
+	if proxyURL := os.Getenv("HTTPS_PROXY"); proxyURL != "" {
+		if proxy, err := url.Parse(proxyURL); err == nil {
+			transport.Proxy = http.ProxyURL(proxy)
+		}
+	} else if proxyURL := os.Getenv("HTTP_PROXY"); proxyURL != "" {
+		if proxy, err := url.Parse(proxyURL); err == nil {
+			transport.Proxy = http.ProxyURL(proxy)
+		}
+	}
+	
 	return &OpenRouterStructuredClient{
 		apiKey: os.Getenv("OPENROUTER_API_KEY"),
 		baseURL: "https://openrouter.ai/api/v1",
 		httpClient: &http.Client{
-			Timeout: 120 * time.Second,
+			Timeout:   120 * time.Second,
+			Transport: transport,
 		},
 	}
 }
