@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"math/rand"
 	"net/http"
@@ -117,6 +118,7 @@ func (c *OpenRouterStructuredClient) CallStructured(ctx context.Context, req Str
 
 		resp, err := c.httpClient.Do(httpReq)
 		if err != nil {
+			log.Printf("[openrouter] HTTP request failed (attempt %d): %v", attempt+1, err)
 			lastErr = err
 			continue
 		}
@@ -125,7 +127,12 @@ func (c *OpenRouterStructuredClient) CallStructured(ctx context.Context, req Str
 		if resp.StatusCode != 200 {
 			bodyBytes, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
-			lastErr = fmt.Errorf("OpenRouter HTTP %d: %s", resp.StatusCode, string(bodyBytes)[:min(200, len(bodyBytes))])
+			bodyStr := string(bodyBytes)
+			if len(bodyStr) > 200 {
+				bodyStr = bodyStr[:200]
+			}
+			log.Printf("[openrouter] HTTP %d (attempt %d): %s", resp.StatusCode, attempt+1, bodyStr)
+			lastErr = fmt.Errorf("OpenRouter HTTP %d: %s", resp.StatusCode, bodyStr)
 			// Don't retry on client errors
 			if resp.StatusCode >= 400 && resp.StatusCode < 500 {
 				return nil, lastErr
