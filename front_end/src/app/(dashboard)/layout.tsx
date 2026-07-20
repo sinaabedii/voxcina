@@ -13,11 +13,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell,
   ShoppingCart,
-  User,
-  Search,
   Menu,
   X,
-  LogOut,
   Home,
 } from "lucide-react";
 
@@ -290,56 +287,6 @@ export default function DashboardLayout({
         </motion.main>
       </div>
 
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-voxcina-blue/90 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 py-3 px-4 flex justify-around items-center z-30 backdrop-blur-sm shadow-md">
-        <Link href="/" className="flex flex-col items-center group">
-          <div className="p-2 text-voxcina-blue/70 group-hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:group-hover:text-voxcina-cream rounded-full group-hover:bg-voxcina-cream/30 dark:group-hover:bg-voxcina-blue/30 transition-colors">
-            <Home size={18} />
-          </div>
-          <span className="text-xs mt-1 text-voxcina-blue/70 dark:text-voxcina-cream/70 group-hover:text-voxcina-blue dark:group-hover:text-voxcina-cream transition-colors">
-            خانه
-          </span>
-        </Link>
-        <Link href="/dashboard" className="flex flex-col items-center group">
-          <div className="p-2 text-voxcina-blue/70 group-hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:group-hover:text-voxcina-cream rounded-full group-hover:bg-voxcina-cream/30 dark:group-hover:bg-voxcina-blue/30 transition-colors">
-            <User size={18} />
-          </div>
-          <span className="text-xs mt-1 text-voxcina-blue/70 dark:text-voxcina-cream/70 group-hover:text-voxcina-blue dark:group-hover:text-voxcina-cream transition-colors">
-            داشبورد
-          </span>
-        </Link>
-        <Link href="/products" className="flex flex-col items-center group">
-          <div className="p-2 text-voxcina-blue/70 group-hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:group-hover:text-voxcina-cream rounded-full group-hover:bg-voxcina-cream/30 dark:group-hover:bg-voxcina-blue/30 transition-colors">
-            <Search size={18} />
-          </div>
-          <span className="text-xs mt-1 text-voxcina-blue/70 dark:text-voxcina-cream/70 group-hover:text-voxcina-blue dark:group-hover:text-voxcina-cream transition-colors">
-            جستجو
-          </span>
-        </Link>
-        <Link href="/cart" className="flex flex-col items-center group">
-          <div className="p-2 text-voxcina-blue/70 group-hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:group-hover:text-voxcina-cream rounded-full group-hover:bg-voxcina-cream/30 dark:group-hover:bg-voxcina-blue/30 transition-colors relative">
-            <ShoppingCart size={18} />
-            {itemCount > 0 && (
-              <span className="absolute top-0 right-0 min-w-4 h-4 px-1 bg-voxcina-blue dark:bg-voxcina-cream rounded-full text-white dark:text-voxcina-blue text-[10px] flex items-center justify-center">
-                {itemCount > 99 ? "99+" : itemCount}
-              </span>
-            )}
-          </div>
-          <span className="text-xs mt-1 text-voxcina-blue/70 dark:text-voxcina-cream/70 group-hover:text-voxcina-blue dark:group-hover:text-voxcina-cream transition-colors">
-            سبد خرید
-          </span>
-        </Link>
-        <button
-          className="flex flex-col items-center group"
-          onClick={() => logout && logout()}
-        >
-          <div className="p-2 text-voxcina-blue/70 group-hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:group-hover:text-voxcina-cream rounded-full group-hover:bg-voxcina-cream/30 dark:group-hover:bg-voxcina-blue/30 transition-colors">
-            <LogOut size={18} />
-          </div>
-          <span className="text-xs mt-1 text-voxcina-blue/70 dark:text-voxcina-cream/70 group-hover:text-voxcina-blue dark:group-hover:text-voxcina-cream transition-colors">
-            خروج
-          </span>
-        </button>
-      </div>
     </div>
   );
 }

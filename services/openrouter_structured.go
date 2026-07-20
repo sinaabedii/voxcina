@@ -10,7 +10,6 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -24,24 +23,14 @@ type OpenRouterStructuredClient struct {
 }
 
 // NewOpenRouterStructuredClient creates a new client.
+// Uses Go's default transport which automatically reads HTTPS_PROXY/HTTP_PROXY
+// from environment via http.ProxyFromEnvironment — matching all other services.
 func NewOpenRouterStructuredClient() *OpenRouterStructuredClient {
-	transport := &http.Transport{}
-	if proxyURL := os.Getenv("HTTPS_PROXY"); proxyURL != "" {
-		if proxy, err := url.Parse(proxyURL); err == nil {
-			transport.Proxy = http.ProxyURL(proxy)
-		}
-	} else if proxyURL := os.Getenv("HTTP_PROXY"); proxyURL != "" {
-		if proxy, err := url.Parse(proxyURL); err == nil {
-			transport.Proxy = http.ProxyURL(proxy)
-		}
-	}
-	
 	return &OpenRouterStructuredClient{
 		apiKey: os.Getenv("OPENROUTER_API_KEY"),
 		baseURL: "https://openrouter.ai/api/v1",
 		httpClient: &http.Client{
-			Timeout:   120 * time.Second,
-			Transport: transport,
+			Timeout: 120 * time.Second,
 		},
 	}
 }
@@ -66,7 +55,7 @@ type StructuredResponse struct {
 }
 
 // defaultStructuredModel is used by CallWithSchema when no model is specified.
-const defaultStructuredModel = "qwen/qwen3.7-plus"
+const defaultStructuredModel = "openai/gpt-4o-mini"
 
 // CallWithSchema sends a single user prompt with a JSON schema and returns the parsed response.
 func (c *OpenRouterStructuredClient) CallWithSchema(ctx context.Context, prompt string, schema map[string]interface{}) (*StructuredResponse, error) {
@@ -93,10 +82,11 @@ func (c *OpenRouterStructuredClient) CallStructured(ctx context.Context, req Str
 
 	// Build request body with response_format if schema is provided
 	body := map[string]interface{}{
-		"model":    req.Model,
-		"messages": req.Messages,
-		"max_tokens": req.MaxTokens,
+		"model":       req.Model,
+		"messages":    req.Messages,
+		"max_tokens":  req.MaxTokens,
 		"temperature": req.Temperature,
+		"stream":      false,
 	}
 	if req.Schema != nil {
 		body["response_format"] = map[string]interface{}{
@@ -110,6 +100,8 @@ func (c *OpenRouterStructuredClient) CallStructured(ctx context.Context, req Str
 		return nil, err
 	}
 
+	log.Printf("[openrouter] Request body size: %d bytes, model: %s", len(jsonData), req.Model)
+
 	// Retry with backoff + jitter (max 3 attempts)
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
@@ -119,6 +111,7 @@ func (c *OpenRouterStructuredClient) CallStructured(ctx context.Context, req Str
 		}
 
 		// Recreate request for each retry (body is consumed)
+		log.Printf("[openrouter] Sending request (attempt %d/3)...", attempt+1)
 		httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/chat/completions", bytes.NewBuffer(jsonData))
 		if err != nil {
 			lastErr = err
@@ -129,17 +122,51 @@ func (c *OpenRouterStructuredClient) CallStructured(ctx context.Context, req Str
 		httpReq.Header.Set("HTTP-Referer", os.Getenv("APP_URL"))
 		httpReq.Header.Set("X-Title", "Voxcina Blog AI")
 
+		log.Printf("[openrouter] Executing HTTP request (attempt %d)...", attempt+1)
 		resp, err := c.httpClient.Do(httpReq)
 		if err != nil {
 			log.Printf("[openrouter] HTTP request failed (attempt %d): %v", attempt+1, err)
 			lastErr = err
 			continue
 		}
+		log.Printf("[openrouter] HTTP response received (attempt %d): status %d", attempt+1, resp.StatusCode)
+
+		// Read body with timeout — some providers send chunked responses that never close
+		type bodyResult struct {
+			data []byte
+			err  error
+		}
+		bodyCh := make(chan bodyResult, 1)
+		go func() {
+			data, err := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			bodyCh <- bodyResult{data, err}
+		}()
+
+		var bodyBytes []byte
+		select {
+		case result := <-bodyCh:
+			if result.err != nil {
+				log.Printf("[openrouter] Failed to read body (attempt %d): %v", attempt+1, result.err)
+				lastErr = result.err
+				continue
+			}
+			bodyBytes = result.data
+		case <-time.After(90 * time.Second):
+			resp.Body.Close()
+			log.Printf("[openrouter] Body read timeout after 90s (attempt %d)", attempt+1)
+			lastErr = fmt.Errorf("body read timeout")
+			continue
+		case <-ctx.Done():
+			resp.Body.Close()
+			log.Printf("[openrouter] Context canceled during body read (attempt %d)", attempt+1)
+			lastErr = ctx.Err()
+			continue
+		}
+		log.Printf("[openrouter] Response body: %d bytes (attempt %d)", len(bodyBytes), attempt+1)
 
 		// Check HTTP status before decoding
 		if resp.StatusCode != 200 {
-			bodyBytes, _ := io.ReadAll(resp.Body)
-			resp.Body.Close()
 			bodyStr := string(bodyBytes)
 			if len(bodyStr) > 200 {
 				bodyStr = bodyStr[:200]
@@ -154,12 +181,11 @@ func (c *OpenRouterStructuredClient) CallStructured(ctx context.Context, req Str
 		}
 
 		var openResp OpenRouterResponse
-		if err := json.NewDecoder(resp.Body).Decode(&openResp); err != nil {
-			resp.Body.Close()
+		if err := json.Unmarshal(bodyBytes, &openResp); err != nil {
+			log.Printf("[openrouter] JSON decode failed (attempt %d): %v, body prefix: %s", attempt+1, err, string(bodyBytes[:min(len(bodyBytes), 200)]))
 			lastErr = err
 			continue
 		}
-		resp.Body.Close()
 
 		if openResp.Error != nil {
 			lastErr = fmt.Errorf("OpenRouter error (code=%v): %s", openResp.Error.Code, openResp.Error.Message)

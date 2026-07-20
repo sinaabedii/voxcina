@@ -44,11 +44,15 @@ func (wa *WritingAgent) RunWriting(ctx context.Context, run *models.BlogPipeline
 		return nil, fmt.Errorf("failed to generate writing output: %w", err)
 	}
 
+	log.Printf("[blog] Writing response content (first 500 chars): %s", output.Content[:min(len(output.Content), 500)])
+
 	// Parse output
 	var writingResult WritingResult
 	if err := parseBSONToStruct(output, &writingResult); err != nil {
 		return nil, fmt.Errorf("failed to parse writing output: %w", err)
 	}
+
+	log.Printf("[blog] Writing parsed: %d blocks, title: %s, excerpt: %s", len(writingResult.Blocks), wa.extractTitle(writingResult.Blocks), writingResult.Excerpt[:min(len(writingResult.Excerpt), 100)])
 
 	// Validate blocks
 	if err := wa.validator.ValidateBlocks(writingResult.Blocks); err != nil {
@@ -61,6 +65,9 @@ func (wa *WritingAgent) RunWriting(ctx context.Context, run *models.BlogPipeline
 		}
 		writingResult.Blocks = repairedBlocks
 	}
+
+	// Trim excess images if model still generated too many
+	writingResult.Blocks = trimExcessImages(writingResult.Blocks)
 
 	// Calculate content hash
 	contentHash := wa.calculateContentHash(writingResult.Blocks)
@@ -238,29 +245,52 @@ func formatFindings(findings []ResearchFinding) string {
 func (wa *WritingAgent) attemptBlockRepair(ctx context.Context, snapshot *ResearchSnapshot, blocks []models.BlogBlock) ([]models.BlogBlock, error) {
 	log.Printf("[blog] Attempting block repair for %d blocks", len(blocks))
 
+	// Count current images and text words for the prompt
+	imageCount := 0
+	textWords := 0
+	for _, b := range blocks {
+		if b.Type == "image" {
+			imageCount++
+		}
+		if b.Type == "text" {
+			textWords += len(strings.Fields(b.Text))
+		}
+	}
+	maxImages := 1
+	if textWords >= 1400 {
+		maxImages = 3
+	} else if textWords >= 800 {
+		maxImages = 2
+	}
+
 	// Re-call the writing agent with repair instructions
 	prompt := fmt.Sprintf(`Previous block generation failed validation. Please fix the blocks.
 
 Original blocks:
 %s
 
-Validation errors need to be fixed:
+CRITICAL Validation errors to fix:
+- You have %d image blocks but only %d are allowed for %d words of text content (max %d images for <800 words, 2 for 800-1400 words, 3 for >1400 words)
+- REMOVE excess image blocks to match the allowed count
 - Ensure exactly one "title" block first
-- Ensure images appear between text blocks
-- Ensure proper heading hierarchy
-- Ensure correct image count based on word count
+- Ensure images appear between text blocks, never first or last
+- Ensure proper heading hierarchy (title→header→section→subsection)
 
-Return corrected blocks in the same JSON format.`, formatBlocks(blocks))
+Return corrected blocks in the same JSON format with the correct number of images.`, formatBlocks(blocks), imageCount, maxImages, textWords, maxImages)
 
 	output, err := wa.openRouter.CallWithSchema(ctx, prompt, writingOutputSchema())
 	if err != nil {
 		return nil, err
 	}
 
+	log.Printf("[blog] Repair response content (first 500 chars): %s", output.Content[:min(len(output.Content), 500)])
+
 	var repaired WritingResult
 	if err := parseBSONToStruct(output, &repaired); err != nil {
 		return nil, err
 	}
+
+	log.Printf("[blog] Repair parsed: %d blocks, excerpt: %s", len(repaired.Blocks), repaired.Excerpt[:min(len(repaired.Excerpt), 100)])
 
 	return repaired.Blocks, nil
 }
@@ -411,4 +441,37 @@ func generateSlug(title string) string {
 		return "untitled"
 	}
 	return s
+}
+
+// trimExcessImages removes extra image blocks beyond the allowed count.
+func trimExcessImages(blocks []models.BlogBlock) []models.BlogBlock {
+	textWords := 0
+	for _, b := range blocks {
+		if b.Type == "text" {
+			textWords += len(strings.Fields(b.Text))
+		}
+	}
+	maxImages := 1
+	if textWords >= 1400 {
+		maxImages = 3
+	} else if textWords >= 800 {
+		maxImages = 2
+	}
+
+	imageCount := 0
+	var result []models.BlogBlock
+	for _, b := range blocks {
+		if b.Type == "image" {
+			imageCount++
+			if imageCount > maxImages {
+				continue // skip excess images
+			}
+		}
+		result = append(result, b)
+	}
+
+	if imageCount > maxImages {
+		log.Printf("[blog] Trimmed %d excess images (%d → %d for %d words)", imageCount-maxImages, imageCount, maxImages, textWords)
+	}
+	return result
 }

@@ -40,7 +40,7 @@ services:
       - DIGIPAY_BASE_URL=${DIGIPAY_BASE_URL:-https://api.mydigipay.com}
       - HTTP_PROXY=${HTTP_PROXY:-http://host.docker.internal:10809}
       - HTTPS_PROXY=${HTTPS_PROXY:-http://host.docker.internal:10809}
-      - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1,mongo,docker.arvancloud.ir,::1}
+      - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1,mongo,docker.arvancloud.ir,gateway.zibal.ir,api.mydigipay.com,::1}
       - TRYON_DEV_MODE=${TRYON_DEV_MODE:-false}
       - NESHAN_SERVICE_API_KEY=${NESHAN_SERVICE_API_KEY}
     volumes:
