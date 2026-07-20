@@ -326,7 +326,8 @@ export default function DashboardPage() {
 
         {recentOrders.length > 0 ? (
           <motion.div variants={itemVariants}>
-            <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-md overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
+            {/* Desktop Table */}
+            <Card className="hidden md:block border border-voxcina-cream dark:border-voxcina-blue/20 shadow-md overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
               <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-voxcina-blue/20 scrollbar-track-voxcina-cream/50 dark:scrollbar-thumb-voxcina-cream/30 dark:scrollbar-track-voxcina-blue/20">
                 <table className="w-full">
                   <thead className="bg-voxcina-cream/50 dark:bg-voxcina-blue/20">
@@ -347,7 +348,7 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                     {recentOrders.map((order, index) => (
+                    {recentOrders.map((order, index) => (
                       <motion.tr
                         key={order.id}
                         className="border-b border-voxcina-cream/30 dark:border-voxcina-blue/10 hover:bg-voxcina-cream/20 dark:hover:bg-voxcina-blue/5 transition-colors"
@@ -373,7 +374,7 @@ export default function DashboardPage() {
                           {formatPrice(order.total_amount ?? order.totalAmount ?? order.total ?? 0)} تومان
                         </td>
                         <td className="p-4 text-left">
-                          <motion.button 
+                          <motion.button
                             className="p-2 hover:bg-voxcina-cream/50 dark:hover:bg-voxcina-blue/30 rounded-full transition-colors text-voxcina-blue/60 dark:text-voxcina-cream/60"
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
@@ -387,6 +388,46 @@ export default function DashboardPage() {
                 </table>
               </div>
             </Card>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-3">
+              {recentOrders.map((order, index) => (
+                <motion.div
+                  key={order.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm overflow-hidden rounded-xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">
+                          {order.order_number || order.id}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[11px] ${getStatusStyle(
+                            order.status
+                          )}`}
+                        >
+                          {order.status_text || order.statusText}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
+                          {order.jalali_created_at || order.jalaliCreatedAt || order.date || order.created_at || order.createdAt}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-bold text-voxcina-blue dark:text-voxcina-cream">
+                            {formatPrice(order.total_amount ?? order.totalAmount ?? order.total ?? 0)}
+                          </span>
+                          <ChevronLeft className="h-4 w-4 text-voxcina-blue/40 dark:text-voxcina-cream/40" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
           </motion.div>
         ) : (
           <motion.div variants={itemVariants}>
