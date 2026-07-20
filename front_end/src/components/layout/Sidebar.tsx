@@ -8,7 +8,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 
-const Sidebar = () => {
+const Sidebar = ({ embedded = false }: { embedded?: boolean }) => {
   const pathname = usePathname();
   const { logout } = useAuthStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -21,22 +21,22 @@ const Sidebar = () => {
       icon: <User className="w-4 h-4 sm:w-5 sm:h-5" />,
     },
     {
-      name: "سفارش‌های من",
+      name: "سفارشهای من",
       href: "/dashboard/orders",
       icon: <Package className="w-4 h-4 sm:w-5 sm:h-5" />,
     },
     {
-      name: "آدرس‌های من",
+      name: "آدرسهای من",
       href: "/dashboard/addresses",
       icon: <MapPin className="w-4 h-4 sm:w-5 sm:h-5" />,
     },
     {
-      name: "علاقه‌مندی‌ها",
+      name: "علاقهمندیها",
       href: "/dashboard/favorites",
       icon: <Heart className="w-4 h-4 sm:w-5 sm:h-5" />,
     },
     {
-      name: "تخفیف‌های من",
+      name: "تخفیفهای من",
       href: "/dashboard/discounts",
       icon: <Ticket className="w-4 h-4 sm:w-5 sm:h-5" />,
     },
@@ -70,6 +70,78 @@ const Sidebar = () => {
     visible: { opacity: 1, transition: { duration: 0.3 } },
   };
 
+  if (embedded) {
+    return (
+      <div className="py-4 px-4">
+        <nav className="space-y-2">
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={{
+              visible: {
+                transition: {
+                  staggerChildren: 0.1,
+                },
+              },
+            }}
+          >
+            {sidebarItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <motion.div
+                  key={item.href}
+                  variants={itemVariants}
+                  whileHover={{ x: 2 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "flex items-center px-3 py-2.5 text-sm rounded-lg transition-all duration-300",
+                      isActive
+                        ? "bg-voxcina-blue dark:bg-voxcina-cream/90 text-white dark:text-voxcina-blue font-medium shadow-sm"
+                        : "text-voxcina-blue/80 dark:text-voxcina-cream/80 hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 hover:text-voxcina-blue dark:hover:text-voxcina-cream"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "flex items-center justify-center w-7 h-7 rounded-lg mr-2.5 transition-all duration-300",
+                        isActive
+                          ? "bg-white/20 dark:bg-voxcina-blue/20"
+                          : "bg-voxcina-cream/50 dark:bg-voxcina-blue/50 text-voxcina-blue/70 dark:text-voxcina-cream/70"
+                      )}
+                    >
+                      {item.icon}
+                    </div>
+                    {item.name}
+                  </Link>
+                </motion.div>
+              );
+            })}
+
+            <motion.div
+              variants={itemVariants}
+              whileHover={{ x: 2 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+            >
+              <button
+                onClick={handleLogout}
+                className="flex items-center px-3 py-2.5 text-sm rounded-lg transition-all duration-300 w-full text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10"
+              >
+                <div className="flex items-center justify-center w-7 h-7 rounded-lg mr-2.5 bg-red-100 dark:bg-red-900/20 text-red-500 dark:text-red-400">
+                  <LogOut className="w-4 h-4" />
+                </div>
+                خروج از حساب
+              </button>
+            </motion.div>
+          </motion.div>
+        </nav>
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Mobile Menu Button */}
@@ -92,7 +164,7 @@ const Sidebar = () => {
               حساب کاربری
             </h2>
             <p className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60 mt-1">
-              مدیریت اطلاعات و سفارش‌ها
+              مدیریت اطلاعات و سفارشها
             </p>
           </div>
 

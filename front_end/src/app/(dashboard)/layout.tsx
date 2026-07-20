@@ -267,14 +267,14 @@ export default function DashboardLayout({
                     <X size={18} />
                   </motion.button>
                 </div>
-                <Sidebar />
+                <Sidebar embedded />
               </motion.div>
             </>
           )}
         </AnimatePresence>
 
         <div className="hidden md:block w-72 h-full sticky top-16 border-l border-voxcina-cream/30 dark:border-voxcina-blue/30 py-6 bg-white/90 dark:bg-voxcina-blue/90 backdrop-blur-sm">
-          <Sidebar />
+          <Sidebar embedded />
         </div>
 
         <motion.main
