@@ -236,7 +236,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
         throw new Error("Failed to trigger prompts");
       }
 
-      set({ isLoading: false });
+      await get().fetchRun(runID);
       return true;
     } catch (err) {
       set({

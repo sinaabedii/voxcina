@@ -359,44 +359,27 @@ func (w *BlogWorker) runWrite(ctx context.Context, exec *models.BlogAgentExecuti
 	return string(outputJSON), string(outputJSON), "", "blog.write", "1", "openrouter", "qwen/qwen3.7-plus", 0, ""
 }
 
-// runPrompts performs the prompts generation stage (for image generation prompts).
+// runPrompts performs the prompts generation stage using the PromptAgent.
 func (w *BlogWorker) runPrompts(ctx context.Context, exec *models.BlogAgentExecution) (string, string, string, string, string, string, string, int, string) {
 	run, err := w.repo.FindPipelineRunByID(ctx, exec.PipelineRunID)
 	if err != nil {
 		return "", "", fmt.Sprintf("failed to load pipeline run: %v", err), "", "", "", "", 0, ""
 	}
 
-	systemPrompt := fmt.Sprintf(`Generate image generation prompts for a blog post about "%s". Create %d prompts (one for cover, rest for in-content images). Return as JSON array.`, run.Topic, 3)
-
-	messages := []OpenRouterMessage{
-		{Role: "system", Content: systemPrompt},
-		{Role: "user", Content: "Generate the prompts."},
-	}
-
-	req := StructuredRequest{
-		Model:    "qwen/qwen3.7-plus",
-		Messages: messages,
-		Schema: map[string]interface{}{
-			"name": "image_prompts",
-			"schema": map[string]interface{}{
-				"type": "array",
-				"items": map[string]interface{}{
-					"type": "object",
-					"properties": map[string]interface{}{
-						"slot":   map[string]interface{}{"type": "string"},
-						"prompt": map[string]interface{}{"type": "string"},
-					},
-				},
-			},
-		},
-	}
-
-	resp, err := w.structClient.CallStructured(ctx, req)
+	// Find the blog post linked to this pipeline run
+	post, err := w.repo.FindPostByPipelineRunID(ctx, run.ID)
 	if err != nil {
-		return "", "", fmt.Sprintf("LLM prompts failed: %v", err), "", "", "openrouter", req.Model, 0, ""
+		return "", "", fmt.Sprintf("failed to find blog post for pipeline run: %v", err), "", "", "", "", 0, ""
 	}
 
-	return resp.Content, resp.Content, "", "blog.prompts", "1", "openrouter", req.Model, resp.Usage.TotalTokens, ""
+	promptAgent := NewPromptAgent(w.structClient, w.repo)
+	output, err := promptAgent.RunPromptGeneration(ctx, run, post)
+	if err != nil {
+		return "", "", fmt.Sprintf("prompt generation failed: %v", err), "", "", "openrouter", "qwen/qwen3.7-plus", 0, ""
+	}
+
+	outputJSON, _ := json.Marshal(output)
+	return string(outputJSON), string(outputJSON), "", "blog.prompts", "1", "openrouter", "qwen/qwen3.7-plus", 0, ""
 }
 
 // convertBSONToMap recursively converts bson.D/bson.M/bson.A structures to regular maps for JSON marshaling.
