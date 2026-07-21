@@ -138,95 +138,98 @@ export default function PreviewStage({ run, media, onPublish, onUnpublish, onArc
     return map;
   }, [media]);
 
-  // Resolve image blocks with media URLs, and inject missing prompt slots in order
+  // Resolve image blocks with media URLs, and inject missing prompt slots in correct order
   const resolvedBlocks = useMemo(() => {
     const promptSlotIds = imageSlots.map((s) => s.slot);
-
-    // Set of slots already in blocks
-    const existingSlots = new Set(
+    const existingImageSlots = new Set(
       blocks.filter((b) => b.type === "image").map((b) => b.imageSlotID)
     );
+    const missingSlots = promptSlotIds.filter((s) => !existingImageSlots.has(s));
 
-    // Prompt slots not yet in blocks
-    const missingSlots = promptSlotIds.filter((s) => !existingSlots.has(s));
-
-    // Separate text/non-image blocks and existing image blocks
-    const textBlocks = blocks.filter((b) => b.type !== "image");
-
-    // Build a map of existing image blocks by their slot
-    const existingImageBySlot = new Map<string, typeof blocks[0]>();
-    for (const b of blocks) {
-      if (b.type === "image" && b.imageSlotID) {
-        existingImageBySlot.set(b.imageSlotID, b);
+    // Resolve media for existing blocks (no reordering)
+    const resolved = blocks.map((block) => {
+      if (block.type === "image" && block.imageSlotID) {
+        const m = mediaMap[block.imageSlotID];
+        return m ? { ...block, imageID: m.filePath || m.publicPath } : block;
       }
-    }
-
-    // All image slots in order: existing ones keep their position, missing ones go in evenly
-    const totalImages = promptSlotIds.length;
-    if (totalImages === 0) return blocks.map((b) => {
-      if (b.type === "image" && b.imageSlotID) {
-        const m = mediaMap[b.imageSlotID];
-        return m ? { ...b, imageID: m.filePath || m.publicPath } : b;
-      }
-      return b;
+      return block;
     });
 
-    // Distribute image slots evenly among text blocks
-    // If N images and M text blocks, insert an image after every floor(M/(N+1)) text blocks
-    const result: typeof blocks = [];
-    const imagesPerSlot = Math.ceil(textBlocks.length / (totalImages + 1));
-    let textIndex = 0;
-    let imageSlotIndex = 0;
+    // Insert missing slots at evenly distributed positions among text blocks
+    if (missingSlots.length > 0) {
+      const textBlockCount = resolved.filter((b) => b.type !== "image").length;
+      const totalImages = promptSlotIds.length;
 
-    for (let i = 0; i < textBlocks.length; i++) {
-      result.push(textBlocks[i]);
-      textIndex++;
+      // Calculate target positions for each image (among text blocks)
+      // e.g. 3 images, 10 text blocks → after text #2, #5, #8
+      const targetPositions: number[] = [];
+      for (let i = 0; i < totalImages; i++) {
+        targetPositions.push(Math.round((i + 1) * textBlockCount / (totalImages + 1)));
+      }
 
-      // Check if we should insert an image after this text block
-      if (imageSlotIndex < totalImages) {
-        const nextImagePos = Math.ceil((imageSlotIndex + 1) * textBlocks.length / (totalImages + 1));
-        if (textIndex >= nextImagePos) {
-          const slotId = promptSlotIds[imageSlotIndex];
-          const existingBlock = existingImageBySlot.get(slotId);
-          if (existingBlock) {
-            const m = mediaMap[slotId];
-            result.push(m ? { ...existingBlock, imageID: m.filePath || m.publicPath } : existingBlock);
-          } else {
-            const slotMeta = imageSlots.find((s) => s.slot === slotId);
-            result.push({
-              type: "image" as const,
-              order: result.length,
-              imageSlotID: slotId,
-              alt: slotMeta?.label || slotId,
-              caption: "",
-            });
-          }
-          imageSlotIndex++;
+      // Map existing image blocks to their position index among text blocks
+      const existingImagePositions = new Map<string, number>();
+      let textIdx = 0;
+      for (const b of resolved) {
+        if (b.type === "image") {
+          if (b.imageSlotID) existingImagePositions.set(b.imageSlotID, textIdx);
+        } else {
+          textIdx++;
         }
       }
-    }
 
-    // Append any remaining images (if text blocks were fewer than expected)
-    while (imageSlotIndex < totalImages) {
-      const slotId = promptSlotIds[imageSlotIndex];
-      const existingBlock = existingImageBySlot.get(slotId);
-      if (existingBlock) {
-        const m = mediaMap[slotId];
-        result.push(m ? { ...existingBlock, imageID: m.filePath || m.publicPath } : existingBlock);
-      } else {
+      // Build final array: walk through text blocks, inserting images at target positions
+      const final: typeof resolved = [];
+      textIdx = 0;
+      let missingIdx = 0;
+
+      for (const block of resolved) {
+        if (block.type !== "image") {
+          textIdx++;
+          final.push(block);
+
+          // Check if any image (existing or missing) should go after this text block
+          for (let imgIdx = 0; imgIdx < totalImages; imgIdx++) {
+            const slotId = promptSlotIds[imgIdx];
+            if (existingImagePositions.has(slotId)) continue; // already placed
+            if (missingIdx >= missingSlots.length) continue;
+            if (missingSlots[missingIdx] !== slotId) continue;
+
+            if (textIdx >= targetPositions[imgIdx]) {
+              const slotMeta = imageSlots.find((s) => s.slot === slotId);
+              final.push({
+                type: "image" as const,
+                order: final.length,
+                imageSlotID: slotId,
+                alt: slotMeta?.label || slotId,
+                caption: "",
+              });
+              missingIdx++;
+            }
+          }
+        } else {
+          final.push(block);
+        }
+      }
+
+      // Append any remaining missing images at the end
+      while (missingIdx < missingSlots.length) {
+        const slotId = missingSlots[missingIdx];
         const slotMeta = imageSlots.find((s) => s.slot === slotId);
-        result.push({
+        final.push({
           type: "image" as const,
-          order: result.length,
+          order: final.length,
           imageSlotID: slotId,
           alt: slotMeta?.label || slotId,
           caption: "",
         });
+        missingIdx++;
       }
-      imageSlotIndex++;
+
+      return final;
     }
 
-    return result;
+    return resolved;
   }, [blocks, mediaMap, imageSlots]);
 
   // --- Upload handlers ---
