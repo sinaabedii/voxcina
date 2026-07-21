@@ -238,13 +238,42 @@ func (pa *PromptAgent) getContextWindow(blocks []models.BlogBlock, imageIndex, t
 		return ""
 	}
 
-	// Calculate text block index for this image
-	textBlockIndex := imageIndex * (len(blocks) / (totalImages + 1))
+	// Find actual positions of image blocks
+	var imagePositions []int
+	for i, b := range blocks {
+		if b.Type == "image" {
+			imagePositions = append(imagePositions, i)
+		}
+	}
 
-	// Get surrounding blocks
+	// If we have actual image positions, use them
+	if imageIndex < len(imagePositions) {
+		pos := imagePositions[imageIndex]
+		startIdx := pos - 2
+		endIdx := pos + 2
+		if startIdx < 0 {
+			startIdx = 0
+		}
+		if endIdx >= len(blocks) {
+			endIdx = len(blocks) - 1
+		}
+
+		var sb strings.Builder
+		for i := startIdx; i <= endIdx; i++ {
+			if blocks[i].Type != "image" {
+				if blocks[i].Text != "" {
+					sb.WriteString(blocks[i].Text)
+					sb.WriteString("\n\n")
+				}
+			}
+		}
+		return sb.String()
+	}
+
+	// Fallback: estimate position based on text blocks
+	textBlockIndex := imageIndex * (len(blocks) / (totalImages + 1))
 	startIdx := textBlockIndex - 2
 	endIdx := textBlockIndex + 2
-
 	if startIdx < 0 {
 		startIdx = 0
 	}
