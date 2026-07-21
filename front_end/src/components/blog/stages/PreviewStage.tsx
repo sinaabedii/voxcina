@@ -121,7 +121,7 @@ export default function PreviewStage({ run, media, onPublish, onUnpublish, onArc
     if (slots.length === 0) {
       const imageBlocks = blocks.filter((b) => b.type === "image");
       for (const b of imageBlocks) {
-        const slotId = b.imageSlotID || `img-${b.order}`;
+        const slotId = b.imageSlotId || `img-${b.order}`;
         slots.push({ slot: slotId, label: `تصویر — ${b.alt || slotId}` });
       }
     }
@@ -143,15 +143,15 @@ export default function PreviewStage({ run, media, onPublish, onUnpublish, onArc
     // Only inline slots (img-N), not cover — cover is separate from article body
     const inlineSlotIds = imageSlots.filter((s) => s.slot !== "cover").map((s) => s.slot);
     const existingImageSlots = new Set(
-      blocks.filter((b) => b.type === "image").map((b) => b.imageSlotID)
+      blocks.filter((b) => b.type === "image").map((b) => b.imageSlotId)
     );
     const missingSlots = inlineSlotIds.filter((s) => !existingImageSlots.has(s));
 
     // Resolve media for existing blocks (no reordering)
     const resolved = blocks.map((block) => {
-      if (block.type === "image" && block.imageSlotID) {
-        const m = mediaMap[block.imageSlotID];
-        return m ? { ...block, imageID: m.filePath || m.publicPath } : block;
+      if (block.type === "image" && block.imageSlotId) {
+        const m = mediaMap[block.imageSlotId];
+        return m ? { ...block, imageId: m.filePath || m.publicPath } : block;
       }
       return block;
     });
@@ -173,7 +173,7 @@ export default function PreviewStage({ run, media, onPublish, onUnpublish, onArc
       let textIdx = 0;
       for (const b of resolved) {
         if (b.type === "image") {
-          if (b.imageSlotID) existingImagePositions.set(b.imageSlotID, textIdx);
+          if (b.imageSlotId) existingImagePositions.set(b.imageSlotId, textIdx);
         } else {
           textIdx++;
         }
@@ -201,7 +201,7 @@ export default function PreviewStage({ run, media, onPublish, onUnpublish, onArc
               final.push({
                 type: "image" as const,
                 order: final.length,
-                imageSlotID: slotId,
+                imageSlotId: slotId,
                 alt: slotMeta?.label || slotId,
                 caption: "",
               });
@@ -220,7 +220,7 @@ export default function PreviewStage({ run, media, onPublish, onUnpublish, onArc
         final.push({
           type: "image" as const,
           order: final.length,
-          imageSlotID: slotId,
+          imageSlotId: slotId,
           alt: slotMeta?.label || slotId,
           caption: "",
         });
@@ -412,10 +412,10 @@ export default function PreviewStage({ run, media, onPublish, onUnpublish, onArc
               )}
               {block.type === "image" && (
                 <figure className="my-4">
-                  {block.imageID ? (
+                  {block.imageId ? (
                     <div className="relative w-full h-64 rounded-lg overflow-hidden">
                       <Image
-                        src={block.imageID}
+                        src={block.imageId}
                         alt={block.alt || "article image"}
                         fill
                         className="object-cover"
@@ -423,7 +423,7 @@ export default function PreviewStage({ run, media, onPublish, onUnpublish, onArc
                     </div>
                   ) : (
                     <div className="bg-gray-100 border-2 border-dashed border-gray-300 h-32 rounded-lg flex items-center justify-center text-gray-400 text-sm">
-                      {block.imageSlotID || "تصویر"}
+                      {block.imageSlotId || "تصویر"}
                     </div>
                   )}
                   {block.caption && (

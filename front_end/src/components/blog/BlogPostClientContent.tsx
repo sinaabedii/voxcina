@@ -202,11 +202,11 @@ function BlogBlock({ block }: { block: BlogBlock }) {
     case 'image':
       return (
         <figure className="my-6">
-          {block.imageID ? (
+          {block.imageId ? (
             <>
               <div className="relative w-full h-[300px] sm:h-[400px] md:h-[500px] rounded-xl overflow-hidden">
                 <Image
-                  src={block.imageID}
+                  src={block.imageId}
                   alt={block.alt || 'article image'}
                   fill
                   className="object-cover"

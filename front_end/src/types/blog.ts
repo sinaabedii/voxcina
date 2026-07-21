@@ -145,8 +145,8 @@ export interface BlogBlock {
   id?: string;
   order: number;
   text?: string;
-  imageSlotID?: string;
-  imageID?: string;
+  imageSlotId?: string;
+  imageId?: string;
   alt?: string;
   caption?: string;
 }

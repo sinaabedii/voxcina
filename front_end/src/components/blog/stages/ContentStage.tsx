@@ -131,7 +131,7 @@ export default function ContentStage({ run, onApprove, onTriggerWriting }: Conte
               </div>
               {block.type === "image" ? (
                 <div className="text-sm text-gray-600">
-                  <p>جایگاه تصویر: {block.imageSlotID}</p>
+                  <p>جایگاه تصویر: {block.imageSlotId}</p>
                   {block.alt && <p className="mt-1">متن جایگزین: {block.alt}</p>}
                 </div>
               ) : (
