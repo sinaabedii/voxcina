@@ -150,31 +150,31 @@ Write the prompt in English for image model compatibility, but alt_text and capt
 
 // generateInlinePrompts creates prompts for inline images
 func (pa *PromptAgent) generateInlinePrompts(ctx context.Context, run *models.BlogPipelineRun, post *models.BlogPost, contentSummary string) ([]ImagePrompt, error) {
-	// Count text blocks to determine image count
-	textBlockCount := 0
+	// Count actual image blocks in the post to match exactly
+	var imageSlots []string
 	for _, block := range post.Blocks {
-		if block.Type == "text" {
-			textBlockCount++
+		if block.Type == "image" && block.ImageSlotID != "" {
+			imageSlots = append(imageSlots, block.ImageSlotID)
 		}
 	}
 
-	// Determine image count based on word count
-	wordCount := estimateWordCount(contentSummary)
-	var imageCount int
-
-	if wordCount < 800 {
-		imageCount = 1
-	} else if wordCount <= 1400 {
-		imageCount = 2
-	} else {
-		imageCount = 3
+	// Fallback: if no image blocks found, use word count heuristic
+	if len(imageSlots) == 0 {
+		wordCount := estimateWordCount(contentSummary)
+		if wordCount < 800 {
+			imageSlots = []string{"img-1"}
+		} else if wordCount < 1400 {
+			imageSlots = []string{"img-1", "img-2"}
+		} else {
+			imageSlots = []string{"img-1", "img-2", "img-3"}
+		}
 	}
 
-	prompts := make([]ImagePrompt, 0, imageCount)
+	prompts := make([]ImagePrompt, 0, len(imageSlots))
 
-	for i := 0; i < imageCount; i++ {
+	for i, slotId := range imageSlots {
 		// Get surrounding context for this image
-		contextWindow := pa.getContextWindow(post.Blocks, i, imageCount)
+		contextWindow := pa.getContextWindow(post.Blocks, i, len(imageSlots))
 
 		prompt := fmt.Sprintf(`You are an expert at creating image generation prompts for inline images in a Persian fashion blog.
 
@@ -225,7 +225,7 @@ Write the prompt in English, but alt_text and caption in Persian.`,
 			return nil, err
 		}
 
-		result.SuggestedSlotID = fmt.Sprintf("img-%d", i+1)
+		result.SuggestedSlotID = slotId
 		prompts = append(prompts, result)
 	}
 
