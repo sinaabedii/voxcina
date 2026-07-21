@@ -54,6 +54,11 @@ func (wa *WritingAgent) RunWriting(ctx context.Context, run *models.BlogPipeline
 
 	log.Printf("[blog] Writing parsed: %d blocks, title: %s, excerpt: %s", len(writingResult.Blocks), wa.extractTitle(writingResult.Blocks), writingResult.Excerpt[:min(len(writingResult.Excerpt), 100)])
 
+	// Fail immediately if no blocks were parsed — repair with empty blocks produces garbage
+	if len(writingResult.Blocks) == 0 {
+		return nil, fmt.Errorf("writing output contains no blocks (LLM returned invalid schema)")
+	}
+
 	// Validate blocks
 	if err := wa.validator.ValidateBlocks(writingResult.Blocks); err != nil {
 		log.Printf("[blog] Block validation failed, attempting repair: %v", err)
@@ -269,8 +274,49 @@ func (wa *WritingAgent) attemptBlockRepair(ctx context.Context, snapshot *Resear
 		maxImages = 2
 	}
 
-	// Re-call the writing agent with repair instructions
-	prompt := fmt.Sprintf(`Previous block generation failed validation. Please fix the blocks.
+	// When blocks are empty, the repair has no context. Re-generate from brief + research.
+	brief := snapshot.GenerationBrief
+	research := snapshot.Output
+
+	var prompt string
+	if len(blocks) == 0 {
+		prompt = fmt.Sprintf(`The previous writing attempt produced no valid blocks. Please write the article from scratch.
+
+**Topic:** %s
+**Audience:** %s
+**Target length:** %d words
+**Tone:** %s
+**Category:** %s
+**Keywords:** %s
+
+**Research findings:**
+%s
+
+**Outline:**
+- Title: %s
+- Sections: %s
+
+Write a complete Persian blog post. Return JSON with this structure:
+{
+  "blocks": [
+    {"type": "title", "text": "عنوان مقاله", "order": 0},
+    {"type": "text", "text": "مقدمه...", "order": 1},
+    {"type": "header", "text": "بخش اول", "order": 2},
+    {"type": "text", "text": "محتوا...", "order": 3}
+  ],
+  "excerpt": "خلاصه مقاله",
+  "recommended_category": "دستهبندی",
+  "recommended_tags": ["برچسب1"]
+}
+
+Rules:
+- Write ONLY in Persian (Farsi)
+- Exactly one title block first
+- Max %d image(s) for %d words
+- No HTML or Markdown in text blocks
+- Return ONLY valid JSON`, brief.Topic, brief.TargetAudience, brief.DesiredLength, brief.Tone, brief.Category, strings.Join(brief.Keywords, ", "), formatFindings(research.Findings), research.Outline.Title, strings.Join(research.Outline.Sections, ", "), maxImages, textWords)
+	} else {
+		prompt = fmt.Sprintf(`Previous block generation failed validation. Please fix the blocks.
 
 Original blocks:
 %s
@@ -281,8 +327,10 @@ CRITICAL Validation errors to fix:
 - Ensure exactly one "title" block first
 - Ensure images appear between text blocks, never first or last
 - Ensure proper heading hierarchy (title→header→section→subsection)
+- Write ONLY in Persian (Farsi)
 
 Return corrected blocks in the same JSON format with the correct number of images.`, formatBlocks(blocks), imageCount, maxImages, textWords, maxImages)
+	}
 
 	output, err := wa.openRouter.CallWithSchema(ctx, prompt, writingOutputSchema())
 	if err != nil {
@@ -297,6 +345,10 @@ Return corrected blocks in the same JSON format with the correct number of image
 	}
 
 	log.Printf("[blog] Repair parsed: %d blocks, excerpt: %s", len(repaired.Blocks), repaired.Excerpt[:min(len(repaired.Excerpt), 100)])
+
+	if len(repaired.Blocks) == 0 {
+		return nil, fmt.Errorf("repair produced no blocks")
+	}
 
 	return repaired.Blocks, nil
 }
