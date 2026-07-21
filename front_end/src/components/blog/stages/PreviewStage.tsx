@@ -15,7 +15,12 @@ interface PreviewStageProps {
   onArchive: () => void;
 }
 
-function normalizeWriterOutput(parsedOutput: unknown, rawResponse?: string): Record<string, unknown> | undefined {
+interface ImageSlot {
+  slot: string;
+  label: string;
+}
+
+function normalizeOutput(parsedOutput: unknown, rawResponse?: string): Record<string, unknown> | undefined {
   if (rawResponse && rawResponse.trim()) {
     try {
       const parsed = JSON.parse(rawResponse);
@@ -52,26 +57,79 @@ function normalizeWriterOutput(parsedOutput: unknown, rawResponse?: string): Rec
 }
 
 export default function PreviewStage({ run, media, onPublish, onUnpublish, onArchive }: PreviewStageProps) {
-  const { uploadMedia, deleteMedia, isLoading } = useBlogAdminStore();
+  const { uploadMedia, deleteMedia } = useBlogAdminStore();
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null);
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
 
+  // --- Writing output (blocks) ---
   const writingExec = useMemo(
     () => run.executions?.find((e) => e.stage === "write"),
     [run.executions]
   );
-  const output = useMemo(
-    () => normalizeWriterOutput(writingExec?.parsedOutput, writingExec?.rawResponse),
+  const writingOutput = useMemo(
+    () => normalizeOutput(writingExec?.parsedOutput, writingExec?.rawResponse),
     [writingExec?.parsedOutput, writingExec?.rawResponse]
   );
   const blocks: BlogBlock[] = useMemo(
-    () => (output?.blocks as BlogBlock[]) || [],
-    [output]
+    () => (writingOutput?.blocks as BlogBlock[]) || [],
+    [writingOutput]
   );
-  const excerpt = (output?.excerpt as string) || "";
-  const tags = (output?.tags as string[]) || (output?.recommended_tags as string[]) || [];
+  const excerpt = (writingOutput?.excerpt as string) || "";
+  const tags = (writingOutput?.tags as string[]) || (writingOutput?.recommended_tags as string[]) || [];
 
-  // Build media map: slot -> BlogMedia
+  // --- Prompts output (image slots) ---
+  const promptsExec = useMemo(
+    () => run.executions?.find((e) => e.stage === "prompts"),
+    [run.executions]
+  );
+  const promptsOutput = useMemo(
+    () => normalizeOutput(promptsExec?.parsedOutput, promptsExec?.rawResponse),
+    [promptsExec?.parsedOutput, promptsExec?.rawResponse]
+  );
+
+  // Build the full list of image upload slots from prompts output
+  const imageSlots: ImageSlot[] = useMemo(() => {
+    const slots: ImageSlot[] = [];
+    const output = promptsOutput;
+    if (!output) return slots;
+
+    // Cover prompt
+    const coverPrompt = output.cover_prompt;
+    if (coverPrompt && typeof coverPrompt === "object" && !Array.isArray(coverPrompt)) {
+      let cp = coverPrompt as Record<string, unknown>;
+      if ("Key" in cp && "Value" in cp) cp = (cp.Value as Record<string, unknown>) || {};
+      slots.push({ slot: "cover", label: `کاور — ${(cp.prompt as string || "").slice(0, 60)}` });
+    } else if (typeof coverPrompt === "string" && coverPrompt) {
+      slots.push({ slot: "cover", label: `کاور — ${coverPrompt.slice(0, 60)}` });
+    }
+
+    // Inline prompts
+    const inlinePrompts = output.inline_prompts;
+    if (Array.isArray(inlinePrompts)) {
+      for (let i = 0; i < inlinePrompts.length; i++) {
+        let ip = inlinePrompts[i] as Record<string, unknown>;
+        if (ip && typeof ip === "object" && "Key" in ip && "Value" in ip) {
+          ip = (ip.Value as Record<string, unknown>) || {};
+        }
+        const slotId = (ip.suggested_slot_id as string) || `img-${i + 1}`;
+        const promptText = (ip.prompt as string) || "";
+        slots.push({ slot: slotId, label: `تصویر ${i + 1} — ${promptText.slice(0, 60)}` });
+      }
+    }
+
+    // Fallback: if no prompts output, derive from blocks
+    if (slots.length === 0) {
+      const imageBlocks = blocks.filter((b) => b.type === "image");
+      for (const b of imageBlocks) {
+        const slotId = b.imageSlotID || `img-${b.order}`;
+        slots.push({ slot: slotId, label: `تصویر — ${b.alt || slotId}` });
+      }
+    }
+
+    return slots;
+  }, [promptsOutput, blocks]);
+
+  // --- Media ---
   const mediaMap = useMemo(() => {
     const map: Record<string, BlogMedia> = {};
     for (const m of media) {
@@ -93,6 +151,7 @@ export default function PreviewStage({ run, media, onPublish, onUnpublish, onArc
     });
   }, [blocks, mediaMap]);
 
+  // --- Upload handlers ---
   const handleUpload = useCallback(async (slot: string, file: File) => {
     if (!run.postId) {
       toast.error("مقاله هنوز ایجاد نشده است");
@@ -134,6 +193,8 @@ export default function PreviewStage({ run, media, onPublish, onUnpublish, onArc
     run.status === "media_pending" ? "در انتظار تصاویر" :
     "پیشنمایش";
 
+  const uploadedCount = imageSlots.filter((s) => mediaMap[s.slot]).length;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -157,6 +218,82 @@ export default function PreviewStage({ run, media, onPublish, onUnpublish, onArc
           )}
         </div>
       </div>
+
+      {/* Image Upload Section */}
+      {imageSlots.length > 0 && (
+        <div className="border rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">آپلود تصاویر</h3>
+              <p className="text-sm text-gray-500">{uploadedCount} از {imageSlots.length} آپلود شده</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {imageSlots.map((imgSlot) => {
+              const existing = mediaMap[imgSlot.slot];
+              const isUploading = uploadingSlot === imgSlot.slot;
+              return (
+                <div key={imgSlot.slot} className="border rounded-lg overflow-hidden">
+                  {existing ? (
+                    <div className="relative aspect-video bg-gray-100">
+                      <Image
+                        src={existing.filePath || existing.publicPath}
+                        alt={imgSlot.label}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="aspect-video bg-gray-50 border-b border-dashed border-gray-300 flex flex-col items-center justify-center gap-2">
+                      <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+                      </svg>
+                      <p className="text-xs text-gray-400">تصویر آپلود نشده</p>
+                    </div>
+                  )}
+                  <div className="p-3">
+                    <p className="text-xs font-bold text-gray-700 mb-2 line-clamp-2" title={imgSlot.label}>
+                      {imgSlot.label}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => triggerFileInput(imgSlot.slot)}
+                        disabled={isUploading}
+                      >
+                        {isUploading ? "در حال آپلود..." : existing ? "جایگزینی" : "آپلود"}
+                      </Button>
+                      {existing && (
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={async () => {
+                            const ok = await deleteMedia(existing.id);
+                            if (ok) toast.success("حذف شد");
+                          }}
+                        >
+                          حذف
+                        </Button>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      ref={(el) => {
+                        if (el) fileInputRefs.current.set(imgSlot.slot, el);
+                      }}
+                      onChange={(e) => handleFileChange(imgSlot.slot, e)}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Article Preview */}
       <div className="border rounded-lg p-6">
@@ -203,46 +340,8 @@ export default function PreviewStage({ run, media, onPublish, onUnpublish, onArc
                       />
                     </div>
                   ) : (
-                    <div className="bg-gray-100 border-2 border-dashed border-gray-300 h-64 rounded-lg flex flex-col items-center justify-center gap-2">
-                      <p className="text-gray-500 text-sm">تصویر آپلود نشده</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => triggerFileInput(block.imageSlotID || `img-${index}`)}
-                        disabled={uploadingSlot === block.imageSlotID}
-                      >
-                        {uploadingSlot === block.imageSlotID ? "در حال آپلود..." : "آپلود تصویر"}
-                      </Button>
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        className="hidden"
-                        ref={(el) => {
-                          if (el) fileInputRefs.current.set(block.imageSlotID || `img-${index}`, el);
-                        }}
-                        onChange={(e) => handleFileChange(block.imageSlotID || `img-${index}`, e)}
-                      />
-                    </div>
-                  )}
-                  {block.imageID && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="text-xs text-gray-400">جایگاه: {block.imageSlotID}</span>
-                      <button
-                        className="text-xs text-blue-500 hover:underline"
-                        onClick={() => triggerFileInput(block.imageSlotID || `img-${index}`)}
-                        disabled={uploadingSlot === block.imageSlotID}
-                      >
-                        جایگزینی
-                      </button>
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        className="hidden"
-                        ref={(el) => {
-                          if (el) fileInputRefs.current.set(block.imageSlotID || `img-${index}`, el);
-                        }}
-                        onChange={(e) => handleFileChange(block.imageSlotID || `img-${index}`, e)}
-                      />
+                    <div className="bg-gray-100 border-2 border-dashed border-gray-300 h-32 rounded-lg flex items-center justify-center text-gray-400 text-sm">
+                      {block.imageSlotID || "تصویر"}
                     </div>
                   )}
                   {block.caption && (
