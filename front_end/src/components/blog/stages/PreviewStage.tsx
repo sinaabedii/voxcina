@@ -140,11 +140,12 @@ export default function PreviewStage({ run, media, onPublish, onUnpublish, onArc
 
   // Resolve image blocks with media URLs, and inject missing prompt slots in correct order
   const resolvedBlocks = useMemo(() => {
-    const promptSlotIds = imageSlots.map((s) => s.slot);
+    // Only inline slots (img-N), not cover — cover is separate from article body
+    const inlineSlotIds = imageSlots.filter((s) => s.slot !== "cover").map((s) => s.slot);
     const existingImageSlots = new Set(
       blocks.filter((b) => b.type === "image").map((b) => b.imageSlotID)
     );
-    const missingSlots = promptSlotIds.filter((s) => !existingImageSlots.has(s));
+    const missingSlots = inlineSlotIds.filter((s) => !existingImageSlots.has(s));
 
     // Resolve media for existing blocks (no reordering)
     const resolved = blocks.map((block) => {
@@ -158,7 +159,7 @@ export default function PreviewStage({ run, media, onPublish, onUnpublish, onArc
     // Insert missing slots at evenly distributed positions among text blocks
     if (missingSlots.length > 0) {
       const textBlockCount = resolved.filter((b) => b.type !== "image").length;
-      const totalImages = promptSlotIds.length;
+      const totalImages = inlineSlotIds.length;
 
       // Calculate target positions for each image (among text blocks)
       // e.g. 3 images, 10 text blocks → after text #2, #5, #8
@@ -190,7 +191,7 @@ export default function PreviewStage({ run, media, onPublish, onUnpublish, onArc
 
           // Check if any image (existing or missing) should go after this text block
           for (let imgIdx = 0; imgIdx < totalImages; imgIdx++) {
-            const slotId = promptSlotIds[imgIdx];
+            const slotId = inlineSlotIds[imgIdx];
             if (existingImagePositions.has(slotId)) continue; // already placed
             if (missingIdx >= missingSlots.length) continue;
             if (missingSlots[missingIdx] !== slotId) continue;
