@@ -22,16 +22,34 @@ interface ImagePrompt {
 }
 
 function normalizePromptsOutput(parsedOutput: unknown, rawResponse?: string): Record<string, unknown> | undefined {
-  if (parsedOutput && typeof parsedOutput === "object") {
+  // Try rawResponse first — it's always a clean JSON string from the worker
+  if (rawResponse && rawResponse.trim()) {
+    try {
+      const parsed = JSON.parse(rawResponse);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // fall through
+    }
+  }
+
+  // Try parsedOutput — might be an object, a string, or a BSON-like structure
+  if (parsedOutput && typeof parsedOutput === "object" && !Array.isArray(parsedOutput)) {
     return parsedOutput as Record<string, unknown>;
   }
   if (typeof parsedOutput === "string" && parsedOutput.trim()) {
     try {
-      return JSON.parse(parsedOutput) as Record<string, unknown>;
+      const parsed = JSON.parse(parsedOutput);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed;
+      }
     } catch {
-      return { content: parsedOutput };
+      // fall through
     }
   }
+
+  // Last resort: try rawResponse even if it parses to an array
   if (rawResponse && rawResponse.trim()) {
     try {
       return JSON.parse(rawResponse) as Record<string, unknown>;
@@ -61,7 +79,11 @@ export default function PromptsStage({ run, onApprove, onTriggerPrompts }: Promp
     // Handle PromptAgent format: {cover_prompt: ImagePrompt, inline_prompts: ImagePrompt[]}
     const coverPrompt = output.cover_prompt;
     if (coverPrompt && typeof coverPrompt === "object") {
-      const cp = coverPrompt as Record<string, unknown>;
+      // Handle BSON D-style {Key, Value} wrapping
+      let cp = coverPrompt as Record<string, unknown>;
+      if ("Key" in cp && "Value" in cp) {
+        cp = (cp.Value as Record<string, unknown>) || {};
+      }
       prompts.push({
         id: "cover",
         slot: "cover",
@@ -79,7 +101,11 @@ export default function PromptsStage({ run, onApprove, onTriggerPrompts }: Promp
     const inlinePrompts = output.inline_prompts;
     if (Array.isArray(inlinePrompts)) {
       for (let i = 0; i < inlinePrompts.length; i++) {
-        const ip = inlinePrompts[i] as Record<string, unknown>;
+        let ip = inlinePrompts[i] as Record<string, unknown>;
+        // Handle BSON D-style {Key, Value} wrapping
+        if (ip && typeof ip === "object" && "Key" in ip && "Value" in ip) {
+          ip = (ip.Value as Record<string, unknown>) || {};
+        }
         prompts.push({
           id: (ip.suggested_slot_id as string) || `img-${i + 1}`,
           slot: (ip.suggested_slot_id as string) || `img-${i + 1}`,
@@ -92,14 +118,20 @@ export default function PromptsStage({ run, onApprove, onTriggerPrompts }: Promp
       }
     }
 
-    // Fallback: handle flat array format [{slot, prompt}] from legacy worker
+    // Fallback: handle flat array format [{slot, prompt}] or BSON D-style [{Key, Value}]
     if (prompts.length === 0 && Array.isArray(output)) {
       for (const item of output) {
-        const obj = item as Record<string, unknown>;
+        let obj = item as Record<string, unknown>;
+        // Handle BSON D-style {Key, Value} wrapping
+        if (obj && typeof obj === "object" && "Key" in obj && "Value" in obj) {
+          obj = (obj.Value as Record<string, unknown>) || {};
+        }
         prompts.push({
-          id: (obj.slot as string) || undefined,
-          slot: (obj.slot as string) || undefined,
+          id: (obj.suggested_slot_id as string) || (obj.slot as string) || undefined,
+          slot: (obj.suggested_slot_id as string) || (obj.slot as string) || undefined,
           prompt: (obj.prompt as string) || "",
+          alt_text: (obj.alt_text as string) || "",
+          caption: (obj.caption as string) || "",
         });
       }
     }
