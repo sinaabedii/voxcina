@@ -138,9 +138,21 @@ export default function PreviewStage({ run, media, onPublish, onUnpublish, onArc
     return map;
   }, [media]);
 
-  // Resolve image blocks with media URLs
+  // Resolve image blocks with media URLs, and inject missing prompt slots
   const resolvedBlocks = useMemo(() => {
-    return blocks.map((block) => {
+    // Build ordered list of prompt slot IDs
+    const promptSlotIds = imageSlots.map((s) => s.slot);
+
+    // Set of slots that already exist in blocks
+    const existingSlots = new Set(
+      blocks.filter((b) => b.type === "image").map((b) => b.imageSlotID)
+    );
+
+    // Prompt slots not yet in blocks — will be appended at the end
+    const missingSlots = promptSlotIds.filter((s) => !existingSlots.has(s));
+
+    // Resolve existing blocks
+    const resolved = blocks.map((block) => {
       if (block.type === "image" && block.imageSlotID) {
         const m = mediaMap[block.imageSlotID];
         if (m) {
@@ -149,7 +161,21 @@ export default function PreviewStage({ run, media, onPublish, onUnpublish, onArc
       }
       return block;
     });
-  }, [blocks, mediaMap]);
+
+    // Append missing image blocks at the end
+    for (const slotId of missingSlots) {
+      const slotMeta = imageSlots.find((s) => s.slot === slotId);
+      resolved.push({
+        type: "image" as const,
+        order: resolved.length,
+        imageSlotID: slotId,
+        alt: slotMeta?.label || slotId,
+        caption: "",
+      });
+    }
+
+    return resolved;
+  }, [blocks, mediaMap, imageSlots]);
 
   // --- Upload handlers ---
   const handleUpload = useCallback(async (slot: string, file: File) => {
