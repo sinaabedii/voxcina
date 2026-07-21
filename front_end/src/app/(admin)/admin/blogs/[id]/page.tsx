@@ -28,6 +28,7 @@ export default function BlogDetailPage() {
 
   const {
     currentRun,
+    currentMedia,
     fetchRun,
     deleteRun,
     triggerResearch,
@@ -270,6 +271,7 @@ export default function BlogDetailPage() {
           {currentStage === "preview" && (
             <PreviewStage
               run={currentRun}
+              media={currentMedia}
               onPublish={handlePublish}
               onUnpublish={handleUnpublish}
               onArchive={handleArchive}

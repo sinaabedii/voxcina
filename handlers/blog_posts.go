@@ -269,10 +269,22 @@ func GetPipelineRunByID(w http.ResponseWriter, r *http.Request) {
 	executions, _ := repo.FindExecutionsByRunID(ctx, id)
 	sources, _ := repo.FindSourcesByRunID(ctx, id)
 
+	// Include media if a post exists
+	var media []models.BlogMedia
+	if run.PostID != "" {
+		if postID, err := primitive.ObjectIDFromHex(run.PostID); err == nil {
+			media, _ = repo.FindMediaByPostID(ctx, postID)
+		}
+	}
+	if media == nil {
+		media = []models.BlogMedia{}
+	}
+
 	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
 		"run":        run,
 		"executions": executions,
 		"sources":    sources,
+		"media":      media,
 	})
 }
 

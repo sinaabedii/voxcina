@@ -5,6 +5,7 @@ interface BlogAdminState {
   // State
   currentRun: BlogPipelineRun | null;
   currentPost: BlogPost | null;
+  currentMedia: BlogMedia[];
   isLoading: boolean;
   error: string | null;
 
@@ -31,6 +32,7 @@ interface BlogAdminState {
 export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
   currentRun: null,
   currentPost: null,
+  currentMedia: [],
   isLoading: false,
   error: null,
 
@@ -79,7 +81,8 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
 
       const data = await res.json();
       const run: BlogPipelineRun = { ...data.run, executions: data.executions, sources: data.sources };
-      set({ currentRun: run, currentPost: data.run.post_id ? data.post : null, isLoading: false });
+      const media: BlogMedia[] = Array.isArray(data.media) ? data.media : [];
+      set({ currentRun: run, currentPost: data.run.post_id ? data.post : null, currentMedia: media, isLoading: false });
       return run;
     } catch (err) {
       set({
@@ -350,7 +353,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
       }
 
       const media: BlogMedia = await res.json();
-      set({ isLoading: false });
+      set((state) => ({ currentMedia: [...state.currentMedia, media], isLoading: false }));
       return media;
     } catch (err) {
       set({
@@ -376,7 +379,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
         throw new Error("Failed to delete media");
       }
 
-      set({ isLoading: false });
+      set((state) => ({ currentMedia: state.currentMedia.filter((m) => m.id !== mediaID), isLoading: false }));
       return true;
     } catch (err) {
       set({

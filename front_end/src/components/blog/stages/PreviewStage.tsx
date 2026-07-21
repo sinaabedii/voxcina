@@ -1,28 +1,46 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useCallback, useState, useRef } from "react";
 import Button from "@/components/ui/Button";
 import Image from "next/image";
-import { BlogPipelineRun, BlogBlock } from "@/types/blog";
+import { BlogPipelineRun, BlogBlock, BlogMedia } from "@/types/blog";
+import { useBlogAdminStore } from "@/store/blog-admin-store";
+import { toast } from "react-hot-toast";
 
 interface PreviewStageProps {
   run: BlogPipelineRun;
+  media: BlogMedia[];
   onPublish: () => void;
   onUnpublish: () => void;
   onArchive: () => void;
 }
 
 function normalizeWriterOutput(parsedOutput: unknown, rawResponse?: string): Record<string, unknown> | undefined {
-  if (parsedOutput && typeof parsedOutput === "object") {
+  if (rawResponse && rawResponse.trim()) {
+    try {
+      const parsed = JSON.parse(rawResponse);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // fall through
+    }
+  }
+
+  if (parsedOutput && typeof parsedOutput === "object" && !Array.isArray(parsedOutput)) {
     return parsedOutput as Record<string, unknown>;
   }
   if (typeof parsedOutput === "string" && parsedOutput.trim()) {
     try {
-      return JSON.parse(parsedOutput) as Record<string, unknown>;
+      const parsed = JSON.parse(parsedOutput);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed;
+      }
     } catch {
-      return { content: parsedOutput };
+      // fall through
     }
   }
+
   if (rawResponse && rawResponse.trim()) {
     try {
       return JSON.parse(rawResponse) as Record<string, unknown>;
@@ -33,7 +51,11 @@ function normalizeWriterOutput(parsedOutput: unknown, rawResponse?: string): Rec
   return undefined;
 }
 
-export default function PreviewStage({ run, onPublish, onUnpublish, onArchive }: PreviewStageProps) {
+export default function PreviewStage({ run, media, onPublish, onUnpublish, onArchive }: PreviewStageProps) {
+  const { uploadMedia, deleteMedia, isLoading } = useBlogAdminStore();
+  const [uploadingSlot, setUploadingSlot] = useState<string | null>(null);
+  const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+
   const writingExec = useMemo(
     () => run.executions?.find((e) => e.stage === "write"),
     [run.executions]
@@ -49,14 +71,75 @@ export default function PreviewStage({ run, onPublish, onUnpublish, onArchive }:
   const excerpt = (output?.excerpt as string) || "";
   const tags = (output?.tags as string[]) || (output?.recommended_tags as string[]) || [];
 
+  // Build media map: slot -> BlogMedia
+  const mediaMap = useMemo(() => {
+    const map: Record<string, BlogMedia> = {};
+    for (const m of media) {
+      map[m.slot] = m;
+    }
+    return map;
+  }, [media]);
+
+  // Resolve image blocks with media URLs
+  const resolvedBlocks = useMemo(() => {
+    return blocks.map((block) => {
+      if (block.type === "image" && block.imageSlotID) {
+        const m = mediaMap[block.imageSlotID];
+        if (m) {
+          return { ...block, imageID: m.filePath || m.publicPath };
+        }
+      }
+      return block;
+    });
+  }, [blocks, mediaMap]);
+
+  const handleUpload = useCallback(async (slot: string, file: File) => {
+    if (!run.postId) {
+      toast.error("مقاله هنوز ایجاد نشده است");
+      return;
+    }
+    setUploadingSlot(slot);
+    try {
+      const existing = mediaMap[slot];
+      if (existing) {
+        await deleteMedia(existing.id);
+      }
+      const mediaResult = await uploadMedia(run.postId, slot, file, slot);
+      if (mediaResult) {
+        toast.success("تصویر آپلود شد");
+      } else {
+        toast.error("خطا در آپلود تصویر");
+      }
+    } catch {
+      toast.error("خطا در آپلود تصویر");
+    } finally {
+      setUploadingSlot(null);
+    }
+  }, [run.postId, mediaMap, uploadMedia, deleteMedia]);
+
+  const handleFileChange = useCallback((slot: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleUpload(slot, file);
+    }
+    e.target.value = "";
+  }, [handleUpload]);
+
+  const triggerFileInput = useCallback((slot: string) => {
+    fileInputRefs.current.get(slot)?.click();
+  }, []);
+
+  const statusLabel = run.status === "published" ? "منتشر شده" :
+    run.status === "ready" ? "آماده انتشار" :
+    run.status === "media_pending" ? "در انتظار تصاویر" :
+    "پیشنمایش";
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-bold text-gray-900">پیشنمایش و انتشار</h3>
-          <p className="text-sm text-gray-600">
-            وضعیت: {run.status === "published" ? "منتشر شده" : "آماده انتشار"}
-          </p>
+          <p className="text-sm text-gray-600">وضعیت: {statusLabel}</p>
         </div>
         <div className="flex gap-2">
           {run.status === "ready" && (
@@ -91,7 +174,7 @@ export default function PreviewStage({ run, onPublish, onUnpublish, onArchive }:
         </div>
 
         <div className="prose max-w-none">
-          {blocks.map((block, index) => (
+          {resolvedBlocks.map((block, index) => (
             <div key={block.id || index} className="mb-4">
               {block.type === "title" && (
                 <h1 className="text-3xl font-bold text-voxcina-blue">{block.text}</h1>
@@ -120,8 +203,46 @@ export default function PreviewStage({ run, onPublish, onUnpublish, onArchive }:
                       />
                     </div>
                   ) : (
-                    <div className="bg-gray-200 h-64 rounded-lg flex items-center justify-center text-gray-500">
-                      تصویر آپلود نشده
+                    <div className="bg-gray-100 border-2 border-dashed border-gray-300 h-64 rounded-lg flex flex-col items-center justify-center gap-2">
+                      <p className="text-gray-500 text-sm">تصویر آپلود نشده</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => triggerFileInput(block.imageSlotID || `img-${index}`)}
+                        disabled={uploadingSlot === block.imageSlotID}
+                      >
+                        {uploadingSlot === block.imageSlotID ? "در حال آپلود..." : "آپلود تصویر"}
+                      </Button>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        ref={(el) => {
+                          if (el) fileInputRefs.current.set(block.imageSlotID || `img-${index}`, el);
+                        }}
+                        onChange={(e) => handleFileChange(block.imageSlotID || `img-${index}`, e)}
+                      />
+                    </div>
+                  )}
+                  {block.imageID && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-xs text-gray-400">جایگاه: {block.imageSlotID}</span>
+                      <button
+                        className="text-xs text-blue-500 hover:underline"
+                        onClick={() => triggerFileInput(block.imageSlotID || `img-${index}`)}
+                        disabled={uploadingSlot === block.imageSlotID}
+                      >
+                        جایگزینی
+                      </button>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        ref={(el) => {
+                          if (el) fileInputRefs.current.set(block.imageSlotID || `img-${index}`, el);
+                        }}
+                        onChange={(e) => handleFileChange(block.imageSlotID || `img-${index}`, e)}
+                      />
                     </div>
                   )}
                   {block.caption && (
