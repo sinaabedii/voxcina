@@ -117,9 +117,12 @@ docker compose build server && docker compose up -d server
 ```
 
 ### Required iptables (after fresh VPS provision)
+Docker containers need access to Xray proxy on port 10809 (UFW DENY rule blocks them by default).
+Add ACCEPT rules in ufw-before-input chain (persists through UFW):
 ```bash
-iptables -I INPUT -i docker0 -p tcp --dport 10809 -j ACCEPT
-iptables -I INPUT -i br-+ -p tcp --dport 10809 -j ACCEPT
-iptables -I INPUT -i lo -p tcp --dport 10809 -j ACCEPT
-iptables -A INPUT -p tcp --dport 10809 -j DROP
+iptables -I ufw-before-input -i docker0 -p tcp --dport 10809 -j ACCEPT
+iptables -I ufw-before-input -i br-+ -p tcp --dport 10809 -j ACCEPT
+iptables -I ufw-before-input -i docker0 -p udp --dport 10809 -j ACCEPT
+iptables -I ufw-before-input -i br-+ -p udp --dport 10809 -j ACCEPT
 ```
+Persistent service at `/etc/systemd/system/docker-proxy-iptables.service` ensures rules survive reboots.

@@ -804,6 +804,7 @@ func TriggerWriting(w http.ResponseWriter, r *http.Request) {
 	// so the UI and DB stay in sync.
 	allowedStatuses := map[string]bool{
 		models.PipelineResearchApproved: true,
+		models.PipelineWriting:          true,
 		models.PipelineContentApproved:  true,
 		models.PipelinePrompts:          true,
 		models.PipelinePromptsApproved:  true,

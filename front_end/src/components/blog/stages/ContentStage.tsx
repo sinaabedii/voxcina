@@ -37,9 +37,14 @@ function normalizeWriterOutput(parsedOutput: unknown, rawResponse?: string): Rec
 export default function ContentStage({ run, onApprove, onTriggerWriting }: ContentStageProps) {
   const isWriting = run.status === "writing";
   const isApproved = run.status === "content_approved";
+  const isFailed = !isWriting && !isApproved && run.status !== "brief";
 
   const writingExec = useMemo(
     () => run.executions?.find((e) => e.stage === "write" && e.status === "completed"),
+    [run.executions]
+  );
+  const failedExec = useMemo(
+    () => run.executions?.find((e) => e.stage === "write" && e.status === "failed"),
     [run.executions]
   );
   const output = useMemo(
@@ -77,18 +82,27 @@ export default function ContentStage({ run, onApprove, onTriggerWriting }: Conte
               ? "در حال نگارش..."
               : isApproved
                 ? "نگارش تکمیل شد - آماده تایید"
-                : "هنوز شروع نشده"}
+                : failedExec
+                  ? "نگارش ناموفق بود"
+                  : "هنوز شروع نشده"}
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onTriggerWriting} disabled={isWriting}>
-            شروع نگارش
+          <Button variant="outline" onClick={onTriggerWriting}>
+            {failedExec ? "شروع مجدد نگارش" : "شروع نگارش"}
           </Button>
           <Button onClick={onApprove} disabled={!isApproved}>
             تایید و ادامه
           </Button>
         </div>
       </div>
+
+      {failedExec && failedExec.error && (
+        <div className="border border-red-200 bg-red-50 rounded-lg p-4">
+          <p className="text-sm font-bold text-red-700 mb-1">خطا در نگارش:</p>
+          <p className="text-sm text-red-600">{failedExec.error}</p>
+        </div>
+      )}
 
       {isWriting && (
         <div className="text-center py-8">

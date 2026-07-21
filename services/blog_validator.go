@@ -96,7 +96,9 @@ func ValidateBlockOrder(blocks []models.BlogBlock) *ValidationResult {
 	return vr
 }
 
-// ValidateImageCountPolicy enforces image count based on text word count.
+// ValidateImageCountPolicy enforces max image count based on text word count.
+// Excess images are trimmed by trimExcessImages post-validation, so we only
+// fail if there are far too many (more than 2x the allowed max).
 func ValidateImageCountPolicy(blocks []models.BlogBlock) *ValidationResult {
 	vr := &ValidationResult{}
 	textWordCount := 0
@@ -111,11 +113,8 @@ func ValidateImageCountPolicy(blocks []models.BlogBlock) *ValidationResult {
 		}
 	}
 
-	expectedMin, expectedMax := imagePolicy(textWordCount)
-	if imageCount < expectedMin {
-		vr.Add("blocks", fmt.Sprintf("need at least %d image(s) for %d words of text", expectedMin, textWordCount))
-	}
-	if imageCount > expectedMax {
+	_, expectedMax := imagePolicy(textWordCount)
+	if imageCount > expectedMax*2 {
 		vr.Add("blocks", fmt.Sprintf("too many images (%d) for %d words of text (max %d)", imageCount, textWordCount, expectedMax))
 	}
 

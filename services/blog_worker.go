@@ -71,6 +71,11 @@ func (w *BlogWorker) Start() {
 		w.wg.Add(1)
 		go w.workerLoop(i)
 	}
+
+	// Start periodic stale lease cleanup every 5 minutes
+	w.wg.Add(1)
+	go w.staleLeaseCleanupLoop()
+
 	log.Printf("[blog-worker] started with %d workers", w.concurrency)
 }
 
@@ -85,6 +90,28 @@ func (w *BlogWorker) Stop() {
 	log.Println("[blog-worker] stopped")
 }
 
+// staleLeaseCleanupLoop periodically expires stale leases to prevent stuck executions.
+func (w *BlogWorker) staleLeaseCleanupLoop() {
+	defer w.wg.Done()
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-w.stopCh:
+			return
+		case <-ticker.C:
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			expired, err := w.repo.ExpireStaleLeases(ctx, 10*time.Minute)
+			cancel()
+			if err != nil {
+				log.Printf("[blog-worker] periodic stale lease cleanup failed: %v", err)
+			} else if expired > 0 {
+				log.Printf("[blog-worker] periodic cleanup: expired %d stale leases", expired)
+			}
+		}
+	}
+}
+
 func (w *BlogWorker) workerLoop(id int) {
 	defer w.wg.Done()
 	for {
@@ -92,14 +119,22 @@ func (w *BlogWorker) workerLoop(id int) {
 		case <-w.stopCh:
 			return
 		default:
-			w.processNext(id)
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("[blog-worker] worker %d recovered from panic: %v", id, r)
+						time.Sleep(5 * time.Second)
+					}
+				}()
+				w.processNext(id)
+			}()
 		}
 	}
 }
 
 // processNext finds and processes the next pending execution for any stage.
 func (w *BlogWorker) processNext(workerID int) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 
 	// Try stages in order: research -> write -> prompts
@@ -175,6 +210,39 @@ func (w *BlogWorker) runStage(ctx context.Context, exec *models.BlogAgentExecuti
 	// Only advance pipeline status on success
 	if status == "completed" {
 		w.updatePipelineStatus(ctx, exec.PipelineRunID, stage)
+	} else if status == "failed" && exec.RetryCount >= w.maxRetries {
+		// On permanent failure, reset pipeline to a recoverable state so the admin can retry.
+		w.recoverPipelineOnFailure(ctx, exec.PipelineRunID, stage)
+	}
+}
+
+// recoverPipelineOnFailure resets the pipeline run status when an agent permanently fails,
+// so the admin can see the error and re-trigger the stage.
+func (w *BlogWorker) recoverPipelineOnFailure(ctx context.Context, runID primitive.ObjectID, stage string) {
+	run, err := w.repo.FindPipelineRunByID(ctx, runID)
+	if err != nil {
+		log.Printf("[blog-worker] failed to load run for failure recovery: %v", err)
+		return
+	}
+
+	var newStatus string
+	switch stage {
+	case models.StageResearch:
+		newStatus = models.PipelineBrief // can re-trigger research
+	case models.StageWrite:
+		newStatus = models.PipelineResearchApproved // can re-trigger writing
+	case models.StagePrompts:
+		newStatus = models.PipelineContentApproved // can re-trigger prompts
+	default:
+		return
+	}
+
+	if newStatus != "" && run.Status != newStatus {
+		log.Printf("[blog-worker] resetting run %s from %s to %s due to permanent %s failure", runID.Hex(), run.Status, newStatus, stage)
+		w.repo.UpdatePipelineRunStatus(ctx, runID, bson.M{
+			"status":     newStatus,
+			"updated_at": time.Now(),
+		})
 	}
 }
 

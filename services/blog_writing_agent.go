@@ -69,6 +69,12 @@ func (wa *WritingAgent) RunWriting(ctx context.Context, run *models.BlogPipeline
 	// Trim excess images if model still generated too many
 	writingResult.Blocks = trimExcessImages(writingResult.Blocks)
 
+	// Ensure we have a valid title
+	title := wa.extractTitle(writingResult.Blocks)
+	if title == "" || title == "Untitled" {
+		return nil, fmt.Errorf("writing output missing a valid title block")
+	}
+
 	// Calculate content hash
 	contentHash := wa.calculateContentHash(writingResult.Blocks)
 
@@ -81,8 +87,8 @@ func (wa *WritingAgent) RunWriting(ctx context.Context, run *models.BlogPipeline
 	// Create blog post
 	post := models.BlogPost{
 		ID:              primitive.NewObjectID(),
-		Title:           wa.extractTitle(writingResult.Blocks),
-		Slug:            generateSlug(wa.extractTitle(writingResult.Blocks)),
+		Title:           title,
+		Slug:            generateSlug(title),
 		Excerpt:         writingResult.Excerpt,
 		Blocks:          writingResult.Blocks,
 		Category:        category,
