@@ -49,7 +49,7 @@ export default function PromptsStage({ run, onApprove, onTriggerPrompts }: Promp
   );
 
   const isGenerating = run.status === "prompts";
-  const isCompleted = ["prompts_approved", "media_pending", "ready", "published"].includes(run.status);
+  const hasCompletedExecution = promptsExec?.status === "completed";
   const isFailed = promptsExec?.status === "failed" && !isGenerating;
 
   const allPrompts: ImagePrompt[] = useMemo(() => {
@@ -115,7 +115,7 @@ export default function PromptsStage({ run, onApprove, onTriggerPrompts }: Promp
           <p className="text-sm text-gray-600">
             وضعیت: {isGenerating
               ? "در حال تولید..."
-              : isCompleted
+              : hasCompletedExecution
                 ? "تولید تکمیل شد"
                 : isFailed
                   ? "تولید ناموفق بود"
@@ -126,11 +126,11 @@ export default function PromptsStage({ run, onApprove, onTriggerPrompts }: Promp
           <Button
             variant="outline"
             onClick={onTriggerPrompts}
-            disabled={isGenerating || isCompleted}
+            disabled={isGenerating}
           >
-            {isFailed ? "شروع مجدد" : "شروع تولید پرامپت"}
+            {hasCompletedExecution ? "تولید مجدد" : "شروع تولید پرامپت"}
           </Button>
-          <Button onClick={onApprove} disabled={!isCompleted || run.status !== "prompts_approved"}>
+          <Button onClick={onApprove} disabled={!hasCompletedExecution || run.status !== "prompts_approved"}>
             تایید و ادامه
           </Button>
         </div>
@@ -150,7 +150,7 @@ export default function PromptsStage({ run, onApprove, onTriggerPrompts }: Promp
         </div>
       )}
 
-      {!isGenerating && allPrompts.length === 0 && !isFailed && (
+      {!isGenerating && allPrompts.length === 0 && !isFailed && !hasCompletedExecution && (
         <div className="text-center py-8 text-gray-500">
           هنوز پرامپتی تولید نشده است
         </div>
