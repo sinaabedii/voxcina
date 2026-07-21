@@ -68,12 +68,11 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Basic password strength check (example)
-	if len(creds.Password) < 8 || passwordRegex.MatchString(creds.Password) {
+	if len(creds.Password) < 6 {
 		utils.ErrorResponse(
 			w,
 			http.StatusBadRequest,
-			"Password must be at least 8 characters long and include uppercase, lowercase, and digit.",
+			"Password must be at least 6 characters long.",
 		)
 		return
 	}
@@ -514,11 +513,11 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(payload.NewPassword) < 8 {
+	if len(payload.NewPassword) < 6 {
 		utils.ErrorResponse(
 			w,
 			http.StatusBadRequest,
-			"New password must be at least 8 characters long",
+			"New password must be at least 6 characters long",
 		)
 		return
 	}

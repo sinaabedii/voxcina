@@ -360,7 +360,8 @@ export default function SignUpPage() {
             value={password}
             onChange={setPassword}
             error={errors.password}
-            showStrength
+            showValidTick
+            validMessage="رمز عبور قابل قبول است"
             autoComplete="new-password"
           />
 
@@ -372,6 +373,8 @@ export default function SignUpPage() {
             label="تکرار رمز عبور"
             id="confirmPassword"
             placeholder="رمز عبور را مجدداً وارد کنید"
+            showValidTick={password.length >= 6}
+            validMessage="تکرار رمز عبور مطابقت دارد"
             autoComplete="new-password"
           />
 

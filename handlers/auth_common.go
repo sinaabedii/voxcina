@@ -16,9 +16,6 @@ const (
 	RoleAdmin    = "admin"
 )
 
-// Password validation regex: at least 8 characters, one uppercase, one lowercase, one digit
-var passwordRegex = regexp.MustCompile(`^(.{0,7}|[^0-9]*|[^A-Z]*|[^a-z]*)$`)
-
 // Email validation regex (optional)
 var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 

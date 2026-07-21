@@ -241,10 +241,10 @@ func VerifySignupOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate password strength
-	if len(req.Password) < 8 || passwordRegex.MatchString(req.Password) {
+	// Validate password length
+	if len(req.Password) < 6 {
 		utils.ErrorResponse(w, http.StatusBadRequest, 
-			"رمز عبور باید حداقل ۸ کاراکتر و شامل حروف بزرگ، کوچک و عدد باشد")
+			"رمز عبور باید حداقل ۶ کاراکتر باشد")
 		return
 	}
 
@@ -799,10 +799,10 @@ func ResetPasswordWithOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate password strength
-	if len(req.Password) < 8 || passwordRegex.MatchString(req.Password) {
+	// Validate password length
+	if len(req.Password) < 6 {
 		utils.ErrorResponse(w, http.StatusBadRequest,
-			"رمز عبور باید حداقل ۸ کاراکتر و شامل حروف بزرگ، کوچک و عدد باشد")
+			"رمز عبور باید حداقل ۶ کاراکتر باشد")
 		return
 	}
 
