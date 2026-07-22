@@ -309,7 +309,7 @@ export default function AdminActivityPage() {
                       transition={{ delay: index * 0.03 }}
                     >
                       <td className="p-4 font-medium text-voxcina-blue dark:text-voxcina-cream">
-                        {a.userName || (a.userId ? "کاربر ثبت شده" : "مهمان")}
+                        {a.userName || (a.userId ? "کاربر ناشناس" : "مهمان")}
                       </td>
                       <td className="p-4 text-voxcina-blue/70 dark:text-voxcina-cream/70">
                         {activityLabels[a.activityType || ""] || a.activityType || "نامشخص"}
