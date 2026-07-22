@@ -1,5 +1,9 @@
+"use client";
+
+import { useRef } from "react";
 import Link from "next/link";
 import { BlogPost } from "@/types/blog";
+import { useScrollReveal } from "@/hooks/useScrollReveal";
 import BlogCard from "./BlogCard";
 
 interface BlogSidebarProps {
@@ -14,6 +18,13 @@ export default function BlogSidebar({
   tags,
 }: BlogSidebarProps) {
   const popularPosts = posts.slice(0, 4);
+  const listRef = useRef<HTMLDivElement>(null);
+  useScrollReveal(listRef, {
+    selector: "[data-reveal-item]",
+    y: 16,
+    stagger: 0.06,
+    deps: [popularPosts.map((p) => p.id).join(",")],
+  });
 
   return (
     <div className="space-y-6 md:space-y-8">
@@ -38,9 +49,11 @@ export default function BlogSidebar({
         <h3 className="mb-3 sm:mb-4 text-base sm:text-lg font-bold text-voxcina-blue">
           مقالات محبوب
         </h3>
-        <div className="space-y-3 sm:space-y-4">
+        <div ref={listRef} className="space-y-3 sm:space-y-4">
           {popularPosts.map((post) => (
-            <BlogCard key={post.id} post={post} variant="compact" />
+            <div key={post.id} data-reveal-item>
+              <BlogCard post={post} variant="compact" />
+            </div>
           ))}
         </div>
       </div>

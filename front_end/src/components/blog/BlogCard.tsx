@@ -14,13 +14,15 @@ export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
     month: 'long',
     day: 'numeric',
   });
+  // Real posts carry `authorSnapshot` (schema v2); `author` only exists on legacy mock data.
+  const author = post.authorSnapshot || post.author || { name: 'تیم وکسینا', avatar: '' };
 
   if (variant === 'featured') {
     return (
       <div className="group relative overflow-hidden rounded-2xl bg-white shadow-soft hover:shadow-medium transition-all duration-300">
         <div className="relative h-[300px] sm:h-[350px] md:h-[400px] w-full overflow-hidden">
           <Image
-            src={post.coverImage || '/images/blog/placeholder.jpg'}
+            src={post.coverImage || post.coverImageId || '/images/blog/placeholder.jpg'}
             alt={post.title}
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -49,14 +51,14 @@ export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
             <div className="flex items-center gap-2">
               <div className="relative h-7 w-7 sm:h-8 sm:w-8 overflow-hidden rounded-full">
                 <Image
-                  src={post.author.avatar || '/images/avatars/placeholder.jpg'}
-                  alt={post.author.name}
+                  src={author.avatar || '/images/avatars/placeholder.jpg'}
+                  alt={author.name}
                   fill
                   className="object-cover"
                   sizes="32px"
                 />
               </div>
-              <span className="text-xs sm:text-sm font-medium">{post.author.name}</span>
+              <span className="text-xs sm:text-sm font-medium">{author.name}</span>
             </div>
             <div className="flex items-center gap-1 text-xs">
               <ClockIcon className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -73,7 +75,7 @@ export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
       <div className="group flex gap-3 sm:gap-4 rounded-xl bg-white p-3 shadow-soft hover:shadow-medium transition-all duration-300">
         <div className="relative h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0 overflow-hidden rounded-lg">
           <Image
-            src={post.coverImage || '/images/blog/placeholder.jpg'}
+            src={post.coverImage || post.coverImageId || '/images/blog/placeholder.jpg'}
             alt={post.title}
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -106,7 +108,7 @@ export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
     <div className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-soft hover:shadow-medium transition-all duration-300">
       <div className="relative h-48 sm:h-56 w-full overflow-hidden">
         <Image
-          src={post.coverImage || '/images/blog/placeholder.jpg'}
+          src={post.coverImage || post.coverImageId || '/images/blog/placeholder.jpg'}
           alt={post.title}
           fill
           className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -134,14 +136,14 @@ export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
           <div className="flex items-center gap-2">
             <div className="relative h-6 w-6 sm:h-7 sm:w-7 overflow-hidden rounded-full">
               <Image
-                src={post.author.avatar || '/images/avatars/placeholder.jpg'}
-                alt={post.author.name}
+                src={author.avatar || '/images/avatars/placeholder.jpg'}
+                alt={author.name}
                 fill
                 className="object-cover"
                 sizes="28px"
               />
             </div>
-            <span className="text-[10px] sm:text-xs font-medium text-gray-700">{post.author.name}</span>
+            <span className="text-[10px] sm:text-xs font-medium text-gray-700">{author.name}</span>
           </div>
           <div className="flex items-center gap-1 text-[10px] sm:text-xs text-gray-500">
             <ClockIcon className="h-3 w-3 sm:h-4 sm:w-4" />

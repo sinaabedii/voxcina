@@ -6,6 +6,8 @@ export interface BlogPost {
   excerpt: string;
   content: string;
   coverImage: string;
+  /** Actual field name returned by the Go API (schema v2) for the cover image path. */
+  coverImageId?: string;
   author: {
     name: string;
     avatar: string;

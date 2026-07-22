@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import BlogClientContent from '@/components/blog/BlogClientContent';
+import BlogListHero from '@/components/blog/BlogListHero';
 import { BlogPost } from '@/types/blog';
 import { serverFetchWithFallback, CACHE_TIMES } from '@/lib/server-api';
 
@@ -48,14 +49,10 @@ export default async function BlogPage({ searchParams }: { searchParams: { [key:
       <Header />
       <section className="py-10">
         <div className="container px-4 sm:px-6 md:px-8">
-          <div className="mx-auto max-w-3xl text-center">
-            <h1 className="mb-3 md:mb-4 text-3xl md:text-4xl lg:text-5xl font-bold text-voxcina-blue">
-              بلاگ وکسینا
-            </h1>
-            <p className="mb-6 md:mb-8 text-sm md:text-lg text-gray-600">
-              آخرین مقالات، راهنمای خرید و نکات کاربردی درباره مد و پوشاک
-            </p>
-          </div>
+          <BlogListHero
+            title="بلاگ وکسینا"
+            subtitle="آخرین مقالات، راهنمای خرید و نکات کاربردی درباره مد و پوشاک"
+          />
         </div>
       </section>
 

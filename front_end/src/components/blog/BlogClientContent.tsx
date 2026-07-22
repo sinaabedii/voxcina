@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import BlogCard from './BlogCard';
 import BlogCategories from './BlogCategories';
 import BlogSearch from './BlogSearch';
 import BlogSidebar from './BlogSidebar';
 import { BlogPost } from '@/types/blog';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 
 interface BlogClientContentProps {
   /** Initial posts fetched on the server for SSR */
@@ -45,6 +46,12 @@ export default function BlogClientContent({
     searchParams.get('category')
   );
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+
+  const gridRef = useRef<HTMLDivElement>(null);
+  useScrollReveal(gridRef, {
+    selector: '[data-reveal-item]',
+    deps: [initialPosts.map((p) => p.id).join(',')],
+  });
 
   // Update URL when filters change
   const updateFilters = useCallback((filters: { category?: string | null; tag?: string; search?: string; page?: number }) => {
@@ -112,10 +119,11 @@ export default function BlogClientContent({
 
           {initialPosts.length > 0 ? (
             <>
-              <div className="grid gap-4 sm:gap-6 sm:grid-cols-2">
+              <div ref={gridRef} className="grid gap-4 sm:gap-6 sm:grid-cols-2">
                 {initialPosts.map((post, index) => (
                   <div
                     key={post.id}
+                    data-reveal-item
                     className={index === 0 ? "col-span-1 sm:col-span-2" : ""}
                   >
                     <BlogCard
