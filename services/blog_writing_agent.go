@@ -464,6 +464,34 @@ func writingOutputSchema() map[string]interface{} {
 	}
 }
 
+// persianToLatin maps Persian/Arabic letters and digits to Latin equivalents so
+// slugs generated from Persian titles (the norm for this blog) stay meaningful
+// instead of being stripped down to nothing.
+var persianToLatin = map[rune]string{
+	'آ': "a", 'ا': "a", 'ب': "b", 'پ': "p", 'ت': "t", 'ث': "s",
+	'ج': "j", 'چ': "ch", 'ح': "h", 'خ': "kh", 'د': "d", 'ذ': "z",
+	'ر': "r", 'ز': "z", 'ژ': "zh", 'س': "s", 'ش': "sh", 'ص': "s",
+	'ض': "z", 'ط': "t", 'ظ': "z", 'ع': "a", 'غ': "gh", 'ف': "f",
+	'ق': "gh", 'ک': "k", 'ك': "k", 'گ': "g", 'ل': "l", 'م': "m",
+	'ن': "n", 'و': "v", 'ه': "h", 'ی': "y", 'ي': "y", 'ة': "h",
+	'ء': "", 'أ': "a", 'إ': "e", 'ئ': "y",
+	'۰': "0", '۱': "1", '۲': "2", '۳': "3", '۴': "4",
+	'۵': "5", '۶': "6", '۷': "7", '۸': "8", '۹': "9",
+}
+
+// transliterate converts Persian/Arabic letters in s to their Latin equivalents.
+func transliterate(s string) string {
+	var sb strings.Builder
+	for _, r := range s {
+		if latin, ok := persianToLatin[r]; ok {
+			sb.WriteString(latin)
+		} else {
+			sb.WriteRune(r)
+		}
+	}
+	return sb.String()
+}
+
 // generateSlug creates a URL-safe slug from a Persian/English title.
 func generateSlug(title string) string {
 	if title == "" {
@@ -485,6 +513,7 @@ func generateSlug(title string) string {
 		"/", "-",
 	)
 	s := replacer.Replace(strings.ToLower(strings.TrimSpace(title)))
+	s = transliterate(s)
 	s = strings.Map(func(r rune) rune {
 		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
 			return r

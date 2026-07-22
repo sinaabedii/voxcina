@@ -311,6 +311,7 @@ func ApprovePipelineRun(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	var newStatus string
 	var queueStage string
+	var post *models.BlogPost
 	switch run.Status {
 	case models.PipelineResearchApproved:
 		newStatus = models.PipelineWriting
@@ -323,6 +324,54 @@ func ApprovePipelineRun(w http.ResponseWriter, r *http.Request) {
 	case models.PipelinePrompts:
 		newStatus = models.PipelinePromptsApproved
 	case models.PipelinePromptsApproved:
+		// Final step: the post must have a resolved cover image and all inline
+		// image slots uploaded before the pipeline (and post) can move to ready.
+		if run.PostID == "" {
+			utils.ErrorResponse(w, http.StatusBadRequest, "No post is linked to this pipeline run")
+			return
+		}
+		postOID, err := primitive.ObjectIDFromHex(run.PostID)
+		if err != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Invalid linked post ID")
+			return
+		}
+		post, err = repo.FindPostByID(ctx, postOID)
+		if err != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error loading linked post: "+err.Error())
+			return
+		}
+		media, err := repo.FindMediaByPostID(ctx, postOID)
+		if err != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error loading post media: "+err.Error())
+			return
+		}
+		mediaMap := make(map[string]models.BlogMedia)
+		for _, m := range media {
+			mediaMap[m.Slot] = m
+		}
+		mediaResolved := make(map[string]bool, len(mediaMap))
+		for slot := range mediaMap {
+			mediaResolved[slot] = true
+		}
+		if vr := services.ValidatePublicationReadiness(post, mediaResolved); !vr.IsValid() {
+			utils.ErrorResponse(w, http.StatusBadRequest, "Cannot mark ready: "+vr.Error())
+			return
+		}
+
+		// Resolve media into the post so the stored document matches what will be published.
+		if cover, ok := mediaMap["cover"]; ok {
+			post.CoverImageID = cover.FilePath
+		}
+		for i := range post.Blocks {
+			if post.Blocks[i].Type == models.BlockTypeImage {
+				if m, ok := mediaMap[post.Blocks[i].ImageSlotID]; ok {
+					post.Blocks[i].ImageID = m.FilePath
+				}
+			}
+		}
+		post.Status = models.StatusReady
+		post.UpdatedAt = now
+
 		newStatus = models.PipelineReady
 	default:
 		utils.ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Cannot approve from status '%s'", run.Status))
@@ -338,6 +387,13 @@ func ApprovePipelineRun(w http.ResponseWriter, r *http.Request) {
 	if err := repo.UpdatePipelineRunStatus(ctx, id, set); err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error approving pipeline run: "+err.Error())
 		return
+	}
+
+	if post != nil {
+		if err := repo.UpdateBlogPost(ctx, post); err != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error updating linked post: "+err.Error())
+			return
+		}
 	}
 
 	if queueStage != "" {
@@ -891,14 +947,17 @@ func TriggerPromptGeneration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Allow triggering prompts from content_approved (initial) or restarting from prompts/prompts_approved
+	// Allow triggering prompts from content_approved (initial) or restarting from any
+	// later stage (prompts, prompts_approved, media_pending, ready), mirroring TriggerWriting.
 	allowedStatuses := map[string]bool{
 		models.PipelineContentApproved: true,
 		models.PipelinePrompts:         true,
 		models.PipelinePromptsApproved: true,
+		models.PipelineMediaPending:    true,
+		models.PipelineReady:           true,
 	}
 	if !allowedStatuses[run.Status] {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Can only trigger prompts from 'content_approved', 'prompts', or 'prompts_approved' status")
+		utils.ErrorResponse(w, http.StatusBadRequest, "Can only trigger prompts from 'content_approved', 'prompts', 'prompts_approved', 'media_pending', or 'ready' status")
 		return
 	}
 

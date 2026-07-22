@@ -119,9 +119,23 @@ func (r *BlogRepository) InsertPost(ctx context.Context, post *models.BlogPost) 
 	return err
 }
 
-// InsertBlogPost is an alias for InsertPost used by the writing agent.
+// InsertBlogPost inserts a new blog post, retrying with a short unique suffix
+// if the generated slug collides with an existing post (e.g. two posts about
+// the same or a similarly-titled topic).
 func (r *BlogRepository) InsertBlogPost(ctx context.Context, post *models.BlogPost) error {
-	return r.InsertPost(ctx, post)
+	baseSlug := post.Slug
+	for attempt := 0; attempt < 5; attempt++ {
+		err := r.InsertPost(ctx, post)
+		if err == nil {
+			return nil
+		}
+		if !mongo.IsDuplicateKeyError(err) {
+			return err
+		}
+		post.ID = primitive.NewObjectID()
+		post.Slug = fmt.Sprintf("%s-%s", baseSlug, post.ID.Hex()[len(post.ID.Hex())-6:])
+	}
+	return fmt.Errorf("failed to insert blog post: slug %q still colliding after retries", baseSlug)
 }
 
 // UpdateBlogPost updates all mutable fields of a blog post by ID.
