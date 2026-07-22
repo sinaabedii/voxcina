@@ -113,12 +113,19 @@ func (pa *PromptAgent) generateCoverPrompt(ctx context.Context, run *models.Blog
 5. Specify composition (hero shot, lifestyle, flat-lay, etc.)
 6. Aspect ratio: 16:9 (1200x630 pixels)
 
+**Realism & Authenticity Requirements (critical):**
+- The prompt must describe a scene that reads as a real photograph someone took themselves — never as AI-generated, CGI, or a render.
+- Set the scene in a modern, contemporary Persian/Iranian context: modern Iranian interior or street/lifestyle setting, contemporary Tehran-style architecture or decor, modern Persian fashion sensibility — not a generic or Western-default backdrop.
+- Explicitly describe camera-realistic qualities: natural or ambient lighting, authentic soft shadows, candid (not perfectly staged/centered) framing, shallow depth of field, real fabric/skin texture with natural imperfections — e.g. "shot on a mirrorless camera, 35-50mm lens, natural window light, candid moment, photojournalistic feel."
+- Never describe glossy/plastic-smooth skin, unnatural symmetry, surreal/dreamlike elements, or hyper-saturated "AI art" rendering — these read as artificial and must be avoided.
+
 **Prohibited:**
 - Embedded text or typography
 - Logos or watermarks
 - Unrelated colors outside the palette
 - Distorted garments or anatomy
 - Culturally inappropriate styling
+- Any look that reads as AI-generated/CGI/render (overly smooth, plastic, symmetric, dreamlike, over-saturated)
 
 Return a JSON object:
 {
@@ -194,12 +201,19 @@ func (pa *PromptAgent) generateInlinePrompts(ctx context.Context, run *models.Bl
 4. Specify composition and mood
 5. Aspect ratio: 16:10 (1600x1000 pixels)
 
+**Realism & Authenticity Requirements (critical):**
+- The prompt must describe a scene that reads as a real photograph someone took themselves — never as AI-generated, CGI, or a render.
+- Set the scene in a modern, contemporary Persian/Iranian context: modern Iranian interior or street/lifestyle setting, contemporary Tehran-style architecture or decor, modern Persian fashion sensibility — not a generic or Western-default backdrop.
+- Explicitly describe camera-realistic qualities: natural or ambient lighting, authentic soft shadows, candid (not perfectly staged/centered) framing, shallow depth of field, real fabric/skin texture with natural imperfections — e.g. "shot on a mirrorless camera, 35-50mm lens, natural window light, candid moment, photojournalistic feel."
+- Never describe glossy/plastic-smooth skin, unnatural symmetry, surreal/dreamlike elements, or hyper-saturated "AI art" rendering — these read as artificial and must be avoided.
+
 **Prohibited:**
 - Embedded text or typography
 - Logos or watermarks
 - Unrelated colors
 - Distorted garments or anatomy
 - Culturally inappropriate styling
+- Any look that reads as AI-generated/CGI/render (overly smooth, plastic, symmetric, dreamlike, over-saturated)
 
 Return a JSON object:
 {

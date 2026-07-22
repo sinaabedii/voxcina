@@ -89,6 +89,7 @@ export const FOOTER_LINKS = {
   ],
   aboutUs: [
     { label: "درباره ما", href: "/about" },
+    { label: "بلاگ", href: "/blog" },
     { label: "تماس با ما", href: "/contact" },
     { label: "فرصت‌های شغلی", href: "/careers" },
   ],

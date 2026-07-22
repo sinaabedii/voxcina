@@ -155,11 +155,15 @@ export default async function RootLayout({
   const homeItem: NavItem = { label: "خانه", href: "/" };
   const productsItem: NavItem = { label: "محصولات", href: "/products" };
   const tryonItem: NavItem = { label: "پرو مجازی", href: "/tryon" };
+  const blogItem: NavItem = { label: "بلاگ", href: "/blog" };
   navItems = [
     homeItem,
     productsItem,
     tryonItem,
-    ...navItems.filter((i) => i.href !== "/" && i.href !== "/products" && i.href !== "/tryon"),
+    blogItem,
+    ...navItems.filter(
+      (i) => i.href !== "/" && i.href !== "/products" && i.href !== "/tryon" && i.href !== "/blog"
+    ),
   ];
 
   return (
