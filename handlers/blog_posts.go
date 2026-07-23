@@ -531,9 +531,9 @@ func PublishBlogPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now()
-	repo.UpdateBlogPost(ctx, &models.BlogPost{
-		ID:          id,
-		PublishedAt: &now,
+	repo.UpdatePost(ctx, id, bson.M{
+		"published_at": &now,
+		"updated_at":   now,
 	})
 
 	// Publish associated media
