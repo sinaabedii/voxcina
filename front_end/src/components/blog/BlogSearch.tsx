@@ -21,7 +21,7 @@ export default function BlogSearch({ onSearch }: BlogSearchProps) {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="جستجو در مقالات..."
-          className="w-full rounded-xl border border-gray-200 bg-white px-3 sm:px-4 py-2.5 sm:py-3 pr-10 sm:pr-12 text-xs sm:text-sm shadow-soft focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-300/20"
+          className="w-full rounded-xl border border-gray-200 bg-white px-3 sm:px-4 py-2.5 sm:py-3 pl-10 sm:pl-12 text-xs sm:text-sm shadow-soft focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-300/20"
         />
         <button
           type="submit"

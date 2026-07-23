@@ -136,18 +136,42 @@ export default function BlogClientContent({
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex justify-center mt-8 gap-2">
+                <nav
+                  aria-label="صفحه‌بندی مقالات"
+                  className="mt-8 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2"
+                >
+                  <button
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-200 text-sm disabled:opacity-40 sm:h-10 sm:w-10"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage <= 1}
+                    aria-label="صفحه قبل"
+                  >
+                    ›
+                  </button>
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                     <button
                       key={page}
-                      className={`px-3 py-1 rounded ${page === currentPage ? "bg-voxcina-blue text-white" : "bg-gray-200"}`}
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm sm:h-10 sm:w-10 ${
+                        page === currentPage
+                          ? "bg-voxcina-blue text-white"
+                          : "bg-gray-200"
+                      }`}
                       onClick={() => handlePageChange(page)}
                       disabled={page === currentPage}
+                      aria-current={page === currentPage ? "page" : undefined}
                     >
                       {page}
                     </button>
                   ))}
-                </div>
+                  <button
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-200 text-sm disabled:opacity-40 sm:h-10 sm:w-10"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage >= totalPages}
+                    aria-label="صفحه بعد"
+                  >
+                    ‹
+                  </button>
+                </nav>
               )}
             </>
           ) : (
