@@ -9,11 +9,14 @@ interface BlogCardProps {
 }
 
 export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
-  const formattedDate = new Date(post.publishedAt).toLocaleDateString('fa-IR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  const dateValue = post.publishedAt || (post as Record<string, unknown>).createdAt as string;
+  const formattedDate = dateValue
+    ? new Date(dateValue).toLocaleDateString('fa-IR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : '';
   // Real posts carry `authorSnapshot` (schema v2); `author` only exists on legacy mock data.
   const author = post.authorSnapshot || post.author || { name: 'تیم وکسینا', avatar: '' };
 

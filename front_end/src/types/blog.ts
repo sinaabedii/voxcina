@@ -18,6 +18,7 @@ export interface BlogPost {
   isPublished?: boolean;
   isActive?: boolean;
   publishedAt: string;
+  createdAt?: string;
   blocks?: BlogBlock[];
   status?: Status;
   pipelineRunID?: string;

@@ -530,6 +530,12 @@ func PublishBlogPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	now := time.Now()
+	repo.UpdateBlogPost(ctx, &models.BlogPost{
+		ID:          id,
+		PublishedAt: &now,
+	})
+
 	// Publish associated media
 	media, _ := repo.FindMediaByPostID(ctx, id)
 	for _, m := range media {
