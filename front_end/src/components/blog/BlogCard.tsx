@@ -9,7 +9,7 @@ interface BlogCardProps {
 }
 
 export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
-  const dateValue = post.publishedAt || (post as Record<string, unknown>).createdAt as string;
+  const dateValue = post.publishedAt || post.createdAt;
   const formattedDate = dateValue
     ? new Date(dateValue).toLocaleDateString('fa-IR', {
         year: 'numeric',
