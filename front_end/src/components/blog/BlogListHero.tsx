@@ -63,14 +63,21 @@ export default function BlogListHero({ title, subtitle }: BlogListHeroProps) {
   );
 
   return (
-    <div className="mx-auto max-w-3xl text-center">
+    <div className="relative mx-auto max-w-3xl text-center">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-primary-200/70 via-secondary-300/50 to-primary-300/40 blur-3xl sm:h-72 sm:w-72"
+      />
+      <span className="mb-4 inline-block rounded-full bg-secondary-200 px-4 py-1.5 text-xs font-medium text-voxcina-blue sm:text-sm">
+        وبلاگ وکسینا
+      </span>
       <h1
         ref={titleRef}
         className="mb-3 text-3xl font-bold text-voxcina-blue md:mb-4 md:text-4xl lg:text-5xl"
       >
         {title}
       </h1>
-      <p ref={subtitleRef} className="mb-6 text-sm text-gray-600 md:mb-8 md:text-lg">
+      <p ref={subtitleRef} className="text-sm text-gray-600 md:text-lg">
         {subtitle}
       </p>
     </div>

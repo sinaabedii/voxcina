@@ -1,15 +1,14 @@
 import { Suspense } from 'react';
-import { notFound } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import BlogClientContent from '@/components/blog/BlogClientContent';
 import BlogListHero from '@/components/blog/BlogListHero';
 import { BlogPost } from '@/types/blog';
-import { serverFetchWithFallback, CACHE_TIMES } from '@/lib/server-api';
+import { serverFetchWithFallback } from '@/lib/server-api';
 
 /**
  * Blog Listing Page - Server Component
- * 
+ *
  * Fetches blog posts on the server for SEO and passes to client component.
  * Uses dynamic rendering for real-time data.
  */
@@ -17,7 +16,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function BlogPage({ searchParams }: { searchParams: { [key: string]: string | undefined } }) {
-  const { page = '1', limit = '10', category, tag, search } = searchParams;
+  const { page = '1', limit = '9', category, tag, search } = searchParams;
 
   // Build query string
   const queryParams = new URLSearchParams();
@@ -30,7 +29,7 @@ export default async function BlogPage({ searchParams }: { searchParams: { [key:
   // Fetch blog posts on the server
   const postsResponse = await serverFetchWithFallback<{ data: BlogPost[]; total: number; page: number; limit: number; totalPages: number } | BlogPost[]>(
     `/api/blog-posts?${queryParams.toString()}`,
-    { data: [], total: 0, page: 1, limit: 10, totalPages: 0 },
+    { data: [], total: 0, page: 1, limit: 9, totalPages: 0 },
     { revalidate: 0 }
   );
 
@@ -40,14 +39,10 @@ export default async function BlogPage({ searchParams }: { searchParams: { [key:
   const currentPage = Array.isArray(postsResponse) ? 1 : postsResponse.page || 1;
   const totalPages = Array.isArray(postsResponse) ? 1 : postsResponse.totalPages || 1;
 
-  // Extract unique categories and tags from posts
-  const categories = Array.from(new Set(posts.map((p) => p.category))).filter(Boolean).sort();
-  const tags = Array.from(new Set(posts.flatMap((p) => p.tags || []))).filter(Boolean).sort();
-
   return (
     <>
       <Header />
-      <section className="py-10">
+      <section className="relative overflow-hidden py-10 sm:py-14">
         <div className="container px-4 sm:px-6 md:px-8">
           <BlogListHero
             title="بلاگ وکسینا"
@@ -56,13 +51,11 @@ export default async function BlogPage({ searchParams }: { searchParams: { [key:
         </div>
       </section>
 
-      <section className="py-8 md:py-12">
+      <section className="pb-16 pt-2 sm:pb-20 md:pb-24">
         <div className="container px-4 sm:px-6 md:px-8">
           <Suspense fallback={<BlogLoadingSkeleton />}>
-            <BlogClientContent 
+            <BlogClientContent
               initialPosts={posts}
-              initialCategories={categories}
-              initialTags={tags}
               currentPage={currentPage}
               totalPages={totalPages}
               total={total}
@@ -77,41 +70,26 @@ export default async function BlogPage({ searchParams }: { searchParams: { [key:
 
 function BlogLoadingSkeleton() {
   return (
-    <div className="grid gap-6 md:gap-8 lg:grid-cols-12">
-      <div className="lg:col-span-8">
-        {/* Categories skeleton */}
-        <div className="mb-6 md:mb-8 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div 
-                key={i} 
-                className="h-9 w-20 bg-gray-200 animate-pulse rounded-full"
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Posts skeleton */}
-        <div className="grid gap-4 sm:gap-6 sm:grid-cols-2">
-          {/* Featured post */}
-          <div className="col-span-1 sm:col-span-2">
-            <div className="group relative overflow-hidden rounded-2xl bg-gray-200 h-[400px] animate-pulse" />
-          </div>
-          
-          {/* Regular posts */}
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="group flex h-full flex-col overflow-hidden rounded-2xl bg-gray-200 h-[320px] animate-pulse" />
+    <div>
+      <div className="mx-auto mb-8 flex max-w-2xl flex-col items-center gap-4 sm:mb-10">
+        <div className="h-12 w-full animate-pulse rounded-full bg-gray-200 sm:h-14" />
+        <div className="flex gap-2">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div
+              key={i}
+              className="h-9 w-20 animate-pulse rounded-full bg-gray-200"
+            />
           ))}
         </div>
       </div>
 
-      {/* Sidebar skeleton */}
-      <div className="mt-8 lg:mt-0 lg:col-span-4">
-        <div className="space-y-6 md:space-y-8">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-xl sm:rounded-2xl bg-gray-200 h-[200px] animate-pulse" />
-          ))}
-        </div>
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 lg:gap-8">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div
+            key={i}
+            className="aspect-[16/10] w-full animate-pulse rounded-2xl bg-gray-200 sm:aspect-[3/4]"
+          />
+        ))}
       </div>
     </div>
   );

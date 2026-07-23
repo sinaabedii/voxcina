@@ -5,7 +5,7 @@ import { CalendarIcon, ClockIcon } from 'lucide-react';
 
 interface BlogCardProps {
   post: BlogPost;
-  variant?: 'default' | 'compact' | 'featured';
+  variant?: 'default' | 'compact' | 'featured' | 'grid';
 }
 
 export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
@@ -19,6 +19,63 @@ export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
     : '';
   // Real posts carry `authorSnapshot` (schema v2); `author` only exists on legacy mock data.
   const author = post.authorSnapshot || post.author || { name: 'تیم وکسینا', avatar: '' };
+
+  if (variant === 'grid') {
+    return (
+      <Link
+        href={`/blog/${post.slug}`}
+        className="group relative block overflow-hidden rounded-2xl bg-voxcina-darkBlue shadow-soft transition-all duration-500 ease-out hover:-translate-y-1.5 hover:shadow-strong"
+      >
+        <div className="relative aspect-[16/10] w-full overflow-hidden sm:aspect-[3/4]">
+          <Image
+            src={post.coverImage || post.coverImageId || '/images/blog/placeholder.jpg'}
+            alt={post.title}
+            fill
+            className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            loading="lazy"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-voxcina-darkBlue via-voxcina-blue/45 to-voxcina-blue/5 transition-opacity duration-500 group-hover:opacity-95" />
+        </div>
+
+        <div className="absolute inset-x-0 bottom-0 flex flex-col p-4 text-white sm:p-5">
+          <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px] sm:text-xs">
+            <span className="rounded-full bg-white/15 px-2.5 py-1 font-medium backdrop-blur-md ring-1 ring-white/25">
+              {post.category}
+            </span>
+            <span className="flex items-center gap-1 text-white/80">
+              <CalendarIcon className="h-3.5 w-3.5" />
+              {formattedDate}
+            </span>
+          </div>
+          <h3 className="mb-2 line-clamp-2 text-base font-bold leading-snug sm:text-lg">
+            {post.title}
+          </h3>
+          <p className="mb-3 line-clamp-2 text-xs text-white/80 sm:text-sm">
+            {post.excerpt}
+          </p>
+          <div className="flex items-center justify-between border-t border-white/15 pt-3 text-[11px] text-white/85 sm:text-xs">
+            <div className="flex items-center gap-2">
+              <div className="relative h-6 w-6 overflow-hidden rounded-full ring-1 ring-white/30">
+                <Image
+                  src={author.avatar || '/images/avatars/placeholder.jpg'}
+                  alt={author.name}
+                  fill
+                  className="object-cover"
+                  sizes="24px"
+                />
+              </div>
+              <span className="font-medium">{author.name}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <ClockIcon className="h-3.5 w-3.5" />
+              <span>{post.readTime} دقیقه</span>
+            </div>
+          </div>
+        </div>
+      </Link>
+    );
+  }
 
   if (variant === 'featured') {
     return (
