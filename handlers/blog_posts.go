@@ -644,6 +644,16 @@ func ArchiveBlogPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Blog post archived"})
+
+	// Sync pipeline run status
+	if status.PipelineRunID != "" {
+		if runOID, err := primitive.ObjectIDFromHex(status.PipelineRunID); err == nil {
+			repo.UpdatePipelineRunStatus(ctx, runOID, bson.M{
+				"status":     models.PipelineArchived,
+				"updated_at": time.Now(),
+			})
+		}
+	}
 }
 
 // RestoreBlogPost restores an archived blog post.
