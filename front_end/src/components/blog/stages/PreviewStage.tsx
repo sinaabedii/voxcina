@@ -10,6 +10,7 @@ import { toast } from "react-hot-toast";
 interface PreviewStageProps {
   run: BlogPipelineRun;
   media: BlogMedia[];
+  onApprove: () => void;
   onPublish: () => void;
   onUnpublish: () => void;
   onArchive: () => void;
@@ -56,7 +57,7 @@ function normalizeOutput(parsedOutput: unknown, rawResponse?: string): Record<st
   return undefined;
 }
 
-export default function PreviewStage({ run, media, onPublish, onUnpublish, onArchive }: PreviewStageProps) {
+export default function PreviewStage({ run, media, onApprove, onPublish, onUnpublish, onArchive }: PreviewStageProps) {
   const { uploadMedia, deleteMedia } = useBlogAdminStore();
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null);
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
@@ -285,6 +286,11 @@ export default function PreviewStage({ run, media, onPublish, onUnpublish, onArc
           <p className="text-sm text-gray-600">وضعیت: {statusLabel}</p>
         </div>
         <div className="flex gap-2">
+          {run.status === "media_pending" && (
+            <Button onClick={onApprove} disabled={uploadedCount < imageSlots.length || uploadedCount === 0}>
+              تایید و آماده‌سازی
+            </Button>
+          )}
           {run.status === "ready" && (
             <Button onClick={onPublish}>انتشار مقاله</Button>
           )}

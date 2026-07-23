@@ -272,6 +272,7 @@ export default function BlogDetailPage() {
             <PreviewStage
               run={currentRun}
               media={currentMedia}
+              onApprove={handleApprovePrompts}
               onPublish={handlePublish}
               onUnpublish={handleUnpublish}
               onArchive={handleArchive}

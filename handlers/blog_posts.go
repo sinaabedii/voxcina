@@ -324,6 +324,9 @@ func ApprovePipelineRun(w http.ResponseWriter, r *http.Request) {
 	case models.PipelinePrompts:
 		newStatus = models.PipelinePromptsApproved
 	case models.PipelinePromptsApproved:
+		// Transition to media_pending so the admin can upload images.
+		newStatus = models.PipelineMediaPending
+	case models.PipelineMediaPending:
 		// Final step: the post must have a resolved cover image and all inline
 		// image slots uploaded before the pipeline (and post) can move to ready.
 		if run.PostID == "" {
