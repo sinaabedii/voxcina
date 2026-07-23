@@ -189,9 +189,6 @@ func ValidateHeadingHierarchy(blocks []models.BlogBlock) *ValidationResult {
 func ValidatePublicationReadiness(post *models.BlogPost, mediaMap map[string]bool) *ValidationResult {
 	vr := &ValidationResult{}
 
-	if post.CoverImageID == "" {
-		vr.Add("coverImageId", "cover image is required for publication")
-	}
 	if !mediaMap["cover"] {
 		vr.Add("coverImageId", "cover image media is not resolved")
 	}
