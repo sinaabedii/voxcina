@@ -544,6 +544,17 @@ func PublishBlogPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	post, _ := repo.FindPostByID(ctx, id)
+
+	// Sync pipeline run status
+	if post.PipelineRunID != "" {
+		if runOID, err2 := primitive.ObjectIDFromHex(post.PipelineRunID); err2 == nil {
+			repo.UpdatePipelineRunStatus(ctx, runOID, bson.M{
+				"status":     models.PipelinePublished,
+				"updated_at": time.Now(),
+			})
+		}
+	}
+
 	utils.JSONResponse(w, http.StatusOK, post)
 }
 
@@ -582,6 +593,17 @@ func UnpublishBlogPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	post, _ := repo.FindPostByID(ctx, id)
+
+	// Sync pipeline run status
+	if post.PipelineRunID != "" {
+		if runOID, err2 := primitive.ObjectIDFromHex(post.PipelineRunID); err2 == nil {
+			repo.UpdatePipelineRunStatus(ctx, runOID, bson.M{
+				"status":     models.PipelineReady,
+				"updated_at": time.Now(),
+			})
+		}
+	}
+
 	utils.JSONResponse(w, http.StatusOK, post)
 }
 
