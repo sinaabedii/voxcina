@@ -31,7 +31,7 @@ export default async function BlogPage({ searchParams }: { searchParams: { [key:
   const postsResponse = await serverFetchWithFallback<{ data: BlogPost[]; total: number; page: number; limit: number; totalPages: number } | BlogPost[]>(
     `/api/blog-posts?${queryParams.toString()}`,
     { data: [], total: 0, page: 1, limit: 10, totalPages: 0 },
-    { revalidate: false }
+    { revalidate: 0 }
   );
 
   // Handle both array and paginated response formats
