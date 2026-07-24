@@ -148,7 +148,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
           {/* Discount badge - تخفیف on LEFT side */}
           {discount > 0 && (
             <div className="absolute top-2 left-2">
-              <span className="px-2 py-1 text-xs font-medium rounded-md bg-destructive text-destructive-foreground shadow-soft">
+              <span className="px-2 py-1 text-[10px] sm:text-xs font-medium rounded-md bg-destructive text-destructive-foreground shadow-soft">
                 {discount}٪ تخفیف
               </span>
             </div>
@@ -214,14 +214,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
           <div className="mt-2 mb-3">
             <div className="flex items-center gap-2">
               <span
-                className={`product-card-price text-lg font-bold ${discount > 0 ? "text-primary" : "text-foreground"
+                className={`product-card-price text-base sm:text-lg font-bold ${discount > 0 ? "text-primary" : "text-foreground"
                   }`}
               >
                 {formatPrice(price)}
               </span>
 
               {discount > 0 && (
-                <span className="text-sm text-muted-foreground line-through">
+                <span className="text-xs sm:text-sm text-muted-foreground line-through">
                   {formatPrice(originalPrice)}
                 </span>
               )}
