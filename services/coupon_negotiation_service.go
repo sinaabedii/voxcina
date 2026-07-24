@@ -181,6 +181,13 @@ HARD LIMIT: never exceed %d%% discount, even if the customer insists. If they pu
 		if role == "agent" || role == "agent_streaming" {
 			role = "assistant"
 		}
+		if role != "user" && role != "assistant" {
+			// Skip UI-only entries (e.g. tryon result cards) that aren't valid chat roles.
+			continue
+		}
+		if msg.Content == "" {
+			continue
+		}
 		messages = append(messages, map[string]interface{}{
 			"role":    role,
 			"content": msg.Content,

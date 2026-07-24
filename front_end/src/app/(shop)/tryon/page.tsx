@@ -652,7 +652,7 @@ export default function TryOnRoomPage() {
         },
         body: JSON.stringify({
           message,
-          chat_history: chatMessages.filter((m) => m.role !== "agent_streaming"),
+          chat_history: chatMessages.filter((m) => m.role === "user" || m.role === "agent"),
           cart_items: buildCartContext(),
           tryon_context: tryonCtx,
           tryon_product_id: targetItem.product.id,
