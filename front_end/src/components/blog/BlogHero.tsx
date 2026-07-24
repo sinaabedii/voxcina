@@ -7,6 +7,7 @@ import { useGSAP } from "@gsap/react";
 import { gsap, SplitText } from "@/lib/gsap";
 import { BlogPost } from "@/types/blog";
 import { CalendarIcon, ClockIcon, ArrowRight as ArrowRightIcon } from "lucide-react";
+import AuthorAvatar from "./AuthorAvatar";
 
 interface BlogHeroProps {
   post: BlogPost;
@@ -170,17 +171,11 @@ export default function BlogHero({ post }: BlogHeroProps) {
             className="flex flex-wrap items-center gap-3 text-xs text-white/85 sm:gap-4 sm:text-sm"
           >
             <div className="flex items-center gap-2">
-              {post.authorSnapshot?.avatar && (
-                <div className="relative h-6 w-6 overflow-hidden rounded-full ring-1 ring-white/30 sm:h-8 sm:w-8">
-                  <Image
-                    src={post.authorSnapshot.avatar}
-                    alt={post.authorSnapshot.name}
-                    fill
-                    className="object-cover"
-                    sizes="32px"
-                  />
-                </div>
-              )}
+              <AuthorAvatar
+                avatar={post.authorSnapshot?.avatar}
+                name={post.authorSnapshot?.name || "تیم وکسینا"}
+                className="h-6 w-6 ring-1 ring-white/30 sm:h-8 sm:w-8"
+              />
               <span>{post.authorSnapshot?.name || "تیم وکسینا"}</span>
             </div>
 

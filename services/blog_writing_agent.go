@@ -105,7 +105,7 @@ func (wa *WritingAgent) RunWriting(ctx context.Context, run *models.BlogPipeline
 		ReadTime:        wa.calculateReadTime(writingResult.Blocks),
 		AuthorSnapshot: models.AuthorSnapshot{
 			Name:   "تیم وکسینا",
-			Avatar: "/uploads/authors/default.jpg",
+			Avatar: "",
 		},
 		IsActive:    true,
 		CreatedAt:   time.Now(),

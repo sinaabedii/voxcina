@@ -2,26 +2,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { BlogPost } from '@/types/blog';
 import { CalendarIcon, ClockIcon } from 'lucide-react';
+import AuthorAvatar from './AuthorAvatar';
 
 interface BlogCardProps {
   post: BlogPost;
   variant?: 'default' | 'compact' | 'featured' | 'grid';
-}
-
-/** Author avatar; falls back to the Voxcina mark on a light badge when no photo is set (the usual case for "تیم وکسینا"). */
-function AuthorAvatar({ avatar, name, className }: { avatar?: string; name: string; className: string }) {
-  if (avatar) {
-    return (
-      <div className={`relative overflow-hidden rounded-full ${className}`}>
-        <Image src={avatar} alt={name} fill className="object-cover" sizes="32px" />
-      </div>
-    );
-  }
-  return (
-    <div className={`relative overflow-hidden rounded-full bg-white p-1 ${className}`}>
-      <Image src="/images/Logo/icon-navy.png" alt={name} fill className="object-contain" sizes="32px" />
-    </div>
-  );
 }
 
 export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
