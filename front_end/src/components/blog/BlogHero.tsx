@@ -174,7 +174,8 @@ export default function BlogHero({ post }: BlogHeroProps) {
               <AuthorAvatar
                 avatar={post.authorSnapshot?.avatar}
                 name={post.authorSnapshot?.name || "تیم وکسینا"}
-                className="h-6 w-6 ring-1 ring-white/30 sm:h-8 sm:w-8"
+                className="h-6 w-6 sm:h-8 sm:w-8"
+                tone="white"
               />
               <span>{post.authorSnapshot?.name || "تیم وکسینا"}</span>
             </div>

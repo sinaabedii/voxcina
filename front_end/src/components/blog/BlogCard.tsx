@@ -57,7 +57,7 @@ export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
           </p>
           <div className="flex items-center justify-between border-t border-white/15 pt-3 text-[11px] text-white/85 sm:text-xs">
             <div className="flex items-center gap-2">
-              <AuthorAvatar avatar={author.avatar} name={author.name} className="h-6 w-6 ring-1 ring-white/30" />
+              <AuthorAvatar avatar={author.avatar} name={author.name} className="h-6 w-6" tone="white" />
               <span className="font-medium">{author.name}</span>
             </div>
             <div className="flex items-center gap-1">
@@ -102,7 +102,7 @@ export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
           <p className="mb-3 sm:mb-4 line-clamp-2 text-xs sm:text-sm text-white/90">{post.excerpt}</p>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <AuthorAvatar avatar={author.avatar} name={author.name} className="h-7 w-7 sm:h-8 sm:w-8 ring-1 ring-white/30" />
+              <AuthorAvatar avatar={author.avatar} name={author.name} className="h-7 w-7 sm:h-8 sm:w-8" tone="white" />
               <span className="text-xs sm:text-sm font-medium">{author.name}</span>
             </div>
             <div className="flex items-center gap-1 text-xs">
@@ -179,7 +179,7 @@ export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
         <p className="mb-3 sm:mb-4 flex-1 line-clamp-3 text-xs sm:text-sm text-gray-600">{post.excerpt}</p>
         <div className="flex items-center justify-between border-t border-gray-100 pt-3 sm:pt-4">
           <div className="flex items-center gap-2">
-            <AuthorAvatar avatar={author.avatar} name={author.name} className="h-6 w-6 sm:h-7 sm:w-7 ring-1 ring-secondary-200" />
+            <AuthorAvatar avatar={author.avatar} name={author.name} className="h-6 w-6 sm:h-7 sm:w-7" />
             <span className="text-[10px] sm:text-xs font-medium text-gray-700">{author.name}</span>
           </div>
           <div className="flex items-center gap-1 text-[10px] sm:text-xs text-gray-500">

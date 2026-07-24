@@ -12,10 +12,12 @@ interface AuthorAvatarProps {
   avatar?: string;
   name: string;
   className: string;
+  /** Logo color to use when falling back to the mark - match the surrounding background. */
+  tone?: 'navy' | 'white';
 }
 
-/** Author avatar; falls back to the Voxcina mark on a navy badge when no real photo is set (the usual case for "تیم وکسینا"). */
-export default function AuthorAvatar({ avatar, name, className }: AuthorAvatarProps) {
+/** Author avatar; falls back to the bare Voxcina mark (no background chip) when no real photo is set (the usual case for "تیم وکسینا"). */
+export default function AuthorAvatar({ avatar, name, className, tone = 'navy' }: AuthorAvatarProps) {
   const hasPhoto = !!avatar && !BROKEN_AVATAR_PATHS.has(avatar);
 
   if (hasPhoto) {
@@ -26,9 +28,11 @@ export default function AuthorAvatar({ avatar, name, className }: AuthorAvatarPr
     );
   }
 
+  const iconSrc = tone === 'white' ? '/images/Logo/icon-white.png' : '/images/Logo/icon-navy.png';
+
   return (
-    <div className={`relative overflow-hidden rounded-full bg-voxcina-blue p-1.5 ${className}`}>
-      <Image src="/images/Logo/icon-white.png" alt={name} fill className="object-contain" sizes="32px" />
+    <div className={`relative ${className}`}>
+      <Image src={iconSrc} alt={name} fill className="object-contain" sizes="32px" />
     </div>
   );
 }
