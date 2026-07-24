@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Camera, Shirt, ShoppingBag, Tag, Send,
@@ -165,7 +165,6 @@ export default function TryOnRoomPage() {
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const pageRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const negotiationInitializedRef = useRef(false);
 
@@ -237,19 +236,6 @@ export default function TryOnRoomPage() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [chatMessages]);
-
-  useLayoutEffect(() => {
-    if (!isAuthorized) return;
-    const updateHeight = () => {
-      if (pageRef.current) {
-        const rect = pageRef.current.getBoundingClientRect();
-        pageRef.current.style.height = `${window.innerHeight - rect.top}px`;
-      }
-    };
-    updateHeight();
-    window.addEventListener("resize", updateHeight);
-    return () => window.removeEventListener("resize", updateHeight);
-  }, [isAuthorized]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -928,7 +914,7 @@ export default function TryOnRoomPage() {
     ?? null;
 
   return (
-    <div ref={pageRef} className="container py-4 md:py-6 flex flex-col overflow-hidden">
+    <div className="container py-4 md:py-6 flex flex-col flex-1 min-h-0 overflow-hidden">
       {/* Header with highlighter */}
       <motion.div
         className="mb-3 md:mb-4 flex-shrink-0"

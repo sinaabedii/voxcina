@@ -15,7 +15,7 @@ export default function ShopLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-svh">
       <Header />
       <main className="flex-1 min-h-0 flex flex-col">{children}</main>
       <Footer />
