@@ -119,12 +119,20 @@ func GetBlogPostBySlug(w http.ResponseWriter, r *http.Request) {
 		for i := range post.Blocks {
 			if post.Blocks[i].Type == models.BlockTypeImage {
 				if m, ok := mediaMap[post.Blocks[i].ImageSlotID]; ok {
-					post.Blocks[i].ImageID = m.PublicPath
+					if m.PublicPath != "" {
+						post.Blocks[i].ImageID = m.PublicPath
+					} else if m.FilePath != "" {
+						post.Blocks[i].ImageID = m.FilePath
+					}
 				}
 			}
 		}
 		if m, ok := mediaMap["cover"]; ok {
-			post.CoverImageID = m.PublicPath
+			if m.PublicPath != "" {
+				post.CoverImageID = m.PublicPath
+			} else if m.FilePath != "" {
+				post.CoverImageID = m.FilePath
+			}
 		}
 	}
 
