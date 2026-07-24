@@ -14,7 +14,7 @@ interface AuthorAvatarProps {
   className: string;
 }
 
-/** Author avatar; falls back to the Voxcina mark on a light badge when no real photo is set (the usual case for "تیم وکسینا"). */
+/** Author avatar; falls back to the Voxcina mark on a navy badge when no real photo is set (the usual case for "تیم وکسینا"). */
 export default function AuthorAvatar({ avatar, name, className }: AuthorAvatarProps) {
   const hasPhoto = !!avatar && !BROKEN_AVATAR_PATHS.has(avatar);
 
@@ -27,8 +27,8 @@ export default function AuthorAvatar({ avatar, name, className }: AuthorAvatarPr
   }
 
   return (
-    <div className={`relative overflow-hidden rounded-full bg-white p-1 ${className}`}>
-      <Image src="/images/Logo/icon-navy.png" alt={name} fill className="object-contain" sizes="32px" />
+    <div className={`relative overflow-hidden rounded-full bg-voxcina-blue p-1.5 ${className}`}>
+      <Image src="/images/Logo/icon-white.png" alt={name} fill className="object-contain" sizes="32px" />
     </div>
   );
 }
