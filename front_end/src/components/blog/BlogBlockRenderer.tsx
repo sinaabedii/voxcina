@@ -109,7 +109,7 @@ function BlogBlockItem({ block, index }: { block: BlogBlockType; index: number }
         <h2
           id={id}
           data-block="header"
-          className="mt-8 mb-4 scroll-mt-28 text-2xl font-bold text-voxcina-blue md:text-3xl"
+          className="mt-8 mb-4 scroll-mt-28 break-words text-2xl font-bold text-voxcina-blue md:text-3xl"
         >
           {block.text}
           <span data-heading-accent className="mt-2 block h-1 w-16 rounded-full bg-primary-300" />
@@ -121,7 +121,7 @@ function BlogBlockItem({ block, index }: { block: BlogBlockType; index: number }
         <h3
           id={id}
           data-block="section"
-          className="mt-6 mb-3 scroll-mt-28 text-xl font-bold text-voxcina-blue md:text-2xl"
+          className="mt-6 mb-3 scroll-mt-28 break-words text-xl font-bold text-voxcina-blue md:text-2xl"
         >
           {block.text}
           <span data-heading-accent className="mt-1.5 block h-0.5 w-12 rounded-full bg-primary-300" />
@@ -133,7 +133,7 @@ function BlogBlockItem({ block, index }: { block: BlogBlockType; index: number }
         <h4
           id={id}
           data-block="subsection"
-          className="mt-4 mb-2 scroll-mt-28 text-lg font-bold text-voxcina-blue md:text-xl"
+          className="mt-4 mb-2 scroll-mt-28 break-words text-lg font-bold text-voxcina-blue md:text-xl"
         >
           {block.text}
         </h4>
@@ -141,7 +141,7 @@ function BlogBlockItem({ block, index }: { block: BlogBlockType; index: number }
 
     case "text":
       return (
-        <p data-block="text" className="text-base leading-relaxed text-gray-900 md:text-lg">
+        <p data-block="text" className="break-words text-base leading-relaxed text-gray-900 md:text-lg">
           {block.text}
         </p>
       );

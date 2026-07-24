@@ -12,6 +12,7 @@ import BlogSidebar from "@/components/blog/BlogSidebar";
 
 interface BlogPostClientContentProps {
   post: BlogPost;
+  relatedPosts: BlogPost[];
 }
 
 /**
@@ -22,7 +23,7 @@ interface BlogPostClientContentProps {
  * block-based content. No dangerouslySetInnerHTML — all content still flows
  * through typed block components.
  */
-export default function BlogPostClientContent({ post }: BlogPostClientContentProps) {
+export default function BlogPostClientContent({ post, relatedPosts }: BlogPostClientContentProps) {
   const articleRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -37,7 +38,7 @@ export default function BlogPostClientContent({ post }: BlogPostClientContentPro
       <section className="py-6 md:py-8 lg:py-12">
         <div className="container px-4 sm:px-6 md:px-8">
           <div className="grid gap-6 md:gap-8 lg:grid-cols-12">
-            <div className="lg:col-span-8">
+            <div className="min-w-0 lg:col-span-8">
               <article
                 ref={articleRef}
                 className="overflow-hidden rounded-xl bg-white p-4 shadow-soft sm:rounded-2xl sm:p-6 md:p-8 lg:p-10"
@@ -59,10 +60,10 @@ export default function BlogPostClientContent({ post }: BlogPostClientContentPro
                 )}
               </article>
 
-              <RelatedPosts currentPost={post} />
+              <RelatedPosts relatedPosts={relatedPosts} />
             </div>
 
-            <div className="mt-6 lg:mt-0 lg:col-span-4">
+            <div className="mt-6 min-w-0 lg:mt-0 lg:col-span-4">
               <div className="sticky top-24 space-y-6">
                 <ArticleTOC blocks={post.blocks || []} />
                 <BlogSidebar posts={[post]} categories={[]} tags={post.tags || []} />

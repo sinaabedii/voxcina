@@ -42,7 +42,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       description: post.excerpt,
       images: [
         {
-          url: post.coverImage || '/images/blog/placeholder.jpg',
+          url: post.coverImage || post.coverImageId || '/images/blog/placeholder.jpg',
           width: 1200,
           height: 630,
           alt: post.title,
@@ -73,6 +73,16 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     notFound();
   }
 
+  // Fetch related posts (same category) server-side so the section and its
+  // internal links are present in the initial SSR HTML, not only after a
+  // client-side fetch.
+  const relatedResponse = await serverFetch<{ data: BlogPost[] } | BlogPost[]>(
+    `/api/blog-posts?category=${encodeURIComponent(post.category)}&limit=4`,
+    { revalidate: 3600, tags: ['blog', `blog-category-${post.category}`] }
+  );
+  const relatedCandidates = Array.isArray(relatedResponse) ? relatedResponse : relatedResponse?.data || [];
+  const relatedPosts = relatedCandidates.filter((p) => p.id !== post.id).slice(0, 3);
+
   // Build breadcrumb items for JSON-LD schema (Home > Blog > Post)
   const breadcrumbItems = [
     { name: 'خانه', url: '/' },
@@ -86,7 +96,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       <ArticleSchema
         title={post.title}
         description={post.excerpt}
-        imageUrl={post.coverImage || '/images/blog/placeholder.jpg'}
+        imageUrl={post.coverImage || post.coverImageId || '/images/blog/placeholder.jpg'}
         authorName={post.authorSnapshot?.name || 'تیم وکسینا'}
         authorAvatar={post.authorSnapshot?.avatar}
         publishedAt={post.publishedAt}
@@ -100,7 +110,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       <BreadcrumbSchema items={breadcrumbItems} />
 
       <Header />
-      <BlogPostClientContent post={post} />
+      <BlogPostClientContent post={post} relatedPosts={relatedPosts} />
       <Footer />
     </>
   );

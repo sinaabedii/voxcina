@@ -159,7 +159,7 @@ export default function BlogHero({ post }: BlogHeroProps) {
 
           <h1
             ref={titleRef}
-            className="mb-4 text-2xl font-bold leading-tight text-white sm:text-3xl md:mb-5 md:text-4xl lg:text-5xl"
+            className="mb-4 break-words text-2xl font-bold leading-tight text-white sm:text-3xl md:mb-5 md:text-4xl lg:text-5xl"
             style={{ transformStyle: "preserve-3d" }}
           >
             {post.title}
