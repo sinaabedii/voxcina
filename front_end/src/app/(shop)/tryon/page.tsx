@@ -112,7 +112,7 @@ const itemVariants = {
 
 
 export default function TryOnRoomPage() {
-  const { isLoading: authLoading, isAuthorized } = useProtectedRoute({ requiredAuth: true });
+  const { isLoading: authLoading, isAuthorized, user } = useProtectedRoute({ requiredAuth: true });
   const { cart, isLoading: cartLoading, addItem, applyNegotiatedDiscount } = useCartStore();
   const {
     uploadedPreview,
@@ -309,7 +309,8 @@ export default function TryOnRoomPage() {
       }
     } else if (eligibleItems.length > 0 && chatMessages.length === 0) {
       // First visit — no persisted messages, cart has eligible items: show welcome
-      const welcomeText = "سلام! من سارا هستم. لباست رو پرو کن و کمکت می کنم تجربه بهتری داشته باشی";
+      const firstName = user?.name?.split(" ")[0] || "رفیق";
+      const welcomeText = `سلام ${firstName} جان، سارا هستم! لباستو پرو کن بریم رو تخفیف چونه بزنیم.`;
       setChatMessages([{ role: "agent", content: welcomeText }]);
       persistMessage({
         id: makeDbMessageId(),
@@ -763,7 +764,7 @@ export default function TryOnRoomPage() {
     } catch (err: any) {
       const errMsg: ChatMessage = {
         role: "agent",
-        content: "متاسفانه در حال حاضر نمی‌توانم پاسخ دهم. لطفاً دوباره تلاش کنید.",
+        content: "وای رفیق ببخشید، الان یه لحظه سرم شلوغ شد و صدات به من نرسید! یه بار دیگه بگو چی می‌خواستی.",
       };
       setChatMessages((prev) => {
         const copy = [...prev];
