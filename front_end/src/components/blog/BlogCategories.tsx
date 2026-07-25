@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { BlogCategory } from "@/types/blog";
 
 interface BlogCategoriesProps {
@@ -24,7 +24,7 @@ export default function BlogCategories({
   onSelectCategory,
 }: BlogCategoriesProps) {
   const [categories, setCategories] = useState<BlogCategory[]>([]);
-  const [scrollContainerRef, setScrollContainerRef] = useState<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -67,7 +67,7 @@ export default function BlogCategories({
   return (
     <div className="relative w-full">
         <div
-        ref={setScrollContainerRef}
+        ref={scrollContainerRef}
         className="w-full overflow-x-auto scrollbar-hide overscroll-behavior-x-contain [mask-image:linear-gradient(to_right,transparent_4%,#000_20%,#000_80%,transparent_96%)] sm:[mask-image:linear-gradient(to_right,transparent_4%,#000_15%,#000_85%,transparent_96%)]"
       >
         <div className="flex gap-2 px-4 sm:px-6 py-1" style={{ width: "max-content" }}>
