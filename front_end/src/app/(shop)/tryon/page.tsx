@@ -19,6 +19,8 @@ import BackendImage from "@/components/BackendImage";
 import BeforeAfterSlider from "@/components/ui/BeforeAfterSlider";
 import CountdownTimer from "@/components/ui/CountdownTimer";
 import ImageCropModal from "@/components/ui/ImageCropModal";
+import Modal from "@/components/ui/Modal";
+import SizeSelector from "@/components/ui/SizeSelector";
 import { activityTracker } from "@/lib/activity-tracker";
 import {
   TryonChatMessage as DbTryonChatMessage,
@@ -156,6 +158,8 @@ export default function TryOnRoomPage() {
   const [couponExpired, setCouponExpired] = useState(false);
   const [recommendedProduct, setRecommendedProduct] = useState<RecommendedProduct | null>(null);
   const [recommendedAdding, setRecommendedAdding] = useState(false);
+  const [sizeModalOpen, setSizeModalOpen] = useState(false);
+  const [sizeModalSize, setSizeModalSize] = useState<string | undefined>(undefined);
   const [couponApplying, setCouponApplying] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [tryOnCount, setTryOnCount] = useState(0);
@@ -310,7 +314,7 @@ export default function TryOnRoomPage() {
     } else if (eligibleItems.length > 0 && chatMessages.length === 0) {
       // First visit — no persisted messages, cart has eligible items: show welcome
       const firstName = user?.name?.split(" ")[0] || "رفیق";
-      const welcomeText = `سلام ${firstName} جان، سارا هستم! لباستو پرو کن بریم رو تخفیف چونه بزنیم.`;
+      const welcomeText = `سلام ${firstName} جان، سارا هستم! لباستو پرو کن خریدت رو نهایی کنیم.`;
       setChatMessages([{ role: "agent", content: welcomeText }]);
       persistMessage({
         id: makeDbMessageId(),
@@ -563,6 +567,20 @@ export default function TryOnRoomPage() {
     return cv?.sizes?.[0]?.size;
   };
 
+  const getRecommendedSizeOptions = (rec: RecommendedProduct): { all: string[]; available: string[] } => {
+    const color = getRecommendedColor(rec);
+    const colorName = getRecommendedColorName(rec);
+    const variant = rec.product ? findColorVariant(rec.product, color, colorName) : undefined;
+    if (variant?.sizes?.length) {
+      return {
+        all: variant.sizes.map((s) => s.size),
+        available: variant.sizes.filter((s) => s.quantity > 0).map((s) => s.size),
+      };
+    }
+    if (rec.size) return { all: [rec.size], available: [rec.size] };
+    return { all: [], available: [] };
+  };
+
   const getRecommendedDisplayImage = (rec: RecommendedProduct): string | null => {
     const image = getProductDisplayImage(rec.product, getRecommendedColor(rec), getRecommendedColorName(rec));
     if (image) return image;
@@ -594,15 +612,15 @@ export default function TryOnRoomPage() {
     }
   };
 
-  const addRecommendedToCart = async (rec: RecommendedProduct) => {
+  const addRecommendedToCart = async (rec: RecommendedProduct, size?: string) => {
     const color = getRecommendedColor(rec);
-    const size = getRecommendedSize(rec);
+    const resolvedSize = size || getRecommendedSize(rec);
     const colorName = getRecommendedColorName(rec);
     const currentItems = computeEligibleItems(useCartStore.getState().cart.items);
     const exists = currentItems.some((ei) => matchesRecommendedVariant(ei, rec));
     if (!exists) {
       const product = buildRecommendedProduct(rec);
-      await addItem(product, 1, size, color, colorName);
+      await addItem(product, 1, resolvedSize, color, colorName);
       toast.success("به سبد خرید اضافه شد");
     } else {
       toast.info("این محصول در سبد خرید شما موجود است");
@@ -1495,12 +1513,9 @@ export default function TryOnRoomPage() {
                             variant="primary"
                             size="sm"
                             className="text-[10px] flex-1 h-7 shadow-inset-button focus:shadow-focus-warm"
-                            onClick={async () => {
-                              setRecommendedAdding(true);
-                              try {
-                                await addRecommendedToCart(recommendedProduct);
-                              } catch { /* ignore */ }
-                              setRecommendedAdding(false);
+                            onClick={() => {
+                              setSizeModalSize(undefined);
+                              setSizeModalOpen(true);
                             }}
                             disabled={recommendedAdding}
                           >
@@ -1640,6 +1655,60 @@ export default function TryOnRoomPage() {
         }}
         onCancel={() => setImageToCrop(null)}
       />
+
+      {/* Size selection modal — shown before adding the seller-recommended product to cart */}
+      <Modal
+        isOpen={sizeModalOpen && !!recommendedProduct}
+        onClose={() => setSizeModalOpen(false)}
+        title="انتخاب سایز"
+        contentClassName="max-w-sm"
+      >
+        {recommendedProduct && (() => {
+          const { all: sizeOptions, available: availableSizes } = getRecommendedSizeOptions(recommendedProduct);
+          return (
+            <>
+              <p className="text-sm text-muted-foreground mb-4">{recommendedProduct.product_name}</p>
+              {sizeOptions.length > 0 ? (
+                <SizeSelector
+                  sizes={sizeOptions}
+                  availableSizes={availableSizes}
+                  selectedSize={sizeModalSize}
+                  onSizeChange={setSizeModalSize}
+                  showLabel={false}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground mb-4">سایزی برای این محصول موجود نیست.</p>
+              )}
+              <div className="flex gap-2 mt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setSizeModalOpen(false)}
+                >
+                  انصراف
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="flex-1"
+                  disabled={!sizeModalSize || recommendedAdding}
+                  onClick={async () => {
+                    setRecommendedAdding(true);
+                    try {
+                      await addRecommendedToCart(recommendedProduct, sizeModalSize);
+                      setSizeModalOpen(false);
+                    } catch { /* ignore */ }
+                    setRecommendedAdding(false);
+                  }}
+                >
+                  {recommendedAdding ? "..." : "افزودن به سبد"}
+                </Button>
+              </div>
+            </>
+          );
+        })()}
+      </Modal>
     </div>
   );
 }
