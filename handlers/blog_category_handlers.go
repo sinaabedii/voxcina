@@ -31,6 +31,19 @@ func GetBlogCategoriesPublic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	postCollection := db.Database.Collection("blog_posts")
+	for i := range categories {
+		count, err := postCollection.CountDocuments(ctx, bson.M{
+			"category":    categories[i].Name,
+			"status":      models.StatusPublished,
+			"is_active":   true,
+		})
+		if err != nil {
+			continue
+		}
+		categories[i].PostCount = int(count)
+	}
+
 	utils.JSONResponse(w, http.StatusOK, categories)
 }
 

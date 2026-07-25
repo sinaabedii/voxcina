@@ -43,15 +43,15 @@ export default function BlogCategories({
   const allCategories = [ALL_ITEM, ...categories];
 
   return (
-    <div className="w-full min-w-0 overflow-x-auto scrollbar-hide pb-1">
-      <div className="flex w-max min-w-full justify-center gap-2">
+    <div className="w-full min-w-0 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-1 overscroll-behavior-x-contain">
+      <div className="flex min-w-full items-stretch gap-2 first:pl-4 last:pr-4">
         {allCategories.map((category) => (
           <button
             key={category.id}
             onClick={() =>
               onSelectCategory(category.id === "all" ? null : category.name)
             }
-            className={`whitespace-nowrap rounded-full px-3.5 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-medium transition-all duration-200 ${
+            className={`snap-start whitespace-nowrap rounded-full px-3.5 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-medium transition-all duration-200 ${
               (category.id === "all" && selectedCategory === null) ||
               category.name === selectedCategory
                 ? "bg-voxcina-blue text-white shadow-medium"
