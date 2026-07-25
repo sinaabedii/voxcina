@@ -24,6 +24,7 @@ export default function BlogCategories({
   onSelectCategory,
 }: BlogCategoriesProps) {
   const [categories, setCategories] = useState<BlogCategory[]>([]);
+  const scrollContainerRef = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -53,26 +54,59 @@ export default function BlogCategories({
     }`;
   };
 
+  const scroll = (direction: "left" | "right") => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const scrollAmount = container.clientWidth * 0.8;
+    container.scrollBy({
+      left: direction === "right" ? scrollAmount : -scrollAmount,
+      behavior: "smooth",
+    });
+  };
+
   return (
-    <div className="w-full overflow-x-auto scrollbar-hide overscroll-behavior-x-contain">
-      <div className="flex gap-2 px-4" style={{ width: "max-content" }}>
-        {allCategories.map((category) => (
-          <button
-            key={category.id}
-            onClick={() =>
-              onSelectCategory(category.id === "all" ? null : category.name)
-            }
-            className={getButtonClassName(category)}
-          >
-            {category.name}
-            {category.postCount > 0 && (
-              <span className="mr-1 text-xs opacity-70">
-                ({category.postCount})
-              </span>
-            )}
-          </button>
-        ))}
+    <div className="relative w-full">
+      <div
+        ref={scrollContainerRef}
+        className="w-full overflow-x-auto scrollbar-hide overscroll-behavior-x-contain [mask-image:linear-gradient(to_right,transparent_4%,#000_20%,#000_80%,transparent_96%)] sm:[mask-image:linear-gradient(to_right,transparent_4%,#000_15%,#000_85%,transparent_96%)]"
+      >
+        <div className="flex gap-2 px-4 sm:px-6 py-1" style={{ width: "max-content" }}>
+          {allCategories.map((category) => (
+            <button
+              key={category.id}
+              onClick={() =>
+                onSelectCategory(category.id === "all" ? null : category.name)
+              }
+              className={getButtonClassName(category)}
+            >
+              {category.name}
+              {category.postCount > 0 && (
+                <span className="mr-1 text-xs opacity-70">
+                  ({category.postCount})
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
+      <button
+        onClick={() => scroll("left")}
+        className="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-gradient-to-r from-white/90 to-transparent p-2 rounded-r-full shadow-soft hover:bg-white transition-colors"
+        aria-label="Scroll left"
+      >
+        <svg className="w-5 h-5 text-voxcina-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+      <button
+        onClick={() => scroll("right")}
+        className="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-gradient-to-l from-white/90 to-transparent p-2 rounded-l-full shadow-soft hover:bg-white transition-colors"
+        aria-label="Scroll right"
+      >
+        <svg className="w-5 h-5 text-voxcina-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
     </div>
   );
 }
