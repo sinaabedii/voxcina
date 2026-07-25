@@ -91,7 +91,7 @@ export default function BlogCategories({
       </div>
       <button
         onClick={() => scroll("left")}
-        className="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-gradient-to-r from-white/90 to-transparent p-2 rounded-r-full shadow-soft hover:bg-white transition-colors"
+        className="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-gradient-to-r from-background/90 to-transparent p-2 rounded-r-full shadow-soft hover:bg-background transition-colors"
         aria-label="Scroll left"
       >
         <svg className="w-5 h-5 text-voxcina-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,7 +100,7 @@ export default function BlogCategories({
       </button>
       <button
         onClick={() => scroll("right")}
-        className="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-gradient-to-l from-white/90 to-transparent p-2 rounded-l-full shadow-soft hover:bg-white transition-colors"
+        className="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-gradient-to-l from-background/90 to-transparent p-2 rounded-l-full shadow-soft hover:bg-background transition-colors"
         aria-label="Scroll right"
       >
         <svg className="w-5 h-5 text-voxcina-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
