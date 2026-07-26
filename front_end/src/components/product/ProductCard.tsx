@@ -214,14 +214,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
           <div className="mt-2 mb-3">
             <div className="flex items-center gap-2">
               <span
-                className={`product-card-price text-base sm:text-lg font-bold ${discount > 0 ? "text-primary" : "text-foreground"
+                className={`product-card-price text-sm sm:text-base md:text-lg font-bold ${discount > 0 ? "text-primary" : "text-foreground"
                   }`}
               >
                 {formatPrice(price)}
               </span>
 
               {discount > 0 && (
-                <span className="text-xs sm:text-sm text-muted-foreground line-through">
+                <span className="text-[11px] sm:text-xs md:text-sm text-muted-foreground line-through">
                   {formatPrice(originalPrice)}
                 </span>
               )}
