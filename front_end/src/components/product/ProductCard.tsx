@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Heart, Star, ShoppingCart } from "lucide-react";
+import { Heart, Star, ShoppingCart, Plus, Minus, ChevronLeft } from "lucide-react";
 import { ColorVariantListItem } from "@/types/product";
 import { formatPrice, getDiscountPercentage } from "@/lib/utils";
 import { useCartStore } from "@/store/cart-store";
@@ -27,13 +27,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState(1);
 
   const { isFavorite, addToFavorites, removeFromFavorites } = useDashboardStore();
   const isProductFavorite = isFavorite(item.productId || '');
   const addItem = useCartStore((state) => state.addItem);
 
   // Extract data from the color variant list item
-  const { productId, colorVariant, name, price, originalPrice, brand, inStock } = item;
+  const { productId, colorVariant, name, description, price, originalPrice, brand, inStock } = item;
   const { color, colorName, swatchImage, images, sizes } = colorVariant;
   const selectedColor = getCanonicalColor(colorVariant) || colorName;
   const productHref = `/products/${productId}?color=${encodeURIComponent(selectedColor)}`;
@@ -43,6 +44,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   // Available sizes for this specific color (filtered by stock)
   const availableSizes = sizes.filter(s => s.quantity > 0);
+  // Products with exactly one purchasable size (e.g. accessories) skip the size modal
+  const singleSize = availableSizes.length === 1 ? availableSizes[0] : null;
 
   const rating = item.average_rating;
   const isNew = item.created_at && (new Date().getTime() - new Date(item.created_at).getTime()) < 30 * 24 * 60 * 60 * 1000;
@@ -50,6 +53,25 @@ const ProductCard: React.FC<ProductCardProps> = ({
   const discount = originalPrice && originalPrice > price
     ? getDiscountPercentage(originalPrice, price)
     : 0;
+
+  const buildCartProduct = () => ({
+    id: productId,
+    name,
+    price,
+    originalPrice,
+    brand,
+    mainImages: images,
+    colorVariants: [colorVariant],
+    category_ids: item.category_ids,
+    brand_id: item.brand_id,
+    collection: item.collection,
+    attributes: [],
+    is_flash_sale: item.is_flash_sale,
+    is_active: true,
+    inStock: true,
+    created_at: item.created_at,
+    updated_at: item.created_at,
+  } as any);
 
   const handleOpenModal = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -76,31 +98,29 @@ const ProductCard: React.FC<ProductCardProps> = ({
     if (selectedSize) {
       const sizeVariant = sizes.find(s => s.size === selectedSize);
       if (sizeVariant && sizeVariant.quantity > 0) {
-        // TODO: Update addItem to accept productId, size, color, or create a minimal Product object
-        // For now, creating a minimal product object
-        addItem({
-          id: productId,
-          name,
-          price,
-          originalPrice,
-          brand,
-          mainImages: images, // Using color images as main for cart
-          colorVariants: [colorVariant],
-          category_ids: item.category_ids,
-          brand_id: item.brand_id,
-          collection: item.collection,
-          attributes: [],
-          is_flash_sale: item.is_flash_sale,
-          is_active: true,
-          inStock: true,
-          created_at: item.created_at,
-          updated_at: item.created_at,
-        } as any, 1, selectedSize, selectedColor, colorName);
-
+        addItem(buildCartProduct(), 1, selectedSize, selectedColor, colorName);
         handleCloseModal();
         toast.success("محصول به سبد خرید اضافه شد");
       }
     }
+  };
+
+  const adjustQuantity = (e: React.MouseEvent, delta: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setQuantity((q) => {
+      const max = singleSize?.quantity ?? 99;
+      return Math.min(Math.max(1, q + delta), max);
+    });
+  };
+
+  const handleQuickAdd = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!singleSize) return;
+    addItem(buildCartProduct(), quantity, singleSize.size, selectedColor, colorName);
+    toast.success("محصول به سبد خرید اضافه شد");
+    setQuantity(1);
   };
 
   return (
@@ -109,12 +129,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
         href={productHref}
         data-activity-tracked="true"
         onClick={handleProductClick}
-        className={`product-card group block rounded-xl overflow-hidden transition-all duration-300 ${glassEffect
+        className={`product-card group block rounded-2xl overflow-hidden transition-all duration-300 ${glassEffect
             ? "glass-effect backdrop-blur-sm hover:bg-card/90"
             : "bg-card border border-border/10"
-          } hover:shadow-medium`}
+          } hover:shadow-medium hover:-translate-y-0.5`}
       >
-        <div className="product-card-image relative aspect-[3/4] overflow-hidden bg-secondary/30">
+        <div className="product-card-image relative aspect-[4/5] overflow-hidden bg-secondary/30">
           {displayImage ? (
             <Image
               src={displayImage}
@@ -131,35 +151,30 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           )}
 
-          {/* Badges - جدید on RIGHT side */}
-          <div className="absolute top-2 right-2 flex flex-col gap-1.5">
-            {(isNew || ribbonLabel) && (
-              <span className="px-2 py-1 text-xs font-medium rounded-md bg-warning text-warning-foreground shadow-soft">
-                {ribbonLabel || "جدید"}
-              </span>
-            )}
-            {!inStock && (
-              <span className="px-2 py-1 text-xs font-medium rounded-md bg-neutral-700 text-white shadow-soft">
+          {/* Out of stock badge - RIGHT side */}
+          {!inStock && (
+            <div className="absolute top-2.5 right-2.5">
+              <span className="px-2.5 py-1 text-[10px] font-medium rounded-full bg-foreground/80 text-background backdrop-blur-sm shadow-soft">
                 ناموجود
               </span>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Discount badge - تخفیف on LEFT side */}
+          {/* Discount badge - LEFT side */}
           {discount > 0 && (
-            <div className="absolute top-2 left-2">
-              <span className="px-2 py-1 text-[10px] sm:text-xs font-medium rounded-md bg-destructive text-destructive-foreground shadow-soft">
+            <div className="absolute top-2.5 left-2.5">
+              <span className="px-2.5 py-1 text-[10px] sm:text-xs font-bold rounded-full bg-destructive text-destructive-foreground shadow-soft">
                 {discount}٪ تخفیف
               </span>
             </div>
           )}
 
-          {/* Color indicator badge */}
+          {/* Color indicator swatch */}
           <div className="absolute bottom-3 right-3 flex gap-1">
-	            <div
-	              className="w-7 h-7 rounded-full border-2 border-white shadow-md overflow-hidden"
-	              style={!swatchImage && color?.startsWith("#") ? { backgroundColor: color } : undefined}
-	              title={colorName}
+            <div
+              className="w-6 h-6 rounded-full border-2 border-white shadow-soft overflow-hidden"
+              style={!swatchImage && color?.startsWith("#") ? { backgroundColor: color } : undefined}
+              title={colorName}
             >
               {swatchImage && (
                 <img src={swatchImage} alt={colorName} className="w-full h-full object-cover" />
@@ -167,11 +182,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           </div>
 
-          {/* Favorite button - on LEFT side */}
+          {/* Favorite button - LEFT side */}
           <button
-            className={`absolute ${discount > 0 ? 'top-12' : 'top-2'} left-2 p-2 backdrop-blur-sm rounded-full transition-all duration-300 ${isProductFavorite
+            className={`absolute ${discount > 0 ? 'top-11 sm:top-12' : 'top-2.5'} left-2.5 p-2 rounded-full backdrop-blur-md transition-all duration-300 shadow-soft ${isProductFavorite
                 ? "bg-destructive/10 text-destructive"
-                : "bg-black/10 text-white hover:bg-white/20"
+                : "bg-white/80 dark:bg-black/40 text-foreground hover:bg-white dark:hover:bg-black/60"
               }`}
             onClick={(e: React.MouseEvent) => {
               e.preventDefault();
@@ -188,31 +203,53 @@ const ProductCard: React.FC<ProductCardProps> = ({
             }
           >
             <Heart
-              className="h-5 w-5"
+              className="h-4 w-4"
               fill={isProductFavorite ? "currentColor" : "none"}
             />
           </button>
         </div>
 
-        <div className="product-card-content p-4">
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="product-card-title text-xs font-medium text-foreground group-hover:text-primary transition-colors duration-300 line-clamp-1 overflow-hidden text-ellipsis">
-                {name}
-              </h3>
-              <p className="text-sm text-muted-foreground">{colorName} - {brand}</p>
-            </div>
-
-            {rating && rating > 0 && (
-              <div className="flex items-center bg-secondary rounded-md px-1.5 py-0.5">
+        <div className="product-card-content p-3 sm:p-4">
+          {/* Rating chip - floats over the image/content seam */}
+          {rating !== undefined && rating > 0 && (
+            <div className="relative z-10 -mt-7 sm:-mt-8 mb-2 w-fit">
+              <div className="flex items-center gap-1 bg-card border border-border/10 shadow-medium rounded-full pl-2 pr-2.5 py-1">
                 <Star className="h-3.5 w-3.5 text-warning fill-warning" />
-                <span className="text-xs font-medium mr-1">{rating.toFixed(1)}</span>
+                <span className="text-xs font-bold text-foreground">{rating.toFixed(1)}</span>
+                <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground border-r border-border/30 pr-1.5 mr-0.5">
+                  نظرات
+                  <ChevronLeft className="h-3 w-3" />
+                </span>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          <div className="mt-2 mb-3">
-            <div className="flex items-center gap-2">
+          <h3 className="product-card-title text-xs sm:text-sm font-bold text-foreground group-hover:text-primary transition-colors duration-300 line-clamp-1">
+            {name}
+          </h3>
+          <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">{colorName} · {brand}</p>
+
+          {(ribbonLabel || isNew) && (
+            <span className="badge badge-primary mt-2 text-[10px] sm:text-xs">
+              {ribbonLabel || "جدید"}
+            </span>
+          )}
+
+          {description && (
+            <>
+              <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-2 mt-2 leading-relaxed">
+                {description}
+              </p>
+              {description.length > 60 && (
+                <span className="text-[10px] sm:text-[11px] text-primary font-medium underline underline-offset-2">
+                  بیشتر بخوانید
+                </span>
+              )}
+            </>
+          )}
+
+          <div className="mt-3 flex items-end justify-between gap-2">
+            <div className="flex flex-col">
               <span
                 className={`product-card-price text-xs sm:text-base md:text-lg font-bold ${discount > 0 ? "text-primary" : "text-foreground"
                   }`}
@@ -221,40 +258,57 @@ const ProductCard: React.FC<ProductCardProps> = ({
               </span>
 
               {discount > 0 && (
-                <span className="text-[10px] sm:text-xs md:text-sm text-muted-foreground line-through">
+                <span className="text-[10px] sm:text-xs text-muted-foreground line-through">
                   {formatPrice(originalPrice)}
                 </span>
               )}
             </div>
+
+            {inStock && availableSizes.length > 0 ? (
+              singleSize ? (
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <div className="flex items-center border border-border/20 rounded-full bg-secondary/40">
+                    <button
+                      onClick={(e) => adjustQuantity(e, -1)}
+                      disabled={quantity <= 1}
+                      className="p-1.5 text-foreground hover:text-primary transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                      aria-label="کاهش تعداد"
+                    >
+                      <Minus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    </button>
+                    <span className="w-4 sm:w-5 text-center text-[11px] sm:text-xs font-semibold text-foreground">
+                      {quantity}
+                    </span>
+                    <button
+                      onClick={(e) => adjustQuantity(e, 1)}
+                      disabled={quantity >= singleSize.quantity}
+                      className="p-1.5 text-foreground hover:text-primary transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                      aria-label="افزایش تعداد"
+                    >
+                      <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    </button>
+                  </div>
+                  <button
+                    onClick={handleQuickAdd}
+                    className="p-2 sm:p-2.5 rounded-full bg-primary text-primary-foreground shadow-soft hover:bg-primary/90 hover:shadow-medium transition-all duration-300"
+                    aria-label="افزودن به سبد خرید"
+                  >
+                    <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleOpenModal}
+                  className="p-2 sm:p-2.5 rounded-full bg-primary text-primary-foreground shadow-soft hover:bg-primary/90 hover:shadow-medium transition-all duration-300"
+                  aria-label="انتخاب سایز و خرید"
+                >
+                  <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                </button>
+              )
+            ) : (
+              <span className="text-[10px] sm:text-xs text-muted-foreground">ناموجود</span>
+            )}
           </div>
-
-          {inStock && availableSizes.length > 0 && (
-            <div className="mt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                fullWidth
-                onClick={handleOpenModal}
-                className="group-hover:bg-primary group-hover:text-primary-foreground transition-all"
-              >
-                <ShoppingCart className="h-4 w-4 ml-2" />
-                انتخاب سایز و خرید
-              </Button>
-            </div>
-          )}
-
-          {!inStock && (
-            <div className="mt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                fullWidth
-                disabled
-              >
-                ناموجود
-              </Button>
-            </div>
-          )}
         </div>
       </Link>
 
@@ -272,7 +326,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-card rounded-xl p-6 max-w-md w-full"
+              className="bg-card rounded-2xl p-6 max-w-md w-full shadow-strong"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-4">
