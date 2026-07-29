@@ -144,7 +144,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
               alt={`${name} - ${colorName}`}
               width={300}
               height={300}
-              className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700"
+              className="object-contain w-full h-full group-hover:scale-105 transition-transform duration-700"
               loading="lazy"
               sizes="(max-width: 640px) 160px, (max-width: 768px) 200px, (max-width: 1024px) 220px, 250px"
             />
@@ -157,7 +157,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
           {/* Out of stock badge - RIGHT side */}
           {!inStock && (
             <div className="absolute top-2.5 right-2.5">
-              <span className="px-2.5 py-1 text-[10px] font-medium rounded-full bg-foreground/80 text-background backdrop-blur-sm shadow-soft">
+              <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[8px] sm:text-[10px] font-medium rounded-full bg-foreground/80 text-background backdrop-blur-sm shadow-soft">
                 ناموجود
               </span>
             </div>
@@ -166,7 +166,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
           {/* Discount badge - LEFT side */}
           {discount > 0 && (
             <div className="absolute top-2.5 left-2.5">
-              <span className="px-2.5 py-1 text-[10px] sm:text-xs font-bold rounded-full bg-destructive text-destructive-foreground shadow-soft">
+              <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[8px] sm:text-xs font-bold rounded-full bg-destructive text-destructive-foreground shadow-soft">
                 {discount}٪ تخفیف
               </span>
             </div>
@@ -187,7 +187,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
           {/* Favorite button - LEFT side */}
           <button
-            className={`absolute ${discount > 0 ? 'top-11 sm:top-12' : 'top-2.5'} left-2.5 p-2 rounded-full backdrop-blur-md transition-all duration-300 shadow-soft ${isProductFavorite
+            className={`absolute ${discount > 0 ? 'top-9 sm:top-12' : 'top-2.5'} left-2.5 p-1.5 sm:p-2 rounded-full backdrop-blur-md transition-all duration-300 shadow-soft ${isProductFavorite
                 ? "bg-destructive/10 text-destructive"
                 : "bg-white/80 dark:bg-black/40 text-foreground hover:bg-white dark:hover:bg-black/60"
               }`}
@@ -206,7 +206,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
             }
           >
             <Heart
-              className="h-4 w-4"
+              className="h-3 w-3 sm:h-4 sm:w-4"
               fill={isProductFavorite ? "currentColor" : "none"}
             />
           </button>
@@ -216,35 +216,35 @@ const ProductCard: React.FC<ProductCardProps> = ({
           {/* Rating chip - floats over the image/content seam */}
           {rating !== undefined && rating > 0 && (
             <div className="relative z-10 -mt-7 sm:-mt-8 mb-2 w-fit">
-              <div className="flex items-center gap-1 bg-card border border-border/10 shadow-medium rounded-full pl-2 pr-2.5 py-1">
-                <Star className="h-3.5 w-3.5 text-warning fill-warning" />
-                <span className="text-xs font-bold text-foreground">{rating.toFixed(1)}</span>
-                <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground border-r border-border/30 pr-1.5 mr-0.5">
+              <div className="flex items-center gap-1 bg-card border border-border/10 shadow-medium rounded-full pl-1.5 pr-2 py-0.5 sm:pl-2 sm:pr-2.5 sm:py-1">
+                <Star className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-warning fill-warning" />
+                <span className="text-[10px] sm:text-xs font-bold text-foreground">{rating.toFixed(1)}</span>
+                <span className="flex items-center gap-0.5 text-[8px] sm:text-[10px] text-muted-foreground border-r border-border/30 pr-1.5 mr-0.5">
                   نظرات
-                  <ChevronLeft className="h-3 w-3" />
+                  <ChevronLeft className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                 </span>
               </div>
             </div>
           )}
 
-          <h3 className="product-card-title text-xs sm:text-sm font-bold text-foreground group-hover:text-primary transition-colors duration-300 line-clamp-1">
+          <h3 className="product-card-title text-[11px] sm:text-sm font-bold text-foreground group-hover:text-primary transition-colors duration-300 line-clamp-1">
             {name}
           </h3>
-          <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">{colorName} · {brand}</p>
+          <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{colorName} · {brand}</p>
 
           {(ribbonLabel || isNew) && (
-            <span className="badge badge-primary mt-2 text-[10px] sm:text-xs">
+            <span className="badge badge-primary mt-2 text-[9px] sm:text-xs">
               {ribbonLabel || "جدید"}
             </span>
           )}
 
           {description && (
             <>
-              <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-2 mt-2 leading-relaxed">
+              <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-2 mt-2 leading-relaxed">
                 {description}
               </p>
               {description.length > 60 && (
-                <span className="text-[10px] sm:text-[11px] text-primary font-medium underline underline-offset-2">
+                <span className="text-[9px] sm:text-[11px] text-primary font-medium underline underline-offset-2">
                   بیشتر بخوانید
                 </span>
               )}
@@ -254,14 +254,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
           <div className="mt-3 flex items-end justify-between gap-2">
             <div className="flex flex-col">
               <span
-                className={`product-card-price text-xs sm:text-base md:text-lg font-bold ${discount > 0 ? "text-primary" : "text-foreground"
+                className={`product-card-price text-[11px] sm:text-base md:text-lg font-bold ${discount > 0 ? "text-primary" : "text-foreground"
                   }`}
               >
                 {formatPrice(price)}
               </span>
 
               {discount > 0 && (
-                <span className="text-[10px] sm:text-xs text-muted-foreground line-through">
+                <span className="text-[9px] sm:text-xs text-muted-foreground line-through">
                   {formatPrice(originalPrice)}
                 </span>
               )}
@@ -279,7 +279,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                     >
                       <Minus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                     </button>
-                    <span className="w-4 sm:w-5 text-center text-[11px] sm:text-xs font-semibold text-foreground">
+                    <span className="w-4 sm:w-5 text-center text-[10px] sm:text-xs font-semibold text-foreground">
                       {quantity}
                     </span>
                     <button
@@ -309,7 +309,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 </button>
               )
             ) : (
-              <span className="text-[10px] sm:text-xs text-muted-foreground">ناموجود</span>
+              <span className="text-[9px] sm:text-xs text-muted-foreground">ناموجود</span>
             )}
           </div>
         </div>
