@@ -173,27 +173,32 @@ func (wa *WritingAgent) buildWritingPrompt(snapshot *ResearchSnapshot) string {
 - Address uncertainties: %s
 
 **Content Structure Rules:**
-You MUST use exactly these 6 block types in order:
+You have these block types available:
 
 1. "title" - Main article title (H1, exactly one, always first)
-2. "header" - Major section heading (H2)
-3. "section" - Subsection heading (H3)
-4. "subsection" - Minor heading (H4)
-5. "text" - Paragraph content (plain text only, no HTML/Markdown)
-6. "image" - Image placeholder with imageSlotID (e.g., "img-1", "img-2", "img-3")
+2. "header" - Section heading (H2)
+3. "txt" - Paragraph content (plain prose only, no HTML/Markdown)
+4. "image" - Image placeholder with imageSlotID (e.g., "img-1", "img-2", "img-3")
+5. "list" - A real bullet or numbered list, for genuinely enumerable content
+   (tips, steps, materials). Fields: "items" (array of strings), "ordered"
+   (true for a numbered list, false/omitted for bullets). Do NOT fake a list
+   by writing "1. ..." lines inside a "txt" block — use this type instead.
+6. "quote" - A short pull-quote/callout highlighting one tip or remark, for
+   visual variety. Fields: "text" (the quote body), "attribution" (optional,
+   e.g. a name or "تیم وکسینا" — omit if there's no one to attribute it to).
+7. "product" - OPTIONAL. Recommends a specific kind of product from the store
+   at a contextually natural point. See "Product Block Rule" below.
 
 **Image Placement:**
-- Insert exactly %d image block(s) BETWEEN text blocks
-- Images must never be first or last
+- Insert exactly %d image block(s) BETWEEN other content blocks
+- Images must never be first or last, and never directly next to another image
 - Space images evenly throughout the article
 - Each image block needs: type="image", imageSlotID="img-N", alt="descriptive text"
 
-**Heading Hierarchy:**
+**Heading Structure:**
 - Start with title (H1)
-- Use header (H2) for main sections
-- Use section (H3) for subsections under headers
-- Use subsection (H4) sparingly for deeper nesting
-- Never skip levels (no H4 directly after H2)
+- Use header (H2) for section breaks — that's the only heading level below
+  the title, so don't try to nest deeper headings
 
 **Writing Guidelines:**
 - Write naturally in Persian, not translated-sounding
@@ -201,17 +206,42 @@ You MUST use exactly these 6 block types in order:
 - Include practical tips and actionable advice
 - Use short paragraphs (2-4 sentences)
 - Break up text with headings every 200-300 words
+- Use "list"/"quote" blocks where they genuinely fit better than prose
 - End with a conclusion or call-to-action
+
+**Text Block Content Rule (CRITICAL):**
+- A "txt" block must contain ONLY flowing prose. NEVER start it with a label,
+  prefix, or heading-like phrase such as "مقدمه:", "نتیجه‌گیری:", or a
+  rhetorical question formatted as a title (e.g. "موضوع چیست؟" on its own line
+  followed by a blank line).
+- The article's opening "txt" block (right after "title") must jump straight
+  into the hook sentence — no "مقدمه" label of any kind, since the reader
+  already sees the article title above it.
+- If a section genuinely needs a heading, use a "header" block for it — never
+  simulate a heading by writing it as the first line of a "txt" block.
+
+**Product Block Rule (CRITICAL):**
+- Use at most 1-2 "product" blocks in the whole article, only where recommending
+  a specific kind of item is genuinely natural (e.g. "یک پیراهن رسمی مناسب
+  مصاحبه شغلی"). Never first, last, or directly adjacent to another product block.
+- Write ONLY a short "productDescription" (1-2 Persian sentences describing what
+  kind of product to recommend). Do NOT invent a product name, price, brand, or
+  link — a human picks the actual product afterward from the real catalog.
+- If nothing in the article genuinely calls for a product recommendation, omit
+  this block type entirely — it is optional, never forced.
 
 **Output Format:**
 Return JSON with this exact structure:
 {
   "blocks": [
     {"type": "title", "text": "عنوان مقاله", "order": 0},
-    {"type": "text", "text": "مقدمه...", "order": 1},
+    {"type": "txt", "text": "شاید شما هم متوجه شده‌اید که...", "order": 1},
     {"type": "image", "imageSlotID": "img-1", "alt": "توضیح تصویر", "order": 2},
     {"type": "header", "text": "بخش اول", "order": 3},
-    {"type": "text", "text": "محتوای بخش...", "order": 4},
+    {"type": "txt", "text": "محتوای بخش...", "order": 4},
+    {"type": "list", "items": ["نکته اول", "نکته دوم", "نکته سوم"], "ordered": false, "order": 5},
+    {"type": "quote", "text": "یک نقل‌قول کوتاه و کاربردی", "attribution": "تیم وکسینا", "order": 6},
+    {"type": "product", "productDescription": "یک پیراهن رسمی سرمه‌ای مناسب مصاحبه شغلی", "order": 7},
     ...
   ],
   "excerpt": "خلاصه 50-100 کلمه‌ای مقاله",
@@ -260,12 +290,10 @@ func (wa *WritingAgent) attemptBlockRepair(ctx context.Context, snapshot *Resear
 	imageCount := 0
 	textWords := 0
 	for _, b := range blocks {
-		if b.Type == "image" {
+		if b.Type == models.BlockTypeImage {
 			imageCount++
 		}
-		if b.Type == "text" {
-			textWords += len(strings.Fields(b.Text))
-		}
+		textWords += countBlockWords(b)
 	}
 	maxImages := 1
 	if textWords >= 1400 {
@@ -300,9 +328,9 @@ Write a complete Persian blog post. Return JSON with this structure:
 {
   "blocks": [
     {"type": "title", "text": "عنوان مقاله", "order": 0},
-    {"type": "text", "text": "مقدمه...", "order": 1},
+    {"type": "txt", "text": "شاید شما هم متوجه شده‌اید که...", "order": 1},
     {"type": "header", "text": "بخش اول", "order": 2},
-    {"type": "text", "text": "محتوا...", "order": 3}
+    {"type": "txt", "text": "محتوا...", "order": 3}
   ],
   "excerpt": "خلاصه مقاله",
   "recommended_category": "دستهبندی",
@@ -313,7 +341,13 @@ Rules:
 - Write ONLY in Persian (Farsi)
 - Exactly one title block first
 - Max %d image(s) for %d words
-- No HTML or Markdown in text blocks
+- No HTML or Markdown in txt blocks
+- A "txt" block must be pure prose only — never start it with a label like
+  "مقدمه:" or a standalone heading-style question. Use a "header" block if a
+  heading is actually needed
+- "list"/"quote"/"product" blocks may be used but are optional; a "product"
+  block must contain only a short "productDescription", never an invented
+  product name/price
 - Return ONLY valid JSON`, brief.Topic, brief.TargetAudience, brief.DesiredLength, brief.Tone, brief.Category, strings.Join(brief.Keywords, ", "), formatFindings(research.Findings), research.Outline.Title, strings.Join(research.Outline.Sections, ", "), maxImages, textWords)
 	} else {
 		prompt = fmt.Sprintf(`Previous block generation failed validation. Please fix the blocks.
@@ -325,8 +359,8 @@ CRITICAL Validation errors to fix:
 - You have %d image blocks but only %d are allowed for %d words of text content (max %d images for <800 words, 2 for 800-1400 words, 3 for >1400 words)
 - REMOVE excess image blocks to match the allowed count
 - Ensure exactly one "title" block first
-- Ensure images appear between text blocks, never first or last
-- Ensure proper heading hierarchy (title→header→section→subsection)
+- Ensure images are never first, last, or directly adjacent to another image
+- Ensure heading structure is just title→header (no deeper heading levels exist)
 - Write ONLY in Persian (Farsi)
 
 Return corrected blocks in the same JSON format with the correct number of images.`, formatBlocks(blocks), imageCount, maxImages, textWords, maxImages)
@@ -375,21 +409,28 @@ func (wa *WritingAgent) calculateContentHash(blocks []models.BlogBlock) string {
 // extractTitle extracts the title from blocks
 func (wa *WritingAgent) extractTitle(blocks []models.BlogBlock) string {
 	for _, block := range blocks {
-		if block.Type == "title" {
+		if block.Type == models.BlockTypeTitle {
 			return block.Text
 		}
 	}
 	return "Untitled"
 }
 
+// countBlockWords counts readable words in a block, covering plain Text
+// (title/header/txt/quote) as well as list Items.
+func countBlockWords(b models.BlogBlock) int {
+	count := len(strings.Fields(b.Text))
+	for _, item := range b.Items {
+		count += len(strings.Fields(item))
+	}
+	return count
+}
+
 // calculateReadTime estimates read time in minutes
 func (wa *WritingAgent) calculateReadTime(blocks []models.BlogBlock) int {
 	wordCount := 0
 	for _, block := range blocks {
-		if block.Type == "text" || block.Type == "title" || block.Type == "header" || block.Type == "section" || block.Type == "subsection" {
-			words := strings.Fields(block.Text)
-			wordCount += len(words)
-		}
+		wordCount += countBlockWords(block)
 	}
 
 	// Average reading speed: 200 words per minute
@@ -414,22 +455,26 @@ func writingOutputSchema() map[string]interface{} {
 						"properties": map[string]interface{}{
 							"type": map[string]interface{}{
 								"type": "string",
-								"enum": []string{"title", "header", "section", "subsection", "text", "image"},
+								"enum": []string{"title", "header", "txt", "image", "list", "quote", "product"},
 							},
-							"id":          map[string]interface{}{"type": "string"},
-							"order":       map[string]interface{}{"type": "integer"},
-							"text":        map[string]interface{}{"type": "string"},
-							"imageSlotID": map[string]interface{}{"type": "string"},
-							"imageID":     map[string]interface{}{"type": "string"},
-							"alt":         map[string]interface{}{"type": "string"},
-							"caption":     map[string]interface{}{"type": "string"},
+							"id":                 map[string]interface{}{"type": "string"},
+							"order":              map[string]interface{}{"type": "integer"},
+							"text":               map[string]interface{}{"type": "string"},
+							"imageSlotID":        map[string]interface{}{"type": "string"},
+							"imageID":            map[string]interface{}{"type": "string"},
+							"alt":                map[string]interface{}{"type": "string"},
+							"caption":            map[string]interface{}{"type": "string"},
+							"items":              map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}},
+							"ordered":            map[string]interface{}{"type": "boolean"},
+							"attribution":        map[string]interface{}{"type": "string"},
+							"productDescription": map[string]interface{}{"type": "string"},
 						},
 						"allOf": []map[string]interface{}{
 							{
 								"if": map[string]interface{}{
 									"properties": map[string]interface{}{
 										"type": map[string]interface{}{
-											"enum": []string{"title", "header", "section", "subsection", "text"},
+											"enum": []string{"title", "header", "txt", "quote"},
 										},
 									},
 								},
@@ -447,6 +492,30 @@ func writingOutputSchema() map[string]interface{} {
 								},
 								"then": map[string]interface{}{
 									"required": []string{"type", "order", "imageSlotID", "alt"},
+								},
+							},
+							{
+								"if": map[string]interface{}{
+									"properties": map[string]interface{}{
+										"type": map[string]interface{}{
+											"const": "list",
+										},
+									},
+								},
+								"then": map[string]interface{}{
+									"required": []string{"type", "order", "items"},
+								},
+							},
+							{
+								"if": map[string]interface{}{
+									"properties": map[string]interface{}{
+										"type": map[string]interface{}{
+											"const": "product",
+										},
+									},
+								},
+								"then": map[string]interface{}{
+									"required": []string{"type", "order", "productDescription"},
 								},
 							},
 						},
@@ -534,9 +603,7 @@ func generateSlug(title string) string {
 func trimExcessImages(blocks []models.BlogBlock) []models.BlogBlock {
 	textWords := 0
 	for _, b := range blocks {
-		if b.Type == "text" {
-			textWords += len(strings.Fields(b.Text))
-		}
+		textWords += countBlockWords(b)
 	}
 	maxImages := 1
 	if textWords >= 1400 {
@@ -548,7 +615,7 @@ func trimExcessImages(blocks []models.BlogBlock) []models.BlogBlock {
 	imageCount := 0
 	var result []models.BlogBlock
 	for _, b := range blocks {
-		if b.Type == "image" {
+		if b.Type == models.BlockTypeImage {
 			imageCount++
 			if imageCount > maxImages {
 				continue // skip excess images

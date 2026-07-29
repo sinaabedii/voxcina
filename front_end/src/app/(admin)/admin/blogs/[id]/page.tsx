@@ -28,6 +28,7 @@ export default function BlogDetailPage() {
 
   const {
     currentRun,
+    currentPost,
     currentMedia,
     fetchRun,
     deleteRun,
@@ -263,7 +264,12 @@ export default function BlogDetailPage() {
             />
           )}
           {currentStage === "content" && (
-            <ContentStage run={currentRun} onApprove={handleApproveContent} onTriggerWriting={handleTriggerWriting} />
+            <ContentStage
+              run={currentRun}
+              post={currentPost}
+              onApprove={handleApproveContent}
+              onTriggerWriting={handleTriggerWriting}
+            />
           )}
           {currentStage === "prompts" && (
             <PromptsStage run={currentRun} onApprove={handleApprovePrompts} onTriggerPrompts={handleTriggerPrompts} />
@@ -271,6 +277,7 @@ export default function BlogDetailPage() {
           {currentStage === "preview" && (
             <PreviewStage
               run={currentRun}
+              post={currentPost}
               media={currentMedia}
               onApprove={handleApprovePrompts}
               onPublish={handlePublish}

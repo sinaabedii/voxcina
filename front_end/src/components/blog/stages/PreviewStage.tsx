@@ -3,12 +3,14 @@
 import { useMemo, useCallback, useState, useRef } from "react";
 import Button from "@/components/ui/Button";
 import Image from "next/image";
-import { BlogPipelineRun, BlogBlock, BlogMedia } from "@/types/blog";
+import { BlogPipelineRun, BlogPost, BlogBlock, BlogMedia } from "@/types/blog";
 import { useBlogAdminStore } from "@/store/blog-admin-store";
 import { toast } from "react-hot-toast";
+import BlogProductCard from "../BlogProductCard";
 
 interface PreviewStageProps {
   run: BlogPipelineRun;
+  post: BlogPost | null;
   media: BlogMedia[];
   onApprove: () => void;
   onPublish: () => void;
@@ -57,7 +59,7 @@ function normalizeOutput(parsedOutput: unknown, rawResponse?: string): Record<st
   return undefined;
 }
 
-export default function PreviewStage({ run, media, onApprove, onPublish, onUnpublish, onArchive }: PreviewStageProps) {
+export default function PreviewStage({ run, post, media, onApprove, onPublish, onUnpublish, onArchive }: PreviewStageProps) {
   const { uploadMedia, deleteMedia } = useBlogAdminStore();
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null);
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
@@ -71,9 +73,11 @@ export default function PreviewStage({ run, media, onApprove, onPublish, onUnpub
     () => normalizeOutput(writingExec?.parsedOutput, writingExec?.rawResponse),
     [writingExec?.parsedOutput, writingExec?.rawResponse]
   );
+  // Prefer the live post's blocks (reflects product-block resolution) over the
+  // frozen write-stage execution snapshot, once the post actually exists.
   const blocks: BlogBlock[] = useMemo(
-    () => (writingOutput?.blocks as BlogBlock[]) || [],
-    [writingOutput]
+    () => (post?.blocks?.length ? post.blocks : (writingOutput?.blocks as BlogBlock[]) || []),
+    [post?.blocks, writingOutput]
   );
   const excerpt = (writingOutput?.excerpt as string) || "";
   const tags = (writingOutput?.tags as string[]) || (writingOutput?.recommended_tags as string[]) || [];
@@ -407,14 +411,40 @@ export default function PreviewStage({ run, media, onApprove, onPublish, onUnpub
               {block.type === "header" && (
                 <h2 className="text-2xl font-bold text-voxcina-blue mt-6 mb-3">{block.text}</h2>
               )}
-              {block.type === "section" && (
-                <h3 className="text-xl font-bold text-voxcina-blue mt-4 mb-2">{block.text}</h3>
-              )}
-              {block.type === "subsection" && (
-                <h4 className="text-lg font-bold text-voxcina-blue mt-3 mb-2">{block.text}</h4>
-              )}
-              {block.type === "text" && (
+              {block.type === "txt" && (
                 <p className="text-gray-900 leading-relaxed">{block.text}</p>
+              )}
+              {block.type === "list" && (
+                block.ordered ? (
+                  <ol className="list-decimal pr-5 space-y-1 text-gray-900 leading-relaxed">
+                    {(block.items || []).map((item, i) => (
+                      <li key={i}>{item}</li>
+                    ))}
+                  </ol>
+                ) : (
+                  <ul className="list-disc pr-5 space-y-1 text-gray-900 leading-relaxed">
+                    {(block.items || []).map((item, i) => (
+                      <li key={i}>{item}</li>
+                    ))}
+                  </ul>
+                )
+              )}
+              {block.type === "quote" && (
+                <blockquote className="border-r-4 border-primary-300 bg-secondary-100/60 rounded-xl p-4">
+                  <p className="text-voxcina-blue italic font-medium leading-relaxed">{block.text}</p>
+                  {block.attribution && (
+                    <footer className="text-sm text-gray-500 mt-2">— {block.attribution}</footer>
+                  )}
+                </blockquote>
+              )}
+              {block.type === "product" && (
+                block.productId ? (
+                  <BlogProductCard block={block} />
+                ) : (
+                  <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-4 text-sm text-gray-500">
+                    محصول هنوز انتخاب نشده — «{block.productDescription}»
+                  </div>
+                )
               )}
               {block.type === "image" && (
                 <figure className="my-4">

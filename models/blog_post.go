@@ -9,12 +9,13 @@ import (
 
 // Blog block types (discriminated union).
 const (
-	BlockTypeTitle      = "title"
-	BlockTypeHeader     = "header"
-	BlockTypeSection    = "section"
-	BlockTypeSubsection = "subsection"
-	BlockTypeText       = "text"
-	BlockTypeImage      = "image"
+	BlockTypeTitle   = "title"
+	BlockTypeHeader  = "header"
+	BlockTypeText    = "txt"
+	BlockTypeImage   = "image"
+	BlockTypeList    = "list"
+	BlockTypeQuote   = "quote"
+	BlockTypeProduct = "product"
 )
 
 // Valid blog statuses.
@@ -72,6 +73,25 @@ type BlogBlock struct {
 	ImageID     string `bson:"image_id,omitempty" json:"imageId,omitempty"`
 	Alt         string `bson:"alt,omitempty" json:"alt,omitempty"`
 	Caption     string `bson:"caption,omitempty" json:"caption,omitempty"`
+
+	// List blocks.
+	Items   []string `bson:"items,omitempty" json:"items,omitempty"`
+	Ordered bool     `bson:"ordered,omitempty" json:"ordered,omitempty"`
+
+	// Quote blocks (body text reuses Text above).
+	Attribution string `bson:"attribution,omitempty" json:"attribution,omitempty"`
+
+	// Product blocks. ProductDescription is writer-authored intent; the rest
+	// is filled in later by an admin (manual search or AI auto-match) — a
+	// product block is "resolved" iff ProductID is non-empty.
+	ProductDescription   string  `bson:"product_description,omitempty" json:"productDescription,omitempty"`
+	ProductID            string  `bson:"product_id,omitempty" json:"productId,omitempty"`
+	ProductColorHex      string  `bson:"product_color_hex,omitempty" json:"productColorHex,omitempty"`
+	ProductColorName     string  `bson:"product_color_name,omitempty" json:"productColorName,omitempty"`
+	ProductName          string  `bson:"product_name,omitempty" json:"productName,omitempty"`
+	ProductImage         string  `bson:"product_image,omitempty" json:"productImage,omitempty"`
+	ProductPrice         float64 `bson:"product_price,omitempty" json:"productPrice,omitempty"`
+	ProductOriginalPrice float64 `bson:"product_original_price,omitempty" json:"productOriginalPrice,omitempty"`
 }
 
 // AuthorSnapshot is a lightweight author reference embedded in blog posts.

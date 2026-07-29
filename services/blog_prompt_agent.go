@@ -81,9 +81,16 @@ func (pa *PromptAgent) extractContentSummary(blocks []models.BlogBlock) string {
 	var sb strings.Builder
 
 	for _, block := range blocks {
-		if block.Type == "text" || block.Type == "title" || block.Type == "header" || block.Type == "section" || block.Type == "subsection" {
+		switch block.Type {
+		case models.BlockTypeText, models.BlockTypeTitle, models.BlockTypeHeader, models.BlockTypeQuote:
 			sb.WriteString(block.Text)
 			sb.WriteString("\n\n")
+		case models.BlockTypeList:
+			for _, item := range block.Items {
+				sb.WriteString(item)
+				sb.WriteString("\n")
+			}
+			sb.WriteString("\n")
 		}
 	}
 
@@ -255,7 +262,7 @@ func (pa *PromptAgent) getContextWindow(blocks []models.BlogBlock, imageIndex, t
 	// Find actual positions of image blocks
 	var imagePositions []int
 	for i, b := range blocks {
-		if b.Type == "image" {
+		if b.Type == models.BlockTypeImage {
 			imagePositions = append(imagePositions, i)
 		}
 	}
@@ -274,7 +281,7 @@ func (pa *PromptAgent) getContextWindow(blocks []models.BlogBlock, imageIndex, t
 
 		var sb strings.Builder
 		for i := startIdx; i <= endIdx; i++ {
-			if blocks[i].Type != "image" {
+			if blocks[i].Type != models.BlockTypeImage {
 				if blocks[i].Text != "" {
 					sb.WriteString(blocks[i].Text)
 					sb.WriteString("\n\n")
@@ -297,7 +304,7 @@ func (pa *PromptAgent) getContextWindow(blocks []models.BlogBlock, imageIndex, t
 
 	var sb strings.Builder
 	for i := startIdx; i <= endIdx; i++ {
-		if blocks[i].Type == "text" || blocks[i].Type == "header" || blocks[i].Type == "section" || blocks[i].Type == "subsection" {
+		if blocks[i].Type == models.BlockTypeText || blocks[i].Type == models.BlockTypeHeader || blocks[i].Type == models.BlockTypeQuote {
 			sb.WriteString(blocks[i].Text)
 			sb.WriteString("\n\n")
 		}

@@ -1,6 +1,16 @@
 import { create } from "zustand";
 import { BlogPost, BlogPipelineRun, BlogBlock, BlogMedia, GenerationBrief } from "@/types/blog";
 
+export interface MatchedProductCandidate {
+  productId: string;
+  name: string;
+  image: string;
+  colorHex: string;
+  colorName: string;
+  price: number;
+  originalPrice: number;
+}
+
 interface BlogAdminState {
   // State
   currentRun: BlogPipelineRun | null;
@@ -21,6 +31,9 @@ interface BlogAdminState {
   approvePrompts: (runID: string) => Promise<boolean>;
   updateBlocks: (postID: string, blocks: BlogBlock[]) => Promise<boolean>;
   finalizeContent: (postID: string) => Promise<boolean>;
+  searchProductBlockCandidates: (postID: string, query: string) => Promise<MatchedProductCandidate[]>;
+  autoMatchProductBlock: (postID: string, blockOrder: number) => Promise<boolean>;
+  selectProductBlock: (postID: string, blockOrder: number, productId: string, colorHex: string) => Promise<boolean>;
   uploadMedia: (postID: string, slot: string, file: File, alt: string) => Promise<BlogMedia | null>;
   deleteMedia: (mediaID: string) => Promise<boolean>;
   publishPost: (postID: string) => Promise<boolean>;
@@ -361,6 +374,104 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
         isLoading: false,
       });
       return null;
+    }
+  },
+
+  searchProductBlockCandidates: async (postID: string, query: string) => {
+    try {
+      const token = localStorage.getItem("authToken");
+      const res = await fetch(
+        `/api/admin/blog-posts/${postID}/product-blocks/search?q=${encodeURIComponent(query)}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!res.ok) {
+        throw new Error("Failed to search products");
+      }
+
+      const data = await res.json();
+      return (data.candidates as MatchedProductCandidate[]) || [];
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : "خطا در جستجوی محصول" });
+      return [];
+    }
+  },
+
+  autoMatchProductBlock: async (postID: string, blockOrder: number) => {
+    set({ isLoading: true, error: null });
+    try {
+      const token = localStorage.getItem("authToken");
+      const res = await fetch(`/api/admin/blog-posts/${postID}/product-blocks/${blockOrder}/auto-match`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to auto-match product");
+      }
+
+      const data = await res.json();
+      const updatedBlock: BlogBlock = data.block;
+      set((state) => ({
+        currentPost: state.currentPost
+          ? {
+              ...state.currentPost,
+              blocks: (state.currentPost.blocks || []).map((b) =>
+                b.order === blockOrder ? updatedBlock : b
+              ),
+            }
+          : state.currentPost,
+        isLoading: false,
+      }));
+      return true;
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : "خطا در پیشنهاد خودکار محصول",
+        isLoading: false,
+      });
+      return false;
+    }
+  },
+
+  selectProductBlock: async (postID: string, blockOrder: number, productId: string, colorHex: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const token = localStorage.getItem("authToken");
+      const res = await fetch(`/api/admin/blog-posts/${postID}/product-blocks/${blockOrder}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ productId, colorHex }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to select product");
+      }
+
+      const data = await res.json();
+      const updatedBlock: BlogBlock = data.block;
+      set((state) => ({
+        currentPost: state.currentPost
+          ? {
+              ...state.currentPost,
+              blocks: (state.currentPost.blocks || []).map((b) =>
+                b.order === blockOrder ? updatedBlock : b
+              ),
+            }
+          : state.currentPost,
+        isLoading: false,
+      }));
+      return true;
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : "خطا در انتخاب محصول",
+        isLoading: false,
+      });
+      return false;
     }
   },
 

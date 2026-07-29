@@ -6,6 +6,7 @@ import { useGSAP } from "@gsap/react";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
 import type { BlogBlock as BlogBlockType } from "@/types/blog";
 import { getBlockId } from "@/lib/blog-blocks";
+import BlogProductCard from "./BlogProductCard";
 
 interface BlogBlockRendererProps {
   blocks: BlogBlockType[];
@@ -116,34 +117,52 @@ function BlogBlockItem({ block, index }: { block: BlogBlockType; index: number }
         </h2>
       );
 
-    case "section":
+    case "txt":
       return (
-        <h3
-          id={id}
-          data-block="section"
-          className="mt-6 mb-3 scroll-mt-28 break-words text-xl font-bold text-voxcina-blue md:text-2xl"
-        >
-          {block.text}
-          <span data-heading-accent className="mt-1.5 block h-0.5 w-12 rounded-full bg-primary-300" />
-        </h3>
-      );
-
-    case "subsection":
-      return (
-        <h4
-          id={id}
-          data-block="subsection"
-          className="mt-4 mb-2 scroll-mt-28 break-words text-lg font-bold text-voxcina-blue md:text-xl"
-        >
-          {block.text}
-        </h4>
-      );
-
-    case "text":
-      return (
-        <p data-block="text" className="break-words text-base leading-relaxed text-gray-900 md:text-lg">
+        <p data-block="txt" className="break-words text-base leading-relaxed text-gray-900 md:text-lg">
           {block.text}
         </p>
+      );
+
+    case "list": {
+      const ListTag = block.ordered ? "ol" : "ul";
+      return (
+        <ListTag
+          data-block="list"
+          className={`space-y-1.5 pr-5 text-base leading-relaxed text-gray-900 md:text-lg ${
+            block.ordered ? "list-decimal" : "list-disc"
+          }`}
+        >
+          {(block.items || []).map((item, i) => (
+            <li key={i} className="break-words">
+              {item}
+            </li>
+          ))}
+        </ListTag>
+      );
+    }
+
+    case "quote":
+      return (
+        <blockquote
+          data-block="quote"
+          className="rounded-xl border-r-4 border-primary-300 bg-secondary-100/60 p-4 backdrop-blur-sm md:p-5"
+        >
+          <p className="break-words text-lg font-medium italic leading-relaxed text-voxcina-blue">
+            {block.text}
+          </p>
+          {block.attribution && (
+            <footer className="mt-2 text-sm text-gray-500">— {block.attribution}</footer>
+          )}
+        </blockquote>
+      );
+
+    case "product":
+      if (!block.productId) return null;
+      return (
+        <div data-block="product" className="my-6">
+          <BlogProductCard block={block} />
+        </div>
       );
 
     case "image":

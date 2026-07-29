@@ -141,7 +141,7 @@ export interface GenerationBrief {
   additionalNotes?: string;
 }
 
-export type BlockType = "title" | "header" | "section" | "subsection" | "text" | "image";
+export type BlockType = "title" | "header" | "txt" | "image" | "list" | "quote" | "product";
 
 export interface BlogBlock {
   type: BlockType;
@@ -152,6 +152,25 @@ export interface BlogBlock {
   imageId?: string;
   alt?: string;
   caption?: string;
+
+  // List blocks.
+  items?: string[];
+  ordered?: boolean;
+
+  // Quote blocks (body text reuses `text` above).
+  attribution?: string;
+
+  // Product blocks. `productDescription` is writer-authored intent; the rest
+  // is filled in later by an admin (manual search or AI auto-match) — a
+  // product block is "resolved" iff `productId` is set.
+  productDescription?: string;
+  productId?: string;
+  productColorHex?: string;
+  productColorName?: string;
+  productName?: string;
+  productImage?: string;
+  productPrice?: number;
+  productOriginalPrice?: number;
 }
 
 export interface BlogOutline {

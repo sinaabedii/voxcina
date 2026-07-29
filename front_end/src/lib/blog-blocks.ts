@@ -8,16 +8,14 @@ export function getBlockId(block: BlogBlock, index: number): string {
 export interface HeadingItem {
   id: string;
   text: string;
-  level: 2 | 3 | 4;
+  level: 2;
 }
 
-const LEVEL_BY_TYPE: Record<string, 2 | 3 | 4> = {
+const LEVEL_BY_TYPE: Record<string, 2> = {
   header: 2,
-  section: 3,
-  subsection: 4,
 };
 
-/** Extracts the header/section/subsection blocks as a flat table of contents. */
+/** Extracts the header blocks as a flat table of contents. */
 export function getHeadingItems(blocks: BlogBlock[] = []): HeadingItem[] {
   return blocks
     .map((block, index) => ({ block, index }))

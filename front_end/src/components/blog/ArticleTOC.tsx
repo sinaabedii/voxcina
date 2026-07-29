@@ -80,8 +80,6 @@ export default function ArticleTOC({ blocks }: ArticleTOCProps) {
               onClick={() => handleClick(item.id)}
               className={cn(
                 "-mr-0.5 block w-full border-r-2 py-1.5 pr-3 text-right transition-colors",
-                item.level === 3 && "pr-5 text-xs",
-                item.level === 4 && "pr-7 text-xs",
                 activeId === item.id
                   ? "border-voxcina-blue font-medium text-voxcina-blue"
                   : "border-transparent text-gray-500 hover:text-voxcina-blue"

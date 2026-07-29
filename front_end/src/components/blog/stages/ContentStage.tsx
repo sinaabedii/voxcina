@@ -2,10 +2,12 @@
 
 import { useMemo } from "react";
 import Button from "@/components/ui/Button";
-import { BlogPipelineRun, BlogBlock } from "@/types/blog";
+import { BlogPipelineRun, BlogPost, BlogBlock } from "@/types/blog";
+import ProductBlockPanel from "./ProductBlockPanel";
 
 interface ContentStageProps {
   run: BlogPipelineRun;
+  post: BlogPost | null;
   onApprove: () => void;
   onTriggerWriting: () => void;
 }
@@ -34,7 +36,7 @@ function normalizeWriterOutput(parsedOutput: unknown, rawResponse?: string): Rec
   return undefined;
 }
 
-export default function ContentStage({ run, onApprove, onTriggerWriting }: ContentStageProps) {
+export default function ContentStage({ run, post, onApprove, onTriggerWriting }: ContentStageProps) {
   const isWriting = run.status === "writing";
   const isApproved = run.status === "content_approved";
   const isFailed = !isWriting && !isApproved && run.status !== "brief";
@@ -51,9 +53,11 @@ export default function ContentStage({ run, onApprove, onTriggerWriting }: Conte
     () => normalizeWriterOutput(writingExec?.parsedOutput, writingExec?.rawResponse),
     [writingExec?.parsedOutput, writingExec?.rawResponse]
   );
+  // Prefer the live post's blocks (reflects product-block resolution) over the
+  // frozen write-stage execution snapshot, once the post actually exists.
   const blocks: BlogBlock[] = useMemo(
-    () => (output?.blocks as BlogBlock[]) || [],
-    [output]
+    () => (post?.blocks?.length ? post.blocks : (output?.blocks as BlogBlock[]) || []),
+    [post?.blocks, output]
   );
   const excerpt = useMemo(
     () => (output?.excerpt as string) || "",
@@ -134,8 +138,27 @@ export default function ContentStage({ run, onApprove, onTriggerWriting }: Conte
                   <p>جایگاه تصویر: {block.imageSlotId}</p>
                   {block.alt && <p className="mt-1">متن جایگزین: {block.alt}</p>}
                 </div>
+              ) : block.type === "list" ? (
+                <ul className="list-disc pr-5 text-gray-900 space-y-1">
+                  {(block.items || []).map((item, i) => (
+                    <li key={i}>{item}</li>
+                  ))}
+                </ul>
+              ) : block.type === "product" ? (
+                post ? (
+                  <ProductBlockPanel postId={post.id} block={block} />
+                ) : (
+                  <p className="text-sm text-gray-500">
+                    مقاله هنوز ذخیره نشده — «{block.productDescription}»
+                  </p>
+                )
               ) : (
-                <p className="text-gray-900 whitespace-pre-wrap">{block.text}</p>
+                <p className="text-gray-900 whitespace-pre-wrap">
+                  {block.text}
+                  {block.attribution && (
+                    <span className="block text-sm text-gray-500 mt-1">— {block.attribution}</span>
+                  )}
+                </p>
               )}
             </div>
           ))}
