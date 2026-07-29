@@ -129,11 +129,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
         href={productHref}
         data-activity-tracked="true"
         onClick={handleProductClick}
-        className={`product-card group block rounded-2xl overflow-hidden transition-all duration-300 ${glassEffect
-            ? "glass-effect backdrop-blur-sm hover:bg-card/90"
-            : "bg-card border border-border/10"
-          } hover:shadow-medium hover:-translate-y-0.5`}
+        className={`product-card group relative block rounded-2xl overflow-hidden transition-all duration-300 backdrop-blur-md border ${glassEffect
+            ? "bg-white/55 dark:bg-primary-900/30 border-white/50 dark:border-white/10 shadow-[0_10px_36px_-8px_rgba(26,60,105,0.22)]"
+            : "bg-white/80 dark:bg-primary-900/40 border-white/70 dark:border-white/10 shadow-[0_4px_24px_-6px_rgba(26,60,105,0.15)]"
+          } hover:shadow-[0_14px_40px_-8px_rgba(26,60,105,0.28)] hover:-translate-y-0.5`}
       >
+        {/* Glass sheen highlight along the top edge */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
+
         <div className="product-card-image relative aspect-[4/5] overflow-hidden bg-secondary/30">
           {displayImage ? (
             <Image
