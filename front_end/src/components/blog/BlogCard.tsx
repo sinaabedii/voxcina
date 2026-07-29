@@ -55,13 +55,13 @@ export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
           <p className="mb-3 line-clamp-2 text-xs text-white/80 sm:text-sm">
             {post.excerpt}
           </p>
-          <div className="flex items-center justify-between border-t border-white/15 pt-3 text-[11px] text-white/85 sm:text-xs">
-            <div className="flex items-center gap-2">
-              <AuthorAvatar avatar={author.avatar} name={author.name} className="h-6 w-6" tone="white" />
+          <div className="flex items-center justify-between border-t border-white/15 pt-2 text-[9px] text-white/85 sm:text-[10px]">
+            <div className="flex items-center gap-1.5">
+              <AuthorAvatar avatar={author.avatar} name={author.name} className="h-4 w-4 sm:h-5 sm:w-5" tone="white" />
               <span className="font-medium">{author.name}</span>
             </div>
             <div className="flex items-center gap-1">
-              <ClockIcon className="h-3.5 w-3.5" />
+              <ClockIcon className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
               <span>{post.readTime} دقیقه</span>
             </div>
           </div>
