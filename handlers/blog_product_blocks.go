@@ -54,11 +54,7 @@ func SearchProductsForBlock(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
 
-	agent, err := services.NewProductMatchAgent(db.Database)
-	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to initialize product search: "+err.Error())
-		return
-	}
+	agent := services.NewProductMatchAgent(db.Database)
 
 	candidates, err := agent.FindCandidates(ctx, query, 8)
 	if err != nil {
@@ -86,7 +82,9 @@ func AutoMatchProductBlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	// Generous timeout: AutoMatch can run several LLM turns (search, inspect
+	// colors, possibly refine and search again) before committing to a pick.
+	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 	defer cancel()
 
 	repo := services.NewBlogRepository(db.Database)
@@ -107,11 +105,7 @@ func AutoMatchProductBlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	agent, err := services.NewProductMatchAgent(db.Database)
-	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to initialize product matching: "+err.Error())
-		return
-	}
+	agent := services.NewProductMatchAgent(db.Database)
 
 	match, err := agent.AutoMatch(ctx, description)
 	if err != nil {
