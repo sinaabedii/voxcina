@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Heart, Star, ShoppingCart, Plus, Minus, ChevronLeft } from "lucide-react";
+import { Heart, Star, ShoppingCart, ChevronLeft } from "lucide-react";
 import { ColorVariantListItem } from "@/types/product";
 import { formatPrice, getDiscountPercentage } from "@/lib/utils";
 import { useCartStore } from "@/store/cart-store";
@@ -27,7 +27,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
-  const [quantity, setQuantity] = useState(1);
 
   const { isFavorite, addToFavorites, removeFromFavorites } = useDashboardStore();
   const isProductFavorite = isFavorite(item.productId || '');
@@ -105,22 +104,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
     }
   };
 
-  const adjustQuantity = (e: React.MouseEvent, delta: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setQuantity((q) => {
-      const max = singleSize?.quantity ?? 99;
-      return Math.min(Math.max(1, q + delta), max);
-    });
-  };
-
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!singleSize) return;
-    addItem(buildCartProduct(), quantity, singleSize.size, selectedColor, colorName);
+    addItem(buildCartProduct(), 1, singleSize.size, selectedColor, colorName);
     toast.success("محصول به سبد خرید اضافه شد");
-    setQuantity(1);
   };
 
   return (
@@ -252,62 +241,29 @@ const ProductCard: React.FC<ProductCardProps> = ({
           )}
 
           <div className="mt-3 flex items-end justify-between gap-2">
-            <div className="flex flex-col">
+            <div className="flex min-w-0 flex-col">
               <span
-                className={`product-card-price text-[11px] sm:text-base md:text-lg font-bold ${discount > 0 ? "text-primary" : "text-foreground"
+                className={`product-card-price whitespace-nowrap text-[11px] sm:text-base md:text-lg font-bold ${discount > 0 ? "text-primary" : "text-foreground"
                   }`}
               >
                 {formatPrice(price)}
               </span>
 
               {discount > 0 && (
-                <span className="text-[9px] sm:text-xs text-muted-foreground line-through">
+                <span className="whitespace-nowrap text-[9px] sm:text-xs text-muted-foreground line-through">
                   {formatPrice(originalPrice)}
                 </span>
               )}
             </div>
 
             {inStock && availableSizes.length > 0 ? (
-              singleSize ? (
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <div className="flex items-center border border-border/20 rounded-full bg-secondary/40">
-                    <button
-                      onClick={(e) => adjustQuantity(e, -1)}
-                      disabled={quantity <= 1}
-                      className="p-1.5 text-foreground hover:text-primary transition-colors disabled:opacity-40 disabled:pointer-events-none"
-                      aria-label="کاهش تعداد"
-                    >
-                      <Minus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                    </button>
-                    <span className="w-4 sm:w-5 text-center text-[10px] sm:text-xs font-semibold text-foreground">
-                      {quantity}
-                    </span>
-                    <button
-                      onClick={(e) => adjustQuantity(e, 1)}
-                      disabled={quantity >= singleSize.quantity}
-                      className="p-1.5 text-foreground hover:text-primary transition-colors disabled:opacity-40 disabled:pointer-events-none"
-                      aria-label="افزایش تعداد"
-                    >
-                      <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                    </button>
-                  </div>
-                  <button
-                    onClick={handleQuickAdd}
-                    className="p-2 sm:p-2.5 rounded-full bg-primary text-primary-foreground shadow-soft hover:bg-primary/90 hover:shadow-medium transition-all duration-300"
-                    aria-label="افزودن به سبد خرید"
-                  >
-                    <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={handleOpenModal}
-                  className="p-2 sm:p-2.5 rounded-full bg-primary text-primary-foreground shadow-soft hover:bg-primary/90 hover:shadow-medium transition-all duration-300"
-                  aria-label="انتخاب سایز و خرید"
-                >
-                  <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                </button>
-              )
+              <button
+                onClick={singleSize ? handleQuickAdd : handleOpenModal}
+                className="flex-shrink-0 p-2 sm:p-2.5 rounded-full bg-primary text-primary-foreground shadow-soft hover:bg-primary/90 hover:shadow-medium transition-all duration-300"
+                aria-label={singleSize ? "افزودن به سبد خرید" : "انتخاب سایز و خرید"}
+              >
+                <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              </button>
             ) : (
               <span className="text-[9px] sm:text-xs text-muted-foreground">ناموجود</span>
             )}
