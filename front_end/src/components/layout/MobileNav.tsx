@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { X, ChevronDown } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { X, ChevronDown, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { APP_NAME } from "@/lib/constants";
 import Image from "next/image";
+import { useAuthStore } from "@/store/auth-store";
 
 interface NavItem {
   label: string;
@@ -22,6 +23,8 @@ interface MobileNavProps {
 
 const MobileNav: React.FC<MobileNavProps> = ({ navItems, onClose }) => {
   const pathname = usePathname();
+  const router = useRouter();
+  const { isAuthenticated, user } = useAuthStore();
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -191,26 +194,42 @@ const MobileNav: React.FC<MobileNavProps> = ({ navItems, onClose }) => {
 
         {/* Bottom Actions */}
         <div className="absolute bottom-0 inset-x-0 p-3 sm:p-4 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 bg-white/95 dark:bg-voxcina-blue/95 backdrop-blur-sm">
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          {isAuthenticated ? (
             <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
-              <Link
-                href="/sign-in"
-                className="block py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl text-center text-xs sm:text-sm font-medium border border-voxcina-blue dark:border-voxcina-cream/30 text-voxcina-blue dark:text-voxcina-cream bg-transparent hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-all duration-300 shadow-sm hover:shadow-md"
-                onClick={onClose}
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  router.push("/dashboard");
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl text-center text-xs sm:text-sm font-medium bg-voxcina-blue dark:bg-voxcina-cream/90 text-white dark:text-voxcina-blue hover:bg-voxcina-darkBlue dark:hover:bg-voxcina-cream transition-all duration-300 shadow-sm hover:shadow-md"
               >
-                ورود
-              </Link>
+                <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                {user?.name || "حساب کاربری"}
+              </button>
             </motion.div>
-            <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
-              <Link
-                href="/sign-up"
-                className="block py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl text-center text-xs sm:text-sm font-medium bg-voxcina-blue dark:bg-voxcina-cream/90 text-white dark:text-voxcina-blue hover:bg-voxcina-darkBlue dark:hover:bg-voxcina-cream transition-all duration-300 shadow-sm hover:shadow-md"
-                onClick={onClose}
-              >
-                ثبت نام
-              </Link>
-            </motion.div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
+                <Link
+                  href="/sign-in"
+                  className="block py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl text-center text-xs sm:text-sm font-medium border border-voxcina-blue dark:border-voxcina-cream/30 text-voxcina-blue dark:text-voxcina-cream bg-transparent hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-all duration-300 shadow-sm hover:shadow-md"
+                  onClick={onClose}
+                >
+                  ورود
+                </Link>
+              </motion.div>
+              <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
+                <Link
+                  href="/sign-up"
+                  className="block py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl text-center text-xs sm:text-sm font-medium bg-voxcina-blue dark:bg-voxcina-cream/90 text-white dark:text-voxcina-blue hover:bg-voxcina-darkBlue dark:hover:bg-voxcina-cream transition-all duration-300 shadow-sm hover:shadow-md"
+                  onClick={onClose}
+                >
+                  ثبت نام
+                </Link>
+              </motion.div>
+            </div>
+          )}
         </div>
       </motion.div>
     </div>

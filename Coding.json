@@ -62,7 +62,7 @@
   "brand_codes": {
     "0": "Reserved for in-house/default brand",
     "1": "Free-Man",
-    "2": "Brand 2",
+    "2": "ALA-Land",
     "3": "Brand 3",
     "4": "Brand 4",
     "5": "Brand 5",
@@ -272,53 +272,53 @@
       "gender_prefix": "F",
       "items": [
         {
-          "name": "شومیز مجلسی (Formal Blouse)",
+          "name": "شومیز زنانه (Blouse)",
           "category_code": "50",
           "size_type": "clothing"
         },
         {
-          "name": "شومیز اسپرت (Casual Button-down)",
+          "name": "بلوز و تونیک (Blouse/Tunic)",
           "category_code": "51",
           "size_type": "clothing"
         },
         {
-          "name": "بلوز و تونیک (Blouse/Tunic)",
+          "name": "کراپ (Crop Top)",
           "category_code": "52",
           "size_type": "clothing"
         },
         {
-          "name": "کراپ (Crop Top)",
+          "name": "تیشرت زنانه",
           "category_code": "53",
           "size_type": "clothing"
         },
         {
-          "name": "تیشرت زنانه",
+          "name": "بافت و پلیور زنانه",
           "category_code": "54",
           "size_type": "clothing"
         },
         {
-          "name": "بافت و پلیور زنانه",
+          "name": "مانتو اسپرت",
           "category_code": "55",
           "size_type": "clothing"
         },
         {
-          "name": "مانتو اسپرت",
+          "name": "مانتو کتی و مجلسی",
           "category_code": "56",
           "size_type": "clothing"
         },
         {
-          "name": "مانتو کتی و مجلسی",
+          "name": "پالتو و کاپشن زنانه",
           "category_code": "57",
           "size_type": "clothing"
         },
         {
-          "name": "پالتو و کاپشن زنانه",
+          "name": "هودی و سویشرت زنانه",
           "category_code": "58",
           "size_type": "clothing"
         },
         {
-          "name": "هودی و سویشرت زنانه",
-          "category_code": "59",
+          "name": "جلیقه و وست زنانه (Women's Vest & Waistcoat)",
+          "category_code": "60",
           "size_type": "clothing"
         }
       ]
