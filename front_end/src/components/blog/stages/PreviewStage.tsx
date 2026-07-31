@@ -18,19 +18,55 @@ const BLOCK_TYPE_LABELS: Record<string, string> = {
   product: "محصول",
 };
 
-// Section types an admin can insert. "title" is a singleton (already present),
-// and "image"/"product" have their own dedicated resolution flows elsewhere.
+// Section types an admin can insert or convert a block into. "title" is a
+// singleton and always stays first, so it's excluded here.
 const ADDABLE_BLOCK_TYPES: { type: BlockType; label: string }[] = [
   { type: "header", label: "سرتیتر" },
   { type: "txt", label: "پاراگراف" },
   { type: "list", label: "لیست" },
   { type: "quote", label: "نقل قول" },
+  { type: "image", label: "تصویر" },
+  { type: "product", label: "محصول" },
 ];
+
+function newImageSlotId(): string {
+  return `img-manual-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
 
 function makeBlock(type: BlockType, order: number): BlogBlock {
   if (type === "list") return { type, order, items: [""], ordered: false };
   if (type === "quote") return { type, order, text: "", attribution: "" };
+  if (type === "image") return { type, order, imageSlotId: newImageSlotId(), alt: "", caption: "" };
+  if (type === "product") return { type, order, productDescription: "" };
   return { type, order, text: "" };
+}
+
+// Converts a block to a different type, carrying over whatever content
+// reasonably maps across (e.g. text between header/txt/quote, or text into
+// the first list item), so switching type in the UI doesn't lose input.
+function convertBlockType(block: BlogBlock, newType: BlockType): BlogBlock {
+  if (block.type === newType) return block;
+  const order = block.order;
+  switch (newType) {
+    case "header":
+    case "txt":
+      return { type: newType, order, text: block.text || (block.items || []).join("\n") || block.productDescription || "" };
+    case "quote":
+      return { type: newType, order, text: block.text || "", attribution: block.attribution || "" };
+    case "list":
+      return {
+        type: newType,
+        order,
+        items: block.items?.length ? block.items : block.text ? [block.text] : [""],
+        ordered: block.ordered || false,
+      };
+    case "image":
+      return { type: newType, order, imageSlotId: block.imageSlotId || newImageSlotId(), alt: block.alt || "", caption: block.caption || "" };
+    case "product":
+      return { type: newType, order, productDescription: block.productDescription || block.text || "" };
+    default:
+      return { type: newType, order, text: block.text || "" };
+  }
 }
 
 // Mirrors the backend's ValidateBlockOrder / ValidateHeadingHierarchy /
@@ -181,43 +217,51 @@ export default function PreviewStage({ run, post, media, onApprove, onPublish, o
     [promptsExec?.parsedOutput, promptsExec?.rawResponse]
   );
 
-  // Build the full list of image upload slots from prompts output
+  // Build the full list of image upload slots: prompts-stage output first,
+  // then any image block present in the article that isn't covered by it yet
+  // (e.g. one the admin added manually via the content editor).
   const imageSlots: ImageSlot[] = useMemo(() => {
     const slots: ImageSlot[] = [];
+    const seenSlotIds = new Set<string>();
     const output = promptsOutput;
-    if (!output) return slots;
 
-    // Cover prompt
-    const coverPrompt = output.cover_prompt;
-    if (coverPrompt && typeof coverPrompt === "object" && !Array.isArray(coverPrompt)) {
-      let cp = coverPrompt as Record<string, unknown>;
-      if ("Key" in cp && "Value" in cp) cp = (cp.Value as Record<string, unknown>) || {};
-      slots.push({ slot: "cover", label: `کاور — ${(cp.prompt as string || "").slice(0, 60)}` });
-    } else if (typeof coverPrompt === "string" && coverPrompt) {
-      slots.push({ slot: "cover", label: `کاور — ${coverPrompt.slice(0, 60)}` });
-    }
+    if (output) {
+      // Cover prompt
+      const coverPrompt = output.cover_prompt;
+      if (coverPrompt && typeof coverPrompt === "object" && !Array.isArray(coverPrompt)) {
+        let cp = coverPrompt as Record<string, unknown>;
+        if ("Key" in cp && "Value" in cp) cp = (cp.Value as Record<string, unknown>) || {};
+        slots.push({ slot: "cover", label: `کاور — ${(cp.prompt as string || "").slice(0, 60)}` });
+        seenSlotIds.add("cover");
+      } else if (typeof coverPrompt === "string" && coverPrompt) {
+        slots.push({ slot: "cover", label: `کاور — ${coverPrompt.slice(0, 60)}` });
+        seenSlotIds.add("cover");
+      }
 
-    // Inline prompts
-    const inlinePrompts = output.inline_prompts;
-    if (Array.isArray(inlinePrompts)) {
-      for (let i = 0; i < inlinePrompts.length; i++) {
-        let ip = inlinePrompts[i] as Record<string, unknown>;
-        if (ip && typeof ip === "object" && "Key" in ip && "Value" in ip) {
-          ip = (ip.Value as Record<string, unknown>) || {};
+      // Inline prompts
+      const inlinePrompts = output.inline_prompts;
+      if (Array.isArray(inlinePrompts)) {
+        for (let i = 0; i < inlinePrompts.length; i++) {
+          let ip = inlinePrompts[i] as Record<string, unknown>;
+          if (ip && typeof ip === "object" && "Key" in ip && "Value" in ip) {
+            ip = (ip.Value as Record<string, unknown>) || {};
+          }
+          const slotId = (ip.suggested_slot_id as string) || `img-${i + 1}`;
+          const promptText = (ip.prompt as string) || "";
+          slots.push({ slot: slotId, label: `تصویر ${i + 1} — ${promptText.slice(0, 60)}` });
+          seenSlotIds.add(slotId);
         }
-        const slotId = (ip.suggested_slot_id as string) || `img-${i + 1}`;
-        const promptText = (ip.prompt as string) || "";
-        slots.push({ slot: slotId, label: `تصویر ${i + 1} — ${promptText.slice(0, 60)}` });
       }
     }
 
-    // Fallback: if no prompts output, derive from blocks
-    if (slots.length === 0) {
-      const imageBlocks = blocks.filter((b) => b.type === "image");
-      for (const b of imageBlocks) {
-        const slotId = b.imageSlotId || `img-${b.order}`;
-        slots.push({ slot: slotId, label: `تصویر — ${b.alt || slotId}` });
-      }
+    // Any image block not already covered by a prompt (manually added ones,
+    // or all of them if the prompts stage hasn't produced output at all).
+    for (const b of blocks) {
+      if (b.type !== "image") continue;
+      const slotId = b.imageSlotId || `img-${b.order}`;
+      if (seenSlotIds.has(slotId)) continue;
+      seenSlotIds.add(slotId);
+      slots.push({ slot: slotId, label: `تصویر — ${b.alt || slotId}` });
     }
 
     return slots;
@@ -343,6 +387,10 @@ export default function PreviewStage({ run, post, media, onApprove, onPublish, o
 
   const updateBlockAt = useCallback((index: number, patch: Partial<BlogBlock>) => {
     setDraftBlocks((prev) => prev.map((b, i) => (i === index ? { ...b, ...patch } : b)));
+  }, []);
+
+  const updateBlockType = useCallback((index: number, newType: BlockType) => {
+    setDraftBlocks((prev) => prev.map((b, i) => (i === index ? convertBlockType(b, newType) : b)));
   }, []);
 
   const removeBlockAt = useCallback((index: number) => {
@@ -599,9 +647,21 @@ export default function PreviewStage({ run, post, media, onApprove, onPublish, o
                     <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded">
                       بخش {index + 1}
                     </span>
-                    <span className="text-xs font-bold text-voxcina-blue bg-primary-100 px-2 py-1 rounded">
-                      {BLOCK_TYPE_LABELS[block.type] || block.type}
-                    </span>
+                    {block.type === "title" ? (
+                      <span className="text-xs font-bold text-voxcina-blue bg-primary-100 px-2 py-1 rounded">
+                        {BLOCK_TYPE_LABELS.title}
+                      </span>
+                    ) : (
+                      <select
+                        value={block.type}
+                        onChange={(e) => updateBlockType(index, e.target.value as BlockType)}
+                        className="text-xs font-bold text-voxcina-blue bg-primary-100 border-0 rounded px-2 py-1 cursor-pointer"
+                      >
+                        {ADDABLE_BLOCK_TYPES.map((o) => (
+                          <option key={o.type} value={o.type}>{o.label}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                   {block.type !== "title" && (
                     <Button variant="danger" size="sm" onClick={() => removeBlockAt(index)}>
@@ -699,9 +759,22 @@ export default function PreviewStage({ run, post, media, onApprove, onPublish, o
                 )}
 
                 {block.type === "product" && (
-                  <p className="text-xs text-gray-500">
-                    بلوک محصول — «{block.productDescription}». ویرایش محصول از مرحله «محتوا» انجام می‌شود.
-                  </p>
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={block.productDescription || ""}
+                      onChange={(e) => updateBlockAt(index, { productDescription: e.target.value })}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                      placeholder="توضیح محصول برای جستجو (مثلاً: پیراهن آبی کژوال)"
+                    />
+                    {block.productId ? (
+                      <p className="text-xs text-green-600">محصول انتخاب‌شده: {block.productName}</p>
+                    ) : (
+                      <p className="text-xs text-gray-500">
+                        انتخاب محصول واقعی پس از ذخیره، از مرحله «محتوا» انجام می‌شود.
+                      </p>
+                    )}
+                  </div>
                 )}
 
                 <AddSectionRow onAdd={(type) => addBlockAfter(index, type)} />
