@@ -401,6 +401,14 @@ func (r *BlogRepository) FindExecutionsByRunID(ctx context.Context, runID primit
 	if execs == nil {
 		execs = []models.BlogAgentExecution{}
 	}
+	// The driver decodes ParsedOutput (an interface{} field) as bson.D, which
+	// Go's encoding/json serializes as an array of {Key,Value} pairs instead
+	// of a plain object. Convert it so API consumers see normal JSON objects.
+	for i := range execs {
+		if execs[i].ParsedOutput != nil {
+			execs[i].ParsedOutput = convertBSONToMap(execs[i].ParsedOutput)
+		}
+	}
 	return execs, nil
 }
 
@@ -415,6 +423,9 @@ func (r *BlogRepository) FindCompletedExecution(ctx context.Context, runID primi
 	}).Decode(&exec)
 	if err != nil {
 		return nil, err
+	}
+	if exec.ParsedOutput != nil {
+		exec.ParsedOutput = convertBSONToMap(exec.ParsedOutput)
 	}
 	return &exec, nil
 }
