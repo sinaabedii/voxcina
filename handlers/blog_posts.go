@@ -277,9 +277,11 @@ func GetPipelineRunByID(w http.ResponseWriter, r *http.Request) {
 	executions, _ := repo.FindExecutionsByRunID(ctx, id)
 	sources, _ := repo.FindSourcesByRunID(ctx, id)
 
-	// Include media if a post exists
+	// Include the linked post and its media, if a post exists
+	var post *models.BlogPost
 	var media []models.BlogMedia
 	if run.PostID != "" {
+		post, _ = repo.FindPostByPipelineRunID(ctx, id)
 		if postID, err := primitive.ObjectIDFromHex(run.PostID); err == nil {
 			media, _ = repo.FindMediaByPostID(ctx, postID)
 		}
@@ -293,6 +295,7 @@ func GetPipelineRunByID(w http.ResponseWriter, r *http.Request) {
 		"executions": executions,
 		"sources":    sources,
 		"media":      media,
+		"post":       post,
 	})
 }
 
@@ -499,14 +502,7 @@ func UpdateBlogPostBlocks(w http.ResponseWriter, r *http.Request) {
 	contentHash := services.ComputeContentHash(payload.Blocks)
 
 	repo := services.NewBlogRepository(db.Database)
-	set := bson.M{
-		"blocks":          payload.Blocks,
-		"content_hash":    contentHash,
-		"content_revision": bson.M{"$inc": 1},
-		"updated_at":      time.Now(),
-	}
-
-	if err := repo.UpdatePost(ctx, id, set); err != nil {
+	if err := repo.UpdatePostBlocks(ctx, id, payload.Blocks, contentHash); err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error updating blog post: "+err.Error())
 		return
 	}

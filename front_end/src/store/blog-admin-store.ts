@@ -95,7 +95,7 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
       const data = await res.json();
       const run: BlogPipelineRun = { ...data.run, executions: data.executions, sources: data.sources };
       const media: BlogMedia[] = Array.isArray(data.media) ? data.media : [];
-      set({ currentRun: run, currentPost: data.run.post_id ? data.post : null, currentMedia: media, isLoading: false });
+      set({ currentRun: run, currentPost: data.run.postId ? data.post : null, currentMedia: media, isLoading: false });
       return run;
     } catch (err) {
       set({
@@ -304,7 +304,8 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
       });
 
       if (!res.ok) {
-        throw new Error("Failed to update blocks");
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to update blocks");
       }
 
       set({ isLoading: false });

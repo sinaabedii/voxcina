@@ -209,6 +209,22 @@ func (r *BlogRepository) UpdatePost(ctx context.Context, id primitive.ObjectID, 
 	return err
 }
 
+// UpdatePostBlocks atomically replaces a post's blocks and bumps its content
+// revision counter. Kept separate from UpdatePost, which only ever performs a
+// $set, since content_revision must be incremented, not overwritten.
+func (r *BlogRepository) UpdatePostBlocks(ctx context.Context, id primitive.ObjectID, blocks []models.BlogBlock, contentHash string) error {
+	collection := r.db.Collection("blog_posts")
+	_, err := collection.UpdateOne(ctx, bson.M{"_id": id}, bson.M{
+		"$set": bson.M{
+			"blocks":       blocks,
+			"content_hash": contentHash,
+			"updated_at":   time.Now(),
+		},
+		"$inc": bson.M{"content_revision": 1},
+	})
+	return err
+}
+
 // DeletePostByID soft-deletes a post (sets is_active=false).
 func (r *BlogRepository) DeletePostByID(ctx context.Context, id primitive.ObjectID) error {
 	collection := r.db.Collection("blog_posts")
