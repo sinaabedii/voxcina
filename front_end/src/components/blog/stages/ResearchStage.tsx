@@ -31,11 +31,15 @@ export default function ResearchStage({ run, sources, onApprove, onTriggerResear
     () => run.executions?.find((e) => e.stage === "research" && e.status === "completed"),
     [run.executions]
   );
+  // The research execution stores a ResearchSnapshot ({ output, sources, ... }),
+  // so the actual findings/outline/etc. live under parsedOutput.output, not
+  // parsedOutput directly. Fall back to a flat shape for resilience.
   const parsedOutput = researchExec?.parsedOutput;
-  const findings = (parsedOutput?.findings as Finding[]) || [];
-  const outline = parsedOutput?.outline as Outline | undefined;
-  const category = parsedOutput?.recommended_category as string | undefined;
-  const tags = (parsedOutput?.recommended_tags as string[]) || [];
+  const researchOutput = (parsedOutput?.output ?? parsedOutput) as Record<string, unknown> | undefined;
+  const findings = (researchOutput?.findings as Finding[]) || [];
+  const outline = researchOutput?.outline as Outline | undefined;
+  const category = researchOutput?.recommended_category as string | undefined;
+  const tags = (researchOutput?.recommended_tags as string[]) || [];
 
   return (
     <div className="space-y-6">
