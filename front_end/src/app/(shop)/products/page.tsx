@@ -14,6 +14,7 @@ import {
 import { Category } from "@/types/category";
 import ProductsPageContent from "@/app/(shop)/products/_components/ProductsPageContent";
 import { Loading } from "@/components/ui";
+import Breadcrumbs from "@/components/layout/Breadcrumbs";
 
 /**
  * Products Listing Page - Server Component
@@ -225,7 +226,15 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           </a>
         )}
       </nav>
-      
+
+      {/* Breadcrumbs - server rendered, visible text so the "محصولات" H1
+          is also echoed in the page body, not just the heading */}
+      <div className="container pt-6">
+        <div className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60">
+          <Breadcrumbs items={[{ title: "محصولات", href: "/products" }]} />
+        </div>
+      </div>
+
       <Suspense
         fallback={
           <div className="container py-16 flex items-center justify-center min-h-[60vh]">
