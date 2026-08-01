@@ -468,6 +468,7 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
                                 >
 	                                  <Link
 	                                    href={`/products/${item.productId}?color=${encodeURIComponent(selectedColor)}`}
+	                                    rel="nofollow"
                                     className="group block p-2 sm:p-3 md:p-4 rounded-lg sm:rounded-xl md:rounded-2xl hover:bg-gradient-to-br hover:from-voxcina-lightCream hover:to-primary-50 transition-all duration-300 border border-transparent hover:border-primary-200 hover:shadow-medium"
                                     onClick={onClose}
                                   >
@@ -507,6 +508,7 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
                         <div className="p-3 sm:p-4 md:p-6 bg-gradient-to-r from-voxcina-lightCream to-primary-50 border-t border-secondary-200">
                           <Link
                             href={`/products?search=${encodedSearchTerm}`}
+                            rel="nofollow"
                             className="w-full flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-4 bg-gradient-to-r from-voxcina-blue to-primary-600 hover:from-voxcina-darkBlue hover:to-primary-700 text-white rounded-lg sm:rounded-xl md:rounded-2xl transition-all duration-300 font-semibold text-sm sm:text-base shadow-soft hover:shadow-medium transform hover:scale-[1.02]"
                             onClick={onClose}
                           >

@@ -70,7 +70,7 @@ export default function ProductGridItem({
         </div>
       )}
 
-      <Link href={productHref} className="relative aspect-square overflow-hidden">
+      <Link href={productHref} rel="nofollow" className="relative aspect-square overflow-hidden">
         <div className="relative w-full h-full">
           <BackendImage
             src={imageSrc}
@@ -125,7 +125,7 @@ export default function ProductGridItem({
       </Link>
 
       <div className="p-4 flex flex-col flex-grow">
-        <Link href={productHref}>
+        <Link href={productHref} rel="nofollow">
           <h3 className="text-voxcina-blue dark:text-voxcina-cream font-medium mb-1 truncate hover:text-voxcina-darkBlue dark:hover:text-white transition-colors">
             {item.name}
           </h3>

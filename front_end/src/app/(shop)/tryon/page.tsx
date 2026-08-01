@@ -1487,7 +1487,7 @@ export default function TryOnRoomPage() {
                         <Link
                           href={`/products/${recommendedProduct.product_id}?color=${encodeURIComponent(getRecommendedColor(recommendedProduct) || "")}`}
                           target="_blank"
-                          rel="noopener noreferrer"
+                          rel="noopener noreferrer nofollow"
                           className="flex items-center gap-3 mb-2 group"
                         >
                           <div className="w-14 h-14 rounded-xl overflow-hidden bg-background border border-secondary-300 dark:border-voxcina-blue/20 flex-shrink-0">

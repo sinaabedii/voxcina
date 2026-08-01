@@ -113,6 +113,7 @@ export default function BlogProductCard({ block }: BlogProductCardProps) {
   return (
     <Link
       href={productHref}
+      rel="nofollow"
       className="group relative block overflow-hidden rounded-2xl border border-white/60 bg-white/70 backdrop-blur-md transition-all duration-300 shadow-[0_10px_36px_-8px_rgba(26,60,105,0.22)] hover:shadow-[0_14px_40px_-8px_rgba(26,60,105,0.28)] hover:-translate-y-0.5"
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />

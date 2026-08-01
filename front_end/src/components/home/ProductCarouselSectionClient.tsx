@@ -89,6 +89,7 @@ export default function ProductCarouselSectionClient({
         action={
           <Link
             href={viewAllHref}
+            rel="nofollow"
             className="text-voxcina-blue hover:text-voxcina-darkBlue flex items-center group transition-all duration-300"
           >
             <span>مشاهده همه</span>

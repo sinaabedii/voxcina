@@ -162,6 +162,15 @@ export async function generateMetadata({ params, searchParams }: CategoryPagePro
     },
   };
 
+  // Sort order doesn't change the underlying product set, only its ordering,
+  // so a sorted URL is a near-duplicate of the default-sort category page —
+  // index the default-sort version, keep sorted variants crawlable (follow)
+  // but out of the index to avoid duplicate content.
+  const isNonDefaultSort = Boolean(search.sort);
+  const robots: Metadata["robots"] = isNonDefaultSort
+    ? { index: false, follow: true }
+    : undefined;
+
   // Build other link elements for prev/next
   const other: Record<string, string> = {};
   
@@ -199,6 +208,7 @@ export async function generateMetadata({ params, searchParams }: CategoryPagePro
       url: canonicalUrl,
     },
     alternates,
+    robots,
     other: Object.keys(other).length > 0 ? other : undefined,
   };
 }
