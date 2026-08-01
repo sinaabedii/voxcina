@@ -16,6 +16,7 @@ import { Category } from "@/types/category";
 import { APP_NAME } from "@/lib/constants";
 import BreadcrumbSchema, { BreadcrumbItem } from "@/components/SEO/BreadcrumbSchema";
 import ItemListSchema, { ItemListItem } from "@/components/SEO/ItemListSchema";
+import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import CategoryPageClient from "@/app/(shop)/categories/[categorySlug]/CategoryPageClient";
 import { Loading } from "@/components/ui";
 
@@ -294,6 +295,21 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           </a>
         )}
       </nav>
+
+      {/* Breadcrumbs - server rendered, visible text so the category name
+          from the H1 is also echoed in the page body, not just the heading */}
+      <div className="container pt-6">
+        <div className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60">
+          <Breadcrumbs
+            items={[
+              ...(parentCategory
+                ? [{ title: parentCategory.name, href: `/categories/${parentCategory.slug || parentCategory.id}` }]
+                : []),
+              { title: category.name, href: `/categories/${categorySlug}` },
+            ]}
+          />
+        </div>
+      </div>
 
       {/* Category Page Content - Client Component for interactivity */}
       <Suspense
