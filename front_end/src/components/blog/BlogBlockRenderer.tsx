@@ -175,7 +175,7 @@ function BlogBlockItem({ block, index }: { block: BlogBlockType; index: number }
                   src={block.imageId}
                   alt={block.alt || "article image"}
                   fill
-                  className="object-cover"
+                  className="object-cover object-top"
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 50vw"
                 />
               </div>
