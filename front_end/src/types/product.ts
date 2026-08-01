@@ -147,8 +147,8 @@ export interface PaginationInfo {
   currentPage: number;
   nextPage?: number;
   prevPage?: number;
-  totalItems: number; // Total distinct products matching the filter (not color variant rows)
-  totalColorVariants?: number; // Total color variant rows across all matching products
+  totalItems: number; // Total color variant cards (each color variant is its own card/page item)
+  totalColorVariants?: number; // Same as totalItems, kept for API compatibility
 }
 
 // Paginated response for color variant list

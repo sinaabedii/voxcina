@@ -883,36 +883,14 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Paginate at the product level, before expanding into color variants.
-	// A product with many color variants must stay on a single page - if we
-	// paginated the flattened variant rows instead, a product's variants
-	// could straddle a page boundary and appear on two consecutive pages.
-	totalItems := len(products)
-	totalPages := int(math.Ceil(float64(totalItems) / float64(limit)))
-
-	// Total color variant rows across ALL matching products (not just this
-	// page) - the product grid renders one card per color variant, so UI
-	// labels like "N محصول" should reflect this count, not the distinct
-	// product count used for pagination above.
-	totalColorVariants := 0
-	for _, product := range products {
-		totalColorVariants += len(product.ColorVariants)
-	}
-
-	skip := (page - 1) * limit
-	start := skip
-	end := skip + limit
-	if start > totalItems {
-		start = totalItems
-	}
-	if end > totalItems {
-		end = totalItems
-	}
-	pagedProducts := products[start:end]
-
-	// Expand this page's products into color variant list items
+	// Expand every matching product into one row per color variant. Each
+	// color variant is treated as its own independent "product card" for
+	// pagination purposes, matching the product grid where every card is a
+	// single color variant - so a page boundary can legitimately land in
+	// the middle of one product's variants, same as it can between any two
+	// unrelated cards.
 	var colorVariantItems []models.ColorVariantListItem
-	for _, product := range pagedProducts {
+	for _, product := range products {
 		for _, colorVariant := range product.ColorVariants {
 			// Normalize Persian/Arabic digits in size strings
 			for j := range colorVariant.Sizes {
@@ -953,6 +931,22 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Paginate the flattened variant rows so each page holds exactly
+	// `limit` cards.
+	totalItems := len(colorVariantItems)
+	totalPages := int(math.Ceil(float64(totalItems) / float64(limit)))
+
+	skip := (page - 1) * limit
+	start := skip
+	end := skip + limit
+	if start > totalItems {
+		start = totalItems
+	}
+	if end > totalItems {
+		end = totalItems
+	}
+	paginatedItems := colorVariantItems[start:end]
+
 	// Determine next/prev pages
 	var nextPage *int
 	if page < totalPages {
@@ -970,8 +964,8 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 		CurrentPage        int  `json:"currentPage"`
 		NextPage           *int `json:"nextPage,omitempty"`
 		PrevPage           *int `json:"prevPage,omitempty"`
-		TotalItems         int  `json:"totalItems"`         // Total products, not color variants
-		TotalColorVariants int  `json:"totalColorVariants"` // Total color variant rows across all matching products
+		TotalItems         int  `json:"totalItems"`         // Total color variant cards (one per color variant)
+		TotalColorVariants int  `json:"totalColorVariants"` // Same as totalItems, kept for API compatibility
 	}
 
 	type colorVariantsResponse struct {
@@ -980,14 +974,14 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := colorVariantsResponse{
-		Data: colorVariantItems,
+		Data: paginatedItems,
 		Pagination: paginationInfo{
 			TotalPages:         totalPages,
 			CurrentPage:        page,
 			NextPage:           nextPage,
 			PrevPage:           prevPage,
 			TotalItems:         totalItems,
-			TotalColorVariants: totalColorVariants,
+			TotalColorVariants: totalItems,
 		},
 	}
 
