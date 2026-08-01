@@ -115,7 +115,7 @@ export default function HeroImagesPage() {
             animate={{ y: 0, opacity: 1 }}
           >
             {/* Image Preview */}
-            <div className="relative aspect-video bg-gray-100">
+            <div className={`relative ${heroImage.deviceType === "desktop" ? "aspect-video" : "aspect-[3/4]"} bg-gray-100`}>
               <Image
                 src={heroImage.image}
                 alt={`Hero ${heroImage.deviceType}`}
@@ -135,6 +135,10 @@ export default function HeroImagesPage() {
               <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1 z-10">
                 {getDeviceIcon(heroImage.deviceType)}
                 {getDeviceLabel(heroImage.deviceType)}
+              </div>
+              {/* Aspect Ratio Badge */}
+              <div className="absolute bottom-2 right-2 bg-white/90 text-gray-700 px-2 py-1 rounded-md text-xs z-10">
+                {heroImage.deviceType === "desktop" ? "۱۶:۹" : "۳:۴"}
               </div>
               {/* Display Order Badge */}
               <div className="absolute top-2 left-2 bg-blue-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold z-10">

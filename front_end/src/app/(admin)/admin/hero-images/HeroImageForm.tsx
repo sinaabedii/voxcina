@@ -185,12 +185,15 @@ export default function HeroImageForm({ heroImage, onClose }: HeroImageFormProps
               </label>
               
               {imagePreview ? (
-                <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                <div className={`relative ${formData.deviceType === "desktop" ? "aspect-video" : "aspect-[3/4]"} max-h-80 bg-gray-100 rounded-lg overflow-hidden`}>
                   <img
                     src={imagePreview}
                     alt="Preview"
                     className="w-full h-full object-cover"
                   />
+                  <div className="absolute top-2 left-2 bg-black/70 text-white px-2 py-1 rounded-md text-xs z-10">
+                    {formData.deviceType === "desktop" ? "۱۶:۹ دسکتاپ" : "۳:۴ موبایل"}
+                  </div>
                   <button
                     type="button"
                     onClick={handleRemoveImage}
@@ -215,6 +218,11 @@ export default function HeroImageForm({ heroImage, onClose }: HeroImageFormProps
                   <p className="text-gray-600">برای آپلود تصویر کلیک کنید</p>
                   <p className="text-xs text-gray-400 mt-1">
                     فرمت‌های مجاز: JPEG، PNG، WebP
+                  </p>
+                  <p className="text-xs text-blue-500 mt-1 font-medium">
+                    {formData.deviceType === "desktop"
+                      ? "نسبت تصویر دسکتاپ: ۱۶:۹ (افقی)"
+                      : "نسبت تصویر موبایل: ۳:۴ (عمودی)"}
                   </p>
                 </div>
               )}
@@ -263,6 +271,11 @@ export default function HeroImageForm({ heroImage, onClose }: HeroImageFormProps
                   <span>موبایل</span>
                 </button>
               </div>
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.deviceType === "desktop"
+                  ? "تصویر دسکتاپ با نسبت ۱۶:۹ (افقی) نمایش داده می‌شود"
+                  : "تصویر موبایل با نسبت ۳:۴ (عمودی) نمایش داده می‌شود"}
+              </p>
               {errors.deviceType && (
                 <p className="text-sm text-red-500">{errors.deviceType}</p>
               )}
