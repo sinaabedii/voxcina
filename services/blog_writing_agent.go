@@ -35,11 +35,9 @@ func (wa *WritingAgent) RunWriting(ctx context.Context, run *models.BlogPipeline
 	log.Printf("[blog] Starting writing for run %s, topic: %s", run.ID.Hex(), snapshot.GenerationBrief.Topic)
 	now := time.Now()
 
-	// Build writing prompt
 	prompt := wa.buildWritingPrompt(snapshot)
 
-	// Call OpenRouter with structured output
-	output, err := wa.openRouter.CallWithSchema(ctx, prompt, writingOutputSchema())
+	output, err := wa.openRouter.CallWithSchemaAndModel(ctx, prompt, writingOutputSchema(), run.Model)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate writing output: %w", err)
 	}
@@ -64,7 +62,7 @@ func (wa *WritingAgent) RunWriting(ctx context.Context, run *models.BlogPipeline
 		log.Printf("[blog] Block validation failed, attempting repair: %v", err)
 		
 		// Attempt one repair retry
-		repairedBlocks, repairErr := wa.attemptBlockRepair(ctx, snapshot, writingResult.Blocks)
+		repairedBlocks, repairErr := wa.attemptBlockRepair(ctx, snapshot, writingResult.Blocks, run.Model)
 		if repairErr != nil {
 			return nil, fmt.Errorf("block validation and repair failed: %w", repairErr)
 		}
@@ -283,7 +281,7 @@ func formatFindings(findings []ResearchFinding) string {
 }
 
 // attemptBlockRepair tries to fix invalid blocks
-func (wa *WritingAgent) attemptBlockRepair(ctx context.Context, snapshot *ResearchSnapshot, blocks []models.BlogBlock) ([]models.BlogBlock, error) {
+func (wa *WritingAgent) attemptBlockRepair(ctx context.Context, snapshot *ResearchSnapshot, blocks []models.BlogBlock, model string) ([]models.BlogBlock, error) {
 	log.Printf("[blog] Attempting block repair for %d blocks", len(blocks))
 
 	// Count current images and text words for the prompt
@@ -366,7 +364,7 @@ CRITICAL Validation errors to fix:
 Return corrected blocks in the same JSON format with the correct number of images.`, formatBlocks(blocks), imageCount, maxImages, textWords, maxImages)
 	}
 
-	output, err := wa.openRouter.CallWithSchema(ctx, prompt, writingOutputSchema())
+	output, err := wa.openRouter.CallWithSchemaAndModel(ctx, prompt, writingOutputSchema(), model)
 	if err != nil {
 		return nil, err
 	}

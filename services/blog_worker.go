@@ -253,6 +253,11 @@ func (w *BlogWorker) runResearch(ctx context.Context, exec *models.BlogAgentExec
 		return "", "", fmt.Sprintf("failed to load pipeline run: %v", err), "", "", "", "", 0, ""
 	}
 
+	model := run.Model
+	if model == "" {
+		model = "qwen/qwen3.7-plus"
+	}
+
 	brief := &models.GenerationBrief{
 		Topic:          run.Topic,
 		Locale:         run.Locale,
@@ -265,11 +270,11 @@ func (w *BlogWorker) runResearch(ctx context.Context, exec *models.BlogAgentExec
 
 	snapshot, err := w.researchAgent.RunResearch(ctx, run, brief)
 	if err != nil {
-		return "", "", fmt.Sprintf("research failed: %v", err), "", "", "openrouter", "qwen/qwen3.7-plus", 0, ""
+		return "", "", fmt.Sprintf("research failed: %v", err), "", "", "openrouter", model, 0, ""
 	}
 
 	outputJSON, _ := json.Marshal(snapshot)
-	return string(outputJSON), string(outputJSON), "", "blog.research", "1", "openrouter", "qwen/qwen3.7-plus", len(snapshot.Sources), ""
+	return string(outputJSON), string(outputJSON), "", "blog.research", "1", "openrouter", model, len(snapshot.Sources), ""
 }
 
 // runWrite performs the writing stage.
@@ -279,7 +284,11 @@ func (w *BlogWorker) runWrite(ctx context.Context, exec *models.BlogAgentExecuti
 		return "", "", fmt.Sprintf("failed to load pipeline run: %v", err), "", "", "", "", 0, ""
 	}
 
-	// Build ResearchSnapshot from run brief and research execution
+	model := run.Model
+	if model == "" {
+		model = "qwen/qwen3.7-plus"
+	}
+
 	brief := &models.GenerationBrief{
 		Topic:          run.Topic,
 		Locale:         run.Locale,
@@ -344,7 +353,7 @@ func (w *BlogWorker) runWrite(ctx context.Context, exec *models.BlogAgentExecuti
 	// Use WritingAgent to generate structured content
 	post, err := w.writingAgent.RunWriting(ctx, run, snapshot)
 	if err != nil {
-		return "", "", fmt.Sprintf("writing agent failed: %v", err), "", "", "openrouter", "qwen/qwen3.7-plus", 0, ""
+		return "", "", fmt.Sprintf("writing agent failed: %v", err), "", "", "openrouter", model, 0, ""
 	}
 
 	// Serialize the writing result for storage
@@ -356,7 +365,7 @@ func (w *BlogWorker) runWrite(ctx context.Context, exec *models.BlogAgentExecuti
 	}
 	outputJSON, _ := json.Marshal(writingResult)
 
-	return string(outputJSON), string(outputJSON), "", "blog.write", "1", "openrouter", "qwen/qwen3.7-plus", 0, ""
+	return string(outputJSON), string(outputJSON), "", "blog.write", "1", "openrouter", model, 0, ""
 }
 
 // runPrompts performs the prompts generation stage using the PromptAgent.
@@ -364,6 +373,11 @@ func (w *BlogWorker) runPrompts(ctx context.Context, exec *models.BlogAgentExecu
 	run, err := w.repo.FindPipelineRunByID(ctx, exec.PipelineRunID)
 	if err != nil {
 		return "", "", fmt.Sprintf("failed to load pipeline run: %v", err), "", "", "", "", 0, ""
+	}
+
+	model := run.Model
+	if model == "" {
+		model = "qwen/qwen3.7-plus"
 	}
 
 	// Find the blog post linked to this pipeline run
@@ -375,11 +389,11 @@ func (w *BlogWorker) runPrompts(ctx context.Context, exec *models.BlogAgentExecu
 	promptAgent := NewPromptAgent(w.structClient, w.repo)
 	output, err := promptAgent.RunPromptGeneration(ctx, run, post)
 	if err != nil {
-		return "", "", fmt.Sprintf("prompt generation failed: %v", err), "", "", "openrouter", "qwen/qwen3.7-plus", 0, ""
+		return "", "", fmt.Sprintf("prompt generation failed: %v", err), "", "", "openrouter", model, 0, ""
 	}
 
 	outputJSON, _ := json.Marshal(output)
-	return string(outputJSON), string(outputJSON), "", "blog.prompts", "1", "openrouter", "qwen/qwen3.7-plus", 0, ""
+	return string(outputJSON), string(outputJSON), "", "blog.prompts", "1", "openrouter", model, 0, ""
 }
 
 // convertBSONToMap recursively converts bson.D/bson.M/bson.A structures to regular maps for JSON marshaling.

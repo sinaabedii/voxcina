@@ -23,9 +23,24 @@ export default function NewBlogPage() {
     category: "",
     sourcePreferences: [],
     additionalNotes: "",
+    model: "qwen/qwen3.7-flash",
   });
 
   const [keywordsInput, setKeywordsInput] = useState("");
+
+  const modelOptions = [
+    { value: "deepseek/deepseek-v4-flash-0731", label: "DeepSeek V4 Flash" },
+    { value: "qwen/qwen3.7-flash", label: "Qwen 3.7 Flash" },
+    { value: "poolside/laguna-s-2.1:free", label: "Poolside Laguna S 2.1 (Free)" },
+    { value: "google/gemini-3.6-flash", label: "Google Gemini 3.6 Flash" },
+    { value: "meta/muse-spark-1.1", label: "Meta Muse Spark 1.1" },
+    { value: "openai/gpt-5.6-luna", label: "OpenAI GPT-5.6 Luna" },
+    { value: "x-ai/grok-4.5", label: "xAI Grok 4.5" },
+    { value: "tencent/hy3", label: "Tencent HY3" },
+    { value: "z-ai/glm-5.2", label: "Zhipu GLM 5.2" },
+    { value: "nvidia/nemotron-3-ultra-550b-a55b", label: "Nvidia Nemotron 3 Ultra" },
+    { value: "minimax/minimax-m3", label: "MiniMax M3" },
+  ];
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -150,11 +165,27 @@ export default function NewBlogPage() {
               <label className="block mb-1 font-medium">طول مطلوب (کلمه)</label>
               <input
                 className="input w-full"
-                type="number"
+                type="text"
+                inputMode="numeric"
                 min={500}
                 max={5000}
                 value={formData.desiredLength}
-                onChange={(e) => setFormData({ ...formData, desiredLength: parseInt(e.target.value) || 1000 })}
+                onChange={(e) => {
+                  const persianDigits = "۰۱۲۳۴۵۶۷۸۹";
+                  const arabicDigits = "٠١٢٣٤٥٦٧٨٩";
+                  const englishDigits = "0123456789";
+                  const val = e.target.value
+                    .split("")
+                    .map((c) => {
+                      const pi = persianDigits.indexOf(c);
+                      if (pi !== -1) return englishDigits[pi];
+                      const ai = arabicDigits.indexOf(c);
+                      if (ai !== -1) return englishDigits[ai];
+                      return c;
+                    })
+                    .join("");
+                  setFormData({ ...formData, desiredLength: parseInt(val) || 0 });
+                }}
               />
             </div>
 
@@ -176,6 +207,21 @@ export default function NewBlogPage() {
                 value={formData.additionalNotes}
                 onChange={(e) => setFormData({ ...formData, additionalNotes: e.target.value })}
               />
+            </div>
+
+            <div>
+              <label className="block mb-1 font-medium">مدل هوش مصنوعی</label>
+              <select
+                className="input w-full"
+                value={formData.model}
+                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+              >
+                {modelOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="flex justify-end gap-2">

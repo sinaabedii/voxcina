@@ -205,6 +205,7 @@ func CreatePipelineRun(w http.ResponseWriter, r *http.Request) {
 		Category:          brief.Category,
 		SourcePreferences: brief.SourcePreferences,
 		AdditionalNotes:   brief.AdditionalNotes,
+		Model:             brief.Model,
 		Status:            models.PipelineBrief,
 		CreatedBy:         getAdminUserID(r),
 		CreatedAt:         time.Now(),

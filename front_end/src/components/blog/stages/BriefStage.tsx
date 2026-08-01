@@ -36,6 +36,10 @@ export default function BriefStage({ run, onTriggerResearch }: BriefStageProps) 
           <label className="block mb-1 font-medium text-gray-700">کلمات کلیدی</label>
           <p className="text-gray-900">{run.keywords?.join("، ") || "ندارد"}</p>
         </div>
+        <div>
+          <label className="block mb-1 font-medium text-gray-700">مدل هوش مصنوعی</label>
+          <p className="text-gray-900">{run.model || "qwen/qwen3.7-plus"}</p>
+        </div>
       </div>
 
       {run.additionalNotes && (

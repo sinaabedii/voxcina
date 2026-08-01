@@ -54,6 +54,7 @@ export interface BlogPipelineRun {
   category: string;
   sourcePreferences: string[];
   additionalNotes?: string;
+  model?: string;
   status: string;
   postId?: string;
   createdBy: string;
@@ -139,6 +140,7 @@ export interface GenerationBrief {
   category?: string;
   sourcePreferences?: string[];
   additionalNotes?: string;
+  model?: string;
 }
 
 export type BlockType = "title" | "header" | "txt" | "image" | "list" | "quote" | "product";

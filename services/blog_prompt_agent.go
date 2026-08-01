@@ -45,16 +45,13 @@ func (pa *PromptAgent) RunPromptGeneration(ctx context.Context, run *models.Blog
 	log.Printf("[blog] Starting prompt generation for post %s", post.ID.Hex())
 	now := time.Now()
 
-	// Extract content from blocks
 	contentSummary := pa.extractContentSummary(post.Blocks)
 
-	// Generate cover prompt
 	coverPrompt, err := pa.generateCoverPrompt(ctx, run, post, contentSummary)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate cover prompt: %w", err)
 	}
 
-	// Generate inline image prompts
 	inlinePrompts, err := pa.generateInlinePrompts(ctx, run, post, contentSummary)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate inline prompts: %w", err)
@@ -149,7 +146,7 @@ Write the prompt in English for image model compatibility, but alt_text and capt
 		truncateString(contentSummary, 1000),
 	)
 
-	output, err := pa.openRouter.CallWithSchema(ctx, prompt, imagePromptSchema())
+	output, err := pa.openRouter.CallWithSchemaAndModel(ctx, prompt, imagePromptSchema(), run.Model)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +233,7 @@ Write the prompt in English, but alt_text and caption in Persian.`,
 		contextWindow,
 	)
 
-		output, err := pa.openRouter.CallWithSchema(ctx, prompt, imagePromptSchema())
+	output, err := pa.openRouter.CallWithSchemaAndModel(ctx, prompt, imagePromptSchema(), run.Model)
 		if err != nil {
 			return nil, err
 		}

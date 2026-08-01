@@ -136,6 +136,7 @@ type BlogPipelineRun struct {
 	Category        string             `bson:"category" json:"category"`
 	SourcePreferences []string         `bson:"source_preferences" json:"sourcePreferences"`
 	AdditionalNotes string             `bson:"additional_notes,omitempty" json:"additionalNotes,omitempty"`
+	Model           string             `bson:"model,omitempty" json:"model,omitempty"`
 	Status          string             `bson:"status" json:"status"`
 	PostID          string             `bson:"post_id,omitempty" json:"postId,omitempty"`
 	CreatedBy       string             `bson:"created_by" json:"createdBy"`
@@ -236,4 +237,5 @@ type GenerationBrief struct {
 	Category          string   `json:"category"`
 	SourcePreferences []string `json:"sourcePreferences"`
 	AdditionalNotes   string   `json:"additionalNotes"`
+	Model             string   `json:"model"`
 }

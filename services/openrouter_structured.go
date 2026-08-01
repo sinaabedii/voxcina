@@ -67,6 +67,19 @@ func (c *OpenRouterStructuredClient) CallWithSchema(ctx context.Context, prompt 
 	return c.CallStructured(ctx, req)
 }
 
+// CallWithSchemaAndModel sends a single user prompt with a JSON schema using the specified model.
+func (c *OpenRouterStructuredClient) CallWithSchemaAndModel(ctx context.Context, prompt string, schema map[string]interface{}, model string) (*StructuredResponse, error) {
+	if model == "" {
+		model = defaultStructuredModel
+	}
+	req := StructuredRequest{
+		Model:    model,
+		Messages: []OpenRouterMessage{{Role: "user", Content: prompt}},
+		Schema:   schema,
+	}
+	return c.CallStructured(ctx, req)
+}
+
 // CallStructured sends a request with JSON schema and falls back to brace extraction.
 func (c *OpenRouterStructuredClient) CallStructured(ctx context.Context, req StructuredRequest) (*StructuredResponse, error) {
 	if c.apiKey == "" {

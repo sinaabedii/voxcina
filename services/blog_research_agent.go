@@ -66,11 +66,9 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 	log.Printf("[blog] Starting research for run %s, topic: %s", run.ID.Hex(), brief.Topic)
 	now := time.Now()
 
-	// Generate search queries
 	queries := ra.generateQueries(brief)
 	log.Printf("[blog] Generated %d search queries", len(queries))
 
-	// Fetch research from Brave
 	allSources := make([]models.BlogResearchSource, 0)
 
 	type braveResult struct {
@@ -93,7 +91,6 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 			default:
 			}
 
-			// Use Web Search API (LLM Context requires paid plan)
 			var rawSources []braveResult
 
 			webResults, werr := ra.braveClient.SearchWeb(ctx, query, SearchOptions{Count: 5})
@@ -109,7 +106,6 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 				rawSources = append(rawSources, braveResult{URL: r.URL, Title: r.Title, Snippet: r.Snippet, ExtractedContent: r.Snippet})
 			}
 
-			// Process sources
 			for i, src := range rawSources {
 				source := models.BlogResearchSource{
 					PipelineRunID:    run.ID,
@@ -124,7 +120,6 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 					CreatedAt:        time.Now(),
 				}
 
-				// Extract claims from content
 				claims := ra.extractClaims(src.ExtractedContent, src.URL)
 				source.Claims = claims
 
@@ -133,13 +128,11 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 		}
 	}
 
-	// Generate research output using OpenRouter
-	researchOutput, err := ra.generateResearchOutput(ctx, brief, allSources)
+	researchOutput, err := ra.generateResearchOutput(ctx, brief, allSources, run.Model)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate research output: %w", err)
 	}
 
-	// Save sources to database
 	for _, source := range allSources {
 		if err := ra.repository.InsertResearchSource(ctx, &source); err != nil {
 			log.Printf("[blog] Warning: failed to save source %s: %v", source.URL, err)
@@ -153,7 +146,6 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 		GenerationBrief: *brief,
 	}
 
-	// Update run status
 	run.Status = "research_approved"
 	run.ApprovedAt = &now
 	if err := ra.repository.UpdatePipelineRun(ctx, run); err != nil {
@@ -237,7 +229,7 @@ func containsFactIndicators(text string) bool {
 }
 
 // generateResearchOutput uses OpenRouter to synthesize research
-func (ra *ResearchAgent) generateResearchOutput(ctx context.Context, brief *models.GenerationBrief, sources []models.BlogResearchSource) (*ResearchOutput, error) {
+func (ra *ResearchAgent) generateResearchOutput(ctx context.Context, brief *models.GenerationBrief, sources []models.BlogResearchSource, model string) (*ResearchOutput, error) {
 	// Build context from sources
 	contextText := ra.buildResearchContext(sources)
 
@@ -296,7 +288,7 @@ Write the response in Persian for the article content, but keep the JSON structu
 	)
 
 	// Call OpenRouter with structured output
-	output, err := ra.openRouter.CallWithSchema(ctx, prompt, researchOutputSchema())
+	output, err := ra.openRouter.CallWithSchemaAndModel(ctx, prompt, researchOutputSchema(), model)
 	if err != nil {
 		return nil, err
 	}
