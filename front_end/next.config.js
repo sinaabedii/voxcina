@@ -2,7 +2,8 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  
+  poweredByHeader: false,
+
   // Experimental optimizations
   experimental: {
     optimizePackageImports: ['lucide-react'], // Tree-shake icons (96 files use this)
