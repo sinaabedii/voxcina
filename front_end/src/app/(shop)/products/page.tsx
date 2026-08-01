@@ -160,6 +160,18 @@ export async function generateMetadata({ searchParams }: ProductsPageProps): Pro
     canonical: canonicalUrl,
   };
 
+  // Sort order doesn't change the underlying product set, only its ordering,
+  // so a sorted URL is a near-duplicate of the default-sort page at the same
+  // filters/page — index the default-sort version, keep sorted/search
+  // variants crawlable (follow) but out of the index to avoid duplicate
+  // content. See also: internal search results should not be indexed.
+  const isNonDefaultSort = Boolean(params.sort);
+  const isSearchResults = Boolean(search);
+  const robots: Metadata["robots"] =
+    isNonDefaultSort || isSearchResults
+      ? { index: false, follow: true }
+      : undefined;
+
   // Build other link elements for prev/next
   const other: Record<string, string> = {};
   
@@ -175,6 +187,7 @@ export async function generateMetadata({ searchParams }: ProductsPageProps): Pro
     title,
     description,
     alternates,
+    robots,
     other: Object.keys(other).length > 0 ? other : undefined,
     openGraph: {
       title,

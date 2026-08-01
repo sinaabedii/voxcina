@@ -116,6 +116,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
     <>
       <Link
         href={productHref}
+        rel="nofollow"
         data-activity-tracked="true"
         onClick={handleProductClick}
         className={`product-card group relative block rounded-2xl overflow-hidden transition-all duration-300 backdrop-blur-md border ${glassEffect

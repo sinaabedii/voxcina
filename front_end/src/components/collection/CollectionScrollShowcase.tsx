@@ -291,6 +291,7 @@ function ProductCard({
   return (
     <Link
       href={href}
+      rel="nofollow"
       data-activity-tracked="true"
       onClick={() =>
         activityTracker.trackProductClick(item.productId, item.name, {
