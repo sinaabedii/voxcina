@@ -862,7 +862,7 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Fetch all active products (no pagination yet - we'll paginate color variants)
+	// Fetch all active products matching filters
 	cursor, err := collection.Find(ctx, filter, findOptions)
 	if err != nil {
 		response := map[string]interface{}{
@@ -883,9 +883,27 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Expand products into color variant list items
+	// Paginate at the product level, before expanding into color variants.
+	// A product with many color variants must stay on a single page - if we
+	// paginated the flattened variant rows instead, a product's variants
+	// could straddle a page boundary and appear on two consecutive pages.
+	totalItems := len(products)
+	totalPages := int(math.Ceil(float64(totalItems) / float64(limit)))
+
+	skip := (page - 1) * limit
+	start := skip
+	end := skip + limit
+	if start > totalItems {
+		start = totalItems
+	}
+	if end > totalItems {
+		end = totalItems
+	}
+	pagedProducts := products[start:end]
+
+	// Expand this page's products into color variant list items
 	var colorVariantItems []models.ColorVariantListItem
-	for _, product := range products {
+	for _, product := range pagedProducts {
 		for _, colorVariant := range product.ColorVariants {
 			// Normalize Persian/Arabic digits in size strings
 			for j := range colorVariant.Sizes {
@@ -926,24 +944,6 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Apply pagination to color variants
-	totalItems := len(colorVariantItems)
-	totalPages := int(math.Ceil(float64(totalItems) / float64(limit)))
-
-	// Calculate skip and end indices
-	skip := (page - 1) * limit
-	start := skip
-	end := skip + limit
-	if start > totalItems {
-		start = totalItems
-	}
-	if end > totalItems {
-		end = totalItems
-	}
-
-	// Get paginated slice
-	paginatedItems := colorVariantItems[start:end]
-
 	// Determine next/prev pages
 	var nextPage *int
 	if page < totalPages {
@@ -961,7 +961,7 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 		CurrentPage int  `json:"currentPage"`
 		NextPage    *int `json:"nextPage,omitempty"`
 		PrevPage    *int `json:"prevPage,omitempty"`
-		TotalItems  int  `json:"totalItems"` // Total color variants, not products
+		TotalItems  int  `json:"totalItems"` // Total products, not color variants
 	}
 
 	type colorVariantsResponse struct {
@@ -970,7 +970,7 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := colorVariantsResponse{
-		Data: paginatedItems,
+		Data: colorVariantItems,
 		Pagination: paginationInfo{
 			TotalPages:  totalPages,
 			CurrentPage: page,
