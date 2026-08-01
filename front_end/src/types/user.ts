@@ -19,6 +19,7 @@ export interface User {
   appVersion?: string;
   // Auth tracking
   lastLogin?: string;
+  birthday?: string;
 }
 
 export interface Address {

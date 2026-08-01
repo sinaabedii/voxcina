@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -80,6 +81,7 @@ func SendSignupOTP(w http.ResponseWriter, r *http.Request) {
 		FirstName string `json:"firstName"`
 		LastName  string `json:"lastName"`
 		Phone     string `json:"phone"`
+		Birthday  string `json:"birthday"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -172,6 +174,21 @@ func SendSignupOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var birthday *time.Time
+	if req.Birthday != "" {
+		req.Birthday = convertPersianToEnglishDigits(strings.TrimSpace(req.Birthday))
+		req.Birthday = strings.ReplaceAll(req.Birthday, "/", "-")
+		parts := strings.Split(req.Birthday, "-")
+		if len(parts) == 3 {
+			jYear, _ := strconv.Atoi(parts[0])
+			jMonth, _ := strconv.Atoi(parts[1])
+			jDay, _ := strconv.Atoi(parts[2])
+			if gTime, gErr := utils.JalaliToGregorian(jYear, jMonth, jDay); gErr == nil {
+				birthday = &gTime
+			}
+		}
+	}
+
 	// Create OTP record
 	otp := models.OTP{
 		ID:        primitive.NewObjectID(),
@@ -179,6 +196,7 @@ func SendSignupOTP(w http.ResponseWriter, r *http.Request) {
 		Code:      code,
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
+		Birthday:  birthday,
 		Purpose:   models.OTPPurposeSignup,
 		Verified:  false,
 		Attempts:  0,
@@ -320,12 +338,13 @@ func VerifySignupOTP(w http.ResponseWriter, r *http.Request) {
 		Name:         otp.FirstName + " " + otp.LastName,
 		Phone:        req.Phone,
 		PasswordHash: string(hashedPassword),
-		Addresses:    []models.Address{}, // Initialize with empty slice
+		Addresses:    []models.Address{},
 		Role:         RoleCustomer,
 		IsActive:     true,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 		LastLogin:    &now,
+		Birthday:     otp.Birthday,
 	}
 
 	_, err = userCollection.InsertOne(ctx, user)

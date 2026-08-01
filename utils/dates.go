@@ -108,3 +108,57 @@ func ToJalaliDateString(t time.Time) string {
 	jalali := GregorianToJalali(t)
 	return FormatJalaliDate(jalali)
 }
+
+// JalaliToGregorian converts a Jalali (year, month, day) to a Gregorian time.Time
+func JalaliToGregorian(year, month, day int) (time.Time, error) {
+	if month < 1 || month > 12 {
+		return time.Time{}, fmt.Errorf("invalid Jalali month: %d", month)
+	}
+	if day < 1 || day > 31 {
+		return time.Time{}, fmt.Errorf("invalid Jalali day: %d", day)
+	}
+
+	jDays := jalaliToDays(year, month, day)
+	gYear, gMonth, gDay := daysToGregorian(jDays)
+
+	return time.Date(gYear, time.Month(gMonth), gDay, 0, 0, 0, 0, time.UTC), nil
+}
+
+// jalaliToDays converts a Jalali date to days since epoch
+func jalaliToDays(jYear, jMonth, jDay int) int {
+	jCycle := (jYear - 1) / 2820
+	jRemaining := (jYear - 1) % 2820
+
+	jDayOfYear := 0
+	if jMonth <= 6 {
+		jDayOfYear = (jMonth - 1) * 31
+	} else {
+		jDayOfYear = 6*31 + (jMonth-7)*30
+	}
+	jDayOfYear += jDay
+
+	totalDays := jCycle*1029983 + jRemaining*365 + jDayOfYear
+
+	leapOffset := 0
+	if jRemaining > 0 {
+		leapOffset = (jRemaining*8 + 21) / 33
+	}
+	totalDays += leapOffset
+
+	return totalDays + 1948320 + 1
+}
+
+// daysToGregorian converts days since epoch to Gregorian (year, month, day)
+func daysToGregorian(days int) (year, month, day int) {
+	l := days + 68569 + 2400001
+	n := 4 * l / 146097
+	l = l - (146097*n+3)/4
+	i := 4000 * (l + 1) / 1461001
+	l = l - 1461*i/4 + 31
+	j := 80 * l / 2447
+	day = l - 2447*j/80
+	l = j / 11
+	month = j + 2 - 12*l
+	year = 100*(n-49) + i + l
+	return year, month, day
+}

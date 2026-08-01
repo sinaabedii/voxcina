@@ -51,4 +51,7 @@ type User struct {
 
 	// Auth tracking
 	LastLogin *time.Time `bson:"last_login,omitempty" json:"last_login,omitempty"` // Timestamp of last successful login
+
+	// Personal info
+	Birthday *time.Time `bson:"birthday,omitempty" json:"birthday,omitempty"` // User's date of birth (Gregorian, converted from Jalali)
 }

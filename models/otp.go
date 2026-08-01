@@ -13,6 +13,7 @@ type OTP struct {
 	Code      string             `bson:"code"          json:"-"`         // 5-digit OTP code (not exposed in JSON)
 	FirstName string             `bson:"first_name"    json:"first_name"` // User's first name (Persian)
 	LastName  string             `bson:"last_name"     json:"last_name"`  // User's last name (Persian)
+	Birthday  *time.Time         `bson:"birthday,omitempty" json:"-"`   // User's birthday (optional, not exposed in JSON)
 	Purpose   string             `bson:"purpose"       json:"purpose"`   // "signup", "login", "reset_password"
 	Verified  bool               `bson:"verified"      json:"verified"`  // Whether OTP has been verified
 	Attempts  int                `bson:"attempts"      json:"attempts"`  // Number of verification attempts

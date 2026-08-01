@@ -438,6 +438,7 @@ export default function AdminUsersPage() {
                         <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 uppercase tracking-wider">اپلیکیشن</th>
                         <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 uppercase tracking-wider">آخرین ورود</th>
                         <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 uppercase tracking-wider">تاریخ عضویت</th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 uppercase tracking-wider">تاریخ تولد</th>
                         <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 uppercase tracking-wider">عملیات</th>
                       </tr>
                     </thead>
@@ -510,6 +511,13 @@ export default function AdminUsersPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">
                             {formatDate(user.createdAt)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                            {user.birthday ? (
+                              <span>{formatDate(user.birthday)}</span>
+                            ) : (
+                              <span className="text-voxcina-blue/40 dark:text-voxcina-cream/40">—</span>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                             <div className="flex items-center justify-center space-x-2 space-x-reverse">
@@ -604,6 +612,13 @@ export default function AdminUsersPage() {
                           <div className="flex items-center gap-1 text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50">
                             <Clock className="h-3 w-3 flex-shrink-0" />
                             <span>آخرین ورود: {formatRelativeTime(user.lastLogin)}</span>
+                          </div>
+                        )}
+
+                        {user.birthday && (
+                          <div className="flex items-center gap-1 text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50">
+                            <Calendar className="h-3 w-3 flex-shrink-0" />
+                            <span>تولد: {formatDate(user.birthday)}</span>
                           </div>
                         )}
                         

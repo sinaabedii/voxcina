@@ -14,6 +14,7 @@ import OtpInput from "@/components/auth/OtpInput";
 import OtpCountdown from "@/components/auth/OtpCountdown";
 import PasswordInput, { validatePassword } from "@/components/auth/PasswordInput";
 import StepIndicator from "@/components/auth/StepIndicator";
+import JalaliDatePicker from "@/components/auth/JalaliDatePicker";
 
 // Persian character validation regex (includes Persian letters and spaces)
 const persianNameRegex = /^[\u0600-\u06FF\s]+$/;
@@ -35,6 +36,7 @@ export default function SignUpPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [birthday, setBirthday] = useState("");
   
   // Step 2: OTP and password
   const [otpCode, setOtpCode] = useState("");
@@ -138,6 +140,7 @@ export default function SignUpPage() {
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           phone: normalizedPhone,
+          birthday,
         }),
       });
 
@@ -303,6 +306,11 @@ export default function SignUpPage() {
             value={phone}
             onChange={setPhone}
             error={errors.phone}
+          />
+
+          <JalaliDatePicker
+            value={birthday}
+            onChange={setBirthday}
           />
 
           <Button
