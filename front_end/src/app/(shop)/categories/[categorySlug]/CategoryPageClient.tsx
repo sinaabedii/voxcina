@@ -44,7 +44,9 @@ export default function CategoryPageClient({
   const [inStockOnly, setInStockOnly] = useState(initialFilters.inStockOnly || false);
 
   const totalPages = pagination?.totalPages || 1;
-  const totalItems = pagination?.totalItems || products.length;
+  // The grid renders one card per color variant, so the displayed count
+  // should reflect variant rows, not distinct products.
+  const totalItems = pagination?.totalColorVariants ?? products.length;
 
   // Get subcategories
   const subcategories = categories.filter(

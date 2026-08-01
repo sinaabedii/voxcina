@@ -143,7 +143,9 @@ export async function generateMetadata({ params, searchParams }: CategoryPagePro
   const { category, products, pagination } = data;
   const page = parseInt(search.page || "1", 10);
   const totalPages = pagination?.totalPages || 1;
-  const productCount = pagination?.totalItems || products.length;
+  // The grid renders one card per color variant, so the displayed count
+  // should reflect variant rows, not distinct products.
+  const productCount = pagination?.totalColorVariants ?? products.length;
 
   let title = category.name;
   if (page > 1) {

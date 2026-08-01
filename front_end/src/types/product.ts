@@ -148,6 +148,7 @@ export interface PaginationInfo {
   nextPage?: number;
   prevPage?: number;
   totalItems: number; // Total distinct products matching the filter (not color variant rows)
+  totalColorVariants?: number; // Total color variant rows across all matching products
 }
 
 // Paginated response for color variant list

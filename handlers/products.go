@@ -890,6 +890,15 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 	totalItems := len(products)
 	totalPages := int(math.Ceil(float64(totalItems) / float64(limit)))
 
+	// Total color variant rows across ALL matching products (not just this
+	// page) - the product grid renders one card per color variant, so UI
+	// labels like "N محصول" should reflect this count, not the distinct
+	// product count used for pagination above.
+	totalColorVariants := 0
+	for _, product := range products {
+		totalColorVariants += len(product.ColorVariants)
+	}
+
 	skip := (page - 1) * limit
 	start := skip
 	end := skip + limit
@@ -957,11 +966,12 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type paginationInfo struct {
-		TotalPages  int  `json:"totalPages"`
-		CurrentPage int  `json:"currentPage"`
-		NextPage    *int `json:"nextPage,omitempty"`
-		PrevPage    *int `json:"prevPage,omitempty"`
-		TotalItems  int  `json:"totalItems"` // Total products, not color variants
+		TotalPages         int  `json:"totalPages"`
+		CurrentPage        int  `json:"currentPage"`
+		NextPage           *int `json:"nextPage,omitempty"`
+		PrevPage           *int `json:"prevPage,omitempty"`
+		TotalItems         int  `json:"totalItems"`         // Total products, not color variants
+		TotalColorVariants int  `json:"totalColorVariants"` // Total color variant rows across all matching products
 	}
 
 	type colorVariantsResponse struct {
@@ -972,11 +982,12 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 	resp := colorVariantsResponse{
 		Data: colorVariantItems,
 		Pagination: paginationInfo{
-			TotalPages:  totalPages,
-			CurrentPage: page,
-			NextPage:    nextPage,
-			PrevPage:    prevPage,
-			TotalItems:  totalItems,
+			TotalPages:         totalPages,
+			CurrentPage:        page,
+			NextPage:           nextPage,
+			PrevPage:           prevPage,
+			TotalItems:         totalItems,
+			TotalColorVariants: totalColorVariants,
 		},
 	}
 

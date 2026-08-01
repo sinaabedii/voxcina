@@ -405,7 +405,7 @@ export default function ProductsPageContent({
                 variants={itemVariants}
               >
                 <span className="w-6 h-6 inline-flex items-center justify-center bg-voxcina-cream/50 dark:bg-voxcina-blue/30 rounded-full text-voxcina-blue dark:text-voxcina-cream text-sm font-medium ml-2">
-                  {initialPagination?.totalItems || initialProducts.length}
+                  {initialPagination?.totalColorVariants ?? initialProducts.length}
                 </span>
                 محصول یافت شد
               </motion.p>
