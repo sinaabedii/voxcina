@@ -148,6 +148,9 @@ func (wa *WritingAgent) buildWritingPrompt(snapshot *ResearchSnapshot) string {
 		targetImages = 2
 	}
 
+	// Build source material section from raw sources
+	sourceMaterial := formatSourceMaterial(snapshot.Sources)
+
 	prompt := fmt.Sprintf(`You are a Persian fashion and lifestyle blogger for Voxcina, an Iranian e-commerce platform. Write engaging, native Persian content that feels authentic and conversational.
 
 **Assignment:**
@@ -158,13 +161,15 @@ func (wa *WritingAgent) buildWritingPrompt(snapshot *ResearchSnapshot) string {
 - Category: %s
 - Keywords: %s
 
-**Research Summary:**
+**Research Findings:**
 %s
 
 **Outline:**
 - Title: %s
 - Sections: %s
 - Key points: %s
+
+%s
 
 **Constraints:**
 - Avoid: %s
@@ -198,14 +203,26 @@ You have these block types available:
 - Use header (H2) for section breaks — that's the only heading level below
   the title, so don't try to nest deeper headings
 
-**Writing Guidelines:**
+**Writing Guidelines — IMPORTANT: USE YOUR RESEARCH DATA:**
 - Write naturally in Persian, not translated-sounding
 - Be conversational and friendly, like talking to a friend
-- Include practical tips and actionable advice
 - Use short paragraphs (2-4 sentences)
 - Break up text with headings every 200-300 words
 - Use "list"/"quote" blocks where they genuinely fit better than prose
 - End with a conclusion or call-to-action
+
+**Source Data Usage (CRITICAL):**
+- The "Research Findings" above contain facts extracted from real web sources.
+  USE THESE SPECIFIC FACTS, numbers, and details in your article.
+- The "Source Material" section contains actual content fetched from those
+  web pages. Reference the details, examples, and insights from this content.
+- Do NOT write generic filler. Instead, weave the research data into your
+  article naturally — include specific numbers, named studies, concrete
+  examples, and expert advice mentioned in the sources.
+- When a finding mentions a specific statistic or fact, include it in the
+  relevant section of the article.
+- You can rephrase and adapt the source content to match the tone, but do NOT
+  discard the specific details.
 
 **Text Block Content Rule (CRITICAL):**
 - A "txt" block must contain ONLY flowing prose. NEVER start it with a label,
@@ -258,6 +275,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, no code blocks.
 		research.Outline.Title,
 		strings.Join(research.Outline.Sections, ", "),
 		strings.Join(research.Outline.KeyPoints, ", "),
+		sourceMaterial,
 		strings.Join(research.ProhibitedClaims, ", "),
 		strings.Join(research.Uncertainties, ", "),
 		targetImages,
@@ -278,6 +296,53 @@ func formatFindings(findings []ResearchFinding) string {
 			i+1, f.Claim, f.Confidence, f.Sources)
 	}
 	return formatted
+}
+
+// formatSourceMaterial formats raw research sources for the writing prompt.
+// It includes the most relevant content from each source, up to a total limit.
+func formatSourceMaterial(sources []models.BlogResearchSource) string {
+	if len(sources) == 0 {
+		return ""
+	}
+
+	const maxTotalChars = 6000
+	const maxPerSource = 1200
+
+	var result strings.Builder
+	result.WriteString("**Source Material (fetched web content — use these details in your article):**\n\n")
+
+	totalChars := 0
+	sourceCount := 0
+
+	for _, src := range sources {
+		if totalChars >= maxTotalChars {
+			break
+		}
+
+		content := src.ExtractedContent
+		if content == "" {
+			content = src.Snippet
+		}
+		if content == "" {
+			continue
+		}
+
+		if len(content) > maxPerSource {
+			content = content[:maxPerSource] + "..."
+		}
+
+		entry := fmt.Sprintf("Source: %s\n%s\n\n", src.Title, content)
+
+		if totalChars+len(entry) > maxTotalChars && sourceCount > 0 {
+			break
+		}
+
+		result.WriteString(entry)
+		totalChars += len(entry)
+		sourceCount++
+	}
+
+	return result.String()
 }
 
 // attemptBlockRepair tries to fix invalid blocks
@@ -303,6 +368,7 @@ func (wa *WritingAgent) attemptBlockRepair(ctx context.Context, snapshot *Resear
 	// When blocks are empty, the repair has no context. Re-generate from brief + research.
 	brief := snapshot.GenerationBrief
 	research := snapshot.Output
+	sourceMaterial := formatSourceMaterial(snapshot.Sources)
 
 	var prompt string
 	if len(blocks) == 0 {
@@ -321,6 +387,8 @@ func (wa *WritingAgent) attemptBlockRepair(ctx context.Context, snapshot *Resear
 **Outline:**
 - Title: %s
 - Sections: %s
+
+%s
 
 Write a complete Persian blog post. Return JSON with this structure:
 {
@@ -346,7 +414,9 @@ Rules:
 - "list"/"quote"/"product" blocks may be used but are optional; a "product"
   block must contain only a short "productDescription", never an invented
   product name/price
-- Return ONLY valid JSON`, brief.Topic, brief.TargetAudience, brief.DesiredLength, brief.Tone, brief.Category, strings.Join(brief.Keywords, ", "), formatFindings(research.Findings), research.Outline.Title, strings.Join(research.Outline.Sections, ", "), maxImages, textWords)
+- USE the research findings and source material to write content with specific
+  details, facts, and examples — not generic filler text
+- Return ONLY valid JSON`, brief.Topic, brief.TargetAudience, brief.DesiredLength, brief.Tone, brief.Category, strings.Join(brief.Keywords, ", "), formatFindings(research.Findings), research.Outline.Title, strings.Join(research.Outline.Sections, ", "), sourceMaterial, maxImages, textWords)
 	} else {
 		prompt = fmt.Sprintf(`Previous block generation failed validation. Please fix the blocks.
 

@@ -70,6 +70,7 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 	log.Printf("[blog] Generated %d search queries", len(queries))
 
 	allSources := make([]models.BlogResearchSource, 0)
+	seenURLs := make(map[string]bool)
 
 	type braveResult struct {
 		URL              string
@@ -83,7 +84,7 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 	} else {
 		for i, query := range queries {
 			if i > 0 {
-				time.Sleep(10 * time.Second) // Rate limit: free plan allows 1 req/sec
+				time.Sleep(2 * time.Second)
 			}
 			select {
 			case <-ctx.Done():
@@ -93,34 +94,66 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 
 			var rawSources []braveResult
 
-			webResults, werr := ra.braveClient.SearchWeb(ctx, query, SearchOptions{Count: 5})
+			webResults, werr := ra.braveClient.SearchWeb(ctx, query, SearchOptions{Count: 3})
 			if werr != nil {
 				if strings.Contains(werr.Error(), "429") {
-					log.Printf("[blog] Rate limited for query '%s', skipping", query)
+					log.Printf("[blog] Rate limited for query '%s', waiting 15s and skipping", query)
+					time.Sleep(15 * time.Second)
 				} else {
 					log.Printf("[blog] Web search failed for query '%s': %v", query, werr)
 				}
 				continue
 			}
 			for _, r := range webResults {
+				if seenURLs[r.URL] {
+					continue
+				}
+				seenURLs[r.URL] = true
 				rawSources = append(rawSources, braveResult{URL: r.URL, Title: r.Title, Snippet: r.Snippet, ExtractedContent: r.Snippet})
 			}
 
-			for i, src := range rawSources {
+			for j, src := range rawSources {
+				if j > 0 {
+					time.Sleep(3 * time.Second)
+				}
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				default:
+				}
+
+				fetchedContent := ""
+				fetchErr := fetchPageContent(ctx, src.URL, &fetchedContent)
+				if fetchErr != nil {
+					log.Printf("[blog] Failed to fetch content from %s: %v", src.URL, fetchErr)
+				} else if fetchedContent != "" {
+					log.Printf("[blog] Fetched %d chars from %s", len(fetchedContent), src.URL)
+				}
+
+				contentToUse := fetchedContent
+				if contentToUse == "" {
+					contentToUse = src.Snippet
+				}
+
+				relevantContent := extractRelevantSections(contentToUse, brief.Topic, brief.Keywords)
+				if relevantContent == "" {
+					relevantContent = contentToUse
+				}
+
 				source := models.BlogResearchSource{
 					PipelineRunID:    run.ID,
 					Query:            query,
-					Provider:         "brave_llm_context",
+					Provider:         "brave_web_search",
 					URL:              src.URL,
 					Title:            src.Title,
 					Snippet:          src.Snippet,
-					ExtractedContent: src.ExtractedContent,
-					SourceIndex:      i,
+					ExtractedContent: relevantContent,
+					SourceIndex:      j,
 					FetchedAt:        time.Now(),
 					CreatedAt:        time.Now(),
 				}
 
-				claims := ra.extractClaims(src.ExtractedContent, src.URL)
+				claims := ra.extractClaims(relevantContent, src.URL)
 				source.Claims = claims
 
 				allSources = append(allSources, source)
@@ -157,27 +190,20 @@ func (ra *ResearchAgent) RunResearch(ctx context.Context, run *models.BlogPipeli
 }
 
 // generateQueries creates search queries from the generation brief
+// Keeps query count low for Brave free tier rate limits (1 QPS, 15/min)
 func (ra *ResearchAgent) generateQueries(brief *models.GenerationBrief) []string {
 	queries := []string{
 		brief.Topic,
-		brief.Topic + " guide",
-		brief.Topic + " tips",
-		brief.Topic + " trends 2026",
-		brief.Topic + " how to",
 	}
 
-	// Add Persian queries if locale is Persian
+	// Add one Persian query if locale is Persian
 	if brief.Locale == "fa" || brief.Locale == "fa-IR" {
-		queries = append(queries,
-			brief.Topic+" راهنما",
-			brief.Topic+" نکات",
-			brief.Topic+" ترندها",
-		)
+		queries = append(queries, brief.Topic+" راهنما نکات")
 	}
 
-	// Add keyword-based queries
-	for _, keyword := range brief.Keywords {
-		queries = append(queries, keyword+" "+brief.Topic)
+	// Add one keyword-based query if keywords exist
+	if len(brief.Keywords) > 0 {
+		queries = append(queries, brief.Keywords[0]+" "+brief.Topic)
 	}
 
 	return queries
@@ -236,7 +262,7 @@ func (ra *ResearchAgent) generateResearchOutput(ctx context.Context, brief *mode
 	// Prepare prompt
 	prompt := fmt.Sprintf(`You are a research agent for a Persian fashion e-commerce blog.
 
-Generate comprehensive research for the following topic:
+Generate comprehensive, source-based research for the following topic.
 
 **Topic:** %s
 **Audience:** %s
@@ -245,24 +271,28 @@ Generate comprehensive research for the following topic:
 **Keywords:** %s
 **Category:** %s
 
-**Available Sources:**
+**SOURCES (extracted web content):**
 %s
 
 **Instructions:**
-1. Extract key findings with source citations
-2. Identify uncertainties and gaps in knowledge
-3. Flag any claims that need verification or are prohibited
-4. Recommend article structure (outline)
-5. Suggest category and tags
+1. CAREFULLY READ all the source content above. Each source contains real web content that was fetched from search results.
+2. Extract factual findings DIRECTLY FROM THE SOURCES. Your findings must be grounded in the provided source content, not your general knowledge.
+3. For each finding, include the exact source URL(s) it came from.
+4. Preserve specific numbers, statistics, quotes, and details from the sources — do not paraphrase away the specifics.
+5. Identify gaps where the sources don't provide enough information.
+6. Flag any claims that contradict each other or need verification.
+7. Recommend article structure based on what the sources cover.
+
+IMPORTANT: Your findings MUST be derived from the source content. If a source says "X is 45%% according to study Y", include that exact detail. Do not invent facts or use vague generalizations.
 
 Return a JSON object with this structure:
 {
   "findings": [
     {
-      "claim": "factual statement",
-      "evidence": "source URL or description",
-      "confidence": 0.8,
-      "sources": ["source_id_1", "source_id_2"]
+      "claim": "specific factual statement from sources",
+      "evidence": "quote or reference to source content",
+      "confidence": 0.85,
+      "sources": ["url1", "url2"]
     }
   ],
   "outline": {
@@ -271,13 +301,13 @@ Return a JSON object with this structure:
     "subsections": ["subsection 1.1", "subsection 1.2"],
     "key_points": ["point 1", "point 2"]
   },
-  "uncertainties": ["what we're not sure about"],
-  "prohibited_claims": ["claims that should not be made"],
+  "uncertainties": ["what we're not sure about based on sources"],
+  "prohibited_claims": ["claims contradicted by sources or not supported"],
   "recommended_category": "category name",
   "recommended_tags": ["tag1", "tag2"]
 }
 
-Write the response in Persian for the article content, but keep the JSON structure in English.`,
+Write the response in Persian for the article content, but keep the JSON structure keys in English.`,
 		brief.Topic,
 		brief.TargetAudience,
 		brief.DesiredLength,
@@ -310,17 +340,20 @@ func (ra *ResearchAgent) buildResearchContext(sources []models.BlogResearchSourc
 
 	context := ""
 	for i, src := range sources {
-		context += fmt.Sprintf("\n\nSource %d: %s\nTitle: %s\nURL: %s\nSnippet: %s\n",
-			i+1, src.Provider, src.Title, src.URL, src.Snippet)
+		context += fmt.Sprintf("\n\n--- Source %d ---\nTitle: %s\nURL: %s\n", i+1, src.Title, src.URL)
+
+		if src.Snippet != "" {
+			context += fmt.Sprintf("Summary: %s\n", src.Snippet)
+		}
 
 		if src.ExtractedContent != "" {
-			context += fmt.Sprintf("Content: %s\n", truncateString(src.ExtractedContent, 500))
+			context += fmt.Sprintf("\nFull Content:\n%s\n", truncateString(src.ExtractedContent, 2000))
 		}
 
 		if len(src.Claims) > 0 {
-			context += "Claims:\n"
+			context += "\nKey Facts:\n"
 			for _, claim := range src.Claims {
-				context += fmt.Sprintf("  - %s (confidence: %.2f)\n", claim.Claim, claim.Confidence)
+				context += fmt.Sprintf("  • %s\n", claim.Claim)
 			}
 		}
 	}
@@ -366,6 +399,185 @@ func researchOutputSchema() map[string]interface{} {
 			"required": []string{"findings", "outline"},
 		},
 	}
+}
+
+// fetchPageContent safely fetches page content with a timeout.
+// Returns empty string and nil error if fetch fails (graceful degradation).
+func fetchPageContent(ctx context.Context, targetURL string, content *string) error {
+	fetchCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
+	defer cancel()
+
+	result, err := FetchURLContent(fetchCtx, targetURL)
+	if err != nil {
+		*content = ""
+		return err
+	}
+
+	// Clean up excessive whitespace
+	result = strings.TrimSpace(result)
+	lines := strings.Split(result, "\n")
+	var cleaned []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			cleaned = append(cleaned, line)
+		}
+	}
+	*content = strings.Join(cleaned, "\n")
+	return nil
+}
+
+// extractRelevantSections extracts paragraphs from content that are relevant to the topic/keywords.
+// Returns up to maxChars characters of the most relevant content.
+func extractRelevantSections(content, topic string, keywords []string) string {
+	if content == "" {
+		return ""
+	}
+
+	paragraphs := splitIntoParagraphs(content)
+	if len(paragraphs) == 0 {
+		return content
+	}
+
+	searchTerms := buildSearchTerms(topic, keywords)
+
+	scored := make([]scoredParagraph, 0, len(paragraphs))
+	for _, p := range paragraphs {
+		if len(p) < 30 {
+			continue
+		}
+		score := scoreParagraphRelevance(p, searchTerms)
+		if score > 0 {
+			scored = append(scored, scoredParagraph{text: p, score: score})
+		}
+	}
+
+	// If nothing scored well, return the first few paragraphs as fallback
+	if len(scored) == 0 {
+		return truncateToLimit(paragraphs, 1500)
+	}
+
+	// Sort by score descending
+	sortParagraphsByScore(scored)
+
+	maxChars := 3000
+	var result []string
+	totalChars := 0
+	for _, sp := range scored {
+		if totalChars+len(sp.text) > maxChars {
+			break
+		}
+		result = append(result, sp.text)
+		totalChars += len(sp.text)
+	}
+
+	if len(result) == 0 {
+		return truncateToLimit(paragraphs, 1500)
+	}
+
+	return strings.Join(result, "\n\n")
+}
+
+// splitIntoParagraphs splits text into paragraphs by double newlines or single newlines.
+func splitIntoParagraphs(text string) []string {
+	// First try double newlines
+	paragraphs := strings.Split(text, "\n\n")
+	if len(paragraphs) > 1 {
+		var result []string
+		for _, p := range paragraphs {
+			p = strings.TrimSpace(p)
+			if len(p) >= 30 {
+				result = append(result, p)
+			}
+		}
+		if len(result) > 0 {
+			return result
+		}
+	}
+
+	// Fall back to single newlines
+	paragraphs = strings.Split(text, "\n")
+	var result []string
+	for _, p := range paragraphs {
+		p = strings.TrimSpace(p)
+		if len(p) >= 30 {
+			result = append(result, p)
+		}
+	}
+	return result
+}
+
+// buildSearchTerms creates a list of search terms from topic and keywords.
+func buildSearchTerms(topic string, keywords []string) []string {
+	terms := []string{strings.ToLower(topic)}
+	for _, kw := range keywords {
+		terms = append(terms, strings.ToLower(kw))
+	}
+
+	// Add word-level terms from topic
+	words := strings.Fields(strings.ToLower(topic))
+	for _, w := range words {
+		if len(w) > 3 {
+			terms = append(terms, w)
+		}
+	}
+
+	return terms
+}
+
+// scoreParagraphRelevance scores how relevant a paragraph is to the search terms.
+func scoreParagraphRelevance(paragraph string, terms []string) int {
+	lower := strings.ToLower(paragraph)
+	score := 0
+	for _, term := range terms {
+		count := strings.Count(lower, term)
+		score += count
+	}
+
+	// Bonus for containing specific content indicators
+	if strings.Contains(lower, "statistics") || strings.Contains(lower, "study") ||
+		strings.Contains(lower, "research") || strings.Contains(lower, "according") {
+		score += 2
+	}
+	if strings.Contains(lower, "tips") || strings.Contains(lower, "guide") ||
+		strings.Contains(lower, "how to") || strings.Contains(lower, "step") {
+		score += 2
+	}
+
+	// Penalty for very short paragraphs
+	if len(paragraph) < 50 {
+		score -= 2
+	}
+
+	return score
+}
+
+type scoredParagraph struct {
+	text  string
+	score int
+}
+
+// sortParagraphsByScore sorts scored paragraphs by score in descending order.
+func sortParagraphsByScore(scored []scoredParagraph) {
+	for i := 1; i < len(scored); i++ {
+		for j := i; j > 0 && scored[j].score > scored[j-1].score; j-- {
+			scored[j], scored[j-1] = scored[j-1], scored[j]
+		}
+	}
+}
+
+// truncateToLimit joins paragraphs up to maxChars.
+func truncateToLimit(paragraphs []string, maxChars int) string {
+	var result []string
+	total := 0
+	for _, p := range paragraphs {
+		if total+len(p) > maxChars {
+			break
+		}
+		result = append(result, p)
+		total += len(p)
+	}
+	return strings.Join(result, "\n\n")
 }
 
 // truncateString truncates a string to maxLen characters
