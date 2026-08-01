@@ -130,7 +130,7 @@ export default function BlogHero({ post }: BlogHeroProps) {
             alt={post.title}
             fill
             priority
-            className="object-cover"
+            className="object-cover object-top"
             sizes="100vw"
           />
         ) : (
