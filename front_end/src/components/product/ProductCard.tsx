@@ -217,9 +217,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           )}
 
-          <h3 className="product-card-title text-[11px] sm:text-sm font-bold text-foreground group-hover:text-primary transition-colors duration-300 line-clamp-1">
+          <p className="product-card-title text-[11px] sm:text-sm font-bold text-foreground group-hover:text-primary transition-colors duration-300 line-clamp-1">
             {name}
-          </h3>
+          </p>
           <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{colorName} · {brand}</p>
 
           {(ribbonLabel || isNew) && (

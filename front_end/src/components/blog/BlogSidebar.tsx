@@ -65,6 +65,7 @@ export default function BlogSidebar({
             <Link
               key={tag}
               href={`/blog?tag=${encodeURIComponent(tag)}`}
+              rel="nofollow"
               className="rounded-full bg-secondary-200 px-2 sm:px-3 py-0.5 sm:py-1 text-xs font-medium text-voxcina-blue transition-colors hover:bg-secondary-300"
             >
               {tag}

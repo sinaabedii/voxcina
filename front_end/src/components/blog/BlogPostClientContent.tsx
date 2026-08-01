@@ -51,6 +51,7 @@ export default function BlogPostClientContent({ post, relatedPosts }: BlogPostCl
                       <Link
                         key={tag}
                         href={`/blog?tag=${encodeURIComponent(tag)}`}
+                        rel="nofollow"
                         className="rounded-full bg-secondary-200 px-3 py-1 text-xs font-medium text-voxcina-blue transition-colors hover:bg-secondary-300"
                       >
                         {tag}

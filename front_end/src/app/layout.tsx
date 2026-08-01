@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { APP_NAME, APP_DESCRIPTION, SEO_DEFAULT_TITLE } from "@/lib/constants";
 import "./globals.css";
 import "react-toastify/dist/ReactToastify.css";
@@ -121,6 +121,12 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
+
 export default async function RootLayout({
   children,
 }: {
@@ -169,12 +175,9 @@ export default async function RootLayout({
   return (
     <html lang="fa" dir="rtl" className="scroll-smooth">
       <head>
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=5"
-        />
         <meta name="theme-color" content="#1A3C69" />
         <link rel="icon" href="/images/Logo/WXTransparent-org.png" sizes="any" />
+        <link rel="apple-touch-icon" href="/images/Logo/apple-touch-icon.png" />
         
         {/* Preload critical fonts for better CLS and LCP */}
         <link

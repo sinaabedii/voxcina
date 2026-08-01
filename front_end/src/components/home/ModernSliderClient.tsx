@@ -188,6 +188,7 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
                         href={`/products?tag=${sliderData[
                           currentSlide
                         ].badge.toLowerCase()}`}
+                        rel="nofollow"
                         className="inline-flex items-center justify-center bg-white/10 text-white backdrop-blur-sm px-4 py-2.5 md:px-8 md:py-4 rounded-full font-medium md:font-semibold text-sm md:text-base hover:bg-white/20 border border-white/30 transition-colors"
                       >
                         <span>محصولات بیشتر</span>
