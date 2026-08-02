@@ -85,6 +85,7 @@ const ModernCategoriesSection = () => {
       setItemWidth(Math.floor(raw));
     };
 
+    el.scrollLeft = 0;
     recompute();
     const resizeObserver = new ResizeObserver(recompute);
     resizeObserver.observe(el);
@@ -182,9 +183,7 @@ const ModernCategoriesSection = () => {
 
             <div
               ref={scrollerRef}
-              className={`overflow-x-auto scrollbar-hide snap-x snap-mandatory py-4 px-4 select-none ${
-                isDragging ? "" : "scroll-smooth"
-              }`}
+              className="overflow-x-auto scrollbar-hide py-4 px-4 select-none"
               style={{ cursor: isDragging ? "grabbing" : "grab" }}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
@@ -198,7 +197,7 @@ const ModernCategoriesSection = () => {
                   return (
                     <div
                       key={category.id}
-                      className="relative flex-none snap-start basis-[calc((100%_-_2.25rem)/4)] md:basis-[calc((100%_-_7rem)/8)]"
+                      className="relative flex-none basis-[calc((100%_-_2.25rem)/4)] md:basis-[calc((100%_-_7rem)/8)]"
                       style={
                         itemWidth !== null
                           ? { flexBasis: `${itemWidth}px` }
