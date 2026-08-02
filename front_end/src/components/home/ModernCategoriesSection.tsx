@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useCategoryStore } from "@/store/category-store";
 import { Category } from "@/types/category";
-import { Loader2, Tags } from "lucide-react";
+import { Loader2, Tags, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui";
 
 // Gradient palette used to colour the avatar rings. Cycles through the
 // list based on category index so the section stays visually varied
@@ -47,6 +48,11 @@ const RING_PALETTE = [
 const ModernCategoriesSection = () => {
   const { categories, fetchCategories, isLoading } = useCategoryStore();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const hasInteractedRef = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartX, setDragStartX] = useState(0);
+  const [dragScrollLeft, setDragScrollLeft] = useState(0);
 
   useEffect(() => {
     fetchCategories();
@@ -56,6 +62,80 @@ const ModernCategoriesSection = () => {
     () => (categories || []).filter((c) => c.is_active !== false),
     [categories]
   );
+
+  // Nudge the user with a one-off smooth auto-scroll "peek" a couple of
+  // seconds after load, so it's obvious the row scrolls for more
+  // categories. Cancelled the moment the user touches/scrolls it themselves.
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el || visible.length === 0) return;
+
+    hasInteractedRef.current = false;
+    const markInteracted = () => {
+      hasInteractedRef.current = true;
+    };
+    el.addEventListener("wheel", markInteracted, { passive: true });
+    el.addEventListener("touchstart", markInteracted, { passive: true });
+    el.addEventListener("mousedown", markInteracted);
+
+    let backTimer: ReturnType<typeof setTimeout>;
+    const peekTimer = setTimeout(() => {
+      const node = scrollerRef.current;
+      if (!node || hasInteractedRef.current) return;
+      if (node.scrollWidth <= node.clientWidth + 4) return;
+
+      const peek = Math.min(
+        node.clientWidth * 0.6,
+        node.scrollWidth - node.clientWidth
+      );
+      node.scrollTo({ left: peek, behavior: "smooth" });
+
+      backTimer = setTimeout(() => {
+        const node2 = scrollerRef.current;
+        if (!node2 || hasInteractedRef.current) return;
+        node2.scrollTo({ left: 0, behavior: "smooth" });
+      }, 950);
+    }, 2200);
+
+    return () => {
+      clearTimeout(peekTimer);
+      clearTimeout(backTimer);
+      el.removeEventListener("wheel", markInteracted);
+      el.removeEventListener("touchstart", markInteracted);
+      el.removeEventListener("mousedown", markInteracted);
+    };
+  }, [visible.length]);
+
+  const scrollByDirection = (direction: "start" | "end") => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    hasInteractedRef.current = true;
+
+    const amount = el.clientWidth * 0.8;
+    const next =
+      direction === "end" ? el.scrollLeft + amount : el.scrollLeft - amount;
+    el.scrollTo({ left: next, behavior: "smooth" });
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    hasInteractedRef.current = true;
+    setIsDragging(true);
+    setDragStartX(e.pageX - el.offsetLeft);
+    setDragScrollLeft(el.scrollLeft);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const el = scrollerRef.current;
+    if (!isDragging || !el) return;
+    e.preventDefault();
+    const x = e.pageX - el.offsetLeft;
+    const walk = (x - dragStartX) * 1.5;
+    el.scrollLeft = dragScrollLeft - walk;
+  };
+
+  const stopDragging = () => setIsDragging(false);
 
   return (
     <section className="py-16 bg-transparent">
@@ -88,117 +168,99 @@ const ModernCategoriesSection = () => {
             <p>هنوز دسته‌بندی‌ای ثبت نشده است.</p>
           </div>
         ) : (
-          <>
-            {/* Desktop / tablet grid */}
-            <div className="hidden md:flex flex-wrap justify-center gap-4 md:gap-6 lg:gap-8 max-w-5xl mx-auto mb-16">
-              {visible.map((category, index) => {
-                const palette =
-                  RING_PALETTE[index % RING_PALETTE.length];
-                const isHovered = hoveredId === category.id;
-                return (
-                  <div key={category.id} className="relative">
-                    <Link
-                      href={`/products?category=${
-                        category.id ?? category.slug
-                      }`}
-                      onMouseEnter={() => setHoveredId(category.id ?? null)}
-                      onMouseLeave={() => setHoveredId(null)}
+          <div className="relative group/scroller mb-4">
+            {/* Scroll hint arrows — desktop only, mobile relies on touch swipe */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => scrollByDirection("start")}
+              className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 bg-white/95 shadow-lg ring-1 ring-black/5 rounded-full p-2.5 opacity-0 md:opacity-70 group-hover/scroller:opacity-100 transition-all duration-300 hover:bg-white hover:scale-110"
+              aria-label="دسته‌بندی‌های قبلی"
+            >
+              <ChevronLeft className="w-5 h-5 text-voxcina-blue" />
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => scrollByDirection("end")}
+              className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 bg-white/95 shadow-lg ring-1 ring-black/5 rounded-full p-2.5 opacity-0 md:opacity-70 group-hover/scroller:opacity-100 transition-all duration-300 hover:bg-white hover:scale-110"
+              aria-label="دسته‌بندی‌های بعدی"
+            >
+              <ChevronRight className="w-5 h-5 text-voxcina-blue" />
+            </Button>
+
+            <div
+              ref={scrollerRef}
+              className={`overflow-x-auto scrollbar-hide snap-x snap-mandatory py-4 px-4 select-none ${
+                isDragging ? "" : "scroll-smooth"
+              }`}
+              style={{ cursor: isDragging ? "grabbing" : "grab" }}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={stopDragging}
+              onMouseLeave={stopDragging}
+            >
+              <div className="flex gap-3 md:gap-4">
+                {visible.map((category, index) => {
+                  const palette = RING_PALETTE[index % RING_PALETTE.length];
+                  const isHovered = hoveredId === category.id;
+                  return (
+                    <div
+                      key={category.id}
+                      className="relative flex-none snap-start basis-[calc((100%_-_2.25rem)/4)] md:basis-[calc((100%_-_7rem)/8)]"
                     >
-                      <div className="relative group cursor-pointer transition-transform duration-300 hover:-translate-y-2">
-                        <div
-                          className={`relative w-24 h-24 md:w-28 md:h-28 lg:w-32 lg:h-32 rounded-full bg-gradient-to-br ${palette.ring} p-0.5 ${palette.shadow} shadow-lg group-hover:shadow-xl transition-all duration-300`}
-                        >
-                          <div className="w-full h-full rounded-full bg-white flex items-center justify-center p-3">
-                            {category.avatar ? (
-                              <img
-                                src={category.avatar}
-                                alt={category.name}
-                                className="w-full h-full object-contain transform transition-transform duration-300 group-hover:scale-110"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display =
-                                    "none";
-                                }}
-                              />
-                            ) : (
-                              <Tags className="w-1/2 h-1/2 text-voxcina-blue/40" />
-                            )}
-                          </div>
-                        </div>
-
-                        <div
-                          className={`absolute inset-0 rounded-full bg-gradient-to-br ${palette.ring} opacity-0 group-hover:opacity-20 group-hover:scale-110 transition-all duration-300`}
-                        />
-
-                        {isHovered && (
-                          <div className="absolute inset-0 rounded-full border-4 border-gray-800 scale-110" />
-                        )}
-                      </div>
-
-                      <h3 className="text-center mt-3 text-sm md:text-base font-medium text-gray-800 group-hover:text-gray-900 transition-colors">
-                        {category.name}
-                      </h3>
-                    </Link>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Mobile horizontal scroller */}
-            <div className="md:hidden mb-12">
-              <div className="relative">
-                <div className="overflow-x-auto scrollbar-hide py-4">
-                  <div
-                    className="flex gap-4 px-4"
-                    style={{ width: "max-content" }}
-                  >
-                    {visible.map((category, index) => {
-                      const palette =
-                        RING_PALETTE[index % RING_PALETTE.length];
-                      return (
-                        <div
-                          key={category.id}
-                          className="flex-shrink-0"
-                        >
-                          <Link
-                            href={`/products?category=${
-                              category.id ?? category.slug
-                            }`}
+                      <Link
+                        href={`/products?category=${
+                          category.id ?? category.slug
+                        }`}
+                        onMouseEnter={() => setHoveredId(category.id ?? null)}
+                        onMouseLeave={() => setHoveredId(null)}
+                        draggable={false}
+                      >
+                        <div className="relative group cursor-pointer transition-transform duration-300 hover:-translate-y-1 active:scale-95">
+                          <div
+                            className={`relative w-full aspect-square rounded-full bg-gradient-to-br ${palette.ring} p-0.5 ${palette.shadow} shadow-lg group-hover:shadow-xl transition-all duration-300`}
                           >
-                            <div className="relative group cursor-pointer active:scale-95 transition-transform duration-150">
-                              <div
-                                className={`relative w-20 h-20 rounded-full bg-gradient-to-br ${palette.ring} p-0.5 ${palette.shadow} shadow-lg transition-all duration-300`}
-                              >
-                                <div className="w-full h-full rounded-full bg-white flex items-center justify-center p-2">
-                                  {category.avatar ? (
-                                    <img
-                                      src={category.avatar}
-                                      alt={category.name}
-                                      className="w-full h-full object-contain"
-                                      onError={(e) => {
-                                        (
-                                          e.target as HTMLImageElement
-                                        ).style.display = "none";
-                                      }}
-                                    />
-                                  ) : (
-                                    <Tags className="w-1/2 h-1/2 text-voxcina-blue/40" />
-                                  )}
-                                </div>
-                              </div>
+                            <div className="w-full h-full rounded-full bg-white flex items-center justify-center p-2 md:p-3">
+                              {category.avatar ? (
+                                <img
+                                  src={category.avatar}
+                                  alt={category.name}
+                                  draggable={false}
+                                  className="w-full h-full object-contain transform transition-transform duration-300 group-hover:scale-110"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display =
+                                      "none";
+                                  }}
+                                />
+                              ) : (
+                                <Tags className="w-1/2 h-1/2 text-voxcina-blue/40" />
+                              )}
                             </div>
+                          </div>
 
-                            <h3 className="text-center mt-2 text-xs font-medium text-gray-800 px-1 max-w-[5rem] truncate">
-                              {category.name}
-                            </h3>
-                          </Link>
+                          <div
+                            className={`absolute inset-0 rounded-full bg-gradient-to-br ${palette.ring} opacity-0 group-hover:opacity-20 group-hover:scale-110 transition-all duration-300`}
+                          />
+
+                          {isHovered && (
+                            <div className="absolute inset-0 rounded-full border-4 border-gray-800 scale-110" />
+                          )}
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
+
+                        <h3 className="text-center mt-2 text-[11px] md:text-xs leading-snug font-medium text-gray-800 break-words group-hover:text-gray-900 transition-colors">
+                          {category.name}
+                        </h3>
+                      </Link>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
     </section>
