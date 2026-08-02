@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { useCategoryStore } from "@/store/category-store";
 import { Category } from "@/types/category";
@@ -49,10 +55,10 @@ const ModernCategoriesSection = () => {
   const { categories, fetchCategories, isLoading } = useCategoryStore();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const hasInteractedRef = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
   const [dragScrollLeft, setDragScrollLeft] = useState(0);
+  const [itemWidth, setItemWidth] = useState<number | null>(null);
 
   useEffect(() => {
     fetchCategories();
@@ -63,53 +69,36 @@ const ModernCategoriesSection = () => {
     [categories]
   );
 
-  // Nudge the user with a one-off smooth auto-scroll "peek" a couple of
-  // seconds after load, so it's obvious the row scrolls for more
-  // categories. Cancelled the moment the user touches/scrolls it themselves.
-  useEffect(() => {
+  // CSS percentage-based flex-basis drifts by a few sub-pixels once you
+  // divide by 4/8 and subtract gaps, which is exactly what let a sliver of
+  // the next avatar peek in. Measuring the real container width and
+  // flooring the per-item share in JS guarantees the row never exceeds it.
+  useLayoutEffect(() => {
     const el = scrollerRef.current;
     if (!el || visible.length === 0) return;
 
-    hasInteractedRef.current = false;
-    const markInteracted = () => {
-      hasInteractedRef.current = true;
+    const recompute = () => {
+      const isDesktop = window.matchMedia("(min-width: 768px)").matches;
+      const perView = isDesktop ? 8 : 4;
+      const gap = isDesktop ? 16 : 12;
+      const raw = (el.clientWidth - (perView - 1) * gap) / perView;
+      setItemWidth(Math.floor(raw));
     };
-    el.addEventListener("wheel", markInteracted, { passive: true });
-    el.addEventListener("touchstart", markInteracted, { passive: true });
-    el.addEventListener("mousedown", markInteracted);
 
-    let backTimer: ReturnType<typeof setTimeout>;
-    const peekTimer = setTimeout(() => {
-      const node = scrollerRef.current;
-      if (!node || hasInteractedRef.current) return;
-      if (node.scrollWidth <= node.clientWidth + 4) return;
-
-      const peek = Math.min(
-        node.clientWidth * 0.6,
-        node.scrollWidth - node.clientWidth
-      );
-      node.scrollTo({ left: peek, behavior: "smooth" });
-
-      backTimer = setTimeout(() => {
-        const node2 = scrollerRef.current;
-        if (!node2 || hasInteractedRef.current) return;
-        node2.scrollTo({ left: 0, behavior: "smooth" });
-      }, 950);
-    }, 2200);
+    recompute();
+    const resizeObserver = new ResizeObserver(recompute);
+    resizeObserver.observe(el);
+    window.addEventListener("resize", recompute);
 
     return () => {
-      clearTimeout(peekTimer);
-      clearTimeout(backTimer);
-      el.removeEventListener("wheel", markInteracted);
-      el.removeEventListener("touchstart", markInteracted);
-      el.removeEventListener("mousedown", markInteracted);
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", recompute);
     };
   }, [visible.length]);
 
   const scrollByDirection = (direction: "start" | "end") => {
     const el = scrollerRef.current;
     if (!el) return;
-    hasInteractedRef.current = true;
 
     const amount = el.clientWidth * 0.8;
     const next =
@@ -120,7 +109,6 @@ const ModernCategoriesSection = () => {
   const handleMouseDown = (e: React.MouseEvent) => {
     const el = scrollerRef.current;
     if (!el) return;
-    hasInteractedRef.current = true;
     setIsDragging(true);
     setDragStartX(e.pageX - el.offsetLeft);
     setDragScrollLeft(el.scrollLeft);
@@ -211,6 +199,11 @@ const ModernCategoriesSection = () => {
                     <div
                       key={category.id}
                       className="relative flex-none snap-start basis-[calc((100%_-_2.25rem)/4)] md:basis-[calc((100%_-_7rem)/8)]"
+                      style={
+                        itemWidth !== null
+                          ? { flexBasis: `${itemWidth}px` }
+                          : undefined
+                      }
                     >
                       <Link
                         href={`/products?category=${
