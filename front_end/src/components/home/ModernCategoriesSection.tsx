@@ -88,7 +88,12 @@ const ModernCategoriesSection = () => {
       const perView = isDesktop ? 8 : 4;
       const gap =
         parseFloat(getComputedStyle(row).columnGap) || (isDesktop ? 16 : 12);
-      const raw = (row.clientWidth - (perView - 1) * gap) / perView;
+      // A few px of deliberate slack absorbs any residual rounding across
+      // browsers/devices — a sliver of empty space at the edge is fine,
+      // a sliver of the next avatar is not.
+      const SAFETY_MARGIN = 8;
+      const raw =
+        (row.clientWidth - (perView - 1) * gap - SAFETY_MARGIN) / perView;
       setItemWidth(Math.floor(raw));
     };
 
