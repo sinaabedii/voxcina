@@ -76,6 +76,8 @@ const ModernCategoriesSection = () => {
   // per-item share in JS guarantees the row never exceeds it. Must measure
   // rowRef (the flex container itself), not the padded scroller wrapper
   // around it, or every item ends up overshot by the wrapper's own padding.
+  // The gap is read from computed styles rather than hardcoded so it can
+  // never drift out of sync with the gap-3/gap-4 classes below.
   useLayoutEffect(() => {
     const el = scrollerRef.current;
     const row = rowRef.current;
@@ -84,7 +86,8 @@ const ModernCategoriesSection = () => {
     const recompute = () => {
       const isDesktop = window.matchMedia("(min-width: 768px)").matches;
       const perView = isDesktop ? 8 : 4;
-      const gap = isDesktop ? 16 : 12;
+      const gap =
+        parseFloat(getComputedStyle(row).columnGap) || (isDesktop ? 16 : 12);
       const raw = (row.clientWidth - (perView - 1) * gap) / perView;
       setItemWidth(Math.floor(raw));
     };
