@@ -55,6 +55,7 @@ const ModernCategoriesSection = () => {
   const { categories, fetchCategories, isLoading } = useCategoryStore();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
   const [dragScrollLeft, setDragScrollLeft] = useState(0);
@@ -71,24 +72,27 @@ const ModernCategoriesSection = () => {
 
   // CSS percentage-based flex-basis drifts by a few sub-pixels once you
   // divide by 4/8 and subtract gaps, which is exactly what let a sliver of
-  // the next avatar peek in. Measuring the real container width and
-  // flooring the per-item share in JS guarantees the row never exceeds it.
+  // the next avatar peek in. Measuring the real row width and flooring the
+  // per-item share in JS guarantees the row never exceeds it. Must measure
+  // rowRef (the flex container itself), not the padded scroller wrapper
+  // around it, or every item ends up overshot by the wrapper's own padding.
   useLayoutEffect(() => {
     const el = scrollerRef.current;
-    if (!el || visible.length === 0) return;
+    const row = rowRef.current;
+    if (!el || !row || visible.length === 0) return;
 
     const recompute = () => {
       const isDesktop = window.matchMedia("(min-width: 768px)").matches;
       const perView = isDesktop ? 8 : 4;
       const gap = isDesktop ? 16 : 12;
-      const raw = (el.clientWidth - (perView - 1) * gap) / perView;
+      const raw = (row.clientWidth - (perView - 1) * gap) / perView;
       setItemWidth(Math.floor(raw));
     };
 
     el.scrollLeft = 0;
     recompute();
     const resizeObserver = new ResizeObserver(recompute);
-    resizeObserver.observe(el);
+    resizeObserver.observe(row);
     window.addEventListener("resize", recompute);
 
     return () => {
@@ -164,7 +168,7 @@ const ModernCategoriesSection = () => {
               variant="ghost"
               size="sm"
               onClick={() => scrollByDirection("start")}
-              className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 bg-white/95 shadow-lg ring-1 ring-black/5 rounded-full p-2.5 opacity-0 md:opacity-70 group-hover/scroller:opacity-100 transition-all duration-300 hover:bg-white hover:scale-110"
+              className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 bg-white/95 shadow-lg ring-1 ring-black/5 rounded-full p-2.5 opacity-0 group-hover/scroller:opacity-100 transition-all duration-300 hover:bg-white hover:scale-110"
               aria-label="دسته‌بندی‌های قبلی"
             >
               <ChevronLeft className="w-5 h-5 text-voxcina-blue" />
@@ -175,7 +179,7 @@ const ModernCategoriesSection = () => {
               variant="ghost"
               size="sm"
               onClick={() => scrollByDirection("end")}
-              className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 bg-white/95 shadow-lg ring-1 ring-black/5 rounded-full p-2.5 opacity-0 md:opacity-70 group-hover/scroller:opacity-100 transition-all duration-300 hover:bg-white hover:scale-110"
+              className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 bg-white/95 shadow-lg ring-1 ring-black/5 rounded-full p-2.5 opacity-0 group-hover/scroller:opacity-100 transition-all duration-300 hover:bg-white hover:scale-110"
               aria-label="دسته‌بندی‌های بعدی"
             >
               <ChevronRight className="w-5 h-5 text-voxcina-blue" />
@@ -190,7 +194,7 @@ const ModernCategoriesSection = () => {
               onMouseUp={stopDragging}
               onMouseLeave={stopDragging}
             >
-              <div className="flex gap-3 md:gap-4">
+              <div ref={rowRef} className="flex gap-3 md:gap-4">
                 {visible.map((category, index) => {
                   const palette = RING_PALETTE[index % RING_PALETTE.length];
                   const isHovered = hoveredId === category.id;
