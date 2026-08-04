@@ -37,7 +37,8 @@ func (wa *WritingAgent) RunWriting(ctx context.Context, run *models.BlogPipeline
 
 	prompt := wa.buildWritingPrompt(snapshot)
 
-	output, err := wa.openRouter.CallWithSchemaAndModel(ctx, prompt, writingOutputSchema(), run.Model)
+	maxTokens := writingMaxTokens(snapshot.GenerationBrief.DesiredLength)
+	output, err := wa.openRouter.CallWithSchemaModelAndTokens(ctx, prompt, writingOutputSchema(), run.Model, maxTokens)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate writing output: %w", err)
 	}
@@ -434,7 +435,8 @@ CRITICAL Validation errors to fix:
 Return corrected blocks in the same JSON format with the correct number of images.`, formatBlocks(blocks), imageCount, maxImages, textWords, maxImages)
 	}
 
-	output, err := wa.openRouter.CallWithSchemaAndModel(ctx, prompt, writingOutputSchema(), model)
+	maxTokens := writingMaxTokens(snapshot.GenerationBrief.DesiredLength)
+	output, err := wa.openRouter.CallWithSchemaModelAndTokens(ctx, prompt, writingOutputSchema(), model, maxTokens)
 	if err != nil {
 		return nil, err
 	}
@@ -482,6 +484,24 @@ func (wa *WritingAgent) extractTitle(blocks []models.BlogBlock) string {
 		}
 	}
 	return "Untitled"
+}
+
+// writingMaxTokens sizes the completion budget for a writing/repair call
+// based on the requested article length. Persian text runs several tokens
+// per word in BPE tokenizers, and the JSON block structure (types, keys,
+// per-block overhead) adds on top of that — a flat 4096-token budget was
+// silently truncating anything beyond a short article. Clamped to a floor
+// (short articles still need room for the JSON wrapper) and a ceiling (stay
+// within typical provider completion limits).
+func writingMaxTokens(desiredWords int) int {
+	tokens := desiredWords*4 + 2000
+	if tokens < 6000 {
+		tokens = 6000
+	}
+	if tokens > 16000 {
+		tokens = 16000
+	}
+	return tokens
 }
 
 // countBlockWords counts readable words in a block, covering plain Text

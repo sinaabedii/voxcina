@@ -80,6 +80,23 @@ func (c *OpenRouterStructuredClient) CallWithSchemaAndModel(ctx context.Context,
 	return c.CallStructured(ctx, req)
 }
 
+// CallWithSchemaModelAndTokens is like CallWithSchemaAndModel but lets the
+// caller size the completion budget explicitly — useful when output length
+// varies a lot (e.g. a requested article word count) and the default budget
+// would truncate longer outputs.
+func (c *OpenRouterStructuredClient) CallWithSchemaModelAndTokens(ctx context.Context, prompt string, schema map[string]interface{}, model string, maxTokens int) (*StructuredResponse, error) {
+	if model == "" {
+		model = defaultStructuredModel
+	}
+	req := StructuredRequest{
+		Model:     model,
+		Messages:  []OpenRouterMessage{{Role: "user", Content: prompt}},
+		Schema:    schema,
+		MaxTokens: maxTokens,
+	}
+	return c.CallStructured(ctx, req)
+}
+
 // CallStructured sends a request with JSON schema and falls back to brace extraction.
 func (c *OpenRouterStructuredClient) CallStructured(ctx context.Context, req StructuredRequest) (*StructuredResponse, error) {
 	if c.apiKey == "" {
@@ -87,7 +104,7 @@ func (c *OpenRouterStructuredClient) CallStructured(ctx context.Context, req Str
 	}
 
 	if req.MaxTokens == 0 {
-		req.MaxTokens = 4096
+		req.MaxTokens = 8192
 	}
 	if req.Temperature == 0 {
 		req.Temperature = 0.3
@@ -100,6 +117,13 @@ func (c *OpenRouterStructuredClient) CallStructured(ctx context.Context, req Str
 		"max_tokens":  req.MaxTokens,
 		"temperature": req.Temperature,
 		"stream":      false,
+		// These calls only need the final JSON, not a chain-of-thought. For
+		// reasoning/"thinking" models (e.g. qwen3 variants), OpenRouter bills
+		// reasoning tokens against the SAME max_tokens budget as the answer —
+		// left enabled, the model can burn the entire budget "thinking" and
+		// get cut off before emitting any JSON content. Disabling it frees the
+		// whole budget for the actual structured output.
+		"reasoning": map[string]interface{}{"effort": "none"},
 	}
 	if req.Schema != nil {
 		body["response_format"] = map[string]interface{}{
