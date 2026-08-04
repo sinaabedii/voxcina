@@ -26,8 +26,8 @@ func NewPromptAgent(openRouter *OpenRouterStructuredClient, repository *BlogRepo
 
 // PromptOutput represents generated prompts
 type PromptOutput struct {
-	CoverPrompt    ImagePrompt `json:"cover_prompt"`
-	InlinePrompts  []ImagePrompt `json:"inline_prompts"`
+	CoverPrompt   ImagePrompt   `json:"cover_prompt"`
+	InlinePrompts []ImagePrompt `json:"inline_prompts"`
 }
 
 // ImagePrompt represents a prompt for image generation
@@ -35,8 +35,8 @@ type ImagePrompt struct {
 	Prompt          string `json:"prompt"`
 	AltText         string `json:"alt_text"`
 	Caption         string `json:"caption"`
-	AspectRatio     string `json:"aspect_ratio"`     // "16:9", "4:3", "1:1"
-	Composition     string `json:"composition"`      // "hero", "lifestyle", "product", "flat-lay"
+	AspectRatio     string `json:"aspect_ratio"` // "16:9", "4:3", "1:1"
+	Composition     string `json:"composition"`  // "hero", "lifestyle", "product", "flat-lay"
 	SuggestedSlotID string `json:"suggested_slot_id"`
 }
 
@@ -94,6 +94,35 @@ func (pa *PromptAgent) extractContentSummary(blocks []models.BlogBlock) string {
 	return sb.String()
 }
 
+// formatOptionalContext renders the pipeline run's and post's targeting
+// fields (audience, tone, keywords, tags, excerpt, notes) as a bullet list,
+// omitting any that are empty. Without this, the prompt model only ever sees
+// the title and category, and defaults to generic "fashion imagery" instead
+// of imagery grounded in what the article and campaign actually call for.
+func formatOptionalContext(run *models.BlogPipelineRun, post *models.BlogPost) string {
+	var sb strings.Builder
+	writeIf := func(label, value string) {
+		if value != "" {
+			sb.WriteString(fmt.Sprintf("- %s: %s\n", label, value))
+		}
+	}
+	writeIf("Excerpt", post.Excerpt)
+	writeIf("Target Audience", run.TargetAudience)
+	writeIf("Tone", run.Tone)
+	if len(run.Keywords) > 0 {
+		writeIf("Keywords", strings.Join(run.Keywords, ", "))
+	}
+	if len(post.Tags) > 0 {
+		writeIf("Tags", strings.Join(post.Tags, ", "))
+	}
+	writeIf("Additional Notes", run.AdditionalNotes)
+
+	if sb.Len() == 0 {
+		return ""
+	}
+	return "\n**Additional Context:**\n" + sb.String()
+}
+
 // generateCoverPrompt creates a prompt for the cover image
 func (pa *PromptAgent) generateCoverPrompt(ctx context.Context, run *models.BlogPipelineRun, post *models.BlogPost, contentSummary string) (*ImagePrompt, error) {
 	prompt := fmt.Sprintf(`You are an expert at creating image generation prompts for a Persian fashion e-commerce blog.
@@ -102,7 +131,7 @@ func (pa *PromptAgent) generateCoverPrompt(ctx context.Context, run *models.Blog
 - Title: %s
 - Category: %s
 - Content Summary: %s
-
+%s
 **Voxcina Brand Colors:**
 - Deep Blue: #1A3C69
 - Warm Cream: #F4F1EC
@@ -143,7 +172,8 @@ Return a JSON object:
 Write the prompt in English for image model compatibility, but alt_text and caption in Persian.`,
 		post.Title,
 		post.Category,
-		truncateString(contentSummary, 1000),
+		truncateString(contentSummary, 4000),
+		formatOptionalContext(run, post),
 	)
 
 	output, err := pa.openRouter.CallWithSchemaAndModel(ctx, prompt, imagePromptSchema(), run.Model)
@@ -181,16 +211,21 @@ func (pa *PromptAgent) generateInlinePrompts(ctx context.Context, run *models.Bl
 		}
 	}
 
-	prompts := make([]ImagePrompt, 0, len(imageSlots))
-
+	// Build each slot's local surrounding text up front so the model sees
+	// every slot's context in one call, rather than one slot at a time with
+	// no idea what the other images in the article will look like.
+	var slotsBlock strings.Builder
 	for i, slotId := range imageSlots {
-		// Get surrounding context for this image
 		contextWindow := pa.getContextWindow(post.Blocks, i, len(imageSlots))
+		fmt.Fprintf(&slotsBlock, "\nSlot %d (id: %s):\n%s\n", i+1, slotId, contextWindow)
+	}
 
-		prompt := fmt.Sprintf(`You are an expert at creating image generation prompts for inline images in a Persian fashion blog.
+	prompt := fmt.Sprintf(`You are an expert at creating image generation prompts for inline images in a Persian fashion blog.
 
 **Article Title:** %s
-**Surrounding Content:** %s
+**Category:** %s
+%s
+**Image Slots (in article order):**%s
 
 **Voxcina Brand Colors:**
 - Deep Blue: #1A3C69
@@ -199,15 +234,18 @@ func (pa *PromptAgent) generateInlinePrompts(ctx context.Context, run *models.Bl
 - Light Cream: #FCFAF8
 
 **Instructions:**
-1. Create an image prompt that complements the surrounding text
+1. Create one image prompt per slot listed above, in the same order, that complements that slot's surrounding text
 2. Use Voxcina brand colors
-3. Suggest fashion-related imagery relevant to the context
-4. Specify composition and mood
-5. Aspect ratio: 16:10 (1600x1000 pixels)
+3. Suggest fashion-related imagery relevant to each slot's specific context — ground each prompt in the garments, styling, or scenario that slot's text actually discusses, not generic fashion filler
+4. Aspect ratio: 16:10 (1600x1000 pixels) for every slot
+
+**Diversity Requirement (critical):**
+- Every slot's image must be visually distinct from every other slot's image in this set: vary the setting/location, composition (hero/lifestyle/flat-lay/product/detail — don't repeat the same one twice if there are 3+ slots and it can be avoided), framing, model pose or presence, and mood.
+- Two slots covering similar text may still need to look different — differentiate by camera angle, distance, location, or focal subject so the finished set doesn't read as the same photo repeated.
 
 **Realism & Authenticity Requirements (critical):**
-- The prompt must describe a scene that reads as a real photograph someone took themselves — never as AI-generated, CGI, or a render.
-- Set the scene in a modern, contemporary Persian/Iranian context: modern Iranian interior or street/lifestyle setting, contemporary Tehran-style architecture or decor, modern Persian fashion sensibility — not a generic or Western-default backdrop.
+- Each prompt must describe a scene that reads as a real photograph someone took themselves — never as AI-generated, CGI, or a render.
+- Set each scene in a modern, contemporary Persian/Iranian context: modern Iranian interior or street/lifestyle setting, contemporary Tehran-style architecture or decor, modern Persian fashion sensibility — not a generic or Western-default backdrop.
 - Explicitly describe camera-realistic qualities: natural or ambient lighting, authentic soft shadows, candid (not perfectly staged/centered) framing, shallow depth of field, real fabric/skin texture with natural imperfections — e.g. "shot on a mirrorless camera, 35-50mm lens, natural window light, candid moment, photojournalistic feel."
 - Never describe glossy/plastic-smooth skin, unnatural symmetry, surreal/dreamlike elements, or hyper-saturated "AI art" rendering — these read as artificial and must be avoided.
 
@@ -221,28 +259,44 @@ func (pa *PromptAgent) generateInlinePrompts(ctx context.Context, run *models.Bl
 
 Return a JSON object:
 {
-  "prompt": "detailed image generation prompt in English",
-  "alt_text": "Persian alt text for accessibility",
-  "caption": "Persian caption for the image",
-  "aspect_ratio": "16:10",
-  "composition": "hero|lifestyle|flat-lay|product|detail"
+  "prompts": [
+    {
+      "prompt": "detailed image generation prompt in English",
+      "alt_text": "Persian alt text for accessibility",
+      "caption": "Persian caption for the image",
+      "aspect_ratio": "16:10",
+      "composition": "hero|lifestyle|flat-lay|product|detail"
+    }
+  ]
 }
 
-Write the prompt in English, but alt_text and caption in Persian.`,
+The "prompts" array must have exactly %d entries, in the same order as the slots listed above.
+Write prompts in English, but alt_text and caption in Persian.`,
 		post.Title,
-		contextWindow,
+		post.Category,
+		formatOptionalContext(run, post),
+		slotsBlock.String(),
+		len(imageSlots),
 	)
 
-	output, err := pa.openRouter.CallWithSchemaAndModel(ctx, prompt, imagePromptSchema(), run.Model)
-		if err != nil {
-			return nil, err
-		}
+	output, err := pa.openRouter.CallWithSchemaAndModel(ctx, prompt, inlinePromptsSchema(len(imageSlots)), run.Model)
+	if err != nil {
+		return nil, err
+	}
 
-		var result ImagePrompt
-		if err := parseBSONToStruct(output, &result); err != nil {
-			return nil, err
-		}
+	var parsed struct {
+		Prompts []ImagePrompt `json:"prompts"`
+	}
+	if err := parseBSONToStruct(output, &parsed); err != nil {
+		return nil, err
+	}
+	if len(parsed.Prompts) != len(imageSlots) {
+		return nil, fmt.Errorf("expected %d inline prompts, got %d", len(imageSlots), len(parsed.Prompts))
+	}
 
+	prompts := make([]ImagePrompt, 0, len(imageSlots))
+	for i, slotId := range imageSlots {
+		result := parsed.Prompts[i]
 		result.SuggestedSlotID = slotId
 		prompts = append(prompts, result)
 	}
@@ -316,26 +370,58 @@ func estimateWordCount(text string) int {
 	return len(words)
 }
 
-// imagePromptSchema returns the JSON schema for image prompts
+// imagePromptItemProperties returns the shared property schema for a single
+// image prompt, used both standalone (cover) and as an array item (inline).
+func imagePromptItemProperties() map[string]interface{} {
+	return map[string]interface{}{
+		"prompt":   map[string]interface{}{"type": "string"},
+		"alt_text": map[string]interface{}{"type": "string"},
+		"caption":  map[string]interface{}{"type": "string"},
+		"aspect_ratio": map[string]interface{}{
+			"type": "string",
+			"enum": []string{"16:9", "16:10", "4:3", "1:1"},
+		},
+		"composition": map[string]interface{}{
+			"type": "string",
+			"enum": []string{"hero", "lifestyle", "flat-lay", "product", "detail"},
+		},
+	}
+}
+
+// imagePromptSchema returns the JSON schema for a single image prompt (cover image)
 func imagePromptSchema() map[string]interface{} {
 	return map[string]interface{}{
 		"name": "image_prompt",
 		"schema": map[string]interface{}{
+			"type":       "object",
+			"properties": imagePromptItemProperties(),
+			"required":   []string{"prompt", "alt_text", "caption", "aspect_ratio", "composition"},
+		},
+	}
+}
+
+// inlinePromptsSchema returns the JSON schema for a batch of inline image
+// prompts generated together, so the model produces the whole set — and can
+// diversify across it — in a single structured response instead of one
+// context-blind call per slot.
+func inlinePromptsSchema(count int) map[string]interface{} {
+	return map[string]interface{}{
+		"name": "inline_image_prompts",
+		"schema": map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
-				"prompt":       map[string]interface{}{"type": "string"},
-				"alt_text":     map[string]interface{}{"type": "string"},
-				"caption":      map[string]interface{}{"type": "string"},
-				"aspect_ratio": map[string]interface{}{
-					"type": "string",
-					"enum": []string{"16:9", "16:10", "4:3", "1:1"},
-				},
-				"composition": map[string]interface{}{
-					"type": "string",
-					"enum": []string{"hero", "lifestyle", "flat-lay", "product", "detail"},
+				"prompts": map[string]interface{}{
+					"type": "array",
+					"items": map[string]interface{}{
+						"type":       "object",
+						"properties": imagePromptItemProperties(),
+						"required":   []string{"prompt", "alt_text", "caption", "aspect_ratio", "composition"},
+					},
+					"minItems": count,
+					"maxItems": count,
 				},
 			},
-			"required": []string{"prompt", "alt_text", "caption", "aspect_ratio", "composition"},
+			"required": []string{"prompts"},
 		},
 	}
 }
