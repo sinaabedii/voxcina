@@ -38,7 +38,7 @@ func (wa *WritingAgent) RunWriting(ctx context.Context, run *models.BlogPipeline
 	prompt := wa.buildWritingPrompt(snapshot)
 
 	maxTokens := writingMaxTokens(snapshot.GenerationBrief.DesiredLength)
-	output, err := wa.openRouter.CallWithSchemaModelAndTokens(ctx, prompt, writingOutputSchema(), run.Model, maxTokens)
+	output, err := wa.openRouter.CallWithSchemaModelAndTokens(ctx, prompt, writingOutputSchema(), run.Model, maxTokens, "low")
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate writing output: %w", err)
 	}
@@ -436,7 +436,7 @@ Return corrected blocks in the same JSON format with the correct number of image
 	}
 
 	maxTokens := writingMaxTokens(snapshot.GenerationBrief.DesiredLength)
-	output, err := wa.openRouter.CallWithSchemaModelAndTokens(ctx, prompt, writingOutputSchema(), model, maxTokens)
+	output, err := wa.openRouter.CallWithSchemaModelAndTokens(ctx, prompt, writingOutputSchema(), model, maxTokens, "low")
 	if err != nil {
 		return nil, err
 	}
@@ -490,16 +490,18 @@ func (wa *WritingAgent) extractTitle(blocks []models.BlogBlock) string {
 // based on the requested article length. Persian text runs several tokens
 // per word in BPE tokenizers, and the JSON block structure (types, keys,
 // per-block overhead) adds on top of that — a flat 4096-token budget was
-// silently truncating anything beyond a short article. Clamped to a floor
-// (short articles still need room for the JSON wrapper) and a ceiling (stay
-// within typical provider completion limits).
+// silently truncating anything beyond a short article. The writing call
+// also runs with a bounded "low" reasoning effort (see RunWriting), which
+// spends some of this same budget on thinking before the JSON answer, so
+// the floor/ceiling here include extra headroom on top of the raw content
+// estimate to leave room for that.
 func writingMaxTokens(desiredWords int) int {
-	tokens := desiredWords*4 + 2000
-	if tokens < 6000 {
-		tokens = 6000
+	tokens := desiredWords*4 + 4000
+	if tokens < 8000 {
+		tokens = 8000
 	}
-	if tokens > 16000 {
-		tokens = 16000
+	if tokens > 24000 {
+		tokens = 24000
 	}
 	return tokens
 }

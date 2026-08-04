@@ -22,6 +22,11 @@ type OpenRouterStructuredClient struct {
 	httpClient *http.Client
 }
 
+// requestTimeout bounds a single HTTP attempt, including reading the full
+// response body. Reasoning-enabled calls with large token budgets can take
+// several minutes to complete, well past a "normal" API call.
+const requestTimeout = 5 * time.Minute
+
 // NewOpenRouterStructuredClient creates a new client.
 // Uses Go's default transport which automatically reads HTTPS_PROXY/HTTP_PROXY
 // from environment via http.ProxyFromEnvironment — matching all other services.
@@ -30,7 +35,7 @@ func NewOpenRouterStructuredClient() *OpenRouterStructuredClient {
 		apiKey: os.Getenv("OPENROUTER_API_KEY"),
 		baseURL: "https://openrouter.ai/api/v1",
 		httpClient: &http.Client{
-			Timeout: 120 * time.Second,
+			Timeout: requestTimeout,
 		},
 	}
 }
@@ -42,6 +47,11 @@ type StructuredRequest struct {
 	Schema      map[string]interface{} `json:"schema"` // JSON schema for response_format
 	MaxTokens   int                    `json:"max_tokens,omitempty"`
 	Temperature float64                `json:"temperature,omitempty"`
+	// ReasoningEffort controls OpenRouter's "reasoning" param for thinking
+	// models ("none", "low", "medium", "high"). Defaults to "none" (skip
+	// thinking entirely) when empty, since most structured-extraction calls
+	// only need the final JSON.
+	ReasoningEffort string `json:"-"`
 }
 
 // StructuredResponse holds the parsed structured output.
@@ -81,18 +91,19 @@ func (c *OpenRouterStructuredClient) CallWithSchemaAndModel(ctx context.Context,
 }
 
 // CallWithSchemaModelAndTokens is like CallWithSchemaAndModel but lets the
-// caller size the completion budget explicitly — useful when output length
-// varies a lot (e.g. a requested article word count) and the default budget
-// would truncate longer outputs.
-func (c *OpenRouterStructuredClient) CallWithSchemaModelAndTokens(ctx context.Context, prompt string, schema map[string]interface{}, model string, maxTokens int) (*StructuredResponse, error) {
+// caller size the completion budget and reasoning effort explicitly —
+// useful when output length varies a lot (e.g. a requested article word
+// count) and the default budget would truncate longer outputs.
+func (c *OpenRouterStructuredClient) CallWithSchemaModelAndTokens(ctx context.Context, prompt string, schema map[string]interface{}, model string, maxTokens int, reasoningEffort string) (*StructuredResponse, error) {
 	if model == "" {
 		model = defaultStructuredModel
 	}
 	req := StructuredRequest{
-		Model:     model,
-		Messages:  []OpenRouterMessage{{Role: "user", Content: prompt}},
-		Schema:    schema,
-		MaxTokens: maxTokens,
+		Model:           model,
+		Messages:        []OpenRouterMessage{{Role: "user", Content: prompt}},
+		Schema:          schema,
+		MaxTokens:       maxTokens,
+		ReasoningEffort: reasoningEffort,
 	}
 	return c.CallStructured(ctx, req)
 }
@@ -109,6 +120,10 @@ func (c *OpenRouterStructuredClient) CallStructured(ctx context.Context, req Str
 	if req.Temperature == 0 {
 		req.Temperature = 0.3
 	}
+	reasoningEffort := req.ReasoningEffort
+	if reasoningEffort == "" {
+		reasoningEffort = "none"
+	}
 
 	// Build request body with response_format if schema is provided
 	body := map[string]interface{}{
@@ -117,13 +132,14 @@ func (c *OpenRouterStructuredClient) CallStructured(ctx context.Context, req Str
 		"max_tokens":  req.MaxTokens,
 		"temperature": req.Temperature,
 		"stream":      false,
-		// These calls only need the final JSON, not a chain-of-thought. For
-		// reasoning/"thinking" models (e.g. qwen3 variants), OpenRouter bills
-		// reasoning tokens against the SAME max_tokens budget as the answer —
-		// left enabled, the model can burn the entire budget "thinking" and
-		// get cut off before emitting any JSON content. Disabling it frees the
-		// whole budget for the actual structured output.
-		"reasoning": map[string]interface{}{"effort": "none"},
+		// For reasoning/"thinking" models (e.g. qwen3 variants), OpenRouter
+		// bills reasoning tokens against the SAME max_tokens budget as the
+		// answer — left unbounded, the model can burn the whole budget
+		// "thinking" and get cut off before emitting any JSON content. Most
+		// callers pass "none" to skip thinking entirely and keep the full
+		// budget for output; callers that want better reasoning quality can
+		// opt into a bounded effort level instead.
+		"reasoning": map[string]interface{}{"effort": reasoningEffort},
 	}
 	if req.Schema != nil {
 		body["response_format"] = map[string]interface{}{
@@ -189,9 +205,9 @@ func (c *OpenRouterStructuredClient) CallStructured(ctx context.Context, req Str
 				continue
 			}
 			bodyBytes = result.data
-		case <-time.After(90 * time.Second):
+		case <-time.After(requestTimeout):
 			resp.Body.Close()
-			log.Printf("[openrouter] Body read timeout after 90s (attempt %d)", attempt+1)
+			log.Printf("[openrouter] Body read timeout after %s (attempt %d)", requestTimeout, attempt+1)
 			lastErr = fmt.Errorf("body read timeout")
 			continue
 		case <-ctx.Done():

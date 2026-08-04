@@ -134,7 +134,11 @@ func (w *BlogWorker) workerLoop(id int) {
 
 // processNext finds and processes the next pending execution for any stage.
 func (w *BlogWorker) processNext(workerID int) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	// The write stage can make two sequential OpenRouter calls (main attempt +
+	// one repair retry), each retried up to 3x internally at requestTimeout
+	// (5m) per attempt — a worst case of ~30m. Budget with margin so a slow
+	// but eventually-successful "low" reasoning call isn't killed mid-flight.
+	ctx, cancel := context.WithTimeout(context.Background(), 35*time.Minute)
 	defer cancel()
 
 	// Try stages in order: research -> write -> prompts
