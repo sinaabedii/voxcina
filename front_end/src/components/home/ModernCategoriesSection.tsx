@@ -206,7 +206,9 @@ const ModernCategoriesSection = () => {
                   return (
                     <div
                       key={category.id}
-                      className="relative flex-none min-w-0 overflow-hidden"
+                      className={`relative flex-none min-w-0 ${
+                        isHovered ? "z-10" : ""
+                      }`}
                       style={
                         itemWidth !== null
                           ? { width: `${itemWidth}px`, flexBasis: `${itemWidth}px`, flexShrink: 0 }
