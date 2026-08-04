@@ -37,7 +37,7 @@ docker compose logs -f server    # Backend logs
 ## Architecture
 
 - **Go** at project root: `handlers/` → `services/` → MongoDB. Routes in `routes/routes.go` (Gorilla Mux).
-- **Next.js** on the frontend: Page → Zustand store (`store/` 17 stores) → API → Go.
+- **Next.js** on the frontend: Page → Zustand store (`store/` 18 stores) → API → Go.
 - **API proxy** (`next.config.js` rewrites): `/api/:path((?!postex|tryon/negotiate|tryon/negotiate-stream).*)` → Go backend.
   - `/api/postex/*`, `/api/tryon/negotiate`, `/api/tryon/negotiate-stream` handled by Next.js (filesystem routes).
   - `/uploads/:path*` → Go backend (separate rewrite rule).
@@ -50,7 +50,7 @@ docker compose logs -f server    # Backend logs
 
 - **RTL Persian UI**. Single locale `fa` in `next.config.js` i18n.
 - Path alias: `@/*` → `front_end/src/*`.
-- Reusable UI in `front_end/src/components/ui/` (19+ components; see barrel export `index.ts`).
+- Reusable UI in `front_end/src/components/ui/` (25 components; see barrel export `index.ts`).
 - New components in `front_end/src/components/` (ui/ for generic, feature subdirs for specific).
 - TailwindCSS dark mode via `class` strategy. Primary: `#1A3C69`, secondary: `#f4f1ec`.
 - State: Zustand in `front_end/src/store/`.
@@ -95,21 +95,13 @@ Auth-only (`AuthMiddleware`). No TTL — all data kept forever.
 - Git SSH via corkscrew through HTTP proxy (`~/.ssh/config`). Docker daemon proxy at `/etc/systemd/system/docker.service.d/proxy.conf`.
 - MongoDB: `docker.arvancloud.ir/mongo:6.0`. Scheduler: `docker.arvancloud.ir/mcuadros/ofelia:latest`.
 
-### Frontend deploy (UI-only, no new npm packages)
-The runtime container already has `.next/` cache — **never delete it**. Next.js does incremental builds.
+### Frontend deploy
+The runtime runner stage does NOT include `src/` — you must rebuild the full image. Next.js incremental `.next/` cache speeds up builds inside Docker.
 ```bash
-docker exec voxcina_frontend mkdir -p /app/src
-docker cp front_end/src/component/ChangedFile.tsx voxcina_frontend:/app/src/component/ChangedFile.tsx
-docker exec voxcina_frontend sh -c 'cd /app && npm run build'
-docker restart voxcina_frontend
+scp -P 9011 front_end/src/path/to/File.tsx vps-ir:/root/voxcina/front_end/src/path/to/File.tsx
+ssh -o ConnectTimeout=10 vps-ir 'cd /root/voxcina && docker compose build --no-cache front_end && docker compose up -d front_end'
 ```
-
-Only copy changed files, not the whole `src/`. Building without `rm -rf .next` takes seconds.
-
-### Frontend deploy (new npm packages)
-```bash
-docker compose build --no-cache front_end && docker compose up -d front_end
-```
+**Never** `rm -rf .next` — incremental builds take seconds; full rebuilds take minutes.
 
 ### Backend deploy
 ```bash

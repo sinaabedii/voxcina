@@ -70,14 +70,14 @@ const ModernCategoriesSection = () => {
     [categories]
   );
 
-  // CSS percentage-based flex-basis drifts by a few sub-pixels once you
-  // divide by 4/8 and subtract gaps, which is exactly what let a sliver of
-  // the next avatar peek in. Measuring the real row width and flooring the
-  // per-item share in JS guarantees the row never exceeds it. Must measure
-  // rowRef (the flex container itself), not the padded scroller wrapper
-  // around it, or every item ends up overshot by the wrapper's own padding.
-  // The gap is read from computed styles rather than hardcoded so it can
-  // never drift out of sync with the gap-3/gap-4 classes below.
+  // overflow-x-auto clips at the scroller's padding-box edge, not its content
+  // edge — so the scroller's own px-4 padding is visible space, not a safe
+  // buffer. Reserving both sides of it (as if it were a hard boundary) left
+  // just enough slack for the next avatar to peek through on the far side.
+  // Only the flush (near) side's padding needs reserving; the far side must
+  // instead be *consumed* so the next item's edge clears the real clip
+  // boundary. Measuring the actual DOM (not window.innerWidth) also keeps
+  // this correct once the container's max-width cap kicks in on wide screens.
   useLayoutEffect(() => {
     const el = scrollerRef.current;
     const row = rowRef.current;
@@ -88,13 +88,10 @@ const ModernCategoriesSection = () => {
       const perView = isDesktop ? 8 : 4;
       const gap =
         parseFloat(getComputedStyle(row).columnGap) || (isDesktop ? 16 : 12);
-      // A few px of deliberate slack absorbs any residual rounding across
-      // browsers/devices — a sliver of empty space at the edge is fine,
-      // a sliver of the next avatar is not.
-      const SAFETY_MARGIN = 8;
-      const raw =
-        (row.clientWidth - (perView - 1) * gap - SAFETY_MARGIN) / perView;
-      setItemWidth(Math.floor(raw));
+      const scrollerPadding = parseFloat(getComputedStyle(el).paddingLeft) || 16;
+      const available =
+        el.clientWidth - scrollerPadding - (perView - 0.5) * gap;
+      setItemWidth(Math.floor(available / perView));
     };
 
     el.scrollLeft = 0;
@@ -202,17 +199,17 @@ const ModernCategoriesSection = () => {
               onMouseUp={stopDragging}
               onMouseLeave={stopDragging}
             >
-              <div ref={rowRef} className="flex gap-3 md:gap-4">
+              <div ref={rowRef} className="flex gap-4 md:gap-5">
                 {visible.map((category, index) => {
                   const palette = RING_PALETTE[index % RING_PALETTE.length];
                   const isHovered = hoveredId === category.id;
                   return (
                     <div
                       key={category.id}
-                      className="relative flex-none basis-[calc((100%_-_2.25rem)/4)] md:basis-[calc((100%_-_7rem)/8)]"
+                      className="relative flex-none min-w-0 overflow-hidden"
                       style={
                         itemWidth !== null
-                          ? { flexBasis: `${itemWidth}px` }
+                          ? { width: `${itemWidth}px`, flexBasis: `${itemWidth}px`, flexShrink: 0 }
                           : undefined
                       }
                     >

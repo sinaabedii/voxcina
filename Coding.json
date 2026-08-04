@@ -292,6 +292,11 @@
           "size_type": "clothing"
         },
         {
+          "name": "پولوشرت زنانه",
+          "category_code": "54",
+          "size_type": "clothing"
+        },
+        {
           "name": "بافت و پلیور زنانه",
           "category_code": "54",
           "size_type": "clothing"
@@ -318,13 +323,13 @@
         },
         {
           "name": "جلیقه و وست زنانه (Women's Vest & Waistcoat)",
-          "category_code": "60",
+          "category_code": "59",
           "size_type": "clothing"
         }
       ]
     },
     {
-      "group": "WOMEN - BOTTOMS & DRESSES (پایین‌تنه و پیراهن زنانه)",
+      "group": "WOMEN - BOTTOMS (پایین‌تنه زنانه)",
       "gender_prefix": "F",
       "items": [
         {
@@ -346,7 +351,13 @@
           "name": "دامن (Skirt)",
           "category_code": "63",
           "size_type": "clothing"
-        },
+        }
+      ]
+    },
+    {
+      "group": "WOMEN - DRESSES & JUMPSUITS (پیراهن و سرهمی زنانه)",
+      "gender_prefix": "F",
+      "items": [
         {
           "name": "پیراهن مجلسی (Formal Dress)",
           "category_code": "64",
