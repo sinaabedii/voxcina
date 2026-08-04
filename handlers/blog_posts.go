@@ -278,12 +278,17 @@ func GetPipelineRunByID(w http.ResponseWriter, r *http.Request) {
 	executions, _ := repo.FindExecutionsByRunID(ctx, id)
 	sources, _ := repo.FindSourcesByRunID(ctx, id)
 
-	// Include the linked post and its media, if a post exists
+	// Include the linked post and its media, if a post exists. Resolve the
+	// post by run.PostID (the authoritative link) rather than by
+	// pipeline_run_id alone — a run can end up with more than one blog_posts
+	// document (e.g. a retried write stage), and an unscoped lookup by
+	// pipeline_run_id can non-deterministically return a stale one instead
+	// of the post this run is actually linked to.
 	var post *models.BlogPost
 	var media []models.BlogMedia
 	if run.PostID != "" {
-		post, _ = repo.FindPostByPipelineRunID(ctx, id)
 		if postID, err := primitive.ObjectIDFromHex(run.PostID); err == nil {
+			post, _ = repo.FindPostByID(ctx, postID)
 			media, _ = repo.FindMediaByPostID(ctx, postID)
 		}
 	}

@@ -384,8 +384,18 @@ func (w *BlogWorker) runPrompts(ctx context.Context, exec *models.BlogAgentExecu
 		model = "qwen/qwen3.7-plus"
 	}
 
-	// Find the blog post linked to this pipeline run
-	post, err := w.repo.FindPostByPipelineRunID(ctx, run.ID)
+	// Find the blog post linked to this pipeline run — by run.PostID (the
+	// authoritative link), not by an unscoped pipeline_run_id lookup, since a
+	// retried write stage can leave more than one blog_posts document
+	// pointing at the same run and an unscoped query can return a stale one.
+	if run.PostID == "" {
+		return "", "", "no post linked to this pipeline run yet", "", "", "", "", 0, ""
+	}
+	postID, err := primitive.ObjectIDFromHex(run.PostID)
+	if err != nil {
+		return "", "", fmt.Sprintf("invalid linked post ID: %v", err), "", "", "", "", 0, ""
+	}
+	post, err := w.repo.FindPostByID(ctx, postID)
 	if err != nil {
 		return "", "", fmt.Sprintf("failed to find blog post for pipeline run: %v", err), "", "", "", "", 0, ""
 	}

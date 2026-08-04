@@ -101,17 +101,6 @@ func (r *BlogRepository) FindPostByID(ctx context.Context, id primitive.ObjectID
 	return &post, nil
 }
 
-// FindPostByPipelineRunID returns a post linked to a pipeline run.
-func (r *BlogRepository) FindPostByPipelineRunID(ctx context.Context, runID primitive.ObjectID) (*models.BlogPost, error) {
-	collection := r.db.Collection("blog_posts")
-	var post models.BlogPost
-	err := collection.FindOne(ctx, bson.M{"pipeline_run_id": runID.Hex()}).Decode(&post)
-	if err != nil {
-		return nil, err
-	}
-	return &post, nil
-}
-
 // InsertPost inserts a new blog post.
 func (r *BlogRepository) InsertPost(ctx context.Context, post *models.BlogPost) error {
 	collection := r.db.Collection("blog_posts")
