@@ -192,6 +192,9 @@ export default function JalaliDatePicker({
 
   const daysInMonth = useMemo(() => getJalaliMonthDays(viewYear, viewMonth), [viewYear, viewMonth]);
   const leadingBlanks = useMemo(() => firstWeekdayOffset(viewYear, viewMonth), [viewYear, viewMonth]);
+  // Always pad the grid out to 6 full weeks (42 cells) so the calendar body
+  // is the same height in every month instead of shrinking/growing the modal.
+  const trailingBlanks = useMemo(() => 42 - leadingBlanks - daysInMonth, [leadingBlanks, daysInMonth]);
   const years = useMemo(() => {
     const arr: number[] = [];
     for (let y = MAX_YEAR; y >= MIN_YEAR; y--) arr.push(y);
@@ -334,103 +337,108 @@ export default function JalaliDatePicker({
               </button>
             </div>
 
-            {view === "days" && (
-              <>
-                <div className="grid grid-cols-7 mb-1">
-                  {PERSIAN_WEEKDAYS.map((w, i) => (
-                    <div key={i} className="h-8 flex items-center justify-center text-xs font-medium text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                      {w}
-                    </div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-7 gap-1">
-                  {Array.from({ length: leadingBlanks }).map((_, i) => (
-                    <div key={`b${i}`} />
-                  ))}
-                  {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => {
-                    const isFuture = viewYear === MAX_YEAR && viewMonth === TODAY.month && d > TODAY.day;
-                    const isSelected = draft.year === viewYear && draft.month === viewMonth && draft.day === d;
-                    const isToday = viewYear === TODAY.year && viewMonth === TODAY.month && d === TODAY.day;
+            <div className="h-[302px]">
+              {view === "days" && (
+                <>
+                  <div className="grid grid-cols-7 mb-1">
+                    {PERSIAN_WEEKDAYS.map((w, i) => (
+                      <div key={i} className="h-8 flex items-center justify-center text-xs font-medium text-voxcina-blue/60 dark:text-voxcina-cream/60">
+                        {w}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-1">
+                    {Array.from({ length: leadingBlanks }).map((_, i) => (
+                      <div key={`b${i}`} />
+                    ))}
+                    {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => {
+                      const isFuture = viewYear === MAX_YEAR && viewMonth === TODAY.month && d > TODAY.day;
+                      const isSelected = draft.year === viewYear && draft.month === viewMonth && draft.day === d;
+                      const isToday = viewYear === TODAY.year && viewMonth === TODAY.month && d === TODAY.day;
+                      return (
+                        <button
+                          key={d}
+                          type="button"
+                          disabled={isFuture}
+                          onClick={() => selectDay(d)}
+                          className={`relative aspect-square flex items-center justify-center rounded-full text-sm transition-colors ${
+                            isFuture
+                              ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                              : isSelected
+                              ? "bg-voxcina-blue text-white font-semibold shadow-medium"
+                              : isToday
+                              ? "text-voxcina-blue dark:text-voxcina-cream font-semibold ring-1 ring-voxcina-blue/40"
+                              : "text-gray-700 dark:text-gray-200 hover:bg-voxcina-blue/10"
+                          }`}
+                        >
+                          {toPersianDigits(d)}
+                          {isToday && !isSelected && (
+                            <span className="absolute bottom-1 w-1 h-1 rounded-full bg-voxcina-blue dark:bg-voxcina-cream" />
+                          )}
+                        </button>
+                      );
+                    })}
+                    {Array.from({ length: trailingBlanks }).map((_, i) => (
+                      <div key={`t${i}`} />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {view === "months" && (
+                <div className="h-full grid grid-cols-3 content-center gap-2">
+                  {PERSIAN_MONTHS.map((name, i) => {
+                    const m = i + 1;
+                    const isFuture = viewYear === MAX_YEAR && m > TODAY.month;
+                    const isSelected = draft.year === viewYear && draft.month === m;
                     return (
                       <button
-                        key={d}
+                        key={m}
                         type="button"
                         disabled={isFuture}
-                        onClick={() => selectDay(d)}
-                        className={`relative aspect-square flex items-center justify-center rounded-full text-sm transition-colors ${
+                        onClick={() => selectMonth(m)}
+                        className={`py-2.5 rounded-xl text-sm transition-colors ${
                           isFuture
                             ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
                             : isSelected
                             ? "bg-voxcina-blue text-white font-semibold shadow-medium"
-                            : isToday
+                            : viewMonth === m
                             ? "text-voxcina-blue dark:text-voxcina-cream font-semibold ring-1 ring-voxcina-blue/40"
                             : "text-gray-700 dark:text-gray-200 hover:bg-voxcina-blue/10"
                         }`}
                       >
-                        {toPersianDigits(d)}
-                        {isToday && !isSelected && (
-                          <span className="absolute bottom-1 w-1 h-1 rounded-full bg-voxcina-blue dark:bg-voxcina-cream" />
-                        )}
+                        {name}
                       </button>
                     );
                   })}
                 </div>
-              </>
-            )}
+              )}
 
-            {view === "months" && (
-              <div className="grid grid-cols-3 gap-2">
-                {PERSIAN_MONTHS.map((name, i) => {
-                  const m = i + 1;
-                  const isFuture = viewYear === MAX_YEAR && m > TODAY.month;
-                  const isSelected = draft.year === viewYear && draft.month === m;
-                  return (
-                    <button
-                      key={m}
-                      type="button"
-                      disabled={isFuture}
-                      onClick={() => selectMonth(m)}
-                      className={`py-2.5 rounded-xl text-sm transition-colors ${
-                        isFuture
-                          ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
-                          : isSelected
-                          ? "bg-voxcina-blue text-white font-semibold shadow-medium"
-                          : viewMonth === m
-                          ? "text-voxcina-blue dark:text-voxcina-cream font-semibold ring-1 ring-voxcina-blue/40"
-                          : "text-gray-700 dark:text-gray-200 hover:bg-voxcina-blue/10"
-                      }`}
-                    >
-                      {name}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {view === "years" && (
-              <div ref={yearListRef} className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto scrollbar-thin pr-1">
-                {years.map((y) => {
-                  const isSelected = draft.year === y;
-                  return (
-                    <button
-                      key={y}
-                      type="button"
-                      data-active={y === viewYear}
-                      onClick={() => selectYear(y)}
-                      className={`py-2.5 rounded-xl text-sm transition-colors ${
-                        isSelected
-                          ? "bg-voxcina-blue text-white font-semibold shadow-medium"
-                          : viewYear === y
-                          ? "text-voxcina-blue dark:text-voxcina-cream font-semibold ring-1 ring-voxcina-blue/40"
-                          : "text-gray-700 dark:text-gray-200 hover:bg-voxcina-blue/10"
-                      }`}
-                    >
-                      {toPersianDigits(y)}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+              {view === "years" && (
+                <div ref={yearListRef} className="h-full grid grid-cols-3 gap-2 auto-rows-min overflow-y-auto scrollbar-thin pr-1">
+                  {years.map((y) => {
+                    const isSelected = draft.year === y;
+                    return (
+                      <button
+                        key={y}
+                        type="button"
+                        data-active={y === viewYear}
+                        onClick={() => selectYear(y)}
+                        className={`py-2.5 rounded-xl text-sm transition-colors ${
+                          isSelected
+                            ? "bg-voxcina-blue text-white font-semibold shadow-medium"
+                            : viewYear === y
+                            ? "text-voxcina-blue dark:text-voxcina-cream font-semibold ring-1 ring-voxcina-blue/40"
+                            : "text-gray-700 dark:text-gray-200 hover:bg-voxcina-blue/10"
+                        }`}
+                      >
+                        {toPersianDigits(y)}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             <div className="flex items-center gap-2 mt-5">
               {hasDraft && (
