@@ -43,8 +43,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   // Available sizes for this specific color (filtered by stock)
   const availableSizes = sizes.filter(s => s.quantity > 0);
-  // Products with exactly one purchasable size (e.g. accessories) skip the size modal
-  const singleSize = availableSizes.length === 1 ? availableSizes[0] : null;
 
   const rating = item.average_rating;
   const isNew = item.created_at && (new Date().getTime() - new Date(item.created_at).getTime()) < 30 * 24 * 60 * 60 * 1000;
@@ -102,14 +100,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
         toast.success("محصول به سبد خرید اضافه شد");
       }
     }
-  };
-
-  const handleQuickAdd = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!singleSize) return;
-    addItem(buildCartProduct(), 1, singleSize.size, selectedColor, colorName);
-    toast.success("محصول به سبد خرید اضافه شد");
   };
 
   return (
@@ -259,9 +249,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
             {inStock && availableSizes.length > 0 ? (
               <button
-                onClick={singleSize ? handleQuickAdd : handleOpenModal}
+                onClick={handleOpenModal}
                 className="flex-shrink-0 p-2 sm:p-2.5 rounded-full bg-primary text-primary-foreground shadow-soft hover:bg-primary/90 hover:shadow-medium transition-all duration-300"
-                aria-label={singleSize ? "افزودن به سبد خرید" : "انتخاب سایز و خرید"}
+                aria-label="انتخاب سایز و خرید"
               >
                 <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
