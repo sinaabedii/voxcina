@@ -28,6 +28,7 @@ import {
   HelpCircle,
   Image,
   Activity,
+  ShoppingBasket,
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -104,6 +105,12 @@ export default function AdminLayout({
       href: "/admin/orders",
       icon: <ShoppingCart className="w-5 h-5 ml-3" />,
       section: "orders",
+    },
+    {
+      name: "سبدهای خرید",
+      href: "/admin/carts",
+      icon: <ShoppingBasket className="w-5 h-5 ml-3" />,
+      section: "carts",
     },
     {
       name: "تیکت‌ها",

@@ -178,6 +178,7 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/tickets/{ticketId}/status", handlers.AdminUpdateTicketStatus).Methods(http.MethodPut)
 
 	// Admin Cart Management
+	adminRouter.HandleFunc("/carts", handlers.AdminListCarts).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/carts/{cartId}", handlers.DeleteCart).
 		Methods("DELETE")
 		// Soft delete

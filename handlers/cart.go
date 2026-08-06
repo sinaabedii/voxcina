@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"backEnd/db"
 	"backEnd/models"
@@ -857,25 +859,249 @@ func calculateCartSummaryInternal(items []CartItemResponse) CartSummary {
 	for _, item := range items {
 		subtotal += item.Product.Price * float64(item.Quantity)
 	}
+	return calculateSummaryFromSubtotal(subtotal, len(items) > 0)
+}
 
+// calculateSummaryFromSubtotal derives the full cart financial summary from a known subtotal.
+func calculateSummaryFromSubtotal(subtotal float64, hasItems bool) CartSummary {
 	tax := subtotal * 0.10
 	shipping := 0.0
-	if len(items) > 0 {
+	if hasItems {
 		shipping = 150000
 	}
-
-	discount := 0.0
 
 	return CartSummary{
 		Subtotal: subtotal,
 		Shipping: shipping,
 		Tax:      tax,
-		Discount: discount,
-		Total:    subtotal + tax + shipping - discount,
+		Discount: 0,
+		Total:    subtotal + tax + shipping,
 	}
 }
 
 // --- Admin Cart Management ---
+
+// AdminCartItemSummary represents a single populated cart item for the admin cart list/detail view.
+type AdminCartItemSummary struct {
+	ProductID primitive.ObjectID `json:"product_id"`
+	Name      string             `json:"name"`
+	Image     string             `json:"image,omitempty"`
+	Price     float64            `json:"price"`
+	Variant   models.CartVariant `json:"variant"`
+	Quantity  int                `json:"quantity"`
+}
+
+// AdminCartResponse represents a cart with populated user and item details for the admin panel.
+type AdminCartResponse struct {
+	ID              primitive.ObjectID     `json:"id"`
+	UserID          primitive.ObjectID     `json:"user_id"`
+	UserName        string                 `json:"user_name,omitempty"`
+	UserPhone       string                 `json:"user_phone,omitempty"`
+	UserEmail       string                 `json:"user_email,omitempty"`
+	Items           []AdminCartItemSummary `json:"items"`
+	ItemCount       int                    `json:"item_count"`
+	Summary         CartSummary            `json:"summary"`
+	IsActive        bool                   `json:"is_active"`
+	CreatedAt       time.Time              `json:"created_at"`
+	UpdatedAt       time.Time              `json:"updated_at"`
+	JalaliCreatedAt string                 `json:"jalali_created_at"`
+	JalaliUpdatedAt string                 `json:"jalali_updated_at"`
+}
+
+// newAdminCartResponse populates product and (optionally) user details for a cart in the admin panel.
+func newAdminCartResponse(ctx context.Context, cart models.Cart, user *models.User) AdminCartResponse {
+	productsCollection := db.Database.Collection("products")
+
+	items := make([]AdminCartItemSummary, 0, len(cart.Items))
+	var subtotal float64
+	for _, item := range cart.Items {
+		var product models.Product
+		if err := productsCollection.FindOne(ctx, bson.M{"_id": item.ProductID}).Decode(&product); err != nil {
+			continue // Product no longer exists, skip it from the summary
+		}
+		productImage := selectedVariantImage(product, item.Variant.Color, item.Variant.ColorName)
+		items = append(items, AdminCartItemSummary{
+			ProductID: product.ID,
+			Name:      product.Name,
+			Image:     productImage,
+			Price:     product.Price,
+			Variant:   item.Variant,
+			Quantity:  item.Quantity,
+		})
+		subtotal += product.Price * float64(item.Quantity)
+	}
+
+	resp := AdminCartResponse{
+		ID:              cart.ID,
+		UserID:          cart.UserID,
+		Items:           items,
+		ItemCount:       len(items),
+		Summary:         calculateSummaryFromSubtotal(subtotal, len(items) > 0),
+		IsActive:        cart.IsActive,
+		CreatedAt:       cart.CreatedAt,
+		UpdatedAt:       cart.UpdatedAt,
+		JalaliCreatedAt: utils.ToJalaliDateString(cart.CreatedAt),
+		JalaliUpdatedAt: utils.ToJalaliDateString(cart.UpdatedAt),
+	}
+	if user != nil {
+		resp.UserName = user.Name
+		resp.UserPhone = user.Phone
+		resp.UserEmail = user.Email
+	}
+	return resp
+}
+
+// AdminListCarts handles GET /api/admin/carts - lists carts with pagination, filtering,
+// and populated user + product details. Requires admin authentication.
+func AdminListCarts(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	cartsCollection := db.Database.Collection("carts")
+	usersCollection := db.Database.Collection("users")
+
+	// Pagination
+	page, err := strconv.ParseInt(r.URL.Query().Get("page"), 10, 64)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.ParseInt(r.URL.Query().Get("limit"), 10, 64)
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+	skip := (page - 1) * limit
+
+	// Sorting - defaults to most recently active cart first
+	sortField := bson.D{{Key: "updated_at", Value: -1}}
+	switch r.URL.Query().Get("sort_by") {
+	case "oldest":
+		sortField = bson.D{{Key: "updated_at", Value: 1}}
+	case "created_desc":
+		sortField = bson.D{{Key: "created_at", Value: -1}}
+	case "created_asc":
+		sortField = bson.D{{Key: "created_at", Value: 1}}
+	}
+
+	// Status filter: active (default), inactive, or all
+	filter := bson.M{}
+	switch r.URL.Query().Get("status") {
+	case "inactive":
+		filter["is_active"] = false
+	case "all":
+		// no constraint
+	default:
+		filter["is_active"] = true
+	}
+
+	// Only carts that currently have items
+	if r.URL.Query().Get("only_with_items") == "true" {
+		filter["items.0"] = bson.M{"$exists": true}
+	}
+
+	// Search by owning user's name or phone
+	if search := r.URL.Query().Get("search"); search != "" {
+		userCursor, findErr := usersCollection.Find(ctx, bson.M{
+			"$or": []bson.M{
+				{"name": bson.M{"$regex": search, "$options": "i"}},
+				{"phone": bson.M{"$regex": search, "$options": "i"}},
+			},
+		})
+		if findErr != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error searching users: "+findErr.Error())
+			return
+		}
+		var matchedUsers []models.User
+		if err := userCursor.All(ctx, &matchedUsers); err != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding users: "+err.Error())
+			return
+		}
+		userIDs := make([]primitive.ObjectID, 0, len(matchedUsers))
+		for _, u := range matchedUsers {
+			userIDs = append(userIDs, u.ID)
+		}
+		filter["user_id"] = bson.M{"$in": userIDs}
+	}
+
+	findOptions := options.Find().SetSkip(skip).SetLimit(limit).SetSort(sortField)
+
+	cursor, err := cartsCollection.Find(ctx, filter, findOptions)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching carts: "+err.Error())
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var cartsData []models.Cart
+	if err := cursor.All(ctx, &cartsData); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding carts: "+err.Error())
+		return
+	}
+
+	totalCount, err := cartsCollection.CountDocuments(ctx, filter)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error counting carts: "+err.Error())
+		return
+	}
+
+	// Batch-fetch the users referenced by this page of carts
+	userIDSet := make(map[primitive.ObjectID]bool)
+	for _, c := range cartsData {
+		userIDSet[c.UserID] = true
+	}
+	userIDsToFetch := make([]primitive.ObjectID, 0, len(userIDSet))
+	for id := range userIDSet {
+		userIDsToFetch = append(userIDsToFetch, id)
+	}
+	usersByID := make(map[primitive.ObjectID]models.User, len(userIDsToFetch))
+	if len(userIDsToFetch) > 0 {
+		uCursor, uErr := usersCollection.Find(ctx, bson.M{"_id": bson.M{"$in": userIDsToFetch}})
+		if uErr != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching users: "+uErr.Error())
+			return
+		}
+		var usersData []models.User
+		if err := uCursor.All(ctx, &usersData); err != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding users: "+err.Error())
+			return
+		}
+		for _, u := range usersData {
+			usersByID[u.ID] = u
+		}
+	}
+
+	responses := make([]AdminCartResponse, 0, len(cartsData))
+	for _, cart := range cartsData {
+		var userPtr *models.User
+		if u, ok := usersByID[cart.UserID]; ok {
+			userCopy := u
+			userPtr = &userCopy
+		}
+		responses = append(responses, newAdminCartResponse(ctx, cart, userPtr))
+	}
+
+	// Lightweight, pagination-independent stats for the dashboard header
+	totalActiveCarts, _ := cartsCollection.CountDocuments(ctx, bson.M{"is_active": true})
+	emptyActiveCarts, _ := cartsCollection.CountDocuments(ctx, bson.M{"is_active": true, "items": bson.M{"$size": 0}})
+
+	pagination := map[string]interface{}{
+		"currentPage": page,
+		"totalPages":  (totalCount + limit - 1) / limit,
+		"totalCarts":  totalCount,
+		"pageSize":    limit,
+	}
+
+	stats := map[string]interface{}{
+		"total_carts":      totalActiveCarts,
+		"empty_carts":      emptyActiveCarts,
+		"carts_with_items": totalActiveCarts - emptyActiveCarts,
+	}
+
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+		"carts":      responses,
+		"pagination": pagination,
+		"stats":      stats,
+	})
+}
 
 // DeleteCart handles DELETE /api/admin/carts/{cartId} (Soft Delete)
 // Requires admin authentication
