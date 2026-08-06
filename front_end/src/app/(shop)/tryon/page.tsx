@@ -53,11 +53,23 @@ interface ChatMessage {
 
 const toPersianDigits = (n: number) => n.toLocaleString("fa-IR", { useGrouping: false });
 
+function colorsOverlap(color1?: string, colorName1?: string, color2?: string, colorName2?: string): boolean {
+  const values1 = [color1, colorName1].filter((v): v is string => !!v && v.trim() !== "");
+  const values2 = [color2, colorName2].filter((v): v is string => !!v && v.trim() !== "");
+  if (values1.length === 0 || values2.length === 0) return false;
+  return values1.some((v) => values2.includes(v));
+}
+
 interface CouponOffer {
   code: string;
   value: number;
   valid_until: string;
   product_ids: string[];
+  comp_product_id?: string;
+  main_color?: string;
+  main_color_name?: string;
+  comp_color?: string;
+  comp_color_name?: string;
 }
 
 interface RecommendedProduct {
@@ -136,6 +148,7 @@ export default function TryOnRoomPage() {
     couponValue,
     couponValidUntil,
     couponProductIds,
+    couponRequiredColors,
     setCoupon,
     clearCoupon,
     chatId,
@@ -560,25 +573,20 @@ export default function TryOnRoomPage() {
   };
 
   const getRecommendedSize = (rec: RecommendedProduct): string | undefined => {
-    if (rec.size) return rec.size;
-    if (!rec.product) return undefined;
+    if (!rec.product) return rec.size;
     const color = getRecommendedColor(rec);
     const cv = findColorVariant(rec.product, color, rec.color_name);
-    return cv?.sizes?.[0]?.size;
+    return cv?.sizes?.find((s) => s.quantity > 0)?.size || rec.size;
   };
 
-  const getRecommendedSizeOptions = (rec: RecommendedProduct): { all: string[]; available: string[] } => {
+  const getRecommendedSizeOptions = (rec: RecommendedProduct): { available: string[] } => {
     const color = getRecommendedColor(rec);
     const colorName = getRecommendedColorName(rec);
     const variant = rec.product ? findColorVariant(rec.product, color, colorName) : undefined;
     if (variant?.sizes?.length) {
-      return {
-        all: variant.sizes.map((s) => s.size),
-        available: variant.sizes.filter((s) => s.quantity > 0).map((s) => s.size),
-      };
+      return { available: variant.sizes.filter((s) => s.quantity > 0).map((s) => s.size) };
     }
-    if (rec.size) return { all: [rec.size], available: [rec.size] };
-    return { all: [], available: [] };
+    return { available: [] };
   };
 
   const getRecommendedDisplayImage = (rec: RecommendedProduct): string | null => {
@@ -730,7 +738,14 @@ export default function TryOnRoomPage() {
 
               if (data.coupon) {
                 const c = data.coupon as CouponOffer;
-                setCoupon(c.code, c.value, c.valid_until, c.product_ids);
+                const requiredColors: { productId: string; color?: string; colorName?: string }[] = [];
+                if (c.product_ids?.[0]) {
+                  requiredColors.push({ productId: c.product_ids[0], color: c.main_color, colorName: c.main_color_name });
+                }
+                if (c.comp_product_id) {
+                  requiredColors.push({ productId: c.comp_product_id, color: c.comp_color, colorName: c.comp_color_name });
+                }
+                setCoupon(c.code, c.value, c.valid_until, c.product_ids, requiredColors);
                 setCouponExpired(false);
               }
               let recProduct: RecommendedProduct | null = null;
@@ -820,28 +835,39 @@ export default function TryOnRoomPage() {
   const handleApplyCoupon = async () => {
     if (!couponCode || couponApplying || couponExpired) return;
 
-    // Check that ALL required products (main + complementary) are in cart
+    const cartItems = useCartStore.getState().cart.items;
+
+    // Check that ALL required products (main + complementary) are in the cart,
+    // in the exact color variant the coupon was negotiated for (any size).
     if (couponProductIds.length > 0) {
-      const cartItems = useCartStore.getState().cart.items;
-      const missingProducts = couponProductIds.filter(
-        (pid) => !cartItems.some((item) => item.productId === pid)
-      );
+      const missingProducts = couponProductIds.filter((pid) => {
+        const required = couponRequiredColors.find((rc) => rc.productId === pid);
+        return !cartItems.some((item) => {
+          if (item.productId !== pid) return false;
+          if (!required || (!required.color && !required.colorName)) return true;
+          return colorsOverlap(required.color, required.colorName, item.color, item.colorName);
+        });
+      });
       if (missingProducts.length > 0) {
-        toast.warning("این کد تخفیف زمانی اعمال می شود که هر دو محصول اصلی و پیشنهادی در سبد خرید باشند");
+        toast.warning("این کد تخفیف زمانی اعمال می شود که هر دو محصول اصلی و پیشنهادی، در همان رنگ پیشنهادی، در سبد خرید باشند");
         return;
       }
     }
 
     setCouponApplying(true);
     try {
-      const cartProductIds = useCartStore.getState().cart.items.map((item) => item.productId);
+      const cartItemsPayload = cartItems.map((item) => ({
+        product_id: item.productId,
+        color: item.color,
+        color_name: item.colorName,
+      }));
       const res = await fetch("/api/tryon/apply-negotiated-coupon", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("authToken")}`,
         },
-        body: JSON.stringify({ code: couponCode, cart_items: cartProductIds }),
+        body: JSON.stringify({ code: couponCode, cart_items: cartItemsPayload }),
       });
 
       if (!res.ok) {
@@ -1664,14 +1690,13 @@ export default function TryOnRoomPage() {
         contentClassName="max-w-sm"
       >
         {recommendedProduct && (() => {
-          const { all: sizeOptions, available: availableSizes } = getRecommendedSizeOptions(recommendedProduct);
+          const { available: availableSizes } = getRecommendedSizeOptions(recommendedProduct);
           return (
             <>
               <p className="text-sm text-muted-foreground mb-4">{recommendedProduct.product_name}</p>
-              {sizeOptions.length > 0 ? (
+              {availableSizes.length > 0 ? (
                 <SizeSelector
-                  sizes={sizeOptions}
-                  availableSizes={availableSizes}
+                  sizes={availableSizes}
                   selectedSize={sizeModalSize}
                   onSizeChange={setSizeModalSize}
                   showLabel={false}

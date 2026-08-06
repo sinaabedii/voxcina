@@ -620,6 +620,17 @@ func (r *BlogRepository) FindMediaByPostIDAndSlot(ctx context.Context, postID pr
 	return &media, nil
 }
 
+// FindMediaByID returns a single media record by its ID.
+func (r *BlogRepository) FindMediaByID(ctx context.Context, id primitive.ObjectID) (*models.BlogMedia, error) {
+	collection := r.db.Collection("blog_media")
+	var media models.BlogMedia
+	err := collection.FindOne(ctx, bson.M{"_id": id}).Decode(&media)
+	if err != nil {
+		return nil, err
+	}
+	return &media, nil
+}
+
 // UpdateMedia updates a media record by ID.
 func (r *BlogRepository) UpdateMedia(ctx context.Context, id primitive.ObjectID, set bson.M) error {
 	collection := r.db.Collection("blog_media")

@@ -35,7 +35,7 @@ interface BlogAdminState {
   autoMatchProductBlock: (postID: string, blockOrder: number) => Promise<boolean>;
   selectProductBlock: (postID: string, blockOrder: number, productId: string, colorHex: string) => Promise<boolean>;
   uploadMedia: (postID: string, slot: string, file: File, alt: string) => Promise<BlogMedia | null>;
-  deleteMedia: (mediaID: string) => Promise<boolean>;
+  deleteMedia: (postID: string, mediaID: string) => Promise<boolean>;
   publishPost: (postID: string) => Promise<boolean>;
   unpublishPost: (postID: string) => Promise<boolean>;
   archivePost: (postID: string) => Promise<boolean>;
@@ -476,11 +476,11 @@ export const useBlogAdminStore = create<BlogAdminState>((set, get) => ({
     }
   },
 
-  deleteMedia: async (mediaID: string) => {
+  deleteMedia: async (postID: string, mediaID: string) => {
     set({ isLoading: true, error: null });
     try {
       const token = localStorage.getItem("authToken");
-      const res = await fetch(`/api/admin/blog-media/${mediaID}`, {
+      const res = await fetch(`/api/admin/blog-posts/${postID}/media/${mediaID}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,

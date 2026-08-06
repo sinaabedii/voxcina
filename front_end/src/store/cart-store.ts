@@ -13,6 +13,28 @@ import { findColorVariant, getCanonicalColor } from "@/lib/product-variants";
 // Module-level flags for operation guards (Task 9.4)
 const operationGuards: Record<string, boolean> = {};
 
+// Mirrors the backend's variantLookupValues/colorsOverlap comparison: a cart
+// item's color matches a required color if either the raw color or the
+// display color name overlaps.
+const variantLookupValues = (color?: string, colorName?: string): string[] => {
+  const values: string[] = [];
+  const seen = new Set<string>();
+  for (const value of [color, colorName]) {
+    const cleaned = (value || "").trim();
+    if (!cleaned || seen.has(cleaned)) continue;
+    seen.add(cleaned);
+    values.push(cleaned);
+  }
+  return values;
+};
+
+const colorsOverlap = (color1?: string, colorName1?: string, color2?: string, colorName2?: string): boolean => {
+  const values1 = variantLookupValues(color1, colorName1);
+  const values2 = variantLookupValues(color2, colorName2);
+  if (values1.length === 0 || values2.length === 0) return false;
+  return values1.some((v) => values2.includes(v));
+};
+
 /**
  * Task 9.1: Helper function to get auth state with error handling
  * Replaces duplicate try-catch blocks in addItem, updateItemQuantity, removeItem, clearCart, syncCartWithBackend
@@ -162,7 +184,7 @@ interface CartStore {
   ) => Promise<void>;
   clearCart: () => Promise<void>;
   applyPromoCode: (code: string) => Promise<void>;
-  applyNegotiatedDiscount: (discount: { code: string; discountPercentage: number; min_order_amount?: number; valid_to?: string; description?: string; maxDiscount?: number; product_ids?: string[]; productIds?: string[] }) => void;
+  applyNegotiatedDiscount: (discount: { code: string; discountPercentage: number; min_order_amount?: number; valid_to?: string; description?: string; maxDiscount?: number; product_ids?: string[]; productIds?: string[]; required_products?: { product_id: string; color?: string; color_name?: string }[] }) => void;
   removePromoCode: () => void;
   calculateSummary: () => void;
   cleanupSubscriptions: () => void;
@@ -718,8 +740,20 @@ export const useCartStore = create<CartStore>()(
         let subtotal = cart.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
         let discountVal = 0;
         if (promoCode && promoCode.isValid) {
+            // Negotiated coupons only discount the specific color variant(s) they
+            // were negotiated for (main + complementary product, any size of that
+            // color) — not the whole cart. Admin-issued codes stay cart-wide.
+            let discountBase = subtotal;
+            if (promoCode.type === "negotiated" && promoCode.requiredColors && promoCode.requiredColors.length > 0) {
+                discountBase = cart.items.reduce((acc, item) => {
+                    const matches = promoCode.requiredColors!.some(
+                        (rc) => rc.productId === item.productId && colorsOverlap(rc.color, rc.colorName, item.color, item.colorName)
+                    );
+                    return matches ? acc + item.price * item.quantity : acc;
+                }, 0);
+            }
             if (promoCode.discountPercentage > 0) {
-                const potentialDiscount = (subtotal * promoCode.discountPercentage) / 100;
+                const potentialDiscount = (discountBase * promoCode.discountPercentage) / 100;
                 if (promoCode.maxDiscount !== undefined && promoCode.maxDiscount > 0) {
                     discountVal = Math.min(potentialDiscount, promoCode.maxDiscount);
                 } else {
@@ -800,6 +834,11 @@ export const useCartStore = create<CartStore>()(
             errorMessage: "",
             type: "negotiated",
             productIds: discount.product_ids || discount.productIds || [],
+            requiredColors: (discount.required_products || []).map((rp) => ({
+              productId: rp.product_id,
+              color: rp.color,
+              colorName: rp.color_name,
+            })),
           },
           error: null,
         });

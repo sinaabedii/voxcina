@@ -10,6 +10,12 @@ import {
   makeMessageId,
 } from "@/lib/tryon-api";
 
+interface RequiredColorEntry {
+  productId: string;
+  color?: string;
+  colorName?: string;
+}
+
 interface PersistedTryon {
   tryon_id: string;
   product_id?: string;
@@ -36,6 +42,9 @@ interface TryOnState {
   couponValue: number | null;
   couponValidUntil: string | null;
   couponProductIds: string[];
+  // The color variant each required product's coupon eligibility is locked
+  // to (main product + complementary product); any size of that color qualifies.
+  couponRequiredColors: RequiredColorEntry[];
 
   __tryOnAbortController: AbortController | null;
 
@@ -53,7 +62,7 @@ interface TryOnState {
   setResultImage: (url: string | null) => void;
   setInspectedItem: (name: string, garmentType: string) => void;
   clearInspectedItem: () => void;
-  setCoupon: (code: string, value: number, validUntil: string, productIds?: string[]) => void;
+  setCoupon: (code: string, value: number, validUntil: string, productIds?: string[], requiredColors?: RequiredColorEntry[]) => void;
   clearCoupon: () => void;
   clearResult: () => void;
   clear: () => void;
@@ -100,6 +109,7 @@ export const useTryOnStore = create<TryOnState>()(
     couponValue: null,
     couponValidUntil: null,
     couponProductIds: [],
+    couponRequiredColors: [],
     __tryOnAbortController: null,
 
     chatId: null,
@@ -133,11 +143,17 @@ export const useTryOnStore = create<TryOnState>()(
     clearInspectedItem: () =>
       set({ inspectedItemName: null, inspectedGarmentType: null }),
 
-    setCoupon: (code, value, validUntil, productIds) =>
-      set({ couponCode: code, couponValue: value, couponValidUntil: validUntil, couponProductIds: productIds || [] }),
+    setCoupon: (code, value, validUntil, productIds, requiredColors) =>
+      set({
+        couponCode: code,
+        couponValue: value,
+        couponValidUntil: validUntil,
+        couponProductIds: productIds || [],
+        couponRequiredColors: requiredColors || [],
+      }),
 
     clearCoupon: () =>
-      set({ couponCode: null, couponValue: null, couponValidUntil: null, couponProductIds: [] }),
+      set({ couponCode: null, couponValue: null, couponValidUntil: null, couponProductIds: [], couponRequiredColors: [] }),
 
     clearResult: () => {
       const state = get();
@@ -172,6 +188,7 @@ export const useTryOnStore = create<TryOnState>()(
         couponValue: null,
         couponValidUntil: null,
         couponProductIds: [],
+        couponRequiredColors: [],
         __tryOnAbortController: null,
         chatId: null,
         currentTryonId: null,
@@ -415,6 +432,7 @@ export const useTryOnStore = create<TryOnState>()(
         couponValue: null,
         couponValidUntil: null,
         couponProductIds: [],
+        couponRequiredColors: [],
       });
     },
   })

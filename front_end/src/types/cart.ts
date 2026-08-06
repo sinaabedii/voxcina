@@ -37,6 +37,12 @@ export interface CartSummary {
   items?: CartItem[];
 }
 
+export interface RequiredColorEntry {
+  productId: string;
+  color?: string;
+  colorName?: string;
+}
+
 export interface PromoCode {
   code: string;
   discountPercentage: number;
@@ -48,4 +54,7 @@ export interface PromoCode {
   errorMessage?: string;
   type?: "admin" | "negotiated";
   productIds?: string[];
+  // For negotiated coupons: restricts the discount to cart items whose
+  // productId AND color match one of these entries (any size qualifies).
+  requiredColors?: RequiredColorEntry[];
 }

@@ -466,7 +466,7 @@ export default function PreviewStage({ run, post, media, onApprove, onPublish, o
     try {
       const existing = mediaMap[slot];
       if (existing) {
-        await deleteMedia(existing.id);
+        await deleteMedia(run.postId, existing.id);
       }
       const mediaResult = await uploadMedia(run.postId, slot, file, slot);
       if (mediaResult) {
@@ -598,8 +598,13 @@ export default function PreviewStage({ run, post, media, onApprove, onPublish, o
                           variant="danger"
                           size="sm"
                           onClick={async () => {
-                            const ok = await deleteMedia(existing.id);
-                            if (ok) toast.success("حذف شد");
+                            if (!run.postId) return;
+                            const ok = await deleteMedia(run.postId, existing.id);
+                            if (ok) {
+                              toast.success("حذف شد");
+                            } else {
+                              toast.error(useBlogAdminStore.getState().error || "خطا در حذف تصویر");
+                            }
                           }}
                         >
                           حذف

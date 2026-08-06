@@ -463,6 +463,28 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 				utils.ErrorResponse(w, http.StatusBadRequest, "این کد تخفیف متعلق به شما نیست")
 				return
 			}
+			// Check that every required product is present in the order, in the
+			// exact color variant the coupon was negotiated for (any size qualifies).
+			for _, required := range nc.RequiredProducts {
+				found := false
+				for _, item := range orderData.Items {
+					if item.ProductID != required.ProductID {
+						continue
+					}
+					if required.Color == "" && required.ColorName == "" {
+						found = true
+						break
+					}
+					if colorsOverlap(required.Color, required.ColorName, item.Variant.Color, item.Variant.ColorName) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					utils.ErrorResponse(w, http.StatusBadRequest, "این کد تخفیف زمانی اعمال می شود که هر دو محصول اصلی و پیشنهادی، در همان رنگ پیشنهادی، در سفارش باشند")
+					return
+				}
+			}
 		} else if err != mongo.ErrNoDocuments {
 			utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در بررسی کد تخفیف")
 			return

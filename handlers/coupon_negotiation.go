@@ -264,8 +264,12 @@ func ApplyNegotiatedCoupon(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Code     string   `json:"code"`
-		CartItems []string `json:"cart_items,omitempty"`
+		Code      string `json:"code"`
+		CartItems []struct {
+			ProductID string `json:"product_id"`
+			Color     string `json:"color,omitempty"`
+			ColorName string `json:"color_name,omitempty"`
+		} `json:"cart_items,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "فرمت درخواست نامعتبر است")
@@ -301,12 +305,35 @@ func ApplyNegotiatedCoupon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate that all required products are in the cart
-	if len(coupon.ProductIDs) > 0 && len(req.CartItems) > 0 {
+	// Validate that all required products are in the cart, in the specific color
+	// variant this coupon was negotiated for (any size of that color qualifies).
+	if len(coupon.RequiredProducts) > 0 && len(req.CartItems) > 0 {
+		for _, required := range coupon.RequiredProducts {
+			requiredPID := required.ProductID.Hex()
+			found := false
+			for _, cartItem := range req.CartItems {
+				if cartItem.ProductID != requiredPID {
+					continue
+				}
+				if required.Color == "" && required.ColorName == "" {
+					found = true
+					break
+				}
+				if colorsOverlap(required.Color, required.ColorName, cartItem.Color, cartItem.ColorName) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				utils.ErrorResponse(w, http.StatusBadRequest, "این کد تخفیف زمانی اعمال می شود که هر دو محصول اصلی و پیشنهادی، در همان رنگ پیشنهادی، در سبد خرید باشند")
+				return
+			}
+		}
+	} else if len(coupon.ProductIDs) > 0 && len(req.CartItems) > 0 {
 		for _, requiredPID := range coupon.ProductIDs {
 			found := false
-			for _, cartPID := range req.CartItems {
-				if cartPID == requiredPID.Hex() {
+			for _, cartItem := range req.CartItems {
+				if cartItem.ProductID == requiredPID.Hex() {
 					found = true
 					break
 				}
@@ -326,6 +353,15 @@ func ApplyNegotiatedCoupon(w http.ResponseWriter, r *http.Request) {
 		productIDStrings = append(productIDStrings, pid.Hex())
 	}
 
+	requiredProductsOut := make([]map[string]interface{}, 0, len(coupon.RequiredProducts))
+	for _, rp := range coupon.RequiredProducts {
+		requiredProductsOut = append(requiredProductsOut, map[string]interface{}{
+			"product_id": rp.ProductID.Hex(),
+			"color":      rp.Color,
+			"color_name": rp.ColorName,
+		})
+	}
+
 	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
 		"valid": true,
 		"discount": map[string]interface{}{
@@ -337,8 +373,27 @@ func ApplyNegotiatedCoupon(w http.ResponseWriter, r *http.Request) {
 			"valid_to":           coupon.ValidUntil.Format(time.RFC3339),
 			"description":        "کد تخفیف اختصاصی شما",
 			"product_ids":        productIDStrings,
+			"required_products":  requiredProductsOut,
 		},
 	})
+}
+
+// colorsOverlap reports whether two (color, colorName) pairs refer to the same
+// color variant, comparing both raw color and display-name values.
+func colorsOverlap(color1, colorName1, color2, colorName2 string) bool {
+	values1 := variantLookupValues(color1, colorName1)
+	values2 := variantLookupValues(color2, colorName2)
+	if len(values1) == 0 || len(values2) == 0 {
+		return false
+	}
+	for _, v1 := range values1 {
+		for _, v2 := range values2 {
+			if v1 == v2 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func findComplementaryProducts(productID, color string) ([]services.CouponCartItem, error) {
@@ -440,9 +495,6 @@ func findComplementaryProducts(productID, color string) ([]services.CouponCartIt
 				item.Color = canonicalColorValue(cv)
 				item.ColorName = cv.ColorName
 				item.SelectedColor = canonicalColorValue(cv)
-				if len(cv.Sizes) > 0 {
-					item.Size = cv.Sizes[0].Size
-				}
 				break
 			}
 		}
@@ -453,9 +505,6 @@ func findComplementaryProducts(productID, color string) ([]services.CouponCartIt
 					item.Color = canonicalColorValue(cv)
 					item.ColorName = cv.ColorName
 					item.SelectedColor = canonicalColorValue(cv)
-					if len(cv.Sizes) > 0 {
-						item.Size = cv.Sizes[0].Size
-					}
 					break
 				}
 			}

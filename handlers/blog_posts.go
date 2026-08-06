@@ -818,11 +818,20 @@ func UploadBlogMedia(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, http.StatusCreated, media)
 }
 
-// DeleteBlogMedia removes a media asset.
+// DeleteBlogMedia removes a media asset and clears any resolved image
+// reference to it already baked into the post's blocks/cover (which happens
+// once a pipeline run reaches media_pending -> ready, see ApprovePipelineRun).
+// Without this, a post that already went through that transition would keep
+// showing the deleted image forever, since the block/cover only ever gets a
+// *new* resolved path set — it's never cleared on delete.
 func DeleteBlogMedia(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	mediaIDStr := vars["mediaId"]
-	mediaID, err := primitive.ObjectIDFromHex(mediaIDStr)
+	postID, err := primitive.ObjectIDFromHex(vars["id"])
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid post ID")
+		return
+	}
+	mediaID, err := primitive.ObjectIDFromHex(vars["mediaId"])
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid media ID")
 		return
@@ -832,6 +841,17 @@ func DeleteBlogMedia(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	repo := services.NewBlogRepository(db.Database)
+
+	media, err := repo.FindMediaByID(ctx, mediaID)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusNotFound, "Media not found")
+		return
+	}
+	if media.PostID != postID {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Media does not belong to this post")
+		return
+	}
+
 	deleted, err := repo.DeleteMediaByID(ctx, mediaID)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error deleting media: "+err.Error())
@@ -840,6 +860,26 @@ func DeleteBlogMedia(w http.ResponseWriter, r *http.Request) {
 	if !deleted {
 		utils.ErrorResponse(w, http.StatusNotFound, "Media not found")
 		return
+	}
+
+	if post, err := repo.GetBlogPostByID(ctx, postID); err == nil && post != nil {
+		changed := false
+		if media.Slot == "cover" && post.CoverImageID != "" {
+			post.CoverImageID = ""
+			changed = true
+		}
+		for i := range post.Blocks {
+			if post.Blocks[i].Type == models.BlockTypeImage &&
+				post.Blocks[i].ImageSlotID == media.Slot &&
+				post.Blocks[i].ImageID != "" {
+				post.Blocks[i].ImageID = ""
+				changed = true
+			}
+		}
+		if changed {
+			post.UpdatedAt = time.Now()
+			_ = repo.UpdateBlogPost(ctx, post)
+		}
 	}
 
 	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Media deleted"})
