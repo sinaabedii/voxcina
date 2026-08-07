@@ -83,7 +83,7 @@ export interface VoucherProduct {
 
 export interface UserVoucher {
   id: string;
-  type: "negotiated" | "targeted";
+  type: "negotiated" | "targeted" | "cart_recovery";
   code: string;
   discount_type: "percentage" | "fixed";
   value: number;

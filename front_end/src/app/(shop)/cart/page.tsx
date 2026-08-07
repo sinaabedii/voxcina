@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Trash2, ShoppingBag, Minus, Plus, ArrowLeft, Loader2 } from "lucide-react";
-import { useCartStore, getCartWarnings } from "@/store/cart-store";
+import { useCartStore, getCartWarnings, colorsOverlap } from "@/store/cart-store";
 import { formatPrice } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/input";
@@ -101,6 +101,23 @@ export default function CartPage() {
         return !promoCode.productIds.includes(item.productId);
       }
       return true;
+    }
+
+    if (promoCode.type === "cart_recovery") {
+      if (!promoCode.requiredColors?.length) return true;
+      const isRequiredMatch = promoCode.requiredColors.some(
+        (rc) => rc.productId === item.productId && colorsOverlap(rc.color, rc.colorName, item.color, item.colorName)
+      );
+      if (!isRequiredMatch) return true;
+      // Only invalidates if this was the last remaining matching variant —
+      // the coupon survives as long as at least one required variant stays.
+      return cart.items.some(
+        (i) =>
+          i.id !== item.id &&
+          promoCode.requiredColors!.some(
+            (rc) => rc.productId === i.productId && colorsOverlap(rc.color, rc.colorName, i.color, i.colorName)
+          )
+      );
     }
 
     if (promoCode.type === "admin") {

@@ -58,29 +58,54 @@ func NewSMSService() *SMSService {
 	}
 }
 
+// normalizeMobile converts a phone number to the format SMS.ir expects
+// (leading 0 stripped, e.g. "919xxxx904").
+func normalizeMobile(phone string) string {
+	if strings.HasPrefix(phone, "0") {
+		return phone[1:]
+	}
+	return phone
+}
+
 // SendOTP sends an OTP code to the specified phone number
 func (s *SMSService) SendOTP(phone, code, firstName string) error {
-	// Convert phone number: remove leading 0 if present for international format
-	// SMS.ir expects format like "919xxxx904" (without country code prefix)
-	mobile := phone
-	if strings.HasPrefix(mobile, "0") {
-		mobile = mobile[1:] // Remove leading 0
-	}
-
-	// Parse template ID
 	var templateID int
 	fmt.Sscanf(s.templateID, "%d", &templateID)
 	if templateID == 0 {
 		return fmt.Errorf("invalid template ID: %s", s.templateID)
 	}
 
+	return s.send(normalizeMobile(phone), templateID, []SMSParameter{
+		{Name: "OTPCODE", Value: code},
+		{Name: "USER", Value: firstName},
+	})
+}
+
+// SendCartRecoveryCoupon texts a user their abandoned-cart discount voucher
+// using the SMSIR_CART_RECOVERY_TEMPLATE_ID template, whose placeholders are
+// #NAME#, #DISCOUNT# (percent), and #DAY# (validity in days).
+func (s *SMSService) SendCartRecoveryCoupon(phone, firstName string, discountPercent, validDays int) error {
+	templateIDStr := strings.TrimSpace(os.Getenv("SMSIR_CART_RECOVERY_TEMPLATE_ID"))
+	var templateID int
+	fmt.Sscanf(templateIDStr, "%d", &templateID)
+	if templateID == 0 {
+		return fmt.Errorf("invalid cart recovery template ID: %s", templateIDStr)
+	}
+
+	return s.send(normalizeMobile(phone), templateID, []SMSParameter{
+		{Name: "NAME", Value: firstName},
+		{Name: "DISCOUNT", Value: fmt.Sprintf("%d", discountPercent)},
+		{Name: "DAY", Value: fmt.Sprintf("%d", validDays)},
+	})
+}
+
+// send performs the actual SMS.ir verify/pattern API call shared by every
+// template-based send.
+func (s *SMSService) send(mobile string, templateID int, parameters []SMSParameter) error {
 	reqBody := SendVerifyRequest{
 		Mobile:     mobile,
 		TemplateID: templateID,
-		Parameters: []SMSParameter{
-			{Name: "OTPCODE", Value: code},
-			{Name: "USER", Value: firstName},
-		},
+		Parameters: parameters,
 	}
 
 	jsonBody, err := json.Marshal(reqBody)

@@ -28,7 +28,7 @@ const variantLookupValues = (color?: string, colorName?: string): string[] => {
   return values;
 };
 
-const colorsOverlap = (color1?: string, colorName1?: string, color2?: string, colorName2?: string): boolean => {
+export const colorsOverlap = (color1?: string, colorName1?: string, color2?: string, colorName2?: string): boolean => {
   const values1 = variantLookupValues(color1, colorName1);
   const values2 = variantLookupValues(color2, colorName2);
   if (values1.length === 0 || values2.length === 0) return false;
@@ -184,7 +184,7 @@ interface CartStore {
   ) => Promise<void>;
   clearCart: () => Promise<void>;
   applyPromoCode: (code: string) => Promise<void>;
-  applyNegotiatedDiscount: (discount: { code: string; discountPercentage: number; min_order_amount?: number; valid_to?: string; description?: string; maxDiscount?: number; product_ids?: string[]; productIds?: string[]; required_products?: { product_id: string; color?: string; color_name?: string }[] }) => void;
+  applyNegotiatedDiscount: (discount: { code: string; discountPercentage: number; min_order_amount?: number; valid_to?: string; description?: string; maxDiscount?: number; product_ids?: string[]; productIds?: string[]; required_products?: { product_id: string; color?: string; color_name?: string }[]; source?: string }) => void;
   removePromoCode: () => void;
   calculateSummary: () => void;
   cleanupSubscriptions: () => void;
@@ -744,7 +744,11 @@ export const useCartStore = create<CartStore>()(
             // were negotiated for (main + complementary product, any size of that
             // color) — not the whole cart. Admin-issued codes stay cart-wide.
             let discountBase = subtotal;
-            if (promoCode.type === "negotiated" && promoCode.requiredColors && promoCode.requiredColors.length > 0) {
+            if (
+              (promoCode.type === "negotiated" || promoCode.type === "cart_recovery") &&
+              promoCode.requiredColors &&
+              promoCode.requiredColors.length > 0
+            ) {
                 discountBase = cart.items.reduce((acc, item) => {
                     const matches = promoCode.requiredColors!.some(
                         (rc) => rc.productId === item.productId && colorsOverlap(rc.color, rc.colorName, item.color, item.colorName)
@@ -790,9 +794,41 @@ export const useCartStore = create<CartStore>()(
           }
           const response = await fetch(`/api/discounts/code/${encodeURIComponent(code)}`, { headers });
 
-          if (!response.ok) {
+          if (!response.ok && response.status !== 404) {
+            // Exists as an admin discount code but fails a business rule
+            // (expired, maxed out, not eligible) — surface that exact reason
+            // rather than masking it with the negotiated-coupon fallback below.
             const err = await response.json().catch(() => ({ message: 'کد تخفیف نامعتبر است' }));
             set({ error: err.message || 'کد تخفیف نامعتبر است', promoCode: { code, isValid: false, errorMessage: err.message || 'نامعتبر', discountPercentage: 0, maxDiscount: 0, expireDate: '', minPurchase: 0 } });
+            get().calculateSummary();
+            return;
+          }
+
+          if (!response.ok) {
+            // Not found as an admin discount code — it may be a negotiated/
+            // cart-recovery coupon, validated against the items actually in the cart.
+            const cartItems = get().cart.items.map((item) => ({
+              product_id: item.productId,
+              color: item.color,
+              color_name: item.colorName,
+            }));
+            const negotiatedRes = await fetch('/api/coupons/apply', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+              body: JSON.stringify({ code, cart_items: cartItems }),
+            });
+
+            if (negotiatedRes.ok) {
+              const data = await negotiatedRes.json();
+              get().applyNegotiatedDiscount(data.discount);
+              return;
+            }
+
+            const negotiatedErr = await negotiatedRes.json().catch(() => ({ message: 'کد تخفیف نامعتبر است' }));
+            set({ error: negotiatedErr.message || 'کد تخفیف نامعتبر است', promoCode: { code, isValid: false, errorMessage: negotiatedErr.message || 'نامعتبر', discountPercentage: 0, maxDiscount: 0, expireDate: '', minPurchase: 0 } });
             get().calculateSummary();
             return;
           }
@@ -832,7 +868,7 @@ export const useCartStore = create<CartStore>()(
             expireDate: discount.valid_to || "",
             description: discount.description || "کد تخفیف اختصاصی شما",
             errorMessage: "",
-            type: "negotiated",
+            type: discount.source === "cart_recovery" ? "cart_recovery" : "negotiated",
             productIds: discount.product_ids || discount.productIds || [],
             requiredColors: (discount.required_products || []).map((rp) => ({
               productId: rp.product_id,

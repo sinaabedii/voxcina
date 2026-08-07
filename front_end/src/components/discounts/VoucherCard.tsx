@@ -34,6 +34,10 @@ export function VoucherCard({ voucher, index }: VoucherCardProps) {
   };
 
   const isNegotiated = voucher.type === "negotiated";
+  const isCartRecovery = voucher.type === "cart_recovery";
+  // Both are auto-issued, color-scoped coupons with a countdown to expiry —
+  // they share visual treatment, just with a different accent and badge text.
+  const isSpecial = isNegotiated || isCartRecovery;
   const isPercentage = voucher.discount_type === "percentage";
 
   const discountLabel = isPercentage
@@ -59,6 +63,8 @@ export function VoucherCard({ voucher, index }: VoucherCardProps) {
           "overflow-hidden border-2 transition-all duration-300 hover:shadow-lg",
           isNegotiated
             ? "border-purple-200 dark:border-purple-800/40"
+            : isCartRecovery
+            ? "border-amber-200 dark:border-amber-800/40"
             : "border-voxcina-cream dark:border-voxcina-blue/30"
         )}
       >
@@ -67,6 +73,8 @@ export function VoucherCard({ voucher, index }: VoucherCardProps) {
             "px-5 py-4 flex items-center justify-between",
             isNegotiated
               ? "bg-gradient-to-l from-purple-600 to-voxcina-blue"
+              : isCartRecovery
+              ? "bg-gradient-to-l from-amber-500 to-voxcina-blue"
               : "bg-gradient-to-l from-voxcina-blue to-voxcina-darkBlue"
           )}
         >
@@ -96,6 +104,11 @@ export function VoucherCard({ voucher, index }: VoucherCardProps) {
           {isNegotiated && (
             <Badge className="bg-white/20 text-white border-white/30 text-xs">
               اتاق پرو
+            </Badge>
+          )}
+          {isCartRecovery && (
+            <Badge className="bg-white/20 text-white border-white/30 text-xs">
+              بازگشت به سبد
             </Badge>
           )}
         </div>
@@ -130,7 +143,7 @@ export function VoucherCard({ voucher, index }: VoucherCardProps) {
             </Button>
           </div>
 
-          {isNegotiated && (
+          {isSpecial && (
             <div
               className={cn(
                 "flex items-center gap-2 text-xs px-3 py-2 rounded-lg",
@@ -141,14 +154,16 @@ export function VoucherCard({ voucher, index }: VoucherCardProps) {
             >
               <Clock className="w-3.5 h-3.5 shrink-0" />
               <span>
-                {diffHours > 0
+                {diffHours >= 24
+                  ? `${Math.floor(diffHours / 24)} روز اعتبار باقی‌مانده`
+                  : diffHours > 0
                   ? `${diffHours} ساعت و ${diffMinutes} دقیقه اعتبار باقی‌مانده`
                   : `${diffMinutes} دقیقه اعتبار باقی‌مانده`}
               </span>
             </div>
           )}
 
-          {voucher.valid_from && !isNegotiated && (
+          {voucher.valid_from && !isSpecial && (
             <div className="flex items-center gap-2 text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 px-3 py-2 bg-secondary-50 dark:bg-voxcina-blue/10 rounded-lg">
               <Clock className="w-3.5 h-3.5 shrink-0" />
               <span>
@@ -213,8 +228,9 @@ export function VoucherCard({ voucher, index }: VoucherCardProps) {
                 ))}
               </div>
               <p className="text-[11px] text-voxcina-blue/50 dark:text-voxcina-cream/50 leading-relaxed">
-                این کد تخفیف فقط زمانی قابل استفاده است که محصولات بالا در سبد
-                خرید شما باشند.
+                {isCartRecovery
+                  ? "این کد تخفیف زمانی قابل استفاده است که حداقل یکی از محصولات بالا در سبد خرید شما باشد."
+                  : "این کد تخفیف فقط زمانی قابل استفاده است که محصولات بالا در سبد خرید شما باشند."}
               </p>
             </div>
           )}

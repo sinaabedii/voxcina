@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { toast } from "react-toastify";
 import { useAuthStore } from "./auth-store";
-import { AdminCart, AdminCartStats } from "@/types/cart-admin";
+import { AdminCart, AdminCartStats, CartRecoverySmsResult } from "@/types/cart-admin";
 
 interface CartAdminPagination {
   currentPage: number;
@@ -16,11 +16,13 @@ interface CartAdminState {
   pagination: CartAdminPagination | null;
   isLoading: boolean;
   error: string | null;
+  isSendingRecoverySms: boolean;
 }
 
 interface CartAdminActions {
   fetchAdminCarts: (page?: number, limit?: number, filters?: Record<string, any>) => Promise<void>;
   deleteCart: (cartId: string) => Promise<void>;
+  sendCartRecoverySms: (discountPercent: number, validDays: number) => Promise<CartRecoverySmsResult | null>;
 }
 
 const initialState: CartAdminState = {
@@ -29,6 +31,7 @@ const initialState: CartAdminState = {
   pagination: null,
   isLoading: false,
   error: null,
+  isSendingRecoverySms: false,
 };
 
 export const useCartAdminStore = create<CartAdminState & CartAdminActions>()((set, get) => ({
@@ -94,6 +97,36 @@ export const useCartAdminStore = create<CartAdminState & CartAdminActions>()((se
     } catch (error) {
       console.error(`Error deleting cart ${cartId}:`, error);
       toast.error(error instanceof Error ? error.message : "خطا در حذف سبد خرید");
+    }
+  },
+
+  sendCartRecoverySms: async (discountPercent: number, validDays: number) => {
+    const { isAuthenticated } = useAuthStore.getState();
+    if (!isAuthenticated) {
+      toast.error("User not authenticated");
+      return null;
+    }
+    set({ isSendingRecoverySms: true });
+    try {
+      const response = await fetch("/api/admin/carts/send-recovery-sms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+        },
+        body: JSON.stringify({ discount_percent: discountPercent, valid_days: validDays }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || "خطا در ارسال پیامک");
+      }
+      set({ isSendingRecoverySms: false });
+      return data as CartRecoverySmsResult;
+    } catch (error) {
+      console.error("Error sending cart recovery SMS:", error);
+      toast.error(error instanceof Error ? error.message : "خطا در ارسال پیامک");
+      set({ isSendingRecoverySms: false });
+      return null;
     }
   },
 }));

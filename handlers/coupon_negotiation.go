@@ -305,28 +305,54 @@ func ApplyNegotiatedCoupon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate that all required products are in the cart, in the specific color
-	// variant this coupon was negotiated for (any size of that color qualifies).
+	// Validate the required products against the current cart. Try-on negotiated
+	// coupons require ALL required products present, in the negotiated color
+	// (any size qualifies). Cart-recovery coupons only require that AT LEAST ONE
+	// of the color variants that were in the cart when the SMS was sent is still
+	// there — new items/colors added afterward don't count, but the customer can
+	// still qualify by keeping (or re-adding) just one of the original ones.
 	if len(coupon.RequiredProducts) > 0 && len(req.CartItems) > 0 {
-		for _, required := range coupon.RequiredProducts {
-			requiredPID := required.ProductID.Hex()
+		if coupon.Source == "cart_recovery" {
 			found := false
-			for _, cartItem := range req.CartItems {
-				if cartItem.ProductID != requiredPID {
-					continue
+			for _, required := range coupon.RequiredProducts {
+				for _, cartItem := range req.CartItems {
+					if cartItem.ProductID != required.ProductID.Hex() {
+						continue
+					}
+					if colorsOverlap(required.Color, required.ColorName, cartItem.Color, cartItem.ColorName) {
+						found = true
+						break
+					}
 				}
-				if required.Color == "" && required.ColorName == "" {
-					found = true
-					break
-				}
-				if colorsOverlap(required.Color, required.ColorName, cartItem.Color, cartItem.ColorName) {
-					found = true
+				if found {
 					break
 				}
 			}
 			if !found {
-				utils.ErrorResponse(w, http.StatusBadRequest, "این کد تخفیف زمانی اعمال می شود که هر دو محصول اصلی و پیشنهادی، در همان رنگ پیشنهادی، در سبد خرید باشند")
+				utils.ErrorResponse(w, http.StatusBadRequest, "این کد تخفیف دیگر با محصولات موجود در سبد خرید شما مطابقت ندارد")
 				return
+			}
+		} else {
+			for _, required := range coupon.RequiredProducts {
+				requiredPID := required.ProductID.Hex()
+				found := false
+				for _, cartItem := range req.CartItems {
+					if cartItem.ProductID != requiredPID {
+						continue
+					}
+					if required.Color == "" && required.ColorName == "" {
+						found = true
+						break
+					}
+					if colorsOverlap(required.Color, required.ColorName, cartItem.Color, cartItem.ColorName) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					utils.ErrorResponse(w, http.StatusBadRequest, "این کد تخفیف زمانی اعمال می شود که هر دو محصول اصلی و پیشنهادی، در همان رنگ پیشنهادی، در سبد خرید باشند")
+					return
+				}
 			}
 		}
 	} else if len(coupon.ProductIDs) > 0 && len(req.CartItems) > 0 {
@@ -362,6 +388,11 @@ func ApplyNegotiatedCoupon(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	description := "کد تخفیف اختصاصی شما"
+	if coupon.Source == "cart_recovery" {
+		description = "کد تخفیف بازگشت به سبد خرید"
+	}
+
 	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
 		"valid": true,
 		"discount": map[string]interface{}{
@@ -371,9 +402,10 @@ func ApplyNegotiatedCoupon(w http.ResponseWriter, r *http.Request) {
 			"discountPercentage": coupon.Value,
 			"min_order_amount":   0,
 			"valid_to":           coupon.ValidUntil.Format(time.RFC3339),
-			"description":        "کد تخفیف اختصاصی شما",
+			"description":        description,
 			"product_ids":        productIDStrings,
 			"required_products":  requiredProductsOut,
+			"source":             coupon.Source,
 		},
 	})
 }

@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Ticket, Tag, Sparkles } from "lucide-react";
+import { Ticket, Tag, Sparkles, RotateCcw } from "lucide-react";
 import { Card } from "@/components/ui";
 import { VoucherCard } from "@/components/discounts/VoucherCard";
 import { UserVoucher } from "@/types/discount";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 
-type FilterTab = "all" | "negotiated" | "targeted";
+type FilterTab = "all" | "negotiated" | "targeted" | "cart_recovery";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -64,6 +64,11 @@ export default function DiscountsPage() {
       label: "کوپن‌های مذاکره‌ای",
       icon: <Sparkles className="w-4 h-4" />,
     },
+    {
+      key: "cart_recovery",
+      label: "بازگشت به سبد خرید",
+      icon: <RotateCcw className="w-4 h-4" />,
+    },
   ];
 
   const filtered =
@@ -75,6 +80,9 @@ export default function DiscountsPage() {
     (v) => v.type === "negotiated"
   ).length;
   const targetedCount = vouchers.filter((v) => v.type === "targeted").length;
+  const cartRecoveryCount = vouchers.filter(
+    (v) => v.type === "cart_recovery"
+  ).length;
 
   return (
     <div className="container py-8 md:py-12">
@@ -110,6 +118,8 @@ export default function DiscountsPage() {
                 ? negotiatedCount
                 : tab.key === "targeted"
                 ? targetedCount
+                : tab.key === "cart_recovery"
+                ? cartRecoveryCount
                 : vouchers.length;
             return (
               <button
@@ -197,6 +207,8 @@ export default function DiscountsPage() {
                 ? "تخفیفی ندارید"
                 : activeTab === "negotiated"
                 ? "کوپن مذاکره‌ای ندارید"
+                : activeTab === "cart_recovery"
+                ? "کد بازگشت به سبد خرید ندارید"
                 : "کد تخفیفی ندارید"}
             </h3>
             <p className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60 leading-relaxed">
@@ -204,6 +216,8 @@ export default function DiscountsPage() {
                 ? "با استفاده از اتاق پرو مجازی و مذاکره با فروشنده، می‌توانید کد تخفیف اختصاصی دریافت کنید."
                 : activeTab === "targeted"
                 ? "کدهای تخفیف ویژه برای شما به زودی فعال خواهد شد."
+                : activeTab === "cart_recovery"
+                ? "وقتی کالایی در سبد خرید شما بماند، ممکن است کد تخفیف اختصاصی برای همان کالا برایتان پیامک شود."
                 : "در حال حاضر هیچ تخفیف فعالی برای شما وجود ندارد. با استفاده از اتاق پرو مجازی می‌توانید کد تخفیف دریافت کنید."}
             </p>
           </Card>

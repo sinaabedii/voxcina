@@ -52,3 +52,11 @@ export interface AdminCartFilters {
   sort_by?: "newest" | "oldest" | "created_desc" | "created_asc";
   only_with_items?: boolean;
 }
+
+// Response from POST /api/admin/carts/send-recovery-sms
+export interface CartRecoverySmsResult {
+  sent: number;
+  skipped: number;
+  failed: number;
+  errors?: string[];
+}

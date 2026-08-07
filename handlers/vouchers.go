@@ -164,15 +164,18 @@ func buildTargetedVoucher(ctx context.Context, d models.Discount) (userVoucher, 
 }
 
 func buildNegotiatedVoucher(ctx context.Context, nc models.NegotiatedCoupon) (userVoucher, bool) {
+	isCartRecovery := nc.Source == "cart_recovery"
 	products := make([]voucherProduct, 0)
 
 	if len(nc.RequiredProducts) > 0 {
 		for _, rp := range nc.RequiredProducts {
 			vp, ok := resolveVoucherProduct(ctx, rp.ProductID, rp.Color, rp.ColorName)
-			if !ok {
-				return userVoucher{}, false
-			}
-			if !vp.InStock {
+			if !ok || !vp.InStock {
+				// Cart-recovery coupons only need ONE surviving variant, so an
+				// out-of-stock/removed one is just dropped, not disqualifying.
+				if isCartRecovery {
+					continue
+				}
 				return userVoucher{}, false
 			}
 			products = append(products, vp)
@@ -180,25 +183,36 @@ func buildNegotiatedVoucher(ctx context.Context, nc models.NegotiatedCoupon) (us
 	} else {
 		for _, pid := range nc.ProductIDs {
 			vp, ok := resolveVoucherProduct(ctx, pid, "", "")
-			if !ok {
-				return userVoucher{}, false
-			}
-			if !vp.InStock {
+			if !ok || !vp.InStock {
+				if isCartRecovery {
+					continue
+				}
 				return userVoucher{}, false
 			}
 			products = append(products, vp)
 		}
 	}
 
+	if isCartRecovery && len(products) == 0 {
+		return userVoucher{}, false
+	}
+
+	voucherType := "negotiated"
+	description := "کد تخفیف اختصاصی اتاق پرو"
+	if isCartRecovery {
+		voucherType = "cart_recovery"
+		description = "کد تخفیف بازگشت به سبد خرید"
+	}
+
 	return userVoucher{
 		ID:               nc.ID.Hex(),
-		Type:             "negotiated",
+		Type:             voucherType,
 		Code:             nc.Code,
 		DiscountType:     nc.Type,
 		Value:            nc.Value,
 		ValidUntil:       nc.ValidUntil.Format(time.RFC3339),
 		RequiredProducts: products,
-		Description:      "کد تخفیف اختصاصی اتاق پرو",
+		Description:      description,
 	}, true
 }
 

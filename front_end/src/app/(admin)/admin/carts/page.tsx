@@ -19,11 +19,15 @@ import {
   PackageX,
   Loader2,
   X,
+  MessageSquareText,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
+import Input from "@/components/ui/input";
+import { toast } from "react-toastify";
 import { formatPrice } from "@/lib/utils";
 import { useCartAdminStore } from "@/store/cart-admin-store";
-import { AdminCartFilters } from "@/types/cart-admin";
+import { AdminCartFilters, CartRecoverySmsResult } from "@/types/cart-admin";
 
 export default function AdminCartsPage() {
   const router = useRouter();
@@ -36,7 +40,13 @@ export default function AdminCartsPage() {
   const [sortBy, setSortBy] = useState(searchParams.get("sort_by") || "newest");
   const [onlyWithItems, setOnlyWithItems] = useState(searchParams.get("only_with_items") === "true");
 
-  const { carts, stats, pagination, isLoading, fetchAdminCarts, deleteCart } = useCartAdminStore();
+  const { carts, stats, pagination, isLoading, fetchAdminCarts, deleteCart, sendCartRecoverySms, isSendingRecoverySms } =
+    useCartAdminStore();
+
+  const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false);
+  const [recoveryDiscount, setRecoveryDiscount] = useState("10");
+  const [recoveryDays, setRecoveryDays] = useState("2");
+  const [recoveryResult, setRecoveryResult] = useState<CartRecoverySmsResult | null>(null);
 
   const buildFilters = useCallback((): AdminCartFilters => {
     const filters: AdminCartFilters = {};
@@ -86,6 +96,29 @@ export default function AdminCartsPage() {
     }
   };
 
+  const openRecoveryModal = () => {
+    setRecoveryResult(null);
+    setIsRecoveryModalOpen(true);
+  };
+
+  const handleSendRecoverySms = async () => {
+    const discountPercent = parseFloat(recoveryDiscount);
+    const validDays = parseInt(recoveryDays, 10);
+    if (!discountPercent || discountPercent <= 0 || discountPercent > 100) {
+      toast.error("درصد تخفیف باید بین ۱ تا ۱۰۰ باشد");
+      return;
+    }
+    if (!validDays || validDays <= 0) {
+      toast.error("مدت اعتبار باید حداقل ۱ روز باشد");
+      return;
+    }
+    const result = await sendCartRecoverySms(discountPercent, validDays);
+    if (result) {
+      setRecoveryResult(result);
+      toast.success(`پیامک برای ${result.sent.toLocaleString("fa-IR")} کاربر ارسال شد`);
+    }
+  };
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.05 } },
@@ -112,6 +145,15 @@ export default function AdminCartsPage() {
           <span className="relative z-10">سبدهای خرید کاربران</span>
           <span className="absolute bottom-1 left-0 w-full h-3 bg-voxcina-cream dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
         </h1>
+        <Button
+          variant="primary"
+          size="sm"
+          className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue dark:bg-voxcina-cream/90 dark:hover:bg-voxcina-cream dark:text-voxcina-blue text-white"
+          onClick={openRecoveryModal}
+        >
+          <MessageSquareText className="w-4 h-4 ml-1" />
+          ارسال پیامک بازگشت به سبد خرید
+        </Button>
       </motion.div>
 
       {/* Statistics Summary */}
@@ -503,6 +545,75 @@ export default function AdminCartsPage() {
           </div>
         )}
       </motion.div>
+
+      <Modal
+        isOpen={isRecoveryModalOpen}
+        onClose={() => setIsRecoveryModalOpen(false)}
+        title="ارسال پیامک بازگشت به سبد خرید"
+      >
+        <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4 leading-relaxed">
+          برای همه کاربرانی که سبد خرید فعال و غیرخالی دارند (و کد تخفیف فعال بازگشت به سبد خرید ندارند)، یک
+          کد تخفیف اختصاصی برای همان رنگ محصولات موجود در سبدشان ساخته و پیامک می‌شود.
+        </p>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1.5">
+              درصد تخفیف
+            </label>
+            <Input
+              type="number"
+              min={1}
+              max={100}
+              value={recoveryDiscount}
+              onChange={(e) => setRecoveryDiscount(e.target.value)}
+              className="rounded-xl"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1.5">
+              مدت اعتبار (روز)
+            </label>
+            <Input
+              type="number"
+              min={1}
+              value={recoveryDays}
+              onChange={(e) => setRecoveryDays(e.target.value)}
+              className="rounded-xl"
+            />
+          </div>
+
+          {recoveryResult && (
+            <div className="bg-secondary-50 dark:bg-voxcina-blue/10 rounded-xl p-4 text-sm space-y-1">
+              <p className="text-green-600 dark:text-green-400">
+                ارسال شد: {recoveryResult.sent.toLocaleString("fa-IR")}
+              </p>
+              <p className="text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                رد شد (کد فعال قبلی یا بدون شماره): {recoveryResult.skipped.toLocaleString("fa-IR")}
+              </p>
+              {recoveryResult.failed > 0 && (
+                <p className="text-red-500 dark:text-red-400">
+                  ناموفق: {recoveryResult.failed.toLocaleString("fa-IR")}
+                </p>
+              )}
+            </div>
+          )}
+
+          <Button
+            variant="primary"
+            fullWidth
+            className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue dark:bg-voxcina-cream/90 dark:hover:bg-voxcina-cream dark:text-voxcina-blue text-white"
+            onClick={handleSendRecoverySms}
+            disabled={isSendingRecoverySms}
+          >
+            {isSendingRecoverySms ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              "ارسال پیامک"
+            )}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

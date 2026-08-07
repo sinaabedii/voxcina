@@ -182,12 +182,11 @@ func GetDiscountByCode(w http.ResponseWriter, r *http.Request) {
 	var discount models.Discount
 	if err := collection.FindOne(ctx, bson.M{"code": code}).Decode(&discount); err != nil {
 		if err == mongo.ErrNoDocuments {
-			// Check if this is a negotiated coupon (TRYN-XXX) — only usable via the tryon page
-			var nc models.NegotiatedCoupon
-			if err := db.Database.Collection("negotiated_coupons").FindOne(ctx, bson.M{"code": code}).Decode(&nc); err == nil {
-				utils.ErrorResponse(w, http.StatusBadRequest, "این کد تخفیف زمانی اعمال می شود که محصول پیشنهادی رو هم خرید کنی")
-				return
-			}
+			// Not an admin discount code — it may be a negotiated/cart-recovery
+			// coupon (negotiated_coupons collection), which the frontend
+			// resolves via POST /api/coupons/apply against the actual cart
+			// contents (that endpoint validates ownership, expiry, and the
+			// required-product/color match with proper per-type semantics).
 			utils.ErrorResponse(w, http.StatusNotFound, "Discount code not found")
 		} else {
 			utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching discount by code: "+err.Error())

@@ -463,26 +463,50 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 				utils.ErrorResponse(w, http.StatusBadRequest, "این کد تخفیف متعلق به شما نیست")
 				return
 			}
-			// Check that every required product is present in the order, in the
-			// exact color variant the coupon was negotiated for (any size qualifies).
-			for _, required := range nc.RequiredProducts {
+			// Check the required products against the order. Try-on negotiated
+			// coupons require ALL required products, in the negotiated color (any
+			// size qualifies). Cart-recovery coupons only require that AT LEAST
+			// ONE of the original color variants made it into the order.
+			if nc.Source == "cart_recovery" {
 				found := false
-				for _, item := range orderData.Items {
-					if item.ProductID != required.ProductID {
-						continue
+				for _, required := range nc.RequiredProducts {
+					for _, item := range orderData.Items {
+						if item.ProductID != required.ProductID {
+							continue
+						}
+						if colorsOverlap(required.Color, required.ColorName, item.Variant.Color, item.Variant.ColorName) {
+							found = true
+							break
+						}
 					}
-					if required.Color == "" && required.ColorName == "" {
-						found = true
-						break
-					}
-					if colorsOverlap(required.Color, required.ColorName, item.Variant.Color, item.Variant.ColorName) {
-						found = true
+					if found {
 						break
 					}
 				}
 				if !found {
-					utils.ErrorResponse(w, http.StatusBadRequest, "این کد تخفیف زمانی اعمال می شود که هر دو محصول اصلی و پیشنهادی، در همان رنگ پیشنهادی، در سفارش باشند")
+					utils.ErrorResponse(w, http.StatusBadRequest, "این کد تخفیف دیگر با محصولات موجود در سفارش شما مطابقت ندارد")
 					return
+				}
+			} else {
+				for _, required := range nc.RequiredProducts {
+					found := false
+					for _, item := range orderData.Items {
+						if item.ProductID != required.ProductID {
+							continue
+						}
+						if required.Color == "" && required.ColorName == "" {
+							found = true
+							break
+						}
+						if colorsOverlap(required.Color, required.ColorName, item.Variant.Color, item.Variant.ColorName) {
+							found = true
+							break
+						}
+					}
+					if !found {
+						utils.ErrorResponse(w, http.StatusBadRequest, "این کد تخفیف زمانی اعمال می شود که هر دو محصول اصلی و پیشنهادی، در همان رنگ پیشنهادی، در سفارش باشند")
+						return
+					}
 				}
 			}
 		} else if err != mongo.ErrNoDocuments {

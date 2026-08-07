@@ -182,6 +182,7 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/carts/{cartId}", handlers.DeleteCart).
 		Methods("DELETE")
 		// Soft delete
+	adminRouter.HandleFunc("/carts/send-recovery-sms", handlers.SendCartRecoverySMS).Methods(http.MethodPost)
 
 	// Categories Management (Admin)
 	adminRouter.HandleFunc("/categories", handlers.CreateCategory).
@@ -345,6 +346,14 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/discounts/{id}", handlers.DeleteDiscount).Methods(http.MethodDelete)
 	api.HandleFunc("/discounts/activate", handlers.ActivateDiscount).Methods(http.MethodPost)
 	api.HandleFunc("/discounts/deactivate", handlers.DeactivateDiscount).Methods(http.MethodPost)
+
+	// Generic negotiated/cart-recovery coupon application (authenticated).
+	// Reuses the same handler as the tryon-specific route below — it already
+	// validates ownership, expiry, and required-product/color matching purely
+	// from the JWT user + request body, with no tryon-specific dependency.
+	couponsRouter := api.PathPrefix("/coupons").Subrouter()
+	couponsRouter.Use(middlewares.AuthMiddleware)
+	couponsRouter.HandleFunc("/apply", handlers.ApplyNegotiatedCoupon).Methods(http.MethodPost)
 
 	// Admin Dashboard Statistics
 	adminRouter.HandleFunc("/dashboard-stats", handlers.DashboardStatsHandler).Methods("GET")

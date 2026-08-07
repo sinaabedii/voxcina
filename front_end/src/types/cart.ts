@@ -52,7 +52,7 @@ export interface PromoCode {
   expireDate?: string;
   description?: string;
   errorMessage?: string;
-  type?: "admin" | "negotiated";
+  type?: "admin" | "negotiated" | "cart_recovery";
   productIds?: string[];
   // For negotiated coupons: restricts the discount to cart items whose
   // productId AND color match one of these entries (any size qualifies).

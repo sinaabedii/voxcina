@@ -41,5 +41,11 @@ type NegotiatedCoupon struct {
 	Conversation     []CouponMessage      `bson:"conversation" json:"conversation"`
 	TryonID          string               `bson:"tryon_id,omitempty" json:"tryon_id,omitempty"`
 	ChatID           string               `bson:"chat_id,omitempty" json:"chat_id,omitempty"`
-	CreatedAt        time.Time            `bson:"created_at" json:"created_at"`
+	// Source distinguishes how the coupon was generated. Empty (or "negotiation")
+	// means it came from the virtual try-on seller-chat flow, where ALL
+	// RequiredProducts must be present in the cart/order (AND). "cart_recovery"
+	// means it was auto-issued from an abandoned-cart SMS, where it applies as
+	// long as ANY one of RequiredProducts is still present (OR).
+	Source    string    `bson:"source,omitempty" json:"source,omitempty"`
+	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 }
