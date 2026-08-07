@@ -19,10 +19,20 @@ interface CartAdminState {
   isSendingRecoverySms: boolean;
 }
 
+interface CartRecoverySmsTarget {
+  userId?: string;
+  createdFrom?: string; // "YYYY-MM-DD"
+  createdTo?: string; // "YYYY-MM-DD"
+}
+
 interface CartAdminActions {
   fetchAdminCarts: (page?: number, limit?: number, filters?: Record<string, any>) => Promise<void>;
   deleteCart: (cartId: string) => Promise<void>;
-  sendCartRecoverySms: (discountPercent: number, validDays: number) => Promise<CartRecoverySmsResult | null>;
+  sendCartRecoverySms: (
+    discountPercent: number,
+    validDays: number,
+    target?: CartRecoverySmsTarget
+  ) => Promise<CartRecoverySmsResult | null>;
 }
 
 const initialState: CartAdminState = {
@@ -100,7 +110,7 @@ export const useCartAdminStore = create<CartAdminState & CartAdminActions>()((se
     }
   },
 
-  sendCartRecoverySms: async (discountPercent: number, validDays: number) => {
+  sendCartRecoverySms: async (discountPercent: number, validDays: number, target) => {
     const { isAuthenticated } = useAuthStore.getState();
     if (!isAuthenticated) {
       toast.error("User not authenticated");
@@ -114,7 +124,13 @@ export const useCartAdminStore = create<CartAdminState & CartAdminActions>()((se
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("authToken")}`,
         },
-        body: JSON.stringify({ discount_percent: discountPercent, valid_days: validDays }),
+        body: JSON.stringify({
+          discount_percent: discountPercent,
+          valid_days: validDays,
+          user_id: target?.userId || undefined,
+          created_from: target?.createdFrom || undefined,
+          created_to: target?.createdTo || undefined,
+        }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {

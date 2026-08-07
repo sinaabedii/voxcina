@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"backEnd/db"
@@ -25,16 +26,21 @@ type cartRecoveryResult struct {
 	Errors  []string `json:"errors,omitempty"`
 }
 
-// SendCartRecoverySMS finds every active, non-empty cart and — for users who
-// don't already hold an unused, unexpired cart-recovery coupon — issues a
-// coupon scoped to the product/color variants currently in their cart (any
-// size qualifies, and it stays valid if at least one of those variants is
-// still in the cart later) and texts them the code.
+// SendCartRecoverySMS targets active, non-empty carts — either every one of
+// them, a date range on when the cart was created, or a single specific
+// user — and, for users who don't already hold an unused, unexpired
+// cart-recovery coupon, issues a coupon scoped to the product/color variants
+// currently in their cart (any size qualifies, and it stays valid if at
+// least one of those variants is still in the cart later) and texts them the
+// code.
 // POST /api/admin/carts/send-recovery-sms
 func SendCartRecoverySMS(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		DiscountPercent float64 `json:"discount_percent"`
 		ValidDays       int     `json:"valid_days"`
+		UserID          string  `json:"user_id,omitempty"`
+		CreatedFrom     string  `json:"created_from,omitempty"` // "YYYY-MM-DD"
+		CreatedTo       string  `json:"created_to,omitempty"`   // "YYYY-MM-DD"
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "فرمت درخواست نامعتبر است")
@@ -49,11 +55,49 @@ func SendCartRecoverySMS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	targetingUser := req.UserID != ""
+	var targetUserID primitive.ObjectID
+	if targetingUser {
+		var err error
+		targetUserID, err = primitive.ObjectIDFromHex(req.UserID)
+		if err != nil {
+			utils.ErrorResponse(w, http.StatusBadRequest, "شناسه کاربر نامعتبر است")
+			return
+		}
+	}
+
+	cartFilter := bson.M{"is_active": true, "items.0": bson.M{"$exists": true}}
+	if targetingUser {
+		cartFilter["user_id"] = targetUserID
+	} else {
+		createdFilter := bson.M{}
+		if req.CreatedFrom != "" {
+			t, err := time.Parse("2006-01-02", req.CreatedFrom)
+			if err != nil {
+				utils.ErrorResponse(w, http.StatusBadRequest, "تاریخ شروع نامعتبر است")
+				return
+			}
+			createdFilter["$gte"] = t
+		}
+		if req.CreatedTo != "" {
+			t, err := time.Parse("2006-01-02", req.CreatedTo)
+			if err != nil {
+				utils.ErrorResponse(w, http.StatusBadRequest, "تاریخ پایان نامعتبر است")
+				return
+			}
+			// Inclusive of the whole end day.
+			createdFilter["$lte"] = t.Add(24*time.Hour - time.Nanosecond)
+		}
+		if len(createdFilter) > 0 {
+			cartFilter["created_at"] = createdFilter
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	cartsColl := db.Database.Collection("carts")
-	cursor, err := cartsColl.Find(ctx, bson.M{"is_active": true, "items.0": bson.M{"$exists": true}})
+	cursor, err := cartsColl.Find(ctx, cartFilter)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در دریافت سبدهای خرید")
 		return
@@ -66,11 +110,26 @@ func SendCartRecoverySMS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if targetingUser && len(carts) == 0 {
+		utils.ErrorResponse(w, http.StatusNotFound, "این کاربر سبد خرید فعال و غیرخالی ندارد")
+		return
+	}
+
 	result := cartRecoveryResult{}
 	smsService := services.NewSMSService()
 	usersColl := db.Database.Collection("users")
 	productsColl := db.Database.Collection("products")
 	couponsColl := db.Database.Collection("negotiated_coupons")
+
+	// skip records a non-error reason a cart was left out. When targeting a
+	// single user, the reason is surfaced back so the admin gets a clear
+	// explanation instead of a silent no-op.
+	skip := func(reason string) {
+		result.Skipped++
+		if targetingUser {
+			result.Errors = append(result.Errors, reason)
+		}
+	}
 
 	for _, cart := range carts {
 		var user models.User
@@ -80,7 +139,7 @@ func SendCartRecoverySMS(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if user.Phone == "" {
-			result.Skipped++
+			skip(fmt.Sprintf("کاربر %s شماره موبایل ثبت‌شده ندارد", user.Name))
 			continue
 		}
 
@@ -91,13 +150,13 @@ func SendCartRecoverySMS(w http.ResponseWriter, r *http.Request) {
 			"valid_until": bson.M{"$gte": time.Now()},
 		})
 		if existing > 0 {
-			result.Skipped++
+			skip(fmt.Sprintf("کاربر %s در حال حاضر کد تخفیف فعال بازگشت به سبد خرید دارد", user.Name))
 			continue
 		}
 
 		requiredProducts, cartSnapshot := buildCartRecoverySnapshot(ctx, productsColl, cart.Items)
 		if len(requiredProducts) == 0 {
-			result.Skipped++
+			skip(fmt.Sprintf("کاربر %s: محصولات سبد خرید دیگر فعال نیستند", user.Name))
 			continue
 		}
 

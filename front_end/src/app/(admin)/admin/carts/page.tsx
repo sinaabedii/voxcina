@@ -47,6 +47,9 @@ export default function AdminCartsPage() {
   const [recoveryDiscount, setRecoveryDiscount] = useState("10");
   const [recoveryDays, setRecoveryDays] = useState("2");
   const [recoveryResult, setRecoveryResult] = useState<CartRecoverySmsResult | null>(null);
+  const [recoveryTargetUser, setRecoveryTargetUser] = useState<{ id: string; name: string; phone?: string } | null>(null);
+  const [recoveryCreatedFrom, setRecoveryCreatedFrom] = useState("");
+  const [recoveryCreatedTo, setRecoveryCreatedTo] = useState("");
 
   const buildFilters = useCallback((): AdminCartFilters => {
     const filters: AdminCartFilters = {};
@@ -96,8 +99,13 @@ export default function AdminCartsPage() {
     }
   };
 
-  const openRecoveryModal = () => {
+  const openRecoveryModal = (targetUser?: { id: string; name: string; phone?: string }) => {
     setRecoveryResult(null);
+    setRecoveryTargetUser(targetUser ?? null);
+    if (!targetUser) {
+      setRecoveryCreatedFrom("");
+      setRecoveryCreatedTo("");
+    }
     setIsRecoveryModalOpen(true);
   };
 
@@ -112,7 +120,11 @@ export default function AdminCartsPage() {
       toast.error("مدت اعتبار باید حداقل ۱ روز باشد");
       return;
     }
-    const result = await sendCartRecoverySms(discountPercent, validDays);
+    const result = await sendCartRecoverySms(discountPercent, validDays, {
+      userId: recoveryTargetUser?.id,
+      createdFrom: recoveryTargetUser ? undefined : recoveryCreatedFrom || undefined,
+      createdTo: recoveryTargetUser ? undefined : recoveryCreatedTo || undefined,
+    });
     if (result) {
       setRecoveryResult(result);
       toast.success(`پیامک برای ${result.sent.toLocaleString("fa-IR")} کاربر ارسال شد`);
@@ -149,7 +161,7 @@ export default function AdminCartsPage() {
           variant="primary"
           size="sm"
           className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue dark:bg-voxcina-cream/90 dark:hover:bg-voxcina-cream dark:text-voxcina-blue text-white"
-          onClick={openRecoveryModal}
+          onClick={() => openRecoveryModal()}
         >
           <MessageSquareText className="w-4 h-4 ml-1" />
           ارسال پیامک بازگشت به سبد خرید
@@ -375,6 +387,23 @@ export default function AdminCartsPage() {
                           >
                             {cart.is_active ? "فعال" : "غیرفعال"}
                           </span>
+                          {cart.is_active && cart.item_count > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-voxcina-blue hover:text-voxcina-darkBlue dark:text-voxcina-cream dark:hover:text-white rounded-xl"
+                              onClick={() =>
+                                openRecoveryModal({
+                                  id: cart.user_id,
+                                  name: cart.user_name || "کاربر ناشناس",
+                                  phone: cart.user_phone,
+                                })
+                              }
+                            >
+                              <MessageSquareText className="w-4 h-4 ml-1" />
+                              پیامک
+                            </Button>
+                          )}
                           {cart.is_active && (
                             <Button
                               variant="ghost"
@@ -551,12 +580,41 @@ export default function AdminCartsPage() {
         onClose={() => setIsRecoveryModalOpen(false)}
         title="ارسال پیامک بازگشت به سبد خرید"
       >
-        <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4 leading-relaxed">
-          برای همه کاربرانی که سبد خرید فعال و غیرخالی دارند (و کد تخفیف فعال بازگشت به سبد خرید ندارند)، یک
-          کد تخفیف اختصاصی برای همان رنگ محصولات موجود در سبدشان ساخته و پیامک می‌شود.
-        </p>
+        {recoveryTargetUser ? (
+          <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4 leading-relaxed">
+            یک کد تخفیف اختصاصی برای همان رنگ محصولات موجود در سبد این کاربر ساخته و فقط برای او پیامک می‌شود.
+          </p>
+        ) : (
+          <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4 leading-relaxed">
+            برای همه کاربرانی که سبد خرید فعال و غیرخالی دارند (و کد تخفیف فعال بازگشت به سبد خرید ندارند)، یک
+            کد تخفیف اختصاصی برای همان رنگ محصولات موجود در سبدشان ساخته و پیامک می‌شود. با تعیین بازه تاریخ
+            ایجاد سبد می‌توانید ارسال را محدودتر کنید.
+          </p>
+        )}
 
         <div className="space-y-4">
+          {recoveryTargetUser && (
+            <div className="flex items-center justify-between bg-secondary-50 dark:bg-voxcina-blue/10 rounded-xl px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">
+                  {recoveryTargetUser.name}
+                </p>
+                {recoveryTargetUser.phone && (
+                  <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60" dir="ltr">
+                    {recoveryTargetUser.phone}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setRecoveryTargetUser(null)}
+                className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+              >
+                حذف انتخاب (ارسال به همه)
+              </button>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1.5">
               درصد تخفیف
@@ -583,6 +641,29 @@ export default function AdminCartsPage() {
             />
           </div>
 
+          {!recoveryTargetUser && (
+            <div>
+              <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1.5">
+                بازه زمانی ایجاد سبد (اختیاری)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={recoveryCreatedFrom}
+                  onChange={(e) => setRecoveryCreatedFrom(e.target.value)}
+                  className="flex-1 bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl p-2.5 text-sm focus:outline-none"
+                />
+                <span className="text-voxcina-blue/50 dark:text-voxcina-cream/50 text-sm">تا</span>
+                <input
+                  type="date"
+                  value={recoveryCreatedTo}
+                  onChange={(e) => setRecoveryCreatedTo(e.target.value)}
+                  className="flex-1 bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl p-2.5 text-sm focus:outline-none"
+                />
+              </div>
+            </div>
+          )}
+
           {recoveryResult && (
             <div className="bg-secondary-50 dark:bg-voxcina-blue/10 rounded-xl p-4 text-sm space-y-1">
               <p className="text-green-600 dark:text-green-400">
@@ -595,6 +676,13 @@ export default function AdminCartsPage() {
                 <p className="text-red-500 dark:text-red-400">
                   ناموفق: {recoveryResult.failed.toLocaleString("fa-IR")}
                 </p>
+              )}
+              {recoveryResult.errors && recoveryResult.errors.length > 0 && (
+                <ul className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 list-disc pr-4 space-y-0.5 max-h-32 overflow-y-auto">
+                  {recoveryResult.errors.map((msg, i) => (
+                    <li key={i}>{msg}</li>
+                  ))}
+                </ul>
               )}
             </div>
           )}
