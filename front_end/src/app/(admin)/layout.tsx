@@ -29,6 +29,7 @@ import {
   Image,
   Activity,
   ShoppingBasket,
+  Ticket,
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -135,6 +136,12 @@ export default function AdminLayout({
       href: "/admin/discounts",
       icon: <Percent className="w-5 h-5 ml-3" />,
       section: "discounts",
+    },
+    {
+      name: "کدها و کوپن‌ها",
+      href: "/admin/vouchers",
+      icon: <Ticket className="w-5 h-5 ml-3" />,
+      section: "vouchers",
     },
     {
       name: "نظرات",

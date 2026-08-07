@@ -136,6 +136,9 @@ func NewRouter() *mux.Router {
 		adminRouter.HandleFunc("/ai/field-descriptions", aiMetadataHandler.GetFieldDescriptions).Methods("GET")
 	}
 
+	// Unified admin voucher/coupon listing (discounts + negotiated_coupons)
+	adminRouter.HandleFunc("/vouchers", handlers.GetAdminVouchers).Methods("GET")
+
 	// Discount Management Routes (Admin)
 	adminRouter.HandleFunc("/discounts", handlers.CreateDiscount).Methods("POST")
 	adminRouter.HandleFunc("/discounts", handlers.GetAllDiscounts).Methods("GET")
