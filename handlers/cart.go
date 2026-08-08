@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -210,34 +209,20 @@ func getUserIDFromToken(r *http.Request) (primitive.ObjectID, error) {
 	if authHeader == "" {
 		return primitive.NilObjectID, nil // Or return a specific error
 	}
-	parts := strings.Split(authHeader, " ")
-	if len(parts) != 2 || parts[0] != "Bearer" {
+	parts := strings.Fields(authHeader)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
 		return primitive.NilObjectID, nil // Or return a specific error
 	}
 	tokenString := parts[1]
-	
-	// Use the shared JWT key from handlers package
-	jwtKey := GetJWTKey()
-	
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, jwt.ErrSignatureInvalid
-		}
-		return jwtKey, nil
-	})
+
+	claims, err := ParseToken(tokenString)
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		if userIDStr, ok := claims["user_id"].(string); ok {
-			userIDObj, err := primitive.ObjectIDFromHex(userIDStr)
-			if err != nil {
-				return primitive.NilObjectID, err // Invalid ObjectID format in token
-			}
-			return userIDObj, nil
-		}
+	if claims.TokenType != TokenTypeAccess || claims.UserID.IsZero() {
+		return primitive.NilObjectID, nil
 	}
-	return primitive.NilObjectID, nil // Or a specific error indicating missing claim
+	return claims.UserID, nil
 }
 
 // prepareCartResponse fetches product details for cart items and constructs the full CartResponse.

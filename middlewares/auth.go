@@ -5,9 +5,13 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 
+	"backEnd/db"
 	"backEnd/handlers"
 	"backEnd/utils"
 )
@@ -26,7 +30,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		parts := strings.Split(authHeader, " ")
+		parts := strings.Fields(authHeader)
 		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
 			utils.AuthErrorResponse(
 				w,
@@ -38,22 +42,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 		tokenString := parts[1]
 
-		claims := &handlers.Claims{}
-
-		// Use the shared JWT key from handlers package
-		jwtKey := handlers.GetJWTKey()
-
-		token, err := jwt.ParseWithClaims(
-			tokenString,
-			claims,
-			func(token *jwt.Token) (interface{}, error) {
-				// Validate the alg is what you expect:
-				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-					return nil, jwt.ErrSignatureInvalid
-				}
-				return jwtKey, nil
-			},
-		)
+		claims, err := handlers.ParseToken(tokenString)
 
 		if err != nil {
 			// Check if the error is due to token expiration
@@ -86,21 +75,44 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		if !token.Valid {
-			utils.AuthErrorResponse(
-				w,
-				http.StatusUnauthorized,
-				utils.ErrCodeInvalidToken,
-				"Token is not valid",
-			)
+		if claims.TokenType != handlers.TokenTypeAccess || claims.UserID.IsZero() {
+			utils.AuthErrorResponse(w, http.StatusUnauthorized, utils.ErrCodeInvalidToken, "Invalid access token")
 			return
 		}
 
-		// Token is valid. Set userID and role in context.
-		ctx := context.WithValue(r.Context(), "userID", claims.UserID)
-		ctx = context.WithValue(ctx, "role", claims.Role)
+		// JWTs remain stateless for normal validation, but the user record is
+		// checked here so deactivation, role changes, logout, and password
+		// changes take effect immediately. This also prevents a stale admin role
+		// in a previously issued token from granting admin access.
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+		var user struct {
+			IsActive     bool   `bson:"is_active"`
+			TokenVersion int64  `bson:"token_version"`
+			Role         string `bson:"role"`
+		}
+		if db.Database == nil {
+			utils.AuthErrorResponse(w, http.StatusInternalServerError, utils.ErrCodeInvalidToken, "Authentication service unavailable")
+			return
+		}
+		if err := db.Database.Collection("users").FindOne(ctx, bson.M{"_id": claims.UserID}).Decode(&user); err != nil {
+			if errors.Is(err, mongo.ErrNoDocuments) {
+				utils.AuthErrorResponse(w, http.StatusUnauthorized, utils.ErrCodeInvalidToken, "Invalid access token")
+				return
+			}
+			utils.AuthErrorResponse(w, http.StatusInternalServerError, utils.ErrCodeInvalidToken, "Authentication service unavailable")
+			return
+		}
+		if !user.IsActive || user.TokenVersion != claims.TokenVersion {
+			utils.AuthErrorResponse(w, http.StatusUnauthorized, utils.ErrCodeInvalidToken, "Session revoked")
+			return
+		}
 
-		next.ServeHTTP(w, r.WithContext(ctx))
+		// Token is valid. Set user ID and the current role from MongoDB.
+		reqCtx := context.WithValue(r.Context(), "userID", claims.UserID)
+		reqCtx = context.WithValue(reqCtx, "role", user.Role)
+
+		next.ServeHTTP(w, r.WithContext(reqCtx))
 	})
 }
 
@@ -143,4 +155,3 @@ func AdminAuthMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	}))
 }
-

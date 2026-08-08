@@ -3,13 +3,12 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -138,43 +137,12 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// --- Generate JWT token for immediate login ---
-	expirationTime := time.Now().Add(24 * time.Hour) // Token valid for 24 hours
-	claims := &Claims{
-		UserID: user.ID,
-		Email:  user.Email,
-		Role:   user.Role,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expirationTime),
-		},
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(jwtKey)
+	// --- Generate access + refresh token pair (signed with token_type + token_version) ---
+	// issueTokenPairForUser persists a hashed refresh-token record in the
+	// refresh_tokens collection so /api/users/refresh can rotate + revoke it.
+	pair, err := issueTokenPairForUser(ctx, &user)
 	if err != nil {
-		// Log error, but user registration was successful.
-		// Client might need to log in separately.
-		// For simplicity, we'll return success without token if this fails.
-		// A better approach might be to ensure token generation is robust.
-		utils.ErrorResponse(
-			w,
-			http.StatusInternalServerError,
-			"User created, but error generating token: "+err.Error(),
-		)
-		return
-	}
-
-	// Generate a refresh token for long-lived sessions
-	refreshExpirationTime := time.Now().Add(7 * 24 * time.Hour)
-	refreshClaims := &Claims{
-		UserID: user.ID,
-		Email:  user.Email,
-		Role:   user.Role,
-		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(refreshExpirationTime)},
-	}
-	refreshTokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
-	refreshTokenString, err := refreshTokenObj.SignedString(jwtKey)
-	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error generating refresh token: "+err.Error())
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error generating tokens: "+err.Error())
 		return
 	}
 
@@ -185,8 +153,8 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		RefreshToken string `json:"refreshToken"`
 	}{
 		User:         user,
-		Token:        tokenString,
-		RefreshToken: refreshTokenString,
+		Token:        pair.AccessToken,
+		RefreshToken: pair.RefreshToken,
 	}
 	utils.JSONResponse(w, http.StatusCreated, userResponse)
 }
@@ -238,40 +206,22 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid phone number or password")
 		return
 	}
-
-	// --- Generate JWT token ---
-	expirationTime := time.Now().Add(24 * time.Hour) // Token valid for 24 hours
-	claims := &Claims{
-		UserID: user.ID,
-		Email:  user.Email, // Use email from DB (which is normalized)
-		Role:   user.Role,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expirationTime),
-		},
+	if !user.IsActive {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid phone number or password")
+		return
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(jwtKey)
+
+	// --- Generate access + refresh token pair (signed with token_type + token_version) ---
+	// `issueTokenPairForUser`'s underlying helper reads the user's current
+	// token_version so any prior logout/deactivation makes the new access token
+	// effective immediately; it also persists a hashed refresh-token record.
+	pair, err := issueTokenPairForUser(ctx, &user)
 	if err != nil {
 		utils.ErrorResponse(
 			w,
 			http.StatusInternalServerError,
-			"Error generating token: "+err.Error(),
+			"Error generating tokens: "+err.Error(),
 		)
-		return
-	}
-
-	// Generate a refresh token for long-lived sessions
-	refreshExpirationTime := time.Now().Add(7 * 24 * time.Hour)
-	refreshClaims := &Claims{
-		UserID: user.ID,
-		Email:  user.Email,
-		Role:   user.Role,
-		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(refreshExpirationTime)},
-	}
-	refreshTokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
-	refreshTokenString, err := refreshTokenObj.SignedString(jwtKey)
-	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error generating refresh token: "+err.Error())
 		return
 	}
 
@@ -287,8 +237,8 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		RefreshToken string `json:"refreshToken"`
 	}{
 		User:         user,
-		Token:        tokenString,
-		RefreshToken: refreshTokenString,
+		Token:        pair.AccessToken,
+		RefreshToken: pair.RefreshToken,
 	}
 	utils.JSONResponse(w, http.StatusOK, userResponse)
 }
@@ -547,7 +497,10 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updateDoc := bson.M{"$set": bson.M{"password_hash": string(hashedPassword), "updated_at": time.Now()}}
+	updateDoc := bson.M{
+		"$set": bson.M{"password_hash": string(hashedPassword), "updated_at": time.Now()},
+		"$inc": bson.M{"token_version": 1},
+	}
 	result, err := userCollection.UpdateOne(ctx, bson.M{"_id": userID}, updateDoc)
 	if err != nil {
 		utils.ErrorResponse(
@@ -563,21 +516,18 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Password changes invalidate all existing sessions. The token_version
+	// increment above rejects access tokens; revoke the persisted refresh-token
+	// records so they cannot be used to create another session.
+	if err := GetRefreshTokenService().RevokeAllForUser(ctx, userID, false); err != nil {
+		log.Printf("Warning: password changed but refresh-token revocation failed for %v: %v", userID, err)
+	}
+
 	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Password changed successfully"})
 }
 
-// Logout handles POST /api/users/logout
-// For JWT, logout is primarily client-side (deleting the token).
-// This endpoint acknowledges the logout request.
-func Logout(w http.ResponseWriter, r *http.Request) {
-	utils.JSONResponse(
-		w,
-		http.StatusOK,
-		map[string]string{
-			"message": "Logout successful. Please clear your token on the client-side.",
-		},
-	)
-}
+// (Logout moved to auth_refresh_logout.go — server-side refresh-token revocation
+// + token_version increment so access tokens are also invalidated.)
 
 // GetUserAddresses handles GET /api/users/addresses
 // Requires authentication
@@ -1243,7 +1193,11 @@ func UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 		"role":       newRole,
 		"updated_at": time.Now(),
 	}
+	roleChanged := existingUser.Role != newRole
 	updateDoc := bson.M{"$set": updateFields}
+	if roleChanged {
+		updateDoc["$inc"] = bson.M{"token_version": 1}
+	}
 
 	result, err := userCollection.UpdateOne(ctx, bson.M{"_id": userID}, updateDoc)
 	if err != nil {
@@ -1259,6 +1213,11 @@ func UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 		// Should have been caught by FindOne earlier, but as a safeguard.
 		utils.ErrorResponse(w, http.StatusNotFound, "User not found for role update")
 		return
+	}
+	if roleChanged {
+		if err := GetRefreshTokenService().RevokeAllForUser(ctx, userID, false); err != nil {
+			log.Printf("Warning: role changed but refresh-token revocation failed for %v: %v", userID, err)
+		}
 	}
 
 	// Fetch and return the updated user
@@ -1375,7 +1334,9 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 		"is_active":  false,
 		"updated_at": time.Now(),
 	}
-	updateDoc := bson.M{"$set": updateFields}
+	// Increment token_version so any outstanding access/refresh token is rejected
+	// as soon as AuthMiddleware / RefreshTokenService reads the user document.
+	updateDoc := bson.M{"$set": updateFields, "$inc": bson.M{"token_version": 1}}
 
 	result, err := userCollection.UpdateOne(
 		ctx,
@@ -1401,6 +1362,14 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Revoke every outstanding refresh token for this user. token_version bump
+	// (above) already invalidates access tokens on next request.
+	if err := GetRefreshTokenService().RevokeAllForUser(ctx, userIDToDeactivate, false); err != nil {
+		// non-fatal — the user account itself is already deactivated so the
+		// refresh flow will also refuse via ErrUserInactive, but log it.
+		log.Printf("Warn: could not revoke refresh tokens for deactivated user %v: %v", userIDToDeactivate, err)
+	}
+
 	utils.JSONResponse(
 		w,
 		http.StatusOK,
@@ -1408,83 +1377,14 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
-// RefreshToken handles POST /api/users/refresh
-func RefreshToken(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		RefreshToken string `json:"refreshToken"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.AuthErrorResponse(w, http.StatusBadRequest, utils.ErrCodeInvalidFormat, "Invalid refresh request")
-		return
-	}
-
-	if req.RefreshToken == "" {
-		utils.AuthErrorResponse(w, http.StatusBadRequest, utils.ErrCodeInvalidFormat, "Refresh token is required")
-		return
-	}
-
-	token, err := jwt.ParseWithClaims(req.RefreshToken, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		// Validate the signing method
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, jwt.ErrSignatureInvalid
-		}
-		return jwtKey, nil
-	})
-
-	if err != nil {
-		// Check if the error is due to token expiration
-		if errors.Is(err, jwt.ErrTokenExpired) {
-			utils.AuthErrorResponse(w, http.StatusUnauthorized, utils.ErrCodeTokenExpired, "Refresh token expired")
-			return
-		}
-		// Handle signature invalid error
-		if errors.Is(err, jwt.ErrSignatureInvalid) {
-			utils.AuthErrorResponse(w, http.StatusUnauthorized, utils.ErrCodeInvalidToken, "Invalid refresh token signature")
-			return
-		}
-		// Handle other errors (malformed token, etc.)
-		utils.AuthErrorResponse(w, http.StatusUnauthorized, utils.ErrCodeInvalidToken, "Invalid refresh token")
-		return
-	}
-
-	if !token.Valid {
-		utils.AuthErrorResponse(w, http.StatusUnauthorized, utils.ErrCodeInvalidToken, "Refresh token is not valid")
-		return
-	}
-
-	claims, ok := token.Claims.(*Claims)
-	if !ok {
-		utils.AuthErrorResponse(w, http.StatusUnauthorized, utils.ErrCodeInvalidToken, "Invalid refresh token claims")
-		return
-	}
-
-	// Generate new access token with 24 hour expiration (as per requirements)
-	expirationTime := time.Now().Add(24 * time.Hour)
-	newClaims := &Claims{
-		UserID: claims.UserID,
-		Email:  claims.Email,
-		Role:   claims.Role,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expirationTime),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-		},
-	}
-	accessTokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, newClaims)
-	accessTokenString, err := accessTokenObj.SignedString(jwtKey)
-	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error generating access token")
-		return
-	}
-
-	// Return consistent response format with accessToken field
-	utils.JSONResponse(w, http.StatusOK, map[string]string{
-		"accessToken": accessTokenString,
-	})
-}
+// (RefreshToken moved to auth_refresh_logout.go — implements refresh-token
+// rotation + reuse detection via services.RefreshTokenService.)
 
 // CheckPhone handles POST /api/users/check-phone
 func CheckPhone(w http.ResponseWriter, r *http.Request) {
-	var req struct { Phone string `json:"phone"` }
+	var req struct {
+		Phone string `json:"phone"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
 		return
@@ -1510,13 +1410,16 @@ func CheckPhone(w http.ResponseWriter, r *http.Request) {
 
 // LoginViaSMS handles POST /api/users/login-sms
 func LoginViaSMS(w http.ResponseWriter, r *http.Request) {
-	var req struct { Phone string `json:"phone"` }
+	var req struct {
+		Phone             string `json:"phone"`
+		VerificationToken string `json:"verificationToken"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
 		return
 	}
-	if req.Phone == "" {
-		utils.ErrorResponse(w, http.StatusBadRequest, "Phone is required")
+	if req.Phone == "" || req.VerificationToken == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Phone and verification token are required")
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -1527,20 +1430,31 @@ func LoginViaSMS(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, http.StatusNotFound, "no such user with provided phone")
 		return
 	}
-	// Generate JWT access token
-	accessExp := time.Now().Add(24 * time.Hour)
-	accessClaims := &Claims{UserID: user.ID, Email: user.Email, Role: user.Role, RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(accessExp)}}
-	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims).SignedString(jwtKey)
-	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error generating access token: "+err.Error())
+	if !user.IsActive {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "User account is inactive")
 		return
 	}
-	// Generate JWT refresh token
-	refreshExp := time.Now().Add(7 * 24 * time.Hour)
-	refreshClaims := &Claims{UserID: user.ID, Email: user.Email, Role: user.Role, RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(refreshExp)}}
-	refreshToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).SignedString(jwtKey)
+	// Consume the grant atomically. This prevents replay and binds the grant to
+	// the same phone number used during OTP verification.
+	var verifiedOTP models.OTP
+	if err := db.Database.Collection("otps").FindOneAndDelete(ctx, bson.M{
+		"phone":              req.Phone,
+		"purpose":            models.OTPPurposeLogin,
+		"verified":           true,
+		"verification_token": req.VerificationToken,
+		"expires_at":         bson.M{"$gt": time.Now()},
+	}).Decode(&verifiedOTP); err != nil {
+		if err == mongo.ErrNoDocuments {
+			utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid or expired verification token")
+			return
+		}
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error validating verification token")
+		return
+	}
+	// Generate access + refresh token pair (signed with token_type + token_version).
+	pair, err := issueTokenPairForUser(ctx, &user)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Error generating refresh token: "+err.Error())
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error generating tokens: "+err.Error())
 		return
 	}
 	// Update last_login timestamp (fire-and-forget)
@@ -1549,10 +1463,13 @@ func LoginViaSMS(w http.ResponseWriter, r *http.Request) {
 	user.LastLogin = &now
 
 	// Return user and tokens
-	resp := struct { models.User; Token string `json:"token"`; RefreshToken string `json:"refreshToken"` }{User: user, Token: accessToken, RefreshToken: refreshToken}
+	resp := struct {
+		models.User
+		Token        string `json:"token"`
+		RefreshToken string `json:"refreshToken"`
+	}{User: user, Token: pair.AccessToken, RefreshToken: pair.RefreshToken}
 	utils.JSONResponse(w, http.StatusOK, resp)
 }
-
 
 // AppActivityRequest represents the request body for recording mobile app activity
 type AppActivityRequest struct {
@@ -1627,7 +1544,6 @@ func RecordAppActivity(w http.ResponseWriter, r *http.Request) {
 		LastAppOpen: now,
 	})
 }
-
 
 // --- User Targeting Statistics API Handlers ---
 

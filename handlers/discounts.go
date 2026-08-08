@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -209,7 +208,7 @@ func GetDiscountByCode(w http.ResponseWriter, r *http.Request) {
 	// Try to get user ID from JWT token (optional authentication)
 	var userID primitive.ObjectID
 	var isAuthenticated bool
-	
+
 	// First check if user ID is already in context (from AuthMiddleware)
 	if userIDCtx := r.Context().Value("userID"); userIDCtx != nil {
 		if uid, ok := userIDCtx.(primitive.ObjectID); ok {
@@ -217,7 +216,7 @@ func GetDiscountByCode(w http.ResponseWriter, r *http.Request) {
 			isAuthenticated = true
 		}
 	}
-	
+
 	// If not in context, try to extract from Authorization header
 	if !isAuthenticated {
 		userID, isAuthenticated = extractUserIDFromToken(r)
@@ -276,25 +275,14 @@ func extractUserIDFromToken(r *http.Request) (primitive.ObjectID, bool) {
 		return primitive.ObjectID{}, false
 	}
 
-	parts := strings.Split(authHeader, " ")
+	parts := strings.Fields(authHeader)
 	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
 		return primitive.ObjectID{}, false
 	}
 	tokenString := parts[1]
 
-	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(
-		tokenString,
-		claims,
-		func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, jwt.ErrSignatureInvalid
-			}
-			return GetJWTKey(), nil
-		},
-	)
-
-	if err != nil || !token.Valid {
+	claims, err := ParseToken(tokenString)
+	if err != nil || claims.TokenType != TokenTypeAccess || claims.UserID.IsZero() {
 		return primitive.ObjectID{}, false
 	}
 
@@ -410,7 +398,7 @@ func UpdateDiscount(w http.ResponseWriter, r *http.Request) {
 		} else if targetingCriteria, ok := targetingCriteriaRaw.(map[string]interface{}); ok {
 			// Convert the map to TargetingCriteria struct
 			tc := models.TargetingCriteria{}
-			
+
 			if hasMobileApp, ok := targetingCriteria["has_mobile_app"].(bool); ok {
 				tc.HasMobileApp = &hasMobileApp
 			}
@@ -436,7 +424,7 @@ func UpdateDiscount(w http.ResponseWriter, r *http.Request) {
 					tc.RegisteredBefore = &registeredBefore
 				}
 			}
-			
+
 			updateDoc["targeting_criteria"] = tc
 		}
 	}
@@ -531,7 +519,6 @@ func DeleteDiscount(w http.ResponseWriter, r *http.Request) {
 		map[string]string{"message": "Discount deleted successfully"},
 	)
 }
-
 
 // GetUserPromotions retrieves promotions available to the authenticated user
 // GET /api/users/promotions

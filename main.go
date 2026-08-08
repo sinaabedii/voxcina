@@ -113,6 +113,14 @@ func main() {
 		os.Exit(avatarMigrationEntryPoint(database))
 	}
 
+	// Configure JWT before registering the HTTP router. Authentication must
+	// fail closed when JWT_SECRET is missing or weak rather than silently using
+	// a hardcoded development key.
+	if err := handlers.InitJWT(cfg.JWTSecret); err != nil {
+		log.Fatal(err)
+	}
+	handlers.InitRefreshTokenService(database)
+
 	// Setup API router
 	apiRouter := routes.NewRouter()
 

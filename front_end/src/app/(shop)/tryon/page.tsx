@@ -22,6 +22,7 @@ import ImageCropModal from "@/components/ui/ImageCropModal";
 import Modal from "@/components/ui/Modal";
 import SizeSelector from "@/components/ui/SizeSelector";
 import { activityTracker } from "@/lib/activity-tracker";
+import { sessionManager } from "@/lib/session-manager";
 import {
   TryonChatMessage as DbTryonChatMessage,
   makeMessageId as makeDbMessageId,
@@ -670,11 +671,10 @@ export default function TryOnRoomPage() {
 
     try {
       const tryonCtx = `${targetItem.product.name} - ${targetItem.colorVariant.colorName} - ${formatPrice(targetItem.product.price)}`;
-      const res = await fetch("/api/tryon/negotiate-stream", {
+      const res = await sessionManager.fetchWithAuth("/api/tryon/negotiate-stream", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("authToken")}`,
         },
         body: JSON.stringify({
           message,
@@ -861,11 +861,10 @@ export default function TryOnRoomPage() {
         color: item.color,
         color_name: item.colorName,
       }));
-      const res = await fetch("/api/tryon/apply-negotiated-coupon", {
+      const res = await sessionManager.fetchWithAuth("/api/tryon/apply-negotiated-coupon", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("authToken")}`,
         },
         body: JSON.stringify({ code: couponCode, cart_items: cartItemsPayload }),
       });

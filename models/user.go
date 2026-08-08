@@ -44,14 +44,23 @@ type User struct {
 	Reviews      []Review           `bson:"-"               json:"reviews,omitempty"` // Populated programmatically, not stored in MongoDB
 
 	// Mobile app tracking fields
-	HasMobileApp bool       `bson:"has_mobile_app"          json:"has_mobile_app"`           // Indicates if user has used mobile app
-	LastAppOpen  *time.Time `bson:"last_app_open,omitempty" json:"last_app_open,omitempty"`  // Timestamp of last app activity
-	AppPlatform  string     `bson:"app_platform,omitempty"  json:"app_platform,omitempty"`   // "android" or "ios"
-	AppVersion   string     `bson:"app_version,omitempty"   json:"app_version,omitempty"`    // Version of the mobile app (e.g., "1.2.3")
+	HasMobileApp bool       `bson:"has_mobile_app"          json:"has_mobile_app"`          // Indicates if user has used mobile app
+	LastAppOpen  *time.Time `bson:"last_app_open,omitempty" json:"last_app_open,omitempty"` // Timestamp of last app activity
+	AppPlatform  string     `bson:"app_platform,omitempty"  json:"app_platform,omitempty"`  // "android" or "ios"
+	AppVersion   string     `bson:"app_version,omitempty"   json:"app_version,omitempty"`   // Version of the mobile app (e.g., "1.2.3")
 
 	// Auth tracking
 	LastLogin *time.Time `bson:"last_login,omitempty" json:"last_login,omitempty"` // Timestamp of last successful login
 
 	// Personal info
 	Birthday *time.Time `bson:"birthday,omitempty" json:"birthday,omitempty"` // User's date of birth (Gregorian, converted from Jalali)
+
+	// TokenVersion is a monotonically increasing counter that is embedded in
+	// JWT access/refresh tokens when they are issued. Any revocation action
+	// (logout, deactivation, password change) increments this value; the
+	// AuthMiddleware rejects tokens whose embedded version no longer matches
+	// the user's current document, taking effect on the very next request.
+	// Defaults to 0 (omitted from JSON) so existing documents without the
+	// field behave as the zero value.
+	TokenVersion int64 `bson:"token_version,omitempty" json:"-"` // not exposed to clients
 }

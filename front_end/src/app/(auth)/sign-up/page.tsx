@@ -15,6 +15,8 @@ import OtpCountdown from "@/components/auth/OtpCountdown";
 import PasswordInput, { validatePassword } from "@/components/auth/PasswordInput";
 import StepIndicator from "@/components/auth/StepIndicator";
 import JalaliDatePicker from "@/components/auth/JalaliDatePicker";
+import { localStorageManager } from "@/lib/local-storage-manager";
+import { tokenValidator } from "@/lib/token-validator";
 
 // Persian character validation regex (includes Persian letters and spaces)
 const persianNameRegex = /^[\u0600-\u06FF\s]+$/;
@@ -227,12 +229,16 @@ export default function SignUpPage() {
       }
 
       // Store tokens
-      if (data.token) {
-        localStorage.setItem("authToken", data.token);
-        if (data.refreshToken) {
-          localStorage.setItem("refreshToken", data.refreshToken);
-        }
+      if (
+        !data.token ||
+        !data.refreshToken ||
+        !tokenValidator.isTokenValid(data.token) ||
+        !tokenValidator.isRefreshTokenValid(data.refreshToken)
+      ) {
+        toast.error("توکن دریافتی نامعتبر است");
+        return;
       }
+      localStorageManager.setTokens(data.token, data.refreshToken);
 
       // Update auth store
       setUser({

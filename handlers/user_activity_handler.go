@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -40,16 +39,10 @@ func resolveActivityUser(ctx context.Context, r *http.Request) (primitive.Object
 
 	if userID.IsZero() {
 		authHeader := r.Header.Get("Authorization")
-		parts := strings.Split(authHeader, " ")
+		parts := strings.Fields(authHeader)
 		if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
-			claims := &Claims{}
-			token, err := jwt.ParseWithClaims(parts[1], claims, func(token *jwt.Token) (interface{}, error) {
-				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-					return nil, jwt.ErrSignatureInvalid
-				}
-				return GetJWTKey(), nil
-			})
-			if err == nil && token.Valid {
+			claims, err := ParseToken(parts[1])
+			if err == nil && claims.TokenType == TokenTypeAccess {
 				userID = claims.UserID
 			}
 		}

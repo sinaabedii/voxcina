@@ -1,3 +1,5 @@
+import { sessionManager } from "@/lib/session-manager";
+
 export type TryonStatus = "processing" | "done" | "error";
 export type GarmentType = "upper_body" | "lower_body" | "dresses";
 export type TryonChatRole = "user" | "agent" | "tool" | "tryon" | "system";
@@ -121,19 +123,9 @@ export interface TryonListResponse {
   chat?: TryonChat;
 }
 
-const AUTH_STORAGE_KEY = "authToken";
-
-function authHeaders(): Record<string, string> {
-  if (typeof window === "undefined") return {};
-  const token = localStorage.getItem(AUTH_STORAGE_KEY);
-  if (!token) return {};
-  return { Authorization: `Bearer ${token}` };
-}
-
 async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, {
+  const res = await sessionManager.fetchWithAuth(url, {
     method: "GET",
-    headers: { ...authHeaders() },
     cache: "no-store",
   });
   if (!res.ok) {
@@ -159,9 +151,8 @@ export async function getTryonById(tryonId: string): Promise<TryonListResponse> 
 }
 
 export async function deleteTryonSession(chatId: string): Promise<{ success: boolean; message?: string }> {
-  const res = await fetch(`/api/tryon/sessions/${encodeURIComponent(chatId)}`, {
+  const res = await sessionManager.fetchWithAuth(`/api/tryon/sessions/${encodeURIComponent(chatId)}`, {
     method: "DELETE",
-    headers: { ...authHeaders() },
   });
   if (!res.ok) throw new Error(`DELETE session -> ${res.status}`);
   return (await res.json()) as { success: boolean; message?: string };
@@ -179,9 +170,9 @@ export interface AppendMessagesResponse {
 }
 
 export async function appendTryonMessages(body: AppendMessagesBody): Promise<AppendMessagesResponse> {
-  const res = await fetch("/api/tryon/sessions/messages", {
+  const res = await sessionManager.fetchWithAuth("/api/tryon/sessions/messages", {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -196,9 +187,9 @@ export interface LinkTryonBody {
 }
 
 export async function linkTryonToChat(body: LinkTryonBody): Promise<{ success: boolean }> {
-  const res = await fetch("/api/tryon/link", {
+  const res = await sessionManager.fetchWithAuth("/api/tryon/link", {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`POST link -> ${res.status}`);

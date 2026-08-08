@@ -20,7 +20,7 @@ export interface AuthStore extends AuthState {
   fetchAllUsers: () => Promise<User[]>;
   updateUserAsAdmin: (userId: string, userData: Partial<User>) => Promise<User>;
   deleteUserAsAdmin: (userId: string) => Promise<void>;
-  loginSms: (phone: string) => Promise<User>;
+  loginSms: (phone: string, verificationToken: string) => Promise<User>;
   allUsers: User[];
   // Direct setters for OTP signup flow
   setUser: (user: User | null) => void;
@@ -217,6 +217,12 @@ export const useAuthStore = create<AuthStore>()(
           }
       
           if (data.token) {
+            if (!data.refreshToken || !tokenValidator.isRefreshTokenValid(data.refreshToken)) {
+              const errorMessage = "توکن نوسازی دریافتی نامعتبر است";
+              set({ isLoading: false, error: errorMessage, user: null, isAuthenticated: false });
+              toast.error(errorMessage);
+              throw new Error(errorMessage);
+            }
             // Validate token before storing (Requirement 5.4)
             if (!tokenValidator.isTokenValid(data.token)) {
               const errorMessage = "توکن دریافتی نامعتبر است";
@@ -334,6 +340,12 @@ export const useAuthStore = create<AuthStore>()(
             
             // Extract token from response
             if (userData.token) {
+              if (!userData.refreshToken || !tokenValidator.isRefreshTokenValid(userData.refreshToken)) {
+                const errorMessage = "توکن نوسازی دریافتی نامعتبر است";
+                set({ isLoading: false, error: errorMessage, user: null, isAuthenticated: false });
+                toast.error(errorMessage);
+                throw new Error(errorMessage);
+              }
               // Validate token before storing (Requirement 5.4)
               if (!tokenValidator.isTokenValid(userData.token)) {
                 const errorMessage = "توکن دریافتی نامعتبر است";
@@ -404,11 +416,14 @@ export const useAuthStore = create<AuthStore>()(
           // Get token using LocalStorageManager
           const token = localStorageManager.getAccessToken();
           if (token) {
-            await fetch("/api/users/logout", {
+            await sessionManager.fetchWithAuth("/api/users/logout", {
               method: "POST",
               headers: {
-                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json",
               },
+              body: JSON.stringify({
+                refreshToken: localStorageManager.getRefreshToken(),
+              }),
             });
           }
         } catch (error) {
@@ -725,13 +740,13 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       // Login via SMS one-time code
-      loginSms: async (phone) => {
+      loginSms: async (phone, verificationToken) => {
         set({ isLoading: true, error: null });
         try {
           const response = await fetch("/api/users/login-sms", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ phone }),
+            body: JSON.stringify({ phone, verificationToken }),
           });
           const data = await response.json();
           if (!response.ok) {
@@ -741,6 +756,12 @@ export const useAuthStore = create<AuthStore>()(
             throw new Error(errorMessage);
           }
           if (data.token) {
+            if (!data.refreshToken || !tokenValidator.isRefreshTokenValid(data.refreshToken)) {
+              const errorMessage = "توکن نوسازی دریافتی نامعتبر است";
+              set({ isLoading: false, error: errorMessage });
+              toast.error(errorMessage);
+              throw new Error(errorMessage);
+            }
             // Validate token before storing (Requirement 5.4)
             if (!tokenValidator.isTokenValid(data.token)) {
               const errorMessage = "توکن دریافتی نامعتبر است";

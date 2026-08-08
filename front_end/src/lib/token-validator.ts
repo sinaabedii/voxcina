@@ -14,14 +14,15 @@ export interface JWTPayload {
   role: string;
   exp: number;
   iat?: number;
+  token_type?: 'access' | 'refresh';
 }
 
 /**
  * Token configuration constants
  */
 export const TOKEN_CONFIG = {
-  ACCESS_TOKEN_EXPIRY: 24 * 60 * 60,      // 24 hours in seconds
-  REFRESH_TOKEN_EXPIRY: 7 * 24 * 60 * 60, // 7 days in seconds
+  ACCESS_TOKEN_EXPIRY: 7 * 24 * 60 * 60,   // 7 days in seconds
+  REFRESH_TOKEN_EXPIRY: 30 * 24 * 60 * 60, // 30 days in seconds
   PROACTIVE_REFRESH_THRESHOLD: 5 * 60,    // 5 minutes in seconds
 } as const;
 
@@ -48,7 +49,7 @@ export class TokenValidator {
       return false;
     }
 
-    return !this.isTokenExpired(token);
+    return payload.token_type === 'access' && !this.isTokenExpired(token);
   }
 
   /**
@@ -96,6 +97,7 @@ export class TokenValidator {
         role: decoded.role || 'customer',
         exp: decoded.exp,
         iat: decoded.iat,
+        token_type: decoded.token_type,
       };
     } catch {
       return null;
@@ -116,6 +118,12 @@ export class TokenValidator {
 
     const currentTime = Math.floor(Date.now() / 1000);
     return payload.exp <= currentTime;
+  }
+
+  /** Returns true only for a structurally valid, unexpired refresh token. */
+  isRefreshTokenValid(token: string): boolean {
+    const payload = this.decodeToken(token);
+    return payload?.token_type === 'refresh' && !this.isTokenExpired(token);
   }
 
   /**

@@ -193,7 +193,7 @@ export default function SignInPage() {
       }
 
       toast.success("کد معتبر است، درحال ورود...");
-      await loginSms(normalizedPhone);
+      await loginSms(normalizedPhone, data.verificationToken);
       
       // Redirect to stored return URL or default to home
       // Validate return URL to prevent token exposure (Requirement 7.2)

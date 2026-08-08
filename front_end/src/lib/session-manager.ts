@@ -60,6 +60,9 @@ const AUTH_ENDPOINTS = {
   REFRESH: '/api/users/refresh',
 } as const;
 
+const REFRESH_LOCK_KEY = 'auth-refresh-lock';
+const REFRESH_LOCK_TTL_MS = 10000;
+
 /**
  * Activity events to track for proactive refresh
  * These events indicate user is actively using the application
@@ -98,6 +101,74 @@ export class SessionManager {
   private lastActivityTimestamp: number = Date.now();
   private activityListenersAttached: boolean = false;
   private activityCheckInterval: NodeJS.Timeout | null = null;
+  private readonly refreshLockOwner =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `refresh-${Math.random().toString(36).slice(2)}`;
+
+  private acquireRefreshLock(): boolean {
+    if (typeof window === 'undefined') return true;
+
+    const now = Date.now();
+    try {
+      const current = window.localStorage.getItem(REFRESH_LOCK_KEY);
+      if (current) {
+        const lock = JSON.parse(current) as { owner?: string; acquiredAt?: number };
+        if (
+          lock.owner &&
+          lock.owner !== this.refreshLockOwner &&
+          typeof lock.acquiredAt === 'number' &&
+          now - lock.acquiredAt < REFRESH_LOCK_TTL_MS
+        ) {
+          return false;
+        }
+      }
+
+      window.localStorage.setItem(
+        REFRESH_LOCK_KEY,
+        JSON.stringify({ owner: this.refreshLockOwner, acquiredAt: now }),
+      );
+      const written = window.localStorage.getItem(REFRESH_LOCK_KEY);
+      return written ? JSON.parse(written).owner === this.refreshLockOwner : false;
+    } catch {
+      // If storage is unavailable, preserve the existing single-tab behavior.
+      return true;
+    }
+  }
+
+  private releaseRefreshLock(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      const current = window.localStorage.getItem(REFRESH_LOCK_KEY);
+      if (current && JSON.parse(current).owner === this.refreshLockOwner) {
+        window.localStorage.removeItem(REFRESH_LOCK_KEY);
+      }
+    } catch {
+      // Storage cleanup is best-effort.
+    }
+  }
+
+  private async waitForOtherTabRefresh(previousRefreshToken: string): Promise<string | null> {
+    if (typeof window === 'undefined') return null;
+
+    const deadline = Date.now() + REFRESH_LOCK_TTL_MS;
+    while (Date.now() < deadline) {
+      const currentRefreshToken = localStorageManager.getRefreshToken();
+      const currentAccessToken = localStorageManager.getAccessToken();
+      if (
+        currentRefreshToken &&
+        currentRefreshToken !== previousRefreshToken &&
+        currentAccessToken &&
+        tokenValidator.isTokenValid(currentAccessToken)
+      ) {
+        return currentAccessToken;
+      }
+
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 50));
+      if (this.acquireRefreshLock()) return null;
+    }
+    return null;
+  }
   private lastThrottledUpdate: number = 0;
 
   /**
@@ -292,16 +363,33 @@ export class SessionManager {
       return null;
     }
 
-    // Check if refresh token itself is expired
-    if (tokenValidator.isTokenExpired(refreshToken)) {
+    // Check that the stored credential is actually a refresh token and is not
+    // expired. This prevents accidentally submitting an access token to the
+    // refresh endpoint.
+    if (!tokenValidator.isRefreshTokenValid(refreshToken)) {
       this.clearTokens();
       return null;
     }
 
     // Set refreshing state
     this.refreshState.isRefreshing = true;
+    let ownsRefreshLock = false;
 
     try {
+      ownsRefreshLock = this.acquireRefreshLock();
+      if (!ownsRefreshLock) {
+        const synchronizedToken = await this.waitForOtherTabRefresh(refreshToken);
+        if (synchronizedToken) {
+          this.resolvePendingRequests(synchronizedToken);
+          return synchronizedToken;
+        }
+        ownsRefreshLock = this.acquireRefreshLock();
+        if (!ownsRefreshLock) {
+          this.rejectPendingRequests(new Error('Another tab is refreshing the session'));
+          return null;
+        }
+      }
+
       const response = await fetch(AUTH_ENDPOINTS.REFRESH, {
         method: 'POST',
         headers: {
@@ -338,6 +426,7 @@ export class SessionManager {
       this.rejectPendingRequests(error instanceof Error ? error : new Error('Refresh failed'));
       return null;
     } finally {
+      if (ownsRefreshLock) this.releaseRefreshLock();
       this.refreshState.isRefreshing = false;
       this.refreshState.refreshPromise = null;
     }
@@ -440,7 +529,7 @@ export class SessionManager {
    */
   hasValidRefreshToken(): boolean {
     const refreshToken = localStorageManager.getRefreshToken();
-    return refreshToken !== null && !tokenValidator.isTokenExpired(refreshToken);
+    return refreshToken !== null && tokenValidator.isRefreshTokenValid(refreshToken);
   }
 
   /**

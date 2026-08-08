@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -11,7 +12,6 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -62,15 +62,15 @@ func generateOTPCode() (string, error) {
 	const digits = "0123456789"
 	code := make([]byte, 5)
 	randomBytes := make([]byte, 5)
-	
+
 	if _, err := rand.Read(randomBytes); err != nil {
 		return "", err
 	}
-	
+
 	for i := 0; i < 5; i++ {
 		code[i] = digits[randomBytes[i]%10]
 	}
-	
+
 	return string(code), nil
 }
 
@@ -153,13 +153,13 @@ func SendSignupOTP(w http.ResponseWriter, r *http.Request) {
 		"verified":   false,
 		"expires_at": bson.M{"$gt": time.Now()},
 	}).Decode(&existingOTP)
-	
+
 	if err == nil {
 		// OTP already exists and not expired - check if we should allow resend
 		timeSinceCreated := time.Since(existingOTP.CreatedAt)
 		if timeSinceCreated < 2*time.Minute {
 			remainingSeconds := int((2*time.Minute - timeSinceCreated).Seconds())
-			utils.ErrorResponse(w, http.StatusTooManyRequests, 
+			utils.ErrorResponse(w, http.StatusTooManyRequests,
 				fmt.Sprintf("لطفاً %d ثانیه صبر کنید و سپس دوباره تلاش کنید", remainingSeconds))
 			return
 		}
@@ -223,9 +223,9 @@ func SendSignupOTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
-		"message":    "کد تأیید به شماره تلفن شما ارسال شد",
-		"expiresIn":  models.OTPExpirationMinutes * 60, // seconds
-		"phone":      req.Phone,
+		"message":   "کد تأیید به شماره تلفن شما ارسال شد",
+		"expiresIn": models.OTPExpirationMinutes * 60, // seconds
+		"phone":     req.Phone,
 	})
 }
 
@@ -261,7 +261,7 @@ func VerifySignupOTP(w http.ResponseWriter, r *http.Request) {
 
 	// Validate password length
 	if len(req.Password) < 6 {
-		utils.ErrorResponse(w, http.StatusBadRequest, 
+		utils.ErrorResponse(w, http.StatusBadRequest,
 			"رمز عبور باید حداقل ۶ کاراکتر باشد")
 		return
 	}
@@ -310,7 +310,7 @@ func VerifySignupOTP(w http.ResponseWriter, r *http.Request) {
 	// Verify code
 	if otp.Code != req.Code {
 		remainingAttempts := models.MaxOTPAttempts - otp.Attempts - 1
-		utils.ErrorResponse(w, http.StatusBadRequest, 
+		utils.ErrorResponse(w, http.StatusBadRequest,
 			fmt.Sprintf("کد تأیید نادرست است. %d تلاش باقی مانده", remainingAttempts))
 		return
 	}
@@ -362,35 +362,8 @@ func VerifySignupOTP(w http.ResponseWriter, r *http.Request) {
 	// Mark OTP as verified and delete it
 	otpCollection.DeleteOne(ctx, bson.M{"_id": otp.ID})
 
-	// Generate JWT token
-	expirationTime := time.Now().Add(24 * time.Hour)
-	claims := &Claims{
-		UserID: user.ID,
-		Email:  user.Email,
-		Role:   user.Role,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expirationTime),
-		},
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(jwtKey)
-	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در تولید توکن")
-		return
-	}
-
-	// Generate refresh token
-	refreshExpirationTime := time.Now().Add(7 * 24 * time.Hour)
-	refreshClaims := &Claims{
-		UserID: user.ID,
-		Email:  user.Email,
-		Role:   user.Role,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(refreshExpirationTime),
-		},
-	}
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
-	refreshTokenString, err := refreshToken.SignedString(jwtKey)
+	// Generate access + refresh token pair (signed with token_type + token_version).
+	pair, err := issueTokenPairForUser(ctx, &user)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در تولید توکن")
 		return
@@ -404,8 +377,8 @@ func VerifySignupOTP(w http.ResponseWriter, r *http.Request) {
 		"phone":        user.Phone,
 		"email":        user.Email,
 		"role":         user.Role,
-		"token":        tokenString,
-		"refreshToken": refreshTokenString,
+		"token":        pair.AccessToken,
+		"refreshToken": pair.RefreshToken,
 		"created_at":   user.CreatedAt,
 		"updated_at":   user.UpdatedAt,
 		"last_login":   user.LastLogin,
@@ -779,12 +752,30 @@ func VerifyLoginOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Mark OTP as verified and delete it
-	otpCollection.DeleteOne(ctx, bson.M{"_id": otp.ID})
+	// Mark OTP as verified and mint a short-lived, one-time login grant. The
+	// grant is consumed atomically by /api/users/login-sms; the phone number
+	// alone can never be exchanged for tokens.
+	grantBytes := make([]byte, 32)
+	if _, err := rand.Read(grantBytes); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در تولید مجوز ورود")
+		return
+	}
+	verificationToken := hex.EncodeToString(grantBytes)
+	if _, err := otpCollection.UpdateOne(ctx, bson.M{"_id": otp.ID}, bson.M{
+		"$set": bson.M{
+			"verified":           true,
+			"verification_token": verificationToken,
+			"expires_at":         time.Now().Add(2 * time.Minute),
+		},
+	}); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در ذخیره مجوز ورود")
+		return
+	}
 
 	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
-		"message": "کد تأیید صحیح است",
-		"valid":   true,
+		"message":           "کد تأیید صحیح است",
+		"valid":             true,
+		"verificationToken": verificationToken,
 	})
 }
 
@@ -900,10 +891,15 @@ func ResetPasswordWithOTP(w http.ResponseWriter, r *http.Request) {
 			"password_hash": string(hashedPassword),
 			"updated_at":    time.Now(),
 		},
+		"$inc": bson.M{"token_version": 1},
 	})
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در بروزرسانی رمز عبور")
 		return
+	}
+	// Resetting a password invalidates all previous access and refresh tokens.
+	if err := GetRefreshTokenService().RevokeAllForUser(ctx, user.ID, false); err != nil {
+		fmt.Printf("Warning: password reset succeeded but refresh-token revocation failed for %v: %v\n", user.ID, err)
 	}
 
 	// Delete the OTP record
