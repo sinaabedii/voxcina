@@ -71,7 +71,7 @@ export default function AboutClient() {
                     transition={{ duration: 0.8 }}
                   >
                     <span className="inline-block text-xs sm:text-sm text-voxcina-blue/70 dark:text-secondary-200/70 font-medium tracking-[0.2em] sm:tracking-[0.3em] uppercase mb-4 sm:mb-6 relative">
-                      <span className="relative z-10">Voxcina</span>
+                      <span className="relative z-10">وکسینا (ووکسینا | Voxcina)</span>
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: "100%" }}

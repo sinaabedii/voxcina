@@ -24,12 +24,12 @@ export default function SEOContentSection() {
     >
       <div className="max-w-4xl mx-auto bg-white/80 dark:bg-voxcina-blue/10 backdrop-blur-sm rounded-2xl p-6 md:p-10 shadow-soft border border-voxcina-cream/30 dark:border-voxcina-blue/20">
         <h2 className="text-lg md:text-2xl font-bold text-voxcina-blue dark:text-voxcina-cream mb-6 text-center">
-          وکسینا، فروشگاه اینترنتی لباس و پوشاک با کیفیت
+          وکسینا (ووکسینا | Voxcina)، فروشگاه اینترنتی لباس و پوشاک با کیفیت
         </h2>
         
         <div className="space-y-4 text-gray-700 dark:text-gray-300 leading-relaxed text-sm md:text-base text-right">
           <p>
-            <strong>فروشگاه اینترنتی لباس و پوشاک وکسینا</strong> با ارائه جدیدترین و متنوع‌ترین کالکشن‌های مد،
+            <strong>فروشگاه اینترنتی لباس و پوشاک وکسینا (ووکسینا | Voxcina)</strong> با ارائه جدیدترین و متنوع‌ترین کالکشن‌های مد،
             به شما کمک می‌کند تا با اعتماد به نفس بیشتری ظاهر شوید. ما در وکسینا معتقدیم که هر فردی
             سبک منحصر به فرد خود را دارد و وظیفه ما ارائه گزینه‌های متنوع برای تحقق این سبک است.
           </p>

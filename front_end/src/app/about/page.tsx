@@ -4,7 +4,7 @@ import AboutClient from "./AboutClient";
 export const metadata: Metadata = {
   title: "درباره ما",
   description:
-    "با وکسینا آشنا شوید - فروشگاه آنلاین پوشاک و مد با بیش از ۵۰۰۰ محصول با کیفیت. داستان ما، ماموریت و چشم‌انداز آینده.",
+    "با وکسینا (ووکسینا | Voxcina) آشنا شوید - فروشگاه آنلاین پوشاک و مد با بیش از ۵۰۰۰ محصول با کیفیت. داستان ما، ماموریت و چشم‌انداز آینده.",
   keywords: [
     "درباره وکسینا",
     "فروشگاه آنلاین پوشاک",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "درباره ما | وکسینا",
     description:
-      "با وکسینا آشنا شوید - فروشگاه آنلاین پوشاک و مد با بیش از ۵۰۰۰ محصول با کیفیت.",
+      "با وکسینا (ووکسینا | Voxcina) آشنا شوید - فروشگاه آنلاین پوشاک و مد با بیش از ۵۰۰۰ محصول با کیفیت.",
     type: "website",
     locale: "fa_IR",
     images: [
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "درباره ما | وکسینا",
     description:
-      "با وکسینا آشنا شوید - فروشگاه آنلاین پوشاک و مد با بیش از ۵۰۰۰ محصول با کیفیت.",
+      "با وکسینا (ووکسینا | Voxcina) آشنا شوید - فروشگاه آنلاین پوشاک و مد با بیش از ۵۰۰۰ محصول با کیفیت.",
     images: ["/images/Logo/WXTransparent-org.png"],
   },
   alternates: {

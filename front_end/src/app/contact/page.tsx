@@ -48,7 +48,7 @@ const localBusinessSchema = {
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
   name: "وکسینا",
-  alternateName: "Voxcina",
+  alternateName: ["ووکسینا", "Voxcina"],
   description: "فروشگاه آنلاین پوشاک و مد با بیش از ۵۰۰۰ محصول با کیفیت",
   url: "https://voxcina.com",
   logo: "https://voxcina.com/images/Logo/WXTransparent-org.png",

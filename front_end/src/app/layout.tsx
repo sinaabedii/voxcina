@@ -203,7 +203,7 @@ export default async function RootLayout({
               "@context": "https://schema.org",
               "@type": "Organization",
               name: "وکسینا",
-              alternateName: "Voxcina",
+              alternateName: ["ووکسینا", "Voxcina"],
               url: "https://voxcina.com",
               logo: "https://voxcina.com/images/Logo/WXTransparent-org.png",
               contactPoint: {
