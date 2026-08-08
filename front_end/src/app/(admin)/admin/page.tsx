@@ -9,10 +9,10 @@ import { Order } from "@/types/order";
 import { motion } from "framer-motion";
 import {
   BarChart3,
+  Bot,
   Package,
   Users,
   ShoppingCart,
-  Calendar,
   Clock,
   ChevronRight,
   AlertCircle,
@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
-import { XCircle, TrendingUp } from "lucide-react";
+import { XCircle } from "lucide-react";
 
 export default function AdminDashboardPage() {
   const { user, adminToken } = useAuthStore();
@@ -360,10 +360,10 @@ export default function AdminDashboardPage() {
                   <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
                     ارزش فروش‌های موفق
                   </p>
-                  <Link href="/admin/analytics" aria-label="آمار و تحلیل فروش">
+                  <Link href="/admin/orders" aria-label="مدیریت سفارش‌ها">
                     <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
                       <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
-                      <span className="sr-only">آمار و تحلیل فروش</span>
+                      <span className="sr-only">مدیریت سفارش‌ها</span>
                     </div>
                   </Link>
                 </div>
@@ -391,10 +391,10 @@ export default function AdminDashboardPage() {
                   <p className="text-sm text-red-500/70 dark:text-red-400/70 mt-1">
                     ارزش فروش‌های در انتظار/ناموفق
                   </p>
-                  <Link href="/admin/analytics" aria-label="آمار و تحلیل فروش">
+                  <Link href="/admin/orders" aria-label="مدیریت سفارش‌ها">
                     <div className="h-8 w-8 flex items-center justify-center rounded-full bg-red-50 dark:bg-red-900/20">
                       <ChevronRight className="h-5 w-5 text-red-500 dark:text-red-400" />
-                      <span className="sr-only">آمار و تحلیل فروش</span>
+                      <span className="sr-only">مدیریت سفارش‌ها</span>
                     </div>
                   </Link>
                 </div>
@@ -829,58 +829,30 @@ export default function AdminDashboardPage() {
           <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-md overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10 h-full">
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-voxcina-cream">
-                <Calendar className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
-                آمار هفتگی
+                <Bot className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
+                گفتگوهای هوش مصنوعی
               </CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:text-voxcina-blue dark:hover:text-voxcina-cream"
-                onClick={() => window.location.href = '/admin/analytics'}
-              >
-                گزارش کامل
-              </Button>
+              <Link href="/admin/ai-chats">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:text-voxcina-blue dark:hover:text-voxcina-cream"
+                >
+                  مشاهده گفتگوها
+                </Button>
+              </Link>
             </CardHeader>
             <CardContent>
-              <div className="space-y-8">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-medium text-voxcina-blue/80 dark:text-voxcina-cream/80">بازدید</h3>
-                    <span className="text-voxcina-blue/70 dark:text-voxcina-cream/70 text-sm">4,251</span>
-                  </div>
-                  <div className="w-full bg-voxcina-cream/30 dark:bg-voxcina-blue/30 rounded-full h-2.5">
-                    <div className="bg-voxcina-blue dark:bg-voxcina-cream/80 h-2.5 rounded-full" style={{ width: '70%' }}></div>
-                  </div>
+              <div className="flex h-full flex-col justify-between gap-6">
+                <div className="rounded-2xl bg-voxcina-cream/35 p-5 dark:bg-voxcina-blue/20">
+                  <p className="text-sm leading-7 text-voxcina-blue/75 dark:text-voxcina-cream/75">
+                    گفتگوهای اتاق پرو مجازی را بررسی کنید؛ اطلاعات کاربر، تعداد پیام‌ها، پاسخ‌های هوش مصنوعی و نتایج تصویری پرو در یک صفحه در دسترس است.
+                  </p>
                 </div>
-                
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-medium text-voxcina-blue/80 dark:text-voxcina-cream/80">سفارش‌ها</h3>
-                    <span className="text-voxcina-blue/70 dark:text-voxcina-cream/70 text-sm">152</span>
-                  </div>
-                  <div className="w-full bg-voxcina-cream/30 dark:bg-voxcina-blue/30 rounded-full h-2.5">
-                    <div className="bg-green-500 dark:bg-green-400 h-2.5 rounded-full" style={{ width: '45%' }}></div>
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-medium text-voxcina-blue/80 dark:text-voxcina-cream/80">نرخ تبدیل</h3>
-                    <span className="text-voxcina-blue/70 dark:text-voxcina-cream/70 text-sm">3.6%</span>
-                  </div>
-                  <div className="w-full bg-voxcina-cream/30 dark:bg-voxcina-blue/30 rounded-full h-2.5">
-                    <div className="bg-amber-500 dark:bg-amber-400 h-2.5 rounded-full" style={{ width: '36%' }}></div>
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-medium text-voxcina-blue/80 dark:text-voxcina-cream/80">میانگین سبد خرید</h3>
-                    <span className="text-voxcina-blue/70 dark:text-voxcina-cream/70 text-sm">{formatPrice(1850000)}</span>
-                  </div>
-                  <div className="w-full bg-voxcina-cream/30 dark:bg-voxcina-blue/30 rounded-full h-2.5">
-                    <div className="bg-voxcina-blue/70 dark:bg-voxcina-cream/70 h-2.5 rounded-full" style={{ width: '60%' }}></div>
-                  </div>
+                <div className="grid grid-cols-3 gap-3 text-center text-xs text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                  <div className="rounded-xl border border-voxcina-cream/70 p-3 dark:border-voxcina-blue/30">متن گفتگو</div>
+                  <div className="rounded-xl border border-voxcina-cream/70 p-3 dark:border-voxcina-blue/30">اطلاعات کاربر</div>
+                  <div className="rounded-xl border border-voxcina-cream/70 p-3 dark:border-voxcina-blue/30">نتایج پرو</div>
                 </div>
               </div>
             </CardContent>
@@ -904,4 +876,4 @@ const Link = ({ href, children, className = "" }: LinkProps) => {
       {children}
     </a>
   );
-}; 
+};

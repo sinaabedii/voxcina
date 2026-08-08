@@ -136,6 +136,10 @@ func NewRouter() *mux.Router {
 		adminRouter.HandleFunc("/ai/field-descriptions", aiMetadataHandler.GetFieldDescriptions).Methods("GET")
 	}
 
+	// Virtual try-on AI chat inspection (Admin)
+	adminRouter.HandleFunc("/ai/tryon-chats", handlers.ListAdminTryonChats).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/ai/tryon-chats/{chatId}", handlers.GetAdminTryonChat).Methods(http.MethodGet)
+
 	// Unified admin voucher/coupon listing (discounts + negotiated_coupons)
 	adminRouter.HandleFunc("/vouchers", handlers.GetAdminVouchers).Methods("GET")
 
@@ -325,7 +329,7 @@ func NewRouter() *mux.Router {
 	// User Activity Tracking (Public - works for both anonymous and authenticated users)
 	api.HandleFunc("/activity/track", handlers.TrackActivity).Methods(http.MethodPost)
 	api.HandleFunc("/activity/track/batch", handlers.TrackBatchActivities).Methods(http.MethodPost)
-	
+
 	// User Activity Retrieval (Authenticated users only)
 	activityRouter := api.PathPrefix("/activity").Subrouter()
 	activityRouter.Use(middlewares.AuthMiddleware) // Requires authentication

@@ -27,10 +27,10 @@ type TryonChat struct {
 
 	TryonIDs []string `bson:"tryon_ids" json:"tryon_ids"`
 
-	Title    string                 `bson:"title" json:"title"`
-	Messages []TryonChatMessage     `bson:"messages" json:"messages"`
-	Metadata TryonChatMetadata      `bson:"metadata" json:"metadata"`
-	Status   string                 `bson:"status" json:"status"`
+	Title    string             `bson:"title" json:"title"`
+	Messages []TryonChatMessage `bson:"messages" json:"messages"`
+	Metadata TryonChatMetadata  `bson:"metadata" json:"metadata"`
+	Status   string             `bson:"status" json:"status"`
 
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
@@ -56,15 +56,15 @@ type TryonChatMessage struct {
 
 // TryonChatTryonData is the embedded tryon card metadata.
 type TryonChatTryonData struct {
-	RoomNumber   int    `bson:"room_number" json:"room_number"`
-	BeforeImage  string `bson:"before_image" json:"before_image"`
-	AfterImage   string `bson:"after_image" json:"after_image"`
-	ProductID    primitive.ObjectID `bson:"product_id,omitempty" json:"product_id,omitempty"`
-	ProductName  string `bson:"product_name" json:"product_name"`
-	Color        string `bson:"color,omitempty" json:"color,omitempty"`
-	Size         string `bson:"size,omitempty" json:"size,omitempty"`
-	GarmentType  string `bson:"garment_type" json:"garment_type"`
-	TryonID      string `bson:"tryon_id" json:"tryon_id"`
+	RoomNumber  int                `bson:"room_number" json:"room_number"`
+	BeforeImage string             `bson:"before_image" json:"before_image"`
+	AfterImage  string             `bson:"after_image" json:"after_image"`
+	ProductID   primitive.ObjectID `bson:"product_id,omitempty" json:"product_id,omitempty"`
+	ProductName string             `bson:"product_name" json:"product_name"`
+	Color       string             `bson:"color,omitempty" json:"color,omitempty"`
+	Size        string             `bson:"size,omitempty" json:"size,omitempty"`
+	GarmentType string             `bson:"garment_type" json:"garment_type"`
+	TryonID     string             `bson:"tryon_id" json:"tryon_id"`
 }
 
 // TryonChatToolCall is the embedded tool-call record.
@@ -76,19 +76,19 @@ type TryonChatToolCall struct {
 
 // TryonChatMetadata stores per-room analytics.
 type TryonChatMetadata struct {
-	TotalMessages        int      `bson:"total_messages" json:"total_messages"`
-	UserMessages         int      `bson:"user_messages" json:"user_messages"`
-	AgentMessages        int      `bson:"agent_messages" json:"agent_messages"`
-	ToolMessages         int      `bson:"tool_messages" json:"tool_messages"`
-	TryonMessages        int      `bson:"tryon_messages" json:"tryon_messages"`
-	CouponsOffered       []string `bson:"coupons_offered,omitempty" json:"coupons_offered,omitempty"`
-	ProductsRecommended  []string `bson:"products_recommended,omitempty" json:"products_recommended,omitempty"`
-	FirstMessageAt       time.Time `bson:"first_message_at,omitempty" json:"first_message_at,omitempty"`
-	LastMessageAt        time.Time `bson:"last_message_at,omitempty" json:"last_message_at,omitempty"`
-	DurationSeconds      int      `bson:"duration_seconds" json:"duration_seconds"`
-	DeviceType           string   `bson:"device_type,omitempty" json:"device_type,omitempty"`
-	Browser              string   `bson:"browser,omitempty" json:"browser,omitempty"`
-	OS                   string   `bson:"os,omitempty" json:"os,omitempty"`
+	TotalMessages       int       `bson:"total_messages" json:"total_messages"`
+	UserMessages        int       `bson:"user_messages" json:"user_messages"`
+	AgentMessages       int       `bson:"agent_messages" json:"agent_messages"`
+	ToolMessages        int       `bson:"tool_messages" json:"tool_messages"`
+	TryonMessages       int       `bson:"tryon_messages" json:"tryon_messages"`
+	CouponsOffered      []string  `bson:"coupons_offered,omitempty" json:"coupons_offered,omitempty"`
+	ProductsRecommended []string  `bson:"products_recommended,omitempty" json:"products_recommended,omitempty"`
+	FirstMessageAt      time.Time `bson:"first_message_at,omitempty" json:"first_message_at,omitempty"`
+	LastMessageAt       time.Time `bson:"last_message_at,omitempty" json:"last_message_at,omitempty"`
+	DurationSeconds     int       `bson:"duration_seconds" json:"duration_seconds"`
+	DeviceType          string    `bson:"device_type,omitempty" json:"device_type,omitempty"`
+	Browser             string    `bson:"browser,omitempty" json:"browser,omitempty"`
+	OS                  string    `bson:"os,omitempty" json:"os,omitempty"`
 }
 
 // TryonChatSession is a lightweight projection of a fitting room,
@@ -100,6 +100,9 @@ type TryonChatSession struct {
 	Title         string             `bson:"title,omitempty" json:"title,omitempty"`
 	TryonCount    int                `bson:"tryon_count" json:"tryon_count"`
 	MessageCount  int                `bson:"message_count" json:"message_count"`
+	UserMessages  int                `bson:"user_messages" json:"user_messages,omitempty"`
+	AgentMessages int                `bson:"agent_messages" json:"agent_messages,omitempty"`
+	TryonMessages int                `bson:"tryon_messages" json:"tryon_messages,omitempty"`
 	LastMessage   string             `bson:"last_message,omitempty" json:"last_message,omitempty"`
 	LastMessageAt time.Time          `bson:"last_message_at,omitempty" json:"last_message_at,omitempty"`
 	Status        string             `bson:"status" json:"status"`

@@ -21,7 +21,7 @@ import {
   ShoppingBag,
   Percent,
   Star,
-  BarChart3,
+  Bot,
   FileText,
   Settings,
   Headphones,
@@ -150,10 +150,10 @@ export default function AdminLayout({
       section: "reviews",
     },
     {
-      name: "آمار و گزارش‌ها",
-      href: "/admin/analytics",
-      icon: <BarChart3 className="w-5 h-5 ml-3" />,
-      section: "analytics",
+      name: "گفتگوهای هوش مصنوعی",
+      href: "/admin/ai-chats",
+      icon: <Bot className="w-5 h-5 ml-3" />,
+      section: "ai-chats",
     },
     {
       name: "بلاگ‌ها",

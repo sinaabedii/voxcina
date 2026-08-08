@@ -67,12 +67,12 @@ func (s *VirtualTryonService) Complete(ctx context.Context, tryonID, resultImage
 	now := time.Now()
 	_, err := s.collection.UpdateOne(ctx, bson.M{"tryon_id": tryonID}, bson.M{
 		"$set": bson.M{
-			"status":          models.TryonStatusDone,
+			"status":           models.TryonStatusDone,
 			"result_image_url": resultImageURL,
-			"model_used":      modelUsed,
-			"prompt_text":     promptText,
-			"duration_ms":     durationMs,
-			"completed_at":    now,
+			"model_used":       modelUsed,
+			"prompt_text":      promptText,
+			"duration_ms":      durationMs,
+			"completed_at":     now,
 		},
 	})
 	return err
@@ -129,8 +129,8 @@ func (s *VirtualTryonService) ListByChat(ctx context.Context, userID primitive.O
 		return []models.VirtualTryon{}, nil
 	}
 	cur, err := s.collection.Find(ctx, bson.M{
-		"user_id":   userID,
-		"tryon_id":  bson.M{"$in": tryonIDs},
+		"user_id":  userID,
+		"tryon_id": bson.M{"$in": tryonIDs},
 	})
 	if err != nil {
 		return nil, err
@@ -139,6 +139,29 @@ func (s *VirtualTryonService) ListByChat(ctx context.Context, userID primitive.O
 	var out []models.VirtualTryon
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
+	}
+	return out, nil
+}
+
+// ListByTryonIDs is used by trusted admin views after the chat itself has
+// already been loaded and authorized by the admin middleware.
+func (s *VirtualTryonService) ListByTryonIDs(ctx context.Context, tryonIDs []string) ([]models.VirtualTryon, error) {
+	if len(tryonIDs) == 0 {
+		return []models.VirtualTryon{}, nil
+	}
+
+	cur, err := s.collection.Find(ctx, bson.M{"tryon_id": bson.M{"$in": tryonIDs}}, options.Find().SetSort(bson.D{{Key: "created_at", Value: 1}}))
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+
+	var out []models.VirtualTryon
+	if err := cur.All(ctx, &out); err != nil {
+		return nil, err
+	}
+	if out == nil {
+		out = []models.VirtualTryon{}
 	}
 	return out, nil
 }

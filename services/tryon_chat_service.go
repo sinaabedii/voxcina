@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"regexp"
 	"strings"
 	"time"
 
@@ -86,9 +87,9 @@ func (s *TryonChatService) GetByChatID(ctx context.Context, chatID string) (*mod
 func (s *TryonChatService) AppendMessages(ctx context.Context, chatID string, messages []models.TryonChatMessage, userID primitive.ObjectID) error {
 	now := time.Now()
 	doc := bson.M{
-		"chat_id":  chatID,
-		"user_id":  userID,
-		"status":   models.TryonChatStatusActive,
+		"chat_id":    chatID,
+		"user_id":    userID,
+		"status":     models.TryonChatStatusActive,
 		"updated_at": now,
 	}
 	for _, m := range messages {
@@ -251,6 +252,90 @@ func (s *TryonChatService) ListSessionsByUser(ctx context.Context, userID primit
 	var out []models.TryonChatSession
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, 0, err
+	}
+	return out, total, nil
+}
+
+// ListAdminSessions returns summary fields only so the admin list never loads
+// full transcripts. Deleted sessions are hidden unless an explicit status is
+// requested.
+func (s *TryonChatService) ListAdminSessions(ctx context.Context, page, limit int, search, status string) ([]models.TryonChatSession, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+
+	filter := bson.M{}
+	if status != "" {
+		filter["status"] = status
+	} else {
+		filter["status"] = bson.M{"$ne": models.TryonChatStatusDeleted}
+	}
+	if search = strings.TrimSpace(search); search != "" {
+		pattern := primitive.Regex{Pattern: regexp.QuoteMeta(search), Options: "i"}
+		filter["$or"] = bson.A{
+			bson.M{"chat_id": pattern},
+			bson.M{"title": pattern},
+		}
+	}
+
+	total, err := s.collection.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	messageInput := bson.M{"$ifNull": bson.A{"$messages", bson.A{}}}
+	messageCountForRole := func(role string) interface{} {
+		return bson.M{"$size": bson.M{
+			"$filter": bson.M{
+				"input": messageInput,
+				"as":    "message",
+				"cond":  bson.M{"$eq": bson.A{"$$message.role", role}},
+			},
+		}}
+	}
+
+	skip := int64((page - 1) * limit)
+	pipeline := mongo.Pipeline{
+		{{Key: "$match", Value: filter}},
+		{{Key: "$project", Value: bson.M{
+			"_id":            1,
+			"chat_id":        1,
+			"user_id":        1,
+			"title":          1,
+			"status":         1,
+			"created_at":     1,
+			"updated_at":     1,
+			"tryon_count":    bson.M{"$size": bson.M{"$ifNull": bson.A{"$tryon_ids", bson.A{}}}},
+			"message_count":  bson.M{"$size": messageInput},
+			"user_messages":  messageCountForRole(models.TryonChatRoleUser),
+			"agent_messages": messageCountForRole(models.TryonChatRoleAgent),
+			"tryon_messages": messageCountForRole(models.TryonChatRoleTryon),
+			"last_message":   bson.M{"$arrayElemAt": bson.A{"$messages.content", -1}},
+			"last_message_at": bson.M{"$ifNull": bson.A{
+				"$metadata.last_message_at",
+				bson.M{"$arrayElemAt": bson.A{"$messages.timestamp", -1}},
+			}},
+		}}},
+		{{Key: "$sort", Value: bson.D{{Key: "updated_at", Value: -1}}}},
+		{{Key: "$skip", Value: skip}},
+		{{Key: "$limit", Value: int64(limit)}},
+	}
+
+	cur, err := s.collection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer cur.Close(ctx)
+
+	var out []models.TryonChatSession
+	if err := cur.All(ctx, &out); err != nil {
+		return nil, 0, err
+	}
+	if out == nil {
+		out = []models.TryonChatSession{}
 	}
 	return out, total, nil
 }
