@@ -85,6 +85,8 @@ services:
     build:
       context: ./front_end
       dockerfile: Dockerfile
+      extra_hosts:
+        - "host.docker.internal:host-gateway"
       args:
         - HTTP_PROXY=http://host.docker.internal:10809
         - HTTPS_PROXY=http://host.docker.internal:10809
