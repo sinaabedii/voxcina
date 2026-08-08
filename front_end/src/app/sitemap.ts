@@ -16,7 +16,7 @@ import { MetadataRoute } from 'next';
  * The sitemap gracefully handles this by returning static pages only.
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://voxcina.com';
+const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://voxcina.com').replace(/\/+$/, '');
 
 // Get backend URL for server-side fetching (Docker internal network)
 function getBackendUrl(): string {
@@ -25,16 +25,20 @@ function getBackendUrl(): string {
 
 // Types for API responses
 interface Product {
+  productId?: string;
   id?: string;
   _id?: string;
+  created_at?: string;
   updated_at?: string;
   updatedAt?: string;
+  collection?: string;
 }
 
 interface Category {
   id?: string;
   _id?: string;
   slug: string;
+  is_active?: boolean;
   updated_at?: string;
   updatedAt?: string;
 }
@@ -43,6 +47,7 @@ interface Brand {
   id?: string;
   _id?: string;
   slug: string;
+  isActive?: boolean;
   updatedAt?: string;
 }
 
@@ -54,15 +59,31 @@ interface BlogPost {
   updatedAt?: string;
 }
 
+function toDate(value?: string): Date | undefined {
+  if (!value) return undefined;
+
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? undefined : new Date(timestamp);
+}
+
 interface ApiResponse<T> {
   data?: T[];
+  totalPages?: number;
+  pagination?: {
+    totalPages?: number;
+  };
+}
+
+interface FetchPageResult<T> {
+  items: T[];
+  totalPages: number;
 }
 
 /**
  * Safely fetch data from the backend API
  * Returns empty array if fetch fails (e.g., during Docker build)
  */
-async function safeFetch<T>(endpoint: string): Promise<T[]> {
+async function fetchPage<T>(endpoint: string): Promise<FetchPageResult<T> | null> {
   try {
     const backendUrl = getBackendUrl();
     const response = await fetch(`${backendUrl}${endpoint}`, {
@@ -71,87 +92,97 @@ async function safeFetch<T>(endpoint: string): Promise<T[]> {
     
     if (!response.ok) {
       console.warn(`[sitemap] Failed to fetch ${endpoint}: ${response.status}`);
-      return [];
+      return null;
     }
     
     const data = await response.json() as T[] | ApiResponse<T> | null;
-    if (!data) return [];
-    return Array.isArray(data) ? data : (data.data || []);
+    if (!data) return { items: [], totalPages: 1 };
+    if (Array.isArray(data)) return { items: data, totalPages: 1 };
+
+    return {
+      items: data.data || [],
+      totalPages: Math.max(1, data.pagination?.totalPages || data.totalPages || 1),
+    };
   } catch (error) {
     // During Docker build, backend may not be available
     console.warn(`[sitemap] Could not fetch ${endpoint}:`, error);
-    return [];
+    return null;
   }
 }
 
+async function safeFetch<T>(endpoint: string): Promise<T[]> {
+  const firstPage = await fetchPage<T>(endpoint);
+  if (!firstPage || firstPage.totalPages === 1) {
+    return firstPage?.items || [];
+  }
+
+  const remainingPages = await Promise.all(
+    Array.from({ length: firstPage.totalPages - 1 }, (_, index) =>
+      fetchPage<T>(`${endpoint}${endpoint.includes('?') ? '&' : '?'}page=${index + 2}`)
+    )
+  );
+
+  return [firstPage, ...remainingPages.filter((page): page is FetchPageResult<T> => page !== null)]
+    .flatMap((page) => page.items);
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const now = new Date();
-  
-  // Static pages with their priorities and change frequencies
+  // Only include canonical, publicly indexable pages here. `lastModified` is
+  // intentionally omitted for static pages because the current date would be
+  // misleading when the page content has not changed.
   const staticPages: MetadataRoute.Sitemap = [
     {
       url: BASE_URL,
-      lastModified: now,
       changeFrequency: 'daily',
       priority: 1.0,
     },
     {
       url: `${BASE_URL}/products`,
-      lastModified: now,
       changeFrequency: 'daily',
       priority: 0.9,
     },
     {
       url: `${BASE_URL}/blog`,
-      lastModified: now,
       changeFrequency: 'daily',
       priority: 0.9,
     },
     {
       url: `${BASE_URL}/about`,
-      lastModified: now,
       changeFrequency: 'monthly',
       priority: 0.8,
     },
     {
       url: `${BASE_URL}/contact`,
-      lastModified: now,
       changeFrequency: 'monthly',
       priority: 0.8,
     },
     {
       url: `${BASE_URL}/faq`,
-      lastModified: now,
       changeFrequency: 'monthly',
       priority: 0.7,
     },
     {
       url: `${BASE_URL}/shoppingGuide`,
-      lastModified: now,
       changeFrequency: 'monthly',
       priority: 0.7,
     },
     {
       url: `${BASE_URL}/shipping`,
-      lastModified: now,
       changeFrequency: 'monthly',
       priority: 0.7,
     },
     {
       url: `${BASE_URL}/returns`,
-      lastModified: now,
       changeFrequency: 'monthly',
       priority: 0.7,
     },
     {
       url: `${BASE_URL}/orderTracking`,
-      lastModified: now,
       changeFrequency: 'monthly',
       priority: 0.7,
     },
     {
       url: `${BASE_URL}/careers`,
-      lastModified: now,
       changeFrequency: 'monthly',
       priority: 0.6,
     },
@@ -162,43 +193,66 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     safeFetch<Product>('/api/products?limit=1000'),
     safeFetch<Category>('/api/categories'),
     safeFetch<Brand>('/api/brands'),
-    safeFetch<BlogPost>('/api/blog-posts?limit=500'),
+    safeFetch<BlogPost>('/api/blog-posts?limit=50'),
   ]);
 
-  // Generate product URLs
-  const productUrls: MetadataRoute.Sitemap = products.map((product) => {
-    const productId = product.id || product._id;
-    const lastMod = product.updated_at || product.updatedAt;
-    
+  // The products endpoint returns one row per color variant. Deduplicate by
+  // productId so each product URL appears only once in the sitemap.
+  const uniqueProducts = new Map<string, Product>();
+  products.forEach((product) => {
+    const productId = product.productId || product.id || product._id;
+    if (productId && !uniqueProducts.has(productId)) {
+      uniqueProducts.set(productId, product);
+    }
+  });
+
+  const productUrls: MetadataRoute.Sitemap = Array.from(uniqueProducts, ([productId, product]) => {
     return {
       url: `${BASE_URL}/products/${productId}`,
-      lastModified: lastMod ? new Date(lastMod) : now,
+      lastModified: toDate(product.updated_at || product.updatedAt || product.created_at),
       changeFrequency: 'weekly' as const,
       priority: 0.8,
     };
   });
+
+  // Collection pages are public, canonical landing pages and their values are
+  // available on the same product-list response.
+  const collectionValues = new Set(
+    products
+      .map((product) => product.collection?.trim())
+      .filter((collection): collection is string => Boolean(collection))
+  );
+  const collectionUrls: MetadataRoute.Sitemap = Array.from(collectionValues, (collection) => ({
+    url: `${BASE_URL}/collection/${encodeURIComponent(collection)}`,
+    changeFrequency: 'weekly' as const,
+    priority: 0.7,
+  }));
 
   // Generate category URLs
-  const categoryUrls: MetadataRoute.Sitemap = categories.map((category) => {
-    const lastMod = category.updated_at || category.updatedAt;
-    
-    return {
-      url: `${BASE_URL}/categories/${category.slug}`,
-      lastModified: lastMod ? new Date(lastMod) : now,
-      changeFrequency: 'weekly' as const,
-      priority: 0.8,
-    };
-  });
+  const categoryUrls: MetadataRoute.Sitemap = categories
+    .filter((category) => category.is_active !== false && Boolean(category.slug))
+    .map((category) => {
+      const lastMod = category.updated_at || category.updatedAt;
+
+      return {
+        url: `${BASE_URL}/categories/${category.slug}`,
+        lastModified: toDate(lastMod),
+        changeFrequency: 'weekly' as const,
+        priority: 0.8,
+      };
+    });
 
   // Generate brand URLs
-  const brandUrls: MetadataRoute.Sitemap = brands.map((brand) => {
-    return {
-      url: `${BASE_URL}/brands/${brand.slug}`,
-      lastModified: brand.updatedAt ? new Date(brand.updatedAt) : now,
-      changeFrequency: 'weekly' as const,
-      priority: 0.7,
-    };
-  });
+  const brandUrls: MetadataRoute.Sitemap = brands
+    .filter((brand) => brand.isActive !== false && Boolean(brand.slug))
+    .map((brand) => {
+      return {
+        url: `${BASE_URL}/brands/${brand.slug}`,
+        lastModified: toDate(brand.updatedAt),
+        changeFrequency: 'weekly' as const,
+        priority: 0.7,
+      };
+    });
 
   // Generate blog post URLs
   const blogUrls: MetadataRoute.Sitemap = blogPosts.map((post) => {
@@ -206,7 +260,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     
     return {
       url: `${BASE_URL}/blog/${post.slug}`,
-      lastModified: lastMod ? new Date(lastMod) : now,
+      lastModified: toDate(lastMod),
       changeFrequency: 'monthly' as const,
       priority: 0.7,
     };
@@ -215,6 +269,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     ...staticPages,
     ...productUrls,
+    ...collectionUrls,
     ...categoryUrls,
     ...brandUrls,
     ...blogUrls,
