@@ -59,4 +59,15 @@ export interface CartRecoverySmsResult {
   skipped: number;
   failed: number;
   errors?: string[];
+  details?: CartRecoverySmsDetail[];
+}
+
+export interface CartRecoverySmsDetail {
+  user_id: string;
+  user_name?: string;
+  status: "skipped" | "failed";
+  reason: string;
+  message: string;
+  existing_discount_percent?: number;
+  requested_discount_percent?: number;
 }

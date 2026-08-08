@@ -33,6 +33,8 @@ type Address struct {
 type User struct {
 	ID           primitive.ObjectID `bson:"_id,omitempty"       json:"id,omitempty"`
 	Name         string             `bson:"name"                json:"name"`
+	FirstName    string             `bson:"first_name,omitempty"  json:"first_name,omitempty"`
+	LastName     string             `bson:"last_name,omitempty"   json:"last_name,omitempty"`
 	Email        string             `bson:"email,omitempty"     json:"email,omitempty"` // Optional
 	PasswordHash string             `bson:"password_hash"       json:"-"`               // Don't include in JSON responses
 	Phone        string             `bson:"phone"               json:"phone"`           // Required, Unique - IR phone number (09xxxxxxxxx)

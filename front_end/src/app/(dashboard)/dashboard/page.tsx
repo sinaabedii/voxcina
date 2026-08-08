@@ -17,6 +17,7 @@ import {
 import Button from "@/components/ui/Button";
 import { useDashboardStore } from "@/store/dashboard-store";
 import RecentOrders from "@/components/dashboard/RecentOrders";
+import ProfileSection from "@/components/dashboard/ProfileSection";
 
 export default function DashboardPage() {
   const { user, getProfile, isLoading: userLoading } = useAuthStore();
@@ -168,6 +169,15 @@ export default function DashboardPage() {
 
       <motion.section
         className="mb-8"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        <ProfileSection />
+      </motion.section>
+
+      <motion.section
+        className="mb-8"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -307,59 +317,6 @@ export default function DashboardPage() {
         </motion.div>
       </motion.section>
 
-      <motion.section
-        className="mb-8"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <motion.div 
-          variants={itemVariants}
-          whileHover={{ y: -5, boxShadow: "0 10px 25px rgba(26, 60, 105, 0.2)" }}
-          transition={{ duration: 0.3 }}
-        >
-          <Card className="bg-gradient-to-r from-voxcina-blue to-voxcina-darkBlue text-white border-0 shadow-md overflow-hidden rounded-2xl">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold mb-2">
-                    از تخفیف‌های ویژه بهره‌مند شوید!
-                  </h3>
-                  <p className="text-white/80 mb-4">
-                    با تکمیل اطلاعات پروفایل خود، از تخفیف‌های اختصاصی استفاده
-                    کنید.
-                  </p>
-                  <Button
-                    className="bg-white text-voxcina-blue hover:bg-voxcina-cream rounded-xl shadow-sm hover:shadow-md transition-all duration-300"
-                    size="sm"
-                  >
-                    تکمیل پروفایل
-                  </Button>
-                </div>
-                <div className="hidden md:block">
-                  <svg
-                    width="100"
-                    height="100"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="opacity-20"
-                  >
-                    <path
-                      d="M21.41 11.58L12.41 2.58C12.05 2.22 11.55 2 11 2H4C2.9 2 2 2.9 2 4V11C2 11.55 2.22 12.05 2.59 12.42L11.59 21.42C11.95 21.78 12.45 22 13 22C13.55 22 14.05 21.78 14.41 21.41L21.41 14.41C21.78 14.05 22 13.55 22 13C22 12.45 21.77 11.94 21.41 11.58ZM13 20.01L4 11V4H11V3.99L20 12.99L13 20.01Z"
-                      fill="currentColor"
-                    />
-                    <path
-                      d="M6.5 8C7.33 8 8 7.33 8 6.5C8 5.67 7.33 5 6.5 5C5.67 5 5 5.67 5 6.5C5 7.33 5.67 8 6.5 8Z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </motion.section>
     </div>
   );
 }

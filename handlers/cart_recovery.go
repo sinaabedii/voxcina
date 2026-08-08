@@ -12,6 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"backEnd/db"
 	"backEnd/models"
@@ -20,27 +21,40 @@ import (
 )
 
 type cartRecoveryResult struct {
-	Sent    int      `json:"sent"`
-	Skipped int      `json:"skipped"`
-	Failed  int      `json:"failed"`
-	Errors  []string `json:"errors,omitempty"`
+	Sent    int                  `json:"sent"`
+	Skipped int                  `json:"skipped"`
+	Failed  int                  `json:"failed"`
+	Errors  []string             `json:"errors,omitempty"`
+	Details []cartRecoveryDetail `json:"details,omitempty"`
+}
+
+type cartRecoveryDetail struct {
+	UserID                   string  `json:"user_id"`
+	UserName                 string  `json:"user_name,omitempty"`
+	Status                   string  `json:"status"` // skipped | failed
+	Reason                   string  `json:"reason"`
+	Message                  string  `json:"message"`
+	ExistingDiscountPercent  float64 `json:"existing_discount_percent,omitempty"`
+	RequestedDiscountPercent float64 `json:"requested_discount_percent,omitempty"`
 }
 
 // SendCartRecoverySMS targets active, non-empty carts — either every one of
 // them, a date range on when the cart was created, or a single specific
 // user — and, for users who don't already hold an unused, unexpired
-// cart-recovery coupon, issues a coupon scoped to the product/color variants
-// currently in their cart (any size qualifies, and it stays valid if at
-// least one of those variants is still in the cart later) and texts them the
-// code.
+// cart-recovery coupon (unless an explicitly higher discount is requested),
+// issues a coupon scoped to the product/color variants currently in their cart
+// (any size qualifies, and it stays valid if at least one of those variants is
+// still in the cart later) and texts them the code. At most two active
+// cart-recovery coupons are allowed per user.
 // POST /api/admin/carts/send-recovery-sms
 func SendCartRecoverySMS(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		DiscountPercent float64 `json:"discount_percent"`
-		ValidDays       int     `json:"valid_days"`
-		UserID          string  `json:"user_id,omitempty"`
-		CreatedFrom     string  `json:"created_from,omitempty"` // "YYYY-MM-DD"
-		CreatedTo       string  `json:"created_to,omitempty"`   // "YYYY-MM-DD"
+		DiscountPercent     float64 `json:"discount_percent"`
+		ValidDays           int     `json:"valid_days"`
+		AllowHigherDiscount bool    `json:"allow_higher_discount,omitempty"`
+		UserID              string  `json:"user_id,omitempty"`
+		CreatedFrom         string  `json:"created_from,omitempty"` // "YYYY-MM-DD"
+		CreatedTo           string  `json:"created_to,omitempty"`   // "YYYY-MM-DD"
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "فرمت درخواست نامعتبر است")
@@ -121,42 +135,76 @@ func SendCartRecoverySMS(w http.ResponseWriter, r *http.Request) {
 	productsColl := db.Database.Collection("products")
 	couponsColl := db.Database.Collection("negotiated_coupons")
 
-	// skip records a non-error reason a cart was left out. When targeting a
-	// single user, the reason is surfaced back so the admin gets a clear
-	// explanation instead of a silent no-op.
-	skip := func(reason string) {
-		result.Skipped++
-		if targetingUser {
-			result.Errors = append(result.Errors, reason)
+	addDetail := func(userID primitive.ObjectID, userName, status, reason, message string, existingPercent float64) {
+		result.Details = append(result.Details, cartRecoveryDetail{
+			UserID:                   userID.Hex(),
+			UserName:                 userName,
+			Status:                   status,
+			Reason:                   reason,
+			Message:                  message,
+			ExistingDiscountPercent:  existingPercent,
+			RequestedDiscountPercent: req.DiscountPercent,
+		})
+		result.Errors = append(result.Errors, message)
+		if status == "skipped" {
+			result.Skipped++
+		} else {
+			result.Failed++
 		}
 	}
 
 	for _, cart := range carts {
 		var user models.User
 		if err := usersColl.FindOne(ctx, bson.M{"_id": cart.UserID}).Decode(&user); err != nil {
-			result.Failed++
-			result.Errors = append(result.Errors, fmt.Sprintf("کاربر %s: یافت نشد", cart.UserID.Hex()))
+			addDetail(cart.UserID, "", "failed", "user_not_found", fmt.Sprintf("کاربر %s یافت نشد", cart.UserID.Hex()), 0)
 			continue
 		}
 		if user.Phone == "" {
-			skip(fmt.Sprintf("کاربر %s شماره موبایل ثبت‌شده ندارد", user.Name))
+			addDetail(cart.UserID, user.Name, "skipped", "no_phone", fmt.Sprintf("کاربر %s شماره موبایل ثبت‌شده ندارد", user.Name), 0)
 			continue
 		}
 
-		existing, _ := couponsColl.CountDocuments(ctx, bson.M{
+		activeRecoveryFilter := bson.M{
 			"user_id":     cart.UserID,
 			"source":      "cart_recovery",
 			"used":        false,
 			"valid_until": bson.M{"$gte": time.Now()},
-		})
-		if existing > 0 {
-			skip(fmt.Sprintf("کاربر %s در حال حاضر کد تخفیف فعال بازگشت به سبد خرید دارد", user.Name))
+		}
+		activeCursor, err := couponsColl.Find(ctx, activeRecoveryFilter, options.Find().SetProjection(bson.M{"value": 1}))
+		if err != nil {
+			addDetail(cart.UserID, user.Name, "failed", "coupon_lookup_failed", fmt.Sprintf("کاربر %s: خطا در بررسی کدهای تخفیف فعال", user.Name), 0)
+			continue
+		}
+		var activeCoupons []struct {
+			Value float64 `bson:"value"`
+		}
+		if err := activeCursor.All(ctx, &activeCoupons); err != nil {
+			addDetail(cart.UserID, user.Name, "failed", "coupon_lookup_failed", fmt.Sprintf("کاربر %s: خطا در پردازش کدهای تخفیف فعال", user.Name), 0)
+			continue
+		}
+
+		highestExistingPercent := 0.0
+		for _, activeCoupon := range activeCoupons {
+			if activeCoupon.Value > highestExistingPercent {
+				highestExistingPercent = activeCoupon.Value
+			}
+		}
+		if len(activeCoupons) > 0 && !req.AllowHigherDiscount {
+			addDetail(cart.UserID, user.Name, "skipped", "active_coupon_exists", fmt.Sprintf("کاربر %s کد تخفیف فعال بازگشت به سبد خرید با تخفیف %.0f%% دارد؛ برای ارسال کد دوم گزینه ارسال با درصد بالاتر را فعال کنید", user.Name, highestExistingPercent), highestExistingPercent)
+			continue
+		}
+		if len(activeCoupons) > 0 && req.DiscountPercent <= highestExistingPercent {
+			addDetail(cart.UserID, user.Name, "skipped", "not_higher", fmt.Sprintf("درصد جدید برای کاربر %s باید بیشتر از %.0f%% باشد", user.Name, highestExistingPercent), highestExistingPercent)
+			continue
+		}
+		if len(activeCoupons) >= 2 {
+			addDetail(cart.UserID, user.Name, "skipped", "maximum_active_coupons", fmt.Sprintf("کاربر %s از قبل دو کد تخفیف فعال بازگشت به سبد خرید دارد", user.Name), highestExistingPercent)
 			continue
 		}
 
 		requiredProducts, cartSnapshot := buildCartRecoverySnapshot(ctx, productsColl, cart.Items)
 		if len(requiredProducts) == 0 {
-			skip(fmt.Sprintf("کاربر %s: محصولات سبد خرید دیگر فعال نیستند", user.Name))
+			addDetail(cart.UserID, user.Name, "skipped", "inactive_products", fmt.Sprintf("کاربر %s: محصولات سبد خرید دیگر فعال نیستند", user.Name), highestExistingPercent)
 			continue
 		}
 
@@ -174,15 +222,13 @@ func SendCartRecoverySMS(w http.ResponseWriter, r *http.Request) {
 			CreatedAt:        time.Now(),
 		}
 		if _, err := couponsColl.InsertOne(ctx, coupon); err != nil {
-			result.Failed++
-			result.Errors = append(result.Errors, fmt.Sprintf("کاربر %s: خطا در ذخیره کوپن", cart.UserID.Hex()))
+			addDetail(cart.UserID, user.Name, "failed", "coupon_save_failed", fmt.Sprintf("کاربر %s: خطا در ذخیره کد تخفیف", user.Name), highestExistingPercent)
 			continue
 		}
 
 		firstName := firstNameOf(user.Name)
 		if err := smsService.SendCartRecoveryCoupon(user.Phone, firstName, int(req.DiscountPercent), req.ValidDays); err != nil {
-			result.Failed++
-			result.Errors = append(result.Errors, fmt.Sprintf("کاربر %s: خطا در ارسال پیامک", cart.UserID.Hex()))
+			addDetail(cart.UserID, user.Name, "failed", "sms_failed", fmt.Sprintf("کاربر %s: خطا در ارسال پیامک", user.Name), highestExistingPercent)
 			couponsColl.DeleteOne(ctx, bson.M{"code": code})
 			continue
 		}

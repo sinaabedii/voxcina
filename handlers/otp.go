@@ -336,6 +336,8 @@ func VerifySignupOTP(w http.ResponseWriter, r *http.Request) {
 	user := models.User{
 		ID:           primitive.NewObjectID(),
 		Name:         otp.FirstName + " " + otp.LastName,
+		FirstName:    otp.FirstName,
+		LastName:     otp.LastName,
 		Phone:        req.Phone,
 		PasswordHash: string(hashedPassword),
 		Addresses:    []models.Address{},
@@ -374,6 +376,8 @@ func VerifySignupOTP(w http.ResponseWriter, r *http.Request) {
 		"message":      "ثبت‌نام با موفقیت انجام شد",
 		"id":           user.ID,
 		"name":         user.Name,
+		"first_name":   user.FirstName,
+		"last_name":    user.LastName,
 		"phone":        user.Phone,
 		"email":        user.Email,
 		"role":         user.Role,
@@ -382,6 +386,7 @@ func VerifySignupOTP(w http.ResponseWriter, r *http.Request) {
 		"created_at":   user.CreatedAt,
 		"updated_at":   user.UpdatedAt,
 		"last_login":   user.LastLogin,
+		"birthday":     user.Birthday,
 	})
 }
 

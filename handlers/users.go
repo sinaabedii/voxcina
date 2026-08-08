@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -324,8 +325,11 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload struct {
-		Name  *string `json:"name,omitempty"`  // Pointer to distinguish between empty string and not provided
-		Email *string `json:"email,omitempty"` // Pointer for optional update
+		Name      *string `json:"name,omitempty"` // Kept for older clients
+		FirstName *string `json:"first_name,omitempty"`
+		LastName  *string `json:"last_name,omitempty"`
+		Email     *string `json:"email,omitempty"`
+		Birthday  *string `json:"birthday,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -337,50 +341,79 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// --- Basic Validation ---
-	if payload.Name != nil && *payload.Name == "" {
-		utils.ErrorResponse(
-			w,
-			http.StatusBadRequest,
-			"Name cannot be empty if provided for update",
-		)
-		return
-	}
-
-	if payload.Name == nil && payload.Email == nil {
-		utils.ErrorResponse(
-			w,
-			http.StatusBadRequest,
-			"No fields to update. Provide name and/or email.",
-		)
-		return
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	userCollection := db.Database.Collection("users")
 
-	// --- Prepare update document for $set operation ---
-	updateFields := bson.M{}
-	if payload.Name != nil {
-		updateFields["name"] = *payload.Name
-	}
-	if payload.Email != nil {
-		updateFields["email"] = *payload.Email
+	var currentUser models.User
+	if err := userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&currentUser); err != nil {
+		if err == mongo.ErrNoDocuments {
+			utils.ErrorResponse(w, http.StatusNotFound, "User profile not found")
+		} else {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching user profile: "+err.Error())
+		}
+		return
 	}
 
-	if len(updateFields) == 0 { // Should be caught by earlier check, but as safeguard
-		// If somehow we reach here, just return current profile without DB write
-		var currentUser models.User
-		if errDB := userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&currentUser); errDB != nil {
-			utils.ErrorResponse(
-				w,
-				http.StatusNotFound,
-				"User not found",
-			) // Or internal error
+	// --- Prepare update document for $set operation ---
+	updateFields := bson.M{}
+	if payload.FirstName != nil || payload.LastName != nil {
+		firstName := currentUser.FirstName
+		lastName := currentUser.LastName
+		if firstName == "" || lastName == "" {
+			parts := strings.Fields(currentUser.Name)
+			if firstName == "" && len(parts) > 0 {
+				firstName = parts[0]
+			}
+			if lastName == "" && len(parts) > 1 {
+				lastName = strings.Join(parts[1:], " ")
+			}
+		}
+		if payload.FirstName != nil {
+			firstName = strings.TrimSpace(*payload.FirstName)
+		}
+		if payload.LastName != nil {
+			lastName = strings.TrimSpace(*payload.LastName)
+		}
+		if firstName == "" || lastName == "" {
+			utils.ErrorResponse(w, http.StatusBadRequest, "نام و نام خانوادگی نمی‌توانند خالی باشند")
 			return
 		}
-		utils.JSONResponse(w, http.StatusOK, currentUser)
+		updateFields["first_name"] = firstName
+		updateFields["last_name"] = lastName
+		updateFields["name"] = firstName + " " + lastName
+	} else if payload.Name != nil {
+		name := strings.TrimSpace(*payload.Name)
+		if name == "" {
+			utils.ErrorResponse(w, http.StatusBadRequest, "نام نمی‌تواند خالی باشد")
+			return
+		}
+		updateFields["name"] = name
+	}
+	if payload.Email != nil {
+		email := strings.ToLower(strings.TrimSpace(*payload.Email))
+		if email != "" && !emailRegex.MatchString(email) {
+			utils.ErrorResponse(w, http.StatusBadRequest, "فرمت ایمیل نامعتبر است")
+			return
+		}
+		updateFields["email"] = email
+	}
+	if payload.Birthday != nil && strings.TrimSpace(*payload.Birthday) != "" {
+		if currentUser.Birthday != nil {
+			utils.ErrorResponse(w, http.StatusBadRequest, "تاریخ تولد قابل تغییر نیست")
+			return
+		}
+		birthday, err := parseJalaliBirthday(*payload.Birthday)
+		if err != nil {
+			utils.ErrorResponse(w, http.StatusBadRequest, "تاریخ تولد نامعتبر است")
+			return
+		}
+		updateFields["birthday"] = birthday
+	}
+
+	if len(updateFields) == 0 {
+		// If somehow we reach here, just return current profile without DB write
+		utils.ErrorResponse(w, http.StatusBadRequest, "فیلدی برای به‌روزرسانی ارسال نشده است")
 		return
 	}
 
@@ -416,6 +449,29 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSONResponse(w, http.StatusOK, updatedUser)
+}
+
+func parseJalaliBirthday(value string) (time.Time, error) {
+	value = strings.ReplaceAll(convertPersianToEnglishDigits(strings.TrimSpace(value)), "/", "-")
+	parts := strings.Split(value, "-")
+	if len(parts) != 3 {
+		return time.Time{}, fmt.Errorf("invalid birthday format")
+	}
+
+	year, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return time.Time{}, err
+	}
+	month, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return time.Time{}, err
+	}
+	day, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return utils.JalaliToGregorian(year, month, day)
 }
 
 // ChangePassword handles PUT /api/users/password

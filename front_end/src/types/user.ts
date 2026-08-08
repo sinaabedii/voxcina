@@ -3,6 +3,8 @@ import { Review } from "@/types/product";
 export interface User {
   id: string;
   name: string;
+  first_name?: string;
+  last_name?: string;
   email?: string; // Optional
   avatar?: string;
   phone: string; // Required - IR phone number (09xxxxxxxxx)

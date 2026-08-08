@@ -7,20 +7,19 @@ import Input from "@/components/ui/input";
 import { useAuthStore } from "@/store/auth-store";
 import {
   User,
-  Mail,
   Lock,
   Eye,
   EyeOff,
   ShieldCheck,
-  Smartphone,
   LogOut,
   AlertCircle,
   CheckCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import ProfileSection from "@/components/dashboard/ProfileSection";
 
 export default function SettingsPage() {
-  const { user, updateUser, logout } = useAuthStore();
+  const { logout, getProfile } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("profile");
@@ -28,55 +27,23 @@ export default function SettingsPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
-    phone: user?.phone || "",
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
 
   useEffect(() => {
-    if (user) {
-      setFormData((prev) => ({
-        ...prev,
-        name: user.name || "",
-        email: user.email || "",
-        phone: user.phone || "",
-      }));
-    }
+    getProfile().catch(() => undefined);
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [user]);
+  }, [getProfile]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-  };
-
-  const handleProfileSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSuccessMessage(null);
-    setErrorMessage(null);
-
-    try {
-      await updateUser({
-        name: formData.name,
-        email: formData.email,
-      });
-      setSuccessMessage("اطلاعات شخصی با موفقیت به‌روزرسانی شد");
-
-      setTimeout(() => {
-        setSuccessMessage(null);
-      }, 5000);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "خطا در به‌روزرسانی اطلاعات. لطفا دوباره تلاش کنید."
-      );
-    }
   };
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
@@ -180,88 +147,7 @@ export default function SettingsPage() {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="border border-secondary-200 dark:border-voxcina-darkBlue/30 shadow-soft rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-              <CardHeader className="bg-gradient-to-r from-secondary-100 to-secondary-200/70 dark:from-voxcina-blue/15 dark:to-voxcina-blue/5 pb-4">
-                <CardTitle className="text-lg font-bold text-voxcina-blue dark:text-secondary-200 flex items-center">
-                  <span className="relative">
-                    <span className="absolute -right-2 -top-2 w-8 h-8 bg-secondary-200 dark:bg-voxcina-blue/20 rounded-full -z-10"></span>
-                    <User className="w-5 h-5 ml-2" />
-                  </span>
-                  اطلاعات شخصی
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <form onSubmit={handleProfileSubmit}>
-                  <div className="space-y-5">
-                    <div className="flex justify-center mb-6">
-                      <div className="relative">
-                        <div className="w-24 h-24 rounded-full bg-secondary-100 dark:bg-voxcina-blue/20 flex items-center justify-center overflow-hidden border-4 border-white dark:border-voxcina-darkBlue/50 shadow-soft">
-                          {user?.avatar ? (
-                            <img
-                              src={user.avatar}
-                              alt={user.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-3xl font-bold text-voxcina-blue dark:text-secondary-200">
-                              {user?.name?.charAt(0) || "U"}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <Input
-                      label="نام و نام خانوادگی"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      leftElement={
-                        <User className="h-4 w-4 text-voxcina-blue/60 dark:text-secondary-300" />
-                      }
-                      className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
-                    />
-
-                    <Input
-                      label="ایمیل"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      leftElement={
-                        <Mail className="h-4 w-4 text-voxcina-blue/60 dark:text-secondary-300" />
-                      }
-                      className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
-                      placeholder="example@email.com"
-                    />
-
-                    <Input
-                      label="شماره موبایل"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      disabled
-                      leftElement={
-                        <Smartphone className="h-4 w-4 text-voxcina-blue/60 dark:text-secondary-300" />
-                      }
-                      helperText="شماره موبایل قابل تغییر نیست"
-                      className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
-                    />
-
-                    <div className="pt-4 flex justify-end">
-                      <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                        <Button
-                          type="submit"
-                          variant="primary"
-                          className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-soft hover:shadow-medium transition-all duration-300"
-                        >
-                          ذخیره تغییرات
-                        </Button>
-                      </motion.div>
-                    </div>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
+            <ProfileSection />
           </motion.div>
         );
         case "security":

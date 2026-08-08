@@ -20,6 +20,9 @@ import {
   Loader2,
   X,
   MessageSquareText,
+  AlertCircle,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
@@ -27,7 +30,19 @@ import Input from "@/components/ui/input";
 import { toast } from "react-toastify";
 import { formatPrice } from "@/lib/utils";
 import { useCartAdminStore } from "@/store/cart-admin-store";
-import { AdminCartFilters, CartRecoverySmsResult } from "@/types/cart-admin";
+import { AdminCartFilters, CartRecoverySmsDetail, CartRecoverySmsResult } from "@/types/cart-admin";
+
+const recoveryReasonLabels: Record<string, string> = {
+  active_coupon_exists: "کد فعال قبلی",
+  not_higher: "درصد جدید بالاتر نیست",
+  maximum_active_coupons: "حداکثر کد فعال",
+  no_phone: "شماره موبایل ندارد",
+  inactive_products: "محصول فعال ندارد",
+  user_not_found: "کاربر پیدا نشد",
+  coupon_lookup_failed: "خطا در بررسی کدها",
+  coupon_save_failed: "خطا در ذخیره کد",
+  sms_failed: "خطا در ارسال پیامک",
+};
 
 export default function AdminCartsPage() {
   const router = useRouter();
@@ -40,7 +55,7 @@ export default function AdminCartsPage() {
   const [sortBy, setSortBy] = useState(searchParams.get("sort_by") || "newest");
   const [onlyWithItems, setOnlyWithItems] = useState(searchParams.get("only_with_items") === "true");
 
-  const { carts, stats, pagination, isLoading, fetchAdminCarts, deleteCart, sendCartRecoverySms, isSendingRecoverySms } =
+  const { carts, stats, pagination, isLoading, error: cartError, fetchAdminCarts, deleteCart, sendCartRecoverySms, isSendingRecoverySms } =
     useCartAdminStore();
 
   const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false);
@@ -50,6 +65,7 @@ export default function AdminCartsPage() {
   const [recoveryTargetUser, setRecoveryTargetUser] = useState<{ id: string; name: string; phone?: string } | null>(null);
   const [recoveryCreatedFrom, setRecoveryCreatedFrom] = useState("");
   const [recoveryCreatedTo, setRecoveryCreatedTo] = useState("");
+  const [allowHigherDiscount, setAllowHigherDiscount] = useState(false);
 
   const buildFilters = useCallback((): AdminCartFilters => {
     const filters: AdminCartFilters = {};
@@ -102,6 +118,7 @@ export default function AdminCartsPage() {
   const openRecoveryModal = (targetUser?: { id: string; name: string; phone?: string }) => {
     setRecoveryResult(null);
     setRecoveryTargetUser(targetUser ?? null);
+    setAllowHigherDiscount(false);
     if (!targetUser) {
       setRecoveryCreatedFrom("");
       setRecoveryCreatedTo("");
@@ -124,10 +141,18 @@ export default function AdminCartsPage() {
       userId: recoveryTargetUser?.id,
       createdFrom: recoveryTargetUser ? undefined : recoveryCreatedFrom || undefined,
       createdTo: recoveryTargetUser ? undefined : recoveryCreatedTo || undefined,
-    });
+    }, allowHigherDiscount);
     if (result) {
       setRecoveryResult(result);
-      toast.success(`پیامک برای ${result.sent.toLocaleString("fa-IR")} کاربر ارسال شد`);
+      if (result.sent === 0 && result.failed > 0) {
+        toast.error("هیچ پیامکی ارسال نشد؛ جزئیات خطا را بررسی کنید");
+      } else if (result.sent === 0) {
+        toast.warn("هیچ پیامکی ارسال نشد؛ کاربران ردشده را بررسی کنید");
+      } else if (result.skipped > 0 || result.failed > 0) {
+        toast.warn(`برای ${result.sent.toLocaleString("fa-IR")} کاربر ارسال شد؛ بخشی از کاربران رد یا ناموفق بودند`);
+      } else {
+        toast.success(`پیامک برای ${result.sent.toLocaleString("fa-IR")} کاربر ارسال شد`);
+      }
     }
   };
 
@@ -340,9 +365,26 @@ export default function AdminCartsPage() {
         </motion.div>
       )}
 
+      {cartError && (
+        <div className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800/40 dark:bg-red-900/10 dark:text-red-300">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 flex-shrink-0" />
+            <span>{cartError}</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchAdminCarts(currentPage, 10, buildFilters() as unknown as Record<string, any>)}
+            className="rounded-lg border-red-300 text-red-700 dark:border-red-700 dark:text-red-300"
+          >
+            تلاش مجدد
+          </Button>
+        </div>
+      )}
+
       {/* Carts List */}
       <motion.div variants={containerVariants} initial="hidden" animate="visible">
-        {carts.length > 0 ? (
+        {cartError ? null : carts.length > 0 ? (
           <div className="space-y-4">
             {carts.map((cart) => (
               <motion.div key={cart.id} variants={itemVariants} className="transition-all duration-300">
@@ -586,9 +628,9 @@ export default function AdminCartsPage() {
           </p>
         ) : (
           <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4 leading-relaxed">
-            برای همه کاربرانی که سبد خرید فعال و غیرخالی دارند (و کد تخفیف فعال بازگشت به سبد خرید ندارند)، یک
-            کد تخفیف اختصاصی برای همان رنگ محصولات موجود در سبدشان ساخته و پیامک می‌شود. با تعیین بازه تاریخ
-            ایجاد سبد می‌توانید ارسال را محدودتر کنید.
+            برای همه کاربرانی که سبد خرید فعال و غیرخالی دارند، یک کد تخفیف اختصاصی برای همان رنگ محصولات موجود
+            در سبدشان ساخته و پیامک می‌شود. کاربران دارای کد فعال به‌صورت پیش‌فرض رد می‌شوند. با فعال کردن گزینه
+            ارسال درصد بالاتر، حداکثر یک کد دوم با درصد بیشتر برای آن‌ها ارسال می‌شود.
           </p>
         )}
 
@@ -628,6 +670,21 @@ export default function AdminCartsPage() {
               className="rounded-xl"
             />
           </div>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-sm text-amber-900 dark:border-amber-800/40 dark:bg-amber-900/10 dark:text-amber-200">
+            <input
+              type="checkbox"
+              checked={allowHigherDiscount}
+              onChange={(event) => setAllowHigherDiscount(event.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-amber-300 text-voxcina-blue focus:ring-voxcina-blue/40"
+            />
+            <span>
+              <span className="block font-medium">ارسال کد دوم با درصد بالاتر</span>
+              <span className="mt-1 block text-xs opacity-80">
+                فقط برای کاربرانی که کد فعال دارند و درصد جدید از کد قبلی بیشتر است؛ حداکثر دو کد فعال نگه داشته می‌شود.
+              </span>
+            </span>
+          </label>
           <div>
             <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1.5">
               مدت اعتبار (روز)
@@ -665,25 +722,45 @@ export default function AdminCartsPage() {
           )}
 
           {recoveryResult && (
-            <div className="bg-secondary-50 dark:bg-voxcina-blue/10 rounded-xl p-4 text-sm space-y-1">
-              <p className="text-green-600 dark:text-green-400">
-                ارسال شد: {recoveryResult.sent.toLocaleString("fa-IR")}
-              </p>
-              <p className="text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                رد شد (کد فعال قبلی یا بدون شماره): {recoveryResult.skipped.toLocaleString("fa-IR")}
-              </p>
-              {recoveryResult.failed > 0 && (
-                <p className="text-red-500 dark:text-red-400">
+            <div className="space-y-3 rounded-xl bg-secondary-50 p-4 text-sm dark:bg-voxcina-blue/10">
+              <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="rounded-lg bg-green-100/70 p-2 text-green-700 dark:bg-green-900/20 dark:text-green-400">
+                  <CheckCircle2 className="mx-auto mb-1 h-4 w-4" />
+                  ارسال‌شده: {recoveryResult.sent.toLocaleString("fa-IR")}
+                </div>
+                <div className="rounded-lg bg-amber-100/70 p-2 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+                  <AlertTriangle className="mx-auto mb-1 h-4 w-4" />
+                  ردشده: {recoveryResult.skipped.toLocaleString("fa-IR")}
+                </div>
+                <div className="rounded-lg bg-red-100/70 p-2 text-red-700 dark:bg-red-900/20 dark:text-red-400">
+                  <AlertCircle className="mx-auto mb-1 h-4 w-4" />
                   ناموفق: {recoveryResult.failed.toLocaleString("fa-IR")}
-                </p>
-              )}
-              {recoveryResult.errors && recoveryResult.errors.length > 0 && (
-                <ul className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 list-disc pr-4 space-y-0.5 max-h-32 overflow-y-auto">
-                  {recoveryResult.errors.map((msg, i) => (
-                    <li key={i}>{msg}</li>
+                </div>
+              </div>
+              {recoveryResult.details && recoveryResult.details.length > 0 ? (
+                <div className="max-h-48 space-y-2 overflow-y-auto">
+                  {recoveryResult.details.map((detail: CartRecoverySmsDetail, index) => (
+                    <div
+                      key={`${detail.user_id}-${detail.reason}-${index}`}
+                      className={`rounded-lg border p-2 text-xs ${
+                        detail.status === "failed"
+                          ? "border-red-200 bg-red-50 text-red-700 dark:border-red-800/40 dark:bg-red-900/10 dark:text-red-300"
+                          : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/10 dark:text-amber-300"
+                      }`}
+                    >
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <span className="font-medium">{detail.user_name || detail.user_id}</span>
+                        <span>{recoveryReasonLabels[detail.reason] || detail.reason}</span>
+                      </div>
+                      <p>{detail.message}</p>
+                    </div>
                   ))}
-                </ul>
-              )}
+                </div>
+              ) : recoveryResult.errors && recoveryResult.errors.length > 0 ? (
+                <div className="max-h-32 space-y-1 overflow-y-auto text-xs text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                  {recoveryResult.errors.map((message, index) => <p key={`${message}-${index}`}>{message}</p>)}
+                </div>
+              ) : null}
             </div>
           )}
 

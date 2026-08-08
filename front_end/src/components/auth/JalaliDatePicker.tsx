@@ -9,6 +9,8 @@ interface JalaliDatePickerProps {
   error?: string;
   label?: string;
   id?: string;
+  disabled?: boolean;
+  helperText?: string;
 }
 
 const PERSIAN_MONTHS = [
@@ -70,6 +72,19 @@ function gregorianToJalali(gy: number, gm: number, gd: number): [number, number,
   return [jy, jm, jd];
 }
 
+export function gregorianToJalaliString(value?: string): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const [year, month, day] = gregorianToJalali(
+    date.getUTCFullYear(),
+    date.getUTCMonth() + 1,
+    date.getUTCDate(),
+  );
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 // Jalali -> Gregorian, used only to derive the weekday of a given Jalali day.
 function jalaliToGregorian(jy: number, jm: number, jd: number): [number, number, number] {
   jy += 1595;
@@ -123,6 +138,8 @@ export default function JalaliDatePicker({
   error,
   label = "تاریخ تولد",
   id = "birthday",
+  disabled = false,
+  helperText,
 }: JalaliDatePickerProps) {
   const parsed = useMemo(() => {
     if (!value) return { year: 0, month: 0, day: 0 };
@@ -143,6 +160,7 @@ export default function JalaliDatePicker({
   const yearListRef = useRef<HTMLDivElement>(null);
 
   const open = () => {
+    if (disabled) return;
     setDraft(parsed);
     setViewYear(parsed.year || TODAY.year);
     setViewMonth(parsed.month || TODAY.month);
@@ -246,7 +264,10 @@ export default function JalaliDatePicker({
         type="button"
         id={id}
         onClick={open}
+        disabled={disabled}
         className={`w-full flex items-center justify-between gap-2 input text-sm py-2.5 bg-white dark:bg-voxcina-blue/10 text-right ${
+          disabled ? "cursor-not-allowed opacity-70" : ""
+        } ${
           error ? "ring-2 ring-red-300" : ""
         }`}
       >
@@ -257,6 +278,7 @@ export default function JalaliDatePicker({
       </button>
 
       {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+      {helperText && !error && <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">{helperText}</p>}
 
       {isOpen && (
         <div

@@ -244,12 +244,15 @@ export default function SignUpPage() {
       setUser({
         id: data.id,
         name: data.name,
+        first_name: data.first_name,
+        last_name: data.last_name,
         phone: data.phone,
         email: data.email,
         role: data.role,
         createdAt: data.created_at,
         updatedAt: data.updated_at,
         lastLogin: data.last_login,
+        birthday: data.birthday,
       });
       setIsAuthenticated(true);
 

@@ -246,11 +246,14 @@ export const useAuthStore = create<AuthStore>()(
             const user: User = {
               id: data.id || data._id,
               name: data.name,
+              first_name: data.first_name,
+              last_name: data.last_name,
               email: data.email,
               phone: data.phone,
               role: data.role as "user" | "admin" | "seller" | "customer",
               createdAt: data.createdAt || data.created_at,
-              updatedAt: data.updatedAt || data.updated_at
+              updatedAt: data.updatedAt || data.updated_at,
+              birthday: data.birthday,
             };
             
             let adminToken: string | null = null;
@@ -369,11 +372,14 @@ export const useAuthStore = create<AuthStore>()(
               const user: User = {
                 id: userData.id || userData._id,
                 name: userData.name,
+                first_name: userData.first_name,
+                last_name: userData.last_name,
                 email: userData.email,
                 phone: userData.phone,
                 role: userData.role as "user" | "admin" | "seller" | "customer",
                 createdAt: userData.createdAt || userData.created_at,
-                updatedAt: userData.updatedAt || userData.updated_at
+                updatedAt: userData.updatedAt || userData.updated_at,
+                birthday: userData.birthday,
               };
 
               set({

@@ -31,7 +31,8 @@ interface CartAdminActions {
   sendCartRecoverySms: (
     discountPercent: number,
     validDays: number,
-    target?: CartRecoverySmsTarget
+    target?: CartRecoverySmsTarget,
+    allowHigherDiscount?: boolean,
   ) => Promise<CartRecoverySmsResult | null>;
 }
 
@@ -62,7 +63,7 @@ export const useCartAdminStore = create<CartAdminState & CartAdminActions>()((se
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: "Failed to fetch carts" }));
-        throw new Error(errorData.message || "Failed to fetch carts");
+        throw new Error(errorData.error || errorData.message || "Failed to fetch carts");
       }
 
       const data = await response.json();
@@ -98,7 +99,7 @@ export const useCartAdminStore = create<CartAdminState & CartAdminActions>()((se
       });
       if (!response.ok) {
         const errData = await response.json().catch(() => ({ message: "Failed to delete cart" }));
-        throw new Error(errData.message || "Failed to delete cart");
+        throw new Error(errData.error || errData.message || "Failed to delete cart");
       }
       set((state) => ({
         carts: state.carts.filter((c) => c.id !== cartId),
@@ -110,7 +111,7 @@ export const useCartAdminStore = create<CartAdminState & CartAdminActions>()((se
     }
   },
 
-  sendCartRecoverySms: async (discountPercent: number, validDays: number, target) => {
+  sendCartRecoverySms: async (discountPercent: number, validDays: number, target, allowHigherDiscount = false) => {
     const { isAuthenticated } = useAuthStore.getState();
     if (!isAuthenticated) {
       toast.error("User not authenticated");
@@ -127,6 +128,7 @@ export const useCartAdminStore = create<CartAdminState & CartAdminActions>()((se
         body: JSON.stringify({
           discount_percent: discountPercent,
           valid_days: validDays,
+          allow_higher_discount: allowHigherDiscount,
           user_id: target?.userId || undefined,
           created_from: target?.createdFrom || undefined,
           created_to: target?.createdTo || undefined,
@@ -134,7 +136,7 @@ export const useCartAdminStore = create<CartAdminState & CartAdminActions>()((se
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(data.message || "خطا در ارسال پیامک");
+        throw new Error(data.error || data.message || "خطا در ارسال پیامک");
       }
       set({ isSendingRecoverySms: false });
       return data as CartRecoverySmsResult;
