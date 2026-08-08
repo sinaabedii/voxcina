@@ -22,10 +22,12 @@ ENV NODE_ENV=production \
     NEXT_PUBLIC_NESHAN_API_KEY=${NEXT_PUBLIC_NESHAN_API_KEY} \
     NEXT_PUBLIC_GA_ID=${NEXT_PUBLIC_GA_ID}
 
-# 1️⃣ install deps first for better Docker cache
+# 1️⃣ install deps first for better Docker cache. Use the lockfile so the
+# image build is deterministic and avoid npm install's unreliable resolver
+# behavior on the VPS's proxied Alpine environment.
 COPY package*.json ./
 # Temporarily unset NODE_ENV to install devDependencies
-RUN NODE_ENV= npm install
+RUN NODE_ENV=development npm ci --include=dev --no-audit --no-fund
 # Restore production environment
 ENV NODE_ENV=production
 
@@ -53,4 +55,4 @@ COPY --from=builder /app/postcss.config.js   ./
 RUN mkdir -p ./public/uploads/products/main ./public/uploads/categories
 
 EXPOSE 3000
-CMD ["npm", "run", "start"] 
+CMD ["npm", "run", "start"]
