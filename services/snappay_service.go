@@ -103,6 +103,18 @@ type snappPayEnvelope[T any] struct {
 	ErrorData  *snappPayError `json:"errorData,omitempty"`
 }
 
+func newSnappPayHTTPError(status int, body []byte) error {
+	var errorEnvelope snappPayEnvelope[json.RawMessage]
+	if json.Unmarshal(body, &errorEnvelope) == nil && errorEnvelope.ErrorData != nil {
+		return &SnappPayAPIError{
+			HTTPStatus: status,
+			Code:       errorEnvelope.ErrorData.ErrorCode,
+			Message:    errorEnvelope.ErrorData.Message,
+		}
+	}
+	return &SnappPayAPIError{HTTPStatus: status, Message: string(body)}
+}
+
 func (s *SnappPayService) getToken(ctx context.Context) (string, error) {
 	if !s.Configured() {
 		return "", errors.New("snappay is not configured")
@@ -157,7 +169,7 @@ func (s *SnappPayService) fetchToken(ctx context.Context) (string, time.Time, er
 		return "", time.Time{}, fmt.Errorf("read snappay token response: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", time.Time{}, fmt.Errorf("snappay token returned HTTP %d: %s", resp.StatusCode, string(body))
+		return "", time.Time{}, newSnappPayHTTPError(resp.StatusCode, body)
 	}
 	var tokenResp snappPayTokenResponse
 	if err := json.Unmarshal(body, &tokenResp); err != nil {
@@ -197,15 +209,7 @@ func (s *SnappPayService) doJSON(ctx context.Context, method, path string, paylo
 		return fmt.Errorf("read snappay API response: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		var errorEnvelope snappPayEnvelope[json.RawMessage]
-		if json.Unmarshal(responseBody, &errorEnvelope) == nil && errorEnvelope.ErrorData != nil {
-			return &SnappPayAPIError{
-				HTTPStatus: resp.StatusCode,
-				Code:       errorEnvelope.ErrorData.ErrorCode,
-				Message:    errorEnvelope.ErrorData.Message,
-			}
-		}
-		return &SnappPayAPIError{HTTPStatus: resp.StatusCode, Message: string(responseBody)}
+		return newSnappPayHTTPError(resp.StatusCode, responseBody)
 	}
 	if err := json.Unmarshal(responseBody, target); err != nil {
 		return fmt.Errorf("parse snappay API response: %w", err)
@@ -246,7 +250,7 @@ func (s *SnappPayService) CheckEligibility(ctx context.Context, amount int64, pa
 		return nil, fmt.Errorf("read snappay eligibility response: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("snappay eligibility returned HTTP %d: %s", resp.StatusCode, string(body))
+		return nil, newSnappPayHTTPError(resp.StatusCode, body)
 	}
 	var envelope snappPayEnvelope[snappPayEligibilityResponse]
 	if err := json.Unmarshal(body, &envelope); err != nil {
@@ -343,7 +347,7 @@ func (s *SnappPayService) InquiryPayment(ctx context.Context, req *InquiryReques
 		return nil, fmt.Errorf("read snappay status response: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("snappay status returned HTTP %d: %s", resp.StatusCode, string(body))
+		return nil, newSnappPayHTTPError(resp.StatusCode, body)
 	}
 	var envelope snappPayEnvelope[snappPayStatusResponse]
 	if err := json.Unmarshal(body, &envelope); err != nil {
