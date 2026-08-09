@@ -49,6 +49,10 @@ type SnappPayService struct {
 
 func NewSnappPayService() *SnappPayService {
 	baseURL := strings.TrimRight(os.Getenv("SNAPPAY_BASE_URL"), "/")
+	baseHost := ""
+	if parsedURL, err := url.Parse(baseURL); err == nil {
+		baseHost = parsedURL.Hostname()
+	}
 	return &SnappPayService{
 		clientID:     os.Getenv("SNAPPAY_CLIENT_ID"),
 		clientSecret: os.Getenv("SNAPPAY_CLIENT_SECRET"),
@@ -56,7 +60,7 @@ func NewSnappPayService() *SnappPayService {
 		password:     os.Getenv("SNAPPAY_PASSWORD"),
 		venture:      os.Getenv("SNAPPAY_VENTURE"),
 		baseURL:      baseURL,
-		httpClient:   newDirectPaymentHTTPClient(30 * time.Second),
+		httpClient:   newDirectPaymentHTTPClientForHost(30*time.Second, baseHost, os.Getenv("SNAPPAY_RESOLVED_IP")),
 	}
 }
 
