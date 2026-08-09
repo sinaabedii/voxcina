@@ -1488,7 +1488,7 @@ export default function TryOnRoomPage() {
                                     type="button"
                                     onClick={handleApplyCoupon}
                                     disabled={couponApplying}
-                                    className="text-[10px] h-6 px-2 rounded-md bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 text-white shadow-inset-button disabled:opacity-60"
+                                    className="h-7 min-w-[4.25rem] flex-shrink-0 whitespace-nowrap rounded-md bg-emerald-600 px-2.5 text-[11px] leading-none text-white shadow-inset-button hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 disabled:opacity-60"
                                   >
                                     {couponApplying ? "..." : "اعمال کد"}
                                   </button>

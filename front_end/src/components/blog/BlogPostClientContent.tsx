@@ -4,7 +4,6 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import type { BlogPost } from "@/types/blog";
 import BlogHero from "@/components/blog/BlogHero";
-import ReadingProgressBar from "@/components/blog/ReadingProgressBar";
 import ArticleTOC from "@/components/blog/ArticleTOC";
 import BlogBlockRenderer from "@/components/blog/BlogBlockRenderer";
 import RelatedPosts from "@/components/blog/RelatedPosts";
@@ -19,8 +18,8 @@ interface BlogPostClientContentProps {
 /**
  * Blog Post Detail Page content.
  *
- * Composes the GSAP-driven hero, reading progress bar, scroll-spy table of
- * contents and the animated block renderer around the post's dynamic,
+ * Composes the GSAP-driven hero, scroll-spy table of contents and the
+ * animated block renderer around the post's dynamic,
  * block-based content. No dangerouslySetInnerHTML — all content still flows
  * through typed block components.
  */
@@ -34,7 +33,6 @@ export default function BlogPostClientContent({ post, relatedPosts, categories }
   return (
     <>
       <BlogHero post={post} />
-      <ReadingProgressBar articleRef={articleRef} />
 
       <section className="py-6 md:py-8 lg:py-12">
         <div className="container px-4 sm:px-6 md:px-8">
