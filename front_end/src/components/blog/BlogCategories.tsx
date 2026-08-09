@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { BlogCategory } from "@/types/blog";
+import type { BlogCategory } from "@/types/blog";
 
 interface BlogCategoriesProps {
   selectedCategory: string | null;
   onSelectCategory: (category: string | null) => void;
+  initialCategories?: BlogCategory[];
 }
 
 const ALL_ITEM: BlogCategory = {
@@ -22,11 +23,14 @@ const ALL_ITEM: BlogCategory = {
 export default function BlogCategories({
   selectedCategory,
   onSelectCategory,
+  initialCategories,
 }: BlogCategoriesProps) {
-  const [categories, setCategories] = useState<BlogCategory[]>([]);
+  const [categories, setCategories] = useState<BlogCategory[]>(initialCategories || []);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (initialCategories) return;
+
     const fetchCategories = async () => {
       try {
         const res = await fetch("/api/blog/categories");
@@ -39,7 +43,7 @@ export default function BlogCategories({
       }
     };
     fetchCategories();
-  }, []);
+  }, [initialCategories]);
 
   const allCategories = [ALL_ITEM, ...categories];
 

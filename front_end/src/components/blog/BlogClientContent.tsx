@@ -6,7 +6,7 @@ import BlogCard from './BlogCard';
 import BlogCategories from './BlogCategories';
 import BlogSearch from './BlogSearch';
 import BlogPagination from './BlogPagination';
-import { BlogPost } from '@/types/blog';
+import type { BlogCategory, BlogPost } from '@/types/blog';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 
 interface BlogClientContentProps {
@@ -18,6 +18,8 @@ interface BlogClientContentProps {
   totalPages?: number;
   /** Total posts count */
   total?: number;
+  /** Categories fetched on the server for the initial HTML */
+  initialCategories?: BlogCategory[];
 }
 
 /**
@@ -31,6 +33,7 @@ export default function BlogClientContent({
   currentPage = 1,
   totalPages = 1,
   total = 0,
+  initialCategories,
 }: BlogClientContentProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -99,6 +102,7 @@ export default function BlogClientContent({
         <BlogCategories
           selectedCategory={selectedCategory}
           onSelectCategory={handleCategorySelect}
+          initialCategories={initialCategories}
         />
       </div>
 

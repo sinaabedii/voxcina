@@ -52,6 +52,7 @@ interface ArticleSchemaType {
   };
   datePublished: string;
   dateModified: string;
+  inLanguage: string;
   mainEntityOfPage: {
     '@type': string;
     '@id': string;
@@ -109,7 +110,7 @@ const ArticleSchema: React.FC<ArticleSchemaProps> = ({
 
   const articleSchema: ArticleSchemaType = {
     '@context': 'https://schema.org',
-    '@type': 'Article',
+    '@type': 'BlogPosting',
     headline: title,
     description: description,
     image: absoluteImageUrl,
@@ -128,6 +129,7 @@ const ArticleSchema: React.FC<ArticleSchemaProps> = ({
     },
     datePublished: publishedAt,
     dateModified: modifiedAt || publishedAt,
+    inLanguage: 'fa-IR',
     mainEntityOfPage: {
       '@type': 'WebPage',
       '@id': `https://voxcina.com/blog/${slug}`,

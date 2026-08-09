@@ -1,11 +1,11 @@
 import { notFound } from 'next/navigation';
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import BlogPostClientContent from '@/components/blog/BlogPostClientContent';
 import ArticleSchema from '@/components/SEO/ArticleSchema';
 import BreadcrumbSchema from '@/components/SEO/BreadcrumbSchema';
-import { BlogPost } from '@/types/blog';
+import type { BlogCategory, BlogPost } from '@/types/blog';
 import { serverFetch } from '@/lib/server-api';
 
 interface BlogPostPageProps {
@@ -28,21 +28,31 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
     return {
       title: 'مقاله یافت نشد',
       description: 'متأسفانه مقاله مورد نظر یافت نشد.',
+      robots: { index: false, follow: false },
     };
   }
 
-  const canonicalPath = `/blog/${params.slug}`;
+  const canonicalPath = `/blog/${post.slug}`;
+  const authorName = post.authorSnapshot?.name || 'تیم وکسینا';
+  const coverImage = post.coverImage || post.coverImageId || '/images/blog/placeholder.jpg';
 
   return {
     title: post.title,
     description: post.excerpt,
     keywords: post.tags,
+    authors: [{ name: authorName }],
     openGraph: {
+      type: 'article',
       title: post.title,
       description: post.excerpt,
+      url: canonicalPath,
+      publishedTime: post.publishedAt,
+      modifiedTime: post.updatedAt || post.publishedAt,
+      section: post.category,
+      tags: post.tags,
       images: [
         {
-          url: post.coverImage || post.coverImageId || '/images/blog/placeholder.jpg',
+          url: coverImage,
           width: 1200,
           height: 630,
           alt: post.title,
@@ -76,12 +86,19 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   // Fetch related posts (same category) server-side so the section and its
   // internal links are present in the initial SSR HTML, not only after a
   // client-side fetch.
-  const relatedResponse = await serverFetch<{ data: BlogPost[] } | BlogPost[]>(
-    `/api/blog-posts?category=${encodeURIComponent(post.category)}&limit=4`,
-    { revalidate: 3600, tags: ['blog', `blog-category-${post.category}`] }
-  );
+  const [relatedResponse, categoryResponse] = await Promise.all([
+    serverFetch<{ data: BlogPost[] } | BlogPost[]>(
+      `/api/blog-posts?category=${encodeURIComponent(post.category)}&limit=4`,
+      { revalidate: 3600, tags: ['blog', `blog-category-${post.category}`] }
+    ),
+    serverFetch<BlogCategory[]>('/api/blog/categories', {
+      revalidate: 3600,
+      tags: ['blog-categories'],
+    }),
+  ]);
   const relatedCandidates = Array.isArray(relatedResponse) ? relatedResponse : relatedResponse?.data || [];
   const relatedPosts = relatedCandidates.filter((p) => p.id !== post.id).slice(0, 3);
+  const categories = (categoryResponse || []).map((category) => category.name);
 
   // Build breadcrumb items for JSON-LD schema (Home > Blog > Post)
   const breadcrumbItems = [
@@ -100,6 +117,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         authorName={post.authorSnapshot?.name || 'تیم وکسینا'}
         authorAvatar={post.authorSnapshot?.avatar}
         publishedAt={post.publishedAt}
+        modifiedAt={post.updatedAt}
         slug={post.slug}
         category={post.category}
         tags={post.tags}
@@ -110,7 +128,11 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       <BreadcrumbSchema items={breadcrumbItems} />
 
       <Header />
-      <BlogPostClientContent post={post} relatedPosts={relatedPosts} />
+      <BlogPostClientContent
+        post={post}
+        relatedPosts={relatedPosts}
+        categories={categories}
+      />
       <Footer />
     </>
   );

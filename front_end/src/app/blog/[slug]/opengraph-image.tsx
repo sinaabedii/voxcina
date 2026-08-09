@@ -51,7 +51,7 @@ export default async function Image({ params }: Props) {
 
   // Build absolute image URL for the cover image
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voxcina.com';
-  const coverImage = post?.coverImage;
+  const coverImage = post?.coverImage || post?.coverImageId;
   const imageUrl = coverImage 
     ? (coverImage.startsWith('http') ? coverImage : `${baseUrl}${coverImage.startsWith('/') ? '' : '/'}${coverImage}`)
     : null;
@@ -193,7 +193,7 @@ export default async function Image({ params }: Props) {
             }}
           >
             {/* Author */}
-            {post?.author?.name && (
+            {(post?.authorSnapshot?.name || post?.author?.name) && (
               <div
                 style={{
                   display: 'flex',
@@ -217,9 +217,9 @@ export default async function Image({ params }: Props) {
                     fontSize: '18px',
                   }}
                 >
-                  {post.author.name.charAt(0)}
+                  {(post.authorSnapshot?.name || post.author?.name || 'ت').charAt(0)}
                 </div>
-                <span>{post.author.name}</span>
+                <span>{post.authorSnapshot?.name || post.author?.name}</span>
               </div>
             )}
 
