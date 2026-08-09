@@ -134,7 +134,9 @@ func RequestPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// Snapppay performs eligibility and token creation as separate provider
+	// calls; allow enough time to persist the returned payment token after both.
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 
 	// Fetch user to get phone number if not provided (required for DigiPay)
@@ -844,7 +846,9 @@ func RetryPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// Keep retries long enough for Snapppay eligibility, token creation, and
+	// payment-attempt persistence to complete as one operation.
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 
 	ordersCol := db.Database.Collection("orders")
