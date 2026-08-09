@@ -182,7 +182,15 @@ export const PAYMENT_METHODS = [
   },
 ];
 
-export const PAYMENT_GATEWAYS = [
+export const PAYMENT_GATEWAYS: Array<{
+  id: string;
+  name: string;
+  logo: string;
+  mobileLogo?: string;
+  enabled: boolean;
+  description: string;
+  features: string[];
+}> = [
   {
     id: "zibal",
     name: "زیبال",
@@ -202,7 +210,8 @@ export const PAYMENT_GATEWAYS = [
   {
     id: "snappay",
     name: "اسنپ‌پی",
-    logo: "/images/payment/snappay.svg",
+    logo: "/images/payment/snappay-official-desktop.svg",
+    mobileLogo: "/images/payment/snappay-official-mobile.svg",
     enabled: true,
     description: "پرداخت اعتباری و اقساطی اسنپ‌پی",
     features: [],
