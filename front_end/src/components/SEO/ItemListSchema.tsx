@@ -10,12 +10,6 @@ export interface ItemListItem {
   url: string;
   /** Image URL */
   image?: string;
-  /** Price in IRR */
-  price?: number;
-  /** Currency code */
-  currency?: string;
-  /** Availability status */
-  availability?: 'InStock' | 'OutOfStock' | 'PreOrder';
 }
 
 interface ItemListSchemaProps {
@@ -42,25 +36,16 @@ interface ItemListSchemaType {
   itemListElement: {
     '@type': string;
     position: number;
-    item: {
-      '@type': string;
-      name: string;
-      url: string;
-      image?: string;
-      offers?: {
-        '@type': string;
-        price: number;
-        priceCurrency: string;
-        availability: string;
-      };
-    };
+    name: string;
+    url: string;
+    image?: string;
   }[];
 }
 
 /**
  * ItemListSchema Component
  * 
- * Renders JSON-LD structured data for product lists (categories, search results).
+ * Renders JSON-LD structured data for product links in listing pages.
  * Follows schema.org ItemList specification.
  * 
  * SEO: ItemList schema helps search engines understand product collections
@@ -72,8 +57,8 @@ interface ItemListSchemaType {
  *   description="مجموعه لباس‌های مردانه وکسینا"
  *   listUrl="https://voxcina.com/categories/men"
  *   items={[
- *     { name: 'پیراهن مردانه', url: '/products/123', price: 500000 },
- *     { name: 'شلوار جین', url: '/products/456', price: 750000 },
+ *     { name: 'پیراهن مردانه', url: '/products/123' },
+ *     { name: 'شلوار جین', url: '/products/456' },
  *   ]}
  * />
  */
@@ -100,28 +85,15 @@ const ItemListSchema: React.FC<ItemListSchemaProps> = ({
       const itemData: ItemListSchemaType['itemListElement'][0] = {
         '@type': 'ListItem',
         position: index + 1,
-        item: {
-          '@type': 'Product',
-          name: item.name,
-          url: item.url.startsWith('http') ? item.url : `https://voxcina.com${item.url}`,
-        },
+        name: item.name,
+        url: item.url.startsWith('http') ? item.url : `https://voxcina.com${item.url}`,
       };
 
       // Add image if available
       if (item.image) {
-        itemData.item.image = item.image.startsWith('http')
+        itemData.image = item.image.startsWith('http')
           ? item.image
           : `https://voxcina.com${item.image}`;
-      }
-
-      // Add offers if price is available
-      if (item.price !== undefined) {
-        itemData.item.offers = {
-          '@type': 'Offer',
-          price: item.price,
-          priceCurrency: item.currency || 'IRR',
-          availability: `https://schema.org/${item.availability || 'InStock'}`,
-        };
       }
 
       return itemData;

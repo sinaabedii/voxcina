@@ -137,8 +137,6 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
     name: item.name,
     url: `/products/${item.productId}`,
     image: item.colorVariant?.images?.[0] || "",
-    price: item.price,
-    availability: item.inStock ? "InStock" : "OutOfStock",
   }));
 
   return (

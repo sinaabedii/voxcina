@@ -263,8 +263,6 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     name: product.name,
     url: `/products/${product.productId}`,
     image: product.colorVariant?.images?.[0] || '',
-    price: product.price,
-    availability: product.inStock ? 'InStock' : 'OutOfStock',
   }));
 
   return (
