@@ -71,12 +71,21 @@ export default function CheckoutPage() {
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("online");
   const [selectedGateway, setSelectedGateway] = useState("zibal");
+  const [snappPayEligibility, setSnappPayEligibility] = useState<{
+    eligible: boolean;
+    title_message: string;
+    description: string;
+  } | null>(null);
+  const [snappPayEligibilityLoading, setSnappPayEligibilityLoading] = useState(false);
   const [selectedShippingMethod, setSelectedShippingMethod] = useState<ShippingMethod | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [operationLoading, setOperationLoading] = useState<string | null>(null);
+
+  const shippingCost = selectedShippingMethod?.price ?? summary.shipping ?? 0;
+  const checkoutTotal = Math.max(0, summary.subtotal + summary.tax + shippingCost - summary.discount);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -155,6 +164,44 @@ export default function CheckoutPage() {
       }
     }
   }, [formData.province, provinces]); // Remove fetchCities from dependencies
+
+  useEffect(() => {
+    let cancelled = false;
+    const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
+    if (!token || checkoutTotal <= 0) {
+      setSnappPayEligibility(null);
+      setSnappPayEligibilityLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setSnappPayEligibilityLoading(true);
+    fetch(`/api/payment/snappay/eligibility?amount=${Math.round(checkoutTotal * 10)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return response.json();
+      })
+      .then((eligibility) => {
+        if (cancelled) return;
+        setSnappPayEligibility(eligibility?.eligible ? eligibility : null);
+        if (!eligibility?.eligible && selectedGateway === "snappay") {
+          setSelectedGateway("zibal");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSnappPayEligibility(null);
+      })
+      .finally(() => {
+        if (!cancelled) setSnappPayEligibilityLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [checkoutTotal, selectedGateway]);
 
   /* While the redirect effect hasn't run yet, render nothing.
      This avoids executing any of the heavy checkout UI on the server.
@@ -399,8 +446,7 @@ export default function CheckoutPage() {
       }));
 
       // Calculate total with shipping
-      const shippingCost = selectedShippingMethod?.price || 0;
-      const totalAmount = summary.total + shippingCost;
+      const totalAmount = checkoutTotal;
 
       // Prepare shipping address
       const shippingAddress = {
@@ -429,6 +475,9 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           items: orderItems,
           totalAmount: totalAmount,
+          shippingCost,
+          taxAmount: summary.tax,
+          discountAmount: summary.discount,
           shippingAddress: shippingAddress,
           promoCode: promoCode?.code && promoCode.isValid ? promoCode.code : undefined,
         }),
@@ -756,6 +805,8 @@ export default function CheckoutPage() {
               selectedMethod={selectedPaymentMethod}
               onSelectGateway={setSelectedGateway}
               selectedGateway={selectedGateway}
+              snappPayEligibility={snappPayEligibility}
+              snappPayEligibilityLoading={snappPayEligibilityLoading}
             />
           </motion.div>
 

@@ -58,6 +58,7 @@ const transformBackendOrder = (backendOrderData: any): Order => {
     items: transformedItems,
     total_amount: backendOrderData.total_amount,
     shipping_cost: backendOrderData.shipping_cost,
+    tax_amount: backendOrderData.tax_amount,
     discount_amount: backendOrderData.discount_amount,
     discount_code: backendOrderData.discount_code,
     shipping_address: {
@@ -84,6 +85,8 @@ const transformBackendOrder = (backendOrderData: any): Order => {
     payment_method: backendOrderData.payment_method,
     zibal_track_id: backendOrderData.zibal_track_id,
     zibal_ref_number: backendOrderData.zibal_ref_number,
+    gateway_name: backendOrderData.gateway_name,
+    gateway_transaction_id: backendOrderData.gateway_transaction_id,
     tracking_code: backendOrderData.tracking_code,
     timeline: transformedTimeline,
     notes: transformedNotes,
@@ -125,6 +128,8 @@ interface OrderActions {
   fetchAdminOrders: (page?: number, limit?: number, filters?: Record<string, any>) => Promise<void>;
   fetchRecentOrders: (limit?: number) => Promise<Order[]>;
   deleteOrder: (orderId: string) => Promise<void>;
+  cancelSnappPay: (orderId: string) => Promise<Order | null>;
+  updateSnappPay: (orderId: string, items: Array<{ product_id: string; size: string; color: string; color_name?: string; quantity: number }>) => Promise<Order | null>;
 }
 
 const initialState: OrderState = {
@@ -524,6 +529,56 @@ export const useOrderStore = create<OrderState & OrderActions>()(
         }
       },
 
+      cancelSnappPay: async (orderId) => {
+        try {
+          const response = await fetch(`/api/admin/orders/${orderId}/payment/snappay/cancel`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+            },
+            body: JSON.stringify({ confirm: true }),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.error || data.message || "لغو تراکنش اسنپ‌پی انجام نشد");
+          const transformed = transformBackendOrder(data);
+          set((state) => ({
+            orders: state.orders.map((order) => order.id === transformed.id ? transformed : order),
+            currentOrder: state.currentOrder?.id === transformed.id ? transformed : state.currentOrder,
+          }));
+          toast.success("تراکنش اسنپ‌پی لغو شد");
+          return transformed;
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : "لغو تراکنش اسنپ‌پی انجام نشد");
+          return null;
+        }
+      },
+
+      updateSnappPay: async (orderId, items) => {
+        try {
+          const response = await fetch(`/api/admin/orders/${orderId}/payment/snappay/update`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+            },
+            body: JSON.stringify({ confirm: true, items }),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.error || data.message || "بروزرسانی تراکنش اسنپ‌پی انجام نشد");
+          const transformed = transformBackendOrder(data);
+          set((state) => ({
+            orders: state.orders.map((order) => order.id === transformed.id ? transformed : order),
+            currentOrder: state.currentOrder?.id === transformed.id ? transformed : state.currentOrder,
+          }));
+          toast.success("تراکنش اسنپ‌پی بروزرسانی شد");
+          return transformed;
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : "بروزرسانی تراکنش اسنپ‌پی انجام نشد");
+          return null;
+        }
+      },
+
       deleteOrder: async (orderId) => {
         const { isAuthenticated } = useAuthStore.getState();
         if (!isAuthenticated) {
@@ -594,4 +649,4 @@ const initializeAuthSubscription = () => {
 };
 
 // Initialize the subscription after a timeout to ensure both stores are ready
-setTimeout(initializeAuthSubscription, 100); 
+setTimeout(initializeAuthSubscription, 100);

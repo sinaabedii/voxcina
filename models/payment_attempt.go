@@ -23,6 +23,7 @@ type PaymentAttempt struct {
 	GatewayData      bson.M             `bson:"gateway_data,omitempty" json:"gateway_data,omitempty"`
 	CreatedAt        time.Time          `bson:"created_at"            json:"created_at"`
 	VerifiedAt       *time.Time         `bson:"verified_at,omitempty" json:"verified_at,omitempty"`
+	UpdatedAt        time.Time          `bson:"updated_at,omitempty"  json:"updated_at,omitempty"`
 }
 
 // Note: This model requires the following indexes:

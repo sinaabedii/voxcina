@@ -42,10 +42,10 @@ func Connect(cfg *config.Config) *mongo.Database {
 	// Drop old non-sparse email index if it exists, then create sparse one
 	// This is needed because the old index blocks empty email values
 	_, _ = usersCollection.Indexes().DropOne(context.Background(), "email_1")
-	
+
 	// Ensure unique sparse index for email in users collection (allows multiple empty/null values)
 	emailIndexModel := mongo.IndexModel{
-		Keys:    bson.D{{Key: "email", Value: 1}}, // 1 for ascending order
+		Keys:    bson.D{{Key: "email", Value: 1}},                                          // 1 for ascending order
 		Options: options.Index().SetUnique(true).SetSparse(true).SetName("email_1_sparse"), // Sparse allows multiple null/empty values
 	}
 	_, err = usersCollection.Indexes().CreateOne(context.Background(), emailIndexModel)
@@ -81,6 +81,29 @@ func Connect(cfg *config.Config) *mongo.Database {
 	if err := CreateTryonIndexes(); err != nil {
 		log.Printf("Warning: Could not ensure tryon indexes: %v", err)
 		// Non-critical, continue anyway
+	}
+
+	// Payment attempts are the idempotency and callback lookup record for all
+	// gateways. Partial unique indexes ignore legacy attempts created before a
+	// provider reference was assigned.
+	paymentAttempts := Database.Collection("payment_attempts")
+	if _, err := paymentAttempts.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "gateway", Value: 1}, {Key: "provider_id", Value: 1}},
+			Options: options.Index().SetUnique(true).SetName("gateway_provider_id_unique"),
+		},
+		{
+			Keys: bson.D{{Key: "gateway", Value: 1}, {Key: "gateway_reference", Value: 1}},
+			Options: options.Index().SetUnique(true).SetName("gateway_reference_unique").SetPartialFilterExpression(bson.M{
+				"gateway_reference": bson.M{"$gt": ""},
+			}),
+		},
+		{
+			Keys:    bson.D{{Key: "order_id", Value: 1}, {Key: "status", Value: 1}},
+			Options: options.Index().SetName("order_status_idx"),
+		},
+	}); err != nil {
+		log.Printf("Warning: Could not ensure payment attempt indexes: %v", err)
 	}
 
 	// Create blog AI pipeline indexes

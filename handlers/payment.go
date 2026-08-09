@@ -12,6 +12,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 
 	"backEnd/db"
 	"backEnd/models"
@@ -20,9 +21,9 @@ import (
 )
 
 var (
-	zibalService  *services.ZibalService
+	zibalService   *services.ZibalService
 	digipayService *services.DigiPayService
-	gateways      map[string]services.PaymentGateway
+	gateways       map[string]services.PaymentGateway
 )
 
 func InitZibalService() {
@@ -71,6 +72,37 @@ type RequestPaymentResponse struct {
 	Message string `json:"message"`
 	PayURL  string `json:"payUrl,omitempty"`
 	Gateway string `json:"gateway,omitempty"`
+}
+
+func persistPaymentReference(ctx context.Context, attemptsCol *mongo.Collection, attemptID primitive.ObjectID, reference string) error {
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		result, err := attemptsCol.UpdateOne(ctx, bson.M{"_id": attemptID}, bson.M{"$set": bson.M{
+			"gateway_reference": reference,
+			"updated_at":        time.Now(),
+		}})
+		if err == nil && result.MatchedCount == 1 {
+			return nil
+		}
+		lastErr = err
+		if ctx.Err() != nil {
+			break
+		}
+		time.Sleep(time.Duration(attempt+1) * 100 * time.Millisecond)
+	}
+	if lastErr != nil {
+		return lastErr
+	}
+	return fmt.Errorf("payment attempt disappeared while saving provider reference")
+}
+
+func compensateOrphanedSnappPayToken(token string) {
+	if snappPayService == nil || token == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	_ = snappPayRevertWithRecovery(ctx, token)
 }
 
 func RequestPayment(w http.ResponseWriter, r *http.Request) {
@@ -137,6 +169,9 @@ func RequestPayment(w http.ResponseWriter, r *http.Request) {
 
 	// Derive amount from order — never trust client
 	amountRials := int64(order.TotalAmount * 10)
+	if gateway.Name() == "snappay" {
+		amountRials = snappPayMoney(order.TotalAmount)
+	}
 
 	if amountRials < 1000 {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Amount must be at least 1000 Rials")
@@ -149,10 +184,19 @@ func RequestPayment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	providerID := generateUUID()
+	if gateway.Name() == "snappay" {
+		providerID = snappPayTransactionID()
+	}
 
 	var callbackURL string
 	if gateway.Name() == "digipay" {
 		callbackURL = appURL + "/api/payment/digipay-callback"
+	} else if gateway.Name() == "snappay" {
+		callbackURL, err = snappPayCallbackURL()
+		if err != nil {
+			utils.ErrorResponse(w, http.StatusBadRequest, err.Error())
+			return
+		}
 	} else {
 		callbackURL = appURL + "/api/payment/callback"
 	}
@@ -173,22 +217,30 @@ func RequestPayment(w http.ResponseWriter, r *http.Request) {
 		description = fmt.Sprintf("Order %s", order.OrderNumber)
 	}
 
-	payReq := &services.PaymentRequest{
-		OrderID:     payload.OrderID,
-		Amount:      amountRials,
-		CallbackURL: callbackURL,
-		Description: description,
-		Mobile:      mobile,
-		ProviderID:  providerID,
+	var payReq *services.PaymentRequest
+	if gateway.Name() == "snappay" {
+		payReq, err = buildSnappPayPaymentRequest(ctx, order, callbackURL, mobile, providerID)
+	} else {
+		payReq = &services.PaymentRequest{
+			OrderID:     payload.OrderID,
+			Amount:      amountRials,
+			CallbackURL: callbackURL,
+			Description: description,
+			Mobile:      mobile,
+			ProviderID:  providerID,
+		}
 	}
-
-	payResp, err := gateway.RequestPayment(ctx, payReq)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to initiate payment: "+err.Error())
+		utils.ErrorResponse(w, http.StatusBadRequest, "اطلاعات پرداخت اسنپ‌پی نامعتبر است: "+err.Error())
 		return
 	}
-
-	attempt.GatewayReference = payResp.GatewayRef
+	if gateway.Name() == "snappay" {
+		attempt.ExpectedAmount = payReq.Amount
+		if err := validateSnappPayEligibility(ctx, payReq.Amount); err != nil {
+			utils.ErrorResponse(w, http.StatusBadGateway, "اسنپ‌پی این سفارش را برای پرداخت تایید نکرد: "+err.Error())
+			return
+		}
+	}
 
 	attemptsCol := db.Database.Collection("payment_attempts")
 	_, err = attemptsCol.InsertOne(ctx, attempt)
@@ -196,13 +248,31 @@ func RequestPayment(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to save payment attempt")
 		return
 	}
+	payResp, err := gateway.RequestPayment(ctx, payReq)
+	if err != nil {
+		_, _ = attemptsCol.DeleteOne(ctx, bson.M{"_id": attempt.ID})
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to initiate payment: "+err.Error())
+		return
+	}
+
+	err = persistPaymentReference(ctx, attemptsCol, attempt.ID, payResp.GatewayRef)
+	if err != nil {
+		if gateway.Name() == "snappay" {
+			compensateOrphanedSnappPayToken(payResp.GatewayRef)
+		}
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to save payment attempt")
+		return
+	}
 
 	// Update order with gateway and payment status
 	ordersCol.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
 		"$set": bson.M{
-			"gateway_name":   gateway.Name(),
-			"payment_status": "pending",
-			"updated_at":     now,
+			"gateway_name":           gateway.Name(),
+			"gateway_transaction_id": providerID,
+			"gateway_reference":      payResp.GatewayRef,
+			"payment_method":         "online",
+			"payment_status":         "pending",
+			"updated_at":             now,
 		},
 	})
 
@@ -236,6 +306,22 @@ func FinalizeVerifiedPayment(attemptID primitive.ObjectID, verifiedAmount int64,
 		return fmt.Errorf("verified amount %d != expected %d", verifiedAmount, attempt.ExpectedAmount)
 	}
 
+	ordersCol := db.Database.Collection("orders")
+	var order models.Order
+	if err := ordersCol.FindOne(ctx, bson.M{"_id": attempt.OrderID}).Decode(&order); err != nil {
+		return fmt.Errorf("order not found: %w", err)
+	}
+	if order.PaymentStatus == "paid" {
+		return nil
+	}
+	valid, inventoryError := validateInventory(ctx, order.Items)
+	if !valid {
+		return fmt.Errorf("inventory validation failed: %s", inventoryError)
+	}
+	if err := reduceInventory(ctx, order.Items); err != nil {
+		return fmt.Errorf("failed to reduce inventory: %w", err)
+	}
+
 	if attempt.Status == "verified" {
 		// Already verified — idempotent, check if order is also updated
 		ordersCol := db.Database.Collection("orders")
@@ -248,7 +334,6 @@ func FinalizeVerifiedPayment(attemptID primitive.ObjectID, verifiedAmount int64,
 	}
 
 	now := time.Now()
-	ordersCol := db.Database.Collection("orders")
 
 	result, err := ordersCol.UpdateOne(ctx, bson.M{
 		"_id":            attempt.OrderID,
@@ -269,20 +354,26 @@ func FinalizeVerifiedPayment(attemptID primitive.ObjectID, verifiedAmount int64,
 	}
 
 	if result.ModifiedCount == 0 {
+		_ = restoreInventory(ctx, order.Items)
 		return fmt.Errorf("order is not in a payable state or already paid")
 	}
 
 	_, err = attemptsCol.UpdateOne(ctx, bson.M{"_id": attempt.ID}, bson.M{
 		"$set": bson.M{
-			"status":              "verified",
-			"gateway_ref_number":  verifiedRefNum,
-			"verified_at":         now,
+			"status":             "verified",
+			"gateway_ref_number": verifiedRefNum,
+			"verified_at":        now,
+			"updated_at":         now,
 		},
 	})
 
 	if err != nil {
 		return fmt.Errorf("failed to update attempt: %w", err)
 	}
+
+	_, _ = db.Database.Collection("carts").UpdateOne(ctx, bson.M{"user_id": attempt.UserID, "is_active": true}, bson.M{
+		"$set": bson.M{"items": []models.CartItem{}, "updated_at": now},
+	})
 
 	return nil
 }
@@ -486,8 +577,8 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 type VerifyPaymentPayload struct {
-	TrackID     int64  `json:"trackId"`
-	Gateway     string `json:"gateway,omitempty"`
+	TrackID int64  `json:"trackId"`
+	Gateway string `json:"gateway,omitempty"`
 }
 
 type VerifyPaymentResponse struct {
@@ -815,7 +906,13 @@ func RetryPayment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	amountRials := int64(order.TotalAmount * 10)
+	if gateway.Name() == "snappay" {
+		amountRials = snappPayMoney(order.TotalAmount)
+	}
 	providerID := generateUUID()
+	if gateway.Name() == "snappay" {
+		providerID = snappPayTransactionID()
+	}
 
 	appURL := os.Getenv("APP_URL")
 	if appURL == "" {
@@ -825,6 +922,12 @@ func RetryPayment(w http.ResponseWriter, r *http.Request) {
 	var callbackURL string
 	if gateway.Name() == "digipay" {
 		callbackURL = appURL + "/api/payment/digipay-callback"
+	} else if gateway.Name() == "snappay" {
+		callbackURL, err = snappPayCallbackURL()
+		if err != nil {
+			utils.ErrorResponse(w, http.StatusBadRequest, err.Error())
+			return
+		}
 	} else {
 		callbackURL = appURL + "/api/payment/callback"
 	}
@@ -840,22 +943,30 @@ func RetryPayment(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:      now,
 	}
 
-	payReq := &services.PaymentRequest{
-		OrderID:     payload.OrderID,
-		Amount:      amountRials,
-		CallbackURL: callbackURL,
-		Description: fmt.Sprintf("Order %s - تلاش مجدد پرداخت", order.OrderNumber),
-		ProviderID:  providerID,
-		Mobile:      user.Phone,
+	var payReq *services.PaymentRequest
+	if gateway.Name() == "snappay" {
+		payReq, err = buildSnappPayPaymentRequest(ctx, order, callbackURL, user.Phone, providerID)
+	} else {
+		payReq = &services.PaymentRequest{
+			OrderID:     payload.OrderID,
+			Amount:      amountRials,
+			CallbackURL: callbackURL,
+			Description: fmt.Sprintf("Order %s - تلاش مجدد پرداخت", order.OrderNumber),
+			ProviderID:  providerID,
+			Mobile:      user.Phone,
+		}
 	}
-
-	payResp, err := gateway.RequestPayment(ctx, payReq)
 	if err != nil {
-		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to initiate payment: "+err.Error())
+		utils.ErrorResponse(w, http.StatusBadRequest, "اطلاعات پرداخت اسنپ‌پی نامعتبر است: "+err.Error())
 		return
 	}
-
-	attempt.GatewayReference = payResp.GatewayRef
+	if gateway.Name() == "snappay" {
+		attempt.ExpectedAmount = payReq.Amount
+		if err := validateSnappPayEligibility(ctx, payReq.Amount); err != nil {
+			utils.ErrorResponse(w, http.StatusBadGateway, "اسنپ‌پی این سفارش را برای پرداخت تایید نکرد: "+err.Error())
+			return
+		}
+	}
 
 	attemptsCol := db.Database.Collection("payment_attempts")
 	_, err = attemptsCol.InsertOne(ctx, attempt)
@@ -864,11 +975,28 @@ func RetryPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	payResp, err := gateway.RequestPayment(ctx, payReq)
+	if err != nil {
+		_, _ = attemptsCol.DeleteOne(ctx, bson.M{"_id": attempt.ID})
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to initiate payment: "+err.Error())
+		return
+	}
+	if err = persistPaymentReference(ctx, attemptsCol, attempt.ID, payResp.GatewayRef); err != nil {
+		if gateway.Name() == "snappay" {
+			compensateOrphanedSnappPayToken(payResp.GatewayRef)
+		}
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to save payment attempt")
+		return
+	}
+
 	ordersCol.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
 		"$set": bson.M{
-			"gateway_name":   gateway.Name(),
-			"payment_status": "pending",
-			"updated_at":     now,
+			"gateway_name":           gateway.Name(),
+			"gateway_transaction_id": providerID,
+			"gateway_reference":      payResp.GatewayRef,
+			"payment_method":         "online",
+			"payment_status":         "pending",
+			"updated_at":             now,
 		},
 	})
 

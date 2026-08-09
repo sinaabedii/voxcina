@@ -94,6 +94,7 @@ export interface Order {
   items: OrderItem[];
   total_amount: number;
   shipping_cost?: number; // Shipping cost
+  tax_amount?: number;
   discount_amount?: number; // Discount amount applied
   discount_code?: string; // Discount code used
   shipping_address: ShippingAddress;
@@ -103,7 +104,8 @@ export interface Order {
   payment_method?: 'online' | 'wallet' | 'cod'; // Payment method
   zibal_track_id?: number; // Zibal payment tracking ID
   zibal_ref_number?: string; // Zibal reference number
-  gateway_name?: 'zibal' | 'digipay'; // Payment gateway used
+  gateway_name?: 'zibal' | 'digipay' | 'snappay'; // Payment gateway used
+  gateway_transaction_id?: string;
   tracking_code?: string | null; // Nullable
   timeline?: OrderTimelineEntry[]; // Order status change history
   notes?: OrderNote[]; // Internal admin notes
@@ -118,4 +120,3 @@ export interface Order {
   // Product count field that backend always sends
   product_count: number;
 }
- 

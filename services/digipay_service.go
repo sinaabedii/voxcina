@@ -17,11 +17,11 @@ import (
 )
 
 const (
-	digipayAuthURL     = "/digipay/api/oauth/token"
-	digipayTicketURL   = "/digipay/api/tickets/business?type=11"
-	digipayVerifyURL   = "/digipay/api/purchases/verify"
-	digipayInquiryURL  = "/digipay/api/orders"
-	digipayAPIVersion  = "2022-02-02"
+	digipayAuthURL    = "/digipay/api/oauth/token"
+	digipayTicketURL  = "/digipay/api/tickets/business?type=11"
+	digipayVerifyURL  = "/digipay/api/purchases/verify"
+	digipayInquiryURL = "/digipay/api/orders"
+	digipayAPIVersion = "2022-02-02"
 )
 
 type DigiPayService struct {
@@ -32,10 +32,10 @@ type DigiPayService struct {
 	baseURL      string
 	httpClient   *http.Client
 
-	mu           sync.RWMutex
-	token        string
-	tokenExpiry  time.Time
-	sfGroup      singleflight.Group
+	mu          sync.RWMutex
+	token       string
+	tokenExpiry time.Time
+	sfGroup     singleflight.Group
 }
 
 func NewDigiPayService() *DigiPayService {
@@ -62,7 +62,7 @@ func NewDigiPayService() *DigiPayService {
 		bodyUsername: bodyUser,
 		bodyPassword: bodyPass,
 		baseURL:      baseURL,
-		httpClient:   &http.Client{Timeout: 30 * time.Second},
+		httpClient:   newDirectPaymentHTTPClient(30 * time.Second),
 	}
 }
 

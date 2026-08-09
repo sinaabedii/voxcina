@@ -40,6 +40,17 @@ services:
       - DIGIPAY_USERNAME=${DIGIPAY_USERNAME:-$DIGIPAY_CLIENT_ID}
       - DIGIPAY_PASSWORD=${DIGIPAY_PASSWORD:-$DIGIPAY_CLIENT_SECRET}
       - DIGIPAY_BASE_URL=${DIGIPAY_BASE_URL:-https://api.mydigipay.com}
+      - SNAPPAY_BASE_URL=${SNAPPAY_BASE_URL}
+      - SNAPPAY_CLIENT_ID=${SNAPPAY_CLIENT_ID}
+      - SNAPPAY_CLIENT_SECRET=${SNAPPAY_CLIENT_SECRET}
+      - SNAPPAY_USERNAME=${SNAPPAY_USERNAME}
+      - SNAPPAY_PASSWORD=${SNAPPAY_PASSWORD}
+      - SNAPPAY_VENTURE=${SNAPPAY_VENTURE}
+      - SNAPPAY_CALLBACK_URL=${SNAPPAY_CALLBACK_URL}
+      - SNAPPAY_DEFAULT_CATEGORY=${SNAPPAY_DEFAULT_CATEGORY:-apparel}
+      - SNAPPAY_COMMISSION_TYPE=${SNAPPAY_COMMISSION_TYPE:-100}
+      # Keep the shared proxy for non-payment backend traffic. Payment gateway
+      # clients use an explicit direct transport in services/payment_http_client.go.
       - HTTP_PROXY=${HTTP_PROXY:-http://host.docker.internal:10809}
       - HTTPS_PROXY=${HTTPS_PROXY:-http://host.docker.internal:10809}
       - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1,mongo,docker.arvancloud.ir,gateway.zibal.ir,api.mydigipay.com,::1}

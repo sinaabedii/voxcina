@@ -44,7 +44,7 @@ export default function AdminOrdersPage() {
   const [sortBy, setSortBy] = useState(searchParams.get("sort_by") || "newest");
 
   // Connect to admin orders store
-  const { orders, fetchAdminOrders, deleteOrder, updateOrderStatusAdmin, pagination, isLoading, orderStats, fetchOrderStats } = useOrderStore();
+  const { orders, fetchAdminOrders, deleteOrder, updateOrderStatusAdmin, cancelSnappPay, pagination, isLoading, orderStats, fetchOrderStats } = useOrderStore();
 
   // Build filters object from current state
   const buildFilters = useCallback((): AdminOrderFilters => {
@@ -492,10 +492,16 @@ export default function AdminOrdersPage() {
                                 {formatPrice(order.total_amount)}
                               </span>
                             </p>
-                            <p className="text-voxcina-blue dark:text-voxcina-cream flex justify-between">
-                              <span>روش پرداخت:</span>
-                              <span>{order.payment_status}</span>
-                            </p>
+                             <p className="text-voxcina-blue dark:text-voxcina-cream flex justify-between">
+                               <span>روش پرداخت:</span>
+                               <span>{order.gateway_name || order.payment_status}</span>
+                             </p>
+                             {order.gateway_transaction_id && (
+                               <p className="text-voxcina-blue dark:text-voxcina-cream flex justify-between gap-2">
+                                 <span>شناسه تراکنش:</span>
+                                 <span className="font-mono text-xs truncate" dir="ltr">{order.gateway_transaction_id}</span>
+                               </p>
+                             )}
                           </div>
                         </div>
                         <div>
@@ -515,9 +521,13 @@ export default function AdminOrdersPage() {
                             variant="ghost"
                             size="sm"
                             className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 rounded-xl"
-                            onClick={() =>
-                              updateOrderStatusAdmin(order.id, "cancelled")
-                            }
+                           onClick={() => {
+                             if (order.gateway_name === "snappay" && order.payment_status === "paid") {
+                               if (window.confirm("لغو تراکنش اسنپ‌پی و بازگشت وجه انجام شود؟")) cancelSnappPay(order.id);
+                             } else {
+                               updateOrderStatusAdmin(order.id, "cancelled");
+                             }
+                           }}
                           >
                             <XCircle className="w-4 h-4 ml-1" />
                             لغو سفارش
@@ -644,4 +654,4 @@ export default function AdminOrdersPage() {
       </motion.div>
     </div>
   );
-} 
+}

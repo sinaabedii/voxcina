@@ -10,6 +10,12 @@ interface PaymentMethodsProps {
   onSelectGateway?: (gatewayId: string) => void;
   selectedMethod?: string;
   selectedGateway?: string;
+  snappPayEligibility?: {
+    eligible: boolean;
+    title_message: string;
+    description: string;
+  } | null;
+  snappPayEligibilityLoading?: boolean;
 }
 
 const GATEWAY_FEATURE_LABELS: Record<string, { label: string; icon: React.ReactNode }> = {
@@ -23,6 +29,8 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
   onSelectGateway,
   selectedMethod = "online",
   selectedGateway = "zibal",
+  snappPayEligibility = null,
+  snappPayEligibilityLoading = false,
 }) => {
   const getPaymentIcon = (id: string) => {
     switch (id) {
@@ -37,7 +45,9 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
     }
   };
 
-  const enabledGateways = PAYMENT_GATEWAYS.filter((g) => g.enabled);
+  const enabledGateways = PAYMENT_GATEWAYS.filter(
+    (g) => g.enabled && (g.id !== "snappay" || (!snappPayEligibilityLoading && snappPayEligibility?.eligible))
+  );
 
   return (
     <Card className="border border-voxcina-cream/30 dark:border-voxcina-blue/30 bg-white/90 dark:bg-voxcina-blue/10 shadow-sm rounded-2xl backdrop-blur-sm animate-fadeIn">
@@ -128,10 +138,16 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
                                     </span>
                                   )}
                                 </div>
-                                {gateway.description && (
+                                {gateway.description && gateway.id !== "snappay" && (
                                   <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 mt-0.5">
                                     {gateway.description}
                                   </p>
+                                 )}
+                                {gateway.id === "snappay" && snappPayEligibility?.eligible && (
+                                  <div className="mt-1 text-xs text-[#616475] dark:text-voxcina-cream/70">
+                                    <span className="block">{snappPayEligibility.title_message}</span>
+                                    <span className="block mt-0.5">{snappPayEligibility.description}</span>
+                                  </div>
                                 )}
                               </div>
                               {isSelected && (

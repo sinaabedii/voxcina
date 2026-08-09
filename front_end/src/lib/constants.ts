@@ -200,6 +200,14 @@ export const PAYMENT_GATEWAYS = [
     features: ["credit", "wallet", "installments"],
   },
   {
+    id: "snappay",
+    name: "اسنپ‌پی",
+    logo: "/images/payment/snappay.svg",
+    enabled: true,
+    description: "پرداخت اعتباری و اقساطی اسنپ‌پی",
+    features: [],
+  },
+  {
     id: "zarinpal",
     name: "زرین‌پال",
     logo: "/images/payment/zarinpal.svg",

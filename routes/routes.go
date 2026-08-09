@@ -423,10 +423,17 @@ func NewRouter() *mux.Router {
 	paymentRouter.HandleFunc("/verify", handlers.VerifyPayment).Methods(http.MethodPost)
 	paymentRouter.HandleFunc("/inquiry", handlers.InquiryPayment).Methods(http.MethodPost)
 	paymentRouter.HandleFunc("/retry", handlers.RetryPayment).Methods(http.MethodPost)
+	paymentRouter.HandleFunc("/snappay/eligibility", handlers.SnappPayEligibility).Methods(http.MethodGet)
 
 	// Payment Callback (Public - no auth required)
 	api.HandleFunc("/payment/callback", handlers.PaymentCallback).Methods(http.MethodGet)
 	api.HandleFunc("/payment/digipay-callback", handlers.DigipayPaymentCallback).Methods(http.MethodGet, http.MethodPost)
+	api.HandleFunc("/payment/snappay-callback", handlers.SnappPayCallback).Methods(http.MethodPost)
+
+	// Snapppay update/cancel are irreversible provider operations and require
+	// explicit confirmation in the request body.
+	adminRouter.HandleFunc("/orders/{orderId}/payment/snappay/update", handlers.AdminUpdateSnappPay).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/orders/{orderId}/payment/snappay/cancel", handlers.AdminCancelSnappPay).Methods(http.MethodPost)
 
 	return router
 }

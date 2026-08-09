@@ -16,7 +16,7 @@ function CallbackContent() {
   const [status, setStatus] = useState<"loading" | "success" | "abandoned" | "failed">("loading");
   const [message, setMessage] = useState("");
   const [orderId, setOrderId] = useState<string | null>(null);
-  const [trackId, setTrackId] = useState<string | null>(null);
+  const [paymentReference, setPaymentReference] = useState<string | null>(null);
   const [gateway, setGateway] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
 
@@ -53,11 +53,12 @@ function CallbackContent() {
     const handleCallback = async () => {
       const success = searchParams.get("success");
       const trackIdParam = searchParams.get("trackId");
+      const transactionIdParam = searchParams.get("transactionId");
       const orderIdParam = searchParams.get("orderId");
       const paymentStatus = searchParams.get("status");
       const gatewayParam = searchParams.get("gateway");
 
-      setTrackId(trackIdParam);
+      setPaymentReference(transactionIdParam || trackIdParam);
       setOrderId(orderIdParam);
       if (gatewayParam) setGateway(gatewayParam);
 
@@ -66,19 +67,20 @@ function CallbackContent() {
         setStatus("success");
         setMessage("پرداخت با موفقیت انجام شد");
         activityTracker.trackPaymentSuccess(orderIdParam ?? "", {
-          trackId: trackIdParam,
+          trackId: transactionIdParam || trackIdParam,
           gateway: searchParams.get("gateway") ?? undefined,
           source: "payment_callback",
         });
         setTimeout(() => {
-          router.push(`/checkout/success?orderId=${orderIdParam}&trackId=${trackIdParam}`);
+          const reference = transactionIdParam || trackIdParam || "";
+          router.push(`/checkout/success?orderId=${orderIdParam}&transactionId=${encodeURIComponent(reference)}`);
         }, 1500);
       } else if (paymentStatus === "abandoned") {
         // User pressed back on payment page
         setStatus("abandoned");
         setMessage("پرداخت تکمیل نشد. میتوانید دوباره تلاش کنید.");
         activityTracker.trackPaymentFailed(orderIdParam, "abandoned", {
-          trackId: trackIdParam,
+          trackId: transactionIdParam || trackIdParam,
           source: "payment_callback",
         });
       } else {
@@ -88,7 +90,7 @@ function CallbackContent() {
           orderIdParam,
           paymentStatus === "cancelled" ? "cancelled" : "gateway_failed",
           {
-            trackId: trackIdParam,
+            trackId: transactionIdParam || trackIdParam,
             source: "payment_callback",
           }
         );
@@ -127,9 +129,9 @@ function CallbackContent() {
               {message}
             </h1>
             <p className="text-muted-foreground mb-4">در حال انتقال به صفحه سفارش...</p>
-            {trackId && (
+            {paymentReference && (
               <p className="text-sm text-muted-foreground">
-                کد پیگیری: <span className="font-mono">{trackId}</span>
+                شناسه تراکنش: <span className="font-mono">{paymentReference}</span>
               </p>
             )}
           </>

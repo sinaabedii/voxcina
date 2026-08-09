@@ -98,6 +98,10 @@ export default function AdminOrderDetailsPage() {
   const [selectedStatus, setSelectedStatus] = useState("");
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
+  const [updateQuantities, setUpdateQuantities] = useState<Record<number, number>>({});
+  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+
+  const { cancelSnappPay, updateSnappPay } = useOrderStore();
   
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -115,9 +119,10 @@ export default function AdminOrderDetailsPage() {
           throw new Error("Failed to fetch order");
         }
         
-        const data = await response.json();
-        setOrder(data);
-        setTrackingCode(data.tracking_code || "");
+         const data = await response.json();
+         setOrder(data);
+         setTrackingCode(data.tracking_code || "");
+         setUpdateQuantities(Object.fromEntries((data.items || []).map((item: any, index: number) => [index, item.quantity])));
       } catch (error) {
         console.error("Error fetching order:", error);
         toast.error("خطا در دریافت اطلاعات سفارش");
@@ -222,6 +227,34 @@ export default function AdminOrderDetailsPage() {
     } finally {
       setIsUpdatingStatus(false);
     }
+  };
+
+  const handleCancelSnappPay = async () => {
+    if (!order || !window.confirm("لغو تراکنش اسنپ‌پی و بازگشت وجه انجام شود؟")) return;
+    setIsUpdatingPayment(true);
+    const updated = await cancelSnappPay(order.id);
+    if (updated) setOrder(updated);
+    setIsUpdatingPayment(false);
+  };
+
+  const handleUpdateSnappPay = async () => {
+    if (!order || order.gateway_name !== "snappay" || !window.confirm("تغییر اقلام و مبلغ تراکنش اسنپ‌پی غیرقابل برگشت است. ادامه می‌دهید؟")) return;
+    const items = order.items
+      .map((item, index) => ({
+        product_id: item.product?.id || item.product_id || "",
+        size: item.variant?.size || "",
+        color: item.variant?.color || "",
+        color_name: item.variant?.colorName || "",
+        quantity: Math.max(0, Math.floor(updateQuantities[index] ?? item.quantity)),
+      }))
+      .filter((item) => item.quantity > 0 && item.product_id);
+    setIsUpdatingPayment(true);
+    const updated = await updateSnappPay(order.id, items);
+    if (updated) {
+      setOrder(updated);
+      setUpdateQuantities(Object.fromEntries(updated.items.map((item, index) => [index, item.quantity])));
+    }
+    setIsUpdatingPayment(false);
   };
 
   // Update tracking code
@@ -378,10 +411,20 @@ export default function AdminOrderDetailsPage() {
                         )}
                       </div>
                     </div>
-                    <div className="text-left flex-shrink-0">
-                      <div className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                        {toPersianNumber(item.quantity)} × {formatPrice(item.price_at_purchase)}
-                      </div>
+                     <div className="text-left flex-shrink-0">
+                       <div className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                         {order.gateway_name === "snappay" && order.payment_status === "paid" ? (
+                           <input
+                             type="number"
+                             min={0}
+                             max={item.quantity}
+                             value={updateQuantities[index] ?? item.quantity}
+                             onChange={(event) => setUpdateQuantities((current) => ({ ...current, [index]: Number(event.target.value) }))}
+                             className="w-16 rounded border border-voxcina-blue/20 bg-white px-1 py-0.5 text-center text-sm"
+                             aria-label="تعداد جدید"
+                           />
+                         ) : toPersianNumber(item.quantity)} × {formatPrice(item.price_at_purchase)}
+                       </div>
                       <div className="font-medium text-voxcina-blue dark:text-voxcina-cream">
                         {formatPrice(item.quantity * item.price_at_purchase)}
                       </div>
@@ -611,12 +654,24 @@ export default function AdminOrderDetailsPage() {
                   </span>
                 </div>
               )}
-              {order.zibal_ref_number && (
+               {order.zibal_ref_number && (
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">شماره مرجع</span>
                   <span className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream" dir="ltr">
                     {order.zibal_ref_number}
                   </span>
+                </div>
+               )}
+              {order.gateway_name && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">درگاه</span>
+                  <span className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">{order.gateway_name}</span>
+                </div>
+              )}
+              {order.gateway_transaction_id && (
+                <div className="flex justify-between items-center gap-3">
+                  <span className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">شناسه تراکنش</span>
+                  <span className="text-xs font-mono text-voxcina-blue dark:text-voxcina-cream truncate" dir="ltr">{order.gateway_transaction_id}</span>
                 </div>
               )}
               
@@ -652,8 +707,27 @@ export default function AdminOrderDetailsPage() {
                   </span>
                 </div>
               </div>
-            </CardContent>
+           </CardContent>
           </Card>
+
+          {order.gateway_name === "snappay" && order.payment_status === "paid" && order.status !== "cancelled" && (
+            <Card className="border border-amber-200 dark:border-amber-800/30 rounded-2xl overflow-hidden print:hidden">
+              <CardHeader className="bg-amber-50 dark:bg-amber-900/10 border-b border-amber-200/50">
+                <CardTitle className="text-amber-700 dark:text-amber-400 text-base">عملیات اسنپ‌پی</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-3">
+                <p className="text-xs leading-5 text-amber-700 dark:text-amber-400">تغییر تعداد اقلام یا لغو تراکنش پس از تایید، غیرقابل برگشت است و برای هر عملیات تایید مجدد انجام می‌شود.</p>
+                <Button variant="outline" size="sm" className="w-full rounded-lg" onClick={handleUpdateSnappPay} disabled={isUpdatingPayment}>
+                  {isUpdatingPayment ? <RefreshCw className="w-4 h-4 animate-spin ml-1" /> : <RefreshCw className="w-4 h-4 ml-1" />}
+                  بروزرسانی اقلام و مبلغ
+                </Button>
+                <Button variant="outline" size="sm" className="w-full rounded-lg text-red-600 border-red-200 hover:bg-red-50" onClick={handleCancelSnappPay} disabled={isUpdatingPayment}>
+                  <XCircle className="w-4 h-4 ml-1" />
+                  لغو و بازگشت وجه
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Tracking Code */}
           <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 rounded-2xl overflow-hidden print:hidden">
@@ -760,7 +834,7 @@ export default function AdminOrderDetailsPage() {
                       تحویل
                     </Button>
                   )}
-                  {order.status !== "cancelled" && order.status !== "delivered" && (
+                   {order.status !== "cancelled" && order.status !== "delivered" && order.gateway_name !== "snappay" && (
                     <Button
                       variant="outline"
                       size="sm"

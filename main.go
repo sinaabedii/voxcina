@@ -78,6 +78,12 @@ func main() {
 	handlers.InitDigipayService()
 	log.Println("DigiPay payment service initialized")
 
+	// Initialize SnappPay payment service when its server-side credentials are configured
+	handlers.InitSnappPayService()
+	log.Println("SnappPay payment service initialized")
+	stopSnappPayReconciler := handlers.StartSnappPayStatusReconciler()
+	defer stopSnappPayReconciler()
+
 	// Initialize and start order cleanup service
 	orderCleanupService := services.NewOrderCleanupService(database)
 	orderCleanupService.Start()

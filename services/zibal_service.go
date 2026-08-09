@@ -20,22 +20,22 @@ const (
 )
 
 type ZibalPaymentRequest struct {
-	Merchant      string                `json:"merchant"`
-	Amount        int64                 `json:"amount"`
-	CallbackURL   string                `json:"callbackUrl"`
-	Description   string                `json:"description,omitempty"`
-	OrderID       string                `json:"orderId,omitempty"`
-	Mobile        string                `json:"mobile,omitempty"`
-	AllowedCards  []string              `json:"allowedCards,omitempty"`
-	NationalCode  string                `json:"nationalCode,omitempty"`
-	CheckMobileWithCard bool             `json:"checkMobileWithCard,omitempty"`
-	MultiplexingInfo []MultiplexingInfo `json:"multiplexingInfo,omitempty"`
+	Merchant            string             `json:"merchant"`
+	Amount              int64              `json:"amount"`
+	CallbackURL         string             `json:"callbackUrl"`
+	Description         string             `json:"description,omitempty"`
+	OrderID             string             `json:"orderId,omitempty"`
+	Mobile              string             `json:"mobile,omitempty"`
+	AllowedCards        []string           `json:"allowedCards,omitempty"`
+	NationalCode        string             `json:"nationalCode,omitempty"`
+	CheckMobileWithCard bool               `json:"checkMobileWithCard,omitempty"`
+	MultiplexingInfo    []MultiplexingInfo `json:"multiplexingInfo,omitempty"`
 }
 
 type MultiplexingInfo struct {
-	BankAccount  string `json:"bankAccount,omitempty"`
+	BankAccount   string `json:"bankAccount,omitempty"`
 	SubMerchantID string `json:"subMerchantId,omitempty"`
-	Amount       int64  `json:"amount"`
+	Amount        int64  `json:"amount"`
 }
 
 type ZibalPaymentResponse struct {
@@ -89,9 +89,7 @@ type ZibalService struct {
 func NewZibalService(merchant string) *ZibalService {
 	return &ZibalService{
 		merchant: merchant,
-		client: &http.Client{
-			Timeout: 30 * time.Second,
-		},
+		client:   newDirectPaymentHTTPClient(30 * time.Second),
 	}
 }
 

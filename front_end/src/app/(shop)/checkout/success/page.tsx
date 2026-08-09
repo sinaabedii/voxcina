@@ -14,7 +14,7 @@ function SuccessContent() {
   const [isLoading, setIsLoading] = useState(true);
 
   const orderId = searchParams.get("orderId");
-  const trackId = searchParams.get("trackId");
+  const trackId = searchParams.get("transactionId") || searchParams.get("trackId");
   const paymentMethod = searchParams.get("method");
 
   useEffect(() => {
@@ -117,7 +117,7 @@ function SuccessContent() {
               </div>
               {trackId && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">کد پیگیری پرداخت:</span>
+                    <span className="text-muted-foreground">شناسه تراکنش پرداخت:</span>
                   <span className="font-medium font-mono">{trackId}</span>
                 </div>
               )}

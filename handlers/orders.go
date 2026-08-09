@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"time"
@@ -37,29 +38,32 @@ type OrderItemAPIResponse struct {
 // OrderAPIResponse represents the full order structure for API responses.
 // It includes populated product details for items and Jalali dates.
 type OrderAPIResponse struct {
-	ID              primitive.ObjectID           `json:"id"`
-	UserID          primitive.ObjectID           `json:"user_id"`
-	OrderNumber     string                       `json:"order_number"`
-	Items           []OrderItemAPIResponse       `json:"items"`
-	TotalAmount     float64                      `json:"total_amount"`
-	ShippingCost    float64                      `json:"shipping_cost"`
-	DiscountAmount  float64                      `json:"discount_amount"`
-	DiscountCode    string                       `json:"discount_code,omitempty"`
-	ShippingAddress models.Address               `json:"shipping_address"`
-	Status          string                       `json:"status"`
-	StatusText      string                       `json:"status_text"`
-	TrackingCode    *string                      `json:"tracking_code,omitempty"`
-	PaymentStatus   string                       `json:"payment_status"`
-	PaymentMethod   string                       `json:"payment_method"`
-	ZibalTrackID    *int64                       `json:"zibal_track_id,omitempty"`
-	ZibalRefNumber  *string                      `json:"zibal_ref_number,omitempty"`
-	Timeline        []models.OrderTimelineEntry  `json:"timeline,omitempty"`
-	Notes           []models.OrderNote           `json:"notes,omitempty"`
-	CreatedAt       time.Time                    `json:"created_at"`
-	UpdatedAt       time.Time                    `json:"updated_at"`
-	JalaliCreatedAt string                       `json:"jalali_created_at"`
-	JalaliUpdatedAt string                       `json:"jalali_updated_at"`
-	ProductCount    int                          `json:"product_count"`
+	ID                   primitive.ObjectID          `json:"id"`
+	UserID               primitive.ObjectID          `json:"user_id"`
+	OrderNumber          string                      `json:"order_number"`
+	Items                []OrderItemAPIResponse      `json:"items"`
+	TotalAmount          float64                     `json:"total_amount"`
+	ShippingCost         float64                     `json:"shipping_cost"`
+	TaxAmount            float64                     `json:"tax_amount"`
+	DiscountAmount       float64                     `json:"discount_amount"`
+	DiscountCode         string                      `json:"discount_code,omitempty"`
+	ShippingAddress      models.Address              `json:"shipping_address"`
+	Status               string                      `json:"status"`
+	StatusText           string                      `json:"status_text"`
+	TrackingCode         *string                     `json:"tracking_code,omitempty"`
+	PaymentStatus        string                      `json:"payment_status"`
+	PaymentMethod        string                      `json:"payment_method"`
+	ZibalTrackID         *int64                      `json:"zibal_track_id,omitempty"`
+	ZibalRefNumber       *string                     `json:"zibal_ref_number,omitempty"`
+	GatewayName          string                      `json:"gateway_name,omitempty"`
+	GatewayTransactionID string                      `json:"gateway_transaction_id,omitempty"`
+	Timeline             []models.OrderTimelineEntry `json:"timeline,omitempty"`
+	Notes                []models.OrderNote          `json:"notes,omitempty"`
+	CreatedAt            time.Time                   `json:"created_at"`
+	UpdatedAt            time.Time                   `json:"updated_at"`
+	JalaliCreatedAt      string                      `json:"jalali_created_at"`
+	JalaliUpdatedAt      string                      `json:"jalali_updated_at"`
+	ProductCount         int                         `json:"product_count"`
 }
 
 // Helper function to populate order items and create OrderAPIResponse
@@ -104,29 +108,32 @@ func newOrderAPIResponse(
 	}
 
 	return OrderAPIResponse{
-		ID:              order.ID,
-		UserID:          order.UserID,
-		OrderNumber:     order.OrderNumber,
-		Items:           populatedItems,
-		TotalAmount:     order.TotalAmount,
-		ShippingCost:    order.ShippingCost,
-		DiscountAmount:  order.DiscountAmount,
-		DiscountCode:    order.DiscountCode,
-		ShippingAddress: order.ShippingAddress,
-		Status:          order.Status,
-		StatusText:      order.StatusText,
-		TrackingCode:    order.TrackingCode,
-		PaymentStatus:   order.PaymentStatus,
-		PaymentMethod:   order.PaymentMethod,
-		ZibalTrackID:    order.ZibalTrackID,
-		ZibalRefNumber:  order.ZibalRefNumber,
-		Timeline:        order.Timeline,
-		Notes:           order.Notes,
-		CreatedAt:       order.CreatedAt,
-		UpdatedAt:       order.UpdatedAt,
-		JalaliCreatedAt: utils.ToJalaliDateString(order.CreatedAt),
-		JalaliUpdatedAt: utils.ToJalaliDateString(order.UpdatedAt),
-		ProductCount:    order.GetProductCount(),
+		ID:                   order.ID,
+		UserID:               order.UserID,
+		OrderNumber:          order.OrderNumber,
+		Items:                populatedItems,
+		TotalAmount:          order.TotalAmount,
+		ShippingCost:         order.ShippingCost,
+		TaxAmount:            order.TaxAmount,
+		DiscountAmount:       order.DiscountAmount,
+		DiscountCode:         order.DiscountCode,
+		ShippingAddress:      order.ShippingAddress,
+		Status:               order.Status,
+		StatusText:           order.StatusText,
+		TrackingCode:         order.TrackingCode,
+		PaymentStatus:        order.PaymentStatus,
+		PaymentMethod:        order.PaymentMethod,
+		ZibalTrackID:         order.ZibalTrackID,
+		ZibalRefNumber:       order.ZibalRefNumber,
+		GatewayName:          order.GatewayName,
+		GatewayTransactionID: order.GatewayTransactionID,
+		Timeline:             order.Timeline,
+		Notes:                order.Notes,
+		CreatedAt:            order.CreatedAt,
+		UpdatedAt:            order.UpdatedAt,
+		JalaliCreatedAt:      utils.ToJalaliDateString(order.CreatedAt),
+		JalaliUpdatedAt:      utils.ToJalaliDateString(order.UpdatedAt),
+		ProductCount:         order.GetProductCount(),
 	}, nil
 }
 
@@ -168,6 +175,41 @@ func validateInventory(ctx context.Context, items []models.OrderItem) (bool, str
 	}
 
 	return true, ""
+}
+
+func calculateCheckoutDiscount(ctx context.Context, userID primitive.ObjectID, code string, items []models.OrderItem, subtotal float64) (float64, error) {
+	if code == "" {
+		return 0, nil
+	}
+	var discount models.Discount
+	err := db.Database.Collection("discounts").FindOne(ctx, bson.M{"code": code}).Decode(&discount)
+	if err == nil {
+		if discount.Type == "fixed" {
+			return math.Min(subtotal, discount.Value), nil
+		}
+		return math.Min(subtotal, subtotal*discount.Value/100), nil
+	}
+	if err != mongo.ErrNoDocuments {
+		return 0, err
+	}
+
+	var coupon models.NegotiatedCoupon
+	if err := db.Database.Collection("negotiated_coupons").FindOne(ctx, bson.M{"code": code, "user_id": userID}).Decode(&coupon); err != nil {
+		return 0, err
+	}
+	base := subtotal
+	if len(coupon.RequiredProducts) > 0 {
+		base = 0
+		for _, item := range items {
+			for _, required := range coupon.RequiredProducts {
+				if item.ProductID == required.ProductID && colorsOverlap(required.Color, required.ColorName, item.Variant.Color, item.Variant.ColorName) {
+					base += item.PriceAtPurchase * float64(item.Quantity)
+					break
+				}
+			}
+		}
+	}
+	return math.Min(base, base*coupon.Value/100), nil
 }
 
 // reduceInventory decreases the inventory for each item in the order
@@ -429,6 +471,9 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		// UserID is now from context, remove from here if it was present
 		Items           []models.OrderItem `json:"items"`
 		TotalAmount     float64            `json:"totalAmount"`
+		ShippingCost    float64            `json:"shippingCost"`
+		TaxAmount       float64            `json:"taxAmount"`
+		DiscountAmount  float64            `json:"discountAmount"`
 		ShippingAddress models.Address     `json:"shippingAddress"`
 		PromoCode       string             `json:"promoCode,omitempty"`
 	}
@@ -539,8 +584,13 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 	// Fetch product snapshots for each order item
 	productsCollection := db.Database.Collection("products")
 	itemsWithSnapshots := make([]models.OrderItem, 0, len(orderData.Items))
+	var subtotal float64
 
 	for _, item := range orderData.Items {
+		if item.Quantity <= 0 {
+			utils.ErrorResponse(w, http.StatusBadRequest, "تعداد محصول باید بیشتر از صفر باشد")
+			return
+		}
 		// Fetch product to get name and image snapshot
 		var product models.Product
 		if err := productsCollection.FindOne(ctx, bson.M{"_id": item.ProductID}).Decode(&product); err != nil {
@@ -562,9 +612,33 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 			ProductImage:    productImage,
 			Variant:         normalizedVariant,
 			Quantity:        item.Quantity,
-			PriceAtPurchase: item.PriceAtPurchase,
+			PriceAtPurchase: product.Price,
 		}
 		itemsWithSnapshots = append(itemsWithSnapshots, itemWithSnapshot)
+		subtotal += product.Price * float64(item.Quantity)
+	}
+	if len(itemsWithSnapshots) == 0 {
+		utils.ErrorResponse(w, http.StatusBadRequest, "سبد خرید خالی است")
+		return
+	}
+	calculatedDiscount, discountErr := calculateCheckoutDiscount(ctx, userID, orderData.PromoCode, itemsWithSnapshots, subtotal)
+	if discountErr != nil && discountErr != mongo.ErrNoDocuments {
+		utils.ErrorResponse(w, http.StatusBadRequest, "خطا در محاسبه کد تخفیف")
+		return
+	}
+	if discountErr == mongo.ErrNoDocuments {
+		utils.ErrorResponse(w, http.StatusBadRequest, "کد تخفیف نامعتبر است")
+		return
+	}
+	orderData.DiscountAmount = calculatedDiscount
+	if orderData.ShippingCost < 0 || orderData.TaxAmount < 0 || orderData.DiscountAmount < 0 || orderData.DiscountAmount > subtotal {
+		utils.ErrorResponse(w, http.StatusBadRequest, "مقادیر مالی سفارش نامعتبر است")
+		return
+	}
+	expectedTotal := subtotal + orderData.ShippingCost + orderData.TaxAmount - orderData.DiscountAmount
+	if math.Abs(expectedTotal-orderData.TotalAmount) > 1 {
+		utils.ErrorResponse(w, http.StatusBadRequest, "مبلغ سفارش با اقلام سبد خرید مطابقت ندارد")
+		return
 	}
 
 	// Create a new order
@@ -576,7 +650,11 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		UserID:          userID,
 		OrderNumber:     fmt.Sprintf("DGS-%05d", orderCount),
 		Items:           itemsWithSnapshots,
-		TotalAmount:     orderData.TotalAmount,
+		TotalAmount:     expectedTotal,
+		ShippingCost:    orderData.ShippingCost,
+		TaxAmount:       orderData.TaxAmount,
+		DiscountAmount:  orderData.DiscountAmount,
+		DiscountCode:    orderData.PromoCode,
 		ShippingAddress: orderData.ShippingAddress,
 		Status:          "pending",
 		StatusText:      "در انتظار پردازش",
@@ -1153,7 +1231,8 @@ func GetAllOrders(w http.ResponseWriter, r *http.Request) {
 
 	// Search by order number (case-insensitive partial matching)
 	if search := r.URL.Query().Get("search"); search != "" {
-		filter["order_number"] = bson.M{"$regex": search, "$options": "i"}
+		pattern := bson.M{"$regex": search, "$options": "i"}
+		filter["$or"] = []bson.M{{"order_number": pattern}, {"gateway_transaction_id": pattern}}
 	}
 
 	// Date range filter
@@ -1334,6 +1413,10 @@ func UpdateOrderStatusAdmin(w http.ResponseWriter, r *http.Request) {
 		} else {
 			utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching order: "+err.Error())
 		}
+		return
+	}
+	if payload.Status == "cancelled" && currentOrder.GatewayName == "snappay" && currentOrder.PaymentStatus == "paid" {
+		utils.ErrorResponse(w, http.StatusConflict, "برای لغو سفارش اسنپ‌پی از عملیات لغو تراکنش با تاییدیه استفاده کنید")
 		return
 	}
 
