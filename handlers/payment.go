@@ -205,6 +205,7 @@ func RequestPayment(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now()
 	attempt := models.PaymentAttempt{
+		ID:             primitive.NewObjectID(),
 		OrderID:        order.ID,
 		UserID:         userID,
 		Gateway:        gateway.Name(),
@@ -938,6 +939,7 @@ func RetryPayment(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now()
 	attempt := models.PaymentAttempt{
+		ID:             primitive.NewObjectID(),
 		OrderID:        order.ID,
 		UserID:         userID,
 		Gateway:        gateway.Name(),
