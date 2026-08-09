@@ -131,6 +131,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
         url={productUrl} 
         avgRating={avgRating}
         reviewCount={reviews.length}
+        reviews={reviews}
       />
 
       {/* BreadcrumbList JSON-LD schema for SEO */}

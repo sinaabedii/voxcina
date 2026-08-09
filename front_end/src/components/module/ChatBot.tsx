@@ -188,8 +188,12 @@ const getRandomResponse = (input: string): string => {
   return selectedResponse;
 };
 
-export default function ChatBot() {
-  const [isOpen, setIsOpen] = useState(false);
+interface ChatBotProps {
+  initialOpen?: boolean;
+}
+
+export default function ChatBot({ initialOpen = false }: ChatBotProps) {
+  const [isOpen, setIsOpen] = useState(initialOpen);
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -712,7 +716,9 @@ export default function ChatBot() {
         }}
       >
         <Button
+          type="button"
           onClick={() => setIsOpen(!isOpen)}
+          aria-label={isOpen ? "بستن دستیار گفتگو" : "باز کردن دستیار گفتگو"}
           className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-[#1A3C69] hover:bg-[#15325a] text-white shadow-xl relative overflow-hidden group"
           style={{
             boxShadow: "0 10px 25px -5px rgba(26, 60, 105, 0.3)",
@@ -797,8 +803,10 @@ export default function ChatBot() {
               <div className="flex gap-1 md:gap-2 relative z-10">
                 {/* New Chat Button */}
                 <button
+                  type="button"
                   onClick={startNewChat}
-                  className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-[#15325a] transition-colors"
+                  className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full hover:bg-[#15325a] transition-colors"
+                  aria-label="شروع گفتگوی جدید"
                   title="گفتگوی جدید"
                 >
                   <svg className="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -809,11 +817,13 @@ export default function ChatBot() {
                 {/* Chat History Button (only for logged-in users) */}
                 {user && (
                   <button
+                    type="button"
                     onClick={() => {
                       setShowHistory(!showHistory);
                       if (!showHistory) loadUserChatHistory();
                     }}
-                    className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-[#15325a] transition-colors relative"
+                    className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full hover:bg-[#15325a] transition-colors relative"
+                    aria-label="نمایش تاریخچه گفتگو"
                     title="تاریخچه گفتگو"
                   >
                     <svg className="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -828,8 +838,10 @@ export default function ChatBot() {
                 )}
 
                 <button
+                  type="button"
                   onClick={() => setMinimized(!minimized)}
-                  className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-[#15325a] transition-colors"
+                  className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full hover:bg-[#15325a] transition-colors"
+                  aria-label={minimized ? "باز کردن پنجره گفتگو" : "کوچک کردن پنجره گفتگو"}
                 >
                   {minimized ? (
                     <ArrowLeft className="w-3.5 h-3.5 md:w-4 md:h-4" />
@@ -844,8 +856,10 @@ export default function ChatBot() {
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => setIsOpen(false)}
-                  className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-[#15325a] transition-colors"
+                  className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full hover:bg-[#15325a] transition-colors"
+                  aria-label="بستن پنجره گفتگو"
                 >
                   <X className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </button>

@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { APP_NAME, APP_DESCRIPTION, SEO_DEFAULT_TITLE } from "@/lib/constants";
 import "./globals.css";
-import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer } from "react-toastify";
 import ClientLayout from "../components/layout/ClientLayout";
 import { NavigationProvider } from "@/context/navigation";

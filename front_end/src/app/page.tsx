@@ -9,7 +9,7 @@ import ProductCarouselSectionClient from "@/components/home/ProductCarouselSecti
 import { ModernSliderSectionClient } from "@/components/home/ModernSliderClient";
 import AnimatedBackground from "@/components/ui/AnimatedBackground";
 import AIAssistantPromo from "@/components/home/AIAssistantPromo";
-import ColorMatchingTool from "@/components/home/ColorMatchingTool";
+import LazyColorMatchingTool from "@/components/home/LazyColorMatchingTool";
 import SeasonalCollectionBanner from "@/components/home/SeasonalCollectionBanner";
 import BenefitsSection from "@/components/home/BenefitsSection";
 import SEOContentSection from "@/components/home/SEOContentSection";
@@ -153,7 +153,7 @@ export default async function HomePage() {
             </div>
           }
         >
-          <ColorMatchingTool />
+          <LazyColorMatchingTool />
         </Suspense>
 
         {/* SEO Content Section - Keyword-rich content for better SEO */}

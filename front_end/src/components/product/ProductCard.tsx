@@ -160,7 +160,16 @@ const ProductCard: React.FC<ProductCardProps> = ({
               title={colorName}
             >
               {swatchImage && (
-                <img src={swatchImage} alt={colorName} className="w-full h-full object-cover" />
+                <Image
+                  src={swatchImage}
+                  alt={colorName}
+                  width={24}
+                  height={24}
+                  quality={60}
+                  sizes="24px"
+                  loading="lazy"
+                  className="w-full h-full object-cover"
+                />
               )}
             </div>
           </div>

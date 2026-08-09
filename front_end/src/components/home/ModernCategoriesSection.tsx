@@ -2,7 +2,6 @@
 
 import React, {
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -55,11 +54,9 @@ const ModernCategoriesSection = () => {
   const { categories, fetchCategories, isLoading } = useCategoryStore();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const rowRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
   const [dragScrollLeft, setDragScrollLeft] = useState(0);
-  const [itemWidth, setItemWidth] = useState<number | null>(null);
 
   useEffect(() => {
     fetchCategories();
@@ -69,42 +66,6 @@ const ModernCategoriesSection = () => {
     () => (categories || []).filter((c) => c.is_active !== false),
     [categories]
   );
-
-  // overflow-x-auto clips at the scroller's padding-box edge, not its content
-  // edge — so the scroller's own px-4 padding is visible space, not a safe
-  // buffer. Reserving both sides of it (as if it were a hard boundary) left
-  // just enough slack for the next avatar to peek through on the far side.
-  // Only the flush (near) side's padding needs reserving; the far side must
-  // instead be *consumed* so the next item's edge clears the real clip
-  // boundary. Measuring the actual DOM (not window.innerWidth) also keeps
-  // this correct once the container's max-width cap kicks in on wide screens.
-  useLayoutEffect(() => {
-    const el = scrollerRef.current;
-    const row = rowRef.current;
-    if (!el || !row || visible.length === 0) return;
-
-    const recompute = () => {
-      const isDesktop = window.matchMedia("(min-width: 768px)").matches;
-      const perView = isDesktop ? 8 : 4;
-      const gap =
-        parseFloat(getComputedStyle(row).columnGap) || (isDesktop ? 16 : 12);
-      const scrollerPadding = parseFloat(getComputedStyle(el).paddingLeft) || 16;
-      const available =
-        el.clientWidth - scrollerPadding - (perView - 0.5) * gap;
-      setItemWidth(Math.floor(available / perView));
-    };
-
-    el.scrollLeft = 0;
-    recompute();
-    const resizeObserver = new ResizeObserver(recompute);
-    resizeObserver.observe(row);
-    window.addEventListener("resize", recompute);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener("resize", recompute);
-    };
-  }, [visible.length]);
 
   const scrollByDirection = (direction: "start" | "end") => {
     const el = scrollerRef.current;
@@ -163,7 +124,7 @@ const ModernCategoriesSection = () => {
         ) : visible.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-gray-500">
             <Tags className="w-10 h-10 mb-2 text-gray-400" />
-            <p>هنوز دسته‌بندی‌ای ثبت نشده است.</p>
+            <p className="text-gray-600">هنوز دسته‌بندی‌ای ثبت نشده است.</p>
           </div>
         ) : (
           <div className="relative group/scroller mb-4">
@@ -199,21 +160,16 @@ const ModernCategoriesSection = () => {
               onMouseUp={stopDragging}
               onMouseLeave={stopDragging}
             >
-              <div ref={rowRef} className="flex gap-4 md:gap-5">
+              <div className="flex gap-4 md:gap-5">
                 {visible.map((category, index) => {
                   const palette = RING_PALETTE[index % RING_PALETTE.length];
                   const isHovered = hoveredId === category.id;
                   return (
                     <div
                       key={category.id}
-                      className={`relative flex-none min-w-0 ${
+                      className={`relative min-w-0 flex-[0_0_calc((100%_-_2.5rem)/4)] md:flex-[0_0_calc((100%_-_8.375rem)/8)] ${
                         isHovered ? "z-10" : ""
                       }`}
-                      style={
-                        itemWidth !== null
-                          ? { width: `${itemWidth}px`, flexBasis: `${itemWidth}px`, flexShrink: 0 }
-                          : undefined
-                      }
                     >
                       <Link
                         href={`/products?category=${
@@ -232,6 +188,10 @@ const ModernCategoriesSection = () => {
                                 <img
                                   src={category.avatar}
                                   alt={category.name}
+                                  width={160}
+                                  height={160}
+                                  loading="lazy"
+                                  decoding="async"
                                   draggable={false}
                                   className="w-full h-full object-contain transform transition-transform duration-300 group-hover:scale-110"
                                   onError={(e) => {

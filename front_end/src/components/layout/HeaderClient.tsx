@@ -3,15 +3,20 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Search, User, Menu, ShoppingBag, Shield, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
 import { useCartStore } from "@/store/cart-store";
 import MobileNav from "./MobileNav";
-import SmartSearch from "@/components/ui/SmartSearch";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/store/auth-store";
+
+const SmartSearch = dynamic(() => import("@/components/ui/SmartSearch"), {
+  ssr: false,
+  loading: () => null,
+});
 
 // Type definition for navigation items
 export interface NavItem {
@@ -208,12 +213,14 @@ const HeaderClient: React.FC<HeaderClientProps> = ({ navItems }) => {
       </AnimatePresence>
 
       {/* Search Modal Overlay */}
-      <SmartSearch
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-      />
+      {isSearchOpen && (
+        <SmartSearch
+          isOpen
+          onClose={() => setIsSearchOpen(false)}
+        />
+      )}
     </>
   );
 };
 
-export default HeaderClient; 
+export default HeaderClient;

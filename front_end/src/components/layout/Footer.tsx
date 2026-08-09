@@ -4,7 +4,6 @@ import React from "react";
 import Link from "next/link";
 import { FOOTER_LINKS, APP_NAME } from "@/lib/constants";
 import { useNavigation } from "@/context/navigation";
-import Image from "next/image";
 import {
   Instagram,
   Twitter,
@@ -15,6 +14,7 @@ import {
   MapPin,
   Send,
   Youtube,
+  ShieldCheck,
 } from "lucide-react";
 
 // Reusable footer section component
@@ -39,7 +39,7 @@ const FooterSection: React.FC<FooterSectionProps> = ({ title, items, animationDe
         <li key={link.href}>
           <Link
             href={link.href}
-            className="text-xs sm:text-sm md:text-base text-foreground hover:text-primary transition-all duration-200 flex items-center group"
+            className="min-h-6 py-1 text-xs sm:text-sm md:text-base text-foreground hover:text-primary transition-all duration-200 flex items-center group"
           >
             <span className="h-1.5 w-1.5 bg-secondary rounded-full ml-2 group-hover:bg-primary transition-colors duration-200 flex-shrink-0"></span>
             <span className="relative">
@@ -146,23 +146,17 @@ const Footer = () => {
             <div className="flex items-center gap-4 order-2 sm:order-1">
               <div className="flex flex-wrap gap-3 justify-center">
                 <div className="bg-white shadow-soft rounded-md p-1 h-16 w-16 md:h-[76.8px] md:w-[76.8px] flex items-center justify-center">
-                  <a 
-                    referrerPolicy='origin' 
-                    target='_blank' 
-                    rel='noopener nofollow'
-                    href='https://trustseal.enamad.ir/?id=684494&code=Zjpd4eaZhtqJbXoLvwbpf4pAXotCkI0Q'
-                    className="block"
-                    aria-label="نماد اعتماد الکترونیکی"
+                  <a
+                    target="_blank"
+                    rel="noopener nofollow"
+                    href="https://trustseal.enamad.ir/?id=684494&code=Zjpd4eaZhtqJbXoLvwbpf4pAXotCkI0Q"
+                    className="flex h-full w-full flex-col items-center justify-center gap-1 rounded border border-primary/10 text-primary transition-colors hover:bg-primary/5"
+                    aria-label="مشاهده نماد اعتماد الکترونیکی"
                   >
-                    <img 
-                      referrerPolicy='origin' 
-                      src='https://trustseal.enamad.ir/logo.aspx?id=684494&code=Zjpd4eaZhtqJbXoLvwbpf4pAXotCkI0Q'
-                      alt='نماد اعتماد الکترونیکی' 
-                      style={{cursor:'pointer'}} 
-                      data-code='Zjpd4eaZhtqJbXoLvwbpf4pAXotCkI0Q'
-                      className="object-contain w-14 h-14 md:h-full md:w-full"
-                    />
-                    <span className="sr-only">نماد اعتماد الکترونیکی</span>
+                    <ShieldCheck className="h-7 w-7" aria-hidden="true" />
+                    <span className="text-[9px] font-bold leading-tight text-center">
+                      نماد اعتماد
+                    </span>
                   </a>
                 </div>
 
@@ -182,8 +176,12 @@ const Footer = () => {
                     }}
                   >
                     <img
-                      src="https://zibal.ir/trust/assets/1.png"
+                      src="/images/payment/zibal.svg"
                       alt="پرداخت آنلاین زیبال"
+                      width={56}
+                      height={56}
+                      loading="lazy"
+                      decoding="async"
                       className="h-14 w-auto md:h-full object-contain border-0"
                     />
                   </a>

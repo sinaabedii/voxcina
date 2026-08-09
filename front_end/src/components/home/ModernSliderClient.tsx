@@ -285,10 +285,18 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
             <button
               key={index}
               onClick={() => handleGoToSlide(index)}
-              className={`w-2 h-2 rounded-full transition-colors ${
-                currentSlide === index ? "bg-white" : "bg-white/50"
-              }`}
-            />
+              type="button"
+              aria-label={`رفتن به اسلاید ${index + 1}`}
+              aria-current={currentSlide === index ? "true" : undefined}
+              className="flex h-8 w-8 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/20"
+            >
+              <span
+                aria-hidden="true"
+                className={`h-2 w-2 rounded-full transition-colors ${
+                  currentSlide === index ? "bg-white" : "bg-white/50"
+                }`}
+              />
+            </button>
           ))}
         </div>
 
