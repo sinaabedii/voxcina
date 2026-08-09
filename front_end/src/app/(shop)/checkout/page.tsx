@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -83,6 +83,7 @@ export default function CheckoutPage() {
   const [editingAddress, setEditingAddress] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [operationLoading, setOperationLoading] = useState<string | null>(null);
+  const paymentRequestInFlight = useRef(false);
 
   const shippingCost = selectedShippingMethod?.price ?? summary.shipping ?? 0;
   const checkoutTotal = Math.max(0, summary.subtotal + summary.tax + shippingCost - summary.discount);
@@ -168,6 +169,11 @@ export default function CheckoutPage() {
   useEffect(() => {
     let cancelled = false;
     const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
+    if (isProcessing) {
+      return () => {
+        cancelled = true;
+      };
+    }
     if (!token || checkoutTotal <= 0) {
       setSnappPayEligibility(null);
       setSnappPayEligibilityLoading(false);
@@ -187,8 +193,8 @@ export default function CheckoutPage() {
       .then((eligibility) => {
         if (cancelled) return;
         setSnappPayEligibility(eligibility?.eligible ? eligibility : null);
-        if (!eligibility?.eligible && selectedGateway === "snappay") {
-          setSelectedGateway("zibal");
+        if (!eligibility?.eligible) {
+          setSelectedGateway((currentGateway) => currentGateway === "snappay" ? "zibal" : currentGateway);
         }
       })
       .catch(() => {
@@ -201,7 +207,7 @@ export default function CheckoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [checkoutTotal, selectedGateway]);
+  }, [checkoutTotal, isProcessing]);
 
   /* While the redirect effect hasn't run yet, render nothing.
      This avoids executing any of the heavy checkout UI on the server.
@@ -416,6 +422,8 @@ export default function CheckoutPage() {
      Place-order handler
   ───────────────────────────────────────────── */
   const handlePlaceOrder = async () => {
+    if (paymentRequestInFlight.current) return;
+
     if (!selectedAddress) {
       toast.error("لطفا یک آدرس انتخاب کنید");
       return;
@@ -429,6 +437,8 @@ export default function CheckoutPage() {
       toast.error("لطفا وارد حساب کاربری خود شوید");
       return;
     }
+
+    paymentRequestInFlight.current = true;
 
     try {
       setIsProcessing(true);
@@ -497,6 +507,7 @@ export default function CheckoutPage() {
           removePromoCode();
           toast.error(errorData.error);
           setIsProcessing(false);
+          paymentRequestInFlight.current = false;
           return;
         }
         throw new Error(errorData.error || "خطا در ثبت سفارش");
@@ -515,7 +526,7 @@ export default function CheckoutPage() {
 
       // Step 2: Handle payment based on selected method
       if (selectedPaymentMethod === "online") {
-        // Request payment from Zibal
+        // Request payment from the selected gateway.
         const paymentResponse = await fetch("/api/payment/request", {
           method: "POST",
           headers: {
@@ -539,8 +550,8 @@ export default function CheckoutPage() {
 
         if (paymentData.result === 100 && paymentData.payUrl) {
           // Don't clear cart here - it will be cleared on successful payment callback
-          // Redirect to payment gateway
-          window.location.href = paymentData.payUrl;
+          // Use a full navigation so checkout cannot remain as a stale history entry.
+          window.location.replace(paymentData.payUrl);
           return;
         } else {
           throw new Error("خطا در دریافت لینک پرداخت");
@@ -553,11 +564,13 @@ export default function CheckoutPage() {
         // Wallet payment - TODO: implement wallet deduction
         toast.error("پرداخت با کیف پول در حال حاضر فعال نیست");
         setIsProcessing(false);
+        paymentRequestInFlight.current = false;
         return;
       }
     } catch (error: any) {
       console.error("خطا در ثبت سفارش:", error);
       setIsProcessing(false);
+      paymentRequestInFlight.current = false;
       toast.error(error.message || "خطا در ثبت سفارش. لطفا دوباره تلاش کنید.");
     }
   };
