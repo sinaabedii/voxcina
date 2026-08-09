@@ -68,6 +68,7 @@ func NewRouter() *mux.Router {
 
 	// Product Catalog endpoints
 	api.HandleFunc("/products", handlers.ListProducts).Methods(http.MethodGet)
+	api.HandleFunc("/products/trending", handlers.GetTrendingProductVariants).Methods(http.MethodGet)
 	api.HandleFunc("/products/{id}", handlers.GetProduct).Methods(http.MethodGet)
 	api.HandleFunc("/products/search", handlers.SearchProducts).Methods(http.MethodGet)
 	api.HandleFunc("/products/recommendations", handlers.ProductRecommendations).

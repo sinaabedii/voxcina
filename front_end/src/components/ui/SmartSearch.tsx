@@ -16,7 +16,7 @@ import { useProductStore } from "@/store/product-store";
 import { formatPrice } from "@/lib/utils";
 import { ColorVariantListItem } from "@/types/product";
 import { motion, AnimatePresence } from "framer-motion";
-import { getCanonicalColor } from "@/lib/product-variants";
+import { getVariantUrlValue } from "@/lib/product-variants";
 
 interface SmartSearchProps {
   isOpen?: boolean;
@@ -457,7 +457,7 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
 	                                item.category_ids,
 	                                categories
 	                              );
-	                              const selectedColor = getCanonicalColor(item.colorVariant) || item.colorVariant.colorName;
+	                              const selectedColor = getVariantUrlValue(item.colorVariant) || item.colorVariant.colorName;
 
 	                              return (
 	                                <motion.div
@@ -467,7 +467,7 @@ const SmartSearch: React.FC<SmartSearchProps> = ({
                                   transition={{ delay: index * 0.1 }}
                                 >
 	                                  <Link
-	                                    href={`/products/${item.productId}?color=${encodeURIComponent(selectedColor)}`}
+	                                    href={`/products/${item.productId}?${item.colorVariant.variantId ? "variant" : "color"}=${encodeURIComponent(selectedColor || "")}`}
 	                                    rel="nofollow"
                                     className="group block p-2 sm:p-3 md:p-4 rounded-lg sm:rounded-xl md:rounded-2xl hover:bg-gradient-to-br hover:from-voxcina-lightCream hover:to-primary-50 transition-all duration-300 border border-transparent hover:border-primary-200 hover:shadow-medium"
                                     onClick={onClose}

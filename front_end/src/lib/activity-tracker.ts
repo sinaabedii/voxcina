@@ -282,7 +282,8 @@ class ActivityTracker {
     immediate: boolean = false
   ): void {
     const pagePath = typeof window !== 'undefined' ? window.location.pathname : '';
-    const key = `${productId}:${pagePath}`;
+    const variantId = typeof metadata?.variantId === 'string' ? metadata.variantId : '';
+    const key = `${productId}:${variantId}:${pagePath}`;
     const now = Date.now();
     const lastViewedAt = this.recentProductViews.get(key);
 

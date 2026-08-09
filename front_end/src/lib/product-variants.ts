@@ -26,12 +26,33 @@ export const findColorVariant = (
   if (!values.length) return undefined;
 
   return variants.find((variant) =>
+    variant.variantId === color ||
     values.some((value) => cleanVariantValue(variant.color) === value || cleanVariantValue(variant.colorName) === value)
   );
 };
 
 export const getCanonicalColor = (variant?: ColorVariant): string | undefined => {
   return cleanVariantValue(variant?.color) || cleanVariantValue(variant?.colorName);
+};
+
+export const getVariantId = (variant?: ColorVariant): string | undefined => {
+  return cleanVariantValue(variant?.variantId);
+};
+
+export const getVariantUrlValue = (variant?: ColorVariant): string | undefined => {
+  return getVariantId(variant) || getCanonicalColor(variant);
+};
+
+export const findVariantByIdOrLegacyValue = (
+  variants: ColorVariant[] | undefined,
+  value?: string | null
+): ColorVariant | undefined => {
+  if (!variants?.length || !value) return undefined;
+  return variants.find((variant) =>
+    variant.variantId === value ||
+    cleanVariantValue(variant.color) === value ||
+    cleanVariantValue(variant.colorName) === value
+  );
 };
 
 export const getCartItemColorKey = (item: Pick<CartItem, "color" | "colorName">): string => {

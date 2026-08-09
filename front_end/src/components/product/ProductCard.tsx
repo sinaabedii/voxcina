@@ -11,7 +11,7 @@ import Button from "@/components/ui/Button";
 import { toast } from "react-toastify";
 import { useDashboardStore } from "@/store/dashboard-store";
 import { activityTracker } from "@/lib/activity-tracker";
-import { getCanonicalColor } from "@/lib/product-variants";
+import { getCanonicalColor, getVariantUrlValue } from "@/lib/product-variants";
 
 interface ProductCardProps {
   item: ColorVariantListItem;
@@ -33,9 +33,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   // Extract data from the color variant list item
   const { productId, colorVariant, name, description, price, originalPrice, brand, inStock } = item;
-  const { color, colorName, swatchImage, images, sizes } = colorVariant;
+  const { color, colorName, swatchImage, images, sizes, variantId } = colorVariant;
   const selectedColor = getCanonicalColor(colorVariant) || colorName;
-  const productHref = `/products/${productId}?color=${encodeURIComponent(selectedColor)}`;
+  const variantUrlValue = getVariantUrlValue(colorVariant) || selectedColor;
+  const productHref = `/products/${productId}?${variantId ? "variant" : "color"}=${encodeURIComponent(variantUrlValue || "")}`;
 
   // Display the first image from this color's images
   const displayImage = images && images.length > 0 ? images[0] : null;
@@ -76,6 +77,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   const handleProductClick = () => {
     activityTracker.trackProductClick(productId, name, {
+      variantId,
       colorName,
       colorHex: color,
       inStock,
@@ -94,7 +96,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
     if (selectedSize) {
       const sizeVariant = sizes.find(s => s.size === selectedSize);
       if (sizeVariant && sizeVariant.quantity > 0) {
-        addItem(buildCartProduct(), 1, selectedSize, selectedColor, colorName);
+        addItem(buildCartProduct(), 1, selectedSize, selectedColor, colorName, variantId);
         handleCloseModal();
         toast.success("محصول به سبد خرید اضافه شد");
       }
@@ -117,6 +119,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
 
         <div className="product-card-image relative aspect-[4/5] overflow-hidden bg-secondary/30">
+          {item.rank && (
+            <div className="absolute top-2.5 right-2.5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-black text-primary-foreground shadow-medium">
+              #{item.rank}
+            </div>
+          )}
           {displayImage ? (
             <Image
               src={displayImage}
@@ -155,8 +162,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
           {/* Color indicator swatch */}
           <div className="absolute bottom-3 right-3 flex gap-1">
             <div
-              className="w-6 h-6 rounded-full border-2 border-white shadow-soft overflow-hidden"
               style={!swatchImage && color?.startsWith("#") ? { backgroundColor: color } : undefined}
+              className={`w-6 h-6 rounded-full border-2 border-white shadow-soft overflow-hidden ${!swatchImage && !color?.startsWith("#") ? "bg-[repeating-linear-gradient(135deg,#d7d2ca_0,#d7d2ca_3px,#f5f1ea_3px,#f5f1ea_6px)]" : ""}`}
               title={colorName}
             >
               {swatchImage && (
@@ -220,6 +227,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
             {name}
           </p>
           <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{colorName} · {brand}</p>
+          {item.viewCount !== undefined && (
+            <p className="mt-1 text-[10px] font-medium text-primary/70">
+              {new Intl.NumberFormat("fa-IR").format(item.viewCount)} بازدید
+            </p>
+          )}
 
           {(ribbonLabel || isNew) && (
             <span className="badge badge-primary mt-2 text-[9px] sm:text-xs">

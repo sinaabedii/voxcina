@@ -32,6 +32,7 @@ import {
   getCanonicalColor,
   getCartItemImage,
   getProductDisplayImage,
+  getVariantUrlValue,
 } from "@/lib/product-variants";
 
 interface TryOnEligibleItem {
@@ -566,6 +567,11 @@ export default function TryOnRoomPage() {
     return getCanonicalColor(variant) || rec.selected_color || rec.color || rec.color_name || undefined;
   };
 
+  const getRecommendedVariant = (rec: RecommendedProduct): ColorVariant | undefined =>
+    rec.product
+      ? findColorVariant(rec.product, rec.selected_color || rec.color, rec.color_name)
+      : undefined;
+
   const getRecommendedColorName = (rec: RecommendedProduct): string | undefined => {
     const variant = rec.product
       ? findColorVariant(rec.product, rec.selected_color || rec.color, rec.color_name)
@@ -610,7 +616,7 @@ export default function TryOnRoomPage() {
     let index = currentItems.findIndex((ei) => matchesRecommendedVariant(ei, rec));
     if (index === -1) {
       const product = buildRecommendedProduct(rec);
-      await addItem(product, 1, size, color, colorName);
+      await addItem(product, 1, size, color, colorName, getRecommendedVariant(rec)?.variantId);
       const updatedItems = computeEligibleItems(useCartStore.getState().cart.items);
       index = updatedItems.findIndex((ei) => matchesRecommendedVariant(ei, rec));
       if (index !== -1) {
@@ -629,7 +635,7 @@ export default function TryOnRoomPage() {
     const exists = currentItems.some((ei) => matchesRecommendedVariant(ei, rec));
     if (!exists) {
       const product = buildRecommendedProduct(rec);
-      await addItem(product, 1, resolvedSize, color, colorName);
+      await addItem(product, 1, resolvedSize, color, colorName, getRecommendedVariant(rec)?.variantId);
       toast.success("به سبد خرید اضافه شد");
     } else {
       toast.info("این محصول در سبد خرید شما موجود است");
@@ -1510,7 +1516,7 @@ export default function TryOnRoomPage() {
                           <p className="text-[11px] font-bold text-voxcina-blue dark:text-voxcina-cream">پیشنهاد فروشنده</p>
                         </div>
                         <Link
-                          href={`/products/${recommendedProduct.product_id}?color=${encodeURIComponent(getRecommendedColor(recommendedProduct) || "")}`}
+                          href={`/products/${recommendedProduct.product_id}?${getRecommendedVariant(recommendedProduct)?.variantId ? "variant" : "color"}=${encodeURIComponent(getVariantUrlValue(getRecommendedVariant(recommendedProduct)) || getRecommendedColor(recommendedProduct) || "")}`}
                           target="_blank"
                           rel="noopener noreferrer nofollow"
                           className="flex items-center gap-3 mb-2 group"

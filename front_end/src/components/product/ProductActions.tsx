@@ -44,6 +44,7 @@ import { useProductStore } from "@/store/product-store";
 import { activityTracker } from "@/lib/activity-tracker";
 import BackendImage from "@/components/BackendImage";
 import { ImageSkeleton } from "@/components/ui/Loading";
+import { findVariantByIdOrLegacyValue, getVariantId } from "@/lib/product-variants";
 
 interface ProductActionsProps {
   product: Product;
@@ -71,6 +72,7 @@ const isLightColor = (color: string): boolean => {
 
 export default function ProductActions({ product, productUrl, reviews, categoryName }: ProductActionsProps) {
   const searchParams = useSearchParams();
+  const urlVariant = searchParams.get('variant');
   const urlColor = searchParams.get('color');
   
   const [selectedImage, setSelectedImage] = useState(0);
@@ -112,12 +114,18 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
 
   const isProductFavorite = product?.id ? isFavorite(product.id) : false;
 
+  const findSelectedVariant = (value = selectedColor) =>
+    findVariantByIdOrLegacyValue(product?.colorVariants, value);
+
+  const variantSelectionKey = (variant: Product["colorVariants"][number]) =>
+    variant.variantId || variant.colorName;
+
 
   // Helper function to get product images based on selected color
   const getProductImages = () => {
     if (!product) return [];
     if (selectedColor) {
-      const colorVariant = product.colorVariants?.find(cv => cv.colorName === selectedColor);
+      const colorVariant = findSelectedVariant();
       if (colorVariant?.images?.length) {
         return [...colorVariant.images, ...(product.mainImages || [])];
       }
@@ -131,7 +139,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   const getTryOnImage = () => {
     if (!product) return null;
     if (selectedColor) {
-      const colorVariant = product.colorVariants?.find(cv => cv.colorName === selectedColor);
+      const colorVariant = findSelectedVariant();
       if (colorVariant?.tryOnImage) return colorVariant.tryOnImage;
     }
     return null;
@@ -154,13 +162,13 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     : [];
 
   const availableColors = product?.colorVariants
-    ? product.colorVariants.map((cv) => ({ color: cv.color, colorName: cv.colorName, swatchImage: cv.swatchImage }))
+      ? product.colorVariants.map((cv) => ({ variantId: cv.variantId, color: cv.color, colorName: cv.colorName, swatchImage: cv.swatchImage }))
     : [];
 
   // Get available sizes based on selected color
   const getAvailableSizesForColor = (color: string | undefined) => {
     if (!product || !color) return availableSizes;
-    const colorVariant = product.colorVariants.find(cv => cv.colorName === color);
+    const colorVariant = findVariantByIdOrLegacyValue(product.colorVariants, color);
     if (!colorVariant) return [];
     return colorVariant.sizes.filter(s => s.quantity > 0).map(s => normalizeSize(s.size));
   };
@@ -171,13 +179,13 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     const normalizedTarget = normalizeSize(size);
     return product.colorVariants
       .filter(cv => cv.sizes.some(s => normalizeSize(s.size) === normalizedTarget && s.quantity > 0))
-      .map(cv => ({ color: cv.color, colorName: cv.colorName, swatchImage: cv.swatchImage }));
+      .map(cv => ({ variantId: cv.variantId, color: cv.color, colorName: cv.colorName, swatchImage: cv.swatchImage }));
   };
 
   // Check if a specific variant is in stock
   const isVariantInStock = (size: string, color: string) => {
     if (!product) return false;
-    const colorVariant = product.colorVariants.find(cv => cv.colorName === color);
+    const colorVariant = findVariantByIdOrLegacyValue(product.colorVariants, color);
     if (!colorVariant) return false;
     const normalizedTarget = normalizeSize(size);
     return colorVariant.sizes.some(s => normalizeSize(s.size) === normalizedTarget && s.quantity > 0);
@@ -197,7 +205,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
       return 99;
     }
     if (!selectedColor || !selectedSize) return 0;
-    const colorVariant = product.colorVariants.find(cv => cv.colorName === selectedColor);
+    const colorVariant = findSelectedVariant();
     if (!colorVariant) return 0;
     const normalizedTarget = normalizeSize(selectedSize);
     const sizeVariant = colorVariant.sizes.find(s => normalizeSize(s.size) === normalizedTarget);
@@ -226,7 +234,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   const handleColorChange = (colorName: string | undefined) => {
     setSelectedColor(colorName);
     if (product) {
-      const variant = product.colorVariants?.find(cv => cv.colorName === colorName);
+      const variant = findVariantByIdOrLegacyValue(product.colorVariants, colorName);
       const inStock = variant?.sizes?.some(s => s.quantity > 0);
       activityTracker.trackColorClick(
         product.id,
@@ -236,8 +244,18 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
         {
           swatchImage: variant?.swatchImage,
           hasStock: inStock,
+          variantId: getVariantId(variant),
         }
       );
+      if (variant) {
+        activityTracker.trackProductView(product.id, product.name, undefined, {
+          source: 'variant_selection',
+          variantId: variant.variantId,
+          color: variant.color,
+          colorName: variant.colorName,
+          swatchImage: variant.swatchImage,
+        });
+      }
     }
   };
 
@@ -255,13 +273,23 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     const reportProductView = () => {
       if (productViewReportedRef.current) return;
       productViewReportedRef.current = true;
-      activityTracker.trackProductView(
-        product.id,
-        product.name,
-        Date.now() - productViewStartRef.current,
-        { source: 'product_detail_dwell' },
-        true
-      );
+       const initialVariant = findVariantByIdOrLegacyValue(
+         product.colorVariants,
+         urlVariant || urlColor
+       ) || product.colorVariants?.[0];
+       activityTracker.trackProductView(
+         product.id,
+         product.name,
+         Date.now() - productViewStartRef.current,
+         {
+           source: 'product_detail_dwell',
+           variantId: initialVariant?.variantId,
+           color: initialVariant?.color,
+           colorName: initialVariant?.colorName,
+           swatchImage: initialVariant?.swatchImage,
+         },
+         true
+       );
     };
 
     document.addEventListener('visibilitychange', reportProductView);
@@ -269,7 +297,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
       document.removeEventListener('visibilitychange', reportProductView);
       reportProductView();
     };
-  }, [product, addRecentlyViewed]);
+  }, [product, addRecentlyViewed, urlVariant, urlColor]);
 
   // Fetch brand detail when product is loaded
   useEffect(() => {
@@ -280,16 +308,17 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
 
   // Pre-select color from URL query parameter
   useEffect(() => {
-    if (product && urlColor && !selectedColor) {
-      const matchingVariant = product.colorVariants?.find(
-        cv => cv.color === urlColor || cv.colorName === urlColor
+    if (product && (urlVariant || urlColor) && !selectedColor) {
+      const matchingVariant = findVariantByIdOrLegacyValue(
+        product.colorVariants,
+        urlVariant || urlColor
       );
       if (matchingVariant) {
-        setSelectedColor(matchingVariant.colorName);
+        setSelectedColor(variantSelectionKey(matchingVariant));
         setSelectedImage(0);
       }
     }
-  }, [product, urlColor, selectedColor]);
+  }, [product, urlVariant, urlColor, selectedColor]);
 
   // Reset quantity when variant selection changes
   useEffect(() => {
@@ -386,12 +415,10 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
       alert("ترکیب سایز و رنگ انتخابی موجود نیست");
       return;
     }
-    const selectedVariant = selectedColor
-      ? product?.colorVariants?.find(cv => cv.colorName === selectedColor)
-      : undefined;
-    const colorVal = selectedVariant?.color || selectedColor;
+    const selectedVariant = selectedColor ? findSelectedVariant() : undefined;
+    const colorVal = selectedVariant?.color || selectedVariant?.colorName || selectedColor;
     const colorName = selectedVariant?.colorName || selectedColor;
-    addItem(product, quantity, selectedSize, colorVal, colorName);
+    addItem(product, quantity, selectedSize, colorVal, colorName, selectedVariant?.variantId);
     toast.success("محصول به سبد خرید اضافه شد");
   };
 
@@ -457,7 +484,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
 
   const handleTryOnSubmit = async () => {
     if (!tryOnImage) return;
-    const colorVariant = product?.colorVariants?.find(cv => cv.colorName === selectedColor);
+    const colorVariant = findSelectedVariant();
     const garmentType = colorVariant?.tryOnGarmentType || "upper_body";
     setShowTryOnModal(false);
     try {
@@ -639,7 +666,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
           <ColorSelector
             colors={availableColors.map(c => ({
               ...c,
-              isAvailable: !selectedSize || availableColorsForSelectedSize.some(ac => ac.color === c.color)
+              isAvailable: !selectedSize || availableColorsForSelectedSize.some(ac => ac.variantId === c.variantId)
             }))}
             selectedColor={selectedColor}
             onColorChange={handleColorChange}

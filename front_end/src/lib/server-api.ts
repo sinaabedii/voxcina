@@ -25,6 +25,7 @@ export interface ServerApiConfig {
 export const CACHE_TIMES = {
   PRODUCT_DETAIL: 60,      // 1 minute - products change frequently
   PRODUCTS_LIST: 300,      // 5 minutes - list can be slightly stale
+  TRENDING_PRODUCTS: 60,   // popularity changes frequently
   HOME_PAGE: 600,          // 10 minutes - home page content stable
   BLOG_POST: 3600,         // 1 hour - blog content rarely changes
   CATEGORIES: 600,         // 10 minutes - categories stable

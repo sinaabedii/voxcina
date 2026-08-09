@@ -73,7 +73,7 @@ export default function CartPage() {
   }, [warnings, dismissCartWarnings]);
 
   // Helper to get item key for optimistic updates
-  const getItemKey = (item: CartItem) => `${item.productId}-${item.size || ''}-${getCartItemColorKey(item)}`;
+  const getItemKey = (item: CartItem) => `${item.productId}-${item.size || ''}-${item.variantId || getCartItemColorKey(item)}`;
   
   // Get displayed quantity (pending or actual)
   const getDisplayQuantity = (item: CartItem): number => {
@@ -90,7 +90,7 @@ export default function CartPage() {
     
     // Then update the backend - if it fails, the pending state will be cleared
     // and the actual quantity from the store will be shown
-    updateItemQuantity(item.productId, quantity, item.size, item.color, item.colorName);
+    updateItemQuantity(item.productId, quantity, item.size, item.color, item.colorName, item.variantId);
   };
 
   const willVoucherSurvive = (item: CartItem): boolean => {
@@ -145,7 +145,7 @@ export default function CartPage() {
     if (removeModal.willInvalidate) {
       removePromoCode();
     }
-    removeItem(removeModal.item.productId, removeModal.item.size, removeModal.item.color, removeModal.item.colorName);
+    removeItem(removeModal.item.productId, removeModal.item.size, removeModal.item.color, removeModal.item.colorName, removeModal.item.variantId);
     setRemoveModal({ isOpen: false, item: null, willInvalidate: false, productName: "" });
   };
 

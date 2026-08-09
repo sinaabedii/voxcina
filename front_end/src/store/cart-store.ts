@@ -118,13 +118,15 @@ const withOperationGuard = async <T>(
 };
 
 const cartSelectionMatches = (
-  item: Pick<CartItem, "productId" | "size" | "color" | "colorName" | "product">,
+  item: Pick<CartItem, "productId" | "size" | "variantId" | "color" | "colorName" | "product">,
   productId: string,
   size?: string,
   color?: string,
-  colorName?: string
+  colorName?: string,
+  variantId?: string
 ): boolean => {
   if (item.productId !== productId || item.size !== size) return false;
+	if (item.variantId && variantId) return item.variantId === variantId;
 
   const itemVariant = findColorVariant(item.product, item.color, item.colorName);
   const requestedVariant = findColorVariant(item.product, color, colorName);
@@ -167,7 +169,8 @@ interface CartStore {
     quantity: number,
     size?: string,
     color?: string,
-    colorName?: string
+    colorName?: string,
+    variantId?: string
   ) => Promise<void>;
   updateItemQuantity: (
     productId: string, 
@@ -175,12 +178,14 @@ interface CartStore {
     size?: string, 
     color?: string,
     colorName?: string,
+    variantId?: string,
   ) => Promise<void>;
   removeItem: ( 
     productId: string,
     size?: string, 
     color?: string,
-    colorName?: string
+    colorName?: string,
+    variantId?: string
   ) => Promise<void>;
   clearCart: () => Promise<void>;
   applyPromoCode: (code: string) => Promise<void>;
@@ -256,9 +261,10 @@ const processBackendCartData = (backendCartData: any): { cart: Cart; summary: Ca
     product: item.product ? transformBackendCartItemProduct(item.product) : undefined as unknown as Product,
     price: item.product ? item.product.price : (item.price || 0),
     id: item.id || generateId(),
-    productId: item.product ? (item.product.id || item.product.ID) : item.productId,
-    size: item.variant?.size,
-    color: item.variant?.color,
+      productId: item.product ? (item.product.id || item.product.ID) : item.productId,
+      size: item.variant?.size,
+      variantId: item.variant?.variantId || item.variant?.variant_id,
+      color: item.variant?.color,
     colorName: item.variant?.colorName || item.variant?.color_name,
     sku: item.variant?.sku || item.variant?.SKU,
   }));
@@ -450,7 +456,7 @@ export const useCartStore = create<CartStore>()(
             const itemsForBackend = localCartItems.map(item => ({
               productId: item.productId,
               quantity: item.quantity,
-              variant: { size: item.size, color: item.color, colorName: item.colorName }
+              variant: { size: item.size, variantId: item.variantId, color: item.color, colorName: item.colorName }
             }));
 
             const mergeResult = await makeCartApiRequest<any>('/api/cart', 'POST', { items: itemsForBackend });
@@ -515,8 +521,9 @@ export const useCartStore = create<CartStore>()(
         }
       },
 
-      addItem: async (product, quantity, size, color, colorName) => {
+      addItem: async (product, quantity, size, color, colorName, variantId) => {
         const selectedVariant = findColorVariant(product, color, colorName);
+        const resolvedVariantId = variantId || selectedVariant?.variantId;
         const resolvedColor = getCanonicalColor(selectedVariant) || color || colorName;
         const resolvedColorName = selectedVariant?.colorName || colorName || color;
         // Task 9.4: Use unified operation guard
@@ -534,7 +541,7 @@ export const useCartStore = create<CartStore>()(
               const result = await makeCartApiRequest<any>(
                 '/api/cart/item',
                 'POST',
-                { productId: product.id, quantity, variant: { size, color: resolvedColor, colorName: resolvedColorName } }
+                { productId: product.id, quantity, variant: { size, variantId: resolvedVariantId, color: resolvedColor, colorName: resolvedColorName } }
               );
               
               if (!result.ok) {
@@ -546,7 +553,7 @@ export const useCartStore = create<CartStore>()(
             } else {
               // Local add logic (remains the same)
               const existingItemIndex = currentLocalCart.items.findIndex(
-                item => cartSelectionMatches(item, product.id, size, resolvedColor, resolvedColorName)
+                item => cartSelectionMatches(item, product.id, size, resolvedColor, resolvedColorName, resolvedVariantId)
               );
               let updatedItems;
               if (existingItemIndex > -1) {
@@ -562,6 +569,7 @@ export const useCartStore = create<CartStore>()(
                   product: product,
                   quantity: quantity,
                   size: size,
+                  variantId: resolvedVariantId,
                   color: resolvedColor,
                   colorName: resolvedColorName,
                   price: product.price,
@@ -579,7 +587,7 @@ export const useCartStore = create<CartStore>()(
             // Add to local cart as fallback so item isn't silently lost
             const currentLocalCart = get().cart;
             const existingItemIndex = currentLocalCart.items.findIndex(
-              item => cartSelectionMatches(item, product.id, size, resolvedColor, resolvedColorName)
+              item => cartSelectionMatches(item, product.id, size, resolvedColor, resolvedColorName, resolvedVariantId)
             );
             let updatedItems;
             if (existingItemIndex > -1) {
@@ -595,6 +603,7 @@ export const useCartStore = create<CartStore>()(
                 product: product,
                 quantity: quantity,
                 size: size,
+                variantId: resolvedVariantId,
                 color: resolvedColor,
                 colorName: resolvedColorName,
                 price: product.price,
@@ -610,7 +619,7 @@ export const useCartStore = create<CartStore>()(
         });
       },
 
-      updateItemQuantity: async (productId, quantity, size, color, colorName) => {
+      updateItemQuantity: async (productId, quantity, size, color, colorName, variantId) => {
         // Task 9.4: Use unified operation guard
         await withOperationGuard('updateItemQuantity', async () => {
           const updateCartFromBackend = createUpdateCartFromBackendResponse(set);
@@ -625,7 +634,7 @@ export const useCartStore = create<CartStore>()(
               const result = await makeCartApiRequest<any>(
                 '/api/cart/item',
                 'PUT',
-                { productId, variant: { size, color, colorName }, quantity }
+                { productId, variant: { size, variantId, color, colorName }, quantity }
               );
               
               if (!result.ok) {
@@ -637,7 +646,7 @@ export const useCartStore = create<CartStore>()(
             } else {
               const { cart: currentLocalCart } = get();
               const updatedItems = currentLocalCart.items.map(item => 
-                cartSelectionMatches(item, productId, size, color, colorName)
+                cartSelectionMatches(item, productId, size, color, colorName, variantId)
                   ? { ...item, quantity } 
                   : item
               ).filter(item => item.quantity > 0);
@@ -651,7 +660,7 @@ export const useCartStore = create<CartStore>()(
         });
       },
 
-      removeItem: async (productId, size, color, colorName) => {
+      removeItem: async (productId, size, color, colorName, variantId) => {
         // Task 9.4: Use unified operation guard
         await withOperationGuard('removeItem', async () => {
           const updateCartFromBackend = createUpdateCartFromBackendResponse(set);
@@ -663,9 +672,10 @@ export const useCartStore = create<CartStore>()(
 
             if (isAuthenticated && user) {
               // Task 9.2: Use helper for API request (DELETE with query params)
-              const queryParams = new URLSearchParams({ 
-                productId, 
-                ...(size && { variantSize: size }), 
+              const queryParams = new URLSearchParams({
+                productId,
+                ...(size && { variantSize: size }),
+                ...(variantId && { variantId }),
                 ...(color && { variantColor: color }),
                 ...(colorName && { variantColorName: colorName })
               });
@@ -683,7 +693,7 @@ export const useCartStore = create<CartStore>()(
             } else {
               const { cart: currentLocalCart } = get();
               const updatedItems = currentLocalCart.items.filter(
-                item => !cartSelectionMatches(item, productId, size, color, colorName)
+                item => !cartSelectionMatches(item, productId, size, color, colorName, variantId)
               );
               set({ cart: { ...currentLocalCart, items: updatedItems, updatedAt: new Date().toISOString() }, isLoading: false });
               get().calculateSummary(); // Calculate summary for local changes

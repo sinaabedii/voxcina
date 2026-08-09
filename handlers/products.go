@@ -622,6 +622,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	ensureColorVariantIDs(colorVariants)
 
 	// Normalize Persian/Arabic digits in size strings to prevent duplicates
 	for i := range colorVariants {
@@ -839,7 +840,7 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 
 	// Build find options with sorting
 	findOptions := options.Find()
-	
+
 	// Handle sort parameter
 	sortParam := r.URL.Query().Get("sort")
 	switch sortParam {
@@ -998,7 +999,7 @@ func AdminListProducts(w http.ResponseWriter, r *http.Request) {
 
 	// For admin, show all products including inactive ones
 	filter := bson.M{}
-	
+
 	// Optional: filter by active status if requested
 	if activeOnly := r.URL.Query().Get("active_only"); activeOnly == "true" {
 		filter["is_active"] = true
@@ -1313,6 +1314,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if len(productUpdate.ColorVariants) > 0 {
+			preserveColorVariantIDs(productUpdate.ColorVariants, existingProduct.ColorVariants)
 			// Normalize Persian/Arabic digits in size strings to prevent duplicates
 			for i := range productUpdate.ColorVariants {
 				for j := range productUpdate.ColorVariants[i].Sizes {
@@ -1553,7 +1555,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		// Process main image order (supports reordering, adding, and removing)
 		mainImageOrderJSON := r.FormValue("mainImageOrder")
 		files := r.MultipartForm.File["mainImages"]
-		
+
 		if mainImageOrderJSON != "" || len(files) > 0 {
 			// Parse image order info
 			type ImageOrderItem struct {
@@ -1562,7 +1564,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				NewIndex   int    `json:"newIndex"`
 			}
 			var imageOrder []ImageOrderItem
-			
+
 			if mainImageOrderJSON != "" {
 				if err := json.Unmarshal([]byte(mainImageOrderJSON), &imageOrder); err != nil {
 					utils.ErrorResponse(
@@ -1573,7 +1575,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			}
-			
+
 			// Upload new files first
 			var newFilePaths []string
 			uploadDir := "./uploads/products/main"
@@ -1586,7 +1588,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 					)
 					return
 				}
-				
+
 				for _, handler := range files {
 					file, err := handler.Open()
 					if err != nil {
@@ -1634,7 +1636,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 					newlyUploadedPaths = append(newlyUploadedPaths, filePath)
 				}
 			}
-			
+
 			// Build final image paths in the specified order
 			newFileIdx := 0
 			for _, item := range imageOrder {
@@ -1645,12 +1647,12 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 					newFileIdx++
 				}
 			}
-			
+
 			// If no order info provided but files uploaded, just append new files
 			if len(imageOrder) == 0 && len(newFilePaths) > 0 {
 				finalImagePaths = append(existingProduct.MainImages, newFilePaths...)
 			}
-			
+
 			// Validate total count
 			if len(finalImagePaths) > MAX_MAIN_IMAGES {
 				utils.ErrorResponse(
@@ -1660,10 +1662,10 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				)
 				return
 			}
-			
+
 			update["main_images"] = finalImagePaths
 			somethingToUpdate = true
-			
+
 			// Determine images to delete
 			existingImageMap := make(map[string]bool)
 			for _, p := range finalImagePaths {
@@ -1680,6 +1682,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		if colorVariantsJSON := r.FormValue("colorVariants"); colorVariantsJSON != "" {
 			var colorVariants []models.ColorVariant
 			if err := json.Unmarshal([]byte(colorVariantsJSON), &colorVariants); err == nil {
+				preserveColorVariantIDs(colorVariants, existingProduct.ColorVariants)
 				// Normalize Persian/Arabic digits in size strings to prevent duplicates
 				for i := range colorVariants {
 					for j := range colorVariants[i].Sizes {
@@ -1690,7 +1693,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				for idx := range colorVariants {
 					colorImageOrderJSON := r.FormValue(fmt.Sprintf("colorImageOrder_%d", idx))
 					colorFiles := r.MultipartForm.File[fmt.Sprintf("colorImages_%d", idx)]
-					
+
 					if colorImageOrderJSON != "" || len(colorFiles) > 0 {
 						type ImageOrderItem struct {
 							IsExisting bool   `json:"isExisting"`
@@ -1698,11 +1701,11 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 							NewIndex   int    `json:"newIndex"`
 						}
 						var colorImageOrder []ImageOrderItem
-						
+
 						if colorImageOrderJSON != "" {
 							json.Unmarshal([]byte(colorImageOrderJSON), &colorImageOrder)
 						}
-						
+
 						// Upload new color variant files
 						var newColorFilePaths []string
 						if len(colorFiles) > 0 {
@@ -1719,7 +1722,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 							}
 							newColorFilePaths = uploadedPaths
 						}
-						
+
 						// Build final color image paths in order
 						var finalColorPaths []string
 						newColorFileIdx := 0
@@ -1731,7 +1734,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 								newColorFileIdx++
 							}
 						}
-						
+
 						// If no order but files uploaded, append to existing
 						if len(colorImageOrder) == 0 && len(newColorFilePaths) > 0 {
 							if idx < len(existingProduct.ColorVariants) {
@@ -1740,13 +1743,13 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 								finalColorPaths = newColorFilePaths
 							}
 						}
-						
+
 						colorVariants[idx].Images = finalColorPaths
 					} else if idx < len(existingProduct.ColorVariants) {
 						// Keep existing images if no changes
 						colorVariants[idx].Images = existingProduct.ColorVariants[idx].Images
 					}
-					
+
 					// Handle try-on image
 					tryOnFiles := r.MultipartForm.File[fmt.Sprintf("colorTryOn_%d", idx)]
 					if len(tryOnFiles) > 0 {
@@ -1794,7 +1797,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 						colorVariants[idx].SwatchImage = existingProduct.ColorVariants[idx].SwatchImage
 					}
 				}
-				
+
 				update["color_variants"] = colorVariants
 				somethingToUpdate = true
 			}
@@ -1915,7 +1918,7 @@ func DeleteProduct(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	
+
 	// Check if already inactive
 	if !productToDeactivate.IsActive {
 		utils.JSONResponse(w, http.StatusOK, map[string]string{

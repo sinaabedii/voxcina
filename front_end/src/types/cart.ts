@@ -1,6 +1,7 @@
 import { Product } from "./product";
 
 export interface CartItemVariant {
+  variantId?: string;
   size?: string;
   color?: string;
   colorName?: string; // Display name for the color (e.g., "قرمز")
@@ -13,6 +14,7 @@ export interface CartItem {
   product: Product;
   quantity: number;
   size?: string;
+  variantId?: string;
   color?: string;
   colorName?: string; // Display name for the color
   sku?: string;       // Unique SKU for this variant

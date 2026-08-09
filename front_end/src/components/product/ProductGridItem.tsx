@@ -4,7 +4,7 @@ import { formatPrice, cn, getDiscountPercentage } from "@/lib/utils";
 import { ColorVariantListItem } from "@/types/product";
 import BackendImage from "@/components/BackendImage";
 import { Eye, ShoppingCart, Heart } from "lucide-react";
-import { getCanonicalColor } from "@/lib/product-variants";
+import { getVariantUrlValue } from "@/lib/product-variants";
 
 interface ProductGridItemProps {
   item: ColorVariantListItem;
@@ -40,8 +40,8 @@ export default function ProductGridItem({
 
   // آماده‌سازی آدرس تصویر - use colorVariant images
   const imageSrc = item.colorVariant.images?.[0] || "/images/products/placeholder.jpg";
-  const selectedColor = getCanonicalColor(item.colorVariant) || item.colorVariant.colorName;
-  const productHref = `/products/${item.productId}?color=${encodeURIComponent(selectedColor)}`;
+  const variantUrlValue = getVariantUrlValue(item.colorVariant) || item.colorVariant.colorName;
+  const productHref = `/products/${item.productId}?${item.colorVariant.variantId ? "variant" : "color"}=${encodeURIComponent(variantUrlValue || "")}`;
 
   return (
     <motion.div

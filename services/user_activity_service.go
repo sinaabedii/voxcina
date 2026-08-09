@@ -15,14 +15,85 @@ import (
 
 // UserActivityService handles user activity tracking operations
 type UserActivityService struct {
-	collection *mongo.Collection
+	collection   *mongo.Collection
+	variantViews *mongo.Collection
 }
 
 // NewUserActivityService creates a new UserActivityService instance
 func NewUserActivityService(database *mongo.Database) *UserActivityService {
 	return &UserActivityService{
-		collection: database.Collection("user_activities"),
+		collection:   database.Collection("user_activities"),
+		variantViews: database.Collection("product_variant_views"),
 	}
+}
+
+func activityMetadataString(metadata map[string]interface{}, key string) string {
+	value, ok := metadata[key]
+	if !ok {
+		return ""
+	}
+	text, ok := value.(string)
+	if !ok {
+		return ""
+	}
+	return text
+}
+
+func (s *UserActivityService) variantViewUpdate(activity models.UserActivity) mongo.WriteModel {
+	if activity.ActivityType != models.ActivityProductView || activity.ProductID.IsZero() {
+		return nil
+	}
+
+	variantID := activityMetadataString(activity.Metadata, "variantId")
+	if variantID == "" {
+		return nil
+	}
+
+	viewedAt := activity.CreatedAt
+	if viewedAt.IsZero() {
+		viewedAt = time.Now()
+	}
+
+	return mongo.NewUpdateOneModel().
+		SetFilter(bson.M{
+			"product_id": activity.ProductID,
+			"variant_id": variantID,
+		}).
+		SetUpdate(bson.M{
+			"$set": bson.M{
+				"color":          activityMetadataString(activity.Metadata, "color"),
+				"color_name":     activityMetadataString(activity.Metadata, "colorName"),
+				"swatch_image":   activityMetadataString(activity.Metadata, "swatchImage"),
+				"last_viewed_at": viewedAt,
+			},
+			"$setOnInsert": bson.M{
+				"_id":             primitive.NewObjectID(),
+				"product_id":      activity.ProductID,
+				"variant_id":      variantID,
+				"first_viewed_at": viewedAt,
+			},
+			"$inc": bson.M{"view_count": int64(1)},
+		}).
+		SetUpsert(true)
+}
+
+func (s *UserActivityService) recordVariantViews(ctx context.Context, activities []models.UserActivity) error {
+	if s.variantViews == nil {
+		return nil
+	}
+
+	updates := make([]mongo.WriteModel, 0, len(activities))
+	for _, activity := range activities {
+		if update := s.variantViewUpdate(activity); update != nil {
+			updates = append(updates, update)
+		}
+	}
+	if len(updates) == 0 {
+		return nil
+	}
+
+	_, err := s.variantViews.BulkWrite(ctx, updates, options.BulkWrite().SetOrdered(false))
+	return err
 }
 
 // asInt64 coerces common MongoDB numeric types to int64.
@@ -77,20 +148,23 @@ func (s *UserActivityService) TrackActivity(ctx context.Context, activity *model
 	if activity.ID.IsZero() {
 		activity.ID = primitive.NewObjectID()
 	}
-	
+
 	if activity.CreatedAt.IsZero() {
 		activity.CreatedAt = time.Now()
 	}
-	
+
 	// Set TTL for automatic deletion after 180 days (6 months)
 	activity.ExpiresAt = activity.CreatedAt.Add(180 * 24 * time.Hour)
-	
+
 	_, err := s.collection.InsertOne(ctx, activity)
 	if err != nil {
 		log.Printf("Error tracking activity: %v", err)
 		return err
 	}
-	
+	if err := s.recordVariantViews(ctx, []models.UserActivity{*activity}); err != nil {
+		log.Printf("Error updating product variant view counter: %v", err)
+	}
+
 	return nil
 }
 
@@ -99,11 +173,11 @@ func (s *UserActivityService) TrackBatch(ctx context.Context, activities []model
 	if len(activities) == 0 {
 		return nil
 	}
-	
+
 	documents := make([]interface{}, len(activities))
 	now := time.Now()
 	expiresAt := now.Add(180 * 24 * time.Hour)
-	
+
 	for i := range activities {
 		if activities[i].ID.IsZero() {
 			activities[i].ID = primitive.NewObjectID()
@@ -114,40 +188,43 @@ func (s *UserActivityService) TrackBatch(ctx context.Context, activities []model
 		activities[i].ExpiresAt = expiresAt
 		documents[i] = activities[i]
 	}
-	
+
 	_, err := s.collection.InsertMany(ctx, documents)
 	if err != nil {
 		log.Printf("Error tracking batch activities: %v", err)
 		return err
 	}
-	
+	if err := s.recordVariantViews(ctx, activities); err != nil {
+		log.Printf("Error updating product variant view counters: %v", err)
+	}
+
 	return nil
 }
 
 // GetUserActivities retrieves activities for a specific user with filtering
 func (s *UserActivityService) GetUserActivities(ctx context.Context, filter models.ActivityFilter) ([]models.UserActivity, error) {
 	query := bson.M{}
-	
+
 	if !filter.UserID.IsZero() {
 		query["user_id"] = filter.UserID
 	}
-	
+
 	if filter.SessionID != "" {
 		query["session_id"] = filter.SessionID
 	}
-	
+
 	if len(filter.ActivityTypes) > 0 {
 		query["activity_type"] = bson.M{"$in": filter.ActivityTypes}
 	}
-	
+
 	if !filter.ProductID.IsZero() {
 		query["product_id"] = filter.ProductID
 	}
-	
+
 	if !filter.CategoryID.IsZero() {
 		query["category_id"] = filter.CategoryID
 	}
-	
+
 	if !filter.FromDate.IsZero() || !filter.ToDate.IsZero() {
 		dateQuery := bson.M{}
 		if !filter.FromDate.IsZero() {
@@ -158,31 +235,31 @@ func (s *UserActivityService) GetUserActivities(ctx context.Context, filter mode
 		}
 		query["created_at"] = dateQuery
 	}
-	
+
 	if filter.DeviceType != "" {
 		query["device_type"] = filter.DeviceType
 	}
-	
+
 	opts := options.Find().
 		SetSort(bson.D{{Key: "created_at", Value: -1}}).
 		SetLimit(int64(filter.Limit)).
 		SetSkip(int64(filter.Skip))
-	
+
 	if filter.Limit == 0 {
 		opts.SetLimit(100) // Default limit
 	}
-	
+
 	cursor, err := s.collection.Find(ctx, query, opts)
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
-	
+
 	var activities []models.UserActivity
 	if err := cursor.All(ctx, &activities); err != nil {
 		return nil, err
 	}
-	
+
 	return activities, nil
 }
 
@@ -260,7 +337,7 @@ func (s *UserActivityService) GetRecentlyViewedProducts(ctx context.Context, use
 	if limit == 0 {
 		limit = 10
 	}
-	
+
 	pipeline := mongo.Pipeline{
 		{{Key: "$match", Value: bson.M{
 			"user_id":       userID,
@@ -284,18 +361,18 @@ func (s *UserActivityService) GetRecentlyViewedProducts(ctx context.Context, use
 			"viewedAt":     "$created_at",
 		}}},
 	}
-	
+
 	cursor, err := s.collection.Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
-	
+
 	var products []models.RecentlyViewedProduct
 	if err := cursor.All(ctx, &products); err != nil {
 		return nil, err
 	}
-	
+
 	return products, nil
 }
 
@@ -304,7 +381,7 @@ func (s *UserActivityService) GetUserActivitySummary(ctx context.Context, userID
 	matchStage := bson.M{
 		"user_id": userID,
 	}
-	
+
 	if !fromDate.IsZero() || !toDate.IsZero() {
 		dateQuery := bson.M{}
 		if !fromDate.IsZero() {
@@ -315,7 +392,7 @@ func (s *UserActivityService) GetUserActivitySummary(ctx context.Context, userID
 		}
 		matchStage["created_at"] = dateQuery
 	}
-	
+
 	pipeline := mongo.Pipeline{
 		{{Key: "$match", Value: matchStage}},
 		{{Key: "$facet", Value: bson.M{
@@ -353,44 +430,44 @@ func (s *UserActivityService) GetUserActivitySummary(ctx context.Context, userID
 					"product_id":    bson.M{"$ne": primitive.NilObjectID},
 				}},
 				bson.M{"$group": bson.M{
-					"_id":          "$product_id",
-					"productName":  bson.M{"$first": "$product_name"},
-					"count":        bson.M{"$sum": 1},
+					"_id":         "$product_id",
+					"productName": bson.M{"$first": "$product_name"},
+					"count":       bson.M{"$sum": 1},
 				}},
 				bson.M{"$sort": bson.D{{Key: "count", Value: -1}}},
 				bson.M{"$limit": 5},
 			},
 		}}},
 	}
-	
+
 	cursor, err := s.collection.Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
-	
+
 	var results []bson.M
 	if err := cursor.All(ctx, &results); err != nil {
 		return nil, err
 	}
-	
+
 	if len(results) == 0 {
 		return &models.UserActivitySummary{UserID: userID}, nil
 	}
-	
+
 	result := results[0]
 	summary := &models.UserActivitySummary{
 		UserID:          userID,
 		DeviceBreakdown: make(map[string]int),
 	}
-	
+
 	// Parse total activities
 	if totalActivities, ok := result["totalActivities"].(primitive.A); ok && len(totalActivities) > 0 {
 		if countDoc, ok := totalActivities[0].(bson.M); ok {
 			summary.TotalActivities = asInt64(countDoc["count"])
 		}
 	}
-	
+
 	// Parse activity counts
 	if activityCounts, ok := result["activityCounts"].(primitive.A); ok {
 		for _, item := range activityCounts {
@@ -413,14 +490,14 @@ func (s *UserActivityService) GetUserActivitySummary(ctx context.Context, userID
 			}
 		}
 	}
-	
+
 	// Parse order stats
 	if orderStats, ok := result["orderStats"].(primitive.A); ok && len(orderStats) > 0 {
 		if statsDoc, ok := orderStats[0].(bson.M); ok {
 			summary.TotalSpent = asFloat64(statsDoc["totalSpent"])
 		}
 	}
-	
+
 	// Parse last activity
 	if lastActivity, ok := result["lastActivity"].(primitive.A); ok && len(lastActivity) > 0 {
 		if activityDoc, ok := lastActivity[0].(bson.M); ok {
@@ -429,7 +506,7 @@ func (s *UserActivityService) GetUserActivitySummary(ctx context.Context, userID
 			}
 		}
 	}
-	
+
 	// Parse device breakdown
 	if deviceBreakdown, ok := result["deviceBreakdown"].(primitive.A); ok {
 		for _, item := range deviceBreakdown {
@@ -442,7 +519,7 @@ func (s *UserActivityService) GetUserActivitySummary(ctx context.Context, userID
 			}
 		}
 	}
-	
+
 	// Parse top products
 	if topProducts, ok := result["topProducts"].(primitive.A); ok {
 		for _, item := range topProducts {
@@ -459,14 +536,14 @@ func (s *UserActivityService) GetUserActivitySummary(ctx context.Context, userID
 			}
 		}
 	}
-	
+
 	return summary, nil
 }
 
 // GetConversionFunnel calculates the conversion funnel metrics
 func (s *UserActivityService) GetConversionFunnel(ctx context.Context, fromDate, toDate time.Time) (*models.ConversionFunnel, error) {
 	matchStage := bson.M{}
-	
+
 	if !fromDate.IsZero() || !toDate.IsZero() {
 		dateQuery := bson.M{}
 		if !fromDate.IsZero() {
@@ -477,22 +554,22 @@ func (s *UserActivityService) GetConversionFunnel(ctx context.Context, fromDate,
 		}
 		matchStage["created_at"] = dateQuery
 	}
-	
+
 	pipeline := mongo.Pipeline{
 		{{Key: "$match", Value: matchStage}},
 		{{Key: "$group", Value: bson.M{
-			"_id": "$session_id",
+			"_id":        "$session_id",
 			"activities": bson.M{"$addToSet": "$activity_type"},
 		}}},
 		{{Key: "$project", Value: bson.M{
-			"hasPageView":     bson.M{"$in": []interface{}{models.ActivityPageView, "$activities"}},
-			"hasProductView":  bson.M{"$in": []interface{}{models.ActivityProductView, "$activities"}},
-			"hasCartAdd":      bson.M{"$in": []interface{}{models.ActivityAddToCart, "$activities"}},
-			"hasCheckout":     bson.M{"$in": []interface{}{models.ActivityCheckoutStarted, "$activities"}},
-			"hasPurchase":     bson.M{"$in": []interface{}{models.ActivityOrderPlaced, "$activities"}},
+			"hasPageView":    bson.M{"$in": []interface{}{models.ActivityPageView, "$activities"}},
+			"hasProductView": bson.M{"$in": []interface{}{models.ActivityProductView, "$activities"}},
+			"hasCartAdd":     bson.M{"$in": []interface{}{models.ActivityAddToCart, "$activities"}},
+			"hasCheckout":    bson.M{"$in": []interface{}{models.ActivityCheckoutStarted, "$activities"}},
+			"hasPurchase":    bson.M{"$in": []interface{}{models.ActivityOrderPlaced, "$activities"}},
 		}}},
 		{{Key: "$group", Value: bson.M{
-			"_id": nil,
+			"_id":              nil,
 			"totalVisitors":    bson.M{"$sum": bson.M{"$cond": []interface{}{"$hasPageView", 1, 0}}},
 			"productViewers":   bson.M{"$sum": bson.M{"$cond": []interface{}{"$hasProductView", 1, 0}}},
 			"cartAdders":       bson.M{"$sum": bson.M{"$cond": []interface{}{"$hasCartAdd", 1, 0}}},
@@ -500,22 +577,22 @@ func (s *UserActivityService) GetConversionFunnel(ctx context.Context, fromDate,
 			"purchasers":       bson.M{"$sum": bson.M{"$cond": []interface{}{"$hasPurchase", 1, 0}}},
 		}}},
 	}
-	
+
 	cursor, err := s.collection.Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
-	
+
 	var results []bson.M
 	if err := cursor.All(ctx, &results); err != nil {
 		return nil, err
 	}
-	
+
 	if len(results) == 0 {
 		return &models.ConversionFunnel{}, nil
 	}
-	
+
 	result := results[0]
 	funnel := &models.ConversionFunnel{}
 
@@ -524,7 +601,7 @@ func (s *UserActivityService) GetConversionFunnel(ctx context.Context, fromDate,
 	funnel.CartAdders = asInt64(result["cartAdders"])
 	funnel.CheckoutStarters = asInt64(result["checkoutStarters"])
 	funnel.Purchasers = asInt64(result["purchasers"])
-	
+
 	// Calculate conversion rates
 	if funnel.TotalVisitors > 0 {
 		funnel.VisitorToProductRate = float64(funnel.ProductViewers) / float64(funnel.TotalVisitors) * 100
@@ -539,7 +616,7 @@ func (s *UserActivityService) GetConversionFunnel(ctx context.Context, fromDate,
 	if funnel.CheckoutStarters > 0 {
 		funnel.CheckoutToPurchaseRate = float64(funnel.Purchasers) / float64(funnel.CheckoutStarters) * 100
 	}
-	
+
 	return funnel, nil
 }
 
@@ -564,27 +641,27 @@ func (s *UserActivityService) GetSessionAnalytics(ctx context.Context, sessionID
 			"deviceType":   bson.M{"$first": "$device_type"},
 		}}},
 	}
-	
+
 	cursor, err := s.collection.Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
-	
+
 	var results []bson.M
 	if err := cursor.All(ctx, &results); err != nil {
 		return nil, err
 	}
-	
+
 	if len(results) == 0 {
 		return nil, nil
 	}
-	
+
 	result := results[0]
 	analytics := &models.SessionAnalytics{
 		SessionID: sessionID,
 	}
-	
+
 	if userID, ok := result["user_id"].(primitive.ObjectID); ok {
 		analytics.UserID = userID
 	}
@@ -604,7 +681,7 @@ func (s *UserActivityService) GetSessionAnalytics(ctx context.Context, sessionID
 	if deviceType, ok := result["deviceType"].(string); ok {
 		analytics.DeviceType = deviceType
 	}
-	
+
 	// Extract entry and exit pages
 	if activities, ok := result["activities"].(primitive.A); ok && len(activities) > 0 {
 		if firstActivity, ok := activities[0].(bson.M); ok {
@@ -618,22 +695,22 @@ func (s *UserActivityService) GetSessionAnalytics(ctx context.Context, sessionID
 			}
 		}
 	}
-	
+
 	return analytics, nil
 }
 
 // CleanupOldActivities manually removes activities older than specified days (if needed)
 func (s *UserActivityService) CleanupOldActivities(ctx context.Context, daysOld int) (int64, error) {
 	cutoffDate := time.Now().AddDate(0, 0, -daysOld)
-	
+
 	result, err := s.collection.DeleteMany(ctx, bson.M{
 		"created_at": bson.M{"$lt": cutoffDate},
 	})
-	
+
 	if err != nil {
 		return 0, err
 	}
-	
+
 	log.Printf("Cleaned up %d old activity records", result.DeletedCount)
 	return result.DeletedCount, nil
 }

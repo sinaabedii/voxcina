@@ -35,10 +35,11 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
 
   // Pre-select color from URL parameter on mount
   useEffect(() => {
+    const variantParam = searchParams?.get("variant");
     const colorParam = searchParams?.get("color");
-    if (colorParam && product.colorVariants) {
+    if ((variantParam || colorParam) && product.colorVariants) {
       const colorIndex = product.colorVariants.findIndex(
-        cv => cv.color === colorParam || cv.colorName === colorParam
+        cv => cv.variantId === variantParam || cv.color === colorParam || cv.colorName === colorParam
       );
       if (colorIndex !== -1) {
         setSelectedColorIndex(colorIndex);
@@ -114,7 +115,8 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
       quantity,
       selectedSize,
       getCanonicalColor(selectedColorVariant) || selectedColorVariant.colorName,
-      selectedColorVariant.colorName
+      selectedColorVariant.colorName,
+      selectedColorVariant.variantId
     );
   };
 
@@ -241,7 +243,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
 
                   return (
 	                    <motion.button
-	                      key={getCanonicalColor(colorVariant) || colorVariant.colorName}
+                      key={colorVariant.variantId || getCanonicalColor(colorVariant) || colorVariant.colorName}
 	                      whileHover={{ scale: hasStock ? 1.1 : 1 }}
 	                      whileTap={{ scale: hasStock ? 0.95 : 1 }}
 	                      disabled={!hasStock}

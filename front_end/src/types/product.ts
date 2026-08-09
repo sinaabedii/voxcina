@@ -7,6 +7,7 @@ export interface SizeVariant {
 }
 
 export interface ColorVariant {
+  variantId?: string;      // Stable identity for this color/pattern variant
   color: string;         // Hex code or color name (e.g., "#FF5733", "Red")
   colorName: string;     // Display name in Persian/English (e.g., "قرمز", "Red")
   swatchImage?: string;  // Pattern/fabric swatch image for color selector
@@ -38,6 +39,8 @@ export interface ColorVariantListItem {
   // Calculated fields
   totalInventory: number; // Sum of all sizes for this color
   inStock: boolean;        // True if totalInventory > 0
+  viewCount?: number;
+  rank?: number;
 }
 
 export interface ProductAttribute {

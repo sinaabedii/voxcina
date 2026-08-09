@@ -24,6 +24,7 @@ interface BlogProductCardProps {
  */
 export default function BlogProductCard({ block }: BlogProductCardProps) {
   const [singleSize, setSingleSize] = useState<SizeVariant | null>(null);
+  const [variantId, setVariantId] = useState<string | undefined>();
   const [quantity, setQuantity] = useState(1);
   const addItem = useCartStore((state) => state.addItem);
 
@@ -38,15 +39,18 @@ export default function BlogProductCard({ block }: BlogProductCardProps) {
   } = block;
 
   useEffect(() => {
-    if (!productId || !productColorHex) return;
+    if (!productId) return;
     let cancelled = false;
 
     fetch(`/api/products/${productId}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((product: Product | null) => {
         if (cancelled || !product || !product.is_active) return;
-        const variant = product.colorVariants.find((v) => v.color === productColorHex);
+        const variant = product.colorVariants.find((v) =>
+          v.color === productColorHex || v.colorName === productColorName
+        );
         if (!variant) return;
+        setVariantId(variant.variantId);
         const available = variant.sizes.filter((s) => s.quantity > 0);
         if (available.length === 1) {
           setSingleSize(available[0]);
@@ -59,13 +63,13 @@ export default function BlogProductCard({ block }: BlogProductCardProps) {
     return () => {
       cancelled = true;
     };
-  }, [productId, productColorHex]);
+  }, [productId, productColorHex, productColorName]);
 
   if (!productId) return null;
 
   const discount =
     productOriginalPrice > productPrice ? getDiscountPercentage(productOriginalPrice, productPrice) : 0;
-  const productHref = `/products/${productId}?color=${encodeURIComponent(productColorHex || "")}`;
+  const productHref = `/products/${productId}?${variantId ? "variant" : "color"}=${encodeURIComponent(variantId || productColorHex || productColorName || "")}`;
 
   const adjustQuantity = (e: React.MouseEvent, delta: number) => {
     e.preventDefault();
@@ -88,6 +92,7 @@ export default function BlogProductCard({ block }: BlogProductCardProps) {
           {
             color: productColorHex || "",
             colorName: productColorName || "",
+            variantId,
             images: productImage ? [productImage] : [],
             sizes: [singleSize],
           },
@@ -104,7 +109,8 @@ export default function BlogProductCard({ block }: BlogProductCardProps) {
       quantity,
       singleSize.size,
       productColorHex,
-      productColorName
+      productColorName,
+      variantId
     );
     toast.success("محصول به سبد خرید اضافه شد");
     setQuantity(1);

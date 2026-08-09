@@ -3,8 +3,53 @@ package handlers
 import (
 	"strings"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
 	"backEnd/models"
 )
+
+func ensureColorVariantIDs(variants []models.ColorVariant) {
+	models.EnsureColorVariantIDs(variants)
+}
+
+// preserveColorVariantIDs keeps IDs when older admin clients submit variants
+// without the new field. New clients send the ID directly; the fallbacks only
+// cover the migration window and never use a color value as the final ID.
+func preserveColorVariantIDs(variants, existing []models.ColorVariant) {
+	used := make(map[string]bool, len(existing))
+	for i := range variants {
+		if variants[i].VariantID != "" {
+			used[variants[i].VariantID] = true
+		}
+	}
+
+	for i := range variants {
+		if variants[i].VariantID != "" {
+			continue
+		}
+
+		for _, old := range existing {
+			if old.VariantID == "" || used[old.VariantID] {
+				continue
+			}
+			if strings.TrimSpace(old.Color) == strings.TrimSpace(variants[i].Color) &&
+				strings.TrimSpace(old.ColorName) == strings.TrimSpace(variants[i].ColorName) {
+				variants[i].VariantID = old.VariantID
+				used[old.VariantID] = true
+				break
+			}
+		}
+
+		if variants[i].VariantID == "" && i < len(existing) && existing[i].VariantID != "" && !used[existing[i].VariantID] {
+			variants[i].VariantID = existing[i].VariantID
+			used[existing[i].VariantID] = true
+		}
+		if variants[i].VariantID == "" {
+			variants[i].VariantID = primitive.NewObjectID().Hex()
+			used[variants[i].VariantID] = true
+		}
+	}
+}
 
 func cleanVariantValue(value string) string {
 	return strings.TrimSpace(value)
@@ -51,6 +96,18 @@ func findColorVariant(product *models.Product, color, colorName string) (models.
 	return models.ColorVariant{}, -1, false
 }
 
+func findColorVariantByID(product *models.Product, variantID string) (models.ColorVariant, int, bool) {
+	if product == nil || variantID == "" {
+		return models.ColorVariant{}, -1, false
+	}
+	for idx, variant := range product.ColorVariants {
+		if variant.VariantID == variantID {
+			return variant, idx, true
+		}
+	}
+	return models.ColorVariant{}, -1, false
+}
+
 func findSizeVariant(cv models.ColorVariant, size string) (models.SizeVariant, int, bool) {
 	for idx, sv := range cv.Sizes {
 		if sv.Size == size {
@@ -69,19 +126,28 @@ func canonicalColorValue(cv models.ColorVariant) string {
 
 func enrichCartVariantFromProduct(product *models.Product, variant models.CartVariant) (models.CartVariant, int, int, bool) {
 	enriched := models.CartVariant{
+		VariantID: variant.VariantID,
 		Size:      variant.Size,
 		Color:     variant.Color,
 		ColorName: variant.ColorName,
 		SKU:       variant.SKU,
 	}
 
-	cv, colorIdx, ok := findColorVariant(product, variant.Color, variant.ColorName)
+	var cv models.ColorVariant
+	var colorIdx int
+	var ok bool
+	if variant.VariantID != "" {
+		cv, colorIdx, ok = findColorVariantByID(product, variant.VariantID)
+	} else {
+		cv, colorIdx, ok = findColorVariant(product, variant.Color, variant.ColorName)
+	}
 	if !ok {
 		return enriched, -1, -1, false
 	}
 
 	enriched.Color = canonicalColorValue(cv)
 	enriched.ColorName = cv.ColorName
+	enriched.VariantID = cv.VariantID
 
 	if sv, sizeIdx, ok := findSizeVariant(cv, variant.Size); ok {
 		enriched.SKU = sv.SKU
@@ -93,19 +159,28 @@ func enrichCartVariantFromProduct(product *models.Product, variant models.CartVa
 
 func normalizeOrderVariantFromProduct(product *models.Product, variant models.OrderVariant) (models.OrderVariant, int, int, bool) {
 	normalized := models.OrderVariant{
+		VariantID: variant.VariantID,
 		Size:      variant.Size,
 		Color:     variant.Color,
 		ColorName: variant.ColorName,
 		SKU:       variant.SKU,
 	}
 
-	cv, colorIdx, ok := findColorVariant(product, variant.Color, variant.ColorName)
+	var cv models.ColorVariant
+	var colorIdx int
+	var ok bool
+	if variant.VariantID != "" {
+		cv, colorIdx, ok = findColorVariantByID(product, variant.VariantID)
+	} else {
+		cv, colorIdx, ok = findColorVariant(product, variant.Color, variant.ColorName)
+	}
 	if !ok {
 		return normalized, -1, -1, false
 	}
 
 	normalized.Color = canonicalColorValue(cv)
 	normalized.ColorName = cv.ColorName
+	normalized.VariantID = cv.VariantID
 
 	if sv, sizeIdx, ok := findSizeVariant(cv, variant.Size); ok {
 		normalized.SKU = sv.SKU
@@ -116,6 +191,9 @@ func normalizeOrderVariantFromProduct(product *models.Product, variant models.Or
 }
 
 func cartVariantsMatch(a, b models.CartVariant) bool {
+	if a.VariantID != "" && b.VariantID != "" {
+		return a.VariantID == b.VariantID && a.Size == b.Size
+	}
 	if a.Size != b.Size {
 		return false
 	}

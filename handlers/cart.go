@@ -169,7 +169,13 @@ func updateCartAndRespond(ctx context.Context, w http.ResponseWriter, cart *mode
 // validateVariantStock validates that a variant exists and has sufficient stock.
 // Returns the available stock and an error if validation fails.
 func validateVariantStock(product *models.Product, variant models.CartVariant, requestedQty int) (int, int, error) {
-	colorVariant, _, ok := findColorVariant(product, variant.Color, variant.ColorName)
+	var colorVariant models.ColorVariant
+	var ok bool
+	if variant.VariantID != "" {
+		colorVariant, _, ok = findColorVariantByID(product, variant.VariantID)
+	} else {
+		colorVariant, _, ok = findColorVariant(product, variant.Color, variant.ColorName)
+	}
 	if !ok {
 		color := variant.Color
 		if color == "" {
@@ -382,6 +388,7 @@ func CreateOrReplaceCart(w http.ResponseWriter, r *http.Request) {
 	type itemKey struct {
 		ProductID primitive.ObjectID
 		Size      string
+		VariantID string
 		Color     string
 	}
 
@@ -402,6 +409,7 @@ func CreateOrReplaceCart(w http.ResponseWriter, r *http.Request) {
 			k := itemKey{
 				ProductID: it.ProductID,
 				Size:      it.Variant.Size,
+				VariantID: it.Variant.VariantID,
 				Color:     variantKeyColor(it.Variant),
 			}
 			copyItem := it // create copy to avoid referencing loop var
@@ -453,6 +461,7 @@ func CreateOrReplaceCart(w http.ResponseWriter, r *http.Request) {
 		k := itemKey{
 			ProductID: productIDObj,
 			Size:      enrichedVariant.Size,
+			VariantID: enrichedVariant.VariantID,
 			Color:     variantKeyColor(enrichedVariant),
 		}
 		if existing, ok := mergeMap[k]; ok {
@@ -767,6 +776,7 @@ func RemoveFromCart(w http.ResponseWriter, r *http.Request) {
 	queryParams := r.URL.Query()
 	productIDStr := queryParams.Get("productId")
 	variantSize := queryParams.Get("variantSize")
+	variantID := queryParams.Get("variantId")
 	variantColor := queryParams.Get("variantColor")
 	variantColorName := queryParams.Get("variantColorName")
 
@@ -809,6 +819,7 @@ func RemoveFromCart(w http.ResponseWriter, r *http.Request) {
 	itemFoundAndRemoved := false
 	newItems := []models.CartItem{}
 	requestedVariant := models.CartVariant{
+		VariantID: variantID,
 		Size:      variantSize,
 		Color:     variantColor,
 		ColorName: variantColorName,

@@ -136,7 +136,7 @@ export default function ProductCarouselSectionClient({
           >
             {products.map((product) => (
 	              <div
-	                key={`${product.productId}-${getCanonicalColor(product.colorVariant) || product.colorVariant.colorName}`}
+                key={`${product.productId}-${product.colorVariant.variantId || getCanonicalColor(product.colorVariant) || product.colorVariant.colorName}`}
                 className="flex-shrink-0 w-[160px] sm:w-[200px] md:w-[220px] lg:w-[250px] snap-start"
               >
                 <ProductCard item={product} />

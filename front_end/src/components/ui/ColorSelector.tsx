@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface ColorOption {
+  variantId?: string;
   color: string;
   colorName: string;
   swatchImage?: string;
@@ -55,7 +56,7 @@ const ColorSelector: React.FC<ColorSelectorProps> = ({
   };
 
   const classes = sizeClasses[size];
-  const selectedColorObj = colors.find(c => c.color === selectedColor || c.colorName === selectedColor);
+  const selectedColorObj = colors.find(c => c.variantId === selectedColor || c.color === selectedColor || c.colorName === selectedColor);
 
   return (
     <div className={cn("mb-6", className)}>
@@ -70,11 +71,12 @@ const ColorSelector: React.FC<ColorSelectorProps> = ({
       <div className="flex flex-wrap gap-3">
         {colors.map((colorObj) => {
           const isAvailable = colorObj.isAvailable !== false;
-          const isSelected = selectedColor === colorObj.colorName;
+          const selectionKey = colorObj.variantId || colorObj.colorName;
+          const isSelected = selectedColor === selectionKey || (!colorObj.variantId && selectedColor === colorObj.colorName);
 
           return (
             <motion.button
-              key={colorObj.colorName}
+              key={colorObj.variantId || `${colorObj.colorName}-${colorObj.color}`}
               type="button"
               className={cn(
                 classes.outer,
@@ -85,7 +87,7 @@ const ColorSelector: React.FC<ColorSelectorProps> = ({
                     ? "ring-1 ring-border/30 hover:ring-primary/50"
                     : "ring-1 ring-border/20 opacity-40 cursor-not-allowed"
               )}
-              onClick={() => isAvailable && onColorChange(isSelected ? undefined : colorObj.colorName)}
+              onClick={() => isAvailable && onColorChange(isSelected ? undefined : selectionKey)}
               title={`${colorObj.colorName}${!isAvailable ? ' (ناموجود)' : ''}`}
               whileHover={isAvailable ? { scale: 1.1 } : {}}
               whileTap={isAvailable ? { scale: 0.9 } : {}}
@@ -98,10 +100,14 @@ const ColorSelector: React.FC<ColorSelectorProps> = ({
                   className={cn(classes.inner, "rounded-full block object-cover")}
                 />
               ) : (
-	                <span
-	                  className={cn(classes.inner, "rounded-full block")}
-	                  style={colorObj.color?.startsWith("#") ? { backgroundColor: colorObj.color } : undefined}
-	                />
+                <span
+                  style={colorObj.color?.startsWith("#") ? { backgroundColor: colorObj.color } : undefined}
+                  className={cn(
+                    classes.inner,
+                    "rounded-full block",
+                    !colorObj.color?.startsWith("#") && "bg-[repeating-linear-gradient(135deg,#d7d2ca_0,#d7d2ca_3px,#f5f1ea_3px,#f5f1ea_6px)]"
+                  )}
+                />
               )}
               {isSelected && (
                 <CheckCircle

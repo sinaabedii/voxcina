@@ -25,9 +25,10 @@ export const useCart = () => {
     quantity: number = 1,
     size?: string,
     color?: string,
-    colorName?: string
+    colorName?: string,
+    variantId?: string
   ) => {
-    addItem(product, quantity, size, color, colorName);
+    addItem(product, quantity, size, color, colorName, variantId);
   };
 
   // Update item quantity using productId, size, color (new data structure)
@@ -36,16 +37,17 @@ export const useCart = () => {
     quantity: number,
     size?: string,
     color?: string,
-    colorName?: string
+    colorName?: string,
+    variantId?: string
   ) => {
-    storeUpdateItemQuantity(productId, quantity, size, color, colorName);
+    storeUpdateItemQuantity(productId, quantity, size, color, colorName, variantId);
   };
 
   // Increase quantity by finding item by id, then using productId/size/color
   const increaseQuantity = (itemId: string) => {
     const item = cart.items.find((item) => item.id === itemId);
     if (item) {
-      storeUpdateItemQuantity(item.productId, item.quantity + 1, item.size, item.color, item.colorName);
+      storeUpdateItemQuantity(item.productId, item.quantity + 1, item.size, item.color, item.colorName, item.variantId);
     }
   };
 
@@ -53,9 +55,9 @@ export const useCart = () => {
   const decreaseQuantity = (itemId: string) => {
     const item = cart.items.find((item) => item.id === itemId);
     if (item && item.quantity > 1) {
-      storeUpdateItemQuantity(item.productId, item.quantity - 1, item.size, item.color, item.colorName);
+      storeUpdateItemQuantity(item.productId, item.quantity - 1, item.size, item.color, item.colorName, item.variantId);
     } else if (item) {
-      storeRemoveItem(item.productId, item.size, item.color, item.colorName);
+      storeRemoveItem(item.productId, item.size, item.color, item.colorName, item.variantId);
     }
   };
 
@@ -63,7 +65,7 @@ export const useCart = () => {
   const removeItem = (itemId: string) => {
     const item = cart.items.find((item) => item.id === itemId);
     if (item) {
-      storeRemoveItem(item.productId, item.size, item.color, item.colorName);
+      storeRemoveItem(item.productId, item.size, item.color, item.colorName, item.variantId);
     }
   };
 

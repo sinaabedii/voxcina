@@ -12,7 +12,7 @@ import Button from '@/components/ui/Button';
 import { useRouter } from 'next/navigation';
 import { getBrandName, getCategoryName } from "@/lib/utils";
 import { toast } from 'react-toastify';
-import { getCanonicalColor } from '@/lib/product-variants';
+import { getCanonicalColor, getVariantUrlValue } from '@/lib/product-variants';
 
 export default function FavoritesPage() {
   const { products, isLoading, brands, categories } = useProductStore();
@@ -80,7 +80,7 @@ export default function FavoritesPage() {
 
   const handleAddToCart = async (item: ColorVariantListItem) => {
     const selectedColor = getCanonicalColor(item.colorVariant) || item.colorVariant.colorName;
-    const itemKey = `${item.productId}-${selectedColor}`;
+    const itemKey = `${item.productId}-${item.colorVariant.variantId || selectedColor}`;
     setAddingToCart(itemKey);
     
     try {
@@ -107,7 +107,7 @@ export default function FavoritesPage() {
       // Get first available size for this color
       const firstAvailableSize = item.colorVariant.sizes.find(s => s.quantity > 0)?.size;
       
-      await addItem(product, 1, firstAvailableSize, selectedColor, item.colorVariant.colorName);
+      await addItem(product, 1, firstAvailableSize, selectedColor, item.colorVariant.colorName, item.colorVariant.variantId);
       toast.success(`${item.name} به سبد خرید اضافه شد`);
     } catch (error) {
       toast.error('خطا در افزودن به سبد خرید');
@@ -295,7 +295,7 @@ export default function FavoritesPage() {
           >
 	            {favoriteProducts.map((product) => (
 	              <motion.div
-	                key={`${product.productId}-${getCanonicalColor(product.colorVariant) || product.colorVariant.colorName}`}
+                key={`${product.productId}-${product.colorVariant.variantId || getCanonicalColor(product.colorVariant) || product.colorVariant.colorName}`}
                 variants={itemVariants}
                 className={isRemoving === product.productId ? 'scale-95 opacity-50' : ''}
                 transition={{ duration: 0.3 }}
@@ -343,7 +343,7 @@ export default function FavoritesPage() {
 	                          variant="ghost"
 	                          size="sm"
 	                          className="p-2 text-voxcina-blue hover:text-voxcina-darkBlue hover:bg-voxcina-blue/5 dark:text-secondary-200 dark:hover:bg-voxcina-blue/20 rounded-full"
-	                          onClick={() => router.push(`/products/${product.productId}?color=${encodeURIComponent(getCanonicalColor(product.colorVariant) || product.colorVariant.colorName)}`)}
+                          onClick={() => router.push(`/products/${product.productId}?${product.colorVariant.variantId ? "variant" : "color"}=${encodeURIComponent(getVariantUrlValue(product.colorVariant) || "")}`)}
 	                        >
                           <ArrowRight className="w-4 h-4" />
                         </Button>
@@ -355,9 +355,9 @@ export default function FavoritesPage() {
                           size="sm" 
 	                          className="w-full rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-secondary-200 hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20 transition-colors"
 	                          onClick={() => handleAddToCart(product)}
-	                          disabled={!product.inStock || addingToCart === `${product.productId}-${getCanonicalColor(product.colorVariant) || product.colorVariant.colorName}`}
+                          disabled={!product.inStock || addingToCart === `${product.productId}-${product.colorVariant.variantId || getCanonicalColor(product.colorVariant) || product.colorVariant.colorName}`}
 	                        >
-	                          {addingToCart === `${product.productId}-${getCanonicalColor(product.colorVariant) || product.colorVariant.colorName}` ? (
+                          {addingToCart === `${product.productId}-${product.colorVariant.variantId || getCanonicalColor(product.colorVariant) || product.colorVariant.colorName}` ? (
                             <>
                               <Check className="w-4 h-4 ml-2" />
                               اضافه شد

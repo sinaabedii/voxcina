@@ -8,7 +8,7 @@ import { ColorVariantListItem } from "@/types/product";
 import BackendImage from "@/components/BackendImage";
 import TexturedBackground from "@/components/ui/TexturedBackground";
 import { formatPrice, getDiscountPercentage } from "@/lib/utils";
-import { getCanonicalColor } from "@/lib/product-variants";
+import { getVariantUrlValue } from "@/lib/product-variants";
 import { activityTracker } from "@/lib/activity-tracker";
 
 interface CollectionScrollShowcaseProps {
@@ -281,8 +281,8 @@ function ProductCard({
   index: number;
 }) {
   const image = item.colorVariant.images?.[0] || "/images/products/placeholder.jpg";
-  const color = getCanonicalColor(item.colorVariant) || item.colorVariant.colorName;
-  const href = `/products/${item.productId}?color=${encodeURIComponent(color)}`;
+  const variantValue = getVariantUrlValue(item.colorVariant) || item.colorVariant.colorName;
+  const href = `/products/${item.productId}?${item.colorVariant.variantId ? "variant" : "color"}=${encodeURIComponent(variantValue || "")}`;
   const discount =
     item.originalPrice && item.originalPrice > item.price
       ? getDiscountPercentage(item.originalPrice, item.price)

@@ -28,6 +28,7 @@ type OrderNote struct {
 
 // OrderVariant represents product variant details
 type OrderVariant struct {
+	VariantID string `bson:"variant_id,omitempty" json:"variantId,omitempty"`
 	Size      string `bson:"size"                json:"size"`
 	Color     string `bson:"color"               json:"color"`
 	ColorName string `bson:"color_name,omitempty" json:"colorName,omitempty"` // Display name for the color

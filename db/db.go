@@ -27,6 +27,12 @@ func Connect(cfg *config.Config) *mongo.Database {
 	Client = client
 	Database = client.Database(cfg.DBName)
 
+	// Ensure every color/pattern variant has a stable identity before the
+	// catalog and analytics endpoints start serving requests.
+	if err := EnsureProductVariantIDs(); err != nil {
+		log.Printf("Warning: Could not ensure product variant IDs: %v", err)
+	}
+
 	// Ensure unique index for phone in users collection upon connection
 	usersCollection := Database.Collection("users")
 	phoneIndexModel := mongo.IndexModel{
@@ -74,6 +80,10 @@ func Connect(cfg *config.Config) *mongo.Database {
 	// Create user activity tracking indexes
 	if err := CreateUserActivityIndexes(); err != nil {
 		log.Printf("Warning: Could not ensure user activity indexes: %v", err)
+		// Non-critical, continue anyway
+	}
+	if err := CreateProductVariantViewIndexes(); err != nil {
+		log.Printf("Warning: Could not ensure product variant view indexes: %v", err)
 		// Non-critical, continue anyway
 	}
 
