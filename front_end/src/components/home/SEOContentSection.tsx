@@ -1,6 +1,3 @@
-"use client";
-
-import { motion } from "framer-motion";
 
 /**
  * SEO Content Section - Adds keyword-rich content for better SEO
@@ -9,19 +6,8 @@ import { motion } from "framer-motion";
  * Requirements: SEO optimization - H1 keywords in content, multiple paragraphs
  */
 export default function SEOContentSection() {
-  const fadeIn = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-  };
-
   return (
-    <motion.section
-      className="container px-4 md:px-8 mb-12 md:mb-16"
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true }}
-      variants={fadeIn}
-    >
+    <section className="container px-4 md:px-8 mb-12 md:mb-16 animate-slideUp">
       <div className="max-w-4xl mx-auto bg-white/80 dark:bg-voxcina-blue/10 backdrop-blur-sm rounded-2xl p-6 md:p-10 shadow-soft border border-voxcina-cream/30 dark:border-voxcina-blue/20">
         <h2 className="text-lg md:text-2xl font-bold text-voxcina-blue dark:text-voxcina-cream mb-6 text-center">
           وکسینا (ووکسینا | Voxcina)، فروشگاه اینترنتی لباس و پوشاک با کیفیت
@@ -53,6 +39,6 @@ export default function SEOContentSection() {
           </p>
         </div>
       </div>
-    </motion.section>
+    </section>
   );
 }

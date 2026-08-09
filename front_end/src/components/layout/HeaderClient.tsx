@@ -10,7 +10,6 @@ import { APP_NAME } from "@/lib/constants";
 import { useCartStore } from "@/store/cart-store";
 import MobileNav from "./MobileNav";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/store/auth-store";
 
 const SmartSearch = dynamic(() => import("@/components/ui/SmartSearch"), {
@@ -51,10 +50,13 @@ const HeaderClient: React.FC<HeaderClientProps> = ({ navItems }) => {
     let ticking = false;
     const handleScroll = () => {
       if (!ticking) {
-        requestAnimationFrame(() => {
-          setIsScrolled(window.scrollY > 10);
-          ticking = false;
-        });
+          requestAnimationFrame(() => {
+            const nextIsScrolled = window.scrollY > 10;
+            setIsScrolled((current) =>
+              current === nextIsScrolled ? current : nextIsScrolled
+            );
+            ticking = false;
+          });
         ticking = true;
       }
     };
@@ -76,25 +78,24 @@ const HeaderClient: React.FC<HeaderClientProps> = ({ navItems }) => {
         >
           <div className="container mx-auto flex h-14 sm:h-16 md:h-18 lg:h-20 items-center justify-between px-3 sm:px-4 md:px-6">
             <div className="flex items-center">
-              <motion.button
-                className="lg:hidden p-1.5 sm:p-2 rounded-full text-voxcina-blue/80 hover:text-voxcina-blue dark:text-voxcina-cream/80 dark:hover:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-all duration-300 mr-1.5 sm:mr-2"
+              <button
+                className="mr-1.5 flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 text-voxcina-blue/80 transition-all duration-300 hover:bg-voxcina-cream/30 hover:text-voxcina-blue dark:text-voxcina-cream/80 dark:hover:bg-voxcina-blue/30 dark:hover:text-voxcina-cream sm:mr-2"
                 onClick={() => setIsMobileMenuOpen(true)}
                 aria-label="فهرست"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
               >
                 <Menu className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" />
-              </motion.button>
+              </button>
 
               <Link href="/" className="flex items-center group">
-                <div className="relative w-20 sm:w-24 md:w-28 lg:w-32 h-8 sm:h-10 md:h-12 transition-all duration-300">
+                <div className="relative flex h-8 w-20 items-center transition-all duration-300 sm:h-10 sm:w-24 md:h-12 md:w-28 lg:w-32">
                   <Image
                     alt={APP_NAME}
                     priority
-                    quality={100}
+                    quality={85}
                     src={"/images/Logo/BlueXTransparent.png"}
-                    fill
-                    className="object-contain"
+                    width={1335}
+                    height={940}
+                    className="h-auto max-h-full w-auto max-w-full object-contain"
                     sizes="(max-width: 640px) 5rem, (max-width: 768px) 6rem, (max-width: 1024px) 7rem, 8rem"
                   />
                 </div>
@@ -141,19 +142,17 @@ const HeaderClient: React.FC<HeaderClientProps> = ({ navItems }) => {
             </nav>
 
             <div className="flex items-center space-x-1 sm:space-x-2">
-              <motion.button
+              <button
                 onClick={() => setIsSearchOpen(true)}
-                className="p-1.5 sm:p-2 rounded-full text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-all duration-300 relative group"
+                className="relative flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 text-voxcina-blue/70 transition-all duration-300 hover:bg-voxcina-cream/30 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:bg-voxcina-blue/30 dark:hover:text-voxcina-cream group"
                 aria-label="جستجو"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
               >
                 <Search className="h-4 w-4 sm:h-[18px] sm:w-[18px] md:h-5 md:w-5" />
-              </motion.button>
+              </button>
               
               <Link
                 href="/cart"
-                className="p-1.5 sm:p-2 rounded-full text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-all duration-300 relative group"
+                 className="relative flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 text-voxcina-blue/70 transition-all duration-300 hover:bg-voxcina-cream/30 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:bg-voxcina-blue/30 dark:hover:text-voxcina-cream group"
                 aria-label="سبد خرید"
               >
                 <ShoppingBag className="h-4 w-4 sm:h-[18px] sm:w-[18px] md:h-5 md:w-5" />
@@ -165,11 +164,11 @@ const HeaderClient: React.FC<HeaderClientProps> = ({ navItems }) => {
                 )}
               </Link>
               
-              <motion.div className="relative flex items-center gap-1">
+              <div className="relative flex items-center gap-1">
                 {isAuthenticated && user?.role === "admin" && (
                   <Link
                     href="/admin"
-                    className="p-1.5 sm:p-2 rounded-full text-yellow-600 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300 hover:bg-yellow-100 dark:hover:bg-yellow-900 transition-all duration-300 relative group"
+                     className="relative flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 text-yellow-600 transition-all duration-300 hover:bg-yellow-100 hover:text-yellow-700 dark:text-yellow-400 dark:hover:bg-yellow-900 dark:hover:text-yellow-300 group"
                     aria-label="پنل ادمین"
                     title="پنل ادمین"
                   >
@@ -181,7 +180,7 @@ const HeaderClient: React.FC<HeaderClientProps> = ({ navItems }) => {
                   <button
                     type="button"
                     onClick={() => router.push("/dashboard")}
-                    className="p-1.5 sm:p-2 rounded-full text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-all duration-300 relative group"
+                     className="relative flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 text-voxcina-blue/70 transition-all duration-300 hover:bg-voxcina-cream/30 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:bg-voxcina-blue/30 dark:hover:text-voxcina-cream group"
                     aria-label="حساب کاربری"
                   >
                     <User className="h-4 w-4 sm:h-[18px] sm:w-[18px] md:h-5 md:w-5" />
@@ -190,27 +189,25 @@ const HeaderClient: React.FC<HeaderClientProps> = ({ navItems }) => {
                   <button
                     type="button"
                     onClick={() => router.push("/sign-in")}
-                    className="p-1.5 sm:p-2 rounded-full text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 hover:bg-green-100 dark:hover:bg-green-900 transition-all duration-300 relative group"
+                     className="relative flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 text-green-600 transition-all duration-300 hover:bg-green-100 hover:text-green-700 dark:text-green-400 dark:hover:bg-green-900 dark:hover:text-green-300 group"
                     aria-label="ورود یا ثبت‌نام"
                   >
                     <User className="h-4 w-4 sm:h-[18px] sm:w-[18px] md:h-5 md:w-5" />
                   </button>
                 )}
-              </motion.div>
+              </div>
             </div>
           </div>
         </header>
       </div>
 
       {/* Mobile Navigation Menu */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <MobileNav
-            navItems={navItems}
-            onClose={() => setIsMobileMenuOpen(false)}
-          />
-        )}
-      </AnimatePresence>
+      {isMobileMenuOpen && (
+        <MobileNav
+          navItems={navItems}
+          onClose={() => setIsMobileMenuOpen(false)}
+        />
+      )}
 
       {/* Search Modal Overlay */}
       {isSearchOpen && (

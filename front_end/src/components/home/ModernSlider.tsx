@@ -134,7 +134,7 @@ export const ModernSliderSection = ({ sliders }: ModernSliderSectionProps) => {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.4, delay: 0.1 }}
-                      className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl mb-2 md:mb-3 text-white/90 font-light"
+                       className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl mb-2 md:mb-3 text-white/90 font-normal"
                     >
                       {sliderData[currentSlide].subtitle}
                     </motion.p>
@@ -303,4 +303,4 @@ export const ModernSliderSection = ({ sliders }: ModernSliderSectionProps) => {
       </div>
     </section>
   );
-}; 
+};

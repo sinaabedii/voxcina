@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { X, ChevronDown, User } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
 import { APP_NAME } from "@/lib/constants";
 import Image from "next/image";
 import { useAuthStore } from "@/store/auth-store";
@@ -43,48 +42,15 @@ const MobileNav: React.FC<MobileNavProps> = ({ navItems, onClose }) => {
     }));
   };
 
-  const backdropVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 0.3 } },
-  };
-
-  const menuVariants = {
-    hidden: { x: "100%" },
-    visible: {
-      x: 0,
-      transition: { type: "spring" as const, damping: 25, stiffness: 300 },
-    },
-  };
-
-  const dropdownVariants = {
-    hidden: { height: 0, opacity: 0, overflow: "hidden" },
-    visible: {
-      height: "auto",
-      opacity: 1,
-      transition: {
-        height: { type: "spring" as const, stiffness: 300, damping: 30 },
-        opacity: { duration: 0.3 },
-      },
-    },
-  };
-
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
-      <motion.div
-        className="fixed inset-0 bg-voxcina-blue/30 backdrop-blur-sm"
-        initial="hidden"
-        animate="visible"
-        exit="hidden"
-        variants={backdropVariants}
+      <div
+        className="fixed inset-0 animate-fadeIn bg-voxcina-blue/30 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      <motion.div
-        className="fixed inset-y-0 right-0 w-4/5 max-w-xs sm:max-w-sm bg-white/95 dark:bg-voxcina-blue/95 shadow-lg border-l border-voxcina-cream/30 dark:border-voxcina-blue/50 backdrop-blur-sm"
-        initial="hidden"
-        animate="visible"
-        exit="hidden"
-        variants={menuVariants}
+      <div
+        className="fixed inset-y-0 right-0 w-4/5 max-w-xs animate-slideInRight bg-white/95 shadow-lg backdrop-blur-sm border-l border-voxcina-cream/30 dark:border-voxcina-blue/50 dark:bg-voxcina-blue/95 sm:max-w-sm"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -103,14 +69,12 @@ const MobileNav: React.FC<MobileNavProps> = ({ navItems, onClose }) => {
             </div>
           </Link>
           
-          <motion.button
+          <button
             onClick={onClose}
             className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-all duration-300"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
           >
             <X className="h-4 w-4 sm:h-5 sm:w-5" />
-          </motion.button>
+          </button>
         </div>
 
         {/* Navigation */}
@@ -118,14 +82,12 @@ const MobileNav: React.FC<MobileNavProps> = ({ navItems, onClose }) => {
           <nav className="space-y-1.5 sm:space-y-2">
             {navItems.map((item) => (
               <div key={item.href} className="rounded-lg sm:rounded-xl overflow-hidden">
-                <motion.div
+                <div
                   className={`flex items-center justify-between p-2.5 sm:p-3 rounded-lg sm:rounded-xl transition-all duration-300 ${
                     pathname === item.href
                       ? "bg-voxcina-blue dark:bg-voxcina-cream/20 text-white dark:text-voxcina-cream shadow-sm"
                       : "hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 text-voxcina-blue/80 dark:text-voxcina-cream/80 hover:text-voxcina-blue dark:hover:text-voxcina-cream"
                   }`}
-                  whileHover={{ x: 2 }}
-                  whileTap={{ scale: 0.98 }}
                 >
                   <Link
                     href={item.href}
@@ -136,12 +98,10 @@ const MobileNav: React.FC<MobileNavProps> = ({ navItems, onClose }) => {
                   </Link>
 
                   {item.children && (
-                    <motion.button
+                    <button
                       onClick={(e) => toggleExpand(e, item.href)}
                       className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-blue/30"
                       aria-label={`باز/بسته کردن منوی ${item.label}`}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
                     >
                       <ChevronDown
                         className={cn(
@@ -149,25 +109,16 @@ const MobileNav: React.FC<MobileNavProps> = ({ navItems, onClose }) => {
                           expandedItems[item.href] ? "rotate-180" : ""
                         )}
                       />
-                    </motion.button>
+                    </button>
                   )}
-                </motion.div>
+                </div>
 
-                <AnimatePresence initial={false}>
-                  {item.children && expandedItems[item.href] && (
-                    <motion.div
-                      variants={dropdownVariants}
-                      initial="hidden"
-                      animate="visible"
-                      exit="hidden"
-                      className="pr-3 sm:pr-4 mr-1 border-r-2 border-voxcina-blue/20 dark:border-voxcina-cream/20"
-                    >
+                {item.children && expandedItems[item.href] && (
+                    <div className="animate-slideDown pr-3 sm:pr-4 mr-1 border-r-2 border-voxcina-blue/20 dark:border-voxcina-cream/20">
                       <div className="py-1.5 sm:py-2 space-y-1">
                         {item.children.map((child) => (
-                          <motion.div
+                          <div
                             key={child.href}
-                            whileHover={{ x: 2 }}
-                            whileTap={{ scale: 0.98 }}
                           >
                             <Link
                               href={child.href}
@@ -181,12 +132,11 @@ const MobileNav: React.FC<MobileNavProps> = ({ navItems, onClose }) => {
                             >
                               {child.label}
                             </Link>
-                          </motion.div>
+                          </div>
                         ))}
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                    </div>
+                )}
               </div>
             ))}
           </nav>
@@ -195,7 +145,7 @@ const MobileNav: React.FC<MobileNavProps> = ({ navItems, onClose }) => {
         {/* Bottom Actions */}
         <div className="absolute bottom-0 inset-x-0 p-3 sm:p-4 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 bg-white/95 dark:bg-voxcina-blue/95 backdrop-blur-sm">
           {isAuthenticated ? (
-            <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
+            <div>
               <button
                 type="button"
                 onClick={() => {
@@ -207,10 +157,10 @@ const MobileNav: React.FC<MobileNavProps> = ({ navItems, onClose }) => {
                 <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 {user?.name || "حساب کاربری"}
               </button>
-            </motion.div>
+            </div>
           ) : (
             <div className="grid grid-cols-2 gap-2 sm:gap-3">
-              <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
+              <div>
                 <Link
                   href="/sign-in"
                   className="block py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl text-center text-xs sm:text-sm font-medium border border-voxcina-blue dark:border-voxcina-cream/30 text-voxcina-blue dark:text-voxcina-cream bg-transparent hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-all duration-300 shadow-sm hover:shadow-md"
@@ -218,8 +168,8 @@ const MobileNav: React.FC<MobileNavProps> = ({ navItems, onClose }) => {
                 >
                   ورود
                 </Link>
-              </motion.div>
-              <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>
+              </div>
+              <div>
                 <Link
                   href="/sign-up"
                   className="block py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl text-center text-xs sm:text-sm font-medium bg-voxcina-blue dark:bg-voxcina-cream/90 text-white dark:text-voxcina-blue hover:bg-voxcina-darkBlue dark:hover:bg-voxcina-cream transition-all duration-300 shadow-sm hover:shadow-md"
@@ -227,11 +177,11 @@ const MobileNav: React.FC<MobileNavProps> = ({ navItems, onClose }) => {
                 >
                   ثبت نام
                 </Link>
-              </motion.div>
+              </div>
             </div>
           )}
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };

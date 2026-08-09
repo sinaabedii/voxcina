@@ -2,7 +2,6 @@
 
 import React, { useRef, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ColorVariantListItem } from "@/types/product";
 import ProductCard from "@/components/product/ProductCard";
@@ -47,7 +46,7 @@ export default function ProductCarouselSectionClient({
     if (!sliderRef.current) return;
 
     setIsDragging(true);
-    setStartX(e.pageX - sliderRef.current.offsetLeft);
+    setStartX(e.clientX);
     setScrollLeft(sliderRef.current.scrollLeft);
   };
 
@@ -55,8 +54,7 @@ export default function ProductCarouselSectionClient({
     if (!isDragging || !sliderRef.current) return;
 
     e.preventDefault();
-    const x = e.pageX - sliderRef.current.offsetLeft;
-    const walk = (x - startX) * 1.5;
+    const walk = (e.clientX - startX) * 1.5;
     sliderRef.current.scrollLeft = scrollLeft - walk;
   };
 
@@ -68,19 +66,8 @@ export default function ProductCarouselSectionClient({
     setIsDragging(false);
   };
 
-  const fadeIn = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
-  };
-
   return (
-    <motion.section
-      className={className ?? "container px-4 md:px-8 mb-16 md:mb-24"}
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true }}
-      variants={fadeIn}
-    >
+    <section className={`${className ?? "container px-4 md:px-8 mb-16 md:mb-24"} animate-slideUp`}>
       <SectionTitle
         title={title}
         size="lg"
@@ -158,6 +145,6 @@ export default function ProductCarouselSectionClient({
           </div>
         </div>
       )}
-    </motion.section>
+    </section>
   );
 }

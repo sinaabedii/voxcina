@@ -1,47 +1,9 @@
-"use client";
-
-import { motion } from "framer-motion";
 import Link from "next/link";
 import { Sparkles, Camera, Zap, ArrowLeft, Tag, Wand2 } from "lucide-react";
 
-const staggerContainer = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.15,
-      delayChildren: 0.2,
-    },
-  },
-};
-
-const fadeInUp = {
-  hidden: { opacity: 0, y: 30 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.6, ease: "easeOut" as const },
-  },
-};
-
-const scaleIn = {
-  hidden: { opacity: 0, scale: 0.8 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    transition: { duration: 0.5, ease: "easeOut" as const },
-  },
-};
-
 export default function AIAssistantPromo() {
   return (
-    <motion.section
-      className="container px-4 md:px-8 mb-16 md:mb-24"
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true, amount: 0.2 }}
-      variants={staggerContainer}
-    >
+    <section className="container px-4 md:px-8 mb-16 md:mb-24 animate-slideUp">
       <div className="relative rounded-3xl overflow-hidden">
         {/* Background layers */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#0b1020] via-[#0f172a] to-[#1e293b]" />
@@ -67,38 +29,29 @@ export default function AIAssistantPromo() {
             
             {/* Left: Text content */}
             <div className="space-y-6 md:space-y-8">
-              <motion.div variants={fadeInUp}>
+              <div>
                 <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/20 to-voxcina-blue/20 border border-cyan-400/30 backdrop-blur-md">
                   <Sparkles className="w-4 h-4 text-yellow-300" />
                   <span className="text-xs sm:text-sm font-medium text-cyan-100">
                     اتاق پرو مجازی با هوش مصنوعی
                   </span>
                 </span>
-              </motion.div>
+              </div>
 
-              <motion.h2
-                className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black leading-tight text-white"
-                variants={fadeInUp}
-              >
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black leading-tight text-white">
                 دستیار هوشمند
                 <span className="block mt-2 bg-gradient-to-r from-cyan-400 via-voxcina-blue to-purple-400 bg-clip-text text-transparent">
                   پرو مجازی و مذاکره تخفیف
                 </span>
-              </motion.h2>
+              </h2>
 
-              <motion.p
-                className="text-sm sm:text-base md:text-lg text-slate-300/90 leading-relaxed max-w-lg"
-                variants={fadeInUp}
-              >
+              <p className="text-sm sm:text-base md:text-lg text-slate-300/90 leading-relaxed max-w-lg">
                 عکس خودتو آپلود کن و با هوش مصنوعی لباس‌ها رو روی خودت ببین!
                 بعدش با سارا، فروشنده هوشمند وکسینا، برای تخفیف مذاکره کن.
-              </motion.p>
+              </p>
 
               {/* Feature pills */}
-              <motion.div
-                className="flex flex-wrap gap-3"
-                variants={fadeInUp}
-              >
+              <div className="flex flex-wrap gap-3">
                 {[
                   { icon: Camera, text: "پرو مجازی" },
                   { icon: Tag, text: "مذاکره تخفیف" },
@@ -112,10 +65,10 @@ export default function AIAssistantPromo() {
                     <span className="text-xs text-slate-200">{feature.text}</span>
                   </div>
                 ))}
-              </motion.div>
+              </div>
 
               {/* CTA Button */}
-              <motion.div variants={fadeInUp}>
+              <div>
                 <Link
                   href="/tryon"
                   className="group inline-flex items-center gap-3 px-6 sm:px-8 py-3 sm:py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-voxcina-blue text-white font-bold text-sm sm:text-base shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:scale-[1.02] transition-all duration-300"
@@ -124,13 +77,10 @@ export default function AIAssistantPromo() {
                   <span>همین الان امتحان کن</span>
                   <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
                 </Link>
-              </motion.div>
+              </div>
 
               {/* Stats */}
-              <motion.div
-                className="flex flex-wrap gap-6 sm:gap-10 pt-4"
-                variants={fadeInUp}
-              >
+              <div className="flex flex-wrap gap-6 sm:gap-10 pt-4">
                 {[
                   { value: "۱۰۰۰+", label: "پرو روزانه" },
                   { value: "۹۸٪", label: "رضایت کاربران" },
@@ -143,14 +93,11 @@ export default function AIAssistantPromo() {
                     <div className="text-xs text-slate-400">{stat.label}</div>
                   </div>
                 ))}
-              </motion.div>
+              </div>
             </div>
 
             {/* Right: Visual element */}
-            <motion.div
-              className="relative flex items-center justify-center"
-              variants={scaleIn}
-            >
+            <div className="relative flex items-center justify-center">
               {/* Decorative rings */}
               <div className="absolute w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 rounded-full border border-cyan-500/20 animate-[spin_30s_linear_infinite]" />
               <div className="absolute w-52 h-52 sm:w-64 sm:h-64 md:w-80 md:h-80 rounded-full border border-voxcina-blue/30 animate-[spin_25s_linear_infinite_reverse]" />
@@ -232,13 +179,13 @@ export default function AIAssistantPromo() {
                   <Zap className="w-4 h-4 text-white" />
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
 
         {/* Bottom decorative line */}
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
       </div>
-    </motion.section>
+    </section>
   );
 }

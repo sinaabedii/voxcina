@@ -10,7 +10,6 @@ import { useCartStore } from "@/store/cart-store";
 import Button from "@/components/ui/Button";
 import { toast } from "react-toastify";
 import { useDashboardStore } from "@/store/dashboard-store";
-import { motion, AnimatePresence } from "framer-motion";
 import { activityTracker } from "@/lib/activity-tracker";
 import { getCanonicalColor } from "@/lib/product-variants";
 
@@ -123,9 +122,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
               src={displayImage}
               alt={`${name} - ${colorName}`}
               width={300}
-              height={300}
+              height={375}
               className="object-contain w-full h-full group-hover:scale-105 transition-transform duration-700"
               loading="lazy"
+              quality={70}
               sizes="(max-width: 640px) 160px, (max-width: 768px) 200px, (max-width: 1024px) 220px, 250px"
             />
           ) : (
@@ -272,22 +272,15 @@ const ProductCard: React.FC<ProductCardProps> = ({
       </Link>
 
       {/* Size Selection Modal */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-            onClick={handleCloseModal}
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex animate-fadeIn items-center justify-center bg-black/50 p-4"
+          onClick={handleCloseModal}
+        >
+          <div
+            className="w-full max-w-md animate-slideUp rounded-2xl bg-card p-6 shadow-strong"
+            onClick={(e) => e.stopPropagation()}
           >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-card rounded-2xl p-6 max-w-md w-full shadow-strong"
-              onClick={(e) => e.stopPropagation()}
-            >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold">انتخاب سایز</h3>
                 <button
@@ -343,10 +336,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
                   افزودن به سبد
                 </Button>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      )}
     </>
   );
 };

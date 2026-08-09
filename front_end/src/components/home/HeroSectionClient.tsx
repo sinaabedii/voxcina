@@ -1,9 +1,6 @@
-"use client";
-
-import React, { useMemo } from "react";
-import { motion } from "framer-motion";
+import React from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { getImageProps } from "next/image";
 import { FaArrowLeft } from "react-icons/fa";
 import { HeroImage, DEFAULT_GRADIENT, DEFAULT_OVERLAY_GRADIENT } from "@/types/hero-image";
 
@@ -36,68 +33,90 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({
   desktopImage,
   mobileImage,
 }) => {
-  const fadeIn = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-  };
+  const desktopOverlay = getOverlayGradient(desktopImage);
+  const mobileOverlay = getOverlayGradient(mobileImage);
+  const desktopImageOpacity = getImageOpacity(desktopImage);
+  const mobileImageOpacity = getImageOpacity(mobileImage);
 
-  const { 
-    desktopOverlay, 
-    mobileOverlay,
-    desktopImageOpacity,
-    mobileImageOpacity 
-  } = useMemo(() => ({
-    desktopOverlay: getOverlayGradient(desktopImage),
-    mobileOverlay: getOverlayGradient(mobileImage),
-    desktopImageOpacity: getImageOpacity(desktopImage),
-    mobileImageOpacity: getImageOpacity(mobileImage),
-  }), [desktopImage, mobileImage]);
-
-  const hasDesktopImage = !!desktopImage;
-  const hasMobileImage = !!mobileImage;
+  const desktopImageProps = desktopImage
+    ? getImageProps({
+        src: desktopImage.image,
+        alt: "Hero banner desktop",
+        width: 1920,
+        height: 1080,
+        sizes: "100vw",
+        quality: 75,
+        priority: true,
+      }).props
+    : null;
+  const mobileImageProps = mobileImage
+    ? getImageProps({
+        src: mobileImage.image,
+        alt: "Hero banner mobile",
+        width: 768,
+        height: 1024,
+        sizes: "100vw",
+        quality: 70,
+        priority: true,
+      }).props
+    : null;
+  const imageOpacityClass =
+    desktopImageOpacity === mobileImageOpacity
+      ? desktopImageOpacity
+      : desktopImageOpacity === "opacity-100"
+        ? "opacity-30 md:opacity-100"
+        : "opacity-100 md:opacity-30";
 
   return (
     <section
       className={`relative max-w-7xl mx-4 sm:mx-6 lg:mx-auto rounded-lg sm:rounded-xl md:rounded-2xl mb-6 sm:mb-8 md:mb-10 py-4 sm:py-5 md:py-6 aspect-[3/4] md:aspect-video flex items-center overflow-hidden ${DEFAULT_GRADIENT}`}
     >
-      {/* Desktop Hero Image */}
-      {hasDesktopImage && (
-        <div className="hidden md:block absolute inset-0">
-          <div className="absolute inset-0 will-change-transform md:bg-fixed">
-            {desktopOverlay && (
-              <div className={`absolute inset-0 z-10 opacity-50 ${desktopOverlay}`} />
-            )}
-            <Image
-              src={desktopImage!.image}
-              alt="Hero banner desktop"
-              fill
-              priority
-              sizes="(min-width: 768px) 100vw, 0vw"
-              className={`object-cover ${desktopImageOpacity}`}
-              quality={85}
+      {/* One responsive source prevents the hidden device image from competing with LCP. */}
+      {(desktopImageProps || mobileImageProps) && (
+        <>
+          {desktopImageProps && (
+            <link
+              rel="preload"
+              as="image"
+              href={desktopImageProps.src}
+              imageSrcSet={desktopImageProps.srcSet}
+              imageSizes="100vw"
+              media="(min-width: 768px)"
             />
-          </div>
-        </div>
-      )}
-
-      {/* Mobile Hero Image */}
-      {hasMobileImage && (
-        <div className="block md:hidden absolute inset-0">
-          <div className="absolute inset-0">
-            {mobileOverlay && (
-              <div className={`absolute inset-0 z-10 opacity-50 ${mobileOverlay}`} />
-            )}
-            <Image
-              src={mobileImage!.image}
-              alt="Hero banner mobile"
-              fill
-              priority
-              sizes="(max-width: 767px) 100vw, 0vw"
-              className={`object-cover ${mobileImageOpacity}`}
-              quality={80}
+          )}
+          {mobileImageProps && (
+            <link
+              rel="preload"
+              as="image"
+              href={mobileImageProps.src}
+              imageSrcSet={mobileImageProps.srcSet}
+              imageSizes="100vw"
+              media="(max-width: 767px)"
             />
+          )}
+          <div className="absolute inset-0 md:bg-fixed">
+          <picture>
+            {mobileImageProps && (
+              <source
+                media="(max-width: 767px)"
+                srcSet={mobileImageProps.srcSet}
+                sizes="100vw"
+              />
+            )}
+            <img
+              {...(desktopImageProps || mobileImageProps)!}
+              alt={desktopImage ? "Hero banner desktop" : "Hero banner mobile"}
+              className={`absolute inset-0 h-full w-full object-cover ${imageOpacityClass}`}
+            />
+          </picture>
+          {mobileOverlay && (
+            <div className={`absolute inset-0 z-10 opacity-50 md:hidden ${mobileOverlay}`} />
+          )}
+          {desktopOverlay && (
+            <div className={`absolute inset-0 z-10 hidden opacity-50 md:block ${desktopOverlay}`} />
+          )}
           </div>
-        </div>
+        </>
       )}
 
       {/* Decorative blur elements */}
@@ -109,24 +128,14 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({
       {/* Content overlay */}
       <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={fadeIn}
-            className="inline-block mb-3 sm:mb-4 md:mb-6"
-          >
+          <div className="inline-block mb-3 sm:mb-4 md:mb-6 animate-slideUp">
             <span className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white/90 text-xs sm:text-sm font-medium">
               <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-400 rounded-full animate-pulse" />
               کالکشن جدید
             </span>
-          </motion.div>
+          </div>
 
-          <motion.h1
-            initial="hidden"
-            animate="visible"
-            variants={fadeIn}
-            className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-3 sm:mb-4 md:mb-6 leading-tight"
-          >
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-3 sm:mb-4 md:mb-6 leading-tight animate-slideUp">
             <span className="text-white block mb-1 sm:mb-2">
               فروشگاه اینترنتی لباس و پوشاک
             </span>
@@ -135,23 +144,13 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({
                 وکسینا
               </span>
             </span>
-          </motion.h1>
+          </h1>
 
-          <motion.p
-            initial="hidden"
-            animate="visible"
-            variants={fadeIn}
-            className="text-xs sm:text-sm md:text-base lg:text-lg text-white/80 mb-4 sm:mb-6 md:mb-8 max-w-xs sm:max-w-sm md:max-w-xl mx-auto font-light leading-relaxed"
-          >
+          <p className="text-xs sm:text-sm md:text-base lg:text-lg text-white/80 mb-4 sm:mb-6 md:mb-8 max-w-xs sm:max-w-sm md:max-w-xl mx-auto font-normal leading-relaxed animate-slideUp">
             با جدیدترین ترندهای مد تابستانی، استایل منحصر به فرد خود را خلق کنید
-          </motion.p>
+          </p>
 
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={fadeIn}
-            className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center"
-          >
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center animate-slideUp">
             <Link
               href="/collection/%D8%AA%D8%A7%D8%A8%D8%B3%D8%AA%D8%A7%D9%86"
               className="relative overflow-hidden bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-6 sm:px-8 py-2.5 sm:py-3 md:py-4 rounded-full font-medium text-sm sm:text-base md:text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 w-full sm:w-auto"
@@ -171,7 +170,7 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({
                 <span className="text-yellow-400 text-sm sm:text-base">⭐</span>
               </span>
             </Link>
-          </motion.div>
+          </div>
         </div>
       </div>
     </section>

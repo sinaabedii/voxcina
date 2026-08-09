@@ -1,6 +1,5 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -80,15 +79,7 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
   return (
     <section className="container px-4 md:px-8 mb-16 md:mb-24">
       <div className="relative h-[400px] sm:h-[450px] md:h-[500px] lg:h-[600px] xl:h-[700px] rounded-2xl md:rounded-3xl overflow-hidden">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentSlide}
-            className="absolute inset-0"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
-          >
+        <div key={currentSlide} className="absolute inset-0 animate-fadeIn">
             <div className="absolute inset-0">
               <Image
                 src={sliderData[currentSlide].image}
@@ -118,32 +109,17 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
                       </span>
                     </div>
 
-                    <motion.h2
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.4 }}
-                      className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-2 md:mb-4 leading-tight"
-                    >
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-2 md:mb-4 leading-tight">
                       {sliderData[currentSlide].title}
-                    </motion.h2>
+                    </h2>
 
-                    <motion.p
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.4, delay: 0.1 }}
-                      className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl mb-2 md:mb-3 text-white/90 font-light"
-                    >
+                    <p className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl mb-2 md:mb-3 text-white/90 font-normal">
                       {sliderData[currentSlide].subtitle}
-                    </motion.p>
+                    </p>
 
-                    <motion.p
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.4, delay: 0.2 }}
-                      className="hidden sm:block text-sm md:text-base lg:text-lg mb-4 md:mb-8 text-white/70 max-w-2xl"
-                    >
+                    <p className="hidden sm:block text-sm md:text-base lg:text-lg mb-4 md:mb-8 text-white/70 max-w-2xl">
                       {sliderData[currentSlide].description}
-                    </motion.p>
+                    </p>
 
                     <div className="flex flex-wrap gap-2 md:gap-4 mb-4 md:mb-8">
                       {sliderData[currentSlide].features.map(
@@ -232,19 +208,18 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
                 </div>
               </div>
             </div>
-          </motion.div>
-        </AnimatePresence>
+        </div>
 
         {/* Navigation Arrows */}
         <div className="absolute bottom-4 left-4 flex gap-2">
           <button
             onClick={handlePrev}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-colors"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-colors hover:bg-white/30"
             aria-label="قبلی"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
+              className="h-7 w-7"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -259,12 +234,12 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
           </button>
           <button
             onClick={handleNext}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-colors"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-colors hover:bg-white/30"
             aria-label="بعدی"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
+              className="h-7 w-7"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -288,7 +263,7 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
               type="button"
               aria-label={`رفتن به اسلاید ${index + 1}`}
               aria-current={currentSlide === index ? "true" : undefined}
-              className="flex h-8 w-8 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/20"
+              className="flex h-10 w-10 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/20"
             >
               <span
                 aria-hidden="true"

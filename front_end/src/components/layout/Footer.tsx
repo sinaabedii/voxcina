@@ -39,7 +39,7 @@ const FooterSection: React.FC<FooterSectionProps> = ({ title, items, animationDe
         <li key={link.href}>
           <Link
             href={link.href}
-            className="min-h-6 py-1 text-xs sm:text-sm md:text-base text-foreground hover:text-primary transition-all duration-200 flex items-center group"
+            className="flex min-h-11 items-center py-2 text-xs text-foreground transition-all duration-200 group hover:text-primary sm:text-sm md:text-base"
           >
             <span className="h-1.5 w-1.5 bg-secondary rounded-full ml-2 group-hover:bg-primary transition-colors duration-200 flex-shrink-0"></span>
             <span className="relative">

@@ -50,7 +50,11 @@ const RING_PALETTE = [
   },
 ];
 
-const ModernCategoriesSection = () => {
+interface ModernCategoriesSectionProps {
+  initialCategories?: Category[];
+}
+
+const ModernCategoriesSection = ({ initialCategories }: ModernCategoriesSectionProps) => {
   const { categories, fetchCategories, isLoading } = useCategoryStore();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -59,12 +63,13 @@ const ModernCategoriesSection = () => {
   const [dragScrollLeft, setDragScrollLeft] = useState(0);
 
   useEffect(() => {
+    if (initialCategories && initialCategories.length > 0) return;
     fetchCategories();
-  }, [fetchCategories]);
+  }, [fetchCategories, initialCategories]);
 
   const visible: Category[] = useMemo(
-    () => (categories || []).filter((c) => c.is_active !== false),
-    [categories]
+    () => (initialCategories?.length ? initialCategories : categories ?? []).filter((c) => c.is_active !== false),
+    [categories, initialCategories]
   );
 
   const scrollByDirection = (direction: "start" | "end") => {
@@ -81,7 +86,7 @@ const ModernCategoriesSection = () => {
     const el = scrollerRef.current;
     if (!el) return;
     setIsDragging(true);
-    setDragStartX(e.pageX - el.offsetLeft);
+    setDragStartX(e.clientX);
     setDragScrollLeft(el.scrollLeft);
   };
 
@@ -89,8 +94,7 @@ const ModernCategoriesSection = () => {
     const el = scrollerRef.current;
     if (!isDragging || !el) return;
     e.preventDefault();
-    const x = e.pageX - el.offsetLeft;
-    const walk = (x - dragStartX) * 1.5;
+    const walk = (e.clientX - dragStartX) * 1.5;
     el.scrollLeft = dragScrollLeft - walk;
   };
 

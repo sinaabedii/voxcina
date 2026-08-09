@@ -15,6 +15,7 @@ import BenefitsSection from "@/components/home/BenefitsSection";
 import SEOContentSection from "@/components/home/SEOContentSection";
 import { serverFetchWithFallback, CACHE_TIMES } from "@/lib/server-api";
 import { ColorVariantListItem } from "@/types/product";
+import type { Category } from "@/types/category";
 import { Slider } from "@/types/slider";
 import { fallbackSliders } from "@/lib/constants";
 import type { Metadata } from "next";
@@ -44,7 +45,7 @@ interface ProductsResponse {
 
 async function getHomePageData() {
   // Fetch all data in parallel for better performance
-  const [featuredProductsData, newProductsData, slidersData] = await Promise.all([
+  const [featuredProductsData, newProductsData, slidersData, categories] = await Promise.all([
     // Fetch featured/popular products
     serverFetchWithFallback<ProductsResponse | ColorVariantListItem[]>(
       '/api/products?limit=10',
@@ -62,6 +63,11 @@ async function getHomePageData() {
       '/api/sliders',
       fallbackSliders,
       { revalidate: CACHE_TIMES.SLIDERS, tags: ['home', 'sliders'] }
+    ),
+    serverFetchWithFallback<Category[]>(
+      '/api/categories',
+      [],
+      { revalidate: CACHE_TIMES.CATEGORIES, tags: ['home', 'categories'] }
     ),
   ]);
 
@@ -81,6 +87,7 @@ async function getHomePageData() {
     featuredProducts,
     newProducts,
     sliders,
+    categories,
   };
 }
 
@@ -93,7 +100,7 @@ async function getHomePageData() {
  * Requirements: 3.1, 3.2, 3.3, 3.4
  */
 export default async function HomePage() {
-  const { featuredProducts, newProducts, sliders } = await getHomePageData();
+  const { featuredProducts, newProducts, sliders, categories } = await getHomePageData();
 
   return (
     <>
@@ -112,7 +119,7 @@ export default async function HomePage() {
         </Suspense>
         
         {/* Categories Section - Client component with useState */}
-        <ModernCategoriesSection />
+        <ModernCategoriesSection initialCategories={categories} />
         
         {/* Seasonal Collection Banner - Client component for animations */}
         <SeasonalCollectionBanner />

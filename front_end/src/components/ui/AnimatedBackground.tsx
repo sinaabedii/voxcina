@@ -1,5 +1,3 @@
-"use client";
-
 import React from "react";
 
 const AnimatedBackground = () => {
@@ -31,7 +29,7 @@ const AnimatedBackground = () => {
   ];
 
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ willChange: "transform" }}>
+    <div className="fixed inset-0 pointer-events-none overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-purple-50/30 to-pink-50/20" />
       {colorfulCircles.map((circle) => (
         <div

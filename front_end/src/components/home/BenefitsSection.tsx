@@ -1,6 +1,3 @@
-"use client";
-
-import { motion } from "framer-motion";
 
 /**
  * Benefits Section - Client component for animations
@@ -9,11 +6,6 @@ import { motion } from "framer-motion";
  * Requirements: 3.4, 5.1
  */
 export default function BenefitsSection() {
-  const fadeIn = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
-  };
-
   const benefits = [
     {
       title: "ارسال سریع و رایگان",
@@ -38,13 +30,7 @@ export default function BenefitsSection() {
   ];
 
   return (
-    <motion.section
-      className="container px-4 md:px-8 mb-16 md:mb-24"
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true }}
-      variants={fadeIn}
-    >
+    <section className="container px-4 md:px-8 mb-16 md:mb-24 animate-slideUp">
       <div className="relative py-10 px-5 sm:py-12 sm:px-6 md:p-16 bg-gradient-to-r from-voxcina-darkBlue to-voxcina-blue rounded-3xl overflow-hidden shadow-medium">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 md:gap-10">
           {benefits.map((benefit, index) => (
@@ -77,6 +63,6 @@ export default function BenefitsSection() {
           ))}
         </div>
       </div>
-    </motion.section>
+    </section>
   );
 }
