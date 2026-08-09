@@ -120,7 +120,7 @@ export default function BlogHero({ post }: BlogHeroProps) {
   return (
     <section
       ref={heroRef}
-      className="relative isolate flex min-h-[60vh] items-end overflow-hidden sm:min-h-[70vh]"
+      className="relative isolate flex min-h-[60vh] items-end overflow-hidden sm:min-h-[70vh] lg:-mt-[120px]"
       style={{ perspective: "900px" }}
     >
       <div ref={imgWrapRef} className="absolute inset-x-0 -top-[8%] -z-10 h-[116%] w-full will-change-transform">
