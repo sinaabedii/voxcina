@@ -193,19 +193,30 @@ function ButtonElement({ element, preview }: { element: HeroElement; preview: bo
   const button = element.button;
   if (!button) return null;
 
+  // Only glass/outline actually show a border; gradient/solid paint the
+  // whole shape as background. Giving those two a "transparent" border
+  // instead of no border at all is what causes the artifact: a border and a
+  // rounded gradient/solid background are anti-aliased as separate layers,
+  // and on a pill shape (rounded-full) their curves diverge most right at
+  // the semicircular tips — the two ends where the radius is tightest —
+  // leaving a faint seam exactly there. Not rendering a border for those
+  // variants removes the second layer entirely, so there's nothing to seam.
+  const hasBorder = button.variant === "glass" || button.variant === "outline";
+
   const style: React.CSSProperties = {
     color: button.textColor,
-    borderColor: withAlpha(button.borderColor, button.borderOpacity),
   };
+
+  if (hasBorder) {
+    style.borderColor = withAlpha(button.borderColor, button.borderOpacity);
+  }
 
   switch (button.variant) {
     case "gradient":
       style.backgroundImage = buildGradient(element.color.direction, button.from, "", button.to);
-      style.borderColor = "transparent";
       break;
     case "solid":
       style.backgroundColor = withAlpha(button.from, button.backgroundOpacity);
-      style.borderColor = "transparent";
       break;
     case "glass":
       style.backgroundColor = withAlpha(button.from, button.backgroundOpacity);
@@ -216,7 +227,8 @@ function ButtonElement({ element, preview }: { element: HeroElement; preview: bo
   }
 
   const className = cx(
-    "relative inline-flex items-center justify-center gap-2 border-2 transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-1",
+    "relative inline-flex items-center justify-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-1",
+    hasBorder ? "border-2" : "border-0",
     BUTTON_SIZE_CLASSES[button.size],
     ROUNDED_CLASSES[button.rounded],
     FONT_WEIGHT_CLASSES[element.weight],
