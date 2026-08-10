@@ -149,6 +149,7 @@ func CreateHeroImage(w http.ResponseWriter, r *http.Request) {
 	gradient := r.FormValue("gradient")
 	noGradientStr := r.FormValue("noGradient")
 	displayOrderStr := r.FormValue("displayOrder")
+	contentStr := r.FormValue("content")
 
 	// Validate required fields
 	if deviceType == "" {
@@ -190,6 +191,14 @@ func CreateHeroImage(w http.ResponseWriter, r *http.Request) {
 	displayOrder := 0
 	if displayOrderStr != "" {
 		displayOrder, _ = strconv.Atoi(displayOrderStr)
+	}
+
+	var content interface{}
+	if contentStr != "" {
+		if err := json.Unmarshal([]byte(contentStr), &content); err != nil {
+			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid content payload: "+err.Error())
+			return
+		}
 	}
 
 	// Create upload directory if it doesn't exist
@@ -242,6 +251,7 @@ func CreateHeroImage(w http.ResponseWriter, r *http.Request) {
 		Gradient:     gradient,
 		NoGradient:   noGradient,
 		DisplayOrder: displayOrder,
+		Content:      content,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -391,14 +401,27 @@ func UpdateHeroImage(w http.ResponseWriter, r *http.Request) {
 			updateFields["displayOrder"] = displayOrder
 		}
 
+		if contentStr := r.FormValue("content"); contentStr != "" {
+			var content interface{}
+			if err := json.Unmarshal([]byte(contentStr), &content); err != nil {
+				if newFilePath != "" {
+					os.Remove(newFilePath)
+				}
+				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid content payload: "+err.Error())
+				return
+			}
+			updateFields["content"] = content
+		}
+
 	} else {
 		// Handle JSON request (no file upload)
 		var updateData struct {
-			DeviceType   *string `json:"deviceType"`
-			IsActive     *bool   `json:"isActive"`
-			Gradient     *string `json:"gradient"`
-			NoGradient   *bool   `json:"noGradient"`
-			DisplayOrder *int    `json:"displayOrder"`
+			DeviceType   *string         `json:"deviceType"`
+			IsActive     *bool           `json:"isActive"`
+			Gradient     *string         `json:"gradient"`
+			NoGradient   *bool           `json:"noGradient"`
+			DisplayOrder *int            `json:"displayOrder"`
+			Content      json.RawMessage `json:"content"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&updateData); err != nil {
@@ -430,6 +453,15 @@ func UpdateHeroImage(w http.ResponseWriter, r *http.Request) {
 
 		if updateData.DisplayOrder != nil {
 			updateFields["displayOrder"] = *updateData.DisplayOrder
+		}
+
+		if len(updateData.Content) > 0 {
+			var content interface{}
+			if err := json.Unmarshal(updateData.Content, &content); err != nil {
+				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid content payload: "+err.Error())
+				return
+			}
+			updateFields["content"] = content
 		}
 	}
 

@@ -16,6 +16,11 @@ type HeroImage struct {
 	Gradient     string             `bson:"gradient"            json:"gradient"`
 	NoGradient   bool               `bson:"noGradient"          json:"noGradient"`
 	DisplayOrder int                `bson:"displayOrder"        json:"displayOrder"`
+	// Content holds the admin-authored hero content (text elements, placement,
+	// colors) as an opaque document. The frontend owns its shape; the backend
+	// only stores and returns it verbatim. Absent on hero images saved before
+	// content authoring existed.
+	Content interface{} `bson:"content,omitempty"   json:"content,omitempty"`
 	CreatedAt    time.Time          `bson:"createdAt,omitempty" json:"createdAt,omitempty"`
 	UpdatedAt    time.Time          `bson:"updatedAt,omitempty" json:"updatedAt,omitempty"`
 }

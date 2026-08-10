@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useHeroImageStore } from "@/store/hero-image-store";
-import { HeroImage, DEFAULT_GRADIENT } from "@/types/hero-image";
+import { HeroImage, DEFAULT_GRADIENT, normalizeHeroContent } from "@/types/hero-image";
+import { buildGradient } from "@/components/home/hero-styles";
 import Button from "@/components/ui/Button";
-import { Plus, Edit, Trash2, Monitor, Smartphone, Filter } from "lucide-react";
+import { Plus, Edit, Trash2, Monitor, Smartphone, Filter, Type } from "lucide-react";
 import { motion } from "framer-motion";
 import HeroImageForm from "./HeroImageForm";
 
@@ -103,7 +104,12 @@ export default function HeroImagesPage() {
         animate={{ opacity: 1 }}
         transition={{ staggerChildren: 0.1 }}
       >
-        {filteredHeroImages.map((heroImage) => (
+        {filteredHeroImages.map((heroImage) => {
+          const content = heroImage.content ? normalizeHeroContent(heroImage.content) : null;
+          const hasVisibleText =
+            !!content && content.enabled && content.elements.some((el) => el.visible);
+
+          return (
           <motion.div
             key={heroImage.id}
             className={`bg-white rounded-lg shadow-md overflow-hidden border-2 transition-all ${
@@ -124,12 +130,36 @@ export default function HeroImagesPage() {
                 className="object-cover"
               />
               {/* Gradient Preview Overlay */}
-              {!heroImage.noGradient && (
-                <div
-                  className={`absolute inset-0 opacity-50 ${
-                    heroImage.gradient || DEFAULT_GRADIENT
-                  }`}
-                />
+              {content ? (
+                content.overlay.enabled && (
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      backgroundImage: buildGradient(
+                        content.overlay.direction,
+                        content.overlay.from,
+                        content.overlay.via,
+                        content.overlay.to
+                      ),
+                      opacity: content.overlay.opacity / 100,
+                    }}
+                  />
+                )
+              ) : (
+                !heroImage.noGradient && (
+                  <div
+                    className={`absolute inset-0 opacity-50 ${
+                      heroImage.gradient || DEFAULT_GRADIENT
+                    }`}
+                  />
+                )
+              )}
+              {/* Content Badge */}
+              {hasVisibleText && (
+                <div className="absolute bottom-2 left-2 bg-blue-600/90 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1 z-10">
+                  <Type className="w-3 h-3" />
+                  محتوای متنی
+                </div>
               )}
               {/* Device Badge */}
               <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1 z-10">
@@ -161,7 +191,13 @@ export default function HeroImagesPage() {
                 </span>
                 {/* Gradient Status */}
                 <span className="text-xs text-gray-500">
-                  {heroImage.noGradient ? "بدون گرادیان" : "با گرادیان"}
+                  {content
+                    ? content.overlay.enabled
+                      ? "با گرادیان"
+                      : "بدون گرادیان"
+                    : heroImage.noGradient
+                      ? "بدون گرادیان"
+                      : "با گرادیان"}
                 </span>
               </div>
 
@@ -184,7 +220,8 @@ export default function HeroImagesPage() {
               </div>
             </div>
           </motion.div>
-        ))}
+          );
+        })}
       </motion.div>
 
       {isModalOpen && (
