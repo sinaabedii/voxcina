@@ -132,7 +132,9 @@ function HeroSlideView({ slide, active, first, primaryHeading }: HeroSlideViewPr
         alt: "",
         width: 1920,
         height: 1080,
-        sizes: "100vw",
+        // The section never renders wider than max-w-7xl (1280px), so viewports
+        // beyond that would otherwise pull the 1920w srcset bucket for nothing.
+        sizes: "(min-width: 1280px) 1280px, 100vw",
         quality: 75,
         priority: first,
       }).props
@@ -183,8 +185,9 @@ function HeroSlideView({ slide, active, first, primaryHeading }: HeroSlideViewPr
             as="image"
             href={desktopImageProps.src}
             imageSrcSet={desktopImageProps.srcSet}
-            imageSizes="100vw"
+            imageSizes="(min-width: 1280px) 1280px, 100vw"
             media="(min-width: 768px)"
+            fetchPriority="high"
           />
         )}
         {first && mobileImageProps && (
@@ -195,6 +198,7 @@ function HeroSlideView({ slide, active, first, primaryHeading }: HeroSlideViewPr
             imageSrcSet={mobileImageProps.srcSet}
             imageSizes="100vw"
             media="(max-width: 767px)"
+            fetchPriority="high"
           />
         )}
         {(desktopImageProps || mobileImageProps) && (
