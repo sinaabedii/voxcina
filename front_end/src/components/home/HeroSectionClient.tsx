@@ -97,7 +97,7 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({
 
   return (
     <section
-      className={`relative max-w-7xl mx-4 sm:mx-6 lg:mx-auto rounded-lg sm:rounded-xl md:rounded-2xl mb-6 sm:mb-8 md:mb-10 py-4 sm:py-5 md:py-6 aspect-[3/4] md:aspect-video flex items-center overflow-hidden ${
+      className={`relative max-w-7xl mx-4 sm:mx-6 lg:mx-auto rounded-lg sm:rounded-xl md:rounded-2xl mb-6 sm:mb-8 md:mb-10 py-4 sm:py-5 md:py-6 aspect-[3/4] md:aspect-video flex items-center overflow-hidden animate-heroReveal ${
         isLegacyStyling ? DEFAULT_GRADIENT : ""
       }`}
       style={sectionBackground}

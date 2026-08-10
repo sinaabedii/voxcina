@@ -3,6 +3,23 @@ import { HeroImage } from "@/types/hero-image";
 import { useAuthStore } from "./auth-store";
 import { toast } from "react-toastify";
 
+/**
+ * Tells the public homepage to drop its cached hero-images fetch.
+ *
+ * The homepage reads hero images through an ISR-cached fetch (see
+ * `HeroSection.tsx` / `CACHE_TIMES.HERO_IMAGES`); without this, a change made
+ * here (e.g. disabling a hero design) can take minutes to show up publicly,
+ * looking like the toggle silently did nothing. Best-effort: the admin write
+ * itself already succeeded, so a failure here shouldn't surface as an error.
+ */
+function revalidateHeroCache() {
+  fetch("/api/revalidate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tags: ["hero-images", "home"] }),
+  }).catch(() => {});
+}
+
 interface HeroImageState {
   heroImages: HeroImage[];
   activeHeroImage: HeroImage | null;
@@ -86,6 +103,7 @@ export const useHeroImageStore = create<HeroImageState>()((set, get) => ({
         ),
         isLoading: false,
       }));
+      revalidateHeroCache();
       toast.success("تصویر هیرو با موفقیت اضافه شد");
       return newHeroImage;
     } catch (error) {
@@ -123,6 +141,7 @@ export const useHeroImageStore = create<HeroImageState>()((set, get) => ({
             : state.activeHeroImage,
         isLoading: false,
       }));
+      revalidateHeroCache();
       toast.success("تصویر هیرو با موفقیت به‌روزرسانی شد");
       return updatedHeroImage;
     } catch (error) {
@@ -154,6 +173,7 @@ export const useHeroImageStore = create<HeroImageState>()((set, get) => ({
           state.activeHeroImage?.id === id ? null : state.activeHeroImage,
         isLoading: false,
       }));
+      revalidateHeroCache();
       toast.success("تصویر هیرو با موفقیت حذف شد");
       return true;
     } catch (error) {

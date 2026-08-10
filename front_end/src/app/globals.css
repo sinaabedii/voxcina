@@ -289,6 +289,19 @@
   }
 }
 
+@keyframes heroReveal {
+  from {
+    opacity: 0;
+    transform: scale(1.04);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
 @layer utilities {
   .animate-fadeIn {
     animation: fadeIn 0.5s ease-out;
@@ -308,6 +321,10 @@
 
   .animate-slideInLeft {
     animation: slideInLeft 0.5s ease-out;
+  }
+
+  .animate-heroReveal {
+    animation: heroReveal 1.1s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
   .animate-pulse-once {
