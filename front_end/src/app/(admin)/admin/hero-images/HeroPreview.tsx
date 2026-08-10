@@ -6,8 +6,7 @@ import type { HeroContent } from "@/types/hero-image";
 import HeroContentLayer from "@/components/home/HeroContentLayer";
 import HeroDecorations from "@/components/home/HeroDecorations";
 import { buildGradient } from "@/components/home/hero-styles";
-
-export type PreviewDevice = "desktop" | "mobile";
+import HeroPreviewFrame, { PreviewDevice } from "./HeroPreviewFrame";
 
 interface HeroPreviewProps {
   content: HeroContent;
@@ -19,10 +18,14 @@ interface HeroPreviewProps {
 /**
  * Live preview of the hero being edited.
  *
- * Reuses `HeroContentLayer` / `HeroDecorations` — the very components the
- * storefront renders — so what the admin sees here is what ships. Only the
- * outer frame differs: it is scaled to the panel and swaps aspect ratio with
- * the device toggle instead of a media query.
+ * The stage markup (image, overlay, decorations, `HeroContentLayer`) is the
+ * exact same tree the storefront renders. It's mounted inside
+ * `HeroPreviewFrame`'s iframe rather than directly in this panel because
+ * Tailwind's `sm:`/`md:`/`lg:`/`xl:` classes key off the real browser
+ * viewport — a narrow `<div>` here would still render full desktop-sized
+ * text, since the admin's own window is desktop-width regardless of how
+ * narrow this panel is. The iframe gets its own viewport, sized to a real
+ * device, so text sizing matches what a customer actually sees.
  */
 export default function HeroPreview({
   content,
@@ -30,7 +33,6 @@ export default function HeroPreview({
   device,
   onDeviceChange,
 }: HeroPreviewProps) {
-  const aspectClass = device === "desktop" ? "aspect-video" : "aspect-[3/4]";
   const frameClass = device === "desktop" ? "w-full" : "w-full max-w-[280px] mx-auto";
 
   return (
@@ -66,50 +68,52 @@ export default function HeroPreview({
       </div>
 
       <div className={frameClass}>
-        <div
-          className={`relative ${aspectClass} rounded-xl overflow-hidden shadow-inner`}
-          style={{
-            backgroundImage: buildGradient(
-              content.background.direction,
-              content.background.from,
-              content.background.via,
-              content.background.to
-            ),
-          }}
-        >
-          {imageSrc && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imageSrc}
-              alt="پیش‌نمایش هیرو"
-              className="absolute inset-0 h-full w-full object-cover"
-              style={{ opacity: content.imageOpacity / 100 }}
-            />
-          )}
+        <HeroPreviewFrame device={device}>
+          <div
+            className="relative w-full h-full"
+            style={{
+              backgroundImage: buildGradient(
+                content.background.direction,
+                content.background.from,
+                content.background.via,
+                content.background.to
+              ),
+            }}
+          >
+            {imageSrc && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={imageSrc}
+                alt="پیش‌نمایش هیرو"
+                className="absolute inset-0 h-full w-full object-cover"
+                style={{ opacity: content.imageOpacity / 100 }}
+              />
+            )}
 
-          {content.overlay.enabled && (
-            <div
-              className="absolute inset-0 z-10"
-              style={{
-                backgroundImage: buildGradient(
-                  content.overlay.direction,
-                  content.overlay.from,
-                  content.overlay.via,
-                  content.overlay.to
-                ),
-                opacity: content.overlay.opacity / 100,
-              }}
-            />
-          )}
+            {content.overlay.enabled && (
+              <div
+                className="absolute inset-0 z-10"
+                style={{
+                  backgroundImage: buildGradient(
+                    content.overlay.direction,
+                    content.overlay.from,
+                    content.overlay.via,
+                    content.overlay.to
+                  ),
+                  opacity: content.overlay.opacity / 100,
+                }}
+              />
+            )}
 
-          {content.showDecorations && <HeroDecorations />}
+            {content.showDecorations && <HeroDecorations />}
 
-          <HeroContentLayer content={content} preview />
-        </div>
+            <HeroContentLayer content={content} preview />
+          </div>
+        </HeroPreviewFrame>
       </div>
 
       <p className="text-xs text-gray-400 text-center">
-        اندازه متن‌ها در پیش‌نمایش نسبت به عرض پنل کوچک‌تر است؛ نسبت‌ها و چیدمان دقیقاً مطابق سایت است.
+        این پیش‌نمایش دقیقاً همان اندازه متن و چیدمانی را نشان می‌دهد که در سایت روی دستگاه انتخاب‌شده دیده می‌شود.
       </p>
     </div>
   );

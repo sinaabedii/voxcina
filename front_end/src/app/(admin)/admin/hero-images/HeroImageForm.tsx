@@ -25,7 +25,8 @@ import {
   Pilcrow,
   MousePointerClick,
 } from "lucide-react";
-import HeroPreview, { PreviewDevice } from "./HeroPreview";
+import HeroPreview from "./HeroPreview";
+import { PreviewDevice } from "./HeroPreviewFrame";
 import HeroElementEditor from "./HeroElementEditor";
 import {
   ColorField,
