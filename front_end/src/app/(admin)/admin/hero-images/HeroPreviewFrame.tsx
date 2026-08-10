@@ -131,13 +131,24 @@ export default function HeroPreviewFrame({ device, children }: HeroPreviewFrameP
     <div
       ref={wrapperRef}
       className="relative w-full overflow-hidden rounded-xl shadow-inner bg-gray-900"
-      style={{ aspectRatio: `${logicalWidth} / ${logicalHeight}` }}
+      style={{ aspectRatio: `${logicalWidth} / ${logicalHeight}`, direction: "ltr" }}
     >
+      {/*
+        Absolutely positioned with physical top/left (not logical inset
+        properties) so it anchors to the box's true top-left corner
+        regardless of the page's RTL direction. Without this, the iframe's
+        default `display: inline` box follows RTL inline flow and can
+        overflow off the left edge, leaving `transform-origin: top left`
+        anchored outside the visible, clipped area.
+      */}
       <iframe
         ref={iframeRef}
         title="پیش‌نمایش هیرو"
         tabIndex={-1}
         style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
           width: logicalWidth,
           height: logicalHeight,
           border: 0,
