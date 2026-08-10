@@ -9,30 +9,26 @@ interface HeroImagesResponse {
   heroImages: HeroImage[];
 }
 
-/**
- * Fetch hero images from the backend API with 1-hour cache revalidation.
- * Requirements: 3.1, 3.2, 3.3
- */
-async function getHeroImages(): Promise<HeroImage[]> {
+/** Fetch active hero images with ISR caching and a graceful empty fallback. */
+export async function getHeroImages(): Promise<HeroImage[]> {
   const response = await serverFetchWithFallback<HeroImagesResponse>(
     '/api/hero-images',
     { heroImages: [] },
     { revalidate: CACHE_TIMES.HERO_IMAGES, tags: ['home', 'hero-images'] }
   );
   
-  return response?.heroImages || [];
+  return Array.isArray(response?.heroImages) ? response.heroImages : [];
 }
 
 /**
  * HeroSection - Server Component
  * 
- * Fetches hero images from the API server-side and passes them to the client component.
- * Uses Next.js ISR with 1-hour cache revalidation for optimal performance and SEO.
+ * Receives data fetched in parallel with the rest of the homepage and passes it to
+ * the client component. Keeping the data fetch above the client boundary makes the
+ * first hero content part of the initial server-rendered HTML.
  * 
  * Requirements: 3.1, 3.2, 3.3, 4.1, 4.2, 4.8
  */
-export default async function HeroSection() {
-  const heroImages = await getHeroImages();
-
+export default function HeroSection({ heroImages }: { heroImages: HeroImage[] }) {
   return <HeroSectionClient heroImages={heroImages} />;
 }

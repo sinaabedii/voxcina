@@ -2,11 +2,11 @@
 
 import React, { useEffect, useState } from "react";
 import { getImageProps } from "next/image";
+import { Pause, Play } from "lucide-react";
 import {
   HeroImage,
   DEFAULT_GRADIENT,
   DEFAULT_OVERLAY_GRADIENT,
-  DEFAULT_HERO_CONTENT,
   normalizeHeroContent,
 } from "@/types/hero-image";
 import HeroContentLayer from "./HeroContentLayer";
@@ -25,6 +25,26 @@ interface HeroSlide {
 }
 
 const ROTATION_INTERVAL_MS = 7000;
+
+function getSlideContent(slide: HeroSlide) {
+  return normalizeHeroContent(slide.desktopImage?.content || slide.mobileImage?.content || null);
+}
+
+function getPrimaryHeading(slides: HeroSlide[]) {
+  const slide = slides[0];
+  if (!slide) return null;
+
+  const content = getSlideContent(slide);
+  const heading = content.enabled
+    ? content.elements.find((element) => element.visible && element.type === "heading")
+    : undefined;
+
+  if (heading) {
+    return { slideKey: slide.key, elementId: heading.id };
+  }
+
+  return null;
+}
 
 /** Pair the desktop and mobile records that represent one ordered hero design. */
 function buildHeroSlides(heroImages: HeroImage[]): HeroSlide[] {
@@ -85,9 +105,10 @@ interface HeroSlideViewProps {
   slide: HeroSlide;
   active: boolean;
   first: boolean;
+  primaryHeading: ReturnType<typeof getPrimaryHeading>;
 }
 
-function HeroSlideView({ slide, active, first }: HeroSlideViewProps) {
+function HeroSlideView({ slide, active, first, primaryHeading }: HeroSlideViewProps) {
   const { desktopImage, mobileImage } = slide;
 
   /**
@@ -97,7 +118,7 @@ function HeroSlideView({ slide, active, first }: HeroSlideViewProps) {
    * their legacy gradient-class behaviour untouched.
    */
   const authoredContent = desktopImage?.content || mobileImage?.content || null;
-  const content = normalizeHeroContent(authoredContent || DEFAULT_HERO_CONTENT);
+  const content = getSlideContent(slide);
   const isLegacyStyling = !authoredContent;
 
   const desktopOverlay = getOverlayGradient(desktopImage);
@@ -108,7 +129,7 @@ function HeroSlideView({ slide, active, first }: HeroSlideViewProps) {
   const desktopImageProps = desktopImage
     ? getImageProps({
         src: desktopImage.image,
-        alt: "Hero banner desktop",
+        alt: "",
         width: 1920,
         height: 1080,
         sizes: "100vw",
@@ -119,7 +140,7 @@ function HeroSlideView({ slide, active, first }: HeroSlideViewProps) {
   const mobileImageProps = mobileImage
     ? getImageProps({
         src: mobileImage.image,
-        alt: "Hero banner mobile",
+        alt: "",
         width: 768,
         height: 1024,
         sizes: "100vw",
@@ -188,7 +209,8 @@ function HeroSlideView({ slide, active, first }: HeroSlideViewProps) {
               )}
               <img
                 {...(desktopImageProps || mobileImageProps)!}
-                alt={desktopImage ? "Hero banner desktop" : "Hero banner mobile"}
+                alt=""
+                aria-hidden="true"
                 className={`absolute inset-0 h-full w-full object-cover ${
                   isLegacyStyling ? legacyImageOpacityClass : ""
                 }`}
@@ -227,15 +249,26 @@ function HeroSlideView({ slide, active, first }: HeroSlideViewProps) {
 
       {content.showDecorations && <HeroDecorations />}
 
-      <HeroContentLayer content={content} active={active} interactive={active} />
+      <HeroContentLayer
+        content={content}
+        active={active}
+        interactive={active}
+        seoPrimaryHeadingId={primaryHeading?.elementId}
+        isSeoPrimarySlide={primaryHeading?.slideKey === slide.key}
+        enforceSingleH1
+      />
     </div>
   );
 }
 
 const HeroSectionClient: React.FC<HeroSectionClientProps> = ({ heroImages }) => {
   const slides = buildHeroSlides(heroImages);
+  const primaryHeading = getPrimaryHeading(slides);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
+  const [isUserPaused, setIsUserPaused] = useState(false);
+  const [isPointerOver, setIsPointerOver] = useState(false);
+  const [isFocusWithin, setIsFocusWithin] = useState(false);
+  const [isDocumentHidden, setIsDocumentHidden] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
@@ -248,33 +281,57 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({ heroImages }) => 
   }, []);
 
   useEffect(() => {
+    const updateVisibility = () => setIsDocumentHidden(document.hidden);
+
+    updateVisibility();
+    document.addEventListener("visibilitychange", updateVisibility);
+    return () => document.removeEventListener("visibilitychange", updateVisibility);
+  }, []);
+
+  useEffect(() => {
     setActiveIndex((current) => Math.min(current, slides.length - 1));
   }, [slides.length]);
 
   useEffect(() => {
-    if (slides.length < 2 || isPaused || prefersReducedMotion) return;
+    if (
+      slides.length < 2 ||
+      isUserPaused ||
+      isPointerOver ||
+      isFocusWithin ||
+      isDocumentHidden ||
+      prefersReducedMotion
+    ) {
+      return;
+    }
 
     const interval = window.setInterval(() => {
       setActiveIndex((current) => (current + 1) % slides.length);
     }, ROTATION_INTERVAL_MS);
 
     return () => window.clearInterval(interval);
-  }, [isPaused, prefersReducedMotion, slides.length]);
+  }, [isDocumentHidden, isFocusWithin, isPointerOver, isUserPaused, prefersReducedMotion, slides.length]);
 
-  const pauseRotation = () => setIsPaused(true);
-  const resumeRotation = () => setIsPaused(false);
+  const selectSlide = (index: number) => {
+    setActiveIndex(index);
+    setIsUserPaused(true);
+  };
 
   return (
     <section
       className={`relative max-w-7xl mx-4 sm:mx-6 lg:mx-auto rounded-lg sm:rounded-xl md:rounded-2xl mb-6 sm:mb-8 md:mb-10 py-4 sm:py-5 md:py-6 aspect-[3/4] md:aspect-video flex items-center overflow-hidden animate-heroReveal ${DEFAULT_GRADIENT}`}
       role="region"
       aria-label="بنرهای ویژه"
-      onMouseEnter={pauseRotation}
-      onMouseLeave={resumeRotation}
-      onFocusCapture={pauseRotation}
+      aria-roledescription="اسلایدشو"
+      onMouseEnter={() => setIsPointerOver(true)}
+      onMouseLeave={() => setIsPointerOver(false)}
+      onFocusCapture={(event) => {
+        if (!(event.target as HTMLElement).closest("[data-hero-pause]")) {
+          setIsFocusWithin(true);
+        }
+      }}
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-          resumeRotation();
+          setIsFocusWithin(false);
         }
       }}
     >
@@ -284,27 +341,50 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({ heroImages }) => 
           slide={slide}
           active={index === activeIndex}
           first={index === 0}
+          primaryHeading={primaryHeading}
         />
       ))}
 
+      {!primaryHeading && (
+        <h1 className="sr-only">وکسینا، فروشگاه اینترنتی لباس و پوشاک</h1>
+      )}
+
       {slides.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/20 px-3 py-2 backdrop-blur-md">
+        <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full bg-black/30 px-2 py-1.5 backdrop-blur-md sm:bottom-4 sm:gap-2 sm:px-3 sm:py-2">
+          {!prefersReducedMotion && (
+            <button
+              type="button"
+              data-hero-pause
+              aria-label={isUserPaused ? "پخش خودکار بنرها" : "توقف خودکار بنرها"}
+              aria-pressed={isUserPaused}
+              onClick={() => {
+                setIsUserPaused((paused) => !paused);
+                setIsFocusWithin(false);
+              }}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+            >
+              {isUserPaused ? <Play className="h-4 w-4" aria-hidden="true" /> : <Pause className="h-4 w-4" aria-hidden="true" />}
+            </button>
+          )}
           {slides.map((slide, index) => {
             const active = index === activeIndex;
             return (
               <button
                 key={slide.key}
                 type="button"
-                aria-label={`نمایش بنر ${index + 1}`}
+                data-hero-control
+                aria-label={`نمایش بنر ${index + 1} از ${slides.length}`}
                 aria-current={active ? "true" : undefined}
-                onClick={() => {
-                  setActiveIndex(index);
-                  setIsPaused(true);
-                }}
-                className={`h-2 rounded-full transition-all duration-500 focus:outline-none focus:ring-2 focus:ring-white/80 ${
-                  active ? "w-7 bg-white" : "w-2 bg-white/50 hover:bg-white/80"
-                }`}
-              />
+                onClick={() => selectSlide(index)}
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+              >
+                <span
+                  aria-hidden="true"
+                  className={`block rounded-full transition-all duration-500 ${
+                    active ? "h-2 w-7 bg-white" : "h-2 w-2 bg-white/50 hover:bg-white/80"
+                  }`}
+                />
+              </button>
             );
           })}
         </div>

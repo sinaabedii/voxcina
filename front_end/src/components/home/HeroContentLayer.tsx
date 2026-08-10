@@ -14,6 +14,7 @@ import type {
   HeroAlign,
   HeroContent,
   HeroElement,
+  HeroHeadingLevel,
   HeroIconName,
 } from "@/types/hero-image";
 import {
@@ -157,8 +158,14 @@ function ElementText({ element }: { element: HeroElement }) {
   );
 }
 
-function HeadingElement({ element }: { element: HeroElement }) {
-  const Tag = (element.headingLevel || "h2") as keyof JSX.IntrinsicElements;
+function HeadingElement({
+  element,
+  headingLevel,
+}: {
+  element: HeroElement;
+  headingLevel?: HeroHeadingLevel;
+}) {
+  const Tag = (headingLevel || element.headingLevel || "h2") as keyof JSX.IntrinsicElements;
 
   return (
     <Tag
@@ -227,7 +234,7 @@ function ButtonElement({ element, preview }: { element: HeroElement; preview: bo
   }
 
   const className = cx(
-    "relative inline-flex items-center justify-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-1",
+    "relative inline-flex items-center justify-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-black/40 motion-reduce:transition-none",
     hasBorder ? "border-2" : "border-0",
     BUTTON_SIZE_CLASSES[button.size],
     ROUNDED_CLASSES[button.rounded],
@@ -300,6 +307,12 @@ interface HeroContentLayerProps {
   active?: boolean;
   /** Inactive slides must not leave keyboard-focusable links behind. */
   interactive?: boolean;
+  /** Keeps the public homepage hero to one crawlable h1 across all slides. */
+  seoPrimaryHeadingId?: string;
+  /** The slide containing the single public homepage h1. */
+  isSeoPrimarySlide?: boolean;
+  /** Demotes additional authored h1 elements when rendering the public hero. */
+  enforceSingleH1?: boolean;
 }
 
 export default function HeroContentLayer({
@@ -307,6 +320,9 @@ export default function HeroContentLayer({
   preview = false,
   active = true,
   interactive = true,
+  seoPrimaryHeadingId,
+  isSeoPrimarySlide = false,
+  enforceSingleH1 = false,
 }: HeroContentLayerProps) {
   if (!content.enabled) return null;
 
@@ -315,6 +331,16 @@ export default function HeroContentLayer({
 
   const boxAlign: HeroAlign = content.textAlign;
   const groups = groupElements(visible);
+  const headingLevel = (element: HeroElement): HeroHeadingLevel | undefined => {
+    const configuredLevel = element.headingLevel || "h2";
+
+    if (!enforceSingleH1) return configuredLevel;
+    if (isSeoPrimarySlide && element.id === seoPrimaryHeadingId) return "h1";
+
+    // Other slides may be authored with h1, but only the primary slide should
+    // contribute the homepage's single h1 to the document outline.
+    return configuredLevel === "h1" ? "h2" : configuredLevel;
+  };
 
   const animation = (element: HeroElement) =>
     preview || !active ? "" : ANIMATION_CLASSES[element.animation] || "";
@@ -380,7 +406,9 @@ export default function HeroContentLayer({
               )}
             >
               {element.type === "badge" && <BadgeElement element={element} />}
-              {element.type === "heading" && <HeadingElement element={element} />}
+              {element.type === "heading" && (
+                <HeadingElement element={element} headingLevel={headingLevel(element)} />
+              )}
               {element.type === "paragraph" && <ParagraphElement element={element} />}
             </div>
           );

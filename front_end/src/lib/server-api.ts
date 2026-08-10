@@ -31,7 +31,7 @@ export const CACHE_TIMES = {
   CATEGORIES: 600,         // 10 minutes - categories stable
   BRANDS: 600,             // 10 minutes - brands stable
   SLIDERS: 600,            // 10 minutes - sliders stable
-  HERO_IMAGES: 360,       // 1 hour - hero images stable (Requirements: 3.2)
+  HERO_IMAGES: 360,       // 6 minutes - hero images stable (Requirements: 3.2)
 } as const;
 
 /**

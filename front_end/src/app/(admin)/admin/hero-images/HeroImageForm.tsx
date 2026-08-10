@@ -85,6 +85,12 @@ export default function HeroImageForm({ heroImage, onClose }: HeroImageFormProps
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    setImageFile(null);
+    setErrors({});
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+
     if (heroImage) {
       setFormData({
         deviceType: heroImage.deviceType,
@@ -111,8 +117,10 @@ export default function HeroImageForm({ heroImage, onClose }: HeroImageFormProps
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
-    if (!heroImage && !imageFile) {
-      newErrors.image = "تصویر الزامی است";
+    if (!imagePreview) {
+      newErrors.image = heroImage
+        ? "برای ادامه، تصویر جدید انتخاب کنید"
+        : "تصویر الزامی است";
     }
 
     if (!formData.deviceType || !["desktop", "mobile"].includes(formData.deviceType)) {
@@ -147,11 +155,8 @@ export default function HeroImageForm({ heroImage, onClose }: HeroImageFormProps
 
   const handleRemoveImage = () => {
     setImageFile(null);
-    if (!heroImage) {
-      setImagePreview("");
-    } else {
-      setImagePreview(heroImage.image);
-    }
+    setImagePreview("");
+    setErrors((prev) => ({ ...prev, image: undefined }));
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -325,7 +330,9 @@ export default function HeroImageForm({ heroImage, onClose }: HeroImageFormProps
                     <button
                       type="button"
                       onClick={handleRemoveImage}
-                      className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full hover:bg-red-600 transition-colors"
+                      aria-label="حذف تصویر انتخاب‌شده"
+                      title="حذف تصویر انتخاب‌شده"
+                      className="absolute top-2 right-2 min-h-11 min-w-11 flex items-center justify-center bg-red-500 text-white p-1.5 rounded-full hover:bg-red-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-red-500"
                     >
                       <X className="w-4 h-4" />
                     </button>
