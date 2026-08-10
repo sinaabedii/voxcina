@@ -126,14 +126,23 @@ function BadgeElement({ element }: { element: HeroElement }) {
  * with a gradient while the rest stays plain. Falls back to the element's
  * single `text`/`color` otherwise. Each run is `inline-block` so a gradient
  * fill clips to just that run's own box, not the whole (possibly wrapped)
- * line.
+ * line — but `inline-block` boxes trim leading/trailing whitespace of their
+ * *own* content by default, which would silently eat a space an admin types
+ * at the edge of a segment. `whiteSpace: "pre"` disables that collapsing so
+ * spaces are preserved exactly as typed; it doesn't stop the line itself
+ * from wrapping between segments, since that break can still happen at each
+ * inline-block's own boundary.
  */
 function ElementText({ element }: { element: HeroElement }) {
   if (element.segments && element.segments.length > 0) {
     return (
       <>
         {element.segments.map((segment) => (
-          <span key={segment.id} className="inline-block" style={resolveTextStyle(segment.color)}>
+          <span
+            key={segment.id}
+            className="inline-block"
+            style={{ ...resolveTextStyle(segment.color), whiteSpace: "pre" }}
+          >
             {segment.text}
           </span>
         ))}
@@ -142,7 +151,7 @@ function ElementText({ element }: { element: HeroElement }) {
   }
 
   return (
-    <span className="inline-block" style={resolveTextStyle(element.color)}>
+    <span className="inline-block" style={{ ...resolveTextStyle(element.color), whiteSpace: "pre" }}>
       {element.text}
     </span>
   );
