@@ -1045,11 +1045,11 @@ export default function TryOnRoomPage() {
             <ShoppingBag className="h-10 w-10 text-voxcina-blue/30 dark:text-voxcina-cream/30" />
           </motion.div>
           <h2 className="text-lg font-bold text-voxcina-blue dark:text-voxcina-cream mb-2 relative z-10">
-            {cart.items.length === 0 ? "سبد خرید شما خالی است" : "محصولات سبد خرید قابلیت پرو مجازی ندارند"}
+            {cart.items.length === 0 ? "محصولی برای پرو مجازی انتخاب نشده" : "محصولات سبد خرید قابلیت پرو مجازی ندارند"}
           </h2>
           <p className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60 mb-4 max-w-md relative z-10">
             {cart.items.length === 0
-              ? "ابتدا محصولات مورد نظر خود را به سبد خرید اضافه کنید، سپس برای پرو مجازی به این صفحه بازگردید."
+              ? "ابتدا یک محصول به سبد خرید اضافه کنید."
               : "محصولاتی که تصویر پرو مجازی دارند در اینجا نمایش داده می‌شوند."}
           </p>
           <Link href="/products" className="relative z-10">
