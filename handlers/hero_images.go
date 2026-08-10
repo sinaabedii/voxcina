@@ -133,7 +133,6 @@ func GetAllHeroImages(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-
 // CreateHeroImage handles creating a new hero image with file upload.
 // POST /api/admin/hero-images
 func CreateHeroImage(w http.ResponseWriter, r *http.Request) {
@@ -193,7 +192,7 @@ func CreateHeroImage(w http.ResponseWriter, r *http.Request) {
 		displayOrder, _ = strconv.Atoi(displayOrderStr)
 	}
 
-	var content interface{}
+	var content bson.M
 	if contentStr != "" {
 		if err := json.Unmarshal([]byte(contentStr), &content); err != nil {
 			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid content payload: "+err.Error())
@@ -270,7 +269,6 @@ func CreateHeroImage(w http.ResponseWriter, r *http.Request) {
 
 	utils.JSONResponse(w, http.StatusCreated, heroImage)
 }
-
 
 // UpdateHeroImage handles updating an existing hero image.
 // PUT /api/admin/hero-images/{id}
@@ -402,7 +400,7 @@ func UpdateHeroImage(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if contentStr := r.FormValue("content"); contentStr != "" {
-			var content interface{}
+			var content bson.M
 			if err := json.Unmarshal([]byte(contentStr), &content); err != nil {
 				if newFilePath != "" {
 					os.Remove(newFilePath)
@@ -456,7 +454,7 @@ func UpdateHeroImage(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if len(updateData.Content) > 0 {
-			var content interface{}
+			var content bson.M
 			if err := json.Unmarshal(updateData.Content, &content); err != nil {
 				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid content payload: "+err.Error())
 				return
@@ -502,7 +500,6 @@ func UpdateHeroImage(w http.ResponseWriter, r *http.Request) {
 
 	utils.JSONResponse(w, http.StatusOK, updatedHeroImage)
 }
-
 
 // DeleteHeroImage handles deleting a hero image and its file.
 // DELETE /api/admin/hero-images/{id}

@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -17,12 +18,12 @@ type HeroImage struct {
 	NoGradient   bool               `bson:"noGradient"          json:"noGradient"`
 	DisplayOrder int                `bson:"displayOrder"        json:"displayOrder"`
 	// Content holds the admin-authored hero content (text elements, placement,
-	// colors) as an opaque document. The frontend owns its shape; the backend
-	// only stores and returns it verbatim. Absent on hero images saved before
-	// content authoring existed.
-	Content interface{} `bson:"content,omitempty"   json:"content,omitempty"`
-	CreatedAt    time.Time          `bson:"createdAt,omitempty" json:"createdAt,omitempty"`
-	UpdatedAt    time.Time          `bson:"updatedAt,omitempty" json:"updatedAt,omitempty"`
+	// colors) as a document. Using bson.M keeps MongoDB documents as JSON
+	// objects when they are returned to the frontend instead of primitive.D's
+	// [{"Key": ..., "Value": ...}] representation.
+	Content   bson.M    `bson:"content,omitempty"   json:"content,omitempty"`
+	CreatedAt time.Time `bson:"createdAt,omitempty" json:"createdAt,omitempty"`
+	UpdatedAt time.Time `bson:"updatedAt,omitempty" json:"updatedAt,omitempty"`
 }
 
 // ValidDeviceTypes contains the allowed device type values.
