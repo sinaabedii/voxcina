@@ -33,15 +33,6 @@ async function getHeroImages(): Promise<HeroImage[]> {
  */
 export default async function HeroSection() {
   const heroImages = await getHeroImages();
-  
-  // Find the first active desktop and mobile images (sorted by displayOrder from API)
-  const desktopImage = heroImages.find((img) => img.deviceType === 'desktop') || null;
-  const mobileImage = heroImages.find((img) => img.deviceType === 'mobile') || null;
-  
-  return (
-    <HeroSectionClient 
-      desktopImage={desktopImage} 
-      mobileImage={mobileImage} 
-    />
-  );
+
+  return <HeroSectionClient heroImages={heroImages} />;
 }

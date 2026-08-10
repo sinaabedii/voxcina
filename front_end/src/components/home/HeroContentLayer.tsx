@@ -296,9 +296,18 @@ interface HeroContentLayerProps {
   content: HeroContent;
   /** Renders buttons as inert spans and disables entry animations. */
   preview?: boolean;
+  /** Only the visible slide should replay its element entry animations. */
+  active?: boolean;
+  /** Inactive slides must not leave keyboard-focusable links behind. */
+  interactive?: boolean;
 }
 
-export default function HeroContentLayer({ content, preview = false }: HeroContentLayerProps) {
+export default function HeroContentLayer({
+  content,
+  preview = false,
+  active = true,
+  interactive = true,
+}: HeroContentLayerProps) {
   if (!content.enabled) return null;
 
   const visible = content.elements.filter((element) => element.visible && element.type);
@@ -308,7 +317,7 @@ export default function HeroContentLayer({ content, preview = false }: HeroConte
   const groups = groupElements(visible);
 
   const animation = (element: HeroElement) =>
-    preview ? "" : ANIMATION_CLASSES[element.animation] || "";
+    preview || !active ? "" : ANIMATION_CLASSES[element.animation] || "";
 
   return (
     <div
@@ -346,7 +355,11 @@ export default function HeroContentLayer({ content, preview = false }: HeroConte
                 )}
               >
                 {group.elements.map((element) => (
-                  <ButtonElement key={element.id} element={element} preview={preview} />
+                  <ButtonElement
+                    key={element.id}
+                    element={element}
+                    preview={preview || !interactive}
+                  />
                 ))}
               </div>
             );
