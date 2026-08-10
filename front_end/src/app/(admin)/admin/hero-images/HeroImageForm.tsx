@@ -207,6 +207,13 @@ export default function HeroImageForm({ heroImage, onClose }: HeroImageFormProps
     }));
   };
 
+  const updateElementSegments = (id: string, segments: HeroElement["segments"]) => {
+    setContent((prev) => ({
+      ...prev,
+      elements: prev.elements.map((el) => (el.id === id ? { ...el, segments } : el)),
+    }));
+  };
+
   const moveElement = (id: string, direction: -1 | 1) => {
     setContent((prev) => {
       const index = prev.elements.findIndex((el) => el.id === id);
@@ -587,6 +594,7 @@ export default function HeroImageForm({ heroImage, onClose }: HeroImageFormProps
                           onColorChange={(patch) => updateElementColor(element.id, patch)}
                           onBadgeChange={(patch) => updateElementBadge(element.id, patch)}
                           onButtonChange={(patch) => updateElementButton(element.id, patch)}
+                          onSegmentsChange={(segments) => updateElementSegments(element.id, segments)}
                           onMove={(direction) => moveElement(element.id, direction)}
                           onRemove={() => removeElement(element.id)}
                         />

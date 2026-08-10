@@ -118,6 +118,36 @@ function BadgeElement({ element }: { element: HeroElement }) {
   );
 }
 
+/**
+ * Renders an element's text as one or more inline-styled runs.
+ *
+ * When `segments` is set, each run gets its own color/gradient but stays on
+ * the same line as its siblings — e.g. one word in a headline picked out
+ * with a gradient while the rest stays plain. Falls back to the element's
+ * single `text`/`color` otherwise. Each run is `inline-block` so a gradient
+ * fill clips to just that run's own box, not the whole (possibly wrapped)
+ * line.
+ */
+function ElementText({ element }: { element: HeroElement }) {
+  if (element.segments && element.segments.length > 0) {
+    return (
+      <>
+        {element.segments.map((segment) => (
+          <span key={segment.id} className="inline-block" style={resolveTextStyle(segment.color)}>
+            {segment.text}
+          </span>
+        ))}
+      </>
+    );
+  }
+
+  return (
+    <span className="inline-block" style={resolveTextStyle(element.color)}>
+      {element.text}
+    </span>
+  );
+}
+
 function HeadingElement({ element }: { element: HeroElement }) {
   const Tag = (element.headingLevel || "h2") as keyof JSX.IntrinsicElements;
 
@@ -130,10 +160,7 @@ function HeadingElement({ element }: { element: HeroElement }) {
         ELEMENT_WIDTH_CLASSES[element.maxWidth]
       )}
     >
-      {/* The gradient fill is clipped to the glyphs, so it needs its own box. */}
-      <span className="inline-block" style={resolveTextStyle(element.color)}>
-        {element.text}
-      </span>
+      <ElementText element={element} />
     </Tag>
   );
 }
@@ -147,9 +174,8 @@ function ParagraphElement({ element }: { element: HeroElement }) {
         FONT_WEIGHT_CLASSES[element.weight],
         ELEMENT_WIDTH_CLASSES[element.maxWidth]
       )}
-      style={resolveTextStyle(element.color)}
     >
-      {element.text}
+      <ElementText element={element} />
     </p>
   );
 }

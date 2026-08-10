@@ -146,6 +146,20 @@ export interface HeroButtonStyle {
   fullWidthMobile: boolean;
 }
 
+/**
+ * One inline-styled run of text within a heading/paragraph element.
+ *
+ * Segments render as consecutive `<span>`s on the same line — each keeps the
+ * parent element's size/weight/spacing, but picks its own color or gradient.
+ * This is how a single word (e.g. a brand name) gets a different treatment
+ * than the sentence around it, without breaking the line.
+ */
+export interface HeroTextSegment {
+  id: string;
+  text: string;
+  color: HeroColorStyle;
+}
+
 export interface HeroElement {
   id: string;
   type: HeroElementType;
@@ -166,6 +180,11 @@ export interface HeroElement {
   badge?: HeroBadgeStyle;
   /** button elements only. */
   button?: HeroButtonStyle;
+  /**
+   * heading/paragraph only. When present and non-empty, these render instead
+   * of `text`/`color` — each segment keeps its own color on the same line.
+   */
+  segments?: HeroTextSegment[];
 }
 
 /** Section background gradient behind the image. */
@@ -267,9 +286,18 @@ export const DEFAULT_OVERLAY_STYLE: HeroOverlayStyle = {
   opacity: 10,
 };
 
+function randomId(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+/** Blank text run, used by the admin "add segment" action. */
+export function createHeroTextSegment(text = ""): HeroTextSegment {
+  return { id: randomId("seg"), text, color: { ...DEFAULT_COLOR_STYLE } };
+}
+
 /** Blank element of a given type, used by the admin "add element" action. */
 export function createHeroElement(type: HeroElementType): HeroElement {
-  const id = `el-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  const id = randomId("el");
 
   const base: HeroElement = {
     id,
@@ -461,6 +489,7 @@ export function cloneHeroContent(content: HeroContent): HeroContent {
       color: { ...element.color },
       badge: element.badge ? { ...element.badge } : undefined,
       button: element.button ? { ...element.button } : undefined,
+      segments: element.segments?.map((segment) => ({ ...segment, color: { ...segment.color } })),
     })),
   };
 }
@@ -504,6 +533,14 @@ export function normalizeHeroContent(content?: HeroContent | null): HeroContent 
         element.type === "button"
           ? { ...DEFAULT_BUTTON_STYLE, ...(element.button || {}) }
           : element.button,
+      segments:
+        (element.type === "heading" || element.type === "paragraph") && element.segments?.length
+          ? element.segments.map((segment) => ({
+              id: segment.id || randomId("seg"),
+              text: segment.text ?? "",
+              color: { ...DEFAULT_COLOR_STYLE, ...(segment.color || {}) },
+            }))
+          : undefined,
     })),
   };
 }

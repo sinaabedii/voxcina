@@ -10,18 +10,23 @@ import {
   EyeOff,
   Heading as HeadingIcon,
   MousePointerClick,
+  Palette,
   Pilcrow,
+  Plus,
   Tag,
   Trash2,
 } from "lucide-react";
 import type {
+  HeroColorStyle,
   HeroElement,
   HeroElementAlign,
   HeroElementWidth,
   HeroFontWeight,
   HeroSpacing,
+  HeroTextSegment,
   HeroTextSize,
 } from "@/types/hero-image";
+import { createHeroTextSegment } from "@/types/hero-image";
 import { HERO_ICON_NAMES } from "@/components/home/HeroContentLayer";
 import {
   ColorField,
@@ -120,8 +125,157 @@ interface HeroElementEditorProps {
   onColorChange: (patch: Partial<HeroElement["color"]>) => void;
   onBadgeChange: (patch: Partial<NonNullable<HeroElement["badge"]>>) => void;
   onButtonChange: (patch: Partial<NonNullable<HeroElement["button"]>>) => void;
+  onSegmentsChange: (segments: HeroTextSegment[] | undefined) => void;
   onMove: (direction: -1 | 1) => void;
   onRemove: () => void;
+}
+
+/** The "solid vs gradient" color panel, shared by an element's own color and each text segment's color. */
+function ColorStyleFields({
+  color,
+  onChange,
+  label = "نوع رنگ",
+}: {
+  color: HeroColorStyle;
+  onChange: (patch: Partial<HeroColorStyle>) => void;
+  label?: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <SegmentedField
+        label={label}
+        value={color.mode}
+        onChange={(mode) => onChange({ mode })}
+        options={[
+          { value: "solid", label: "تک‌رنگ" },
+          { value: "gradient", label: "گرادیان" },
+        ]}
+      />
+      {color.mode === "solid" ? (
+        <ColorField label="رنگ متن" value={color.color} onChange={(value) => onChange({ color: value })} />
+      ) : (
+        <>
+          <FieldGrid>
+            <ColorField label="رنگ شروع" value={color.from} onChange={(from) => onChange({ from })} />
+            <ColorField label="رنگ پایان" value={color.to} onChange={(to) => onChange({ to })} />
+          </FieldGrid>
+          <ColorField label="رنگ میانی (اختیاری)" value={color.via} onChange={(via) => onChange({ via })} allowEmpty />
+        </>
+      )}
+      <SliderField
+        label="شفافیت"
+        value={color.opacity}
+        min={10}
+        max={100}
+        suffix="%"
+        onChange={(opacity) => onChange({ opacity })}
+      />
+    </div>
+  );
+}
+
+/**
+ * Splits a heading/paragraph's text into independently colored runs that
+ * stay on the same line — e.g. one word picked out with a gradient inside an
+ * otherwise plain sentence.
+ */
+function HeroSegmentsEditor({
+  element,
+  onChange,
+  onSegmentsChange,
+}: {
+  element: HeroElement;
+  onChange: (patch: Partial<HeroElement>) => void;
+  onSegmentsChange: (segments: HeroTextSegment[] | undefined) => void;
+}) {
+  const segments = element.segments || [];
+
+  if (segments.length === 0) {
+    return (
+      <button
+        type="button"
+        onClick={() =>
+          onSegmentsChange([{ ...createHeroTextSegment(element.text), color: { ...element.color } }])
+        }
+        className="flex items-center justify-center gap-1.5 w-full px-3 py-2 rounded-lg border border-dashed border-purple-300 text-xs text-purple-600 hover:border-purple-400 hover:bg-purple-50/50 transition-colors"
+      >
+        <Palette className="w-3.5 h-3.5" />
+        رنگ‌آمیزی بخشی از این متن (روی همین خط)
+      </button>
+    );
+  }
+
+  const updateSegment = (id: string, patch: Partial<HeroTextSegment>) => {
+    onSegmentsChange(segments.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  };
+
+  const updateSegmentColor = (id: string, patch: Partial<HeroColorStyle>) => {
+    onSegmentsChange(segments.map((s) => (s.id === id ? { ...s, color: { ...s.color, ...patch } } : s)));
+  };
+
+  const removeSegment = (id: string) => {
+    const next = segments.filter((s) => s.id !== id);
+    if (next.length === 0) {
+      onChange({ text: segments.map((s) => s.text).join("") || element.text });
+      onSegmentsChange(undefined);
+    } else {
+      onSegmentsChange(next);
+    }
+  };
+
+  return (
+    <div className="space-y-2 rounded-lg border border-purple-100 bg-purple-50/40 p-2.5">
+      <div className="flex items-center justify-between">
+        <h5 className="text-xs font-semibold text-gray-600">بخش‌های رنگی متن (روی یک خط)</h5>
+        <button
+          type="button"
+          onClick={() => {
+            onChange({ text: segments.map((s) => s.text).join("") || element.text });
+            onSegmentsChange(undefined);
+          }}
+          className="text-[11px] text-gray-500 hover:text-red-500"
+        >
+          بازگشت به متن ساده
+        </button>
+      </div>
+      <p className="text-[11px] text-gray-400">
+        فاصله‌ها را خودتان در متن هر بخش وارد کنید؛ بخش‌ها بدون فاصلهٔ خودکار پشت‌سرهم روی یک خط نمایش داده می‌شوند.
+      </p>
+      {segments.map((segment, index) => (
+        <div key={segment.id} className="space-y-2 rounded-md border border-gray-200 bg-white p-2">
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-gray-100 text-[10px] font-bold text-gray-500">
+              {index + 1}
+            </span>
+            <input
+              type="text"
+              value={segment.text}
+              onChange={(e) => updateSegment(segment.id, { text: e.target.value })}
+              dir="rtl"
+              placeholder={`بخش ${index + 1}`}
+              className="flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+            <button
+              type="button"
+              onClick={() => removeSegment(segment.id)}
+              className="p-1.5 rounded hover:bg-red-100 text-red-500 shrink-0"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <ColorStyleFields color={segment.color} onChange={(patch) => updateSegmentColor(segment.id, patch)} />
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => onSegmentsChange([...segments, createHeroTextSegment("")])}
+        className="flex items-center justify-center gap-1.5 w-full px-3 py-1.5 rounded-lg border border-dashed border-gray-300 text-xs text-gray-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50 transition-colors"
+      >
+        <Plus className="w-3.5 h-3.5" />
+        افزودن بخش
+      </button>
+    </div>
+  );
 }
 
 export default function HeroElementEditor({
@@ -134,10 +288,16 @@ export default function HeroElementEditor({
   onColorChange,
   onBadgeChange,
   onButtonChange,
+  onSegmentsChange,
   onMove,
   onRemove,
 }: HeroElementEditorProps) {
   const Icon = TYPE_ICONS[element.type];
+  const supportsSegments = element.type === "heading" || element.type === "paragraph";
+  const isSegmented = supportsSegments && (element.segments?.length ?? 0) > 0;
+  const previewText = isSegmented
+    ? element.segments!.map((s) => s.text).join("") || "(بدون متن)"
+    : element.text || "(بدون متن)";
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
@@ -151,9 +311,7 @@ export default function HeroElementEditor({
           <span className="text-xs font-medium text-gray-500 shrink-0">
             {TYPE_LABELS[element.type]}
           </span>
-          <span className="text-sm text-gray-800 truncate">
-            {element.text || "(بدون متن)"}
-          </span>
+          <span className="text-sm text-gray-800 truncate">{previewText}</span>
         </button>
 
         <div className="flex items-center gap-1 shrink-0">
@@ -199,13 +357,15 @@ export default function HeroElementEditor({
 
       {expanded && (
         <div className="p-3 space-y-3 border-t border-gray-100">
-          <TextField
-            label="متن"
-            value={element.text}
-            onChange={(text) => onChange({ text })}
-            multiline={element.type === "paragraph"}
-            dir="rtl"
-          />
+          {!isSegmented && (
+            <TextField
+              label="متن"
+              value={element.text}
+              onChange={(text) => onChange({ text })}
+              multiline={element.type === "paragraph"}
+              dir="rtl"
+            />
+          )}
 
           <FieldGrid>
             <SelectField label="اندازه" value={element.size} options={SIZE_OPTIONS} onChange={(size) => onChange({ size })} />
@@ -240,41 +400,18 @@ export default function HeroElementEditor({
           {/* ---------------------------------------------------------- */}
           {/* Color */}
           {/* ---------------------------------------------------------- */}
-          <div className="space-y-2 rounded-lg border border-gray-100 p-2.5">
-            <SegmentedField
-              label="نوع رنگ متن"
-              value={element.color.mode}
-              onChange={(mode) => onColorChange({ mode })}
-              options={[
-                { value: "solid", label: "تک‌رنگ" },
-                { value: "gradient", label: "گرادیان" },
-              ]}
-            />
-            {element.color.mode === "solid" ? (
-              <ColorField label="رنگ متن" value={element.color.color} onChange={(color) => onColorChange({ color })} />
-            ) : (
-              <>
-                <FieldGrid>
-                  <ColorField label="رنگ شروع" value={element.color.from} onChange={(from) => onColorChange({ from })} />
-                  <ColorField label="رنگ پایان" value={element.color.to} onChange={(to) => onColorChange({ to })} />
-                </FieldGrid>
-                <ColorField
-                  label="رنگ میانی (اختیاری)"
-                  value={element.color.via}
-                  onChange={(via) => onColorChange({ via })}
-                  allowEmpty
-                />
-              </>
-            )}
-            <SliderField
-              label="شفافیت متن"
-              value={element.color.opacity}
-              min={10}
-              max={100}
-              suffix="%"
-              onChange={(opacity) => onColorChange({ opacity })}
-            />
-          </div>
+          {!isSegmented && (
+            <div className="space-y-2 rounded-lg border border-gray-100 p-2.5">
+              <ColorStyleFields color={element.color} onChange={onColorChange} label="نوع رنگ متن" />
+            </div>
+          )}
+
+          {/* ---------------------------------------------------------- */}
+          {/* Inline multi-color text segments — heading/paragraph only */}
+          {/* ---------------------------------------------------------- */}
+          {supportsSegments && (
+            <HeroSegmentsEditor element={element} onChange={onChange} onSegmentsChange={onSegmentsChange} />
+          )}
 
           {/* ---------------------------------------------------------- */}
           {/* Badge-specific */}
