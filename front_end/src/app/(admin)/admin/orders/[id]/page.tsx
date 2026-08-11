@@ -32,6 +32,7 @@ import { useOrderStore } from "@/store/order-store";
 import { Order, OrderTimelineEntry, OrderNote } from "@/types/order";
 import BackendImage from "@/components/BackendImage";
 import { toast } from "react-toastify";
+import { getPaymentGatewayText, getPaymentMethodText } from "@/lib/order-display";
 
 // Status badge styles
 const getStatusStyle = (status: string) => {
@@ -60,8 +61,12 @@ const getPaymentStatusStyle = (status: string) => {
       return "bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400";
     case "failed":
       return "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400";
+    case "abandoned":
+    case "expired":
     case "refunded":
       return "bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400";
+    case "cancelled":
+      return "bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-400";
     default:
       return "bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-400";
   }
@@ -72,17 +77,11 @@ const getPaymentStatusText = (status: string) => {
     case "paid": return "پرداخت شده";
     case "pending": return "در انتظار پرداخت";
     case "failed": return "ناموفق";
+    case "abandoned": return "پرداخت ناتمام";
+    case "expired": return "منقضی شده";
+    case "cancelled": return "لغو شده";
     case "refunded": return "بازگشت وجه";
-    default: return status;
-  }
-};
-
-const getPaymentMethodText = (method?: string) => {
-  switch (method) {
-    case "online": return "پرداخت آنلاین";
-    case "wallet": return "کیف پول";
-    case "cod": return "پرداخت در محل";
-    default: return "نامشخص";
+    default: return status || "نامشخص";
   }
 };
 
@@ -660,7 +659,7 @@ export default function AdminOrderDetailsPage() {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">روش پرداخت</span>
                 <span className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">
-                  {getPaymentMethodText(order.payment_method)}
+                  {getPaymentMethodText(order)}
                 </span>
               </div>
               {order.zibal_track_id && (
@@ -682,7 +681,7 @@ export default function AdminOrderDetailsPage() {
               {order.gateway_name && (
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">درگاه</span>
-                  <span className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">{order.gateway_name}</span>
+                   <span className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">{getPaymentGatewayText(order.gateway_name)}</span>
                 </div>
               )}
               {order.gateway_transaction_id && (

@@ -100,7 +100,7 @@ export interface Order {
   shipping_address: ShippingAddress;
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded'; // Match backend statuses
   status_text: string; // Localized status
-  payment_status: 'pending' | 'paid' | 'failed' | 'refunded'; // Match backend statuses
+  payment_status: 'pending' | 'paid' | 'failed' | 'abandoned' | 'expired' | 'cancelled' | 'refunded'; // Match backend statuses
   payment_method?: 'online' | 'wallet' | 'cod'; // Payment method
   zibal_track_id?: number; // Zibal payment tracking ID
   zibal_ref_number?: string; // Zibal reference number

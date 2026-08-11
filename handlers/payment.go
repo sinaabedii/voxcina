@@ -168,6 +168,16 @@ func RequestPayment(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, http.StatusNotFound, "Order not found")
 		return
 	}
+	if _, err := ordersCol.UpdateOne(ctx, bson.M{"_id": order.ID, "user_id": userID}, bson.M{
+		"$set": bson.M{
+			"gateway_name":   gateway.Name(),
+			"payment_method": "online",
+			"updated_at":     time.Now(),
+		},
+	}); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to record payment method")
+		return
+	}
 
 	// Derive amount from order — never trust client
 	amountRials := int64(order.TotalAmount * 10)
@@ -885,6 +895,16 @@ func RetryPayment(w http.ResponseWriter, r *http.Request) {
 	gateway := getGateway(payload.Gateway)
 	if gateway == nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Unknown gateway")
+		return
+	}
+	if _, err := ordersCol.UpdateOne(ctx, bson.M{"_id": order.ID, "user_id": userID}, bson.M{
+		"$set": bson.M{
+			"gateway_name":   gateway.Name(),
+			"payment_method": "online",
+			"updated_at":     time.Now(),
+		},
+	}); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to record payment method")
 		return
 	}
 

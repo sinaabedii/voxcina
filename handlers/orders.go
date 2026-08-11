@@ -128,7 +128,7 @@ func newOrderAPIResponse(
 		PaymentMethod:        order.PaymentMethod,
 		ZibalTrackID:         order.ZibalTrackID,
 		ZibalRefNumber:       order.ZibalRefNumber,
-		GatewayName:          order.GatewayName,
+		GatewayName:          orderGatewayName(ctx, order),
 		GatewayTransactionID: order.GatewayTransactionID,
 		Timeline:             order.Timeline,
 		Notes:                order.Notes,
@@ -138,6 +138,27 @@ func newOrderAPIResponse(
 		JalaliUpdatedAt:      utils.ToJalaliDateString(order.UpdatedAt),
 		ProductCount:         order.GetProductCount(),
 	}, nil
+}
+
+// orderGatewayName keeps the payment gateway visible for failed attempts too.
+// Older orders may not have gateway_name set, but their payment attempt still
+// records which provider was selected.
+func orderGatewayName(ctx context.Context, order models.Order) string {
+	if order.GatewayName != "" {
+		return order.GatewayName
+	}
+	if order.ZibalTrackID != nil || order.ZibalRefNumber != nil {
+		return "zibal"
+	}
+
+	var attempt models.PaymentAttempt
+	err := db.Database.Collection("payment_attempts").FindOne(ctx, bson.M{
+		"order_id": order.ID,
+	}, options.FindOne().SetSort(bson.D{{Key: "created_at", Value: -1}})).Decode(&attempt)
+	if err != nil {
+		return ""
+	}
+	return attempt.Gateway
 }
 
 // validateInventory checks if all items have sufficient stock

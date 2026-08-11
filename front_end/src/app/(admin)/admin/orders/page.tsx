@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
+import { getPaymentMethodText } from "@/lib/order-display";
 import { useOrderStore } from '@/store/order-store';
 import { AdminOrderFilters } from "@/types/order";
 
@@ -112,6 +113,7 @@ export default function AdminOrdersPage() {
       case "delivered":
         return "bg-green-100 text-voxcina-blue dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800/30";
       case "shipping":
+      case "shipped":
         return "bg-voxcina-blue/10 text-voxcina-blue dark:bg-voxcina-blue/20 dark:text-voxcina-cream border border-voxcina-blue/20 dark:border-voxcina-blue/30";
       case "processing":
         return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800/30";
@@ -332,6 +334,9 @@ export default function AdminOrdersPage() {
                     <option value="pending">در انتظار پرداخت</option>
                     <option value="paid">پرداخت شده</option>
                     <option value="failed">ناموفق</option>
+                    <option value="abandoned">پرداخت ناتمام</option>
+                    <option value="expired">منقضی شده</option>
+                    <option value="cancelled">لغو شده</option>
                     <option value="refunded">بازگشت وجه</option>
                   </select>
                 </div>
@@ -494,7 +499,7 @@ export default function AdminOrdersPage() {
                             </p>
                              <p className="text-voxcina-blue dark:text-voxcina-cream flex justify-between">
                                <span>روش پرداخت:</span>
-                               <span>{order.gateway_name || order.payment_status}</span>
+                               <span>{getPaymentMethodText(order)}</span>
                              </p>
                              {order.gateway_transaction_id && (
                                <p className="text-voxcina-blue dark:text-voxcina-cream flex justify-between gap-2">
