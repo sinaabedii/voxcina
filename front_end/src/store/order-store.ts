@@ -502,6 +502,9 @@ export const useOrderStore = create<OrderState & OrderActions>()(
           if (note) {
             body.note = note;
           }
+          if (status === "cancelled") {
+            Object.assign(body, { confirm: true, cancelEntireOrder: true });
+          }
           const response = await fetch(`/api/admin/orders/${orderId}`, {
             method: "PUT",
             headers: {
@@ -537,7 +540,7 @@ export const useOrderStore = create<OrderState & OrderActions>()(
               "Content-Type": "application/json",
               Authorization: `Bearer ${localStorage.getItem("authToken")}`,
             },
-            body: JSON.stringify({ confirm: true }),
+            body: JSON.stringify({ confirm: true, cancelEntireOrder: true }),
           });
           const data = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(data.error || data.message || "لغو تراکنش اسنپ‌پی انجام نشد");

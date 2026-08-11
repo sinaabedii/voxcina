@@ -18,6 +18,7 @@ import (
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"backEnd/db"
@@ -28,6 +29,12 @@ import (
 
 var snappPayService *services.SnappPayService
 var snappPayReconcileStop chan struct{}
+
+const snappPayOperationCooldown = 30 * time.Second
+const snappPayOperationStaleAfter = 5 * time.Minute
+
+var errSnappPayOperationCooldown = errors.New("snappay operation cooldown active")
+var errSnappPayOrderUnavailable = errors.New("snappay order unavailable")
 
 func InitSnappPayService() {
 	snappPayService = services.NewSnappPayService()
@@ -490,6 +497,12 @@ func setSnappPayOrderFailed(ctx context.Context, orderID primitive.ObjectID) {
 }
 
 func snappPayFinalizeSettled(ctx context.Context, attempt models.PaymentAttempt, providerAmount int64, transactionID string) error {
+	if strings.TrimSpace(transactionID) == "" {
+		transactionID = attempt.ProviderID
+	}
+	if strings.TrimSpace(transactionID) == "" {
+		return errors.New("شناسه تراکنش اسنپ‌پی خالی است")
+	}
 	if providerAmount != attempt.ExpectedAmount {
 		return fmt.Errorf("مبلغ پرداخت اسنپ‌پی با مبلغ سفارش برابر نیست")
 	}
@@ -726,13 +739,85 @@ func findLatestSnappPayAttempt(ctx context.Context, orderID primitive.ObjectID) 
 	return attempt, err
 }
 
-type snappPayConfirmPayload struct {
-	Confirm bool `json:"confirm"`
+// claimSnappPayOperation serializes irreversible provider operations and keeps
+// at least 30 seconds between attempts, including attempts that fail remotely.
+func claimSnappPayOperation(ctx context.Context, orderID primitive.ObjectID) (models.Order, time.Duration, error) {
+	now := time.Now()
+	cutoff := now.Add(-snappPayOperationCooldown)
+	filter := bson.M{
+		"_id":            orderID,
+		"gateway_name":   "snappay",
+		"payment_status": "paid",
+		"status":         bson.M{"$ne": "cancelled"},
+		"$and": []bson.M{
+			{"$or": []bson.M{
+				{"snappay_last_operation_at": bson.M{"$exists": false}},
+				{"snappay_last_operation_at": nil},
+				{"snappay_last_operation_at": bson.M{"$lte": cutoff}},
+			}},
+			{"$or": []bson.M{
+				{"snappay_operation_in_progress": bson.M{"$ne": true}},
+				{
+					"snappay_operation_in_progress": true,
+					"snappay_operation_started_at":  bson.M{"$lte": now.Add(-snappPayOperationStaleAfter)},
+				},
+			}},
+		},
+	}
+	var order models.Order
+	err := db.Database.Collection("orders").FindOneAndUpdate(
+		ctx,
+		filter,
+		bson.M{"$set": bson.M{
+			"snappay_last_operation_at":     now,
+			"snappay_operation_in_progress": true,
+			"snappay_operation_started_at":  now,
+		}},
+		options.FindOneAndUpdate().SetReturnDocument(options.After),
+	).Decode(&order)
+	if err == nil {
+		return order, 0, nil
+	}
+	if err != mongo.ErrNoDocuments {
+		return models.Order{}, 0, err
+	}
+
+	var current models.Order
+	if err := db.Database.Collection("orders").FindOne(ctx, bson.M{"_id": orderID}).Decode(&current); err != nil {
+		return models.Order{}, 0, err
+	}
+	if current.GatewayName != "snappay" || current.PaymentStatus != "paid" || current.Status == "cancelled" {
+		return models.Order{}, 0, errSnappPayOrderUnavailable
+	}
+	if current.SnappPayLastOperationAt != nil {
+		remaining := snappPayOperationCooldown - time.Since(*current.SnappPayLastOperationAt)
+		if remaining > 0 {
+			return models.Order{}, remaining, errSnappPayOperationCooldown
+		}
+	}
+	return models.Order{}, 0, errSnappPayOrderUnavailable
 }
 
-func requireSnappPayConfirmation(w http.ResponseWriter, r *http.Request) bool {
+func releaseSnappPayOperation(orderID primitive.ObjectID) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, _ = db.Database.Collection("orders").UpdateOne(ctx, bson.M{"_id": orderID}, bson.M{
+		"$set": bson.M{
+			"snappay_last_operation_at":     time.Now(),
+			"snappay_operation_in_progress": false,
+		},
+		"$unset": bson.M{"snappay_operation_started_at": ""},
+	})
+}
+
+type snappPayConfirmPayload struct {
+	Confirm           bool `json:"confirm"`
+	CancelEntireOrder bool `json:"cancelEntireOrder"`
+}
+
+func requireSnappPayConfirmation(w http.ResponseWriter, r *http.Request, requireEntireOrder bool) bool {
 	var payload snappPayConfirmPayload
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil || !payload.Confirm {
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil || !payload.Confirm || (requireEntireOrder && !payload.CancelEntireOrder) {
 		utils.ErrorResponse(w, http.StatusBadRequest, "تاییدیه صریح برای عملیات برگشت اسنپ‌پی الزامی است")
 		return false
 	}
@@ -742,7 +827,7 @@ func requireSnappPayConfirmation(w http.ResponseWriter, r *http.Request) bool {
 // AdminCancelSnappPay cancels a settled Snapppay transaction only after an
 // explicit confirmation from the administrator.
 func AdminCancelSnappPay(w http.ResponseWriter, r *http.Request) {
-	if !requireSnappPayConfirmation(w, r) {
+	if !requireSnappPayConfirmation(w, r, true) {
 		return
 	}
 	orderID, err := primitive.ObjectIDFromHex(mux.Vars(r)["orderId"])
@@ -753,15 +838,20 @@ func AdminCancelSnappPay(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 35*time.Second)
 	defer cancel()
 	orders := db.Database.Collection("orders")
-	var order models.Order
-	if err := orders.FindOne(ctx, bson.M{"_id": orderID}).Decode(&order); err != nil {
-		utils.ErrorResponse(w, http.StatusNotFound, "سفارش یافت نشد")
+	order, remaining, err := claimSnappPayOperation(ctx, orderID)
+	if err != nil {
+		switch {
+		case errors.Is(err, errSnappPayOperationCooldown):
+			w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(remaining.Seconds()))))
+			utils.ErrorResponse(w, http.StatusTooManyRequests, "برای عملیات بعدی اسنپ‌پی حداقل ۳۰ ثانیه صبر کنید")
+		case errors.Is(err, errSnappPayOrderUnavailable):
+			utils.ErrorResponse(w, http.StatusBadRequest, "این سفارش تراکنش قابل لغو اسنپ‌پی ندارد")
+		default:
+			utils.ErrorResponse(w, http.StatusNotFound, "سفارش یافت نشد")
+		}
 		return
 	}
-	if order.GatewayName != "snappay" || order.PaymentStatus != "paid" {
-		utils.ErrorResponse(w, http.StatusBadRequest, "این سفارش تراکنش قابل لغو اسنپ‌پی ندارد")
-		return
-	}
+	defer releaseSnappPayOperation(orderID)
 	attempt, err := findLatestSnappPayAttempt(ctx, orderID)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusConflict, "تلاش پرداخت اسنپ‌پی یافت نشد")
@@ -788,10 +878,14 @@ func AdminCancelSnappPay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if status.Status == "SETTLE" {
-		if _, err := snappPayCancelWithRecovery(ctx, attempt.GatewayReference); err != nil {
+		cancelResponse, err := snappPayCancelWithRecovery(ctx, attempt.GatewayReference)
+		if err != nil {
 			_ = updateSnappPayAttempt(ctx, attempt.ID, "cancel_pending", bson.M{"provider_status": status.Status, "cancel_error": err.Error()})
 			utils.ErrorResponse(w, http.StatusBadGateway, "لغو تراکنش اسنپ‌پی انجام نشد: "+err.Error())
 			return
+		}
+		if cancelResponse != nil && cancelResponse.TransactionID != "" {
+			_, _ = orders.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{"$set": bson.M{"gateway_transaction_id": cancelResponse.TransactionID}})
 		}
 	}
 
@@ -873,15 +967,20 @@ func AdminUpdateSnappPay(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 35*time.Second)
 	defer cancel()
 	orders := db.Database.Collection("orders")
-	var order models.Order
-	if err := orders.FindOne(ctx, bson.M{"_id": orderID}).Decode(&order); err != nil {
-		utils.ErrorResponse(w, http.StatusNotFound, "سفارش یافت نشد")
+	order, remaining, err := claimSnappPayOperation(ctx, orderID)
+	if err != nil {
+		switch {
+		case errors.Is(err, errSnappPayOperationCooldown):
+			w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(remaining.Seconds()))))
+			utils.ErrorResponse(w, http.StatusTooManyRequests, "برای عملیات بعدی اسنپ‌پی حداقل ۳۰ ثانیه صبر کنید")
+		case errors.Is(err, errSnappPayOrderUnavailable):
+			utils.ErrorResponse(w, http.StatusBadRequest, "این سفارش تراکنش قابل بروزرسانی اسنپ‌پی ندارد")
+		default:
+			utils.ErrorResponse(w, http.StatusNotFound, "سفارش یافت نشد")
+		}
 		return
 	}
-	if order.GatewayName != "snappay" || order.PaymentStatus != "paid" {
-		utils.ErrorResponse(w, http.StatusBadRequest, "این سفارش تراکنش قابل بروزرسانی اسنپ‌پی ندارد")
-		return
-	}
+	defer releaseSnappPayOperation(orderID)
 	if order.DiscountCode != "" {
 		utils.ErrorResponse(w, http.StatusConflict, "سفارش دارای کد تخفیف اسنپ‌پی قابل بروزرسانی نیست و باید لغو شود")
 		return
@@ -932,8 +1031,8 @@ func AdminUpdateSnappPay(w http.ResponseWriter, r *http.Request) {
 		updatedOrder.TotalAmount += item.PriceAtPurchase * float64(item.Quantity)
 	}
 	updatedOrder.TotalAmount += updatedOrder.ShippingCost + updatedOrder.TaxAmount - updatedOrder.DiscountAmount
-	if updatedOrder.TotalAmount <= 0 || updatedOrder.TotalAmount > order.TotalAmount {
-		utils.ErrorResponse(w, http.StatusBadRequest, "مبلغ بروزرسانی باید کمتر یا مساوی مبلغ قبلی و مثبت باشد")
+	if updatedOrder.TotalAmount <= 0 || updatedOrder.TotalAmount >= order.TotalAmount {
+		utils.ErrorResponse(w, http.StatusBadRequest, "مبلغ بروزرسانی باید کمتر از مبلغ قبلی و مثبت باشد")
 		return
 	}
 	cartList, amount, err := buildSnappPayCart(ctx, updatedOrder)
@@ -941,10 +1040,11 @@ func AdminUpdateSnappPay(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if _, err := snappPayUpdateWithRecovery(ctx, &services.UpdatePaymentRequest{
+	updateResponse, err := snappPayUpdateWithRecovery(ctx, &services.UpdatePaymentRequest{
 		PaymentToken: attempt.GatewayReference, Amount: amount, CartList: cartList,
 		DiscountAmount: snappPayMoney(updatedOrder.DiscountAmount),
-	}); err != nil {
+	})
+	if err != nil {
 		_ = updateSnappPayAttempt(ctx, attempt.ID, "update_pending", bson.M{"update_error": err.Error()})
 		utils.ErrorResponse(w, http.StatusBadGateway, "بروزرسانی تراکنش اسنپ‌پی انجام نشد: "+err.Error())
 		return
@@ -955,9 +1055,18 @@ func AdminUpdateSnappPay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	now := time.Now()
-	_, err = orders.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{"$set": bson.M{
-		"items": newItems, "total_amount": updatedOrder.TotalAmount, "updated_at": now,
-	}, "$push": bson.M{"timeline": models.OrderTimelineEntry{Status: order.Status, Timestamp: now, Note: "بروزرسانی بازگشت بخشی از سفارش در اسنپ‌پی"}}})
+	updateSet := bson.M{
+		"items":        newItems,
+		"total_amount": updatedOrder.TotalAmount,
+		"updated_at":   now,
+	}
+	if updateResponse != nil && updateResponse.TransactionID != "" {
+		updateSet["gateway_transaction_id"] = updateResponse.TransactionID
+	}
+	_, err = orders.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
+		"$set":  updateSet,
+		"$push": bson.M{"timeline": models.OrderTimelineEntry{Status: order.Status, Timestamp: now, Note: "بروزرسانی بازگشت بخشی از سفارش در اسنپ‌پی"}},
+	})
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "ثبت بروزرسانی سفارش انجام نشد")
 		return

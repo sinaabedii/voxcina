@@ -14,7 +14,7 @@ function SuccessContent() {
   const [isLoading, setIsLoading] = useState(true);
 
   const orderId = searchParams.get("orderId");
-  const trackId = searchParams.get("transactionId") || searchParams.get("trackId");
+  const callbackTransactionId = searchParams.get("transactionId") || searchParams.get("trackId");
   const paymentMethod = searchParams.get("method");
 
   useEffect(() => {
@@ -115,10 +115,10 @@ function SuccessContent() {
                   {orderDetails.total_amount?.toLocaleString("fa-IR")} تومان
                 </span>
               </div>
-              {trackId && (
+              {(orderDetails.gateway_transaction_id || callbackTransactionId) && (
                 <div className="flex justify-between">
                     <span className="text-muted-foreground">شناسه تراکنش پرداخت:</span>
-                  <span className="font-medium font-mono">{trackId}</span>
+                  <span className="font-medium font-mono" dir="ltr">{orderDetails.gateway_transaction_id || callbackTransactionId}</span>
                 </div>
               )}
             </div>

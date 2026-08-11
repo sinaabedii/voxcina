@@ -47,32 +47,35 @@ type OrderItem struct {
 
 // Order represents a customer order
 type Order struct {
-	ID                   primitive.ObjectID   `bson:"_id,omitempty"              json:"id,omitempty"`
-	UserID               primitive.ObjectID   `bson:"user_id"                    json:"user_id"`                                // Reference to users
-	OrderNumber          string               `bson:"order_number"               json:"order_number"`                           // Human-readable order ID (e.g., "DGS-10001")
-	Items                []OrderItem          `bson:"items"                      json:"items"`                                  // Items in the order
-	TotalAmount          float64              `bson:"total_amount"               json:"total_amount"`                           // Total cost of the order
-	ShippingCost         float64              `bson:"shipping_cost"              json:"shipping_cost"`                          // Shipping cost
-	TaxAmount            float64              `bson:"tax_amount"                 json:"tax_amount"`                             // Tax included in the order total
-	DiscountAmount       float64              `bson:"discount_amount"            json:"discount_amount"`                        // Discount amount applied
-	DiscountCode         string               `bson:"discount_code,omitempty"    json:"discount_code,omitempty"`                // Discount code used
-	ShippingAddress      Address              `bson:"shipping_address"           json:"shipping_address"`                       // Delivery address, uses Address struct from user.go
-	Status               string               `bson:"status"                     json:"status"`                                 // Values: "pending", "shipped", "delivered", "cancelled", etc.
-	StatusText           string               `bson:"status_text"                json:"status_text"`                            // Localized status description (e.g., Persian)
-	PaymentStatus        string               `bson:"payment_status"             json:"payment_status"`                         // Values: "pending", "paid", "failed"
-	PaymentMethod        string               `bson:"payment_method"             json:"payment_method"`                         // Payment method: "online", "wallet", "cod"
-	ZibalTrackID         *int64               `bson:"zibal_track_id,omitempty"   json:"zibal_track_id,omitempty"`               // Zibal payment tracking ID
-	ZibalRefNumber       *string              `bson:"zibal_ref_number,omitempty" json:"zibal_ref_number,omitempty"`             // Zibal reference number
-	GatewayName          string               `bson:"gateway_name,omitempty"     json:"gateway_name,omitempty"`                 // Payment gateway: "zibal" | "digipay" | "snappay"
-	GatewayTransactionID string               `bson:"gateway_transaction_id,omitempty" json:"gateway_transaction_id,omitempty"` // Merchant/provider transaction ID
-	GatewayReference     string               `bson:"gateway_reference,omitempty" json:"gateway_reference,omitempty"`           // Provider payment token/reference
-	TrackingCode         *string              `bson:"tracking_code,omitempty"    json:"tracking_code,omitempty"`                // Shipping tracking number (nullable)
-	Timeline             []OrderTimelineEntry `bson:"timeline,omitempty"         json:"timeline,omitempty"`                     // Order status change history
-	Notes                []OrderNote          `bson:"notes,omitempty"            json:"notes,omitempty"`                        // Internal admin notes
-	IsActive             bool                 `bson:"is_active"                  json:"is_active"`                              // Soft delete flag
-	CreatedAt            time.Time            `bson:"created_at"                 json:"created_at"`
-	UpdatedAt            time.Time            `bson:"updated_at"                 json:"updated_at"`
-	PaidAt               *time.Time           `bson:"paid_at,omitempty"          json:"paid_at,omitempty"` // Payment completion time
+	ID                          primitive.ObjectID   `bson:"_id,omitempty"              json:"id,omitempty"`
+	UserID                      primitive.ObjectID   `bson:"user_id"                    json:"user_id"`                                // Reference to users
+	OrderNumber                 string               `bson:"order_number"               json:"order_number"`                           // Human-readable order ID (e.g., "DGS-10001")
+	Items                       []OrderItem          `bson:"items"                      json:"items"`                                  // Items in the order
+	TotalAmount                 float64              `bson:"total_amount"               json:"total_amount"`                           // Total cost of the order
+	ShippingCost                float64              `bson:"shipping_cost"              json:"shipping_cost"`                          // Shipping cost
+	TaxAmount                   float64              `bson:"tax_amount"                 json:"tax_amount"`                             // Tax included in the order total
+	DiscountAmount              float64              `bson:"discount_amount"            json:"discount_amount"`                        // Discount amount applied
+	DiscountCode                string               `bson:"discount_code,omitempty"    json:"discount_code,omitempty"`                // Discount code used
+	ShippingAddress             Address              `bson:"shipping_address"           json:"shipping_address"`                       // Delivery address, uses Address struct from user.go
+	Status                      string               `bson:"status"                     json:"status"`                                 // Values: "pending", "shipped", "delivered", "cancelled", etc.
+	StatusText                  string               `bson:"status_text"                json:"status_text"`                            // Localized status description (e.g., Persian)
+	PaymentStatus               string               `bson:"payment_status"             json:"payment_status"`                         // Values: "pending", "paid", "failed"
+	PaymentMethod               string               `bson:"payment_method"             json:"payment_method"`                         // Payment method: "online", "wallet", "cod"
+	ZibalTrackID                *int64               `bson:"zibal_track_id,omitempty"   json:"zibal_track_id,omitempty"`               // Zibal payment tracking ID
+	ZibalRefNumber              *string              `bson:"zibal_ref_number,omitempty" json:"zibal_ref_number,omitempty"`             // Zibal reference number
+	GatewayName                 string               `bson:"gateway_name,omitempty"     json:"gateway_name,omitempty"`                 // Payment gateway: "zibal" | "digipay" | "snappay"
+	GatewayTransactionID        string               `bson:"gateway_transaction_id,omitempty" json:"gateway_transaction_id,omitempty"` // Merchant/provider transaction ID
+	GatewayReference            string               `bson:"gateway_reference,omitempty" json:"gateway_reference,omitempty"`           // Provider payment token/reference
+	TrackingCode                *string              `bson:"tracking_code,omitempty"    json:"tracking_code,omitempty"`                // Shipping tracking number (nullable)
+	Timeline                    []OrderTimelineEntry `bson:"timeline,omitempty"         json:"timeline,omitempty"`                     // Order status change history
+	Notes                       []OrderNote          `bson:"notes,omitempty"            json:"notes,omitempty"`                        // Internal admin notes
+	IsActive                    bool                 `bson:"is_active"                  json:"is_active"`                              // Soft delete flag
+	CreatedAt                   time.Time            `bson:"created_at"                 json:"created_at"`
+	UpdatedAt                   time.Time            `bson:"updated_at"                 json:"updated_at"`
+	PaidAt                      *time.Time           `bson:"paid_at,omitempty"          json:"paid_at,omitempty"` // Payment completion time
+	SnappPayLastOperationAt     *time.Time           `bson:"snappay_last_operation_at,omitempty" json:"-"`
+	SnappPayOperationInProgress bool                 `bson:"snappay_operation_in_progress,omitempty" json:"-"`
+	SnappPayOperationStartedAt  *time.Time           `bson:"snappay_operation_started_at,omitempty" json:"-"`
 }
 
 // GetProductCount returns the total number of products in the order

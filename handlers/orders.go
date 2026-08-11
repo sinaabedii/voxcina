@@ -1248,7 +1248,7 @@ func GetAllOrders(w http.ResponseWriter, r *http.Request) {
 		filter["payment_status"] = paymentStatus
 	}
 
-	// Search by order number (case-insensitive partial matching)
+	// Search by order number or gateway transaction ID (case-insensitive partial matching)
 	if search := r.URL.Query().Get("search"); search != "" {
 		pattern := bson.M{"$regex": search, "$options": "i"}
 		filter["$or"] = []bson.M{{"order_number": pattern}, {"gateway_transaction_id": pattern}}
@@ -1393,9 +1393,11 @@ func UpdateOrderStatusAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload struct {
-		Status       string `json:"status"`
-		Note         string `json:"note,omitempty"`
-		TrackingCode string `json:"tracking_code,omitempty"`
+		Status            string `json:"status"`
+		Note              string `json:"note,omitempty"`
+		TrackingCode      string `json:"tracking_code,omitempty"`
+		Confirm           bool   `json:"confirm"`
+		CancelEntireOrder bool   `json:"cancelEntireOrder"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload")
@@ -1412,6 +1414,10 @@ func UpdateOrderStatusAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 	if !validStatuses[payload.Status] {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid status value")
+		return
+	}
+	if payload.Status == "cancelled" && (!payload.Confirm || !payload.CancelEntireOrder) {
+		utils.ErrorResponse(w, http.StatusBadRequest, "تایید صریح لغو کامل سفارش الزامی است")
 		return
 	}
 

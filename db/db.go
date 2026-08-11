@@ -116,6 +116,13 @@ func Connect(cfg *config.Config) *mongo.Database {
 		log.Printf("Warning: Could not ensure payment attempt indexes: %v", err)
 	}
 
+	if _, err := Database.Collection("orders").Indexes().CreateOne(context.Background(), mongo.IndexModel{
+		Keys:    bson.D{{Key: "gateway_transaction_id", Value: 1}},
+		Options: options.Index().SetName("gateway_transaction_id_idx"),
+	}); err != nil {
+		log.Printf("Warning: Could not ensure order transaction ID index: %v", err)
+	}
+
 	// Create blog AI pipeline indexes
 	if err := EnsureBlogIndexes(Database); err != nil {
 		log.Printf("Warning: Could not ensure blog indexes: %v", err)

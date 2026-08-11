@@ -264,7 +264,7 @@ export default function AdminOrdersPage() {
           <input
             type="text"
             className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full pr-10 p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50 shadow-sm"
-            placeholder="جستجو شماره سفارش، نام مشتری یا ایمیل..."
+            placeholder="جستجو شماره سفارش یا شناسه تراکنش..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -523,14 +523,14 @@ export default function AdminOrdersPage() {
                             className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 rounded-xl"
                            onClick={() => {
                              if (order.gateway_name === "snappay" && order.payment_status === "paid") {
-                               if (window.confirm("لغو تراکنش اسنپ‌پی و بازگشت وجه انجام شود؟")) cancelSnappPay(order.id);
+                               if (window.confirm("لغو کامل سفارش و بازگشت وجه اسنپ‌پی انجام شود؟ این عملیات غیرقابل برگشت است.")) cancelSnappPay(order.id);
                              } else {
-                               updateOrderStatusAdmin(order.id, "cancelled");
+                               if (window.confirm("لغو کامل سفارش انجام شود؟ این عملیات غیرقابل برگشت است.")) updateOrderStatusAdmin(order.id, "cancelled");
                              }
                            }}
                           >
                             <XCircle className="w-4 h-4 ml-1" />
-                            لغو سفارش
+                            لغو کامل سفارش
                           </Button>
                         )}
                         {order.status === "pending" && order.payment_status === "paid" && (
