@@ -1,120 +1,74 @@
-# AGENTS.md
+# Repository Guide
 
-Persian e-commerce platform. Go backend (module `backEnd`) + Next.js 14 + MongoDB 6.0 + Docker Compose.
+## Layout and Runtime
 
-All Go files are at project root (no `backEnd/` dir). Module name is `backEnd` only for imports.
+- The repository root is the Go module `backEnd`; there is no `backEnd/` directory. Go imports use `backEnd/...`.
+- Backend entrypoint is `main.go`; request flow is `routes/` -> `handlers/` -> `services/`/`db/` -> MongoDB.
+- `front_end/` is a Next.js 14 App Router application. Use `@/*` for `front_end/src/*`; client state is in Zustand stores under `front_end/src/store/`.
+- The UI is Persian RTL with the single `fa` locale configured in `front_end/next.config.js`; do not introduce another locale without changing routing/configuration.
+- Compose exposes frontend on `localhost:3000`, backend on `localhost:8088` (container port `8080`), and MongoDB only on `127.0.0.1:27017`.
+- Uploaded files live in the host `uploads/` directory and are mounted into both backend and frontend containers; do not bake them into images.
 
 ## Commands
 
-### Backend (Go) — project root
+Run Go commands from the repository root:
+
 ```bash
-go build -o main .          # Build
-./main                      # Run (port 8080)
-./main -seed                # Seed database
-./main -healthcheck         # Check MongoDB (exit 0/1)
-./main -check-vocab         # Print vocabulary_mappings count (used by start.sh)
-./main -migrate-avatars     # Migrate avatar images shape
-go vet ./...                # Lint
+go build -o main .
+go test ./...
+go test ./services -run TestNewDirectPaymentHTTPClientDoesNotUseProcessProxy -count=1
+go vet ./...
+./main -healthcheck
+./main -seed
+./main -check-vocab
+./main -migrate-avatars
 ```
 
-### Frontend (Next.js)
+The only committed Go test is `services/payment_http_client_test.go`; `go test ./...` also discovers a Go-looking package inside `front_end/node_modules`.
+
+Run frontend commands from `front_end/`:
+
 ```bash
-cd front_end && npm run dev   # Dev server (port 3000)
-npm run build                 # Production build (incremental — does NOT delete .next)
-npm run lint                  # ESLint (next/core-web-vitals)
+npm ci
+npm run dev
+npm run lint
+npx tsc --noEmit
+npm run build
 ```
 
-### Docker
+`next.config.js` ignores lint during `next build`, so run `npm run lint` separately. The production build is incremental; never delete `.next` to fix a normal build issue.
+
+For local services, copy `.env.example` to `.env`, set `JWT_SECRET` and Mongo credentials, then run `docker compose up -d --build`. Frontend-only browser/service keys are documented in `front_end/.env.example`; secrets must remain server-side and `.env` is ignored.
+
+## API and Auth
+
+- `front_end/next.config.js` proxies general `/api/*` requests to Go and rewrites `/uploads/*` to the backend. Filesystem API routes under `front_end/src/app/api/` handle Postex, try-on negotiation/streaming, Instagram, sitemap, revalidation, and upload-specific behavior; check the actual route before adding a backend endpoint.
+- Server Components fetch the Go service directly using `GO_BACKEND_URL` (`http://server:8080` in Compose, localhost fallback in local development).
+- JWT Bearer auth is initialized in `main.go`; `AuthMiddleware` protects user routes and `AdminAuthMiddleware` protects `/api/admin/*` with `role == "admin"`.
+- `start.sh` waits for MongoDB, checks `vocabulary_mappings`, seeds only when that collection is empty, then starts the API.
+- There is no migration framework. Schema/index setup is in `db/`; special backfills currently use explicit `main.go` flags such as `-migrate-avatars`.
+
+## High-Risk Domain Rules
+
+- Payment gateway interface is `services/payment_gateway.go`; services are registered from `main.go`. Zibal/DigiPay derive Rials as `order.TotalAmount * 10`; SnappPay uses its own conversion. Verification must match `PaymentAttempt.ExpectedAmount` through `FinalizeVerifiedPayment`.
+- Every payment retry creates a new `PaymentAttempt` and provider ID; never overwrite a previous attempt. Payment token refresh uses `singleflight` in DigiPay/SnappPay services.
+- Virtual try-on routes are authenticated. MongoDB persists `virtual_tryons`, `tryon_chats`, and `negotiated_coupons`; `tryOnTasks` in `handlers/tryon.go` is only an in-memory status map. Finished/error tasks expire after 5 minutes and unfinished tasks after 30 minutes.
+- Public activity ingestion is `POST /api/activity/track` and `/batch`; it accepts anonymous sessions and stores `sessionId`. Retrieval routes require auth. `user_activities` has a TTL index driven by `ExpiresAt` at 180 days.
+- Hero public data is active, display-ordered `/api/hero-images`, cached for 360 seconds with `home`/`hero-images` tags. Admin hero writes trigger tag revalidation. Go hero content must remain a BSON/JSON object (`bson.M`), not a decoded `primitive.D` array.
+- SKU format is `{Gender}{Category}{Brand}{Style}{Color}{Size}` in `Coding.json`; size codes are single characters (`X,S,M,L,Q,R,T`).
+
+## Deployment
+
+- The VPS SSH alias is `vps-ir` (`/root/voxcina`, SSH port `9011`); it has no direct internet and relies on the configured HTTP/SOCKS proxies. Deploy committed changes on `develop` only after checking the VPS worktree is clean.
+- Pull and deploy a frontend change with:
+
 ```bash
-docker compose up -d --build     # All services
-docker compose build server      # Backend only
-docker compose up -d server      # Restart backend
-docker compose logs -f server    # Backend logs
-```
-
-**No test suite exists. `go vet ./...` + `npm run lint` are the only verification commands.**
-
-## Architecture
-
-- **Go** at project root: `handlers/` → `services/` → MongoDB. Routes in `routes/routes.go` (Gorilla Mux).
-- **Next.js** on the frontend: Page → Zustand store (`store/` 18 stores) → API → Go.
-- **API proxy** (`next.config.js` rewrites): `/api/:path((?!postex|tryon/negotiate|tryon/negotiate-stream).*)` → Go backend.
-  - `/api/postex/*`, `/api/tryon/negotiate`, `/api/tryon/negotiate-stream` handled by Next.js (filesystem routes).
-  - `/uploads/:path*` → Go backend (separate rewrite rule).
-  - Other Next.js API routes (`/api/instagram/*`, `/api/sitemap`, `/api/locality/*`) work because they exist as filesystem routes, not via the proxy exception.
-- **Auth**: JWT Bearer token. `middlewares.AuthMiddleware` for users, `AdminAuthMiddleware` for admin (`role == "admin"`).
-- `start.sh` waits for MongoDB, auto-seeds if `vocabulary_mappings` is empty.
-- Config reads `PORT` env (fallback 8080). Docker maps `8088:8080`.
-
-## Frontend Conventions
-
-- **RTL Persian UI**. Single locale `fa` in `next.config.js` i18n.
-- Path alias: `@/*` → `front_end/src/*`.
-- Reusable UI in `front_end/src/components/ui/` (25 components; see barrel export `index.ts`).
-- New components in `front_end/src/components/` (ui/ for generic, feature subdirs for specific).
-- TailwindCSS dark mode via `class` strategy. Primary: `#1A3C69`, secondary: `#f4f1ec`.
-- State: Zustand in `front_end/src/store/`.
-- `ProductActions.tsx`: variant images always come before main images.
-
-## SKU System (Coding.json)
-
-Format: `{Gender}{Category}{Brand}{Style}{Color}{Size}` (7 chars, e.g. `M100A0L`).
-- Gender: M=Men, F=Women, D=Kids, B=Unisex.
-- Size codes: X=XS, S=S, M=M, L=L, Q=XL, R=2XL, T=3XL (single char).
-
-## Payment Gateway
-
-- Interface: `services/payment_gateway.go` (`Name`, `RequestPayment`, `VerifyPayment`, `InquiryPayment`).
-- Gateway registry in `handlers/payment.go`, populated by `InitZibalService()` / `InitDigipayService()` from `main.go`.
-- Backend always derives `amount` from `order.TotalAmount * 10`. `FinalizeVerifiedPayment` rejects if `verifiedAmount != expectedAmount`.
-- `PaymentAttempt` model tracks each attempt with unique indexes. Each retry creates a fresh UUID attempt — never overwrite.
-- DigiPay OAuth uses `singleflight.Group` for deduped token refresh. POST callback → verify API → `FinalizeVerifiedPayment` → 303 redirect.
-- Config: `ZIBAL_MERCHANT` (default `"zibal"`), `DIGIPAY_CLIENT_ID` + `DIGIPAY_CLIENT_SECRET`.
-
-## Virtual Try-On
-
-Auth-only (`AuthMiddleware`). No TTL — all data kept forever.
-- **Collections**: `virtual_tryons` (generation), `tryon_chats` (fitting rooms, polymorphic messages), `negotiated_coupons` (linked by `tryon_id` + `chat_id`).
-- **Endpoints**: `POST /api/tryon/generate`, `GET /api/tryon/history`, `GET /api/tryon/{tryonId}`, `GET /api/tryon/sessions`, `GET /api/tryon/sessions/{chatId}`, `DELETE /api/tryon/sessions/{chatId}`, `POST /api/tryon/sessions/messages`, `POST /api/tryon/link`.
-- **In-memory cache** (`tryOnTasks` in `handlers/tryon.go`): `sync.Map` for SSE status stream. Cleanup: `done`/`error` → 5 min, `processing` → 30 min. Does NOT affect MongoDB persistence.
-- **Negotiation**: LLM uses OpenRouter `google/gemma-4-31b-it` (fallback `qwen/qwen3.5-27b`) with `offer_coupon` tool. Generates `TRYN-XXXXXXXX` coupon, saved to `negotiated_coupons`.
-- Frontend: `tryon-store.ts` (with `chatId` in localStorage `voxcina_tryon_chat_id`), `tryon-api.ts` client.
-
-## User Activity Tracking
-
-- Track endpoints (`/api/activity/track`, `/api/activity/track/batch`) are **public** (no `AuthMiddleware`). Store `sessionId` from request body.
-- Frontend `activity-tracker.ts` singleton: queue + 5s flush, `sendBeacon` on `beforeunload`. Session ID in localStorage (`activity_session_id`, 30-min slide).
-- Activities stored with `session_id` (not `user_id`) for every page. Retrieval routes use `AuthMiddleware`.
-- Constants in `models/user_activity.go` (`Activity*` prefix). 180-day TTL via `ExpiresAt`.
-- Invoked from: `ProductCard.tsx`, `ProductActions.tsx`, `cart/page.tsx`, `checkout/page.tsx`, `checkout/callback/page.tsx`, `tryon/page.tsx`, plus global anchor click listener.
-
-## VPS Deployment
-
-**Infrastructure:**
-- `vps-ir` (87.107.105.114:9011). No direct internet — SOCKS `127.0.0.1:10800` (frps), HTTP `127.0.0.1:10809` (Xray).
-- Git SSH via corkscrew through HTTP proxy (`~/.ssh/config`). Docker daemon proxy at `/etc/systemd/system/docker.service.d/proxy.conf`.
-- MongoDB: `docker.arvancloud.ir/mongo:6.0`. Scheduler: `docker.arvancloud.ir/mcuadros/ofelia:latest`.
-
-### Frontend deploy
-The runtime runner stage does NOT include `src/` — you must rebuild the full image. Next.js incremental `.next/` cache speeds up builds inside Docker.
-```bash
-scp -P 9011 front_end/src/path/to/File.tsx vps-ir:/root/voxcina/front_end/src/path/to/File.tsx
+ssh -o ConnectTimeout=10 vps-ir 'cd /root/voxcina && git pull --ff-only origin develop'
 ssh -o ConnectTimeout=10 vps-ir 'cd /root/voxcina && docker compose build --no-cache front_end && docker compose up -d front_end'
 ```
-**Never** `rm -rf .next` — incremental builds take seconds; full rebuilds take minutes.
 
-### Backend deploy
-```bash
-docker compose build server && docker compose up -d server
-```
-
-### Required iptables (after fresh VPS provision)
-Docker containers need access to Xray proxy on port 10809 (UFW DENY rule blocks them by default).
-Add ACCEPT rules in ufw-before-input chain (persists through UFW):
-```bash
-iptables -I ufw-before-input -i docker0 -p tcp --dport 10809 -j ACCEPT
-iptables -I ufw-before-input -i br-+ -p tcp --dport 10809 -j ACCEPT
-iptables -I ufw-before-input -i docker0 -p udp --dport 10809 -j ACCEPT
-iptables -I ufw-before-input -i br-+ -p udp --dport 10809 -j ACCEPT
-```
-Persistent service at `/etc/systemd/system/docker-proxy-iptables.service` ensures rules survive reboots.
+- The frontend Docker runner copies `.next`, `public`, and dependencies but not `src/`; do not `docker cp` source into a running container. Rebuild the full `front_end` image.
+- Backend-only deployment is `docker compose build server && docker compose up -d server`; inspect `docker compose ps` and service logs after either deployment.
+- Before a no-cache VPS build, check `df -h /`. Unused Docker images can fill the root filesystem and cause MongoDB to fail with `No space left on device`; prune unused images only when necessary and never remove the MongoDB volume.
+- `scripts/update_front_end.sh [branch]` is a long-running auto-deploy loop that stops, builds, starts, and prunes the whole Compose stack; use the targeted commands above for a manual deployment.
+- On a fresh VPS, Docker bridge traffic to the Xray proxy on host port `10809` needs ACCEPT rules in the `ufw-before-input` chain; the persistent `/etc/systemd/system/docker-proxy-iptables.service` restores them after reboot.
