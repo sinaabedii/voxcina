@@ -318,9 +318,9 @@ func (s *SnappPayService) VerifyPayment(ctx context.Context, req *VerifyRequest)
 }
 
 type snappPayStatusResponse struct {
-	TransactionID string `json:"transactionId"`
-	Status        string `json:"status"`
-	Amount        int64  `json:"amount"`
+	TransactionID string  `json:"transactionId"`
+	Status        string  `json:"status"`
+	Amount        float64 `json:"amount"`
 }
 
 func (s *SnappPayService) InquiryPayment(ctx context.Context, req *InquiryRequest) (*InquiryResponse, error) {
@@ -359,7 +359,7 @@ func (s *SnappPayService) InquiryPayment(ctx context.Context, req *InquiryReques
 	return &InquiryResponse{
 		Success:   envelope.Response.Status == "SETTLE",
 		Status:    envelope.Response.Status,
-		Amount:    envelope.Response.Amount,
+		Amount:    int64(envelope.Response.Amount),
 		RefNumber: envelope.Response.TransactionID,
 	}, nil
 }
