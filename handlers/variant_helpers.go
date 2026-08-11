@@ -191,11 +191,11 @@ func normalizeOrderVariantFromProduct(product *models.Product, variant models.Or
 }
 
 func cartVariantsMatch(a, b models.CartVariant) bool {
-	if a.VariantID != "" && b.VariantID != "" {
-		return a.VariantID == b.VariantID && a.Size == b.Size
-	}
 	if a.Size != b.Size {
 		return false
+	}
+	if a.VariantID != "" && b.VariantID != "" && a.VariantID == b.VariantID {
+		return true
 	}
 	aValues := variantLookupValues(a.Color, a.ColorName)
 	bValues := variantLookupValues(b.Color, b.ColorName)

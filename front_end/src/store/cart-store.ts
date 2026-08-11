@@ -125,8 +125,8 @@ const cartSelectionMatches = (
   colorName?: string,
   variantId?: string
 ): boolean => {
-  if (item.productId !== productId || item.size !== size) return false;
-	if (item.variantId && variantId) return item.variantId === variantId;
+	if (item.productId !== productId || item.size !== size) return false;
+	if (item.variantId && variantId && item.variantId === variantId) return true;
 
   const itemVariant = findColorVariant(item.product, item.color, item.colorName);
   const requestedVariant = findColorVariant(item.product, color, colorName);
@@ -427,7 +427,16 @@ export const useCartStore = create<CartStore>()(
         set({ isLoading: true, error: null, isSyncing: true });
         
         const localCartItems = [...get().cart.items];
-        const hasLocalItems = localCartItems.length > 0;
+        const localCartBelongsToUser = get().cart.userId === user.id;
+        const hasLocalItems = localCartItems.length > 0 && !localCartBelongsToUser;
+
+        if (localCartBelongsToUser && localCartItems.length > 0) {
+          get().clearLocalCartStorage();
+          set((state) => ({
+            cart: { ...state.cart, items: [], updatedAt: new Date().toISOString() },
+            summary: { subtotal: 0, shipping: 0, tax: 0, discount: 0, total: 0 },
+          }));
+        }
         
         try {
           // Step 1: Check if backend cart exists
@@ -637,8 +646,21 @@ export const useCartStore = create<CartStore>()(
                 { productId, variant: { size, variantId, color, colorName }, quantity }
               );
               
-              if (!result.ok) {
-                throw new Error(result.error || 'Failed to update quantity');
+				if (!result.ok) {
+				  if (result.status === 404) {
+				    const { cart: currentLocalCart } = get();
+				    const updatedItems = currentLocalCart.items.filter(
+				      item => !cartSelectionMatches(item, productId, size, color, colorName, variantId)
+				    );
+				    set({
+				      cart: { ...currentLocalCart, items: updatedItems, updatedAt: new Date().toISOString() },
+				      isLoading: false,
+				      error: null,
+				    });
+				    get().calculateSummary();
+				    return;
+				  }
+				  throw new Error(result.error || 'Failed to update quantity');
               }
               
               // Task 9.3: Use helper for cart state update
@@ -684,8 +706,21 @@ export const useCartStore = create<CartStore>()(
                 'DELETE'
               );
               
-              if (!result.ok) {
-                throw new Error(result.error || 'Failed to remove item');
+				if (!result.ok) {
+				  if (result.status === 404) {
+				    const { cart: currentLocalCart } = get();
+				    const updatedItems = currentLocalCart.items.filter(
+				      item => !cartSelectionMatches(item, productId, size, color, colorName, variantId)
+				    );
+				    set({
+				      cart: { ...currentLocalCart, items: updatedItems, updatedAt: new Date().toISOString() },
+				      isLoading: false,
+				      error: null,
+				    });
+				    get().calculateSummary();
+				    return;
+				  }
+				  throw new Error(result.error || 'Failed to remove item');
               }
               
               // Task 9.3: Use helper for cart state update

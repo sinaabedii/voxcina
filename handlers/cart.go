@@ -731,7 +731,20 @@ func UpdateCart(w http.ResponseWriter, r *http.Request) {
 	cart, statusCode, err := getActiveCartForUser(ctx, userID)
 	if err != nil {
 		if err == ErrCartNotFound {
-			utils.ErrorResponse(w, statusCode, "Active cart not found for user. Please create a cart first via POST /api/cart.")
+			emptyCart := models.Cart{
+				ID:        primitive.NewObjectID(),
+				UserID:    userID,
+				IsActive:  true,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				Items:     []models.CartItem{},
+			}
+			cartResponse, responseErr := prepareCartResponse(ctx, emptyCart)
+			if responseErr != nil {
+				utils.ErrorResponse(w, http.StatusInternalServerError, "Error preparing empty cart response: "+responseErr.Error())
+				return
+			}
+			utils.JSONResponse(w, http.StatusOK, cartResponse)
 		} else {
 			utils.ErrorResponse(w, statusCode, err.Error())
 		}
@@ -809,7 +822,20 @@ func RemoveFromCart(w http.ResponseWriter, r *http.Request) {
 	cart, statusCode, err := getActiveCartForUser(ctx, userID)
 	if err != nil {
 		if err == ErrCartNotFound {
-			utils.ErrorResponse(w, statusCode, "Active cart not found for user. Please create a cart first via POST /api/cart.")
+			emptyCart := models.Cart{
+				ID:        primitive.NewObjectID(),
+				UserID:    userID,
+				IsActive:  true,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				Items:     []models.CartItem{},
+			}
+			cartResponse, responseErr := prepareCartResponse(ctx, emptyCart)
+			if responseErr != nil {
+				utils.ErrorResponse(w, http.StatusInternalServerError, "Error preparing empty cart response: "+responseErr.Error())
+				return
+			}
+			utils.JSONResponse(w, http.StatusOK, cartResponse)
 		} else {
 			utils.ErrorResponse(w, statusCode, err.Error())
 		}
@@ -834,11 +860,15 @@ func RemoveFromCart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !itemFoundAndRemoved {
-		utils.ErrorResponse(
-			w,
-			http.StatusNotFound,
-			"Item with specified product ID and variant not found in cart",
-		)
+		// DELETE is idempotent: the requested item is already absent from the
+		// server cart, so return the authoritative cart instead of making a
+		// stale client item impossible to remove.
+		cartResponse, responseErr := prepareCartResponse(ctx, *cart)
+		if responseErr != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error preparing cart response: "+responseErr.Error())
+			return
+		}
+		utils.JSONResponse(w, http.StatusOK, cartResponse)
 		return
 	}
 
