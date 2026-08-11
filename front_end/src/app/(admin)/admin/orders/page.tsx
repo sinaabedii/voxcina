@@ -533,7 +533,7 @@ export default function AdminOrdersPage() {
                             لغو سفارش
                           </Button>
                         )}
-                        {order.status === "pending" && (
+                        {order.status === "pending" && order.payment_status === "paid" && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -546,7 +546,7 @@ export default function AdminOrdersPage() {
                             تایید سفارش
                           </Button>
                         )}
-                        {order.status === "processing" && (
+                        {order.status === "processing" && order.payment_status === "paid" && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -557,7 +557,7 @@ export default function AdminOrdersPage() {
                             ارسال سفارش
                           </Button>
                         )}
-                        {order.status === "shipped" && (
+                        {order.status === "shipped" && order.payment_status === "paid" && (
                           <Button
                             variant="outline"
                             size="sm"

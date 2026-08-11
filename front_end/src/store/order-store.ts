@@ -512,7 +512,7 @@ export const useOrderStore = create<OrderState & OrderActions>()(
           });
           if (!response.ok) {
             const errData = await response.json().catch(() => ({ message: "Failed to update order status" }));
-            throw new Error(errData.message || "Failed to update order status");
+            throw new Error(errData.error || errData.message || "Failed to update order status");
           }
           const updated = await response.json();
           const transformedOrder = transformBackendOrder(updated);

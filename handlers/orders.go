@@ -1354,6 +1354,10 @@ func getStatusText(status string) string {
 	}
 }
 
+func orderStatusRequiresPayment(status string) bool {
+	return status == "processing" || status == "shipped" || status == "delivered"
+}
+
 // UpdateOrderStatusAdmin handles PUT /api/admin/orders/{orderId} to update order status (Admin only)
 func UpdateOrderStatusAdmin(w http.ResponseWriter, r *http.Request) {
 	// Get admin info from context
@@ -1434,6 +1438,10 @@ func UpdateOrderStatusAdmin(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	if orderStatusRequiresPayment(payload.Status) && currentOrder.PaymentStatus != "paid" {
+		utils.ErrorResponse(w, http.StatusConflict, "پرداخت سفارش هنوز تایید نشده است")
+		return
+	}
 	if payload.Status == "cancelled" && currentOrder.GatewayName == "snappay" && currentOrder.PaymentStatus == "paid" {
 		utils.ErrorResponse(w, http.StatusConflict, "برای لغو سفارش اسنپ‌پی از عملیات لغو تراکنش با تاییدیه استفاده کنید")
 		return
@@ -1475,7 +1483,11 @@ func UpdateOrderStatusAdmin(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	result, err := ordersCollection.UpdateOne(ctx, bson.M{"_id": orderID}, update)
+	updateFilter := bson.M{"_id": orderID}
+	if orderStatusRequiresPayment(payload.Status) {
+		updateFilter["payment_status"] = "paid"
+	}
+	result, err := ordersCollection.UpdateOne(ctx, updateFilter, update)
 	if err != nil {
 		utils.ErrorResponse(
 			w,
@@ -1485,6 +1497,10 @@ func UpdateOrderStatusAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if result.MatchedCount == 0 {
+		if orderStatusRequiresPayment(payload.Status) {
+			utils.ErrorResponse(w, http.StatusConflict, "پرداخت سفارش هنوز تایید نشده است")
+			return
+		}
 		utils.ErrorResponse(w, http.StatusNotFound, "Order not found")
 		return
 	}

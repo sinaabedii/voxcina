@@ -792,7 +792,7 @@ export default function AdminOrderDetailsPage() {
             <CardContent className="p-4 space-y-3">
               {!showStatusConfirm ? (
                 <div className="grid grid-cols-2 gap-2">
-                  {order.status === "pending" && (
+                  {order.status === "pending" && order.payment_status === "paid" && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -806,7 +806,7 @@ export default function AdminOrderDetailsPage() {
                       تایید
                     </Button>
                   )}
-                  {order.status === "processing" && (
+                  {order.status === "processing" && order.payment_status === "paid" && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -820,7 +820,7 @@ export default function AdminOrderDetailsPage() {
                       ارسال
                     </Button>
                   )}
-                  {order.status === "shipped" && (
+                  {order.status === "shipped" && order.payment_status === "paid" && (
                     <Button
                       variant="outline"
                       size="sm"
