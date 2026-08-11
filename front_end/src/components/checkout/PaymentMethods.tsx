@@ -155,9 +155,9 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
                                   <Image
                                     src={gateway.logo}
                                     alt={gateway.name}
-                                    width={80}
-                                    height={28}
-                                    className="max-h-6 object-contain"
+                                    width={40}
+                                    height={40}
+                                    className="h-8 w-8 object-contain sm:h-10 sm:w-10"
                                   />
                                 )}
                               </div>
@@ -176,7 +176,7 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
                                     <span className="block text-sm font-medium text-[#161616] dark:text-voxcina-cream">
                                       {gateway.name}
                                     </span>
-                                    {isSelected && gateway.features.length === 0 && gateway.description && (
+                                    {gateway.description && (
                                       <span className="block text-xs text-[#616475] dark:text-voxcina-cream/70">
                                         {gateway.description}
                                       </span>

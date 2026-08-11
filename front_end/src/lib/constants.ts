@@ -196,7 +196,7 @@ export const PAYMENT_GATEWAYS: Array<{
     name: "زیبال",
     logo: "/images/payment/zibal.svg",
     enabled: true,
-    description: "پرداخت با کارت‌های بانکی از طریق درگاه امن زیبال",
+    description: "پرداخت آنلاین با کارت بانکی",
     features: [],
   },
   {
@@ -204,7 +204,7 @@ export const PAYMENT_GATEWAYS: Array<{
     name: "دیجی‌پی",
     logo: "/images/payment/digipay.svg",
     enabled: true,
-    description: "پرداخت با کارت، کیف پول یا اعتبار خرید (اقساطی)",
+    description: "اعتبار خرید، کیف پول یا ۴ قسط",
     features: ["credit", "wallet", "installments"],
   },
   {
