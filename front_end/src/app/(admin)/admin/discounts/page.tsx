@@ -25,6 +25,11 @@ import { Badge } from "@/components/ui/badge";
 import UserTargetingPanel from "@/components/admin/UserTargetingPanel";
 import TargetingStatsPreview from "@/components/admin/TargetingStatsPreview";
 import UserSelectionModal from "@/components/admin/UserSelectionModal";
+import JalaliDatePicker, {
+  getYesterdayJalaliString,
+  gregorianToJalaliString,
+  jalaliToGregorianISOString,
+} from "@/components/auth/JalaliDatePicker";
 import { TargetingCriteria, UserTargetingStats } from "@/types/discount";
 import { User } from "@/types/user";
 import { useAuthStore } from "@/store/auth-store";
@@ -46,6 +51,12 @@ interface DiscountData {
   isPublic: boolean;
   assignedUsers: string[];
   targetingCriteria?: TargetingCriteria;
+}
+
+function getDatePickerValue(value?: string): string {
+  if (!value) return "";
+  if (/^(13|14)\d{2}-\d{2}-\d{2}$/.test(value)) return value;
+  return gregorianToJalaliString(value);
 }
 
 export default function AdminDiscountsPage() {
@@ -88,7 +99,7 @@ export default function AdminDiscountsPage() {
     minOrder: "",
     maxUses: "",
     usedCount: 0,
-    startDate: "",
+    startDate: getYesterdayJalaliString(),
     endDate: "",
     isActive: true,
     forProducts: [],
@@ -119,8 +130,8 @@ export default function AdminDiscountsPage() {
           minOrder: d.min_order_amount || 0,
           maxUses: d.max_uses || 0,
           usedCount: d.used_count || 0,
-          startDate: d.valid_from || "",
-          endDate: d.valid_to || "",
+          startDate: getDatePickerValue(d.valid_from),
+          endDate: getDatePickerValue(d.valid_to),
           isActive: d.valid_from && d.valid_to ? new Date() >= new Date(d.valid_from) && new Date() <= new Date(d.valid_to) : false,
           forProducts: d.applicable_to?.product_ids || [],
           forCategories: d.applicable_to?.category_ids || [],
@@ -212,7 +223,7 @@ export default function AdminDiscountsPage() {
     setIsLoadingUsers(true);
     try {
       const token = adminToken || localStorageManager.getAccessToken();
-      const response = await fetch("/api/admin/users", {
+      const response = await fetch("/api/admin/users?limit=10000", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -286,8 +297,8 @@ export default function AdminDiscountsPage() {
         value: parseFloat(newDiscount.value) || 0,
         min_order_amount: parseFloat(newDiscount.minOrder) || 0,
         max_uses: parseInt(newDiscount.maxUses) || 0,
-        valid_from: newDiscount.startDate ? new Date(newDiscount.startDate).toISOString() : "",
-        valid_to: newDiscount.endDate ? new Date(newDiscount.endDate).toISOString() : "",
+        valid_from: jalaliToGregorianISOString(newDiscount.startDate || getYesterdayJalaliString()),
+        valid_to: jalaliToGregorianISOString(newDiscount.endDate),
         is_public: newDiscount.isPublic,
         assigned_users: newDiscount.assignedUsers,
         targeting_criteria: Object.keys(newDiscount.targetingCriteria).length > 0 ? newDiscount.targetingCriteria : undefined,
@@ -298,7 +309,7 @@ export default function AdminDiscountsPage() {
         body: JSON.stringify(body),
       });
       if (response.ok) {
-        setNewDiscount({ code: "", type: "percentage", value: "", minOrder: "", maxUses: "", usedCount: 0, startDate: "", endDate: "", isActive: true, forProducts: [], forCategories: [], isPublic: true, assignedUsers: [], targetingCriteria: {} });
+        setNewDiscount({ code: "", type: "percentage", value: "", minOrder: "", maxUses: "", usedCount: 0, startDate: getYesterdayJalaliString(), endDate: "", isActive: true, forProducts: [], forCategories: [], isPublic: true, assignedUsers: [], targetingCriteria: {} });
         setIsAddModalOpen(false);
         fetchDiscounts();
       } else {
@@ -325,8 +336,8 @@ export default function AdminDiscountsPage() {
         is_public: editingDiscount.isPublic,
         assigned_users: editingDiscount.assignedUsers,
       };
-      if (editingDiscount.startDate) body.valid_from = new Date(editingDiscount.startDate).toISOString();
-      if (editingDiscount.endDate) body.valid_to = new Date(editingDiscount.endDate).toISOString();
+      if (editingDiscount.startDate) body.valid_from = jalaliToGregorianISOString(editingDiscount.startDate);
+      if (editingDiscount.endDate) body.valid_to = jalaliToGregorianISOString(editingDiscount.endDate);
       if (editingDiscount.targetingCriteria) body.targeting_criteria = editingDiscount.targetingCriteria;
 
       const response = await fetch(`/api/admin/discounts/${editingDiscount.id}`, {
@@ -789,28 +800,24 @@ export default function AdminDiscountsPage() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                    تاریخ شروع
-                  </label>
-                  <input
-                    type="text"
-                    className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
-                    value={newDiscount.startDate}
-                    onChange={(e) => setNewDiscount({ ...newDiscount, startDate: e.target.value })}
-                    placeholder="1402/01/01"
-                  />
+                   <JalaliDatePicker
+                     value={newDiscount.startDate}
+                     onChange={(value) => setNewDiscount({ ...newDiscount, startDate: value })}
+                     label="تاریخ شروع"
+                     id="new-discount-start-date"
+                     helperText="در صورت خالی بودن، تاریخ دیروز ثبت می‌شود"
+                     allowFutureDates
+                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                    تاریخ پایان
-                  </label>
-                  <input
-                    type="text"
-                    className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
-                    value={newDiscount.endDate}
-                    onChange={(e) => setNewDiscount({ ...newDiscount, endDate: e.target.value })}
-                    placeholder="1402/12/29"
-                  />
+                   <JalaliDatePicker
+                     value={newDiscount.endDate}
+                     onChange={(value) => setNewDiscount({ ...newDiscount, endDate: value })}
+                     label="تاریخ پایان"
+                     id="new-discount-end-date"
+                     allowFutureDates
+                     required
+                   />
                 </div>
               </div>
               
@@ -924,7 +931,7 @@ export default function AdminDiscountsPage() {
                 size="sm"
                 className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-sm hover:shadow-md transition-all duration-300"
                 onClick={handleAddDiscount}
-                disabled={!newDiscount.code || !newDiscount.value || !newDiscount.startDate || !newDiscount.endDate}
+                 disabled={!newDiscount.code || !newDiscount.value || !newDiscount.endDate}
               >
                 افزودن کد تخفیف
               </Button>
@@ -1025,28 +1032,24 @@ export default function AdminDiscountsPage() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                    تاریخ شروع
-                  </label>
-                  <input
-                    type="text"
-                    className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
-                    value={editingDiscount.startDate}
-                    onChange={(e) => setEditingDiscount({ ...editingDiscount, startDate: e.target.value })}
-                    placeholder="1402/01/01"
-                  />
+                   <JalaliDatePicker
+                     value={editingDiscount.startDate}
+                     onChange={(value) => setEditingDiscount({ ...editingDiscount, startDate: value })}
+                     label="تاریخ شروع"
+                     id="edit-discount-start-date"
+                     helperText="در صورت خالی بودن، تاریخ قبلی حفظ می‌شود"
+                     allowFutureDates
+                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                    تاریخ پایان
-                  </label>
-                  <input
-                    type="text"
-                    className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
-                    value={editingDiscount.endDate}
-                    onChange={(e) => setEditingDiscount({ ...editingDiscount, endDate: e.target.value })}
-                    placeholder="1402/12/29"
-                  />
+                   <JalaliDatePicker
+                     value={editingDiscount.endDate}
+                     onChange={(value) => setEditingDiscount({ ...editingDiscount, endDate: value })}
+                     label="تاریخ پایان"
+                     id="edit-discount-end-date"
+                     allowFutureDates
+                     required
+                   />
                 </div>
               </div>
               

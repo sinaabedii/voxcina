@@ -11,6 +11,8 @@ interface JalaliDatePickerProps {
   id?: string;
   disabled?: boolean;
   helperText?: string;
+  allowFutureDates?: boolean;
+  required?: boolean;
 }
 
 const PERSIAN_MONTHS = [
@@ -114,6 +116,27 @@ function jalaliToGregorian(jy: number, jm: number, jd: number): [number, number,
   return [gy, gm, gd];
 }
 
+export function jalaliToGregorianISOString(value?: string): string {
+  if (!value) return "";
+  const parts = value.split("-").map(Number);
+  if (parts.length !== 3 || parts.some((part) => !Number.isInteger(part) || part <= 0)) return "";
+
+  const [year, month, day] = parts;
+  const [gregorianYear, gregorianMonth, gregorianDay] = jalaliToGregorian(year, month, day);
+  return new Date(Date.UTC(gregorianYear, gregorianMonth - 1, gregorianDay)).toISOString();
+}
+
+export function getYesterdayJalaliString(): string {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const [year, month, day] = gregorianToJalali(
+    yesterday.getFullYear(),
+    yesterday.getMonth() + 1,
+    yesterday.getDate(),
+  );
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 // Column index (0 = Saturday .. 6 = Friday) of the 1st day of a Jalali month.
 function firstWeekdayOffset(jy: number, jm: number): number {
   const [gy, gm, gd] = jalaliToGregorian(jy, jm, 1);
@@ -140,6 +163,8 @@ export default function JalaliDatePicker({
   id = "birthday",
   disabled = false,
   helperText,
+  allowFutureDates = false,
+  required = false,
 }: JalaliDatePickerProps) {
   const parsed = useMemo(() => {
     if (!value) return { year: 0, month: 0, day: 0 };
@@ -185,7 +210,9 @@ export default function JalaliDatePicker({
     }
   }, [isOpen, view]);
 
-  const isAtMaxMonth = viewYear === MAX_YEAR && viewMonth === TODAY.month;
+  const maxYear = allowFutureDates ? TODAY.year + 10 : MAX_YEAR;
+  const maxMonth = allowFutureDates ? 12 : TODAY.month;
+  const isAtMaxMonth = viewYear === maxYear && viewMonth === maxMonth;
   const isAtMinMonth = viewYear === MIN_YEAR && viewMonth === 1;
 
   const goPrevMonth = () => {
@@ -199,7 +226,7 @@ export default function JalaliDatePicker({
   };
 
   const goNextMonth = () => {
-    if (viewYear > MAX_YEAR || isAtMaxMonth) return;
+    if (viewYear > maxYear || isAtMaxMonth) return;
     if (viewMonth === 12) {
       setViewMonth(1);
       setViewYear((y) => y + 1);
@@ -215,9 +242,9 @@ export default function JalaliDatePicker({
   const trailingBlanks = useMemo(() => 42 - leadingBlanks - daysInMonth, [leadingBlanks, daysInMonth]);
   const years = useMemo(() => {
     const arr: number[] = [];
-    for (let y = MAX_YEAR; y >= MIN_YEAR; y--) arr.push(y);
+    for (let y = maxYear; y >= MIN_YEAR; y--) arr.push(y);
     return arr;
-  }, []);
+  }, [maxYear]);
 
   const selectDay = (d: number) => {
     setDraft({ year: viewYear, month: viewMonth, day: d });
@@ -230,7 +257,7 @@ export default function JalaliDatePicker({
 
   const selectYear = (y: number) => {
     setViewYear(y);
-    if (y === MAX_YEAR && viewMonth > TODAY.month) setViewMonth(TODAY.month);
+    if (!allowFutureDates && y === maxYear && viewMonth > TODAY.month) setViewMonth(TODAY.month);
     setView("months");
   };
 
@@ -257,7 +284,9 @@ export default function JalaliDatePicker({
     <div>
       <label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
         {label}
-        <span className="text-xs text-gray-400 dark:text-gray-500 font-normal mr-1">(اختیاری)</span>
+        {!required && (
+          <span className="text-xs text-gray-400 dark:text-gray-500 font-normal mr-1">(اختیاری)</span>
+        )}
       </label>
 
       <button
@@ -272,7 +301,7 @@ export default function JalaliDatePicker({
         }`}
       >
         <span className={displayText ? "text-gray-800 dark:text-gray-100" : "text-muted-foreground"}>
-          {displayText || "انتخاب تاریخ تولد"}
+          {displayText || `انتخاب ${label}`}
         </span>
         <CalendarDays className="w-4 h-4 shrink-0 text-voxcina-blue dark:text-voxcina-cream" />
       </button>
@@ -292,7 +321,7 @@ export default function JalaliDatePicker({
           >
             <div className="flex items-center justify-between mb-4">
               <div className="text-sm font-semibold text-voxcina-blue dark:text-voxcina-cream">
-                تاریخ تولد
+                {label}
               </div>
               <button
                 type="button"
@@ -350,8 +379,8 @@ export default function JalaliDatePicker({
 
               <button
                 type="button"
-                onClick={view === "days" ? goNextMonth : () => setViewYear((y) => Math.min(MAX_YEAR, y + (view === "months" ? 1 : 12)))}
-                disabled={view === "days" ? viewYear >= MAX_YEAR && isAtMaxMonth : viewYear >= MAX_YEAR}
+                onClick={view === "days" ? goNextMonth : () => setViewYear((y) => Math.min(maxYear, y + (view === "months" ? 1 : 12)))}
+                disabled={view === "days" ? viewYear >= maxYear && isAtMaxMonth : viewYear >= maxYear}
                 className="w-9 h-9 flex items-center justify-center rounded-full text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-blue/10 disabled:opacity-30 disabled:pointer-events-none transition-colors"
                 aria-label="بعدی"
               >
@@ -374,7 +403,7 @@ export default function JalaliDatePicker({
                       <div key={`b${i}`} />
                     ))}
                     {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => {
-                      const isFuture = viewYear === MAX_YEAR && viewMonth === TODAY.month && d > TODAY.day;
+                      const isFuture = !allowFutureDates && viewYear === TODAY.year && viewMonth === TODAY.month && d > TODAY.day;
                       const isSelected = draft.year === viewYear && draft.month === viewMonth && draft.day === d;
                       const isToday = viewYear === TODAY.year && viewMonth === TODAY.month && d === TODAY.day;
                       return (
@@ -411,7 +440,7 @@ export default function JalaliDatePicker({
                 <div className="h-full grid grid-cols-3 content-center gap-2">
                   {PERSIAN_MONTHS.map((name, i) => {
                     const m = i + 1;
-                    const isFuture = viewYear === MAX_YEAR && m > TODAY.month;
+                    const isFuture = !allowFutureDates && viewYear === TODAY.year && m > TODAY.month;
                     const isSelected = draft.year === viewYear && draft.month === m;
                     return (
                       <button
