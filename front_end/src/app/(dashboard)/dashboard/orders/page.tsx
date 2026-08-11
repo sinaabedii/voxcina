@@ -15,6 +15,7 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
+  CheckCircle,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Link from "next/link";
