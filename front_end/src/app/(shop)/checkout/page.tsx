@@ -76,7 +76,7 @@ export default function CheckoutPage() {
     title_message: string;
     description: string;
   } | null>(null);
-  const [snappPayEligibilityLoading, setSnappPayEligibilityLoading] = useState(true);
+  const [snappPayEligibilityLoading, setSnappPayEligibilityLoading] = useState(false);
   const [selectedShippingMethod, setSelectedShippingMethod] = useState<ShippingMethod | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -195,7 +195,7 @@ export default function CheckoutPage() {
       })
       .then((eligibility) => {
         if (cancelled) return;
-        setSnappPayEligibility(eligibility ?? null);
+        setSnappPayEligibility(eligibility?.eligible ? eligibility : null);
         if (!eligibility?.eligible) {
           setSelectedGateway((currentGateway) => currentGateway === "snappay" ? "zibal" : currentGateway);
         }
