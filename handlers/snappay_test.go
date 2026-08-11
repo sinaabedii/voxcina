@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -43,5 +44,25 @@ func TestReducedOrderItemsIncludesRemovedRowsAndQuantityDifferences(t *testing.T
 	}
 	if removed[1].ProductID != productB || removed[1].Quantity != 1 {
 		t.Fatalf("fully removed row was not calculated correctly: %+v", removed[1])
+	}
+}
+
+func TestBuildSnappPayCartAllowsMerchantDiscountCode(t *testing.T) {
+	order := models.Order{
+		ID:             primitive.NewObjectID(),
+		OrderNumber:    "DGS-TEST",
+		Items:          []models.OrderItem{{ProductID: primitive.NewObjectID(), ProductName: "shirt", Quantity: 1, PriceAtPurchase: 100}},
+		ShippingCost:   10,
+		DiscountAmount: 20,
+		DiscountCode:   "SITE-20",
+		TotalAmount:    90,
+	}
+
+	_, amount, err := buildSnappPayCart(context.Background(), order)
+	if err != nil {
+		t.Fatalf("merchant discount code should not prevent SnappPay cart creation: %v", err)
+	}
+	if amount != 900 {
+		t.Fatalf("got SnappPay amount %d, want 900", amount)
 	}
 }

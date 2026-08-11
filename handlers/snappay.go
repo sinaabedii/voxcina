@@ -951,8 +951,10 @@ func reducedOrderItems(oldItems, newItems []models.OrderItem) []models.OrderItem
 }
 
 // AdminUpdateSnappPay updates a settled order after an item quantity/removal
-// decision. It deliberately requires confirmation because the provider
-// operation is irreversible and can be repeated on the same order.
+// decision. Merchant discount codes are part of the original order amount and
+// are sent as discountAmount; only the provider's payment token is updated.
+// The operation deliberately requires confirmation because it is irreversible
+// and can be repeated on the same order.
 func AdminUpdateSnappPay(w http.ResponseWriter, r *http.Request) {
 	var payload snappPayUpdatePayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil || !payload.Confirm {
@@ -981,10 +983,6 @@ func AdminUpdateSnappPay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer releaseSnappPayOperation(orderID)
-	if order.DiscountCode != "" {
-		utils.ErrorResponse(w, http.StatusConflict, "سفارش دارای کد تخفیف اسنپ‌پی قابل بروزرسانی نیست و باید لغو شود")
-		return
-	}
 	attempt, err := findLatestSnappPayAttempt(ctx, orderID)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusConflict, "تلاش پرداخت اسنپ‌پی یافت نشد")
