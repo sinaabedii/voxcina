@@ -76,7 +76,7 @@ export default function CheckoutPage() {
     title_message: string;
     description: string;
   } | null>(null);
-  const [snappPayEligibilityLoading, setSnappPayEligibilityLoading] = useState(false);
+  const [snappPayEligibilityLoading, setSnappPayEligibilityLoading] = useState(true);
   const [selectedShippingMethod, setSelectedShippingMethod] = useState<ShippingMethod | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -177,13 +177,16 @@ export default function CheckoutPage() {
     if (!token || checkoutTotal <= 0) {
       setSnappPayEligibility(null);
       setSnappPayEligibilityLoading(false);
+      setSelectedGateway((currentGateway) => currentGateway === "snappay" ? "zibal" : currentGateway);
       return () => {
         cancelled = true;
       };
     }
 
+    setSelectedGateway((currentGateway) => currentGateway === "snappay" ? "zibal" : currentGateway);
     setSnappPayEligibilityLoading(true);
     fetch(`/api/payment/snappay/eligibility?amount=${Math.round(checkoutTotal * 10)}`, {
+      cache: "no-store",
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(async (response) => {
@@ -192,7 +195,7 @@ export default function CheckoutPage() {
       })
       .then((eligibility) => {
         if (cancelled) return;
-        setSnappPayEligibility(eligibility?.eligible ? eligibility : null);
+        setSnappPayEligibility(eligibility ?? null);
         if (!eligibility?.eligible) {
           setSelectedGateway((currentGateway) => currentGateway === "snappay" ? "zibal" : currentGateway);
         }
@@ -423,6 +426,11 @@ export default function CheckoutPage() {
   ───────────────────────────────────────────── */
   const handlePlaceOrder = async () => {
     if (paymentRequestInFlight.current) return;
+
+    if (selectedPaymentMethod === "online" && selectedGateway === "snappay" && snappPayEligibility?.eligible !== true) {
+      toast.error("این درگاه فعلا فعال نیست چند دقیقه بعد امتحان کنید یا تیکت بگذارید");
+      return;
+    }
 
     if (!selectedAddress) {
       toast.error("لطفا یک آدرس انتخاب کنید");

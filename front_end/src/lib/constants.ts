@@ -213,8 +213,8 @@ export const PAYMENT_GATEWAYS: Array<{
     logo: "/images/payment/snappay-official-desktop.svg",
     mobileLogo: "/images/payment/snappay-official-mobile.svg",
     enabled: true,
-    description: "پرداخت اعتباری و اقساطی اسنپ‌پی",
-    features: [],
+    description: "پرداخت در ۴ قسط بدون کارمزد با اسنپ‌پی",
+    features: ["installments"],
   },
   {
     id: "zarinpal",

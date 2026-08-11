@@ -1,5 +1,5 @@
 import React from "react";
-import { CreditCard, Wallet, Truck, Shield, ExternalLink, Check, Calendar, Coins } from "lucide-react";
+import { CreditCard, Wallet, Truck, Shield, ExternalLink, Check, Calendar, Coins, Info } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { PAYMENT_METHODS, PAYMENT_GATEWAYS } from "@/lib/constants";
 import { motion, AnimatePresence } from "framer-motion";
@@ -45,9 +45,7 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
     }
   };
 
-  const enabledGateways = PAYMENT_GATEWAYS.filter(
-    (g) => g.enabled && (g.id !== "snappay" || (!snappPayEligibilityLoading && snappPayEligibility?.eligible))
-  );
+  const enabledGateways = PAYMENT_GATEWAYS.filter((g) => g.enabled);
 
   return (
     <Card className="border border-voxcina-cream/30 dark:border-voxcina-blue/30 bg-white/90 dark:bg-voxcina-blue/10 shadow-sm rounded-2xl backdrop-blur-sm animate-fadeIn">
@@ -106,95 +104,65 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
                       {enabledGateways.map((gateway) => {
                         const isSelected = selectedGateway === gateway.id;
                         const isSnappPay = gateway.id === "snappay";
+                        const isSnappPayAvailable = !snappPayEligibilityLoading && snappPayEligibility?.eligible === true;
+                        const isDisabled = isSnappPay && !isSnappPayAvailable;
                         return (
                           <div key={gateway.id}>
                             <div
                               onClick={(e) => {
                                 e.stopPropagation();
+                                if (isDisabled) return;
                                 onSelectGateway?.(gateway.id);
                               }}
-                              className={`flex items-center rounded-xl border cursor-pointer transition-all duration-200 ${
-                                isSnappPay ? "gap-3 px-3 py-3 sm:gap-4 sm:px-4 sm:py-2.5" : "gap-3 px-4 py-3"
-                              } ${
-                                isSelected
-                                  ? "border-voxcina-blue bg-voxcina-blue/5 dark:border-voxcina-cream dark:bg-voxcina-cream/5 shadow-soft"
-                                  : "border-voxcina-cream/30 dark:border-voxcina-blue/30 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/30"
+                              aria-disabled={isDisabled}
+                              className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition-all duration-200 ${
+                                isDisabled
+                                  ? "cursor-not-allowed border-slate-200 bg-slate-50/80 opacity-60 dark:border-slate-700 dark:bg-slate-900/30"
+                                  : isSelected
+                                    ? "cursor-pointer border-voxcina-blue bg-voxcina-blue/5 shadow-soft dark:border-voxcina-cream dark:bg-voxcina-cream/5"
+                                    : "cursor-pointer border-voxcina-cream/30 hover:border-voxcina-blue/50 dark:border-voxcina-blue/30 dark:hover:border-voxcina-cream/30"
                               }`}
                             >
-                              {isSnappPay && (
-                                <span
-                                  aria-hidden="true"
-                                  className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 ${
-                                    isSelected ? "border-[#008EFA]" : "border-[#616475]"
-                                  }`}
-                                >
-                                  {isSelected && <span className="h-2.5 w-2.5 rounded-full bg-[#008EFA]" />}
-                                </span>
-                              )}
-                              <div className={isSnappPay ? "flex h-8 w-8 flex-shrink-0 items-center justify-center sm:h-10 sm:w-10" : "relative flex h-8 w-12 flex-shrink-0 items-center justify-center rounded-md bg-white p-1 dark:bg-voxcina-darkBlue/40"}>
-                                {isSnappPay ? (
-                                  <>
-                                    <Image
-                                      src={gateway.logo}
-                                      alt={gateway.name}
-                                      width={40}
-                                      height={40}
-                                      className="hidden h-10 w-10 object-contain sm:block"
-                                    />
-                                    <Image
-                                      src={gateway.mobileLogo || gateway.logo}
-                                      alt=""
-                                      width={32}
-                                      height={32}
-                                      className="h-8 w-8 object-contain sm:hidden"
-                                    />
-                                  </>
-                                ) : (
-                                  <Image
-                                    src={gateway.logo}
-                                    alt={gateway.name}
-                                    width={80}
-                                    height={28}
-                                    className="max-h-6 object-contain"
-                                  />
-                                )}
+                              <span
+                                aria-hidden="true"
+                                className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 ${
+                                  isSelected ? "border-voxcina-blue" : "border-slate-400 dark:border-slate-500"
+                                }`}
+                              >
+                                {isSelected && <span className="h-2.5 w-2.5 rounded-full bg-voxcina-blue" />}
+                              </span>
+                              <div className="relative flex h-10 w-14 flex-shrink-0 items-center justify-center rounded-md bg-white p-1 dark:bg-voxcina-darkBlue/40">
+                                <Image
+                                  src={gateway.mobileLogo || gateway.logo}
+                                  alt={gateway.name}
+                                  width={80}
+                                  height={40}
+                                  className="max-h-8 object-contain"
+                                />
                               </div>
                               <div className="flex-1 min-w-0">
-                                {isSnappPay ? (
-                                  <div className="text-right leading-5">
-                                    <span className="block text-sm font-medium text-[#161616] dark:text-voxcina-cream">
-                                      {snappPayEligibility?.title_message || "پرداخت اقساطی اسنپ‌پی"}
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">
+                                    {gateway.name}
+                                  </span>
+                                  {gateway.features.length > 0 && (
+                                    <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                      چند روش پرداخت
                                     </span>
-                                    <span className="block text-xs text-[#616475] dark:text-voxcina-cream/70">
-                                      {snappPayEligibility?.description || "۴ قسط بدون کارمزد"}
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">
-                                        {gateway.name}
-                                      </span>
-                                      {gateway.features.length > 0 && (
-                                        <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                          چند روش پرداخت
-                                        </span>
-                                      )}
-                                    </div>
-                                  </>
-                                )}
-                                {gateway.description && !isSnappPay && (
-                                  <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 mt-0.5">
-                                    {gateway.description}
+                                  )}
+                                </div>
+                                {isDisabled && (
+                                  <p className="mt-1 text-xs leading-5 text-rose-600 dark:text-rose-400">
+                                    {snappPayEligibilityLoading ? "در حال بررسی وضعیت اسنپ‌پی..." : "این درگاه فعلا فعال نیست چند دقیقه بعد امتحان کنید یا تیکت بگذارید"}
                                   </p>
-                                 )}
+                                )}
                               </div>
-                              {isSelected && !isSnappPay && (
+                              {isSelected && !isDisabled && (
                                 <Check className="w-4 h-4 text-voxcina-blue dark:text-voxcina-cream flex-shrink-0" />
                               )}
                             </div>
 
-                            {gateway.features.length > 0 && isSelected && (
+                            {!isDisabled && isSelected && (
                               <motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: "auto" }}
@@ -218,7 +186,17 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
                                   })}
                                 </div>
 
-                                {gateway.features.includes("credit") && (
+                                {isSnappPay ? (
+                                  <div className="p-3 rounded-lg bg-gradient-to-l from-sky-50 to-blue-50 dark:from-sky-900/10 dark:to-blue-900/10 border border-sky-200/50 dark:border-sky-700/30">
+                                    <div className="flex items-start gap-2">
+                                      <Calendar className="w-4 h-4 text-sky-600 dark:text-sky-400 mt-0.5 flex-shrink-0" />
+                                      <div className="text-xs text-sky-800 dark:text-sky-300 leading-5">
+                                        <span className="font-bold">{snappPayEligibility?.title_message || "پرداخت اقساطی با اسنپ‌پی"}</span>
+                                        <span className="block mt-1">{snappPayEligibility?.description || gateway.description}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : gateway.features.includes("credit") ? (
                                   <div className="p-3 rounded-lg bg-gradient-to-l from-emerald-50 to-teal-50 dark:from-emerald-900/10 dark:to-teal-900/10 border border-emerald-200/50 dark:border-emerald-700/30">
                                     <div className="flex items-start gap-2">
                                       <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mt-0.5 flex-shrink-0" />
@@ -232,6 +210,11 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
                                         </span>
                                       </div>
                                     </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-start gap-2 rounded-lg border border-voxcina-blue/10 bg-voxcina-blue/5 p-3 dark:border-voxcina-cream/10 dark:bg-voxcina-cream/5">
+                                    <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-voxcina-blue dark:text-voxcina-cream" />
+                                    <p className="text-xs leading-5 text-voxcina-blue/70 dark:text-voxcina-cream/70">{gateway.description}</p>
                                   </div>
                                 )}
                               </motion.div>
