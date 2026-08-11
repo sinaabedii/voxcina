@@ -455,9 +455,11 @@ export default function CheckoutPage() {
       const orderItems = cart.items.map((item) => ({
         product_id: item.productId,
         variant: {
+          variantId: item.variantId || undefined,
           color: item.color || "",
           colorName: item.colorName || "",
           size: item.size || "",
+          sku: item.sku || undefined,
         },
         quantity: item.quantity,
         price_at_purchase: item.price,

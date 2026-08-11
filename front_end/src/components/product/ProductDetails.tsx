@@ -48,6 +48,10 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
   }, [searchParams, product.colorVariants]);
 
   const selectedColorVariant = product.colorVariants?.[selectedColorIndex];
+  const selectedVariantHasConcreteColor = Boolean(
+    selectedColorVariant?.variantId &&
+    (selectedColorVariant.color?.trim() || selectedColorVariant.colorName?.trim())
+  );
 
   // Build combined image gallery: mainImages + selected color's images
   const displayImages = (() => {
@@ -101,8 +105,8 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
       alert("لطفاً سایز را انتخاب کنید");
       return;
     }
-    if (!selectedColorVariant) {
-      alert("لطفاً رنگ را انتخاب کنید");
+    if (!selectedColorVariant || !selectedVariantHasConcreteColor) {
+      alert("این محصول رنگ مشخصی ندارد و قابل افزودن به سبد نیست");
       return;
     }
     if (selectedSizeQuantity === 0) {
@@ -239,7 +243,11 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
               <div className="flex flex-wrap gap-2">
                 {product.colorVariants.map((colorVariant, idx) => {
                   // Check if this color has any inventory
-                  const hasStock = colorVariant.sizes.some(s => s.quantity > 0);
+                  const hasConcreteColor = Boolean(
+                    colorVariant.variantId &&
+                    (colorVariant.color?.trim() || colorVariant.colorName?.trim())
+                  );
+                  const hasStock = hasConcreteColor && colorVariant.sizes.some(s => s.quantity > 0);
 
                   return (
 	                    <motion.button
@@ -331,7 +339,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
               variant="primary"
               fullWidth
               onClick={handleAddToCart}
-              disabled={!selectedSize || selectedSizeQuantity === 0}
+              disabled={!selectedSize || selectedSizeQuantity === 0 || !selectedVariantHasConcreteColor}
             >
               افزودن به سبد خرید
             </Button>

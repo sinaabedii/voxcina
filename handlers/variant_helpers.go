@@ -55,6 +55,21 @@ func cleanVariantValue(value string) string {
 	return strings.TrimSpace(value)
 }
 
+func hasConcreteColor(color, colorName string) bool {
+	return cleanVariantValue(color) != "" || cleanVariantValue(colorName) != ""
+}
+
+func isConcreteCartVariant(variant models.CartVariant) bool {
+	return cleanVariantValue(variant.VariantID) != "" &&
+		cleanVariantValue(variant.Size) != "" &&
+		hasConcreteColor(variant.Color, variant.ColorName)
+}
+
+func isConcreteOrderVariant(variant models.OrderVariant) bool {
+	return cleanVariantValue(variant.Size) != "" &&
+		hasConcreteColor(variant.Color, variant.ColorName)
+}
+
 func variantLookupValues(color, colorName string) []string {
 	values := []string{}
 	seen := map[string]bool{}
@@ -72,7 +87,9 @@ func variantLookupValues(color, colorName string) []string {
 func colorVariantMatches(cv models.ColorVariant, color, colorName string) bool {
 	values := variantLookupValues(color, colorName)
 	if len(values) == 0 {
-		return false
+		// Products without color choices use an intentionally empty color
+		// variant. Match it only when the request also has no color value.
+		return cleanVariantValue(cv.Color) == "" && cleanVariantValue(cv.ColorName) == ""
 	}
 
 	for _, value := range values {

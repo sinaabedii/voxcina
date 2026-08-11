@@ -5,6 +5,7 @@ import { Product } from "@/types/product";
 import { generateId, formatPrice } from "@/lib/utils";
 import { useAuthStore, type AuthStore } from "./auth-store";
 import { findColorVariant, getCanonicalColor } from "@/lib/product-variants";
+import { toast } from "react-toastify";
 
 // ============================================================================
 // HELPER FUNCTIONS (Refactoring: DRY principle - Task 9)
@@ -208,16 +209,6 @@ const transformBackendCartItemProduct = (backendProduct: any): Product => {
   
   // Handle colorVariants - new structure
   let colorVariants = backendProduct.colorVariants || backendProduct.color_variants || [];
-  
-  // If no colorVariants but has legacy image field, create a default colorVariant
-  if (colorVariants.length === 0 && backendProduct.image) {
-    colorVariants = [{
-      color: '#000000',
-      colorName: 'پیش‌فرض',
-      images: [backendProduct.image],
-      sizes: [{ size: 'فری', sku: `${id}-default`, quantity: 1 }]
-    }];
-  }
   
   // Handle mainImages
   const mainImages = backendProduct.mainImages || backendProduct.main_images || [];
@@ -531,10 +522,24 @@ export const useCartStore = create<CartStore>()(
       },
 
       addItem: async (product, quantity, size, color, colorName, variantId) => {
-        const selectedVariant = findColorVariant(product, color, colorName);
-        const resolvedVariantId = variantId || selectedVariant?.variantId;
-        const resolvedColor = getCanonicalColor(selectedVariant) || color || colorName;
-        const resolvedColorName = selectedVariant?.colorName || colorName || color;
+        const selectedVariant = variantId
+          ? product.colorVariants?.find((variant) => variant.variantId === variantId)
+          : findColorVariant(product, color, colorName);
+        const resolvedVariantId = selectedVariant?.variantId;
+        const resolvedColor = getCanonicalColor(selectedVariant) || "";
+        const resolvedColorName = selectedVariant?.colorName || "";
+        const hasConcreteVariant = Boolean(
+          quantity > 0 &&
+          size?.trim() &&
+          resolvedVariantId?.trim() &&
+          (resolvedColor.trim() || resolvedColorName.trim())
+        );
+        if (!hasConcreteVariant) {
+          const error = "رنگ مشخص و سایز محصول برای افزودن به سبد الزامی است";
+          set({ error, isLoading: false });
+          toast.error(error);
+          return;
+        }
         // Task 9.4: Use unified operation guard
         await withOperationGuard('addItem', async () => {
           const { cart: currentLocalCart } = get();

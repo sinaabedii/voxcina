@@ -74,6 +74,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   const searchParams = useSearchParams();
   const urlVariant = searchParams.get('variant');
   const urlColor = searchParams.get('color');
+  const isVariantLocked = Boolean(urlVariant || urlColor);
   
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -158,11 +159,15 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   // Normalize Persian/Arabic digits to Latin to prevent duplicate size buttons
   const normalizeSize = (s: string) => toEnglishNumber(s).trim();
   const availableSizes = product?.colorVariants
-    ? [...new Set(product.colorVariants.flatMap((cv) => cv.sizes.map(s => normalizeSize(s.size))))]
+    ? [...new Set(product.colorVariants
+      .filter(cv => cv.variantId && (cv.color?.trim() || cv.colorName?.trim()))
+      .flatMap((cv) => cv.sizes.map(s => normalizeSize(s.size))))]
     : [];
 
   const availableColors = product?.colorVariants
-      ? product.colorVariants.map((cv) => ({ variantId: cv.variantId, color: cv.color, colorName: cv.colorName, swatchImage: cv.swatchImage }))
+      ? product.colorVariants
+        .filter(cv => cv.variantId && (cv.color?.trim() || cv.colorName?.trim()))
+        .map((cv) => ({ variantId: cv.variantId, color: cv.color, colorName: cv.colorName, swatchImage: cv.swatchImage }))
     : [];
 
   // Get available sizes based on selected color
@@ -178,7 +183,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     if (!product || !size) return availableColors;
     const normalizedTarget = normalizeSize(size);
     return product.colorVariants
-      .filter(cv => cv.sizes.some(s => normalizeSize(s.size) === normalizedTarget && s.quantity > 0))
+      .filter(cv => cv.variantId && (cv.color?.trim() || cv.colorName?.trim()) && cv.sizes.some(s => normalizeSize(s.size) === normalizedTarget && s.quantity > 0))
       .map(cv => ({ variantId: cv.variantId, color: cv.color, colorName: cv.colorName, swatchImage: cv.swatchImage }));
   };
 
@@ -213,7 +218,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   };
 
   const selectedVariantInventory = getSelectedVariantInventory();
-  const needsColorSelection = availableColors.length > 0;
+  const needsColorSelection = !isVariantLocked && availableColors.length > 0;
   const needsSizeSelection = availableSizes.length > 0;
   const isVariantSelected = (!needsColorSelection || !!selectedColor) && (!needsSizeSelection || !!selectedSize);
   const canModifyQuantity = isVariantSelected && selectedVariantInventory > 0;
@@ -407,7 +412,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
       alert("لطفاً سایز مورد نظر خود را انتخاب کنید");
       return;
     }
-    if (!selectedColor && availableColors.length > 0) {
+    if (needsColorSelection && !selectedColor) {
       alert("لطفاً رنگ مورد نظر خود را انتخاب کنید");
       return;
     }
@@ -416,6 +421,10 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
       return;
     }
     const selectedVariant = selectedColor ? findSelectedVariant() : undefined;
+    if (!selectedVariant?.variantId || !(selectedVariant.color?.trim() || selectedVariant.colorName?.trim())) {
+      alert("این محصول رنگ مشخصی ندارد و قابل افزودن به سبد نیست");
+      return;
+    }
     const colorVal = selectedVariant?.color || selectedVariant?.colorName || selectedColor;
     const colorName = selectedVariant?.colorName || selectedColor;
     addItem(product, quantity, selectedSize, colorVal, colorName, selectedVariant?.variantId);
@@ -662,7 +671,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
 
         <SizeGuideTable isOpen={showSizeGuide} />
 
-        {availableColors.length > 0 && (
+        {availableColors.length > 0 && !isVariantLocked && (
           <ColorSelector
             colors={availableColors.map(c => ({
               ...c,

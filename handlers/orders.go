@@ -146,6 +146,9 @@ func validateInventory(ctx context.Context, items []models.OrderItem) (bool, str
 	productsCollection := db.Database.Collection("products")
 
 	for _, item := range items {
+		if !isConcreteOrderVariant(item.Variant) {
+			return false, "رنگ مشخص و سایز محصول الزامی است"
+		}
 		var product models.Product
 		if err := productsCollection.FindOne(ctx, bson.M{"_id": item.ProductID}).Decode(&product); err != nil {
 			if err == mongo.ErrNoDocuments {

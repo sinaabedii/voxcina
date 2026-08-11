@@ -6,41 +6,27 @@ import (
 	"backEnd/models"
 )
 
-func TestCartVariantsMatchFallsBackToColorWhenIDsDiffer(t *testing.T) {
-	base := models.CartVariant{
-		VariantID: "old-id",
-		Size:      "XXL",
-		Color:     "#697b81",
-		ColorName: "آبی-خاکستری ملایم",
-	}
+func TestFindColorVariantMatchesColorlessVariant(t *testing.T) {
+	product := models.Product{ColorVariants: []models.ColorVariant{
+		{Color: "#000000", ColorName: "مشکی"},
+		{Color: "", ColorName: ""},
+	}}
 
-	tests := []struct {
-		name  string
-		other models.CartVariant
-		match bool
-	}{
-		{
-			name:  "same color with refreshed variant id",
-			other: models.CartVariant{VariantID: "new-id", Size: "XXL", Color: "#697b81"},
-			match: true,
-		},
-		{
-			name:  "different size",
-			other: models.CartVariant{VariantID: "new-id", Size: "XL", Color: "#697b81"},
-			match: false,
-		},
-		{
-			name:  "different color",
-			other: models.CartVariant{VariantID: "new-id", Size: "XXL", Color: "#ffffff"},
-			match: false,
-		},
+	variant, index, ok := findColorVariant(&product, "", "")
+	if !ok {
+		t.Fatal("expected an empty color selection to match the colorless variant")
 	}
+	if index != 1 || variant.Color != "" || variant.ColorName != "" {
+		t.Fatalf("matched the wrong variant: index=%d variant=%+v", index, variant)
+	}
+}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			if got := cartVariantsMatch(base, test.other); got != test.match {
-				t.Fatalf("cartVariantsMatch() = %v, want %v", got, test.match)
-			}
-		})
+func TestFindColorVariantDoesNotMatchEmptyColorToColoredVariant(t *testing.T) {
+	product := models.Product{ColorVariants: []models.ColorVariant{
+		{Color: "#000000", ColorName: "مشکی"},
+	}}
+
+	if _, _, ok := findColorVariant(&product, "", ""); ok {
+		t.Fatal("empty color selection must not match a colored variant")
 	}
 }

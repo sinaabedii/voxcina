@@ -35,6 +35,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   const { productId, colorVariant, name, description, price, originalPrice, brand, inStock } = item;
   const { color, colorName, swatchImage, images, sizes, variantId } = colorVariant;
   const selectedColor = getCanonicalColor(colorVariant) || colorName;
+  const hasConcreteColorVariant = Boolean(variantId && (color?.trim() || colorName?.trim()));
   const variantUrlValue = getVariantUrlValue(colorVariant) || selectedColor;
   const productHref = `/products/${productId}?${variantId ? "variant" : "color"}=${encodeURIComponent(variantUrlValue || "")}`;
 
@@ -42,7 +43,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   const displayImage = images && images.length > 0 ? images[0] : null;
 
   // Available sizes for this specific color (filtered by stock)
-  const availableSizes = sizes.filter(s => s.quantity > 0);
+  const availableSizes = hasConcreteColorVariant ? sizes.filter(s => s.quantity > 0) : [];
 
   const rating = item.average_rating;
   const isNew = item.created_at && (new Date().getTime() - new Date(item.created_at).getTime()) < 30 * 24 * 60 * 60 * 1000;
@@ -93,6 +94,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
   };
 
   const handleModalAddToCart = () => {
+    if (!hasConcreteColorVariant) {
+      toast.error("این محصول رنگ مشخصی ندارد و قابل افزودن به سبد نیست");
+      return;
+    }
     if (selectedSize) {
       const sizeVariant = sizes.find(s => s.size === selectedSize);
       if (sizeVariant && sizeVariant.quantity > 0) {
@@ -277,7 +282,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
             ) : (
-              <span className="text-[9px] sm:text-xs text-muted-foreground">ناموجود</span>
+              <span className="text-[9px] sm:text-xs text-muted-foreground">
+                {hasConcreteColorVariant ? "ناموجود" : "رنگ مشخص ندارد"}
+              </span>
             )}
           </div>
         </div>

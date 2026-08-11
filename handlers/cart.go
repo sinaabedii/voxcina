@@ -169,22 +169,21 @@ func updateCartAndRespond(ctx context.Context, w http.ResponseWriter, cart *mode
 // validateVariantStock validates that a variant exists and has sufficient stock.
 // Returns the available stock and an error if validation fails.
 func validateVariantStock(product *models.Product, variant models.CartVariant, requestedQty int) (int, int, error) {
-	var colorVariant models.ColorVariant
-	var ok bool
-	if variant.VariantID != "" {
-		colorVariant, _, ok = findColorVariantByID(product, variant.VariantID)
-	} else {
-		colorVariant, _, ok = findColorVariant(product, variant.Color, variant.ColorName)
+	if strings.TrimSpace(variant.VariantID) == "" {
+		return 0, http.StatusBadRequest, fmt.Errorf("رنگ مشخص محصول الزامی است")
 	}
+	if strings.TrimSpace(variant.Size) == "" {
+		return 0, http.StatusBadRequest, fmt.Errorf("سایز محصول الزامی است")
+	}
+
+	colorVariant, _, ok := findColorVariantByID(product, variant.VariantID)
 	if !ok {
-		color := variant.Color
-		if color == "" {
-			color = variant.ColorName
-		}
 		return 0, http.StatusBadRequest, fmt.Errorf(
-			"invalid variant: color '%s' not found for this product",
-			color,
+			"رنگ انتخاب‌شده برای این محصول یافت نشد",
 		)
+	}
+	if strings.TrimSpace(colorVariant.Color) == "" && strings.TrimSpace(colorVariant.ColorName) == "" {
+		return 0, http.StatusBadRequest, fmt.Errorf("این محصول رنگ مشخصی ندارد و قابل افزودن به سبد نیست")
 	}
 
 	sizeVariant, _, ok := findSizeVariant(colorVariant, variant.Size)
@@ -261,6 +260,12 @@ func prepareCartResponse(ctx context.Context, cart models.Cart) (CartResponse, e
 			)
 		}
 
+		normalizedVariant, _, sizeIdx, variantOK := enrichCartVariantFromProduct(&product, item.Variant)
+		if !variantOK || sizeIdx == -1 || !isConcreteCartVariant(normalizedVariant) {
+			warnings = append(warnings, fmt.Sprintf("محصول %s با رنگ یا سایز نامعتبر از سبد حذف شد", product.Name))
+			continue
+		}
+		item.Variant = normalizedVariant
 		productImage := selectedVariantImage(product, item.Variant.Color, item.Variant.ColorName)
 
 		responseItems = append(responseItems, CartItemResponse{
@@ -402,7 +407,7 @@ func CreateOrReplaceCart(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			normalizedVariant, _, sizeIdx, ok := enrichCartVariantFromProduct(&product, it.Variant)
-			if !ok || sizeIdx == -1 {
+			if !ok || sizeIdx == -1 || !isConcreteCartVariant(normalizedVariant) {
 				continue
 			}
 			it.Variant = normalizedVariant
@@ -454,9 +459,17 @@ func CreateOrReplaceCart(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
+		if strings.TrimSpace(reqItem.Variant.VariantID) == "" || strings.TrimSpace(reqItem.Variant.Size) == "" {
+			utils.ErrorResponse(w, http.StatusBadRequest, "رنگ مشخص و سایز محصول الزامی است")
+			return
+		}
 
 		// Enrich variant with ColorName and SKU from product
 		enrichedVariant := enrichVariantFromProduct(&productCheck, reqItem.Variant)
+		if !isConcreteCartVariant(enrichedVariant) {
+			utils.ErrorResponse(w, http.StatusBadRequest, "این محصول رنگ مشخصی ندارد و قابل افزودن به سبد نیست")
+			return
+		}
 
 		k := itemKey{
 			ProductID: productIDObj,
