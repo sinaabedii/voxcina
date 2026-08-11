@@ -63,7 +63,7 @@ function CallbackContent() {
       if (gatewayParam) setGateway(gatewayParam);
 
       if (success === "1") {
-        clearCart();
+        await clearCart();
         setStatus("success");
         setMessage("پرداخت با موفقیت انجام شد");
         activityTracker.trackPaymentSuccess(orderIdParam ?? "", {
@@ -85,10 +85,17 @@ function CallbackContent() {
         });
       } else {
         const error = searchParams.get("error");
+        if (error === "inventory_unavailable") {
+          await clearCart();
+          setOrderId(null);
+          setStatus("failed");
+          setMessage("به دلیل اتمام موجودی، پرداخت شما برگشت داده شد. لطفاً محصول دیگری انتخاب کنید.");
+          return;
+        }
         if (error === "finalize_pending" && orderIdParam) {
           // SnappPay settle succeeded but status confirmation timed out.
           // The reconciler will finalize the order within minutes.
-          clearCart();
+          await clearCart();
           setTimeout(() => {
             const reference = transactionIdParam || trackIdParam || "";
             router.push(`/checkout/success?orderId=${orderIdParam}&transactionId=${encodeURIComponent(reference)}`);

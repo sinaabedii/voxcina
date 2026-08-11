@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -19,6 +20,8 @@ import (
 	"backEnd/models"
 	"backEnd/utils"
 )
+
+var ErrInventoryUnavailable = errors.New("inventory unavailable")
 
 // OrderProductResponse is a subset of product information for order items.
 type OrderProductResponse struct {
@@ -216,23 +219,34 @@ func calculateCheckoutDiscount(ctx context.Context, userID primitive.ObjectID, c
 // This should be called after successful payment
 func reduceInventory(ctx context.Context, items []models.OrderItem) error {
 	productsCollection := db.Database.Collection("products")
+	reducedItems := make([]models.OrderItem, 0, len(items))
+	rollback := func(err error) error {
+		if len(reducedItems) == 0 {
+			return err
+		}
+		if restoreErr := restoreInventory(ctx, reducedItems); restoreErr != nil {
+			return fmt.Errorf("%v; failed to rollback inventory: %w", err, restoreErr)
+		}
+		return err
+	}
 
 	for _, item := range items {
 		// First, get the product to find the correct indices
 		var product models.Product
 		if err := productsCollection.FindOne(ctx, bson.M{"_id": item.ProductID}).Decode(&product); err != nil {
-			return fmt.Errorf("failed to find product %s: %w", item.ProductID.Hex(), err)
+			return rollback(fmt.Errorf("failed to find product %s: %w", item.ProductID.Hex(), err))
 		}
 
 		_, colorIdx, sizeIdx, ok := normalizeOrderVariantFromProduct(&product, item.Variant)
 		if !ok || colorIdx == -1 || sizeIdx == -1 {
-			return fmt.Errorf("variant not found for product %s", item.ProductID.Hex())
+			return rollback(fmt.Errorf("variant not found for product %s", item.ProductID.Hex()))
 		}
 
 		// Update the specific size quantity using array indices
 		updatePath := fmt.Sprintf("color_variants.%d.sizes.%d.quantity", colorIdx, sizeIdx)
 		filter := bson.M{
-			"_id": item.ProductID,
+			"_id":      item.ProductID,
+			updatePath: bson.M{"$gte": item.Quantity},
 		}
 		update := bson.M{
 			"$inc": bson.M{
@@ -245,12 +259,13 @@ func reduceInventory(ctx context.Context, items []models.OrderItem) error {
 
 		result, err := productsCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			return fmt.Errorf("failed to reduce inventory for product %s: %w", item.ProductID.Hex(), err)
+			return rollback(fmt.Errorf("failed to reduce inventory for product %s: %w", item.ProductID.Hex(), err))
 		}
 
 		if result.MatchedCount == 0 {
-			return fmt.Errorf("product variant not found for inventory reduction: %s", item.ProductID.Hex())
+			return rollback(fmt.Errorf("%w: insufficient inventory for product %s", ErrInventoryUnavailable, item.ProductID.Hex()))
 		}
+		reducedItems = append(reducedItems, item)
 
 		// Check if product should be marked as out of stock
 		// Re-fetch product to check total inventory
@@ -621,6 +636,10 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, http.StatusBadRequest, "سبد خرید خالی است")
 		return
 	}
+	if valid, inventoryError := validateInventory(ctx, itemsWithSnapshots); !valid {
+		utils.ErrorResponse(w, http.StatusBadRequest, inventoryError)
+		return
+	}
 	calculatedDiscount, discountErr := calculateCheckoutDiscount(ctx, userID, orderData.PromoCode, itemsWithSnapshots, subtotal)
 	if discountErr != nil && discountErr != mongo.ErrNoDocuments {
 		utils.ErrorResponse(w, http.StatusBadRequest, "خطا در محاسبه کد تخفیف")
@@ -670,12 +689,6 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error creating order")
 		return
 	}
-
-	// Clear user's active cart after order is created
-	cartsCollection := db.Database.Collection("carts")
-	_, _ = cartsCollection.UpdateOne(ctx, bson.M{"user_id": userID, "is_active": true}, bson.M{
-		"$set": bson.M{"items": []models.CartItem{}, "updated_at": time.Now()},
-	})
 
 	// Return order with Jalali dates and populated items
 	response, err := newOrderAPIResponse(ctx, order)

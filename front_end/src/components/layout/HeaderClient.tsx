@@ -33,18 +33,11 @@ const HeaderClient: React.FC<HeaderClientProps> = ({ navItems }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const pathname = usePathname();
-  const { cart, syncCartWithBackend } = useCartStore();
+  const { cart } = useCartStore();
   const { isAuthenticated, user } = useAuthStore();
   const router = useRouter();
 
   const itemCount = cart.items.reduce((count, item) => count + item.quantity, 0);
-
-  // Sync cart with backend when user is authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      syncCartWithBackend();
-    }
-  }, [isAuthenticated, syncCartWithBackend]);
 
   useEffect(() => {
     let ticking = false;

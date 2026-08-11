@@ -319,7 +319,7 @@ func FinalizeVerifiedPayment(attemptID primitive.ObjectID, verifiedAmount int64,
 	}
 	valid, inventoryError := validateInventory(ctx, order.Items)
 	if !valid {
-		return fmt.Errorf("inventory validation failed: %s", inventoryError)
+		return fmt.Errorf("%w: %s", ErrInventoryUnavailable, inventoryError)
 	}
 	if err := reduceInventory(ctx, order.Items); err != nil {
 		return fmt.Errorf("failed to reduce inventory: %w", err)

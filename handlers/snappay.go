@@ -233,10 +233,14 @@ func reconcileSnappPayStatuses() {
 				status, statusErr = snappPayService.InquiryPayment(ctx, &services.InquiryRequest{GatewayRef: attempt.GatewayReference})
 			}
 			if statusErr == nil && status.Status == "SETTLE" {
-				_ = snappPayFinalizeSettled(ctx, attempt, status.Amount, status.RefNumber)
+				if finalizeErr := snappPayFinalizeSettled(ctx, attempt, status.Amount, status.RefNumber); finalizeErr != nil {
+					_ = handleSnappPayLocalFinalizationFailure(ctx, attempt, finalizeErr)
+				}
 			}
 		case "SETTLE":
-			_ = snappPayFinalizeSettled(ctx, attempt, status.Amount, status.RefNumber)
+			if err := snappPayFinalizeSettled(ctx, attempt, status.Amount, status.RefNumber); err != nil {
+				_ = handleSnappPayLocalFinalizationFailure(ctx, attempt, err)
+			}
 		case "REVERT", "CANCEL":
 			_ = updateSnappPayAttempt(ctx, attempt.ID, strings.ToLower(status.Status), bson.M{"provider_status": status.Status})
 			setSnappPayOrderFailed(ctx, attempt.OrderID)
@@ -504,6 +508,45 @@ func snappPayFinalizeSettled(ctx context.Context, attempt models.PaymentAttempt,
 	return updateSnappPayAttempt(ctx, attempt.ID, "settled", bson.M{"provider_status": "SETTLE", "transaction_id": transactionID})
 }
 
+// handleSnappPayLocalFinalizationFailure prevents a settled payment from
+// being retried against the same cart. Inventory failures are refunded because
+// the provider has already settled a payment that cannot be fulfilled locally.
+func handleSnappPayLocalFinalizationFailure(ctx context.Context, attempt models.PaymentAttempt, finalizeErr error) bool {
+	_, _ = db.Database.Collection("carts").UpdateOne(ctx, bson.M{"user_id": attempt.UserID, "is_active": true}, bson.M{
+		"$set": bson.M{"items": []models.CartItem{}, "updated_at": time.Now()},
+	})
+
+	if !errors.Is(finalizeErr, ErrInventoryUnavailable) || snappPayService == nil {
+		return false
+	}
+
+	refundCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if _, err := snappPayCancelWithRecovery(refundCtx, attempt.GatewayReference); err != nil {
+		return false
+	}
+
+	now := time.Now()
+	_, orderErr := db.Database.Collection("orders").UpdateOne(ctx, bson.M{
+		"_id":            attempt.OrderID,
+		"payment_status": bson.M{"$ne": "paid"},
+	}, bson.M{"$set": bson.M{
+		"payment_status": "refunded",
+		"status":         "cancelled",
+		"status_text":    "به دلیل اتمام موجودی لغو شد و مبلغ پرداختی بازگردانده می‌شود",
+		"updated_at":     now,
+	}})
+	if orderErr != nil {
+		return false
+	}
+	_ = updateSnappPayAttempt(ctx, attempt.ID, "cancelled", bson.M{
+		"provider_status":      "CANCEL",
+		"local_finalize_error": finalizeErr.Error(),
+		"cancelled_at":         now,
+	})
+	return true
+}
+
 func snappPayStatusAndFinalize(ctx context.Context, attempt models.PaymentAttempt) (bool, error) {
 	return snappPayStatusAndFinalizeRetry(ctx, attempt, true)
 }
@@ -652,8 +695,12 @@ func SnappPayCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if settled, finalizeErr := snappPayStatusAndFinalize(ctx, attempt); finalizeErr != nil || !settled {
-		_ = updateSnappPayAttempt(ctx, attempt.ID, "settled_pending_local", bson.M{"settle_transaction_id": settleResponse.TransactionID, "finalize_error": errorString(finalizeErr)})
-		values.Set("error", "finalize_pending")
+		if finalizeErr != nil && handleSnappPayLocalFinalizationFailure(ctx, attempt, finalizeErr) {
+			values.Set("error", "inventory_unavailable")
+		} else {
+			_ = updateSnappPayAttempt(ctx, attempt.ID, "settled_pending_local", bson.M{"settle_transaction_id": settleResponse.TransactionID, "finalize_error": errorString(finalizeErr)})
+			values.Set("error", "finalize_pending")
+		}
 		snappPayRedirect(w, r, values)
 		return
 	}
