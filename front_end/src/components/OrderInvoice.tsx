@@ -33,7 +33,7 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
 
   const statusColors: Record<string, string> = {
     pending: '#f59e0b',
-    processing: '#3b82f6',
+    processing: '#10b981',
     shipped: '#3b82f6',
     delivered: '#10b981',
     cancelled: '#ef4444',

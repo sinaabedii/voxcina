@@ -36,8 +36,9 @@ const getStatusStyle = (status: Order["status"] | Order["payment_status"] | stri
     case "paid":
       return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
     case "shipped":
-    case "processing":
       return "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400";
+    case "processing":
+      return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
     case "pending":
       return "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400";
     case "cancelled":
@@ -56,8 +57,9 @@ const getStatusIcon = (status: Order["status"] | Order["payment_status"] | strin
     case "paid":
       return <CreditCard className="w-3.5 h-3.5" />;
     case "shipped":
-    case "processing":
       return <Truck className="w-3.5 h-3.5" />;
+    case "processing":
+      return <CheckCircle className="w-3.5 h-3.5" />;
     case "pending":
       return <Clock className="w-3.5 h-3.5" />;
     case "cancelled":

@@ -671,6 +671,12 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Clear user's active cart after order is created
+	cartsCollection := db.Database.Collection("carts")
+	_, _ = cartsCollection.UpdateOne(ctx, bson.M{"user_id": userID, "is_active": true}, bson.M{
+		"$set": bson.M{"items": []models.CartItem{}, "updated_at": time.Now()},
+	})
+
 	// Return order with Jalali dates and populated items
 	response, err := newOrderAPIResponse(ctx, order)
 	if err != nil {

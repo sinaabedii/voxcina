@@ -134,7 +134,7 @@ export default function OrderTrackingPage() {
       case "paid":
         return "text-voxcina-blue bg-secondary-100/70 dark:bg-voxcina-blue/20 dark:text-secondary-200 border border-secondary-200 dark:border-voxcina-blue/30";
       case "processing":
-        return "text-voxcina-blue bg-secondary-100/70 dark:bg-voxcina-blue/20 dark:text-secondary-200 border border-secondary-200 dark:border-voxcina-blue/30";
+        return "text-green-600 bg-green-50/70 dark:bg-green-900/20 dark:text-green-400 border border-green-100 dark:border-green-800/30";
       case "shipping":
         return "text-voxcina-blue bg-secondary-100/70 dark:bg-voxcina-blue/20 dark:text-secondary-200 border border-secondary-200 dark:border-voxcina-blue/30";
       case "delivered":
@@ -153,7 +153,7 @@ export default function OrderTrackingPage() {
       case "paid":
         return <CheckCircle className="w-5 h-5" />;
       case "processing":
-        return <Clock className="w-5 h-5" />;
+        return <CheckCircle className="w-5 h-5" />;
       case "shipping":
         return <Truck className="w-5 h-5" />;
       case "delivered":

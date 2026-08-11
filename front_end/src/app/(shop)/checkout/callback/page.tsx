@@ -84,6 +84,19 @@ function CallbackContent() {
           source: "payment_callback",
         });
       } else {
+        const error = searchParams.get("error");
+        if (error === "finalize_pending" && orderIdParam) {
+          // SnappPay settle succeeded but status confirmation timed out.
+          // The reconciler will finalize the order within minutes.
+          clearCart();
+          setTimeout(() => {
+            const reference = transactionIdParam || trackIdParam || "";
+            router.push(`/checkout/success?orderId=${orderIdParam}&transactionId=${encodeURIComponent(reference)}`);
+          }, 1500);
+          setStatus("success");
+          setMessage("پرداخت با موفقیت انجام شد");
+          return;
+        }
         setStatus("failed");
         setMessage(paymentStatus === "cancelled" ? "پرداخت توسط شما لغو شد" : "پرداخت ناموفق بود");
         activityTracker.trackPaymentFailed(

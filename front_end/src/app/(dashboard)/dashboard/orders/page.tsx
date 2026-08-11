@@ -81,8 +81,9 @@ export default function OrdersPage() {
       case "delivered":
         return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
       case "shipped":
-      case "processing":
         return "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400";
+      case "processing":
+        return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
       case "pending":
         return "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400";
       case "cancelled":
@@ -98,8 +99,9 @@ export default function OrdersPage() {
       case "delivered":
         return <Package className="w-4 h-4 ml-1" />;
       case "shipped":
-      case "processing":
         return <TruckIcon className="w-4 h-4 ml-1" />;
+      case "processing":
+        return <CheckCircle className="w-4 h-4 ml-1" />;
       case "pending":
         return <Clock className="w-4 h-4 ml-1" />;
       case "cancelled":
