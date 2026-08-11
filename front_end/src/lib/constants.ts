@@ -197,14 +197,14 @@ export const PAYMENT_GATEWAYS: Array<{
     logo: "/images/payment/zibal.svg",
     enabled: true,
     description: "پرداخت آنلاین با کارت بانکی",
-    features: [],
+    features: ["online"],
   },
   {
     id: "digipay",
     name: "دیجی‌پی",
     logo: "/images/payment/digipay.svg",
     enabled: true,
-    description: "اعتبار خرید، کیف پول یا ۴ قسط",
+    description: "اعتبار خرید، کیف پول یا پرداخت ۴ قسطه بدون نیاز به ضامن",
     features: ["credit", "wallet", "installments"],
   },
   {
@@ -214,7 +214,7 @@ export const PAYMENT_GATEWAYS: Array<{
     mobileLogo: "/images/payment/snappay-official-mobile.svg",
     enabled: true,
     description: "پرداخت اعتباری و اقساطی اسنپ‌پی",
-    features: [],
+    features: ["credit", "installments"],
   },
   {
     id: "zarinpal",

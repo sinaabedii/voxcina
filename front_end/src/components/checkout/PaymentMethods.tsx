@@ -19,6 +19,7 @@ interface PaymentMethodsProps {
 }
 
 const GATEWAY_FEATURE_LABELS: Record<string, { label: string; icon: React.ReactNode }> = {
+  online: { label: "پرداخت آنلاین", icon: <CreditCard className="w-3 h-3" /> },
   credit: { label: "اعتبار خرید", icon: <Coins className="w-3 h-3" /> },
   wallet: { label: "کیف پول", icon: <Wallet className="w-3 h-3" /> },
   installments: { label: "پرداخت اقساطی", icon: <Calendar className="w-3 h-3" /> },
@@ -176,58 +177,32 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
                                     <span className="block text-sm font-medium text-[#161616] dark:text-voxcina-cream">
                                       {gateway.name}
                                     </span>
-                                    {gateway.description && (
-                                      <span className="block text-xs text-[#616475] dark:text-voxcina-cream/70">
-                                        {gateway.description}
-                                      </span>
-                                    )}
+                                  </div>
+                                )}
+                                {!isSnappPay && gateway.description && (
+                                  <span className="block text-xs text-[#616475] dark:text-voxcina-cream/70">
+                                    {gateway.description}
+                                  </span>
+                                )}
+                                {gateway.features.length > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {gateway.features.map((feat) => {
+                                      const info = GATEWAY_FEATURE_LABELS[feat];
+                                      if (!info) return null;
+                                      return (
+                                        <span
+                                          key={feat}
+                                          className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-md bg-voxcina-blue/8 text-voxcina-blue dark:bg-voxcina-cream/8 dark:text-voxcina-cream"
+                                        >
+                                          {info.icon}
+                                          {info.label}
+                                        </span>
+                                      );
+                                    })}
                                   </div>
                                 )}
                               </div>
                             </div>
-
-                            {!isSnappPay && !isDisabled && isSelected && (
-                              <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: "auto" }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ duration: 0.2 }}
-                                className="mt-2 mr-2"
-                              >
-                                <div className="flex flex-wrap gap-2 mb-3">
-                                  {gateway.features.map((feat) => {
-                                    const info = GATEWAY_FEATURE_LABELS[feat];
-                                    if (!info) return null;
-                                    return (
-                                      <span
-                                        key={feat}
-                                        className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-md bg-voxcina-blue/8 text-voxcina-blue dark:bg-voxcina-cream/8 dark:text-voxcina-cream"
-                                      >
-                                        {info.icon}
-                                        {info.label}
-                                      </span>
-                                    );
-                                  })}
-                                </div>
-
-                                {gateway.features.includes("credit") && (
-                                  <div className="p-3 rounded-lg bg-gradient-to-l from-emerald-50 to-teal-50 dark:from-emerald-900/10 dark:to-teal-900/10 border border-emerald-200/50 dark:border-emerald-700/30">
-                                    <div className="flex items-start gap-2">
-                                      <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mt-0.5 flex-shrink-0" />
-                                      <div className="text-xs text-emerald-800 dark:text-emerald-300 leading-5">
-                                        <span className="font-bold">خرید اقساطی با دیجی‌پی</span>
-                                        <span className="block mt-1">
-                                          مبلغ خرید را در <strong>۴ قسط</strong> پرداخت کنید. بدون نیاز به ضامن، فقط با اعتبارسنجی دیجی‌پی.
-                                        </span>
-                                        <span className="block mt-1 text-emerald-600 dark:text-emerald-400">
-                                          اعتبار خرید یا پرداخت تک‌مرحله‌ای نیز در دسترس است.
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-                              </motion.div>
-                            )}
                           </div>
                         );
                       })}
