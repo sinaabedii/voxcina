@@ -4,14 +4,14 @@ import { useEffect, useState, useRef } from "react";
 import { useProductStore } from "@/store/product-store";
 import { useCategoryStore } from "@/store/category-store";
 import { useAuthStore } from "@/store/auth-store";
-import { ColorVariant, SizeVariant, ProductAttribute } from "@/types/product";
+import { ColorVariant, SizeVariant, ProductAttribute, VariantAIMetadata } from "@/types/product";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import toast from "react-hot-toast";
 import CategoryModal from "@/components/admin/CategoryModal";
 import AddBrandModal from "@/components/admin/AddBrandModal";
-import ImageUploader, { ImageItem, getNewImageFiles } from "@/components/admin/ImageUploader";
+import ImageUploader, { ImageItem, getNewImageFiles, getImageSources } from "@/components/admin/ImageUploader";
 import PatternPicker from "@/components/ui/PatternPicker";
 import { toEnglishNumber } from "@/lib/utils";
 
@@ -58,6 +58,8 @@ export default function AddProductPage() {
     fitType: "معمولی",
     ageGroup: "بزرگسال",
   });
+  const [variantAiMetadata, setVariantAiMetadata] = useState<{ [key: number]: VariantAIMetadata }>({});
+  const [variantAiGenerating, setVariantAiGenerating] = useState<{ [key: number]: boolean }>({});
   const [keywordsInput, setKeywordsInput] = useState("");
   const [tagsInput, setTagsInput] = useState("");
   const [occasionInput, setOccasionInput] = useState("");
@@ -283,7 +285,7 @@ export default function AddProductPage() {
           brand: brandName,
           price,
           gender,
-          images: mainImageItems.map(img => img.url),
+          images: await getImageSources(mainImageItems),
           model: selectedAiModel,
         }),
       });
@@ -332,12 +334,85 @@ export default function AddProductPage() {
         setSeasonInput(generated.season.join(", "));
       }
 
-      toast.success("فیلدهای AI با موفقیت تولید شدند. لطفاً آن‌ها را بررسی و در صورت نیاز ویرایش کنید.");
+      toast.success("فیلدهای AI با موفقیت تولید شدند. لطفاً آنها را بررسی و در صورت نیاز ویرایش کنید.");
     } catch (err) {
       toast.error("خطا در ارتباط با سرویس هوش مصنوعی");
     } finally {
       setAiGenerating(false);
     }
+  };
+
+  const handleGenerateVariantAi = async (colorIdx: number) => {
+    const cv = colorVariants[colorIdx];
+    if (!cv || !cv.colorName || !name || !description || !categoryIds.length || !brandId) {
+      toast.error("برای تولید اطلاعات هر رنگ، ابتدا نام رنگ و فیلدهای اصلی محصول را کامل کنید");
+      return;
+    }
+    const primaryCategory = categories.find(c => c.id === categoryIds[0])?.name || "";
+    const brandName = brands.find(b => b.id === brandId)?.name || "";
+    const variantItems = colorImageItems[colorIdx] || [];
+    const variantImages = variantItems.length > 0 ? await getImageSources(variantItems) : cv.images || [];
+    const images = variantImages.length > 0 ? variantImages : await getImageSources(mainImageItems);
+
+    setVariantAiGenerating(prev => ({ ...prev, [colorIdx]: true }));
+    try {
+      const response = await fetch("/api/admin/ai/generate-variant-metadata", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          name,
+          description,
+          category: primaryCategory,
+          brand: brandName,
+          price,
+          gender,
+          collection,
+          images,
+          model: selectedAiModel,
+          color: cv.color,
+          colorName: cv.colorName,
+        }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        toast.error(errorData?.message || "خطا در تولید اطلاعات رنگ");
+        return;
+      }
+      const data = await response.json();
+      const gen = data?.data || data;
+      const meta: VariantAIMetadata = {
+        productTypePersian: gen.productTypePersian || "",
+        productTypeStandard: gen.productTypeStandard || "",
+        materialPersian: gen.materialPersian || "",
+        stylePersian: gen.stylePersian || "",
+        patternPersian: gen.patternPersian || "",
+        fitType: gen.fitType || "معمولی",
+        colorFamily: gen.colorFamily || "",
+        season: Array.isArray(gen.season) ? gen.season : [],
+        gender,
+        keywords: Array.isArray(gen.keywords) ? gen.keywords : [],
+        tags: Array.isArray(gen.tags) ? gen.tags : [],
+        occasionTags: Array.isArray(gen.occasionTags) ? gen.occasionTags : [],
+      };
+      setVariantAiMetadata(prev => ({ ...prev, [colorIdx]: meta }));
+      toast.success(`اطلاعات رنگ ${cv.colorName || colorIdx + 1} با موفقیت تولید شد`);
+    } catch {
+      toast.error("خطا در ارتباط با سرویس هوش مصنوعی");
+    } finally {
+      setVariantAiGenerating(prev => ({ ...prev, [colorIdx]: false }));
+    }
+  };
+
+  const handleGenerateAllVariantAi = async () => {
+    for (let i = 0; i < colorVariants.length; i++) {
+      const cv = colorVariants[i];
+      if (!cv.colorName) continue;
+      await handleGenerateVariantAi(i);
+    }
+    toast.success("تولید اطلاعات همه رنگها به پایان رسید");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -371,6 +446,12 @@ export default function AddProductPage() {
       // images and tryOnImage will be uploaded separately
     }));
     formData.append("colorVariants", JSON.stringify(colorVariantsData));
+
+    // Send per-variant AI metadata (for negotiator search_catalog) — indexed by variant order.
+    const variantAiArr = colorVariants.map((_cv, idx) => variantAiMetadata[idx] || {});
+    if (variantAiArr.some(m => m && Object.keys(m).length > 0)) {
+      formData.append("variantAIMetadata", JSON.stringify(variantAiArr));
+    }
 
     formData.append("attributes", JSON.stringify(attributes));
     if (aiMetadata.namePersian || aiMetadata.descriptionPersian || aiMetadata.keywords.length || aiMetadata.tags.length) {
@@ -603,16 +684,36 @@ export default function AddProductPage() {
               {/* Color Header */}
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-medium">رنگ {colorIdx + 1}</h3>
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-red-500 hover:text-red-700"
-                  onClick={() => handleRemoveColorVariant(colorIdx)}
-                >
-                  حذف رنگ
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!canGenerateAiMetadata || variantAiGenerating[colorIdx] || submitting || isLoading || !colorVariant.colorName}
+                    onClick={() => handleGenerateVariantAi(colorIdx)}
+                  >
+                    {variantAiGenerating[colorIdx] ? "در حال تولید..." : (variantAiMetadata[colorIdx]?.productTypePersian ? "تولید مجدد AI رنگ" : "تولید AI این رنگ")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-500 hover:text-red-700"
+                    onClick={() => handleRemoveColorVariant(colorIdx)}
+                  >
+                    حذف رنگ
+                  </Button>
+                </div>
               </div>
+              {variantAiMetadata[colorIdx]?.productTypePersian && (
+                <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-3 text-xs text-green-800 flex flex-wrap gap-2">
+                  <span>نوع: {variantAiMetadata[colorIdx].productTypePersian}</span>
+                  <span>طرح: {variantAiMetadata[colorIdx].patternPersian || "-"}</span>
+                  <span>خانواده رنگ: {variantAiMetadata[colorIdx].colorFamily || "-"}</span>
+                  <span>جنس: {variantAiMetadata[colorIdx].materialPersian || "-"}</span>
+                  <span>استایل: {variantAiMetadata[colorIdx].stylePersian || "-"}</span>
+                </div>
+              )}
 
               {/* Color Info - Pattern Picker */}
               <div className="mb-4 bg-white rounded-lg p-4">
@@ -736,6 +837,18 @@ export default function AddProductPage() {
           >
             + افزودن رنگ جدید
           </Button>
+          {colorVariants.length > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!canGenerateAiMetadata || submitting || isLoading || Object.keys(variantAiGenerating).some(k => variantAiGenerating[Number(k)])}
+              onClick={handleGenerateAllVariantAi}
+              className="w-full mt-2"
+            >
+              تولید هوشمند همه رنگها (هر رنگ جداگانه)
+            </Button>
+          )}
         </div>
         <div>
           <label className="block mb-1">ویژگی‌ها</label>

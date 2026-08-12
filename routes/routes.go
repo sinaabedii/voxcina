@@ -132,6 +132,7 @@ func NewRouter() *mux.Router {
 		log.Printf("Warning: AI metadata handler initialization failed: %v", err)
 	} else {
 		adminRouter.HandleFunc("/ai/generate-metadata", aiMetadataHandler.GenerateProductMetadata).Methods("POST")
+		adminRouter.HandleFunc("/ai/generate-variant-metadata", aiMetadataHandler.GenerateVariantMetadata).Methods("POST")
 		adminRouter.HandleFunc("/ai/models", aiMetadataHandler.GetAvailableModels).Methods("GET")
 		adminRouter.HandleFunc("/ai/field-descriptions", aiMetadataHandler.GetFieldDescriptions).Methods("GET")
 	}

@@ -138,3 +138,44 @@ func (c *FaissClient) UpsertProductEmbedding(
 
 	return nil
 }
+
+// UpsertVariantEmbedding upserts one variant vector under "{productId}:{variantId}".
+// Falls back to product-id key when variantId is empty. Separate from
+// UpsertProductEmbedding so existing product-level call sites keep working
+// while the negotiator's variant KNN builds on finer keys.
+func (c *FaissClient) UpsertVariantEmbedding(ctx context.Context, productID, variantID string, vector []float32) error {
+	return c.UpsertProductEmbedding(ctx, VariantFAISSKey(productID, variantID), vector)
+}
+
+// SearchSimilarVariants is the variant-aware alias of SearchSimilarProducts.
+// It returns FAISS ids which may be "{productId}:{variantId}" — callers should
+// split with ParseVariantFAISSKey.
+func (c *FaissClient) SearchSimilarVariants(ctx context.Context, vector []float32, k int) ([]string, error) {
+	return c.SearchSimilarProducts(ctx, vector, k)
+}
+
+// DeleteVariantEmbedding removes a variant vector (best-effort).
+func (c *FaissClient) DeleteVariantEmbedding(ctx context.Context, productID, variantID string) error {
+	if c == nil {
+		return fmt.Errorf("faiss client is nil")
+	}
+	id := VariantFAISSKey(productID, variantID)
+	if strings.TrimSpace(id) == "" {
+		return nil
+	}
+	payload, _ := json.Marshal(map[string]string{"id": id})
+	req, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/delete", bytes.NewBuffer(payload))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
+		return fmt.Errorf("faiss delete error: status %d", resp.StatusCode)
+	}
+	return nil
+}

@@ -55,6 +55,30 @@ func (h *AIMetadataHandler) GenerateProductMetadata(w http.ResponseWriter, r *ht
 	utils.SuccessResponse(w, http.StatusOK, "Metadata generated successfully", metadata)
 }
 
+// GenerateVariantMetadata handles POST /api/admin/ai/generate-variant-metadata
+// One request per color variant — admin UI loops over variants.
+func (h *AIMetadataHandler) GenerateVariantMetadata(w http.ResponseWriter, r *http.Request) {
+	var req services.VariantMetadataRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
+		return
+	}
+	if req.Name == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Product name is required")
+		return
+	}
+	if req.Description == "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Product description is required")
+		return
+	}
+	meta, err := h.aiService.GenerateVariantMetadata(r.Context(), req)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to generate variant metadata: "+err.Error())
+		return
+	}
+	utils.SuccessResponse(w, http.StatusOK, "Variant metadata generated successfully", meta)
+}
+
 // GetAvailableModels handles GET /api/admin/ai/models
 func (h *AIMetadataHandler) GetAvailableModels(w http.ResponseWriter, r *http.Request) {
 	models, err := h.aiService.GetAvailableModels()

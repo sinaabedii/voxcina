@@ -11,6 +11,21 @@ export interface ImageItem {
   isExisting: boolean;
 }
 
+// AI endpoints need a fetchable source. New uploads only have a browser blob
+// URL, so convert them to data URLs while existing server images stay URLs.
+export async function getImageSources(images: ImageItem[]): Promise<string[]> {
+  return Promise.all(images.map(async (image) => {
+    if (!image.file) return image.url;
+    const file = image.file;
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : image.url);
+      reader.onerror = () => reject(reader.error || new Error("Failed to read image"));
+      reader.readAsDataURL(file);
+    });
+  }));
+}
+
 interface ImageUploaderProps {
   images: ImageItem[];
   onChange: (images: ImageItem[]) => void;

@@ -136,6 +136,40 @@ func EnsureAISearchIndexes(database *mongo.Database) error {
 			SetName("ai_occasion_tags"),
 	}
 
+	// --- Variant-level AI metadata indexes (for negotiator search_catalog) ---
+	variantProductTypeIndex := mongo.IndexModel{
+		Keys:    bson.D{{Key: "color_variants.ai_metadata.product_type_standard", Value: 1}},
+		Options: options.Index().SetName("ai_variant_product_type"),
+	}
+	variantMaterialIndex := mongo.IndexModel{
+		Keys:    bson.D{{Key: "color_variants.ai_metadata.material_persian", Value: 1}},
+		Options: options.Index().SetName("ai_variant_material"),
+	}
+	variantStyleIndex := mongo.IndexModel{
+		Keys:    bson.D{{Key: "color_variants.ai_metadata.style_persian", Value: 1}},
+		Options: options.Index().SetName("ai_variant_style"),
+	}
+	variantPatternIndex := mongo.IndexModel{
+		Keys:    bson.D{{Key: "color_variants.ai_metadata.pattern_persian", Value: 1}},
+		Options: options.Index().SetName("ai_variant_pattern"),
+	}
+	variantColorNameIndex := mongo.IndexModel{
+		Keys:    bson.D{{Key: "color_variants.color_name", Value: 1}},
+		Options: options.Index().SetName("ai_variant_color_name"),
+	}
+	variantSizeIndex := mongo.IndexModel{
+		Keys:    bson.D{{Key: "color_variants.sizes.size", Value: 1}},
+		Options: options.Index().SetName("ai_variant_size"),
+	}
+	variantGenderIndex := mongo.IndexModel{
+		Keys:    bson.D{{Key: "color_variants.ai_metadata.gender", Value: 1}},
+		Options: options.Index().SetName("ai_variant_gender"),
+	}
+	variantSeasonIndex := mongo.IndexModel{
+		Keys:    bson.D{{Key: "color_variants.ai_metadata.season", Value: 1}},
+		Options: options.Index().SetName("ai_variant_season"),
+	}
+
 	// Create all product indexes
 	productIndexes := []mongo.IndexModel{
 		textIndexModel,
@@ -149,12 +183,20 @@ func EnsureAISearchIndexes(database *mongo.Database) error {
 		brandIndex,
 		seasonIndex,
 		occasionTagsIndex,
+		variantProductTypeIndex,
+		variantMaterialIndex,
+		variantStyleIndex,
+		variantPatternIndex,
+		variantColorNameIndex,
+		variantSizeIndex,
+		variantGenderIndex,
+		variantSeasonIndex,
 	}
 
 	// First, try to drop the problematic compound index if it exists
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	// Drop the old problematic index if it exists
 	_, err := productsCollection.Indexes().DropOne(ctx, "ai_season_occasion")
 	if err != nil {
@@ -276,15 +318,17 @@ func EnsureAISearchIndexes(database *mongo.Database) error {
 	return nil
 }
 
-// Note: For Vector Search (embeddings), you need to create a Vector Search Index via MongoDB Atlas UI or API:
+// Note: primary vector search is handled by the configured FAISS service. If
+// Atlas Vector Search is enabled later, index the per-variant path below in
+// addition to the legacy product path:
 //
 // Vector Search Index Configuration (JSON):
 // {
 //   "fields": [
 //     {
 //       "type": "vector",
-//       "path": "search_metadata.embedding_vector",
-//       "numDimensions": 768,
+//       "path": "color_variants.ai_metadata.embedding_vector",
+//       "numDimensions": 1536,
 //       "similarity": "cosine"
 //     }
 //   ]
@@ -297,7 +341,7 @@ func EnsureAISearchIndexes(database *mongo.Database) error {
 //       "index": "vector_search_index",
 //       "knnBeta": {
 //         "vector": [0.1, 0.2, ..., 0.768],
-//         "path": "search_metadata.embedding_vector",
+//         "path": "color_variants.ai_metadata.embedding_vector",
 //         "k": 10
 //       }
 //     }

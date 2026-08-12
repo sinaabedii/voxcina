@@ -31,7 +31,7 @@ type OpenRouterEmbeddingResponse struct {
 	} `json:"error,omitempty"`
 }
 
-var embeddingHTTPClient = &http.Client{Timeout: 20 *time.Second}
+var embeddingHTTPClient = &http.Client{Timeout: 20 * time.Second}
 
 // GenerateEmbedding calls OpenRouter's embeddings API and returns a float32 vector plus the model name used.
 func GenerateEmbedding(ctx context.Context, input string) ([]float32, string, error) {
@@ -157,4 +157,128 @@ func BuildProductEmbeddingText(
 	}
 
 	return strings.Join(parts, "\n")
+}
+
+// BuildVariantEmbeddingText builds the text that is embedded per color variant.
+// One FAISS record is kept per variant ("{productId}:{variantId}") so KNN
+// search returns variant-level hits (ColorVariantListItem) instead of whole
+// products.
+func BuildVariantEmbeddingText(
+	productName, productDesc, brand string,
+	cv models.ColorVariant,
+	meta *models.VariantAIMetadata,
+	productMeta *models.ProductSearchMetadata,
+) string {
+	var parts []string
+	if strings.TrimSpace(productName) != "" {
+		parts = append(parts, productName)
+	}
+	if strings.TrimSpace(productDesc) != "" {
+		parts = append(parts, productDesc)
+	}
+	if strings.TrimSpace(brand) != "" {
+		parts = append(parts, "Brand: "+brand)
+	}
+	// Variant color identity is the strongest signal for "مشکی / قرمز" queries.
+	if strings.TrimSpace(cv.ColorName) != "" {
+		parts = append(parts, "رنگ: "+cv.ColorName)
+	}
+	if strings.TrimSpace(cv.Color) != "" && cv.Color != cv.ColorName {
+		parts = append(parts, "کد رنگ: "+cv.Color)
+	}
+	if len(cv.Sizes) > 0 {
+		var sizes []string
+		for _, s := range cv.Sizes {
+			if strings.TrimSpace(s.Size) != "" {
+				sizes = append(sizes, s.Size)
+			}
+		}
+		if len(sizes) > 0 {
+			parts = append(parts, "سایزها: "+strings.Join(sizes, "، "))
+		}
+	}
+	// Prefer variant AI fields; fall back to product-level metadata so an
+	// un-enriched variant still embeds sensibly.
+	if meta != nil {
+		if strings.TrimSpace(meta.ProductTypePersian) != "" {
+			parts = append(parts, "نوع: "+meta.ProductTypePersian)
+		} else if strings.TrimSpace(meta.ProductTypeStandard) != "" {
+			parts = append(parts, "نوع: "+meta.ProductTypeStandard)
+		}
+		if strings.TrimSpace(meta.MaterialPersian) != "" {
+			parts = append(parts, "جنس: "+meta.MaterialPersian)
+		}
+		if strings.TrimSpace(meta.StylePersian) != "" {
+			parts = append(parts, "استایل: "+meta.StylePersian)
+		}
+		if strings.TrimSpace(meta.PatternPersian) != "" {
+			parts = append(parts, "طرح: "+meta.PatternPersian)
+		}
+		if strings.TrimSpace(meta.FitType) != "" {
+			parts = append(parts, "برازش: "+meta.FitType)
+		}
+		if strings.TrimSpace(meta.ColorFamily) != "" {
+			parts = append(parts, "خانواده رنگ: "+meta.ColorFamily)
+		}
+		if len(meta.Keywords) > 0 {
+			parts = append(parts, strings.Join(meta.Keywords, "، "))
+		}
+		if len(meta.Tags) > 0 {
+			parts = append(parts, strings.Join(meta.Tags, "، "))
+		}
+		if len(meta.OccasionTags) > 0 {
+			parts = append(parts, "مناسب برای: "+strings.Join(meta.OccasionTags, "، "))
+		}
+		if len(meta.Season) > 0 {
+			parts = append(parts, "فصل: "+strings.Join(meta.Season, "، "))
+		}
+		if strings.TrimSpace(meta.Gender) != "" {
+			parts = append(parts, "جنسیت: "+meta.Gender)
+		}
+	}
+	if productMeta != nil {
+		// Fill only what the variant didn't already supply.
+		if (meta == nil || len(meta.Keywords) == 0) && len(productMeta.Keywords) > 0 {
+			parts = append(parts, strings.Join(productMeta.Keywords, "، "))
+		}
+		if (meta == nil || len(meta.Tags) == 0) && len(productMeta.Tags) > 0 {
+			parts = append(parts, strings.Join(productMeta.Tags, "، "))
+		}
+		if (meta == nil || strings.TrimSpace(meta.MaterialPersian) == "") && strings.TrimSpace(productMeta.MaterialPersian) != "" {
+			parts = append(parts, "جنس: "+productMeta.MaterialPersian)
+		}
+		if (meta == nil || strings.TrimSpace(meta.StylePersian) == "") && strings.TrimSpace(productMeta.StylePersian) != "" {
+			parts = append(parts, "استایل: "+productMeta.StylePersian)
+		}
+		if (meta == nil || len(meta.OccasionTags) == 0) && len(productMeta.OccasionTags) > 0 {
+			parts = append(parts, "مناسب برای: "+strings.Join(productMeta.OccasionTags, "، "))
+		}
+		if (meta == nil || strings.TrimSpace(meta.Gender) == "") && strings.TrimSpace(productMeta.Gender) != "" {
+			parts = append(parts, "جنسیت: "+productMeta.Gender)
+		}
+		if strings.TrimSpace(productMeta.NamePersian) != "" {
+			parts = append(parts, productMeta.NamePersian)
+		}
+		if strings.TrimSpace(productMeta.DescriptionPersian) != "" {
+			parts = append(parts, productMeta.DescriptionPersian)
+		}
+	}
+	return strings.Join(parts, "\n")
+}
+
+// VariantFAISSKey returns the FAISS id for a variant ("{productId}:{variantId}").
+func VariantFAISSKey(productID, variantID string) string {
+	if strings.TrimSpace(variantID) == "" {
+		return productID
+	}
+	return productID + ":" + variantID
+}
+
+// ParseVariantFAISSKey splits a FAISS variant key back into product + variant.
+func ParseVariantFAISSKey(key string) (string, string) {
+	if i := strings.LastIndex(key, ":"); i > 0 && i+1 < len(key) {
+		// product IDs are 24 hex chars, so the last colon reliably separates them.
+		return key[:i], key[i+1:]
+	}
+	return key, ""
 }

@@ -6,6 +6,25 @@ export interface SizeVariant {
   quantity: number;      // Available inventory for this specific size
 }
 
+export interface VariantAIMetadata {
+  productTypePersian?: string;
+  productTypeStandard?: string;
+  materialPersian?: string;
+  stylePersian?: string;
+  patternPersian?: string;
+  fitType?: string;
+  colorFamily?: string;
+  season?: string[];
+  gender?: string;
+  keywords?: string[];
+  tags?: string[];
+  occasionTags?: string[];
+  embeddingVector?: number[];
+  embeddingModel?: string;
+  confidence?: number;
+  updatedAt?: string;
+}
+
 export interface ColorVariant {
   variantId?: string;      // Stable identity for this color/pattern variant
   color: string;         // Hex code or color name (e.g., "#FF5733", "Red")
@@ -15,6 +34,7 @@ export interface ColorVariant {
   tryOnImage?: string;         // Virtual try-on image for this color
   tryOnGarmentType?: string;  // upper_body, lower_body, dresses
   sizes: SizeVariant[];       // Available sizes for this color with inventory
+  aiMetadata?: VariantAIMetadata; // AI-populated per-variant search metadata
 }
 
 // For product list API - each color variant is returned as a separate item

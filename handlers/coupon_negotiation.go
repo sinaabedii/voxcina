@@ -12,6 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"backEnd/db"
 	"backEnd/models"
@@ -71,11 +72,17 @@ func NegotiateCouponStream(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	if turn.Coupon != nil {
-		nc := buildNegotiatedCoupon(input, turn.Coupon, userID)
-		nc.TryonID = input.Request.TryonID
-		nc.ChatID = input.Request.ChatID
-		if err := saveNegotiatedCoupon(persistCtx, nc); err != nil {
-			fmt.Printf("[negotiate-stream] coupon save error: %v\n", err)
+		if turn.Coupon.IsReuse {
+			// Restating the current best price — reuse the existing coupon and
+			// skip minting a duplicate code/document.
+			fmt.Printf("[negotiate-stream] reusing active coupon %s at %d%%\n", turn.Coupon.Code, int(turn.Coupon.Value))
+		} else {
+			nc := buildNegotiatedCoupon(input, turn.Coupon, userID)
+			nc.TryonID = input.Request.TryonID
+			nc.ChatID = input.Request.ChatID
+			if err := saveNegotiatedCoupon(persistCtx, nc); err != nil {
+				fmt.Printf("[negotiate-stream] coupon save error: %v\n", err)
+			}
 		}
 	}
 
@@ -128,6 +135,12 @@ func buildSellerInput(ctx context.Context, userID primitive.ObjectID, req servic
 
 	grantCount, prevMax, lastReason := loadNegotiationProgress(ctx, userID, req.ChatID)
 	input.State = services.ResolveNegotiationState(grantCount, prevMax, lastReason)
+
+	// Carry the room's most recent still-valid coupon so the agent can reuse it
+	// when a turn just restates the current best price instead of minting a
+	// duplicate. Loaded here (server-side, authenticated) so the client can't
+	// nominate a coupon to reuse.
+	input.ReusableCoupon = loadLatestActiveCoupon(ctx, userID, req.ChatID)
 
 	return input, nil
 }
@@ -253,6 +266,55 @@ func loadNegotiationProgress(ctx context.Context, userID primitive.ObjectID, cha
 	return len(coupons), prevMax, lastReason
 }
 
+// loadLatestActiveCoupon returns the most recent still-unused, unexpired
+// negotiated coupon for this fitting room, as a NegotiateCouponOut the agent
+// can echo straight back to the client when it restates the current best price.
+// Returns nil when there is none — the agent then mints a fresh code.
+func loadLatestActiveCoupon(ctx context.Context, userID primitive.ObjectID, chatID string) *services.NegotiateCouponOut {
+	if chatID == "" {
+		return nil
+	}
+
+	var coupon models.NegotiatedCoupon
+	err := db.Database.Collection("negotiated_coupons").FindOne(ctx, bson.M{
+		"user_id":     userID,
+		"chat_id":     chatID,
+		"used":        false,
+		"valid_until": bson.M{"$gt": time.Now()},
+	}, options.FindOne().SetSort(bson.M{"created_at": -1})).Decode(&coupon)
+	if err != nil {
+		return nil
+	}
+
+	out := &services.NegotiateCouponOut{
+		Code:       coupon.Code,
+		Value:      coupon.Value,
+		Reason:     coupon.Reason,
+		ValidUntil: coupon.ValidUntil.Format(time.RFC3339),
+		IsReuse:    true,
+	}
+
+	productIDStrings := make([]string, 0, len(coupon.ProductIDs))
+	for _, pid := range coupon.ProductIDs {
+		productIDStrings = append(productIDStrings, pid.Hex())
+	}
+	out.ProductIDs = productIDStrings
+	if len(productIDStrings) > 1 {
+		out.CompProductID = productIDStrings[1]
+	}
+
+	if len(coupon.RequiredProducts) > 0 {
+		out.MainColor = coupon.RequiredProducts[0].Color
+		out.MainColorName = coupon.RequiredProducts[0].ColorName
+		if len(coupon.RequiredProducts) > 1 {
+			out.CompColor = coupon.RequiredProducts[1].Color
+			out.CompColorName = coupon.RequiredProducts[1].ColorName
+		}
+	}
+
+	return out
+}
+
 // persistNegotiationTurn writes both halves of the turn to the room transcript.
 // Doing it here rather than from the browser removes the race where the agent
 // reads history that the client has not finished uploading yet, and lets the
@@ -292,6 +354,9 @@ func persistNegotiationTurn(ctx context.Context, userID primitive.ObjectID, inpu
 		if rec := recommendedProductRecord(turn.RecommendedProduct); rec != nil {
 			result["recommended_product"] = rec
 		}
+		if len(turn.CatalogHits) > 0 {
+			result["catalog_hits"] = turn.CatalogHits
+		}
 		agentMsg.ToolCall = &models.TryonChatToolCall{
 			Name: "offer_coupon",
 			Arguments: map[string]interface{}{
@@ -306,6 +371,12 @@ func persistNegotiationTurn(ctx context.Context, userID primitive.ObjectID, inpu
 			Name:      "recommend_product",
 			Arguments: map[string]interface{}{"product_id": turn.RecommendedProduct.ProductID},
 			Result:    map[string]interface{}{"recommended_product": rec},
+		}
+	} else if len(turn.CatalogHits) > 0 {
+		agentMsg.ToolCall = &models.TryonChatToolCall{
+			Name:      "search_catalog",
+			Arguments: map[string]interface{}{},
+			Result:    map[string]interface{}{"catalog_hits": turn.CatalogHits},
 		}
 	}
 

@@ -13,16 +13,41 @@ type SizeVariant struct {
 	Quantity int    `bson:"quantity" json:"quantity"` // Available inventory for this specific size
 }
 
+// VariantAIMetadata holds AI-generated, per-variant search fields. It is
+// stored inside ColorVariant.ai_metadata and populated by AIMetadataService —
+// one vision request per variant — using that variant's own images and
+// colorName together with the product's name/description/category/brand. The
+// admin never fills these fields by hand.
+type VariantAIMetadata struct {
+	ProductTypePersian  string    `bson:"product_type_persian,omitempty"  json:"productTypePersian,omitempty"`  // e.g., "تیشرت"
+	ProductTypeStandard string    `bson:"product_type_standard,omitempty" json:"productTypeStandard,omitempty"` // e.g., "tshirt"
+	MaterialPersian     string    `bson:"material_persian,omitempty"      json:"materialPersian,omitempty"`     // e.g., "پنبه"
+	StylePersian        string    `bson:"style_persian,omitempty"         json:"stylePersian,omitempty"`        // e.g., "کژوال"
+	PatternPersian      string    `bson:"pattern_persian,omitempty"       json:"patternPersian,omitempty"`      // e.g., "ساده", "راه‌راه"
+	FitType             string    `bson:"fit_type,omitempty"              json:"fitType,omitempty"`             // "معمولی" | "تنگ" | "گشاد"
+	ColorFamily         string    `bson:"color_family,omitempty"          json:"colorFamily,omitempty"`         // e.g., "خنثی", "گرم"
+	Season              []string  `bson:"season,omitempty"                json:"season,omitempty"`              // denormalized from product collection
+	Gender              string    `bson:"gender,omitempty"                json:"gender,omitempty"`              // "مردانه" | "زنانه" | "یونیسکس"
+	Keywords            []string  `bson:"keywords,omitempty"              json:"keywords,omitempty"`
+	Tags                []string  `bson:"tags,omitempty"                  json:"tags,omitempty"`
+	OccasionTags        []string  `bson:"occasion_tags,omitempty"         json:"occasionTags,omitempty"`
+	EmbeddingVector     []float32 `bson:"embedding_vector,omitempty"      json:"embeddingVector,omitempty"`
+	EmbeddingModel      string    `bson:"embedding_model,omitempty"       json:"embeddingModel,omitempty"`
+	Confidence          float64   `bson:"confidence,omitempty"            json:"confidence,omitempty"`
+	UpdatedAt           time.Time `bson:"updated_at,omitempty"            json:"updatedAt,omitempty"`
+}
+
 // ColorVariant represents a color option with its images and available sizes
 type ColorVariant struct {
-	VariantID        string        `bson:"variant_id,omitempty" json:"variantId,omitempty"`                 // Stable identity for this color/pattern variant
-	Color            string        `bson:"color" json:"color"`                                              // Hex code or color name (e.g., "#FF5733", "Red")
-	ColorName        string        `bson:"color_name" json:"colorName"`                                     // Display name in Persian/English (e.g., "قرمز", "Red")
-	SwatchImage      string        `bson:"swatch_image,omitempty" json:"swatchImage,omitempty"`             // Pattern/fabric swatch image for color selector
-	Images           []string      `bson:"images" json:"images"`                                            // Multiple product images for this color (different angles)
-	TryOnImage       string        `bson:"try_on_image,omitempty" json:"tryOnImage,omitempty"`              // Virtual try-on / AR image for this color
-	TryOnGarmentType string        `bson:"try_on_garment_type,omitempty" json:"tryOnGarmentType,omitempty"` // upper_body, lower_body, dresses
-	Sizes            []SizeVariant `bson:"sizes" json:"sizes"`                                              // Available sizes for this color with inventory
+	VariantID        string             `bson:"variant_id,omitempty" json:"variantId,omitempty"`                 // Stable identity for this color/pattern variant
+	Color            string             `bson:"color" json:"color"`                                              // Hex code or color name (e.g., "#FF5733", "Red")
+	ColorName        string             `bson:"color_name" json:"colorName"`                                     // Display name in Persian/English (e.g., "قرمز", "Red")
+	SwatchImage      string             `bson:"swatch_image,omitempty" json:"swatchImage,omitempty"`             // Pattern/fabric swatch image for color selector
+	Images           []string           `bson:"images" json:"images"`                                            // Multiple product images for this color (different angles)
+	TryOnImage       string             `bson:"try_on_image,omitempty" json:"tryOnImage,omitempty"`              // Virtual try-on / AR image for this color
+	TryOnGarmentType string             `bson:"try_on_garment_type,omitempty" json:"tryOnGarmentType,omitempty"` // upper_body, lower_body, dresses
+	Sizes            []SizeVariant      `bson:"sizes" json:"sizes"`                                              // Available sizes for this color with inventory
+	AIMetadata       *VariantAIMetadata `bson:"ai_metadata,omitempty" json:"aiMetadata,omitempty"`               // AI-populated per-variant metadata used by negotiator search_catalog
 }
 
 // EnsureColorVariantIDs assigns stable IDs to variants created before the
@@ -38,7 +63,6 @@ func EnsureColorVariantIDs(variants []ColorVariant) bool {
 	return changed
 }
 
-// ProductAttribute represents product-wide metadata (non-variant)
 type ProductAttribute struct {
 	Name  string `bson:"name"  json:"name"`  // e.g., "Material", "Care Instructions"
 	Value string `bson:"value" json:"value"` // e.g., "Cotton", "Machine Washable"

@@ -308,6 +308,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	categoryIDsJSON := r.FormValue("categoryIds")
 	brandIDStr := r.FormValue("brandId")
 	collection := strings.TrimSpace(r.FormValue("collection"))
+	gender := strings.TrimSpace(r.FormValue("gender"))
 	colorVariantsJSON := r.FormValue("colorVariants") // Changed from variantsJSON
 	attributesJSON := r.FormValue("attributes")
 	searchMetadataJSON := r.FormValue("searchMetadata")
@@ -411,6 +412,16 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid brandId: brand not found")
 		return
+	}
+
+	// Ingest per-variant AI metadata (variantAIMetadata[]) — AI-only fields, no admin burden.
+	variantAIMetadataJSON := r.FormValue("variantAIMetadata")
+	var variantAIMetadataList []models.VariantAIMetadata
+	if variantAIMetadataJSON != "" {
+		if err := json.Unmarshal([]byte(variantAIMetadataJSON), &variantAIMetadataList); err != nil {
+			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid variantAIMetadata JSON: "+err.Error())
+			return
+		}
 	}
 
 	var attributes []models.ProductAttribute
@@ -714,6 +725,24 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		SearchMetadata: searchMetadata,
 	}
 
+	// Attach per-variant AI metadata when the admin supplied it (variantAIMetadata[i]).
+	if len(variantAIMetadataList) > 0 {
+		for i := range product.ColorVariants {
+			if i < len(variantAIMetadataList) && hasVariantAIMetadata(variantAIMetadataList[i]) {
+				now := time.Now()
+				m := variantAIMetadataList[i]
+				if collection != "" {
+					m.Season = []string{collection}
+				}
+				if gender != "" {
+					m.Gender = gender
+				}
+				m.UpdatedAt = now
+				product.ColorVariants[i].AIMetadata = &m
+			}
+		}
+	}
+
 	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -734,7 +763,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Best-effort: upsert embedding into FAISS vector index
+	// Best-effort: upsert product embedding into FAISS vector index
 	if product.SearchMetadata != nil && len(product.SearchMetadata.EmbeddingVector) > 0 {
 		faissClient := services.NewFaissClientFromEnv()
 		if faissClient != nil {
@@ -753,6 +782,25 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 					product.ID.Hex(),
 					faissErr,
 				)
+			}
+		}
+	}
+	upsertVariantEmbeddings(context.Background(), &product)
+
+	// Best-effort: upsert per-variant embeddings so negotiator search_catalog
+	// can run variant-level KNN on this product immediately.
+	if len(product.ColorVariants) > 0 {
+		faissClient := services.NewFaissClientFromEnv()
+		if faissClient != nil {
+			vctx, vcancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer vcancel()
+			for _, cv := range product.ColorVariants {
+				if cv.AIMetadata == nil || len(cv.AIMetadata.EmbeddingVector) == 0 {
+					continue
+				}
+				if vErr := faissClient.UpsertVariantEmbedding(vctx, product.ID.Hex(), cv.VariantID, cv.AIMetadata.EmbeddingVector); vErr != nil {
+					fmt.Printf("Warning: failed to upsert FAISS variant embedding %s: %v\n", product.ID.Hex(), vErr)
+				}
 			}
 		}
 	}
@@ -1683,10 +1731,21 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 			var colorVariants []models.ColorVariant
 			if err := json.Unmarshal([]byte(colorVariantsJSON), &colorVariants); err == nil {
 				preserveColorVariantIDs(colorVariants, existingProduct.ColorVariants)
+				var variantAIMetadataList []models.VariantAIMetadata
+				if metadataJSON := r.FormValue("variantAIMetadata"); metadataJSON != "" {
+					if err := json.Unmarshal([]byte(metadataJSON), &variantAIMetadataList); err != nil {
+						utils.ErrorResponse(w, http.StatusBadRequest, "Invalid variantAIMetadata JSON: "+err.Error())
+						return
+					}
+				}
 				// Normalize Persian/Arabic digits in size strings to prevent duplicates
 				for i := range colorVariants {
 					for j := range colorVariants[i].Sizes {
 						colorVariants[i].Sizes[j].Size = utils.NormalizePersianDigits(colorVariants[i].Sizes[j].Size)
+					}
+					if i < len(variantAIMetadataList) && hasVariantAIMetadata(variantAIMetadataList[i]) {
+						metadata := variantAIMetadataList[i]
+						colorVariants[i].AIMetadata = &metadata
 					}
 				}
 				// Process each color variant's images
@@ -1874,8 +1933,76 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	upsertVariantEmbeddings(context.Background(), &updatedProduct)
 
 	utils.JSONResponse(w, http.StatusOK, updatedProduct)
+}
+
+func hasVariantAIMetadata(metadata models.VariantAIMetadata) bool {
+	return metadata.ProductTypePersian != "" ||
+		metadata.ProductTypeStandard != "" ||
+		metadata.MaterialPersian != "" ||
+		metadata.StylePersian != "" ||
+		metadata.PatternPersian != "" ||
+		len(metadata.Keywords) > 0
+}
+
+// upsertVariantEmbeddings creates one embedding per AI-enriched color variant
+// and persists it beside the variant. FAISS receives the same stable
+// productID:variantID key, allowing search_catalog to return a color-level hit.
+// This is best-effort: product writes remain successful when embeddings or
+// FAISS are temporarily unavailable.
+func upsertVariantEmbeddings(ctx context.Context, product *models.Product) {
+	if product == nil || db.Database == nil {
+		return
+	}
+	workCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
+	defer cancel()
+
+	changed := false
+	for i := range product.ColorVariants {
+		cv := &product.ColorVariants[i]
+		if cv.AIMetadata == nil {
+			continue
+		}
+		text := services.BuildVariantEmbeddingText(
+			product.Name,
+			product.Description,
+			product.Brand,
+			*cv,
+			cv.AIMetadata,
+			product.SearchMetadata,
+		)
+		if strings.TrimSpace(text) == "" {
+			continue
+		}
+		vector, modelName, err := services.GenerateEmbedding(workCtx, text)
+		if err != nil {
+			fmt.Printf("Warning: failed to generate variant embedding %s/%s: %v\n", product.ID.Hex(), cv.VariantID, err)
+			continue
+		}
+		cv.AIMetadata.EmbeddingVector = vector
+		cv.AIMetadata.EmbeddingModel = modelName
+		cv.AIMetadata.UpdatedAt = time.Now()
+		changed = true
+	}
+
+	if changed {
+		if _, err := db.Database.Collection("products").UpdateOne(workCtx, bson.M{"_id": product.ID}, bson.M{"$set": bson.M{"color_variants": product.ColorVariants}}); err != nil {
+			fmt.Printf("Warning: failed to persist variant embeddings for product %s: %v\n", product.ID.Hex(), err)
+		}
+	}
+
+	if client := services.NewFaissClientFromEnv(); client != nil {
+		for _, cv := range product.ColorVariants {
+			if cv.AIMetadata == nil || len(cv.AIMetadata.EmbeddingVector) == 0 {
+				continue
+			}
+			if err := client.UpsertVariantEmbedding(workCtx, product.ID.Hex(), cv.VariantID, cv.AIMetadata.EmbeddingVector); err != nil {
+				fmt.Printf("Warning: failed to upsert variant FAISS vector %s/%s: %v\n", product.ID.Hex(), cv.VariantID, err)
+			}
+		}
+	}
 }
 
 // DeleteProduct handles DELETE /api/admin/products/{id}
