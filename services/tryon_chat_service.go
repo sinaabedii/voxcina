@@ -86,17 +86,6 @@ func (s *TryonChatService) GetByChatID(ctx context.Context, chatID string) (*mod
 
 func (s *TryonChatService) AppendMessages(ctx context.Context, chatID string, messages []models.TryonChatMessage, userID primitive.ObjectID) error {
 	now := time.Now()
-	doc := bson.M{
-		"chat_id":    chatID,
-		"user_id":    userID,
-		"status":     models.TryonChatStatusActive,
-		"updated_at": now,
-	}
-	for _, m := range messages {
-		doc["messages"] = bson.M{"$each": []models.TryonChatMessage{m}}
-		break
-	}
-
 	filter := bson.M{"chat_id": chatID}
 	update := bson.M{
 		"$push": bson.M{"messages": bson.M{"$each": messages}},

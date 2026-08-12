@@ -36,6 +36,10 @@ type NegotiatedCoupon struct {
 	CartSnapshot     []CartItemSnapshot   `bson:"cart_snapshot" json:"cart_snapshot"`
 	Type             string               `bson:"type" json:"type"`
 	Value            float64              `bson:"value" json:"value"`
+	// Reason is the justification the seller agent recorded for granting this
+	// percent. Internal provenance: the agent may only exceed the base discount
+	// when the customer gives a concrete new reason, and this is what it cited.
+	Reason           string               `bson:"reason,omitempty" json:"reason,omitempty"`
 	ValidUntil       time.Time            `bson:"valid_until" json:"valid_until"`
 	Used             bool                 `bson:"used" json:"used"`
 	Conversation     []CouponMessage      `bson:"conversation" json:"conversation"`

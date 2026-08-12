@@ -23,10 +23,7 @@ import Modal from "@/components/ui/Modal";
 import SizeSelector from "@/components/ui/SizeSelector";
 import { activityTracker } from "@/lib/activity-tracker";
 import { sessionManager } from "@/lib/session-manager";
-import {
-  TryonChatMessage as DbTryonChatMessage,
-  makeMessageId as makeDbMessageId,
-} from "@/lib/tryon-api";
+import { makeMessageId as makeDbMessageId } from "@/lib/tryon-api";
 import {
   findColorVariant,
   getCanonicalColor,
@@ -100,8 +97,6 @@ const RECOMMENDATION_TEMPLATES: Record<string, Record<string, (a: string, b: str
     lower_body: (dress, other) => `این ${other} با ${dress} ترکیب جالبی می‌شود!`,
   },
 };
-
-const QUICK_REPLIES: string[] = [];
 
 const NEGOTIATION_OPENERS = [
   { icon: Tag, text: "سلام! می‌خوام یه تخفیف خوب برای این محصول بگیرم." },
@@ -642,19 +637,6 @@ export default function TryOnRoomPage() {
     }
   };
 
-  const buildCartContext = (): { product_id: string; product_name: string; price: number; color?: string; color_name?: string; selected_color?: string; size?: string }[] => {
-    const latestItems = computeEligibleItems(useCartStore.getState().cart.items);
-    return latestItems.map((ei) => ({
-      product_id: ei.product.id,
-      product_name: ei.product.name,
-      price: ei.product.price,
-      color: getCanonicalColor(ei.colorVariant) || ei.cartItem.color,
-      color_name: ei.cartItem.colorName || ei.colorVariant.colorName,
-      selected_color: getCanonicalColor(ei.colorVariant) || ei.cartItem.color,
-      size: ei.cartItem.size,
-    }));
-  };
-
   const sendNegotiationMessage = async (message: string, item?: TryOnEligibleItem) => {
     const targetItem = item || (activeItemIndex !== null ? eligibleItems[activeItemIndex] : null);
     if (!targetItem) return;
@@ -664,19 +646,13 @@ export default function TryOnRoomPage() {
     const userMsg: ChatMessage = { role: "user", content: message };
     setChatMessages((prev) => [...prev, userMsg]);
 
-    // Persist user message
-    persistMessage({
-      id: makeDbMessageId(),
-      role: "user",
-      content: message,
-      timestamp: new Date().toISOString(),
-    });
-
     // Snapshot live state for the body
     const liveState = useTryOnStore.getState();
 
     try {
-      const tryonCtx = `${targetItem.product.name} - ${targetItem.colorVariant.colorName} - ${formatPrice(targetItem.product.price)}`;
+      // The backend rebuilds the garment, cart and history from the database
+      // and persists both halves of this turn itself, so the body only names
+      // which try-on and which fitting room the message belongs to.
       const res = await sessionManager.fetchWithAuth("/api/tryon/negotiate-stream", {
         method: "POST",
         headers: {
@@ -684,9 +660,6 @@ export default function TryOnRoomPage() {
         },
         body: JSON.stringify({
           message,
-          chat_history: chatMessages.filter((m) => m.role === "user" || m.role === "agent"),
-          cart_items: buildCartContext(),
-          tryon_context: tryonCtx,
           tryon_product_id: targetItem.product.id,
           tryon_color: getCanonicalColor(targetItem.colorVariant) || targetItem.colorVariant.colorName,
           tryon_id: liveState.currentTryonId || "",
@@ -754,41 +727,20 @@ export default function TryOnRoomPage() {
                 setCoupon(c.code, c.value, c.valid_until, c.product_ids, requiredColors);
                 setCouponExpired(false);
               }
-              let recProduct: RecommendedProduct | null = null;
-              if (data.complementary_products?.length > 0) {
+              // Prefer the product the agent actually named — falling back to
+              // the first complementary product used to contradict her text.
+              if (data.recommended_product) {
+                setRecommendedProduct(data.recommended_product as RecommendedProduct);
+              } else if (data.complementary_products?.length > 0) {
                 const compID = data.coupon ? (data.coupon as any).comp_product_id : undefined;
                 const match = compID
                   ? data.complementary_products.find((p: any) => p.product_id === compID)
                   : undefined;
-                recProduct = (match || data.complementary_products[0]) as RecommendedProduct;
-                setRecommendedProduct(recProduct);
+                setRecommendedProduct((match || data.complementary_products[0]) as RecommendedProduct);
               }
 
-              // Persist agent message (with tool call if present) and coupon
-              const agentPersistMsg: DbTryonChatMessage = {
-                id: makeDbMessageId(),
-                role: "agent",
-                content: agentContent,
-                timestamp: new Date().toISOString(),
-              };
-              if (data.coupon) {
-                agentPersistMsg.tool_call = {
-                  name: "offer_coupon",
-                  arguments: {
-                    product_id: targetItem.product.id,
-                    comp_product_id: (data.coupon as any).comp_product_id || "",
-                    message: agentContent,
-                  },
-                  result: {
-                    code: (data.coupon as any).code,
-                    value: (data.coupon as any).value,
-                    valid_until: (data.coupon as any).valid_until,
-                    product_ids: (data.coupon as any).product_ids || [],
-                    ...(recProduct && { recommended_product: recProduct }),
-                  },
-                };
-              }
-              persistMessage(agentPersistMsg);
+              // The backend persists both halves of this turn to the room
+              // transcript, including the tool_call the reload path reads back.
             } else if (data.type === "error") {
               throw new Error(data.error || "خطا در مذاکره");
             }
@@ -814,6 +766,14 @@ export default function TryOnRoomPage() {
         copy.push(errMsg);
         return copy;
       });
+      // A failed turn never reaches the backend's own persistence, so record
+      // both halves here to keep the transcript complete across a reload.
+      persistMessage({
+        id: makeDbMessageId(),
+        role: "user",
+        content: message,
+        timestamp: new Date().toISOString(),
+      });
       persistMessage({
         id: makeDbMessageId(),
         role: "agent",
@@ -831,11 +791,6 @@ export default function TryOnRoomPage() {
     const msg = chatInput.trim();
     setChatInput("");
     sendNegotiationMessage(msg);
-  };
-
-  const handleQuickReply = (text: string) => {
-    if (chatLoading) return;
-    sendNegotiationMessage(text);
   };
 
   const handleApplyCoupon = async () => {
@@ -1589,19 +1544,6 @@ export default function TryOnRoomPage() {
                             >
                               <opener.icon className="h-3 w-3" />
                               {opener.text}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {chatMessages.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {QUICK_REPLIES.map((text) => (
-                            <button
-                              key={text}
-                              onClick={() => handleQuickReply(text)}
-                              className="text-[10px] px-2.5 py-1.5 rounded-full bg-white dark:bg-voxcina-blue/30 border border-secondary-400 dark:border-voxcina-blue/40 text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:bg-voxcina-blue/[0.08] dark:hover:bg-voxcina-cream/[0.08] hover:text-voxcina-blue dark:hover:text-voxcina-cream transition-all"
-                            >
-                              {text}
                             </button>
                           ))}
                         </div>

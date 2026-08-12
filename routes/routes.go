@@ -90,7 +90,6 @@ func NewRouter() *mux.Router {
 	tryonRouter.HandleFunc("/generate", handlers.VirtualTryOn).Methods(http.MethodPost)
 	tryonRouter.HandleFunc("/status", handlers.VirtualTryOnStatus).Methods(http.MethodGet)
 	tryonRouter.HandleFunc("/status-stream", handlers.VirtualTryOnStatusStream).Methods(http.MethodGet)
-	tryonRouter.HandleFunc("/negotiate", handlers.NegotiateCoupon).Methods(http.MethodPost)
 	tryonRouter.HandleFunc("/negotiate-stream", handlers.NegotiateCouponStream).Methods(http.MethodPost)
 	tryonRouter.HandleFunc("/apply-negotiated-coupon", handlers.ApplyNegotiatedCoupon).Methods(http.MethodPost)
 

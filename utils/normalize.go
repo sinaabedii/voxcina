@@ -20,3 +20,18 @@ func NormalizePersianDigits(s string) string {
 	}
 	return strings.TrimSpace(b.String())
 }
+
+// TruncateRunes shortens s to at most max runes. Unlike slicing a string by
+// byte offset it never splits a multi-byte rune, so truncated Persian text
+// stays valid UTF-8 — important for log lines built from user messages and
+// upstream API bodies.
+func TruncateRunes(s string, max int) string {
+	if max <= 0 {
+		return ""
+	}
+	runes := []rune(s)
+	if len(runes) <= max {
+		return s
+	}
+	return string(runes[:max])
+}

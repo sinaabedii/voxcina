@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -18,84 +19,44 @@ import (
 	"backEnd/utils"
 )
 
-func NegotiateCoupon(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("[negotiate] --- START ---")
-	userID, statusCode, err := getUserIDFromContext(r)
-	if err != nil {
-		fmt.Printf("[negotiate] auth failed: status=%d err=%v\n", statusCode, err)
-		utils.ErrorResponse(w, statusCode, "لطفاً وارد شوید")
-		return
-	}
-	fmt.Printf("[negotiate] user=%s\n", userID.Hex())
-
-	var req services.NegotiateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		fmt.Printf("[negotiate] decode error: %v\n", err)
-		utils.ErrorResponse(w, http.StatusBadRequest, "فرمت درخواست نامعتبر است")
-		return
-	}
-	fmt.Printf("[negotiate] decoded req: productID=%s color=%s msg=%s\n", req.TryonProductID, req.TryonColor, req.Message[:min(50, len(req.Message))])
-
-	if req.Message == "" {
-		fmt.Println("[negotiate] empty message")
-		utils.ErrorResponse(w, http.StatusBadRequest, "پیام نمی‌تواند خالی باشد")
-		return
-	}
-
-	req.ComplementaryProducts = loadComplementaryProducts(req.TryonProductID, req.TryonColor)
-
-	fmt.Println("[negotiate] calling RunSellerAgent...")
-	result, err := services.RunSellerAgent(req)
-	if err != nil {
-		fmt.Printf("[negotiate] RunSellerAgent error: %v\n", err)
-		utils.ErrorResponse(w, http.StatusServiceUnavailable, "خطا در ارتباط با سرویس مذاکره")
-		return
-	}
-	fmt.Printf("[negotiate] RunSellerAgent success, hasCoupon=%v reply=%s\n", result.Coupon != nil, result.Reply[:min(100, len(result.Reply))])
-
-	if result.Coupon != nil {
-		coupon := buildNegotiatedCoupon(req, result.Coupon, userID, result.Reply)
-		coupon.TryonID = req.TryonID
-		coupon.ChatID = req.ChatID
-		if err := saveNegotiatedCoupon(context.Background(), coupon); err != nil {
-			utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در ذخیره کوپن")
-			return
-		}
-	}
-
-	utils.JSONResponse(w, http.StatusOK, result)
-	fmt.Println("[negotiate] --- END ---")
-}
-
 func NegotiateCouponStream(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("[negotiate-stream] --- START ---")
 	userID, _, err := getUserIDFromContext(r)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusUnauthorized, "لطفاً وارد شوید")
 		return
 	}
-	fmt.Printf("[negotiate-stream] user=%s\n", userID.Hex())
 
 	var req services.NegotiateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "فرمت درخواست نامعتبر است")
 		return
 	}
-	fmt.Printf("[negotiate-stream] productID=%s\n", req.TryonProductID)
 
+	req.Message = strings.TrimSpace(req.Message)
 	if req.Message == "" {
 		utils.ErrorResponse(w, http.StatusBadRequest, "پیام نمی‌تواند خالی باشد")
 		return
 	}
 
-	req.ComplementaryProducts = loadComplementaryProducts(req.TryonProductID, req.TryonColor)
+	// Everything the agent reasons over is rebuilt from the database here; the
+	// request body only names which try-on and which room.
+	input, err := buildSellerInput(r.Context(), userID, req)
+	if err != nil {
+		fmt.Printf("[negotiate-stream] context build failed for user=%s: %v\n", userID.Hex(), err)
+		utils.ErrorResponse(w, http.StatusBadRequest, "اطلاعات پرو مجازی نامعتبر است")
+		return
+	}
+
+	fmt.Printf("[negotiate-stream] user=%s product=%s grants=%d band=%d-%d msg=%q\n",
+		userID.Hex(), input.Request.TryonProductID, input.State.GrantCount,
+		input.State.Floor, input.State.Ceiling, utils.TruncateRunes(req.Message, 50))
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.WriteHeader(http.StatusOK)
 
-	coupon, err := services.RunSellerAgentStream(req, w)
+	turn, err := services.RunSellerAgentStream(r.Context(), input, w)
 	if err != nil {
 		fmt.Printf("[negotiate-stream] stream error: %v\n", err)
 		evt := services.StreamEvent{Type: "error", Error: "خطا در ارتباط با سرویس مذاکره"}
@@ -104,33 +65,299 @@ func NegotiateCouponStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if coupon != nil {
-		nc := buildNegotiatedCoupon(req, coupon, userID, "")
-		nc.TryonID = req.TryonID
-		nc.ChatID = req.ChatID
-		if err := saveNegotiatedCoupon(context.Background(), nc); err != nil {
+	// The response is already on the wire, so persistence must not ride on the
+	// request context — a client that disconnects here would cancel the writes.
+	persistCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if turn.Coupon != nil {
+		nc := buildNegotiatedCoupon(input, turn.Coupon, userID)
+		nc.TryonID = input.Request.TryonID
+		nc.ChatID = input.Request.ChatID
+		if err := saveNegotiatedCoupon(persistCtx, nc); err != nil {
 			fmt.Printf("[negotiate-stream] coupon save error: %v\n", err)
 		}
 	}
 
-	fmt.Println("[negotiate-stream] --- END ---")
+	persistNegotiationTurn(persistCtx, userID, input, turn)
+}
+
+// buildSellerInput assembles the agent's whole view of the world from the
+// database. The client supplies only identifiers, and each is checked against
+// the authenticated user before anything derived from it reaches the prompt.
+func buildSellerInput(ctx context.Context, userID primitive.ObjectID, req services.NegotiateRequest) (services.SellerAgentInput, error) {
+	input := services.SellerAgentInput{Request: req}
+
+	// A try-on record is the authoritative statement of what was worn, so it
+	// overrides the product and colour the client claims.
+	if req.TryonID != "" && virtualTryonService != nil {
+		tryon, err := virtualTryonService.GetByTryonID(ctx, req.TryonID)
+		if err != nil {
+			fmt.Printf("[negotiate-stream] tryon %s not found: %v\n", req.TryonID, err)
+		} else if tryon.UserID != userID {
+			return input, fmt.Errorf("tryon %s does not belong to user %s", req.TryonID, userID.Hex())
+		} else {
+			if !tryon.GarmentProductID.IsZero() {
+				input.Request.TryonProductID = tryon.GarmentProductID.Hex()
+			}
+			if tryon.GarmentColor != "" {
+				input.Request.TryonColor = tryon.GarmentColor
+			}
+		}
+	}
+
+	if input.Request.TryonProductID == "" {
+		return input, fmt.Errorf("no try-on product to negotiate over")
+	}
+
+	tryonContext, colorValue, colorName, err := describeTryonProduct(ctx, input.Request.TryonProductID, input.Request.TryonColor)
+	if err != nil {
+		return input, err
+	}
+	input.TryonContext = tryonContext
+	input.TryonColorName = colorName
+	if colorValue != "" {
+		// Pin the coupon to the canonical variant value so the cart-side
+		// colour check matches however the try-on record spelled it.
+		input.Request.TryonColor = colorValue
+	}
+
+	input.CartItems = buildServerCartContext(ctx, userID)
+	input.ChatHistory = loadNegotiationHistory(ctx, userID, req.ChatID)
+	input.ComplementaryProducts = loadComplementaryProducts(input.Request.TryonProductID, input.Request.TryonColor)
+
+	grantCount, prevMax, lastReason := loadNegotiationProgress(ctx, userID, req.ChatID)
+	input.State = services.ResolveNegotiationState(grantCount, prevMax, lastReason)
+
+	return input, nil
+}
+
+// describeTryonProduct renders the one-line garment summary the prompt shows as
+// "Just tried on", using the catalogue price rather than a client-supplied one.
+// It also returns the canonical colour value and display name of the matched
+// variant, so the coupon is pinned to the same values the cart stores.
+func describeTryonProduct(ctx context.Context, productID, color string) (summary, colorValue, colorName string, err error) {
+	objID, err := primitive.ObjectIDFromHex(productID)
+	if err != nil {
+		return "", "", "", fmt.Errorf("invalid product ID %q: %w", productID, err)
+	}
+
+	var product models.Product
+	if err := db.Database.Collection("products").FindOne(ctx, bson.M{"_id": objID}).Decode(&product); err != nil {
+		return "", "", "", fmt.Errorf("product %s not found: %w", productID, err)
+	}
+
+	colorName = color
+	if cv, _, ok := findColorVariant(&product, color, color); ok {
+		colorValue = canonicalColorValue(cv)
+		colorName = cv.ColorName
+	}
+
+	return fmt.Sprintf("%s - %s - %.0f تومان", product.Name, colorName, product.Price), colorValue, colorName, nil
+}
+
+// buildServerCartContext reads the user's real cart so prices in the prompt
+// cannot be spoofed by the caller.
+func buildServerCartContext(ctx context.Context, userID primitive.ObjectID) []services.CouponCartItem {
+	cart, _, err := getActiveCartForUser(ctx, userID)
+	if err != nil || cart == nil {
+		return nil
+	}
+
+	items := make([]services.CouponCartItem, 0, len(cart.Items))
+	for _, item := range cart.Items {
+		var product models.Product
+		if err := db.Database.Collection("products").FindOne(ctx, bson.M{"_id": item.ProductID}).Decode(&product); err != nil {
+			continue
+		}
+
+		entry := services.CouponCartItem{
+			ProductID:   item.ProductID.Hex(),
+			ProductName: product.Name,
+			Price:       product.Price,
+			Color:       item.Variant.Color,
+			ColorName:   item.Variant.ColorName,
+			Size:        item.Variant.Size,
+		}
+		if cv, _, ok := findColorVariant(&product, item.Variant.Color, item.Variant.ColorName); ok {
+			entry.Color = canonicalColorValue(cv)
+			entry.ColorName = cv.ColorName
+		}
+		items = append(items, entry)
+	}
+	return items
+}
+
+// loadNegotiationHistory replays the stored transcript for this room instead of
+// trusting the history the client sends, which is otherwise trivially forged.
+func loadNegotiationHistory(ctx context.Context, userID primitive.ObjectID, chatID string) []services.CouponChatMessage {
+	if chatID == "" || tryonChatService == nil {
+		return nil
+	}
+
+	chat, err := tryonChatService.GetByChatID(ctx, chatID)
+	if err != nil || chat == nil {
+		return nil
+	}
+	if chat.UserID != userID {
+		fmt.Printf("[negotiate-stream] chat %s does not belong to user %s — ignoring history\n", chatID, userID.Hex())
+		return nil
+	}
+
+	history := make([]services.CouponChatMessage, 0, len(chat.Messages))
+	for _, msg := range chat.Messages {
+		if msg.Role != models.TryonChatRoleUser && msg.Role != models.TryonChatRoleAgent {
+			continue
+		}
+		if msg.Content == "" {
+			continue
+		}
+		history = append(history, services.CouponChatMessage{Role: msg.Role, Content: msg.Content})
+	}
+	return history
+}
+
+// loadNegotiationProgress reports how many coupons this room has already
+// produced, the largest percent among them, and the reason cited for that
+// largest grant — the three facts the reason gate needs to decide whether the
+// agent may go higher this turn.
+func loadNegotiationProgress(ctx context.Context, userID primitive.ObjectID, chatID string) (int, int, string) {
+	if chatID == "" {
+		return 0, 0, ""
+	}
+
+	cursor, err := db.Database.Collection("negotiated_coupons").Find(ctx, bson.M{
+		"user_id": userID,
+		"chat_id": chatID,
+	})
+	if err != nil {
+		fmt.Printf("[negotiate-stream] progress lookup failed: %v\n", err)
+		return 0, 0, ""
+	}
+	defer cursor.Close(ctx)
+
+	var coupons []models.NegotiatedCoupon
+	if err := cursor.All(ctx, &coupons); err != nil {
+		fmt.Printf("[negotiate-stream] progress decode failed: %v\n", err)
+		return 0, 0, ""
+	}
+
+	prevMax := 0
+	lastReason := ""
+	for _, c := range coupons {
+		if int(c.Value) > prevMax {
+			prevMax = int(c.Value)
+			lastReason = c.Reason
+		}
+	}
+	return len(coupons), prevMax, lastReason
+}
+
+// persistNegotiationTurn writes both halves of the turn to the room transcript.
+// Doing it here rather than from the browser removes the race where the agent
+// reads history that the client has not finished uploading yet, and lets the
+// agent message carry the model and latency the admin transcript viewer shows.
+func persistNegotiationTurn(ctx context.Context, userID primitive.ObjectID, input services.SellerAgentInput, turn *services.SellerTurnResult) {
+	chatID := input.Request.ChatID
+	if chatID == "" || tryonChatService == nil {
+		return
+	}
+
+	now := time.Now()
+	messages := []models.TryonChatMessage{{
+		ID:        primitive.NewObjectID().Hex(),
+		Role:      models.TryonChatRoleUser,
+		Content:   input.Request.Message,
+		Timestamp: now,
+	}}
+
+	agentMsg := models.TryonChatMessage{
+		ID:             primitive.NewObjectID().Hex(),
+		Role:           models.TryonChatRoleAgent,
+		Content:        turn.Reply,
+		Timestamp:      now.Add(time.Millisecond),
+		ModelUsed:      turn.ModelUsed,
+		ResponseTimeMs: turn.ResponseTimeMs,
+	}
+
+	// The stored tool_call shape is what the fitting room reads back on reload
+	// to restore the coupon and the recommendation card — keep it stable.
+	if turn.Coupon != nil {
+		result := map[string]interface{}{
+			"code":        turn.Coupon.Code,
+			"value":       turn.Coupon.Value,
+			"valid_until": turn.Coupon.ValidUntil,
+			"product_ids": turn.Coupon.ProductIDs,
+		}
+		if rec := recommendedProductRecord(turn.RecommendedProduct); rec != nil {
+			result["recommended_product"] = rec
+		}
+		agentMsg.ToolCall = &models.TryonChatToolCall{
+			Name: "offer_coupon",
+			Arguments: map[string]interface{}{
+				"product_id":      input.Request.TryonProductID,
+				"comp_product_id": turn.Coupon.CompProductID,
+				"message":         turn.Reply,
+			},
+			Result: result,
+		}
+	} else if rec := recommendedProductRecord(turn.RecommendedProduct); rec != nil {
+		agentMsg.ToolCall = &models.TryonChatToolCall{
+			Name:      "recommend_product",
+			Arguments: map[string]interface{}{"product_id": turn.RecommendedProduct.ProductID},
+			Result:    map[string]interface{}{"recommended_product": rec},
+		}
+	}
+
+	messages = append(messages, agentMsg)
+
+	if err := tryonChatService.AppendMessages(ctx, chatID, messages, userID); err != nil {
+		fmt.Printf("[negotiate-stream] transcript append failed: %v\n", err)
+		return
+	}
+
+	if turn.Coupon != nil {
+		_ = tryonChatService.AddCouponCode(ctx, chatID, turn.Coupon.Code)
+	}
+	if turn.RecommendedProduct != nil {
+		_ = tryonChatService.AddRecommendedProduct(ctx, chatID, turn.RecommendedProduct.ProductID)
+	}
+}
+
+// recommendedProductRecord flattens a recommendation for storage. The keys are
+// written out explicitly because the fitting room reads them straight back on
+// reload — BSON would otherwise store the Go field names and the restore path
+// would find nothing. The full product document is deliberately left out; the
+// client rebuilds it from these fields (see buildRecommendedProduct).
+func recommendedProductRecord(rec *services.CouponCartItem) map[string]interface{} {
+	if rec == nil {
+		return nil
+	}
+	return map[string]interface{}{
+		"product_id":     rec.ProductID,
+		"product_name":   rec.ProductName,
+		"price":          rec.Price,
+		"color":          rec.Color,
+		"color_name":     rec.ColorName,
+		"selected_color": rec.SelectedColor,
+		"size":           rec.Size,
+		"image":          rec.Image,
+	}
 }
 
 func loadComplementaryProducts(productID, color string) []services.CouponCartItem {
 	if productID == "" {
 		return nil
 	}
-	fmt.Printf("[negotiate] looking up complementary for product=%s color=%s\n", productID, color)
 	compProducts, err := findComplementaryProducts(productID, color)
 	if err != nil {
 		fmt.Printf("[negotiate] failed to find complementary products: %v\n", err)
 		return nil
 	}
-	fmt.Printf("[negotiate] found %d complementary products\n", len(compProducts))
 	return compProducts
 }
 
-func buildNegotiatedCoupon(req services.NegotiateRequest, coupon *services.NegotiateCouponOut, userID primitive.ObjectID, agentReply string) models.NegotiatedCoupon {
+func buildNegotiatedCoupon(input services.SellerAgentInput, coupon *services.NegotiateCouponOut, userID primitive.ObjectID) models.NegotiatedCoupon {
 	productIDs := make([]primitive.ObjectID, 0, len(coupon.ProductIDs))
 	for _, pid := range coupon.ProductIDs {
 		objID, err := primitive.ObjectIDFromHex(pid)
@@ -141,8 +368,8 @@ func buildNegotiatedCoupon(req services.NegotiateRequest, coupon *services.Negot
 
 	validUntil, _ := time.Parse(time.RFC3339, coupon.ValidUntil)
 
-	cartSnapshot := make([]models.CartItemSnapshot, 0, len(req.CartItems))
-	for _, item := range req.CartItems {
+	cartSnapshot := make([]models.CartItemSnapshot, 0, len(input.CartItems))
+	for _, item := range input.CartItems {
 		cartSnapshot = append(cartSnapshot, models.CartItemSnapshot{
 			ProductID:   item.ProductID,
 			ProductName: item.ProductName,
@@ -153,8 +380,8 @@ func buildNegotiatedCoupon(req services.NegotiateRequest, coupon *services.Negot
 		})
 	}
 
-	conversation := make([]models.CouponMessage, 0, len(req.ChatHistory)+2)
-	for _, msg := range req.ChatHistory {
+	conversation := make([]models.CouponMessage, 0, len(input.ChatHistory)+1)
+	for _, msg := range input.ChatHistory {
 		conversation = append(conversation, models.CouponMessage{
 			Role:    msg.Role,
 			Content: msg.Content,
@@ -162,16 +389,10 @@ func buildNegotiatedCoupon(req services.NegotiateRequest, coupon *services.Negot
 	}
 	conversation = append(conversation, models.CouponMessage{
 		Role:    "user",
-		Content: req.Message,
+		Content: input.Request.Message,
 	})
-	if agentReply != "" {
-		conversation = append(conversation, models.CouponMessage{
-			Role:    "agent",
-			Content: agentReply,
-		})
-	}
 
-	requiredProducts := buildRequiredProducts(req, coupon)
+	requiredProducts := buildRequiredProducts(input, coupon)
 
 	return models.NegotiatedCoupon{
 		Code:             coupon.Code,
@@ -181,6 +402,7 @@ func buildNegotiatedCoupon(req services.NegotiateRequest, coupon *services.Negot
 		CartSnapshot:     cartSnapshot,
 		Type:             "percentage",
 		Value:            coupon.Value,
+		Reason:           coupon.Reason,
 		ValidUntil:       validUntil,
 		Used:             false,
 		Conversation:     conversation,
@@ -188,7 +410,7 @@ func buildNegotiatedCoupon(req services.NegotiateRequest, coupon *services.Negot
 	}
 }
 
-func buildRequiredProducts(req services.NegotiateRequest, coupon *services.NegotiateCouponOut) []models.RequiredProduct {
+func buildRequiredProducts(input services.SellerAgentInput, coupon *services.NegotiateCouponOut) []models.RequiredProduct {
 	ctx := context.Background()
 	collection := db.Database.Collection("products")
 	result := make([]models.RequiredProduct, 0, len(coupon.ProductIDs))
@@ -206,10 +428,10 @@ func buildRequiredProducts(req services.NegotiateRequest, coupon *services.Negot
 
 		var color, colorName, image string
 		if i == 0 {
-			color = req.TryonColor
-			colorName = req.TryonColor
+			color = input.Request.TryonColor
+			colorName = input.TryonColorName
 		} else if coupon.CompProductID != "" && pid == coupon.CompProductID {
-			for _, cp := range req.ComplementaryProducts {
+			for _, cp := range input.ComplementaryProducts {
 				if cp.ProductID == coupon.CompProductID {
 					color = cp.Color
 					colorName = cp.ColorName
