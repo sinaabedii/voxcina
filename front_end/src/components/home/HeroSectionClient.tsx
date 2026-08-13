@@ -431,25 +431,17 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({ heroImages }) => 
                   aria-hidden="true"
                   className={`relative block overflow-hidden rounded-full transition-all duration-500 ${
                     active
-                      ? "h-5 w-14 bg-white/30"
-                      : "h-2 w-2 bg-white/50 hover:bg-white/80"
+                      ? "h-1.5 w-12 bg-white/30"
+                      : "h-1.5 w-1.5 bg-white/50 hover:bg-white/80"
                   }`}
                 >
                   {active && (
-                    <>
-                      <span
-                        key={`${slide.key}-${activeIndex}`}
-                        aria-hidden="true"
-                        className="absolute inset-y-0 right-0 w-full rounded-full bg-white animate-hero-progress"
-                        style={{ animationPlayState: isRotationPaused ? "paused" : "running" }}
-                      />
-                      <span
-                        aria-hidden="true"
-                        className="relative z-10 rounded-full bg-black/25 px-1 text-[10px] font-bold leading-4 text-white"
-                      >
-                        {remainingSecondsLabel}ث
-                      </span>
-                    </>
+                    <span
+                      key={`${slide.key}-${activeIndex}`}
+                      aria-hidden="true"
+                      className="absolute inset-y-0 right-0 w-full rounded-full bg-white animate-hero-progress"
+                      style={{ animationPlayState: isRotationPaused ? "paused" : "running" }}
+                    />
                   )}
                 </span>
               </button>
