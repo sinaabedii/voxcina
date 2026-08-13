@@ -429,8 +429,10 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({ heroImages }) => 
               >
                 <span
                   aria-hidden="true"
-                  className={`relative block h-2 overflow-hidden rounded-full transition-all duration-500 ${
-                    active ? "w-14 bg-white/30" : "w-2 bg-white/50 hover:bg-white/80"
+                  className={`relative block overflow-hidden rounded-full transition-all duration-500 ${
+                    active
+                      ? "h-5 w-14 bg-white/30"
+                      : "h-2 w-2 bg-white/50 hover:bg-white/80"
                   }`}
                 >
                   {active && (
