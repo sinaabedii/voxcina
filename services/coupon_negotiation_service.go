@@ -708,6 +708,23 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 		reply = couponMessage(result)
 	}
 	reply = sanitizeSellerReply(reply)
+	if reply == "" {
+		// Defensive fallback: the model did a tool-only turn with an empty
+		// `message` argument (seen in production as content="" + message="").
+		// Without this the bubble renders empty even though a coupon card is
+		// shown. Use a warm Persian line that never mentions percent/code —
+		// the system renders those via the card — and never invents products.
+		if coupon != nil {
+			reply = "دمت گرم رفیق! یه تخفیف خودمونی برات جور کردم، همین پایین برات گذاشتم. حیفه از دستش بدی!"
+		} else if recommended != nil && recommended.ProductName != "" {
+			reply = fmt.Sprintf("رفیق این %s حسابی به تیپت میاد، حیفه از دستش بدی! بگو تا برات نگهش دارم.", recommended.ProductName)
+		} else if len(catalogHits) > 0 {
+			reply = "رفیق چند تا گزینه خوشگل برات پیدا کردم، همین پایین گذاشتم — ببین کدومش بیشتر به دلت میشینه!"
+		} else {
+			reply = "دمت گرم رفیق! بگو چی تو ذهنته تا یه پیشنهاد درجهیک برات جور کنم."
+		}
+		reply = sanitizeSellerReply(reply)
+	}
 
 	// Nothing streamed yet — push the reply as a token so the bubble fills in
 	// before "done" instead of sitting empty for the whole turn.

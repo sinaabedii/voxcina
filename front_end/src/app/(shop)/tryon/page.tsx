@@ -321,7 +321,26 @@ export default function TryOnRoomPage() {
           };
         }
         if (m.role === "user" || m.role === "agent") {
-          return { role: m.role as "user" | "agent", content: m.content };
+          // Historic fix: before the backend guarantee, tool-only turns were
+          // persisted with content="" and tool_call.arguments.message="".
+          // Filling them here keeps the reload view from showing an empty
+          // bubble beside a valid coupon card.
+          let content = m.content || "";
+          if (!content.trim() && m.role === "agent" && (m as any).tool_call) {
+            const tc = (m as any).tool_call;
+            const msgArg = tc.arguments?.message;
+            if (typeof msgArg === "string" && msgArg.trim()) content = msgArg.trim();
+            else if (tc.name === "offer_coupon") content = "دمت گرم رفیق! یه تخفیف خودمونی برات جور کردم، همین پایین برات گذاشتم. حیفه از دستش بدی!";
+            else if (tc.name === "recommend_product") {
+              const rp = tc.result?.recommended_product;
+              const nm = rp?.product_name || "";
+              content = nm ? `رفیق این ${nm} حسابی به تیپت میاد، حیفه از دستش بدی! بگو تا برات نگهش دارم.` : "رفیق یه پیشنهاد خوشگل برات دارم — همین پایین گذاشتم!";
+            } else if (tc.name === "search_catalog") content = "رفیق چند تا گزینه خوشگل برات پیدا کردم، همین پایین گذاشتم — ببین کدومش بیشتر به دلت میشینه!";
+          }
+          if (!content.trim() && m.role === "agent") {
+            content = "دمت گرم رفیق! بگو چی تو ذهنته تا یه پیشنهاد درجهیک برات جور کنم.";
+          }
+          return { role: m.role as "user" | "agent", content };
         }
         return { role: "agent", content: m.content };
       });
@@ -724,6 +743,16 @@ export default function TryOnRoomPage() {
                 return copy;
               });
             } else if (data.type === "done") {
+              // Defensive: backend guarantees a non-empty reply, but guard the
+              // historic case where both streamed tokens and reply were empty
+              // (tool-only turn with blank message arg) so the bubble never
+              // renders blank beside the coupon card.
+              if (!data.reply && !agentContent) {
+                const fallbackCoupon = data.coupon ? "دمت گرم رفیق! یه تخفیف خودمونی برات جور کردم، همین پایین برات گذاشتم. حیفه از دستش بدی!" : "";
+                const fallbackRec = data.recommended_product ? `رفیق این ${(data.recommended_product as any).product_name || "محصول"} حسابی به تیپت میاد، حیفه از دستش بدی! بگو تا برات نگهش دارم.` : "";
+                const fallbackHit = Array.isArray(data.catalog_hits) && data.catalog_hits.length ? "رفیق چند تا گزینه خوشگل برات پیدا کردم، همین پایین گذاشتم — ببین کدومش بیشتر به دلت میشینه!" : "";
+                data.reply = data.reply || agentContent || fallbackCoupon || fallbackRec || fallbackHit || "دمت گرم رفیق! بگو چی تو ذهنته تا یه پیشنهاد درجهیک برات جور کنم.";
+              }
               agentContent = data.reply || agentContent;
               setChatMessages((prev) => {
                 const copy = [...prev];
