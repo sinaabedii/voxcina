@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { getImageProps } from "next/image";
 import { Pause, Play } from "lucide-react";
 import {
@@ -24,7 +24,8 @@ interface HeroSlide {
   mobileImage: HeroImage | null;
 }
 
-const ROTATION_INTERVAL_MS = 7000;
+const ROTATION_INTERVAL_MS = 6000;
+const persianNumberFormatter = new Intl.NumberFormat("fa-IR");
 
 function getSlideContent(slide: HeroSlide) {
   return normalizeHeroContent(slide.desktopImage?.content || slide.mobileImage?.content || null);
@@ -274,6 +275,16 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({ heroImages }) => 
   const [isFocusWithin, setIsFocusWithin] = useState(false);
   const [isDocumentHidden, setIsDocumentHidden] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [remainingMs, setRemainingMs] = useState(ROTATION_INTERVAL_MS);
+  const rotationTimer = useRef<{
+    activeIndex: number;
+    remainingMs: number;
+    startedAt: number | null;
+  }>({
+    activeIndex: 0,
+    remainingMs: ROTATION_INTERVAL_MS,
+    startedAt: null,
+  });
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -296,29 +307,63 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({ heroImages }) => 
     setActiveIndex((current) => Math.min(current, slides.length - 1));
   }, [slides.length]);
 
+  const isRotationPaused =
+    isUserPaused ||
+    isPointerOver ||
+    isFocusWithin ||
+    isDocumentHidden ||
+    prefersReducedMotion;
+
   useEffect(() => {
-    if (
-      slides.length < 2 ||
-      isUserPaused ||
-      isPointerOver ||
-      isFocusWithin ||
-      isDocumentHidden ||
-      prefersReducedMotion
-    ) {
-      return;
+    if (slides.length < 2) return;
+
+    const timer = rotationTimer.current;
+    if (timer.activeIndex !== activeIndex) {
+      timer.activeIndex = activeIndex;
+      timer.remainingMs = ROTATION_INTERVAL_MS;
+      timer.startedAt = null;
+      setRemainingMs(ROTATION_INTERVAL_MS);
     }
 
-    const interval = window.setInterval(() => {
-      setActiveIndex((current) => (current + 1) % slides.length);
-    }, ROTATION_INTERVAL_MS);
+    if (isRotationPaused) return;
 
-    return () => window.clearInterval(interval);
-  }, [isDocumentHidden, isFocusWithin, isPointerOver, isUserPaused, prefersReducedMotion, slides.length]);
+    const startedAt = performance.now();
+    timer.startedAt = startedAt;
+    const updateRemaining = () => {
+      if (timer.startedAt !== startedAt) return;
+      setRemainingMs(Math.max(0, timer.remainingMs - (performance.now() - startedAt)));
+    };
+    updateRemaining();
+    const countdownInterval = window.setInterval(updateRemaining, 100);
+    const timeout = window.setTimeout(() => {
+      if (timer.startedAt !== startedAt) return;
+
+      timer.remainingMs = ROTATION_INTERVAL_MS;
+      timer.startedAt = null;
+      setActiveIndex((current) => (current + 1) % slides.length);
+    }, timer.remainingMs);
+
+    return () => {
+      window.clearInterval(countdownInterval);
+      window.clearTimeout(timeout);
+      if (timer.startedAt === startedAt) {
+        timer.remainingMs = Math.max(
+          0,
+          timer.remainingMs - (performance.now() - startedAt)
+        );
+        timer.startedAt = null;
+        setRemainingMs(timer.remainingMs);
+      }
+    };
+  }, [activeIndex, isRotationPaused, slides.length]);
 
   const selectSlide = (index: number) => {
     setActiveIndex(index);
     setIsUserPaused(true);
   };
+
+  const remainingSeconds = Math.ceil(remainingMs / 1000);
+  const remainingSecondsLabel = persianNumberFormatter.format(remainingSeconds);
 
   return (
     <section
@@ -377,17 +422,34 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({ heroImages }) => 
                 key={slide.key}
                 type="button"
                 data-hero-control
-                aria-label={`نمایش بنر ${index + 1} از ${slides.length}`}
+                aria-label={`نمایش بنر ${index + 1} از ${slides.length}${active ? `، ${remainingSecondsLabel} ثانیه تا تغییر` : ""}`}
                 aria-current={active ? "true" : undefined}
                 onClick={() => selectSlide(index)}
                 className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
               >
                 <span
                   aria-hidden="true"
-                  className={`block rounded-full transition-all duration-500 ${
-                    active ? "h-2 w-7 bg-white" : "h-2 w-2 bg-white/50 hover:bg-white/80"
+                  className={`relative block h-2 overflow-hidden rounded-full transition-all duration-500 ${
+                    active ? "w-14 bg-white/30" : "w-2 bg-white/50 hover:bg-white/80"
                   }`}
-                />
+                >
+                  {active && (
+                    <>
+                      <span
+                        key={`${slide.key}-${activeIndex}`}
+                        aria-hidden="true"
+                        className="absolute inset-y-0 right-0 w-full rounded-full bg-white animate-hero-progress"
+                        style={{ animationPlayState: isRotationPaused ? "paused" : "running" }}
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="relative z-10 rounded-full bg-black/25 px-1 text-[10px] font-bold leading-4 text-white"
+                      >
+                        {remainingSecondsLabel}ث
+                      </span>
+                    </>
+                  )}
+                </span>
               </button>
             );
           })}

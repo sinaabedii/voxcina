@@ -143,6 +143,10 @@ module.exports = {
           "0%": { width: "0%" },
           "100%": { width: "100%" },
         },
+        "hero-progress": {
+          "0%": { width: "100%" },
+          "100%": { width: "0%" },
+        },
         "pulse-glow": {
           "0%, 100%": { opacity: "0.4", transform: "scale(1)" },
           "50%": { opacity: "0.7", transform: "scale(1.05)" },
@@ -169,6 +173,7 @@ module.exports = {
         "gradient-xy": "gradient-xy 6s ease infinite",
         "rotate-slow": "rotate-slow var(--duration, 25s) linear infinite",
         "slider-progress": "slider-progress 6s linear",
+        "hero-progress": "hero-progress 6s linear",
         "pulse-glow": "pulse-glow 3s ease-in-out infinite",
         "float": "float 4s ease-in-out infinite",
         "badge-float": "badge-float 4s ease-in-out infinite",
