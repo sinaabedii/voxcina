@@ -44,8 +44,8 @@ type SellerAgentInput struct {
 	// the fitting room, as opposed to merely being the item the conversation is
 	// about. The customer can talk to Sara before trying anything on, and the
 	// prompt must not then claim they are wearing it — see formatTryonStatus.
-	TryonDone      bool
-	TryonColorName string
+	TryonDone             bool
+	TryonColorName        string
 	CartItems             []CouponCartItem
 	ChatHistory           []CouponChatMessage
 	ComplementaryProducts []CouponCartItem
@@ -199,6 +199,7 @@ func defaultSellerAgentConfig() SellerAgentConfig {
 			"TOOLS — when the customer asks for something you do not already have:\n" +
 			"- If they want a discount/coupon/cheaper price: you MUST call offer_coupon (see its description). Grant {{FLOOR}}% by default and never more than {{MAX_DISCOUNT}}%. When they give a concrete NEW reason, grant {{NEXT_STEP}}% and pass that reason in reason — asking repeatedly is not a reason.\n" +
 			"- If they describe a style, color, category, material, pattern, fit, size, gender, brand, season, occasion, or ask \"what do you have in …\": you MUST call search_catalog FIRST to find real variant-level matches from the catalog, then compose your Persian reply using ONLY the variants returned. Never invent a product_id or variant_id. search_catalog returns variant cards (one per color with its image/price/sizes); cite those. If you also want to pitch one complementary piece, you may additionally call recommend_product with an id from the complementary list.\n" +
+			"- Tools are invoked through the tool-call channel, never written into your reply. Never type a tool name, its JSON arguments, or a ```json block as chat text — a call you only describe is a call you did not make.\n" +
 			"- Never state the coupon percent or code in chat text; the system displays the coupon.\n",
 		OfferCouponDescription:      "Call this tool whenever the customer asks for a discount, coupon or a cheaper price (تخفیف, کد تخفیف, کوپن, ارزونتر). Mandatory in those cases. Use the default percent from the NEGOTIATION STATE section; when the customer gave a concrete new reason, use the \"next step up\" percent named there and pass that reason in the reason argument. Repetition alone never raises the number. Always write the customer-facing announcement as your normal chat text — the `message` argument is an optional fallback only, used when your chat content comes out empty. Do not mention the percent or the code in your chat text; the system displays the coupon automatically.",
 		RecommendProductDescription: "Call this tool to pitch exactly one complementary product. product_id MUST be copied from the complementary products list in your instructions; invented ids are dropped.",
@@ -753,13 +754,13 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 	coupon, recommended := interpretToolCalls(in, result)
 
 	reply := sanitizeSellerReply(result.content)
-	if reply == "" && coupon != nil {
+	if !isUsableReply(reply) {
 		// Either a tool-only turn produced no chat text, or everything the model
-		// wrote was tool narration the sanitizer dropped. Fall back to the
-		// message it put in the tool call so the customer still hears from Sara.
+		// wrote was machinery the sanitizer dropped. Fall back to the message it
+		// put in the tool call so the customer still hears from Sara.
 		reply = sanitizeSellerReply(couponMessage(result))
 	}
-	if reply == "" {
+	if !isUsableReply(reply) {
 		// Defensive fallback: the model did a tool-only turn with an empty
 		// `message` argument (seen in production as content="" + message="").
 		// Without this the bubble renders empty even though a coupon card is
@@ -811,6 +812,13 @@ func writeStreamEvent(w io.Writer, evt StreamEvent) {
 }
 
 var (
+	// sanitizeCodeFence matches a fenced code block together with its language
+	// tag. A model that types its tool call instead of emitting one usually
+	// wraps it in ```json … ```, and stripping the sentence containing the call
+	// left the bare tag behind as the whole reply (seen in production as a
+	// four-character message reading "json"). The closing fence is optional so a
+	// block cut short by the token limit is dropped too.
+	sanitizeCodeFence = regexp.MustCompile("(?s)```[a-zA-Z]*[ \t]*\n?.*?(?:```|$)")
 	// sanitizeMDLink collapses a markdown link [text](url) to its visible text,
 	// discarding the URL. Applied on the final assembled reply only, since a
 	// link can be split across streamed tokens.
@@ -854,6 +862,13 @@ func sanitizeSellerReply(s string) string {
 	if s == "" {
 		return s
 	}
+
+	// Drop machinery the model typed into the visible channel — a fenced block
+	// and any JSON object — before anything else. Both are whole-text shapes
+	// that sentence-level narration stripping cuts into unreadable crumbs
+	// rather than removing, and neither can occur in genuine Persian sales talk.
+	s = sanitizeCodeFence.ReplaceAllString(s, "")
+	s = stripJSONObjects(s)
 
 	// Drop sentences narrating a tool call, and any percent the model stated,
 	// before markdown stripping mangles the markers ('_', '`', '*').
@@ -983,6 +998,34 @@ func sanitizeToken(s string) string {
 	return s
 }
 
+// isUsableReply reports whether what survived sanitising is something a
+// customer can actually read. Sara answers in Persian by construction, so a
+// reply with no Persian letter in it is not a short answer — it is wreckage
+// left by stripping machinery out of the visible channel, like the lone "json"
+// of a fenced code block that reached a customer as a chat message. Treating it
+// as empty routes the turn to Sara's fallback line instead.
+func isUsableReply(s string) bool {
+	return hasPersianLetter(s)
+}
+
+// hasPersianLetter reports whether s contains a letter from the Arabic script
+// block. Digits and punctuation are excluded on purpose: "۱۵٪" is not an answer.
+func hasPersianLetter(s string) bool {
+	for _, c := range s {
+		switch {
+		case c >= 0x0660 && c <= 0x0669, // Arabic-Indic digits
+			c >= 0x06F0 && c <= 0x06F9: // Persian digits
+			continue
+		case c >= 0x0620 && c <= 0x064A, // Arabic letters
+			c >= 0x0671 && c <= 0x06D3, // Persian/Urdu letters (پ چ ژ گ ک ی …)
+			c >= 0xFB50 && c <= 0xFDFF, // Arabic presentation forms A
+			c >= 0xFE70 && c <= 0xFEFF: // Arabic presentation forms B
+			return true
+		}
+	}
+	return false
+}
+
 // isEmojiRune reports whether r falls in a range used by emoji / symbol
 // pictographs. Ranges are kept narrow on purpose so genuine letters and
 // punctuation are never caught.
@@ -1040,19 +1083,7 @@ func collapseSpaces(s string) string {
 // the model was actually shown, so a hallucinated id can never end up as a
 // required product on a real coupon.
 func interpretToolCalls(in SellerAgentInput, result *streamResult) (*NegotiateCouponOut, *CouponCartItem) {
-	couponParams := extractCouponParams(result.toolCalls)
-	if couponParams == nil && result.reasoning != "" {
-		// Some models narrate the call inside the reasoning channel instead of
-		// emitting a real tool call. That channel is model-authored and never
-		// shown to the customer, so it is safe to salvage from; the visible
-		// content is not, since the customer controls what the model echoes —
-		// narration that lands there is stripped by sanitizeSellerReply instead.
-		couponParams = parseInlineCoupon(result.reasoning)
-		if couponParams == nil {
-			couponParams = parseNarratedCoupon(result.reasoning)
-		}
-	}
-
+	couponParams := resolveCouponParams(result)
 	recommended := resolveRecommendation(in, result.toolCalls)
 
 	var coupon *NegotiateCouponOut
@@ -1114,6 +1145,35 @@ func findComplementary(in SellerAgentInput, id string) *CouponCartItem {
 	return nil
 }
 
+// resolveCouponParams finds the coupon this turn granted, wherever the model
+// put it. The tool channel is the intended route; the other two are recovery.
+//
+// A model that types the call as text instead of emitting it used to lose the
+// coupon outright — the customer asked for a discount, Sara answered with the
+// generic "tell me what you have in mind" fallback, and nothing was granted.
+// The reasoning and content channels are therefore both salvaged, but they are
+// not equally trusted: reasoning is model-private, whereas content is the
+// channel the customer can steer what the model echoes into, so a justification
+// found there is discarded and the reason gate pins the grant to the standing
+// floor. Either way the customer gets the discount they had coming, and no
+// channel but a real tool call can argue its way above it.
+func resolveCouponParams(result *streamResult) *couponToolParams {
+	if params := extractCouponParams(result.toolCalls); params != nil {
+		return params
+	}
+	if params := salvageNarratedCoupon(result.reasoning); params != nil {
+		fmt.Printf("[negotiate-stream] salvaged narrated offer_coupon at %d%% from reasoning (reason=%q)\n",
+			int(params.Value), params.Reason)
+		return params
+	}
+	if params := salvageNarratedCoupon(result.content); params != nil {
+		fmt.Printf("[negotiate-stream] salvaged narrated offer_coupon at %d%% from visible content — reason dropped\n",
+			int(params.Value))
+		return &couponToolParams{Value: params.Value, Message: params.Message}
+	}
+	return nil
+}
+
 func extractCouponParams(calls []accumulatedToolCall) *couponToolParams {
 	for _, tc := range calls {
 		if tc.name != "offer_coupon" {
@@ -1122,6 +1182,10 @@ func extractCouponParams(calls []accumulatedToolCall) *couponToolParams {
 		var params couponToolParams
 		if err := json.Unmarshal([]byte(tc.arguments), &params); err != nil {
 			fmt.Printf("[negotiate-stream] failed to parse offer_coupon args: %v\n", err)
+			if loose := parseLooseCouponArguments(tc.arguments); loose != nil {
+				fmt.Printf("[negotiate-stream] recovered %d%% from malformed offer_coupon args\n", int(loose.Value))
+				return loose
+			}
 			continue
 		}
 		return &params
@@ -1130,31 +1194,110 @@ func extractCouponParams(calls []accumulatedToolCall) *couponToolParams {
 }
 
 func couponMessage(result *streamResult) string {
-	if params := extractCouponParams(result.toolCalls); params != nil {
+	if params := resolveCouponParams(result); params != nil {
 		return params.Message
 	}
 	return ""
 }
 
-// parseInlineCoupon salvages a coupon object narrated as JSON. It is only ever
-// fed the model's reasoning channel — never customer-visible content.
-func parseInlineCoupon(content string) *couponToolParams {
-	for i := 0; i < len(content); i++ {
-		if content[i] != '{' {
+// maxNarrationObjects caps how many JSON objects are examined in one salvage
+// pass, so a pathological blob cannot turn the scan into a hot loop.
+const maxNarrationObjects = 24
+
+// balancedJSONObjects returns every balanced {…} span in s: the outermost
+// objects first, then the ones nested inside them.
+//
+// Scanning from every '{' rather than pairing the first '{' with the first '}'
+// is what makes the wrapped shape work. Models narrate a call as either the
+// flat {"value":15} or the wrapped {"name":"offer_coupon","arguments":{…}},
+// and in the wrapped form the object that actually carries the discount is the
+// inner one. A first-brace-to-first-brace scan sees only the truncated outer
+// span, fails to parse it, and skips past the payload entirely.
+func balancedJSONObjects(s string) []string {
+	var out []string
+	for i := 0; i < len(s) && len(out) < maxNarrationObjects; i++ {
+		if s[i] != '{' {
 			continue
 		}
-		for j := i + 1; j < len(content) && j-i < 500; j++ {
-			if content[j] != '}' {
-				continue
+		depth := 0
+		inString := false
+		escaped := false
+		for j := i; j < len(s); j++ {
+			c := s[j]
+			switch {
+			case escaped:
+				escaped = false
+			case c == '\\' && inString:
+				escaped = true
+			case c == '"':
+				inString = !inString
+			case inString:
+				// Braces inside a string literal are text, not structure.
+			case c == '{':
+				depth++
+			case c == '}':
+				depth--
+				if depth == 0 {
+					out = append(out, s[i:j+1])
+					j = len(s)
+				}
 			}
-			candidate := content[i : j+1]
-			var params couponToolParams
-			if err := json.Unmarshal([]byte(candidate), &params); err == nil && params.Value > 0 && params.Message != "" {
-				return &params
-			}
-			i = j
-			break
 		}
+	}
+	return out
+}
+
+// stripJSONObjects removes every balanced JSON object from s. Sara speaks
+// Persian to a shopper; a brace-delimited object in her reply is always
+// machinery that leaked out of the tool channel.
+func stripJSONObjects(s string) string {
+	if !strings.Contains(s, "{") {
+		return s
+	}
+	for _, obj := range balancedJSONObjects(s) {
+		if strings.Contains(obj, `"`) {
+			s = strings.Replace(s, obj, "", 1)
+		}
+	}
+	return s
+}
+
+// narratedCall is one JSON object the model typed instead of emitting. It
+// accepts both shapes seen in production: the bare argument object, and the
+// full call envelope whose "arguments" hold it — as a nested object or, from
+// some providers, as an escaped JSON string.
+type narratedCall struct {
+	Name      string          `json:"name"`
+	Arguments json.RawMessage `json:"arguments"`
+	couponToolParams
+}
+
+// couponParamsFromJSON reads coupon arguments out of one JSON object, looking
+// inside an "arguments" envelope when there is one. Returns nil when the object
+// is something else entirely (a search_catalog call, a stray data blob).
+func couponParamsFromJSON(raw string) *couponToolParams {
+	var call narratedCall
+	if err := json.Unmarshal([]byte(raw), &call); err != nil {
+		return nil
+	}
+
+	if len(call.Arguments) > 0 {
+		args := call.Arguments
+		// Providers that inline the call as text sometimes keep the arguments
+		// JSON-encoded inside a string, exactly as the tool API transports it.
+		var encoded string
+		if json.Unmarshal(args, &encoded) == nil {
+			args = json.RawMessage(encoded)
+		}
+		var params couponToolParams
+		if err := json.Unmarshal(args, &params); err == nil && params.Value > 0 {
+			return &params
+		}
+	}
+
+	if call.Value > 0 {
+		params := call.couponToolParams
+		return &params
 	}
 	return nil
 }
@@ -1170,13 +1313,14 @@ var narratedCouponValue = []*regexp.Regexp{
 }
 
 // parseNarratedCoupon salvages a coupon from prose narration of the tool call,
-// for models that describe the call in the reasoning channel rather than
-// emitting one and never write the JSON parseInlineCoupon looks for.
+// for models that describe the call rather than emitting one and never write
+// the JSON couponParamsFromJSON looks for.
 //
-// Only the percent is recovered; a narrated call carries no justification, so
-// buildCoupon's reason gate holds it at the standing floor. That is the point:
-// a call the model failed to actually make still gets the customer the discount
-// they already have coming, and can never talk itself into a higher one.
+// Only the percent is recovered; prose narration carries no machine-readable
+// justification, so buildCoupon's reason gate holds it at the standing floor.
+// That is the point: a call the model failed to actually make still gets the
+// customer the discount they already have coming, and can never talk itself
+// into a higher one.
 func parseNarratedCoupon(reasoning string) *couponToolParams {
 	for _, re := range narratedCouponValue {
 		m := re.FindStringSubmatch(reasoning)
@@ -1187,10 +1331,60 @@ func parseNarratedCoupon(reasoning string) *couponToolParams {
 		if err != nil || value <= 0 {
 			continue
 		}
-		fmt.Printf("[negotiate-stream] salvaged narrated offer_coupon at %d%% from reasoning\n", value)
 		return &couponToolParams{Value: float64(value)}
 	}
 	return nil
+}
+
+// salvageNarratedCoupon recovers a coupon the model wrote out as text instead
+// of emitting as a tool call — the single failure behind a whole family of
+// production symptoms: a discount request answered with no coupon at all, and
+// a reply that was nothing but the leftover "json" of a fenced block.
+//
+// JSON is tried before prose because it carries the customer's justification
+// too, which the prose form cannot: losing that reason silently pins the grant
+// to the floor at the reason gate, so a customer who earned a bump never got
+// one.
+func salvageNarratedCoupon(text string) *couponToolParams {
+	if strings.TrimSpace(text) == "" {
+		return nil
+	}
+	for _, obj := range balancedJSONObjects(text) {
+		if params := couponParamsFromJSON(obj); params != nil {
+			return params
+		}
+	}
+	return parseNarratedCoupon(text)
+}
+
+var (
+	// looseCouponValue and looseCouponReason read arguments that never became
+	// valid JSON — a stream cut mid-object leaves something like
+	// `{"value": 15, "reas`, which is still unambiguous about the percent.
+	looseCouponValue  = regexp.MustCompile(`"value"\s*:\s*([0-9]{1,3})`)
+	looseCouponReason = regexp.MustCompile(`"reason"\s*:\s*"((?:[^"\\]|\\.)*)"`)
+)
+
+// parseLooseCouponArguments reads what it can from tool arguments that failed
+// to parse. Dropping the whole call would cost the customer a coupon the model
+// did ask for, over a truncated tail.
+func parseLooseCouponArguments(arguments string) *couponToolParams {
+	m := looseCouponValue.FindStringSubmatch(arguments)
+	if m == nil {
+		return nil
+	}
+	value, err := strconv.Atoi(m[1])
+	if err != nil || value <= 0 {
+		return nil
+	}
+	params := &couponToolParams{Value: float64(value)}
+	if r := looseCouponReason.FindStringSubmatch(arguments); r != nil {
+		var unquoted string
+		if json.Unmarshal([]byte(`"`+r[1]+`"`), &unquoted) == nil {
+			params.Reason = unquoted
+		}
+	}
+	return params
 }
 
 // buildCoupon mints the coupon, putting the model's number through the reason
@@ -1200,8 +1394,14 @@ func buildCoupon(in SellerAgentInput, value float64, reason, compProductID strin
 	cfg := SellerConfig()
 
 	percent, granted := enforceReasonGate(in.State, int(value), reason)
+	// Log every decision, not just refusals. A probe that sees the discount
+	// stuck at the floor otherwise cannot tell a refused increase from a model
+	// that never asked for one, and those have opposite fixes.
+	fmt.Printf("[negotiate] gate: requested=%d granted=%d ok=%t floor=%d next=%d ceiling=%d reason=%q(%s) on-file=%q(%s)\n",
+		int(value), percent, granted, in.State.Floor, in.State.NextStep, in.State.Ceiling,
+		utils.TruncateRunes(reason, 60), categorizeReason(reason),
+		utils.TruncateRunes(in.State.LastReason, 60), categorizeReason(in.State.LastReason))
 	if !granted {
-		fmt.Printf("[negotiate] refused increase to %d%% without a new reason — holding at %d%%\n", int(value), percent)
 		reason = in.State.LastReason
 	}
 	if percent > cfg.MaxDiscountPercent {
