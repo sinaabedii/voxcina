@@ -96,7 +96,10 @@ func buildSellerInput(ctx context.Context, userID primitive.ObjectID, req servic
 	input := services.SellerAgentInput{Request: req}
 
 	// A try-on record is the authoritative statement of what was worn, so it
-	// overrides the product and colour the client claims.
+	// overrides the product and colour the client claims. It is also the only
+	// thing that lets the prompt say the customer is wearing anything: the
+	// fitting room lets them chat before trying on, and the client-supplied
+	// product alone proves nothing about what happened.
 	if req.TryonID != "" && virtualTryonService != nil {
 		tryon, err := virtualTryonService.GetByTryonID(ctx, req.TryonID)
 		if err != nil {
@@ -110,6 +113,7 @@ func buildSellerInput(ctx context.Context, userID primitive.ObjectID, req servic
 			if tryon.GarmentColor != "" {
 				input.Request.TryonColor = tryon.GarmentColor
 			}
+			input.TryonDone = tryon.Status == models.TryonStatusDone
 		}
 	}
 
