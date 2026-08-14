@@ -18,9 +18,7 @@ import {
   X,
   Camera,
   Shirt,
-  CheckCircle,
 } from "lucide-react";
-import { CSSProperties } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "@/store/cart-store";
 import { useReviewStore } from "@/store/review-store";
@@ -54,23 +52,6 @@ interface ProductActionsProps {
   reviews: Review[];
   categoryName: string;
 }
-
-// Helper function to determine if a color is light or dark
-const isLightColor = (color: string): boolean => {
-  let hex = color.replace('#', '');
-  if (hex.length === 3) {
-    hex = hex.split('').map(c => c + c).join('');
-  }
-  if (hex.length === 6) {
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminance > 0.5;
-  }
-  const lightColors = ['white', 'yellow', 'pink', 'lightblue', 'lightgreen', 'orange', 'cream', 'beige', 'سفید', 'زرد', 'صورتی', 'آبی روشن', 'سبز روشن', 'نارنجی', 'کرم', 'بژ'];
-  return lightColors.includes(color.toLowerCase());
-};
 
 export default function ProductActions({ product, productUrl, reviews, categoryName }: ProductActionsProps) {
   const searchParams = useSearchParams();
@@ -622,68 +603,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
            </div>
          )}
 
-          {/* Other color variants — circles with swatch image or hex color.
-              Clicking switches to that variant, updating the displayed images
-              and the available inventory sizes.
-              Always shown so users can switch colors even when the URL
-              locks a specific variant (isVariantLocked). */}
-          {!!product?.colorVariants?.length && (
-            <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-1">
-              {product.colorVariants
-                .filter(cv => cv.variantId && (cv.color?.trim() || cv.colorName?.trim()))
-                .map((cv) => {
-                  const selectionKey = cv.variantId || cv.colorName;
-                  const isSelected = selectedColor === selectionKey;
-                  return (
-                    <button
-                      key={selectionKey}
-                      type="button"
-                      onClick={() => handleColorChange(selectionKey)}
-                      title={cv.colorName}
-                      className={cn(
-                        "relative flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-200",
-                        isSelected
-                          ? "border-voxcina-blue dark:border-voxcina-cream ring-2 ring-voxcina-blue/30 dark:ring-voxcina-cream/30"
-                          : "border-voxcina-cream/50 dark:border-voxcina-blue/30 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/50"
-                      )}
-                    >
-                      {cv.swatchImage ? (
-                        <img
-                          src={cv.swatchImage}
-                          alt={cv.colorName}
-                          className="w-8 h-8 rounded-full object-cover"
-                        />
-                      ) : cv.color?.startsWith("#") ? (
-                        <span
-                          className="w-8 h-8 rounded-full block"
-                          style={{ backgroundColor: cv.color }}
-                        />
-                      ) : (
-                        <span
-                          className="w-8 h-8 rounded-full block bg-[repeating-linear-gradient(135deg,#d7d2ca_0,#d7d2ca_3px,#f5f1ea_3px,#f5f1ea_6px)]"
-                        />
-                      )}
-                      {isSelected && (
-                        <CheckCircle
-                          className="absolute h-4 w-5 drop-shadow-md"
-                          style={{
-                            color: cv.swatchImage
-                              ? '#fff'
-                              : isLightColor(cv.color) ? '#000' : '#fff',
-                            filter: cv.swatchImage
-                              ? 'drop-shadow(0 0 2px rgba(0,0,0,0.8))'
-                              : isLightColor(cv.color)
-                                ? 'drop-shadow(0 0 2px rgba(255,255,255,0.8))'
-                                : 'drop-shadow(0 0 2px rgba(0,0,0,0.8))',
-                          } as CSSProperties}
-                        />
-                      )}
-                    </button>
-                  );
-                })}
-            </div>
-          )}
-       </motion.div>
+          </motion.div>
 
 
       {/* Product Details Section */}
@@ -734,7 +654,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
 
         <SizeGuideTable isOpen={showSizeGuide} />
 
-        {availableColors.length > 0 && !isVariantLocked && (
+        {availableColors.length > 0 && (
           <ColorSelector
             colors={availableColors.map(c => ({
               ...c,
