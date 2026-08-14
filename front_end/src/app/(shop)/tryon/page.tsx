@@ -802,18 +802,17 @@ export default function TryOnRoomPage() {
                 setCoupon(c.code, c.value, c.valid_until, c.product_ids, requiredColors);
                 setCouponExpired(false);
               }
-              // Prefer the product the agent actually named — falling back to
-              // the first complementary product used to contradict her text.
+              // Show a product only when the agent actually named one — she
+              // recommended it, or the coupon bundles it (the server resolves
+              // that comp product into recommended_product too). This used to
+              // fall back to the first entry of the complementary list, which
+              // the server sent on every turn, so an unrelated card appeared
+              // after every single message and contradicted her text. A card
+              // already on screen stays until she names a different one: the
+              // coupon can require that product to be in the cart, and the
+              // reload path restores it the same way.
               if (data.recommended_product) {
                 setRecommendedProduct(data.recommended_product as RecommendedProduct);
-              } else if (data.complementary_products?.length > 0) {
-                const compID = data.coupon ? (data.coupon as any).comp_product_id : undefined;
-                const match = compID
-                  ? data.complementary_products.find((p: any) => p.product_id === compID)
-                  : undefined;
-                setRecommendedProduct((match || data.complementary_products[0]) as RecommendedProduct);
-              } else {
-                setRecommendedProduct(null);
               }
 
               // The backend persists both halves of this turn to the room

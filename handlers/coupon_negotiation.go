@@ -136,7 +136,7 @@ func buildSellerInput(ctx context.Context, userID primitive.ObjectID, req servic
 	}
 
 	input.CartItems = buildServerCartContext(ctx, userID)
-	input.ChatHistory = loadNegotiationHistory(ctx, userID, req.ChatID)
+	input.ChatHistory, input.SuggestedProducts = loadNegotiationHistory(ctx, userID, req.ChatID)
 	input.ComplementaryProducts = loadComplementaryProducts(input.Request.TryonProductID, input.Request.TryonColor)
 
 	grantCount, prevMax, lastReason := loadNegotiationProgress(ctx, userID, req.ChatID)
@@ -209,22 +209,29 @@ func buildServerCartContext(ctx context.Context, userID primitive.ObjectID) []se
 
 // loadNegotiationHistory replays the stored transcript for this room instead of
 // trusting the history the client sends, which is otherwise trivially forged.
-func loadNegotiationHistory(ctx context.Context, userID primitive.ObjectID, chatID string) []services.CouponChatMessage {
+// It also reports which product cards this room has already put on screen: the
+// transcript itself is text only, so without this second return the agent
+// cannot tell what the customer is currently looking at.
+func loadNegotiationHistory(ctx context.Context, userID primitive.ObjectID, chatID string) ([]services.CouponChatMessage, []string) {
 	if chatID == "" || tryonChatService == nil {
-		return nil
+		return nil, nil
 	}
 
 	chat, err := tryonChatService.GetByChatID(ctx, chatID)
 	if err != nil || chat == nil {
-		return nil
+		return nil, nil
 	}
 	if chat.UserID != userID {
 		fmt.Printf("[negotiate-stream] chat %s does not belong to user %s — ignoring history\n", chatID, userID.Hex())
-		return nil
+		return nil, nil
 	}
 
 	history := make([]services.CouponChatMessage, 0, len(chat.Messages))
+	var shown []string
 	for _, msg := range chat.Messages {
+		if name := shownProductName(msg); name != "" && !containsString(shown, name) {
+			shown = append(shown, name)
+		}
 		if msg.Role != models.TryonChatRoleUser && msg.Role != models.TryonChatRoleAgent {
 			continue
 		}
@@ -233,7 +240,36 @@ func loadNegotiationHistory(ctx context.Context, userID primitive.ObjectID, chat
 		}
 		history = append(history, services.CouponChatMessage{Role: msg.Role, Content: msg.Content})
 	}
-	return history
+	return history, shown
+}
+
+// shownProductName returns the product whose card this message put on screen,
+// or "" if it showed none. The recommendation is read back out of the stored
+// tool-call result — the same record the fitting room replays on reload — so
+// what the agent is told matches exactly what the customer can see.
+//
+// The room's metadata.products_recommended list is deliberately not used: the
+// client's message-append path also writes tried-on garments into it, so it is
+// not a record of what was recommended.
+func shownProductName(msg models.TryonChatMessage) string {
+	if msg.ToolCall == nil || msg.ToolCall.Result == nil {
+		return ""
+	}
+	rec, ok := msg.ToolCall.Result["recommended_product"].(map[string]interface{})
+	if !ok {
+		return ""
+	}
+	name, _ := rec["product_name"].(string)
+	return strings.TrimSpace(name)
+}
+
+func containsString(list []string, want string) bool {
+	for _, s := range list {
+		if s == want {
+			return true
+		}
+	}
+	return false
 }
 
 // loadNegotiationProgress reports how many coupons this room has already
