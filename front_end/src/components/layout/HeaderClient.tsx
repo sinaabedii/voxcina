@@ -72,7 +72,7 @@ const HeaderClient: React.FC<HeaderClientProps> = ({ navItems }) => {
           <div className="container mx-auto flex h-14 sm:h-16 md:h-18 lg:h-20 items-center justify-between px-3 sm:px-4 md:px-6">
             <div className="flex items-center">
               <button
-                className="mr-1.5 flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 text-voxcina-blue/80 transition-all duration-300 hover:bg-voxcina-cream/30 hover:text-voxcina-blue dark:text-voxcina-cream/80 dark:hover:bg-voxcina-blue/30 dark:hover:text-voxcina-cream sm:mr-2"
+                className="mr-1.5 flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 text-voxcina-blue/80 transition-all duration-300 hover:bg-voxcina-cream/30 hover:text-voxcina-blue dark:text-voxcina-cream/80 dark:hover:bg-voxcina-blue/30 dark:hover:text-voxcina-cream sm:mr-2 lg:hidden"
                 onClick={() => setIsMobileMenuOpen(true)}
                 aria-label="فهرست"
               >
