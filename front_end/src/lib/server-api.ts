@@ -37,14 +37,25 @@ export const CACHE_TIMES = {
 /**
  * Get the backend URL for server-side requests.
  * Uses GO_BACKEND_URL environment variable for Docker internal networking.
- * Falls back to localhost:8080 for local development.
- * 
+ * Falls back to localhost:8080 for local development, and to null during a
+ * production build, where no backend is reachable.
+ *
  * Requirements: 6.1, 6.3
  */
-function getBackendUrl(): string {
+export function getBackendUrl(): string | null {
   // In Docker, GO_BACKEND_URL is set to http://server:8080
+  const configured = process.env.GO_BACKEND_URL?.trim();
+  if (configured) return configured;
+
+  // `next build` prerenders with no backend in reach — the Docker builder sets
+  // GO_BACKEND_URL="" on purpose, and nothing listens on localhost:8080 inside
+  // the build stage. Skip the request instead of dialing a port that is not
+  // there: every caller already renders a fallback when data is null, and ISR
+  // refills the page on the first runtime request, where the real URL is set.
+  if (process.env.NEXT_PHASE === 'phase-production-build') return null;
+
   // In local development, fall back to localhost
-  return process.env.GO_BACKEND_URL || 'http://localhost:8080';
+  return 'http://localhost:8080';
 }
 
 /**
@@ -77,6 +88,10 @@ export async function serverFetch<T>(
   config?: ServerApiConfig
 ): Promise<T | null> {
   const backendUrl = getBackendUrl();
+  if (!backendUrl) {
+    // Build-time prerender with no backend configured — see getBackendUrl.
+    return null;
+  }
   const url = `${backendUrl}${endpoint}`;
 
   try {

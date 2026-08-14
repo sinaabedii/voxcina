@@ -1,4 +1,5 @@
 import { MetadataRoute } from 'next';
+import { getBackendUrl } from '@/lib/server-api';
 
 /**
  * Dynamic Sitemap Generation using Next.js App Router
@@ -17,11 +18,6 @@ import { MetadataRoute } from 'next';
  */
 
 const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://voxcina.com').replace(/\/+$/, '');
-
-// Get backend URL for server-side fetching (Docker internal network)
-function getBackendUrl(): string {
-  return process.env.GO_BACKEND_URL || 'http://localhost:8080';
-}
 
 // Types for API responses
 interface Product {
@@ -84,8 +80,11 @@ interface FetchPageResult<T> {
  * Returns empty array if fetch fails (e.g., during Docker build)
  */
 async function fetchPage<T>(endpoint: string): Promise<FetchPageResult<T> | null> {
+  const backendUrl = getBackendUrl();
+  // No backend during the production build — emit the static pages only.
+  if (!backendUrl) return null;
+
   try {
-    const backendUrl = getBackendUrl();
     const response = await fetch(`${backendUrl}${endpoint}`, {
       next: { revalidate: 3600 }, // Revalidate sitemap every hour
     });

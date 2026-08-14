@@ -701,13 +701,13 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 
 	coupon, recommended := interpretToolCalls(in, result)
 
-	reply := result.content
+	reply := sanitizeSellerReply(result.content)
 	if reply == "" && coupon != nil {
-		// A tool-only turn produced no chat text; fall back to the message the
-		// model wrote into the tool call so the customer still hears from Sara.
-		reply = couponMessage(result)
+		// Either a tool-only turn produced no chat text, or everything the model
+		// wrote was tool narration the sanitizer dropped. Fall back to the
+		// message it put in the tool call so the customer still hears from Sara.
+		reply = sanitizeSellerReply(couponMessage(result))
 	}
-	reply = sanitizeSellerReply(reply)
 	if reply == "" {
 		// Defensive fallback: the model did a tool-only turn with an empty
 		// `message` argument (seen in production as content="" + message="").
@@ -759,14 +759,6 @@ func writeStreamEvent(w io.Writer, evt StreamEvent) {
 	}
 }
 
-// sanitizeSellerReply strips the formatting the system prompt forbids but a
-// model may still emit — markdown symbols and emoji — before the text reaches
-// the customer. Persian punctuation (، ؟ ؛) and the zero-width non-joiner
-// (U+200C, essential for correct Persian spelling) are preserved.
-//
-// It is applied both to each streamed token and to the final assembled reply
-// (and to the tool-message fallback), so a stray "**bold**" or a 😀 never leaks
-// through whichever channel the model chose to write in.
 var (
 	// sanitizeMDLink collapses a markdown link [text](url) to its visible text,
 	// discarding the URL. Applied on the final assembled reply only, since a
@@ -776,21 +768,46 @@ var (
 	// the start of a line. (?m)^ keeps it to real line starts so a mid-sentence
 	// hyphen used as a dash is never eaten.
 	sanitizeMDBullet = regexp.MustCompile(`(?m)^[ \t]*[-*+•][ \t]+`)
+	// sanitizePercent matches a discount figure stated in text — "۱۰٪", "10 %",
+	// "۱۰ درصد", "10 percent" — plus a bare percent sign. The prompt forbids
+	// naming the number (the coupon card is what shows it) but models sometimes
+	// do anyway, and a stated number can contradict the minted coupon after the
+	// reason gate or the cap lowers it. The "درصدی" alternative comes before
+	// "درصد" so the adjective suffix goes with the match instead of being left
+	// stranded; Go's regexp is leftmost-first, so order decides this.
+	sanitizePercent = regexp.MustCompile(`(?i)[0-9۰-۹٠-٩]+[\s\x{200c}]*(?:٪|%|درصدی|درصد|percent)|٪|%`)
 )
 
-// sanitizeSellerReply strips the formatting the system prompt forbids but a
-// model may still emit — markdown symbols and emoji — before the text reaches
-// the customer. Persian punctuation (، ؟ ؛) and the zero-width non-joiner
+// toolNarrationMarkers are the traces of a model typing a tool call as prose
+// instead of emitting one. Text is normalized (lowercased, separators removed)
+// before matching, so "offer_coupon", "offer coupon" and "offerCoupon" all hit
+// the same marker. They are ASCII latin sequences that cannot occur inside
+// genuine Persian sales talk, so a whole sentence containing one is meta text.
+var toolNarrationMarkers = []string{
+	"offercoupon", "recommendproduct", "searchcatalog",
+	"toolcall", "tooluse", "functioncall",
+}
+
+// sanitizeSellerReply strips what the customer must never see — tool-call
+// narration, stated discount percents, markdown symbols and emoji — before the
+// text reaches them. Persian punctuation (، ؟ ؛) and the zero-width non-joiner
 // (U+200C, essential for correct Persian spelling) are preserved.
 //
-// The full pass (links, line-start bullets, all markdown, emoji, whitespace) is
-// applied to the final assembled reply; streamed tokens get the cheaper
-// sanitizeToken pass below so a live token still never leaks ** or a 😀 while
-// constructs that can span tokens wait for the whole-text view.
+// The full pass runs on the final assembled reply (and on the tool-message
+// fallback); streamed tokens get the cheaper sanitizeToken pass below, since
+// every construct handled only here — links, bullets, "۱۰ درصد", a narrated
+// call — can straddle a token boundary and is only recognizable once the whole
+// text is in hand. The frontend swaps the streamed text for this final reply
+// when the done event arrives, so anything dropped here never survives the turn.
 func sanitizeSellerReply(s string) string {
 	if s == "" {
 		return s
 	}
+
+	// Drop sentences narrating a tool call, and any percent the model stated,
+	// before markdown stripping mangles the markers ('_', '`', '*').
+	s = stripToolNarration(s)
+	s = sanitizePercent.ReplaceAllString(s, "")
 
 	// Collapse markdown links to their visible text, dropping the URL.
 	s = sanitizeMDLink.ReplaceAllString(s, "$1")
@@ -818,6 +835,76 @@ func sanitizeSellerReply(s string) string {
 	}, s)
 
 	return strings.TrimSpace(collapseSpaces(s))
+}
+
+// stripToolNarration removes every sentence in which the model described a tool
+// call ("call offer_coupon with value 5", "<tool_call>{…}</tool_call>") instead
+// of emitting one. Such a sentence is machinery talk addressed to itself; the
+// coupon it describes is salvaged separately in interpretToolCalls, and the
+// customer gets Sara's fallback line rather than a look behind the curtain.
+//
+// It cuts at sentence granularity so a single narrated aside does not take the
+// rest of a good reply with it.
+func stripToolNarration(s string) string {
+	if !containsToolNarration(s) {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, sentence := range splitSentences(s) {
+		if containsToolNarration(sentence) {
+			continue
+		}
+		b.WriteString(sentence)
+	}
+	return b.String()
+}
+
+// containsToolNarration reports whether s mentions one of the seller's tools or
+// a tool-call wrapper, ignoring case and the separators models vary on.
+func containsToolNarration(s string) bool {
+	var norm strings.Builder
+	norm.Grow(len(s))
+	for _, r := range s {
+		switch {
+		case r == '_' || r == '-' || r == '.' || r == ' ' || r == '\t':
+			// Separator: drop it so "offer coupon" folds onto "offercoupon".
+		case r >= 'A' && r <= 'Z':
+			norm.WriteRune(r + ('a' - 'A'))
+		default:
+			norm.WriteRune(r)
+		}
+	}
+	folded := norm.String()
+	for _, marker := range toolNarrationMarkers {
+		if strings.Contains(folded, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// splitSentences cuts s after each sentence terminator (Latin and Persian) and
+// after each newline, keeping the terminator and trailing spaces with the
+// sentence they close so the pieces rejoin into the original string exactly.
+func splitSentences(s string) []string {
+	var out []string
+	start := 0
+	inTail := false
+	for i, r := range s {
+		switch {
+		case r == '.' || r == '!' || r == '?' || r == '؟' || r == '\n' || r == '؛':
+			inTail = true
+		case inTail && r != ' ' && r != '\t' && r != '\r':
+			out = append(out, s[start:i])
+			start = i
+			inTail = false
+		}
+	}
+	if start < len(s) {
+		out = append(out, s[start:])
+	}
+	return out
 }
 
 // sanitizeToken is the cheap per-token pass applied to each streamed delta. It
@@ -907,8 +994,12 @@ func interpretToolCalls(in SellerAgentInput, result *streamResult) (*NegotiateCo
 		// Some models narrate the call inside the reasoning channel instead of
 		// emitting a real tool call. That channel is model-authored and never
 		// shown to the customer, so it is safe to salvage from; the visible
-		// content is not, since the customer controls what the model echoes.
+		// content is not, since the customer controls what the model echoes —
+		// narration that lands there is stripped by sanitizeSellerReply instead.
 		couponParams = parseInlineCoupon(result.reasoning)
+		if couponParams == nil {
+			couponParams = parseNarratedCoupon(result.reasoning)
+		}
 	}
 
 	recommended := resolveRecommendation(in, result.toolCalls)
@@ -1013,6 +1104,40 @@ func parseInlineCoupon(content string) *couponToolParams {
 			i = j
 			break
 		}
+	}
+	return nil
+}
+
+// narratedCouponValue matches a coupon percent narrated in prose beside the
+// tool name. Both forms demand the number be tied to the call — through a
+// value word ("call offer_coupon with value is 5", "offer_coupon(value=5)") or
+// by sitting right against the name ("offer coupon: 10") — so an unrelated
+// figure later in the same sentence is never mistaken for the discount.
+var narratedCouponValue = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)offer[_ -]?coupon\b[^0-9\n]{0,40}?(?:value|percent|amount|درصد)[^0-9\n]{0,15}?([0-9]{1,2})`),
+	regexp.MustCompile(`(?i)offer[_ -]?coupon\b[^0-9a-z\n]{0,3}([0-9]{1,2})`),
+}
+
+// parseNarratedCoupon salvages a coupon from prose narration of the tool call,
+// for models that describe the call in the reasoning channel rather than
+// emitting one and never write the JSON parseInlineCoupon looks for.
+//
+// Only the percent is recovered; a narrated call carries no justification, so
+// buildCoupon's reason gate holds it at the standing floor. That is the point:
+// a call the model failed to actually make still gets the customer the discount
+// they already have coming, and can never talk itself into a higher one.
+func parseNarratedCoupon(reasoning string) *couponToolParams {
+	for _, re := range narratedCouponValue {
+		m := re.FindStringSubmatch(reasoning)
+		if m == nil {
+			continue
+		}
+		value, err := strconv.Atoi(m[1])
+		if err != nil || value <= 0 {
+			continue
+		}
+		fmt.Printf("[negotiate-stream] salvaged narrated offer_coupon at %d%% from reasoning\n", value)
+		return &couponToolParams{Value: float64(value)}
 	}
 	return nil
 }
