@@ -624,9 +624,10 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
 
           {/* Other color variants — circles with swatch image or hex color.
               Clicking switches to that variant, updating the displayed images
-              and the available inventory sizes. Hidden when the URL locks a
-              specific variant (isVariantLocked). */}
-          {!!product?.colorVariants?.length && !isVariantLocked && (
+              and the available inventory sizes.
+              Always shown so users can switch colors even when the URL
+              locks a specific variant (isVariantLocked). */}
+          {!!product?.colorVariants?.length && (
             <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-1">
               {product.colorVariants
                 .filter(cv => cv.variantId && (cv.color?.trim() || cv.colorName?.trim()))
