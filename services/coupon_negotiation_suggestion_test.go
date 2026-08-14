@@ -99,3 +99,85 @@ func TestDoneEventCarriesNoCandidateProducts(t *testing.T) {
 		t.Error("a turn with no recommendation should not carry a recommended_product")
 	}
 }
+
+// The prompt asks the model to only put a card on screen in two situations, but
+// a prompt is a request, not an enforcement. Where askless turns are concerned
+// the server has to be the rule: a recommend_product call the model makes on a
+// greeting, a price question or small talk must not become a card.
+func TestRecommendationDroppedWhenCustomerDidNotAsk(t *testing.T) {
+	in := SellerAgentInput{
+		Request:               NegotiateRequest{Message: "سلام خوبی؟"},
+		ComplementaryProducts: []CouponCartItem{{ProductID: "comp-1", ProductName: "شلوار جین راسته"}},
+	}
+	result := &streamResult{toolCalls: []accumulatedToolCall{
+		{name: "recommend_product", arguments: `{"product_id":"comp-1"}`},
+	}}
+	coupon, recommended := interpretToolCalls(in, result)
+	if coupon != nil {
+		t.Errorf("no coupon should be minted: %v", coupon)
+	}
+	if recommended != nil {
+		t.Errorf("recommendation on a greeting must be dropped, got %q", recommended.ProductName)
+	}
+}
+
+func TestRecommendationKeptWhenCustomerAsked(t *testing.T) {
+	in := SellerAgentInput{
+		Request:               NegotiateRequest{Message: "یه شلوار جین مشکی سایز ۳۲ داری؟"},
+		ComplementaryProducts: []CouponCartItem{{ProductID: "comp-1", ProductName: "شلوار جین راسته"}},
+	}
+	result := &streamResult{toolCalls: []accumulatedToolCall{
+		{name: "recommend_product", arguments: `{"product_id":"comp-1"}`},
+	}}
+	_, recommended := interpretToolCalls(in, result)
+	if recommended == nil || recommended.ProductID != "comp-1" {
+		t.Errorf("recommendation for a product ask must be kept, got %v", recommended)
+	}
+}
+
+func TestRecommendationKeptWhenCouponBundles(t *testing.T) {
+	in := SellerAgentInput{
+		Request:               NegotiateRequest{Message: "سلام چیزی میخوای؟"},
+		TryonContext:          "پیراهن آبی - آبی - 1200000 تومان",
+		ComplementaryProducts: []CouponCartItem{{ProductID: "comp-1", ProductName: "شلوار جین راسته"}},
+		State:                 ResolveNegotiationState(0, 0, ""),
+	}
+	result := &streamResult{toolCalls: []accumulatedToolCall{
+		{name: "offer_coupon", arguments: `{"value":5,"comp_product_id":"comp-1"}`},
+	}}
+	coupon, recommended := interpretToolCalls(in, result)
+	if coupon == nil {
+		t.Fatal("coupon should be minted")
+	}
+	if recommended == nil || recommended.ProductID != "comp-1" {
+		t.Errorf("bundled complementary card must be kept, got %v", recommended)
+	}
+	if coupon.CompProductID != "comp-1" {
+		t.Errorf("coupon should be tied to the bundle, got %q", coupon.CompProductID)
+	}
+}
+
+// A "دستت" in a reply must not be read as "ست" — category matching is on whole
+// tokens, and Arabic-looking keyboard variants still match their Persian form.
+func TestUserAskedForProductRecognizesAsks(t *testing.T) {
+	cases := []struct {
+		msg  string
+		want bool
+	}{
+		{"سلام خوبی؟", false},
+		{"قیمتش چنده؟", false},
+		{"سایز L هم داره؟", false},
+		{"امروز خیلی خستم", false},
+		{"یه تخفیف بده", false},
+		{"یه شلوار جین داری؟", true},
+		{"پیراهن مشکی دارید؟", true},
+		{"چی داری؟", true},
+		{"یه كت چرمی میخوام", true},
+		{"سایز L هم داری؟", false},
+	}
+	for _, tc := range cases {
+		if got := userAskedForProduct(tc.msg); got != tc.want {
+			t.Errorf("%q: got %t, want %t", tc.msg, got, tc.want)
+		}
+	}
+}

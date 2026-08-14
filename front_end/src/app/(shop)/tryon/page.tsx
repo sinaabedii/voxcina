@@ -346,19 +346,23 @@ export default function TryOnRoomPage() {
       });
       setChatMessages(restored);
 
-      // Restore recommended product from the last agent message with a tool_call
-      const lastRecMsg = [...persistedMessages].reverse().find(
-        (m) => m.role === "agent" && (m.tool_call?.result as any)?.recommended_product
-      );
-      if (lastRecMsg?.tool_call?.result) {
-        const rp = (lastRecMsg.tool_call.result as any).recommended_product;
-        if (rp) setRecommendedProduct(rp as RecommendedProduct);
+      // Restore recommended product / catalog hits only when the latest agent
+      // message actually recommended something. A card is rendered from the tool
+      // call of a single turn; reaching back to ANY historic recommendation
+      // would put an old card back on screen after the conversation had long
+      // moved on to unrecommending turns.
+      const lastAgentMsg = [...persistedMessages].reverse().find((m) => m.role === "agent");
+      const lastRec = lastAgentMsg?.tool_call?.result?.recommended_product;
+      const lastHits = lastAgentMsg?.tool_call?.result?.catalog_hits;
+      if (lastRec) {
+        setRecommendedProduct(lastRec as RecommendedProduct);
+      } else {
+        setRecommendedProduct(null);
       }
-      const lastCatalogMsg = [...persistedMessages].reverse().find(
-        (m) => m.role === "agent" && Array.isArray((m.tool_call?.result as any)?.catalog_hits)
-      );
-      if (lastCatalogMsg?.tool_call?.result) {
-        setCatalogHits(((lastCatalogMsg.tool_call.result as any).catalog_hits || []) as CatalogVariantHit[]);
+      if (Array.isArray(lastHits)) {
+        setCatalogHits(lastHits as CatalogVariantHit[]);
+      } else {
+        setCatalogHits([]);
       }
     } else if (eligibleItems.length > 0 && chatMessages.length === 0) {
       // First visit — no persisted messages, cart has eligible items: show welcome
@@ -802,17 +806,17 @@ export default function TryOnRoomPage() {
                 setCoupon(c.code, c.value, c.valid_until, c.product_ids, requiredColors);
                 setCouponExpired(false);
               }
-              // Show a product only when the agent actually named one — she
-              // recommended it, or the coupon bundles it (the server resolves
-              // that comp product into recommended_product too). This used to
-              // fall back to the first entry of the complementary list, which
-              // the server sent on every turn, so an unrelated card appeared
-              // after every single message and contradicted her text. A card
-              // already on screen stays until she names a different one: the
-              // coupon can require that product to be in the cart, and the
-              // reload path restores it the same way.
+              // Show a product only when the agent actually named one this
+              // turn — she recommended it, or the coupon bundles it (the server
+              // resolves that comp product into recommended_product too). Any
+              // other turn clears the card: the old behavior kept the previous
+              // card on screen forever, so a greeting three turns after a
+              // coupon still sat next to a product the agent had stopped
+              // talking about.
               if (data.recommended_product) {
                 setRecommendedProduct(data.recommended_product as RecommendedProduct);
+              } else {
+                setRecommendedProduct(null);
               }
 
               // The backend persists both halves of this turn to the room

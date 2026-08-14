@@ -1169,7 +1169,61 @@ func interpretToolCalls(in SellerAgentInput, result *streamResult) (*NegotiateCo
 		}
 	}
 
+	// Product-card gate: a recommendation is only rendered in the two cases the
+	// prompt describes — the customer asked for a product, or a coupon bundles
+	// it. The model is asked to follow that rule, but the prompt is not what
+	// enforces it; without this check a model that calls recommend_product on a
+	// greeting or a price question would put an unasked-for card on screen.
+	if coupon == nil && recommended != nil && !userAskedForProduct(in.Request.Message) {
+		fmt.Printf("[negotiate-stream] dropping recommend_product %q — customer did not ask for a product\n",
+			recommended.ProductName)
+		recommended = nil
+	}
+
 	return coupon, recommended
+}
+
+// userAskedForProduct reports whether the customer's latest message asks for a
+// product — the first of the two cases that justify a product card. Category
+// nouns are matched as whole tokens (a "دستت" reply must not count as "ست"),
+// with a few explicit ask forms for queries that never name a category. A bare
+// discount request ("یه تخفیف بده") contains none of these and never unlocks a
+// card — the coupon card is what answers that turn.
+func userAskedForProduct(msg string) bool {
+	norm := normalizePersianProductQuery(msg)
+	for _, f := range strings.FieldsFunc(norm, func(r rune) bool {
+		return r == ' ' || r == '\t' || r == '\n' || r == '\u200c'
+	}) {
+		if productAskTokens[f] {
+			return true
+		}
+	}
+	for _, ask := range []string{"چی داری", "چیزی داری", "چی دارید", "چیزی دارید", "چی دارین", "چیزی دارین"} {
+		if strings.Contains(norm, ask) {
+			return true
+		}
+	}
+	return false
+}
+
+// productAskTokens are the catalog category nouns that signal a product request
+// when they appear as whole words in the customer's message.
+var productAskTokens = map[string]bool{
+	"شلوار": true, "شلوارک": true, "پیراهن": true, "تیشرت": true, "شرت": true,
+	"کت": true, "هودی": true, "بلوز": true, "دامن": true, "مانتو": true,
+	"کفش": true, "پوتین": true, "جین": true, "ساق": true, "جوراب": true,
+	"کلاه": true, "شال": true, "روسری": true, "لباس": true, "استایل": true,
+	"اسنیکرز": true, "اسپرت": true, "بافت": true, "پلیور": true, "سویشرت": true,
+	"تاپ": true, "تانک": true, "پیشنهاد": true,
+}
+
+// normalizePersianProductQuery folds the message to lowercase and swaps Arabic
+// ya/kaf for their Persian forms, so the same word typed on an Arabic keyboard
+// still matches.
+func normalizePersianProductQuery(s string) string {
+	return strings.NewReplacer("ي", "ی", "ك", "ک", "٠", "۰", "١", "۱", "٢", "۲",
+		"٣", "۳", "٤", "۴", "٥", "۵", "٦", "۶", "٧", "۷", "٨", "۸", "٩", "۹",
+	).Replace(strings.ToLower(s))
 }
 
 func resolveRecommendation(in SellerAgentInput, calls []accumulatedToolCall) *CouponCartItem {
