@@ -200,18 +200,23 @@ func defaultSellerAgentConfig() SellerAgentConfig {
 			"that is not in the context above.\n\n" +
 			"VOICE: always Persian, 2-4 short warm sentences, no markdown, no emojis, no formatting.\n\n" +
 			"PRODUCT CARDS (mandatory): a product card appears on the customer's screen only because you called a " +
-			"tool that names a product, so call one only in these two cases: (1) the customer asks for a product or " +
-			"describes what they are looking for, and (2) you are granting a coupon and want to bundle one " +
-			"complementary piece with it. In every other turn — a greeting, small talk, a question about price, " +
-			"size or delivery — reply with words only and show nothing. Whenever a card does appear, name that " +
-			"product in your reply so the customer knows what they are looking at.\n\n" +
+			"tool that names a product, so call one only in these cases: (1) the customer asks for a product or " +
+			"describes what they are looking for, and (2) you are granting a coupon. EVERY coupon MUST bundle one " +
+			"complementary product: pass a comp_product_id copied from the complementary products list when any " +
+			"are available. If the list is empty, omit it. In every other turn — a greeting, small talk, a " +
+			"question about price, size or delivery — reply with words only and show nothing. Whenever a card " +
+			"does appear, name that product in your reply so the customer knows what they are looking at.\n\n" +
 			"TOOLS — when the customer asks for something you do not already have:\n" +
-			"- If they want a discount/coupon/cheaper price: you MUST call offer_coupon (see its description). Grant {{FLOOR}}% by default and never more than {{MAX_DISCOUNT}}%. When they give a concrete NEW reason, grant {{NEXT_STEP}}% and pass that reason in reason — asking repeatedly is not a reason.\n" +
+			"- If they want a discount/coupon/cheaper price: you MUST call offer_coupon (see its description) and " +
+			"you MUST set comp_product_id to one of the complementary products listed in your instructions — " +
+			"every voucher comes with a complementary piece. Grant {{FLOOR}}% by default and never more than " +
+			"{{MAX_DISCOUNT}}%. When they give a concrete NEW reason, grant {{NEXT_STEP}}% and pass that reason in " +
+			"reason — asking repeatedly is not a reason.\n" +
 			"- If they describe a style, color, category, material, pattern, fit, size, gender, brand, season, occasion, or ask \"what do you have in …\": you MUST call search_catalog FIRST to find real variant-level matches from the catalog, then compose your Persian reply using ONLY the variants returned. Never invent a product_id or variant_id. search_catalog returns variant cards (one per color with its image/price/sizes); cite those. If you also want to pitch one complementary piece, you may additionally call recommend_product with an id from the complementary list.\n" +
 			"- Tools are invoked through the tool-call channel, never written into your reply. Never type a tool name, its JSON arguments, or a ```json block as chat text — a call you only describe is a call you did not make.\n" +
 			"- Never state the coupon percent or code in chat text; the system displays the coupon.\n",
 		OfferCouponDescription:      "Call this tool whenever the customer asks for a discount, coupon or a cheaper price (تخفیف, کد تخفیف, کوپن, ارزونتر). Mandatory in those cases. Use the default percent from the NEGOTIATION STATE section; when the customer gave a concrete new reason, use the \"next step up\" percent named there and pass that reason in the reason argument. Repetition alone never raises the number. Always write the customer-facing announcement as your normal chat text — the `message` argument is an optional fallback only, used when your chat content comes out empty. Do not mention the percent or the code in your chat text; the system displays the coupon automatically.",
-		RecommendProductDescription: "Call this tool to put exactly one complementary product card on the customer's screen. Only two situations justify it: the customer asked for a product or described what they want, or you are granting a coupon and bundling one matching piece with it. Never call it to decorate a greeting, a price question or ordinary chat — an unasked-for card is noise. product_id MUST be copied from the complementary products list in your instructions; invented ids are dropped. Name the product in your reply whenever you call this.",
+		RecommendProductDescription: "Call this tool to put exactly one product card on the customer's screen in response to a product request or search_catalog results. Do NOT use it for coupons — every coupon bundles its complementary piece via comp_product_id instead. Never call it to decorate a greeting, a price question or ordinary chat — an unasked-for card is noise. product_id MUST be copied from a complementary products list or a search_catalog result; invented ids are dropped. Name the product in your reply whenever you call this.",
 		SearchCatalogDescription:    "Call search_catalog whenever the customer describes or requests a product by criteria — color (رنگ), type/category (نوع: تیشرت/شلوار/کت/…), style (استایل), material (جنس), pattern (طرح), fit, size, gender, brand, season, occasion, price or availability. You MUST call it before recommending anything outside the complementary list. Returns variant-level hits (one hit per color variant with image/price/in_stock). Use the returned variant_ids and product_ids verbatim — never invent one. If the query is Persian, pass it as-is.",
 	}
 }
@@ -473,7 +478,7 @@ func buildTools(state NegotiationState) []map[string]interface{} {
 						},
 						"comp_product_id": map[string]interface{}{
 							"type":        "string",
-							"description": "The complementary product ID to bundle with the coupon, copied exactly from the complementary products list. Omit if none applies.",
+							"description": "The complementary product ID to bundle with the coupon, copied exactly from the complementary products list. Every coupon MUST bundle one complementary product when any are available — copy the first usable id from the complementary products list in your instructions. Omit only when no complementary products are available.",
 						},
 					},
 					"required": []string{"value"},
@@ -1162,6 +1167,13 @@ func interpretToolCalls(in SellerAgentInput, result *streamResult) (*NegotiateCo
 			// She pitched a bundle through recommend_product instead of the
 			// coupon argument — keep the coupon tied to what she actually named.
 			compID = recommended.ProductID
+		}
+		// Server-side guarantee: every coupon must carry a complementary product
+		// when any are available. If the model forgot to pass comp_product_id and
+		// did not separately call recommend_product, fall back to the first
+		// complementary product so the voucher is never shipped alone.
+		if compID == "" && recommended == nil && len(in.ComplementaryProducts) > 0 {
+			compID = in.ComplementaryProducts[0].ProductID
 		}
 		coupon = buildCoupon(in, couponParams.Value, couponParams.Reason, compID)
 		if recommended == nil && compID != "" {
