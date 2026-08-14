@@ -104,6 +104,8 @@ func buildSellerInput(ctx context.Context, userID primitive.ObjectID, req servic
 		tryon, err := virtualTryonService.GetByTryonID(ctx, req.TryonID)
 		if err != nil {
 			fmt.Printf("[negotiate-stream] tryon %s not found: %v\n", req.TryonID, err)
+		} else if tryon == nil {
+			fmt.Printf("[negotiate-stream] tryon %s not found (nil)\n", req.TryonID)
 		} else if tryon.UserID != userID {
 			return input, fmt.Errorf("tryon %s does not belong to user %s", req.TryonID, userID.Hex())
 		} else {
