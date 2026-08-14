@@ -18,6 +18,7 @@ import {
   X,
   Camera,
   Shirt,
+  CheckCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "@/store/cart-store";
@@ -122,18 +123,20 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     variant.variantId || variant.colorName;
 
 
-  // Helper function to get product images based on selected color
+  // Helper function to get product images based on selected color.
+  // Main images always come first so the main product image stays unchanged
+  // when switching colors — only the color-variant images are appended.
   const getProductImages = () => {
     if (!product) return [];
+    const mainImages = product.mainImages || [];
     if (selectedColor) {
       const colorVariant = findSelectedVariant();
       if (colorVariant?.images?.length) {
-        return [...colorVariant.images, ...(product.mainImages || [])];
+        return [...mainImages, ...colorVariant.images];
       }
     }
-    const mainImages = product.mainImages || [];
     const firstColorImages = product.colorVariants?.[0]?.images || [];
-    return [...firstColorImages, ...mainImages];
+    return [...mainImages, ...firstColorImages];
   };
 
   // Helper function to get try-on image based on selected color
@@ -330,17 +333,16 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     setQuantity(1);
   }, [selectedColor, selectedSize]);
 
-  // Reset image loading state when color changes
+  // Reset image selection when color changes — main product images stay
+  // fixed in position, so resetting to 0 shows the first main image.
   useEffect(() => {
-    if (selectedColor) {
-      const newImages = getProductImages();
-      const allLoaded = newImages.every(img => loadedImages.has(img));
-      if (!allLoaded) {
-        setImagesLoading(true);
-        lastImageSourceRef.current = 'color_change';
-        setSelectedImage(0);
-      }
+    const newImages = getProductImages();
+    const allLoaded = newImages.every(img => loadedImages.has(img));
+    if (!allLoaded) {
+      setImagesLoading(true);
     }
+    lastImageSourceRef.current = 'color_change';
+    setSelectedImage(0);
   }, [selectedColor]);
 
   // Track image gallery interaction: when selectedImage changes, report the
@@ -617,10 +619,58 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
                   />
                 </div>
               </button>
-            ))}
+          ))}
           </div>
         )}
-      </motion.div>
+
+          {/* Other color variants list — thumbnails to switch between colors.
+              Clicking a variant updates the color-variant image only; the
+              main product images stay fixed in place. */}
+          {!!product?.colorVariants?.length && !isVariantLocked && (
+            <div className="mt-4">
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-voxcina-blue/20 scrollbar-track-voxcina-cream/50 dark:scrollbar-thumb-voxcina-cream/30 dark:scrollbar-track-voxcina-blue/20">
+                {product.colorVariants
+                  .filter(cv => cv.variantId && (cv.color?.trim() || cv.colorName?.trim()))
+                  .map((cv, idx) => {
+                    const key = cv.variantId || cv.colorName;
+                    const isSelected = selectedColor === key;
+                    const variantImage = (cv.images && cv.images.length > 0)
+                      ? cv.images[0]
+                      : (cv.swatchImage || '');
+                    if (!variantImage) return null;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => handleColorChange(key)}
+                        title={cv.colorName}
+                        className={cn(
+                          "relative flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-all duration-200",
+                          isSelected
+                            ? "border-voxcina-blue dark:border-voxcina-cream ring-2 ring-voxcina-blue/30 dark:ring-voxcina-cream/30"
+                            : "border-voxcina-cream/50 dark:border-voxcina-blue/30 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/50"
+                        )}
+                      >
+                        <Image
+                          src={variantImage}
+                          alt={`${product?.name || ''} - ${cv.colorName}`}
+                          fill
+                          sizes="64px"
+                          className="object-contain"
+                          unoptimized={variantImage?.startsWith('/uploads/')}
+                        />
+                        {isSelected && (
+                          <div className="absolute inset-0 bg-voxcina-blue/20 dark:bg-voxcina-cream/20 flex items-center justify-center">
+                            <CheckCircle className="h-4 w-4 text-white dark:text-voxcina-cream drop-shadow-md" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+        </motion.div>
 
 
       {/* Product Details Section */}
