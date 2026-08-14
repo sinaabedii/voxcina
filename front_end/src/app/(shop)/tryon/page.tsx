@@ -676,9 +676,31 @@ export default function TryOnRoomPage() {
     }
   };
 
+  // Resolve the garment Sara negotiates over. Talking to her never required a
+  // try-on, so the chain falls back past the explicit selection: the actively
+  // selected item, then the item behind the last try-on, then the first
+  // eligible cart item. Without the fallback a message typed before any try-on
+  // resolved to null and was dropped with no bubble and no error.
+  const resolveNegotiationTarget = useCallback(
+    (explicit?: TryOnEligibleItem): TryOnEligibleItem | null =>
+      explicit
+      ?? (activeItemIndex !== null ? eligibleItems[activeItemIndex] : null)
+      ?? (inspectedItemName
+        ? eligibleItems.find((el) => el.product.name === inspectedItemName)
+        : null)
+      ?? eligibleItems[0]
+      ?? null,
+    [activeItemIndex, eligibleItems, inspectedItemName]
+  );
+
   const sendNegotiationMessage = async (message: string, item?: TryOnEligibleItem) => {
-    const targetItem = item || (activeItemIndex !== null ? eligibleItems[activeItemIndex] : null);
-    if (!targetItem) return;
+    const targetItem = resolveNegotiationTarget(item);
+    if (!targetItem) {
+      // Only reachable with an empty fitting room, where the chat is not even
+      // rendered — still say so rather than swallowing the message.
+      toast.warning("ابتدا یک محصول قابل پرو به سبد خرید اضافه کنید");
+      return;
+    }
 
     setChatLoading(true);
     setRecommendedProduct(null);
@@ -963,17 +985,9 @@ export default function TryOnRoomPage() {
 
   const activeItem = activeItemIndex !== null ? eligibleItems[activeItemIndex] : null;
 
-  // Find the negotiation target: prefer the actively selected item, then
-  // fall back to the item matching the last try-on's inspected name, then
-  // the first eligible item. Used by negotiation prompts which should work
-  // even when no product is explicitly selected (e.g. after page reload).
-  const negotiationTargetItem: TryOnEligibleItem | null =
-    activeItem
-    ?? (inspectedItemName
-      ? eligibleItems.find((el) => el.product.name === inspectedItemName) ?? null
-      : null)
-    ?? eligibleItems[0]
-    ?? null;
+  // The negotiation prompts target the same item the input box does, so both
+  // work when no product is explicitly selected (e.g. after a page reload).
+  const negotiationTargetItem = resolveNegotiationTarget();
 
   return (
     <div className="container py-4 md:py-6 flex flex-col flex-1 min-h-0 overflow-hidden">
