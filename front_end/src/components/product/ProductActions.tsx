@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-toastify";
 import {
   Heart,
@@ -71,7 +71,6 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   const [isStockNotifyEnabled, setIsStockNotifyEnabled] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showTryOnModal, setShowTryOnModal] = useState(false);
-  const [showSelectColorMessage, setShowSelectColorMessage] = useState(false);
   const [imagesLoading, setImagesLoading] = useState(false);
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
 
@@ -85,6 +84,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   const { submitReview } = useReviewStore();
   const { addToFavorites, isFavorite } = useDashboardStore();
   const { addRecentlyViewed } = useProductStore();
+  const router = useRouter();
   const {
     uploadedPreview,
     uploadedFile,
@@ -389,24 +389,30 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [productImages]);
 
-  const handleAddToCart = () => {
+  const validateSelection = () => {
     if (!selectedSize && availableSizes.length > 0) {
       alert("لطفاً سایز مورد نظر خود را انتخاب کنید");
-      return;
+      return false;
     }
     if (needsColorSelection && !selectedColor) {
       alert("لطفاً رنگ مورد نظر خود را انتخاب کنید");
-      return;
+      return false;
     }
     if (selectedSize && selectedColor && !isVariantInStock(selectedSize, selectedColor)) {
       alert("ترکیب سایز و رنگ انتخابی موجود نیست");
-      return;
+      return false;
     }
     const selectedVariant = selectedColor ? findSelectedVariant() : undefined;
     if (!selectedVariant?.variantId || !(selectedVariant.color?.trim() || selectedVariant.colorName?.trim())) {
       alert("این محصول رنگ مشخصی ندارد و قابل افزودن به سبد نیست");
-      return;
+      return false;
     }
+    return true;
+  };
+
+  const handleAddToCart = () => {
+    if (!validateSelection()) return;
+    const selectedVariant = selectedColor ? findSelectedVariant() : undefined;
     const colorVal = selectedVariant?.color || selectedVariant?.colorName || selectedColor;
     const colorName = selectedVariant?.colorName || selectedColor;
     addItem(product, quantity, selectedSize, colorVal, colorName, selectedVariant?.variantId);
@@ -486,12 +492,17 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   };
 
   const handleTryOnClick = () => {
-    if (!selectedColor && hasTryOnAvailable()) {
-      setShowSelectColorMessage(true);
-      setTimeout(() => setShowSelectColorMessage(false), 3000);
+    if (!isAuthenticated) {
+      alert("برای استفاده از پرو مجازی ابتدا وارد شوید");
+      router.push("/sign-in");
       return;
     }
-    setShowTryOnModal(true);
+    if (!validateSelection()) return;
+    const selectedVariant = selectedColor ? findSelectedVariant() : undefined;
+    const colorVal = selectedVariant?.color || selectedVariant?.colorName || selectedColor;
+    const colorName = selectedVariant?.colorName || selectedColor;
+    addItem(product, quantity, selectedSize, colorVal, colorName, selectedVariant?.variantId);
+    router.push("/tryon");
   };
 
   const handleUserImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -835,18 +846,6 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
                   <Camera className="w-4 h-4 ml-1" />
                   شروع پرو مجازی
                 </Button>
-                <AnimatePresence>
-                  {showSelectColorMessage && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="text-xs text-orange-600 dark:text-orange-400 mt-2 bg-orange-50 dark:bg-orange-900/20 px-3 py-2 rounded-lg border border-orange-200 dark:border-orange-800"
-                    >
-                      لطفاً ابتدا یک رنگ انتخاب کنید
-                    </motion.div>
-                  )}
-                </AnimatePresence>
                 {!hasTryOnAvailable() && (
                   <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50 mt-2">(برای این محصول در دسترس نیست)</span>
                 )}
