@@ -66,7 +66,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   const [isZoomed, setIsZoomed] = useState(false);
   const [showLightbox, setShowLightbox] = useState(false);
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 });
-  const [showSizeGuide, setShowSizeGuide] = useState(false);
+  const [activeTab, setActiveTab] = useState<'details' | 'care' | 'sizeGuide'>('details');
   const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [isStockNotifyEnabled, setIsStockNotifyEnabled] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -663,14 +663,10 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
             selectedSize={selectedSize}
             onSizeChange={setSelectedSize}
             availableSizes={selectedColor ? availableSizesForSelectedColor : undefined}
-            showSizeGuide
-            onSizeGuideClick={() => setShowSizeGuide(!showSizeGuide)}
             showClearButton={!!(selectedSize || selectedColor)}
             onClear={handleClearSelection}
           />
         )}
-
-        <SizeGuideTable isOpen={showSizeGuide} />
 
         {availableColors.length > 0 && (
           <ColorSelector
@@ -807,13 +803,48 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
           transition={{ duration: 0.3 }}
         >
           <div className="grid grid-cols-3 divide-x divide-x-reverse divide-voxcina-cream/30 dark:divide-voxcina-blue/30">
-            <button className="py-3 text-sm font-medium bg-voxcina-cream/30 dark:bg-voxcina-blue/30 text-voxcina-blue dark:text-voxcina-cream">توضیحات تکمیلی</button>
-            <button className="py-3 text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:text-voxcina-blue dark:hover:text-voxcina-cream hover:bg-voxcina-cream/10 dark:hover:bg-voxcina-blue/20 transition-colors">نحوه نگهداری</button>
-            <button className="py-3 text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:text-voxcina-blue dark:hover:text-voxcina-cream hover:bg-voxcina-cream/10 dark:hover:bg-voxcina-blue/20 transition-colors">جدول سایزبندی</button>
+            {[
+              { key: 'details' as const, label: 'توضیحات تکمیلی' },
+              { key: 'care' as const, label: 'نحوه نگهداری' },
+              { key: 'sizeGuide' as const, label: 'جدول سایزبندی' },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={cn(
+                  "py-3 text-sm transition-colors",
+                  activeTab === tab.key
+                    ? "font-medium bg-voxcina-cream/30 dark:bg-voxcina-blue/30 text-voxcina-blue dark:text-voxcina-cream"
+                    : "text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:text-voxcina-blue dark:hover:text-voxcina-cream hover:bg-voxcina-cream/10 dark:hover:bg-voxcina-blue/20"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
           <div className="p-4 text-sm leading-relaxed text-voxcina-blue/80 dark:text-voxcina-cream/80">
-            <p>{product.name} یکی از محصولات پرطرفدار و باکیفیت برند {product.brand} است که با بهترین مواد اولیه و دقت بالا تولید شده است.</p>
-            <p className="mt-2">پارچه به کار رفته در این محصول دارای کیفیت عالی و مقاوم در برابر پارگی و آسیب‌های معمول است.</p>
+            {activeTab === 'details' && (
+              <>
+                <p>{product.name} یکی از محصولات پرطرفدار و باکیفیت برند {product.brand} است که با بهترین مواد اولیه و دقت بالا تولید شده است.</p>
+                <p className="mt-2">پارچه به کار رفته در این محصول دارای کیفیت عالی و مقاوم در برابر پارگی و آسیب‌های معمول است.</p>
+              </>
+            )}
+            {activeTab === 'care' && (
+              <>
+                <p>برای حفظ کیفیت و افزایش طول عمر این محصول، رعایت نکات زیر توصیه می‌شود:</p>
+                <ul className="mt-3 space-y-2 list-disc pr-5">
+                  <li>این محصول را با آب سرد یا ولرم (حداکثر ۳۰ درجه سانتی‌گراد) و با شوینده‌های ملایم بشویید.</li>
+                  <li>از استفاده از سفیدکننده‌های کلردار و مواد شوینده قوی خودداری کنید، زیرا به بافت و رنگ پارچه آسیب می‌رسانند.</li>
+                  <li>در صورت امکان، لباس را به‌صورت وارونه بشویید تا از سایش رنگ و سطح پارچه جلوگیری شود.</li>
+                  <li>برای خشک‌کردن، محصول را در سایه و دور از نور مستقیم آفتاب قرار دهید؛ حرارت زیاد می‌تواند سبب تغییر رنگ و جمع‌شدن پارچه شود.</li>
+                  <li>در صورت نیاز به اتوکشی، با دمای متوسط و ترجیحاً از پشت پارچه اتو کنید.</li>
+                  <li>محصول را در محیطی خشک، خنک و دور از رطوبت نگهداری کنید و از آویزان کردن آن با چوب‌لباسی‌های نامناسب خودداری کنید.</li>
+                </ul>
+              </>
+            )}
+            {activeTab === 'sizeGuide' && (
+              <SizeGuideTable isOpen />
+            )}
           </div>
         </motion.div>
 
