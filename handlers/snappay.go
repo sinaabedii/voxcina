@@ -372,8 +372,7 @@ func buildSnappPayCart(ctx context.Context, order models.Order) ([]services.Paym
 	}
 
 	shipping := snappPayMoney(order.ShippingCost)
-	tax := snappPayMoney(order.TaxAmount)
-	cartTotal := itemTotal + shipping + tax
+	cartTotal := itemTotal + shipping
 	amount := snappPayMoney(order.TotalAmount)
 	discount := snappPayMoney(order.DiscountAmount)
 	if discount < 0 || discount > itemTotal {
@@ -389,7 +388,7 @@ func buildSnappPayCart(ctx context.Context, order models.Order) ([]services.Paym
 		ShipmentIncluded: false,
 		TaxIncluded:      false,
 		ShippingAmount:   shipping,
-		TaxAmount:        tax,
+		TaxAmount:        0,
 		TotalAmount:      cartTotal,
 	}}, amount, nil
 }
@@ -1028,7 +1027,7 @@ func AdminUpdateSnappPay(w http.ResponseWriter, r *http.Request) {
 	for _, item := range newItems {
 		updatedOrder.TotalAmount += item.PriceAtPurchase * float64(item.Quantity)
 	}
-	updatedOrder.TotalAmount += updatedOrder.ShippingCost + updatedOrder.TaxAmount - updatedOrder.DiscountAmount
+	updatedOrder.TotalAmount += updatedOrder.ShippingCost - updatedOrder.DiscountAmount
 	if updatedOrder.TotalAmount <= 0 || updatedOrder.TotalAmount >= order.TotalAmount {
 		utils.ErrorResponse(w, http.StatusBadRequest, "مبلغ بروزرسانی باید کمتر از مبلغ قبلی و مثبت باشد")
 		return

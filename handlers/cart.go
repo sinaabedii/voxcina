@@ -903,7 +903,6 @@ func calculateCartSummaryInternal(items []CartItemResponse) CartSummary {
 
 // calculateSummaryFromSubtotal derives the full cart financial summary from a known subtotal.
 func calculateSummaryFromSubtotal(subtotal float64, hasItems bool) CartSummary {
-	tax := subtotal * 0.10
 	shipping := 0.0
 	if hasItems {
 		shipping = 150000
@@ -912,9 +911,9 @@ func calculateSummaryFromSubtotal(subtotal float64, hasItems bool) CartSummary {
 	return CartSummary{
 		Subtotal: subtotal,
 		Shipping: shipping,
-		Tax:      tax,
+		Tax:      0,
 		Discount: 0,
-		Total:    subtotal + tax + shipping,
+		Total:    subtotal + shipping,
 	}
 }
 

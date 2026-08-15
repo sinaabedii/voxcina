@@ -674,11 +674,11 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	orderData.DiscountAmount = calculatedDiscount
-	if orderData.ShippingCost < 0 || orderData.TaxAmount < 0 || orderData.DiscountAmount < 0 || orderData.DiscountAmount > subtotal {
+	if orderData.ShippingCost < 0 || orderData.DiscountAmount < 0 || orderData.DiscountAmount > subtotal {
 		utils.ErrorResponse(w, http.StatusBadRequest, "مقادیر مالی سفارش نامعتبر است")
 		return
 	}
-	expectedTotal := subtotal + orderData.ShippingCost + orderData.TaxAmount - orderData.DiscountAmount
+	expectedTotal := subtotal + orderData.ShippingCost - orderData.DiscountAmount
 	if math.Abs(expectedTotal-orderData.TotalAmount) > 1 {
 		utils.ErrorResponse(w, http.StatusBadRequest, "مبلغ سفارش با اقلام سبد خرید مطابقت ندارد")
 		return
@@ -695,7 +695,7 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		Items:           itemsWithSnapshots,
 		TotalAmount:     expectedTotal,
 		ShippingCost:    orderData.ShippingCost,
-		TaxAmount:       orderData.TaxAmount,
+		TaxAmount:       0,
 		DiscountAmount:  orderData.DiscountAmount,
 		DiscountCode:    orderData.PromoCode,
 		ShippingAddress: orderData.ShippingAddress,

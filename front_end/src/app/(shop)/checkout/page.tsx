@@ -86,7 +86,7 @@ export default function CheckoutPage() {
   const paymentRequestInFlight = useRef(false);
 
   const shippingCost = selectedShippingMethod?.price ?? summary.shipping ?? 0;
-  const checkoutTotal = Math.max(0, summary.subtotal + summary.tax + shippingCost - summary.discount);
+  const checkoutTotal = Math.max(0, summary.subtotal + shippingCost - summary.discount);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -496,7 +496,7 @@ export default function CheckoutPage() {
           items: orderItems,
           totalAmount: totalAmount,
           shippingCost,
-          taxAmount: summary.tax,
+          taxAmount: 0,
           discountAmount: summary.discount,
           shippingAddress: shippingAddress,
           promoCode: promoCode?.code && promoCode.isValid ? promoCode.code : undefined,
