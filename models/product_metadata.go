@@ -33,7 +33,17 @@ type ProductSearchMetadata struct {
 	// Size & Fit
 	SizeSystem     string   `bson:"size_system"           json:"sizeSystem"`           // e.g., "EU", "US", "Asia"
 	FitType        string   `bson:"fit_type"              json:"fitType"`              // e.g., "Regular", "Slim", "Oversized" / "معمولی", "تنگ", "گشاد"
-	
+
+	// Free-text garment description, written by the AI metadata generator in
+	// English because the only consumer is the virtual try-on image prompt,
+	// which is English. Deliberately not a vocabulary: FitType above can only
+	// say "گشاد", while these can say "boxy with dropped shoulders and a
+	// straight hem" — the distinctions that decide whether a generated try-on
+	// looks like the garment the customer is buying.
+	FitDescription string `bson:"fit_description,omitempty" json:"fitDescription,omitempty"` // قواره as a short phrase, e.g. "loose, boxy cut with dropped shoulders"
+	GarmentPhrase  string `bson:"garment_phrase,omitempty"  json:"garmentPhrase,omitempty"`  // one-line garment summary, e.g. "short-sleeve checked cotton shirt"
+
+
 	// Gender & Target Audience
 	Gender         string   `bson:"gender"                json:"gender"`               // "مردانه", "زنانه", "یونیسکس" / "male", "female", "unisex"
 	AgeGroup       string   `bson:"age_group"             json:"ageGroup"`             // e.g., "بزرگسال", "نوجوان", "کودک"

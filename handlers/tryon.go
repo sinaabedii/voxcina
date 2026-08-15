@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"backEnd/db"
 	"backEnd/models"
 	"backEnd/services"
 	"backEnd/utils"
@@ -28,6 +29,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/image/webp"
@@ -56,6 +58,236 @@ func getTryOnPrompt(garmentType string) string {
 	default:
 		return tryOnPromptUpper
 	}
+}
+
+// garmentDetails are the facts about the garment that the prompt states in
+// words rather than leaving to the attached photo. Every field is written by
+// the AI metadata generator or by the admin — none is derived from a table in
+// this file, so a new garment shape needs no code change to be described.
+type garmentDetails struct {
+	Name   string // product name, as shown in the shop (Persian)
+	Type   string // garment noun from variant metadata, e.g. "tshirt (تیشرت)"
+	Fit    string // قواره, e.g. "loose, boxy cut with dropped shoulders" or "گشاد"
+	Phrase string // one-line garment summary, e.g. "short-sleeve checked cotton shirt"
+
+	// Per-colour appearance, from the variant's own vision pass. These are the
+	// three things a try-on most visibly gets wrong: it recolours the garment,
+	// renders knitwear as woven, or smooths a check into a solid block.
+	Color    string // the variant's own colour name, e.g. "آبی روشن"
+	Material string // e.g. "پنبه"
+	Pattern  string // e.g. "چهارخانه"
+}
+
+func (d garmentDetails) isEmpty() bool {
+	return d.Name == "" && d.Type == "" && d.Fit == "" && d.Phrase == "" &&
+		d.Color == "" && d.Material == "" && d.Pattern == ""
+}
+
+// buildTryOnPrompt puts the garment's identity in front of the geometry
+// instructions.
+//
+// The garment photo travels in the same request, but a photo alone leaves the
+// cut open to interpretation: an oversized shirt comes back tailored to the
+// body, and a specific garment drifts toward a generic one. Naming the type and
+// the intended قواره pins down what the picture leaves ambiguous. The base
+// prompt stays last so "Output only image." remains the closing instruction.
+func buildTryOnPrompt(garmentType string, details garmentDetails) string {
+	base := getTryOnPrompt(garmentType)
+	if details.isEmpty() {
+		return base
+	}
+
+	// Both lists stay in step with what is actually known: telling the model to
+	// honour "the stated fit" when no fit was stated is an instruction it cannot
+	// follow, and invites it to invent one.
+	var specs []string
+	emphasis := []string{"These describe the attached garment and are binding."}
+
+	if details.Name != "" {
+		specs = append(specs, "- Product name: "+details.Name)
+	}
+	if details.Phrase != "" {
+		specs = append(specs, "- Garment: "+details.Phrase)
+	}
+	if details.Type != "" {
+		specs = append(specs, "- Garment type: "+details.Type)
+	}
+	if details.Phrase != "" || details.Type != "" {
+		emphasis = append(emphasis, "Render it as the garment described above and do not substitute a different garment.")
+	}
+
+	// Appearance is listed last, next to the sentence defending it, so the model
+	// reads the fact and the constraint together.
+	var appearance []string
+	if details.Color != "" {
+		specs = append(specs, "- Colour: "+details.Color)
+		appearance = append(appearance, "colour")
+	}
+	if details.Material != "" {
+		specs = append(specs, "- Fabric: "+details.Material)
+		appearance = append(appearance, "fabric")
+	}
+	if details.Pattern != "" {
+		specs = append(specs, "- Surface pattern: "+details.Pattern)
+		appearance = append(appearance, "surface pattern")
+	}
+	if len(appearance) > 0 {
+		emphasis = append(emphasis, "Carry the "+joinWithAnd(appearance)+" over from the attached garment image unchanged.")
+	}
+	if details.Pattern != "" {
+		// Worded to hold for a plain garment too: the stored value is one of a
+		// small set that includes "ساده" (solid), where warning against
+		// smoothing would be nonsense and inviting texture would be a defect.
+		// The final clause is the one that covers it.
+		emphasis = append(emphasis, "Reproduce the surface pattern exactly as photographed — keep its scale and alignment, let it follow the body's contours, and neither simplify it nor add pattern that is not there.")
+	}
+
+	emphasis = append(emphasis, "Match the attached garment image in every other respect.")
+
+	var sections []string
+	if len(specs) > 0 {
+		sections = append(sections,
+			"GARMENT DETAILS — take these into careful consideration:",
+			strings.Join(specs, "\n"),
+			"",
+		)
+	}
+
+	// The fit gets its own heading instead of a bullet among the others. It is
+	// the instruction the model is most likely to quietly ignore — a garment
+	// redrawn onto a body defaults to a flattering tailored silhouette whatever
+	// the source garment looked like — so it is stated as a requirement, given
+	// precedence over the photo, and repeated at the end of the emphasis.
+	if details.Fit != "" {
+		sections = append(sections,
+			"REQUIRED FIT (قواره): "+details.Fit,
+			"The garment MUST be worn with exactly this fit. This is a hard requirement, not a preference. Shape the silhouette, volume, and drape on the body to match it, and do not slim, tighten, loosen, lengthen, or shorten the garment, or fall back to a generic tailored look. Where this fit differs from how the garment happens to hang in the attached photo, this fit wins.",
+			"",
+		)
+		emphasis = append(emphasis, "Above all, the garment must end up with the required fit stated above.")
+	}
+
+	sections = append(sections, strings.Join(emphasis, " "), "", base)
+
+	return strings.Join(sections, "\n")
+}
+
+// garmentFitAttributeName is the label the catalogue uses for the fit attribute
+// in the admin's product form. It names which attribute to read — the value it
+// carries is always the admin's own text.
+const garmentFitAttributeName = "قواره"
+
+// productAttributeValue returns the value of the named attribute, or "" when the
+// admin has not filled one in.
+func productAttributeValue(attributes []models.ProductAttribute, name string) string {
+	for _, attr := range attributes {
+		if strings.EqualFold(strings.TrimSpace(attr.Name), name) {
+			return strings.TrimSpace(attr.Value)
+		}
+	}
+	return ""
+}
+
+// joinWithAnd renders a list as English prose: "colour, fabric, and pattern".
+func joinWithAnd(items []string) string {
+	switch len(items) {
+	case 0:
+		return ""
+	case 1:
+		return items[0]
+	case 2:
+		return items[0] + " and " + items[1]
+	default:
+		return strings.Join(items[:len(items)-1], ", ") + ", and " + items[len(items)-1]
+	}
+}
+
+// resolveGarmentDetails reads the garment's description and قواره from the
+// product's AI-generated metadata. The client sends identifiers only — that
+// metadata is generated server-side and never travels in the cart payload, so
+// it has to be read here.
+//
+// Fit and phrase live on the product (search_metadata) because they describe
+// the cut, which every colour of a product shares; the garment type comes from
+// the variant, which is where the vision pass writes it. Every field is
+// optional: a product whose metadata has not been generated yields fewer prompt
+// lines rather than an error, leaving the prompt as it was before.
+func resolveGarmentDetails(ctx context.Context, productID primitive.ObjectID, variantID, color, colorName, productName string) garmentDetails {
+	details := garmentDetails{Name: strings.TrimSpace(productName)}
+
+	if db.Database == nil || productID.IsZero() {
+		return details
+	}
+
+	var product models.Product
+	if err := db.Database.Collection("products").FindOne(ctx, bson.M{"_id": productID}).Decode(&product); err != nil {
+		fmt.Printf("[tryon] garment product lookup failed: %v\n", err)
+		return details
+	}
+	if details.Name == "" {
+		details.Name = strings.TrimSpace(product.Name)
+	}
+
+	if product.SearchMetadata != nil {
+		details.Fit = strings.TrimSpace(product.SearchMetadata.FitDescription)
+		details.Phrase = strings.TrimSpace(product.SearchMetadata.GarmentPhrase)
+	}
+
+	// Falls back to the admin's own قواره attribute — their statement of the
+	// cut, typed per product, and already present across the catalogue while
+	// fitDescription waits on a metadata regeneration. "قواره" here is the
+	// attribute's name, not a fit value: whatever the admin wrote against it is
+	// what reaches the prompt.
+	if details.Fit == "" {
+		details.Fit = productAttributeValue(product.Attributes, garmentFitAttributeName)
+	}
+
+	variant, _, ok := findColorVariantByID(&product, variantID)
+	if !ok {
+		variant, _, ok = findColorVariant(&product, color, colorName)
+	}
+	if !ok {
+		return details
+	}
+
+	// The stored colour name, not the one the client sent: this is the colour
+	// the customer is buying, and it must not be overridable from the request.
+	details.Color = strings.TrimSpace(variant.ColorName)
+	if details.Color == "" {
+		details.Color = strings.TrimSpace(variant.Color)
+	}
+
+	if variant.AIMetadata == nil {
+		return details
+	}
+
+	// English standard value plus the Persian term when they differ. They can be
+	// identical when no product_type vocabulary entry matched, and "پیراهن
+	// (پیراهن)" is worse than naming it once.
+	details.Type = strings.TrimSpace(variant.AIMetadata.ProductTypeStandard)
+	if persian := strings.TrimSpace(variant.AIMetadata.ProductTypePersian); persian != "" {
+		switch {
+		case details.Type == "":
+			details.Type = persian
+		case !strings.EqualFold(details.Type, persian):
+			details.Type = fmt.Sprintf("%s (%s)", details.Type, persian)
+		}
+	}
+
+	details.Material = strings.TrimSpace(variant.AIMetadata.MaterialPersian)
+	details.Pattern = strings.TrimSpace(variant.AIMetadata.PatternPersian)
+
+	// Fit deliberately has no fallback to AIMetadata.FitType. That field is
+	// force-defaulted to "معمولی" by validateMetadata whenever the model
+	// declines to answer, so falling back to it would state a constant this
+	// code invented as a fact about the garment. FitDescription is the only fit
+	// source, and it is never defaulted — see validateMetadata.
+	//
+	// Material and Pattern above are safe by the same test: canonicalVocabularyPair
+	// keeps the model's own term when nothing matches, and normalizeVariantPattern
+	// returns "" rather than guessing. Neither can invent a value.
+
+	return details
 }
 
 func tryOnDebug(format string, args ...interface{}) {
@@ -250,7 +482,9 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 
 	garmentProductIDStr := r.FormValue("garment_product_id")
 	garmentProductName := r.FormValue("garment_product_name")
+	garmentVariantID := r.FormValue("garment_variant_id")
 	garmentColor := r.FormValue("garment_color")
+	garmentColorName := r.FormValue("garment_color_name")
 	garmentSize := r.FormValue("garment_size")
 	chatIDParam := r.FormValue("chat_id")
 
@@ -268,6 +502,11 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			garmentProductObjID = objID
 		}
 	}
+
+	// Resolved here rather than inside the goroutine below: this reads Mongo
+	// through the request context, which is cancelled once the handler returns.
+	garmentInfo := resolveGarmentDetails(r.Context(), garmentProductObjID, garmentVariantID, garmentColor, garmentColorName, garmentProductName)
+	fmt.Printf("[tryon] garment details name=%q type=%q fit=%q\n", garmentInfo.Name, garmentInfo.Type, garmentInfo.Fit)
 
 	tryonDoc := &models.VirtualTryon{
 		TryonID:           tryonID,
@@ -353,7 +592,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 		}
 		fmt.Printf("[tryon-%s] resized person=%d garment=%d bytes\n", taskID, len(resizedPerson), len(resizedGarment))
 
-		prompt := getTryOnPrompt(garmentType)
+		prompt := buildTryOnPrompt(garmentType, garmentInfo)
 
 		personBase64 := base64.StdEncoding.EncodeToString(resizedPerson)
 		garmentBase64 := base64.StdEncoding.EncodeToString(resizedGarment)

@@ -16,6 +16,23 @@ interface RequiredColorEntry {
   colorName?: string;
 }
 
+/**
+ * Identifies which garment is being tried on.
+ *
+ * The backend joins these to the product's per-variant AI metadata to name the
+ * garment's type and قواره (shape/fit) in the image prompt — the product photo
+ * alone leaves the cut open to interpretation. It also fills the columns the
+ * admin try-on log reads, which stayed blank while nothing sent them.
+ */
+export interface TryOnGarmentMeta {
+  productId?: string;
+  variantId?: string;
+  productName?: string;
+  color?: string;
+  colorName?: string;
+  size?: string;
+}
+
 interface PersistedTryon {
   tryon_id: string;
   product_id?: string;
@@ -66,7 +83,7 @@ interface TryOnState {
   clearCoupon: () => void;
   clearResult: () => void;
   clear: () => void;
-  startTryOn: (garmentImageUrl: string, garmentType: string) => Promise<void>;
+  startTryOn: (garmentImageUrl: string, garmentType: string, garment?: TryOnGarmentMeta) => Promise<void>;
 
   // Persistence actions
   ensureChatId: () => string;
@@ -197,7 +214,7 @@ export const useTryOnStore = create<TryOnState>()(
       });
     },
 
-    startTryOn: async (garmentImageUrl: string, garmentType: string) => {
+    startTryOn: async (garmentImageUrl: string, garmentType: string, garment?: TryOnGarmentMeta) => {
       const { uploadedFile } = get();
       if (!uploadedFile) return;
 
@@ -224,8 +241,20 @@ export const useTryOnStore = create<TryOnState>()(
         formData.append("garment_type", garmentType);
         formData.append("chat_id", chatId);
 
-        // Product metadata is attached by the page-level wrapper (see
-        // tryon page's handleTryOn). The store stays product-agnostic.
+        // Which garment this is. The backend looks the variant up from these to
+        // put its type and قواره in the image prompt, so anything missing here
+        // costs prompt detail rather than breaking the request.
+        const garmentFields: Record<string, string | undefined> = {
+          garment_product_id: garment?.productId,
+          garment_variant_id: garment?.variantId,
+          garment_product_name: garment?.productName,
+          garment_color: garment?.color,
+          garment_color_name: garment?.colorName,
+          garment_size: garment?.size,
+        };
+        for (const [key, value] of Object.entries(garmentFields)) {
+          if (value) formData.append(key, value);
+        }
 
         const res = await fetch("/api/tryon/generate", {
           method: "POST",

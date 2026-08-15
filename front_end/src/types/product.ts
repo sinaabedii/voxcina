@@ -84,6 +84,14 @@ export interface ProductSearchMetadata {
   season: string[];
   sizeSystem: string;
   fitType: string;
+  /**
+   * Free-text English phrases written by the AI metadata generator and fed
+   * verbatim into the virtual try-on image prompt. `fitType` above can only
+   * say "گشاد"; these carry the detail that decides whether a generated
+   * try-on looks like the garment being sold.
+   */
+  fitDescription?: string;  // قواره, e.g. "loose, boxy cut with dropped shoulders"
+  garmentPhrase?: string;   // e.g. "short-sleeve checked cotton shirt"
   gender: string;
   ageGroup: string;
 }

@@ -56,6 +56,8 @@ export default function AddProductPage() {
     occasionTags: [] as string[],
     season: [] as string[],
     fitType: "معمولی",
+    fitDescription: "",
+    garmentPhrase: "",
     ageGroup: "بزرگسال",
   });
   const [variantAiMetadata, setVariantAiMetadata] = useState<{ [key: number]: VariantAIMetadata }>({});
@@ -286,6 +288,9 @@ export default function AddProductPage() {
           price,
           gender,
           images: await getImageSources(mainImageItems),
+          // The قواره attribute is the admin's own statement of the fit; the
+          // generator leans on it rather than guessing the cut from photos.
+          attributes: attributes.filter(a => a.name.trim() && a.value.trim()),
           model: selectedAiModel,
         }),
       });
@@ -318,6 +323,8 @@ export default function AddProductPage() {
         occasionTags: Array.isArray(generated.occasionTags) ? generated.occasionTags : prev.occasionTags,
         season: Array.isArray(generated.season) ? generated.season : prev.season,
         fitType: generated.fitType || prev.fitType,
+        fitDescription: generated.fitDescription || prev.fitDescription,
+        garmentPhrase: generated.garmentPhrase || prev.garmentPhrase,
         ageGroup: generated.ageGroup || prev.ageGroup,
       }));
 
@@ -469,6 +476,8 @@ export default function AddProductPage() {
         season: aiMetadata.season,
         sizeSystem: "",
         fitType: aiMetadata.fitType,
+        fitDescription: aiMetadata.fitDescription,
+        garmentPhrase: aiMetadata.garmentPhrase,
         gender,
         ageGroup: aiMetadata.ageGroup,
       };
@@ -993,6 +1002,33 @@ export default function AddProductPage() {
               </select>
             </div>
           </div>
+          {/* Fed verbatim into the virtual try-on image prompt, which is
+              written in English — hence the English placeholders. */}
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="block mb-1">قواره برای پرو مجازی (انگلیسی)</label>
+              <input
+                className="input"
+                dir="ltr"
+                placeholder="loose, boxy cut with dropped shoulders"
+                value={aiMetadata.fitDescription}
+                onChange={e => setAiMetadata(prev => ({ ...prev, fitDescription: e.target.value }))}
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block mb-1">توضیح کوتاه لباس (انگلیسی)</label>
+              <input
+                className="input"
+                dir="ltr"
+                placeholder="short-sleeve checked cotton shirt"
+                value={aiMetadata.garmentPhrase}
+                onChange={e => setAiMetadata(prev => ({ ...prev, garmentPhrase: e.target.value }))}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500">
+            این دو فیلد مستقیماً در پرامپت پرو مجازی استفاده می‌شوند. با تولید خودکار پر می‌شوند و در صورت نیاز قابل ویرایش هستند.
+          </p>
         </div>
         <div className="flex gap-4">
           <label className="flex items-center gap-2">

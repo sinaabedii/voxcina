@@ -20,6 +20,7 @@ import BeforeAfterSlider from "@/components/ui/BeforeAfterSlider";
 import CountdownTimer from "@/components/ui/CountdownTimer";
 import ImageCropModal from "@/components/ui/ImageCropModal";
 import Modal from "@/components/ui/Modal";
+import PhotoGuideModal from "@/components/tryon/PhotoGuideModal";
 import SizeSelector from "@/components/ui/SizeSelector";
 import { activityTracker } from "@/lib/activity-tracker";
 import { sessionManager } from "@/lib/session-manager";
@@ -191,9 +192,14 @@ export default function TryOnRoomPage() {
   const [compareModalData, setCompareModalData] = useState<{ beforeImage: string; afterImage: string } | null>(null);
   const [mobileTab, setMobileTab] = useState<"products" | "chat">("products");
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [guideOpen, setGuideOpen] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Two inputs rather than one with a toggled `capture`: the attribute is read
+  // when the picker opens, so flipping it in state right before .click() is not
+  // guaranteed to have been applied yet.
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const negotiationInitializedRef = useRef(false);
 
   const computeEligibleItems = useCallback((items: CartItem[]): TryOnEligibleItem[] => {
@@ -431,13 +437,16 @@ export default function TryOnRoomPage() {
       setImageToCrop(reader.result as string);
     };
     reader.readAsDataURL(file);
-    // reset file input so the same file can be re-selected after cancel
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    // reset file inputs so the same file can be re-selected after cancel
+    if (galleryInputRef.current) galleryInputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) openCropModal(file);
+    if (!file) return;
+    setGuideOpen(false);
+    openCropModal(file);
   };
 
   const handleFileDrop = (e: React.DragEvent) => {
@@ -445,6 +454,8 @@ export default function TryOnRoomPage() {
     setDragOver(false);
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith("image/")) {
+      // A dropped file is already chosen, so the guide would only stand between
+      // the user and the crop step. The guide stays one click away on the zone.
       openCropModal(file);
     } else if (file) {
       toast.error("لطفاً یک فایل تصویری انتخاب کنید");
@@ -479,7 +490,14 @@ export default function TryOnRoomPage() {
         const file = new File([blob], `person.${ext}`, { type: blob.type || "image/jpeg" });
         useTryOnStore.setState({ uploadedFile: file });
       }
-      await startTryOn(item.colorVariant.tryOnImage!, garmentType);
+      await startTryOn(item.colorVariant.tryOnImage!, garmentType, {
+        productId: item.product.id,
+        variantId: item.colorVariant.variantId,
+        productName: item.product.name,
+        color: getCanonicalColor(item.colorVariant) || item.colorVariant.color,
+        colorName: item.colorVariant.colorName,
+        size: item.cartItem.size,
+      });
     } catch {
       setChatMessages((prev) => prev.filter((m) => m.tryonData?.processingId !== processingId));
       return;
@@ -1153,9 +1171,14 @@ export default function TryOnRoomPage() {
                   </button>
                 </div>
               ) : (
-                <label
+                // Opens the guide instead of the picker directly, so the photo
+                // requirements are read before a photo is chosen. Drag and drop
+                // still lands straight on the crop step.
+                <button
+                  type="button"
+                  onClick={() => setGuideOpen(true)}
                   className={cn(
-                    "flex items-center gap-3 p-2.5 cursor-pointer rounded-xl border-2 border-dashed transition-all",
+                    "w-full text-right flex items-center gap-3 p-2.5 cursor-pointer rounded-xl border-2 border-dashed transition-all",
                     dragOver
                       ? "border-secondary-400 dark:border-voxcina-blue/40 bg-voxcina-blue/[0.04]"
                       : "border-secondary-300 dark:border-voxcina-blue/20 hover:bg-voxcina-blue/[0.04] dark:hover:bg-voxcina-cream/[0.04]"
@@ -1169,10 +1192,12 @@ export default function TryOnRoomPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70">عکس خود را آپلود کنید</p>
-                    <p className="text-[10px] text-voxcina-blue/40 dark:text-voxcina-cream/40 mt-0.5">اینجا رها کنید یا کلیک کنید</p>
+                    <p className="text-[10px] text-voxcina-blue/40 dark:text-voxcina-cream/40 mt-0.5">
+                      <span className="lg:hidden">برای دیدن راهنما و انتخاب عکس ضربه بزنید</span>
+                      <span className="hidden lg:inline">اینجا رها کنید یا برای دیدن راهنما کلیک کنید</span>
+                    </p>
                   </div>
-                  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
-                </label>
+                </button>
               )}
             </motion.div>
 
@@ -1724,6 +1749,34 @@ export default function TryOnRoomPage() {
           </div>
         </motion.div>
       )}
+
+      {/* Photo pickers. Kept at the page root so they outlive the upload zone,
+          which unmounts as soon as a photo is chosen. `capture` asks mobile
+          browsers for the camera; desktop browsers ignore it, and only the
+          gallery input is ever reachable there. */}
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+
+      {/* Photo guide — shown before the picker so requirements are read first */}
+      <PhotoGuideModal
+        isOpen={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        onChooseFile={() => galleryInputRef.current?.click()}
+        onOpenCamera={() => cameraInputRef.current?.click()}
+      />
 
       {/* Image crop modal — shown when user selects/drops a photo */}
       <ImageCropModal

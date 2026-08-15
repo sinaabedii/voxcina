@@ -485,7 +485,14 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     const garmentType = colorVariant?.tryOnGarmentType || "upper_body";
     setShowTryOnModal(false);
     try {
-      await startTryOn(tryOnImage, garmentType);
+      await startTryOn(tryOnImage, garmentType, {
+        productId: product?.id,
+        variantId: colorVariant?.variantId,
+        productName: product?.name,
+        color: colorVariant?.color || colorVariant?.colorName || selectedColor,
+        colorName: colorVariant?.colorName || selectedColor,
+        size: selectedSize,
+      });
     } catch (error) {
       console.error("Error in try-on process:", error);
     }

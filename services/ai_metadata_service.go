@@ -52,6 +52,11 @@ type ProductMetadataRequest struct {
 	Gender      string   `json:"gender"`
 	Images      []string `json:"images"` // URLs or base64
 	Model       string   `json:"model"`  // AI model to use
+	// Attributes are the admin's own name/value pairs for this product. They
+	// matter most for the try-on fields: the catalogue already carries a قواره
+	// attribute ("Slim Fit", "باکسی", "آزاد"), and grounding fitDescription in
+	// what the admin typed beats inferring the cut from photographs alone.
+	Attributes []models.ProductAttribute `json:"attributes,omitempty"`
 }
 
 // VariantMetadataRequest is one per-variant call. The images are that
@@ -85,6 +90,8 @@ type ProductMetadataResponse struct {
 	OccasionTags       []string `json:"occasionTags"`
 	Season             []string `json:"season"`
 	FitType            string   `json:"fitType"`
+	FitDescription     string   `json:"fitDescription"`
+	GarmentPhrase      string   `json:"garmentPhrase"`
 	AgeGroup           string   `json:"ageGroup"`
 	Confidence         float64  `json:"confidence"`
 	Reasoning          string   `json:"reasoning"`
@@ -259,6 +266,7 @@ func (s *AIMetadataService) buildUserPrompt(req ProductMetadataRequest, vocabula
 	prompt = strings.ReplaceAll(prompt, "{brand}", req.Brand)
 	prompt = strings.ReplaceAll(prompt, "{price}", fmt.Sprintf("%.0f", req.Price))
 	prompt = strings.ReplaceAll(prompt, "{gender}", req.Gender)
+	prompt = strings.ReplaceAll(prompt, "{attributes}", formatProductAttributes(req.Attributes))
 
 	// Build vocabulary lists
 	prompt = strings.ReplaceAll(prompt, "{materials_vocab}", s.formatVocabulary(vocabularies["material"]))
@@ -267,6 +275,25 @@ func (s *AIMetadataService) buildUserPrompt(req ProductMetadataRequest, vocabula
 	prompt = strings.ReplaceAll(prompt, "{occasions_vocab}", s.formatVocabulary(vocabularies["occasion"]))
 
 	return prompt
+}
+
+// formatProductAttributes renders the admin's name/value pairs for the prompt.
+// The placeholder is always substituted, so a product with no attributes says so
+// rather than leaving a literal "{attributes}" in the text.
+func formatProductAttributes(attributes []models.ProductAttribute) string {
+	var lines []string
+	for _, attr := range attributes {
+		name := strings.TrimSpace(attr.Name)
+		value := strings.TrimSpace(attr.Value)
+		if name == "" || value == "" {
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("- %s: %s", name, value))
+	}
+	if len(lines) == 0 {
+		return "(none provided)"
+	}
+	return strings.Join(lines, "\n")
 }
 
 // formatVocabulary formats vocabulary entries for the prompt
@@ -698,7 +725,16 @@ func (s *AIMetadataService) validateVariantMetadata(v *VariantMetadataResponse, 
 		return err
 	}
 	if rawType != "" {
-		v.ProductTypePersian, v.ProductTypeStandard = canonicalVocabularyPair(rawType, vocabularies["product_type"])
+		persian, standard := canonicalVocabularyPair(rawType, vocabularies["product_type"])
+		v.ProductTypePersian = persian
+		// canonicalVocabularyPair falls back to the lowercased input when no
+		// vocabulary entry matches, and this catalogue has no product_type
+		// vocabulary at all — so the fallback would overwrite the model's
+		// English answer ("shirt") with the Persian term ("پیراهن"), leaving
+		// productTypeStandard holding Persian. Only take a genuine mapping.
+		if standard != "" && !strings.EqualFold(standard, persian) {
+			v.ProductTypeStandard = standard
+		}
 	}
 	if rawMaterial != "" {
 		v.MaterialPersian, _ = canonicalVocabularyPair(rawMaterial, vocabularies["material"])
@@ -854,7 +890,33 @@ func (s *AIMetadataService) validateMetadata(metadata *ProductMetadataResponse, 
 		metadata.AgeGroup = "بزرگسال"
 	}
 
+	// Free-text try-on fields are normalized but never defaulted. Unlike the
+	// fields above, there is no safe stand-in: a guessed fit is worse than no
+	// fit, because the try-on prompt states it as fact. Empty simply drops the
+	// line from the prompt.
+	metadata.FitDescription = normalizeGarmentPhrase(metadata.FitDescription)
+	metadata.GarmentPhrase = normalizeGarmentPhrase(metadata.GarmentPhrase)
+
 	return nil
+}
+
+// maxGarmentPhraseRunes bounds the free-text try-on fields. They are pasted
+// into an image-generation prompt, where a runaway paragraph would dilute the
+// instructions around it.
+const maxGarmentPhraseRunes = 160
+
+// normalizeGarmentPhrase flattens an AI-written phrase to one trimmed line.
+// Newlines matter here: the try-on prompt is a line-oriented block, so an
+// embedded newline would fake a new instruction.
+func normalizeGarmentPhrase(value string) string {
+	cleaned := strings.Join(strings.Fields(value), " ")
+	cleaned = strings.Trim(cleaned, " .;،")
+
+	runes := []rune(cleaned)
+	if len(runes) > maxGarmentPhraseRunes {
+		cleaned = strings.TrimSpace(string(runes[:maxGarmentPhraseRunes]))
+	}
+	return cleaned
 }
 
 func canonicalPersianTerm(term string, vocabularies []models.VocabularyMapping) string {
