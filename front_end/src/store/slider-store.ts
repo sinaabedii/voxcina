@@ -3,6 +3,23 @@ import { Slider } from "@/types/slider";
 import { useAuthStore } from "./auth-store";
 import { toast } from "react-toastify";
 
+/**
+ * Tells the public homepage to drop its cached sliders fetch.
+ *
+ * The homepage reads sliders through an ISR-cached fetch (`page.tsx` /
+ * `CACHE_TIMES.SLIDERS`); without this, a slide created or published here can
+ * take minutes to appear publicly, looking like the save silently did nothing.
+ * Best-effort: the admin write already succeeded, so a failure here shouldn't
+ * surface as an error. Mirrors `revalidateHeroCache` in hero-image-store.
+ */
+function revalidateSliderCache() {
+  fetch("/api/revalidate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tags: ["sliders", "home"] }),
+  }).catch(() => {});
+}
+
 interface SliderState {
   sliders: Slider[];
   activeSlider: Slider | null;
@@ -10,9 +27,11 @@ interface SliderState {
   error: string | null;
   fetchSliders: () => Promise<void>;
   fetchSliderById: (id: string) => Promise<void>;
-  createSlider: (sliderData: Omit<Slider, "id">) => Promise<Slider | null>;
-  updateSlider: (id: string, sliderData: Partial<Slider>) => Promise<Slider | null>;
+  /** Writes are multipart so the slide's background image can ride along. */
+  createSlider: (formData: FormData) => Promise<Slider | null>;
+  updateSlider: (id: string, formData: FormData) => Promise<Slider | null>;
   deleteSlider: (id: string) => Promise<boolean>;
+  reorderSliders: (items: { id: string; order: number }[]) => Promise<boolean>;
 }
 
 export const useSliderStore = create<SliderState>()((set, get) => ({
@@ -24,7 +43,12 @@ export const useSliderStore = create<SliderState>()((set, get) => ({
   fetchSliders: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch("/api/sliders");
+      // Admin list: the public /api/sliders hides unpublished and
+      // out-of-schedule slides, so managing drafts needs the unfiltered view.
+      const { adminToken } = useAuthStore.getState();
+      const response = await fetch("/api/admin/sliders", {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
       if (!response.ok) throw new Error("Failed to fetch sliders");
       const sliders = await response.json();
       set({ sliders, isLoading: false });
@@ -47,17 +71,15 @@ export const useSliderStore = create<SliderState>()((set, get) => ({
     }
   },
 
-  createSlider: async (sliderData: Omit<Slider, "id">) => {
+  createSlider: async (formData: FormData) => {
     set({ isLoading: true, error: null });
     try {
       const { adminToken } = useAuthStore.getState();
-      const response = await fetch("/api/sliders", {
+      // No Content-Type header: the browser must set the multipart boundary.
+      const response = await fetch("/api/admin/sliders", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${adminToken}`,
-        },
-        body: JSON.stringify(sliderData),
+        headers: { Authorization: `Bearer ${adminToken}` },
+        body: formData,
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -65,6 +87,7 @@ export const useSliderStore = create<SliderState>()((set, get) => ({
       }
       const newSlider = await response.json();
       set((state) => ({ sliders: [...state.sliders, newSlider], isLoading: false }));
+      revalidateSliderCache();
       toast.success("اسلایدر با موفقیت اضافه شد");
       return newSlider;
     } catch (error) {
@@ -75,17 +98,14 @@ export const useSliderStore = create<SliderState>()((set, get) => ({
     }
   },
 
-  updateSlider: async (id: string, sliderData: Partial<Slider>) => {
+  updateSlider: async (id: string, formData: FormData) => {
     set({ isLoading: true, error: null });
     try {
       const { adminToken } = useAuthStore.getState();
-      const response = await fetch(`/api/sliders/${id}`, {
+      const response = await fetch(`/api/admin/sliders/${id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${adminToken}`,
-        },
-        body: JSON.stringify(sliderData),
+        headers: { Authorization: `Bearer ${adminToken}` },
+        body: formData,
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -97,6 +117,7 @@ export const useSliderStore = create<SliderState>()((set, get) => ({
         activeSlider: state.activeSlider?.id === id ? { ...state.activeSlider, ...updatedSlider } : state.activeSlider,
         isLoading: false,
       }));
+      revalidateSliderCache();
       toast.success("اسلایدر با موفقیت به‌روزرسانی شد");
       return updatedSlider;
     } catch (error) {
@@ -111,7 +132,7 @@ export const useSliderStore = create<SliderState>()((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { adminToken } = useAuthStore.getState();
-      const response = await fetch(`/api/sliders/${id}`, {
+      const response = await fetch(`/api/admin/sliders/${id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${adminToken}`,
@@ -126,11 +147,47 @@ export const useSliderStore = create<SliderState>()((set, get) => ({
         activeSlider: state.activeSlider?.id === id ? null : state.activeSlider,
         isLoading: false,
       }));
+      revalidateSliderCache();
       toast.success("اسلایدر با موفقیت حذف شد");
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "خطا در حذف اسلایدر";
       set({ error: errorMessage, isLoading: false });
+      toast.error(errorMessage);
+      return false;
+    }
+  },
+
+  reorderSliders: async (items: { id: string; order: number }[]) => {
+    // Optimistic: the list re-sorts under the cursor immediately, and a failure
+    // re-fetches to snap back to whatever the server actually holds.
+    const previous = get().sliders;
+    const orderById = new Map(items.map((item) => [item.id, item.order]));
+    set({
+      sliders: [...previous]
+        .map((s) => (orderById.has(s.id!) ? { ...s, order: orderById.get(s.id!) } : s))
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    });
+
+    try {
+      const { adminToken } = useAuthStore.getState();
+      const response = await fetch("/api/admin/sliders/reorder", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify(items),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to reorder sliders");
+      }
+      revalidateSliderCache();
+      return true;
+    } catch (error) {
+      set({ sliders: previous });
+      const errorMessage = error instanceof Error ? error.message : "خطا در تغییر ترتیب";
       toast.error(errorMessage);
       return false;
     }

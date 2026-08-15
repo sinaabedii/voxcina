@@ -226,7 +226,10 @@ func NewRouter() *mux.Router {
 	// Slider routes
 	api.HandleFunc("/sliders", handlers.GetSliders).Methods(http.MethodGet)
 	api.HandleFunc("/sliders/{id}", handlers.GetSliderByID).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/sliders", handlers.GetAllSliders).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/sliders", handlers.CreateSlider).Methods(http.MethodPost)
+	// Registered before /sliders/{id} so "reorder" isn't captured as an ID.
+	adminRouter.HandleFunc("/sliders/reorder", handlers.ReorderSliders).Methods(http.MethodPatch)
 	adminRouter.HandleFunc("/sliders/{id}", handlers.UpdateSlider).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/sliders/{id}", handlers.DeleteSlider).Methods(http.MethodDelete)
 

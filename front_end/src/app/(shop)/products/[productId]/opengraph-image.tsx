@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/og';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import sharp from 'sharp';
 import { serverFetch, CACHE_TIMES } from '@/lib/server-api';
 import { Product } from '@/types/product';
 
@@ -23,6 +24,38 @@ type FontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
 function loadFont(name: string, weight: FontWeight) {
   try {
     return { name: 'IranSansX', data: readFileSync(join(FONTS_DIR, name)), weight, style: 'normal' as const };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetches a product image and returns it as a PNG data URI.
+ *
+ * The renderer behind ImageResponse (Satori/resvg) cannot decode WebP — it
+ * fails with "Unsupported image type: image/webp" and then aborts the whole
+ * response with "Image size cannot be determined". Every product image in this
+ * catalogue is WebP, so passing the URL through directly made this route throw
+ * for every product. Decoding to PNG here keeps the rendering inside a format
+ * the generator supports.
+ *
+ * Downscaled to 600px because the image occupies half of a 1200px-wide card;
+ * anything larger is bytes the renderer would discard anyway.
+ *
+ * Returns null on any failure so the card falls back to its placeholder block
+ * rather than failing to render at all.
+ */
+async function loadProductImage(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, { next: { revalidate: CACHE_TIMES.PRODUCT_DETAIL } });
+    if (!response.ok) return null;
+
+    const png = await sharp(Buffer.from(await response.arrayBuffer()))
+      .resize(600, 600, { fit: 'inside', withoutEnlargement: true })
+      .png()
+      .toBuffer();
+
+    return `data:image/png;base64,${png.toString('base64')}`;
   } catch {
     return null;
   }
@@ -56,9 +89,12 @@ export default async function Image({ params }: Props) {
   
   // Build absolute image URL for the product
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://voxcina.com';
-  const imageUrl = productImage 
+  const absoluteImageUrl = productImage
     ? (productImage.startsWith('http') ? productImage : `${baseUrl}${productImage.startsWith('/') ? '' : '/'}${productImage}`)
     : null;
+
+  // Decoded to PNG rather than handed to the renderer as a URL; see above.
+  const imageUrl = absoluteImageUrl ? await loadProductImage(absoluteImageUrl) : null;
 
   // Format price with Persian locale
   const formatPrice = (price: number) => {

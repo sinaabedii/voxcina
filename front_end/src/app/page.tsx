@@ -17,7 +17,6 @@ import { serverFetchWithFallback, CACHE_TIMES } from "@/lib/server-api";
 import { ColorVariantListItem } from "@/types/product";
 import type { Category } from "@/types/category";
 import { Slider } from "@/types/slider";
-import { fallbackSliders } from "@/lib/constants";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -61,7 +60,7 @@ async function getHomePageData() {
     // Fetch sliders
     serverFetchWithFallback<Slider[]>(
       '/api/sliders',
-      fallbackSliders,
+      [],
       { revalidate: CACHE_TIMES.SLIDERS, tags: ['home', 'sliders'] }
     ),
     serverFetchWithFallback<Category[]>(
@@ -80,8 +79,8 @@ async function getHomePageData() {
     ? newProductsData 
     : (newProductsData as ProductsResponse)?.data || [];
 
-  // Use fallback sliders if API returns empty
-  const sliders = slidersData && slidersData.length > 0 ? slidersData : fallbackSliders;
+  // Sliders are admin-authored only; an empty list collapses the section.
+  const sliders = slidersData ?? [];
 
   return {
     featuredProducts,

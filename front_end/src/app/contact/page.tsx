@@ -96,7 +96,7 @@ const localBusinessSchema = {
   ],
   sameAs: [
     "https://www.instagram.com/voxcina",
-    "https://twitter.com/voxcina",
+    "https://x.com/voxcina",
   ],
   priceRange: "$$",
 };

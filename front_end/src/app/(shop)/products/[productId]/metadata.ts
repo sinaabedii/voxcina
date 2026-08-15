@@ -27,13 +27,23 @@ export async function generateMetadata({ params }: { params: { productId: string
     // Format price for display
     const formattedPrice = new Intl.NumberFormat('fa-IR').format(product.price);
     
-    // Get product images
-    const images = product.mainImages || product.colorVariants?.[0]?.images || [];
-    
     // Canonical path for this product
     const canonicalPath = `/products/${params.productId}`;
-    
-    // Build SEO-optimized metadata
+
+    // Shared by openGraph and twitter so the two cards can't drift apart.
+    const socialDescription = product.description?.substring(0, 160) || `خرید ${product.name} با قیمت ${formattedPrice} تومان`;
+
+    // NOTE: no `images` key on openGraph/twitter below, deliberately.
+    //
+    // `opengraph-image.tsx` in this folder renders a real 1200x630 branded card
+    // (product photo, price, discount badge). Next only applies that file
+    // convention when metadata does not set the images itself — an explicit
+    // `openGraph.images` silently overrides it. This page used to point
+    // og:image straight at the raw upload while declaring it 1200x630, so the
+    // generated card never shipped and the dimensions described a file that was
+    // whatever shape the photographer uploaded (a sampled product image is
+    // 1600x1200). Leaving images unset hands both cards back to the generator,
+    // which is correctly sized by construction.
     return {
       title: product.name,
       description: product.description?.substring(0, 160) || `خرید ${product.name} با بهترین قیمت و کیفیت از فروشگاه آنلاین ${APP_NAME}`,
@@ -46,17 +56,21 @@ export async function generateMetadata({ params }: { params: { productId: string
       ].filter(Boolean),
       openGraph: {
         title: product.name,
-        description: product.description?.substring(0, 160) || `خرید ${product.name} با قیمت ${formattedPrice} تومان`,
-        images: images.length > 0 ? [
-          {
-            url: images[0],
-            width: 1200,
-            height: 630,
-            alt: product.name,
-          },
-        ] : [],
+        description: socialDescription,
+        // Page-level openGraph replaces the root layout's object rather than
+        // merging into it, so siteName has to be restated here or og:site_name
+        // disappears from product pages.
+        siteName: APP_NAME,
         locale: 'fa_IR',
         type: 'website',
+      },
+      // Twitter is resolved independently of openGraph — without this block the
+      // page inherits the root layout's card and shares as the site logo and
+      // homepage title instead of the product.
+      twitter: {
+        card: 'summary_large_image',
+        title: product.name,
+        description: socialDescription,
       },
       alternates: {
         canonical: canonicalPath,

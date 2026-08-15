@@ -87,9 +87,11 @@ export const metadata: Metadata = {
     siteName: APP_NAME,
     images: [
       {
+        // Dimensions match the asset on disk. They previously claimed
+        // 1200x630, which made crawlers lay out a card the image never fit.
         url: "/images/Logo/WXTransparent-org.png",
-        width: 1200,
-        height: 630,
+        width: 951,
+        height: 522,
         alt: "وکسینا - فروشگاه آنلاین پوشاک و مد",
       },
     ],
@@ -207,13 +209,13 @@ export default async function RootLayout({
               logo: "https://voxcina.com/images/Logo/WXTransparent-org.png",
               contactPoint: {
                 "@type": "ContactPoint",
-                telephone: "+982112345678",
+                telephone: "09046077767",
                 contactType: "customer service",
                 availableLanguage: ["Persian", "English"],
               },
               sameAs: [
                 "https://www.instagram.com/voxcina",
-                "https://twitter.com/voxcina",
+                "https://x.com/voxcina",
               ],
             }),
           }}
@@ -228,9 +230,15 @@ export default async function RootLayout({
               "@type": "WebSite",
               name: "وکسینا",
               url: "https://voxcina.com",
+              // Site search lives on the products listing (see SmartSearch),
+              // not a dedicated /search route.
               potentialAction: {
                 "@type": "SearchAction",
-                target: "https://voxcina.com/search?q={search_term_string}",
+                target: {
+                  "@type": "EntryPoint",
+                  urlTemplate:
+                    "https://voxcina.com/products?search={search_term_string}",
+                },
                 "query-input": "required name=search_term_string",
               },
             }),

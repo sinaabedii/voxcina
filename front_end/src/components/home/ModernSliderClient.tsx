@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Slider } from "@/types/slider";
-import { fallbackSliders } from "@/lib/constants";
+import { overlayClassFor, contentAlignmentFor } from "@/lib/slider-presentation";
 
 interface ModernSliderSectionClientProps {
   sliders: Slider[];
@@ -21,7 +21,7 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [progressKey, setProgressKey] = useState(0);
 
-  const sliderData = sliders && sliders.length > 0 ? sliders : fallbackSliders;
+  const sliderData = sliders ?? [];
 
   useEffect(() => {
     if (!sliderData || sliderData.length === 0) return;
@@ -66,14 +66,11 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
     setTimeout(() => setIsAutoPlaying(true), 5000);
   };
 
-  if (!sliderData || sliderData.length === 0) {
-    return (
-      <section className="container px-4 md:px-8 mb-16 md:mb-24">
-        <div className="relative h-[400px] sm:h-[450px] md:h-[500px] lg:h-[600px] xl:h-[700px] rounded-2xl md:rounded-3xl overflow-hidden flex justify-center items-center bg-gray-200">
-          <p>Loading Slides...</p>
-        </div>
-      </section>
-    );
+  // Sliders are entirely admin-authored. With none published there is nothing
+  // to promote, so the section collapses rather than reserving 400-700px for a
+  // placeholder — the old "Loading Slides..." box was permanent, not transient.
+  if (sliderData.length === 0) {
+    return null;
   }
 
   return (
@@ -93,13 +90,21 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
               <div
                 className={`absolute inset-0 bg-gradient-to-br ${sliderData[currentSlide].bgColor} opacity-85`}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+              <div
+                className={`absolute inset-0 ${overlayClassFor(
+                  sliderData[currentSlide].overlayStrength
+                )}`}
+              />
             </div>
 
             <div className="relative h-full px-4 sm:px-6 md:px-8 lg:px-12">
               <div className="h-full flex items-center">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-8 items-center w-full">
-                  <div className="lg:col-span-7 text-white">
+                  <div
+                    className={`lg:col-span-7 text-white flex flex-col ${contentAlignmentFor(
+                      sliderData[currentSlide].contentPosition
+                    )}`}
+                  >
                     <div className="mb-3 md:mb-6">
                       <span
                         className={`inline-flex items-center gap-1.5 px-3 py-1 md:px-5 md:py-2 rounded-full bg-gradient-to-r ${sliderData[currentSlide].accentColor} text-white text-xs md:text-sm font-semibold`}
@@ -150,6 +155,11 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
                       )}
                     </div>
 
+                    {/* Only the admin-authored CTA is rendered. The former
+                        "محصولات بیشتر" button linked to /products?tag=<badge>,
+                        but no `tag` filter exists in the products page or the
+                        Go handler — it silently served the unfiltered listing
+                        under an unbounded set of crawlable URLs. */}
                     <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
                       <Link
                         href={sliderData[currentSlide].buttonLink}
@@ -158,16 +168,6 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
                         <span className="relative z-10">
                           {sliderData[currentSlide].buttonText}
                         </span>
-                      </Link>
-
-                      <Link
-                        href={`/products?tag=${sliderData[
-                          currentSlide
-                        ].badge.toLowerCase()}`}
-                        rel="nofollow"
-                        className="inline-flex items-center justify-center bg-white/10 text-white backdrop-blur-sm px-4 py-2.5 md:px-8 md:py-4 rounded-full font-medium md:font-semibold text-sm md:text-base hover:bg-white/20 border border-white/30 transition-colors"
-                      >
-                        <span>محصولات بیشتر</span>
                       </Link>
                     </div>
                   </div>

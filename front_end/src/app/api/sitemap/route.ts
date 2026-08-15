@@ -68,7 +68,6 @@ export async function GET() {
       { url: '/about', changefreq: 'monthly', priority: '0.8' },
       { url: '/contact', changefreq: 'monthly', priority: '0.8' },
       { url: '/products', changefreq: 'daily', priority: '0.9' },
-      { url: '/sales', changefreq: 'daily', priority: '0.9' },
       { url: '/blog', changefreq: 'daily', priority: '0.9' },
       { url: '/shoppingGuide', changefreq: 'monthly', priority: '0.7' },
       { url: '/shipping', changefreq: 'monthly', priority: '0.7' },

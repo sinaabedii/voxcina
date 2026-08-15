@@ -93,6 +93,12 @@ func Connect(cfg *config.Config) *mongo.Database {
 		// Non-critical, continue anyway
 	}
 
+	// Homepage promotional slider indexes
+	if err := CreateSliderIndexes(); err != nil {
+		log.Printf("Warning: Could not ensure slider indexes: %v", err)
+		// Non-critical, continue anyway
+	}
+
 	// Payment attempts are the idempotency and callback lookup record for all
 	// gateways. Partial unique indexes ignore legacy attempts created before a
 	// provider reference was assigned.
