@@ -116,11 +116,37 @@ export default function ProductJsonLd({
         '@type': 'MerchantReturnPolicy',
         applicableCountry: 'IR',
         returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
-        merchantReturnDays: 7,
+        merchantReturnDays: 4,
         returnMethod: 'https://schema.org/ReturnByMail',
-        customerRemorseReturnFees: 'https://schema.org/ReturnShippingFees',
-        itemDefectReturnFees: 'https://schema.org/FreeReturn',
+        returnFees: 'https://schema.org/FreeReturn',
         merchantReturnLink: `${SITE_URL}/returns`,
+      },
+      shippingDetails: {
+        '@type': 'OfferShippingDetails',
+        shippingRate: {
+          '@type': 'MonetaryAmount',
+          value: 200000,
+          currency: 'IRR',
+        },
+        shippingDestination: {
+          '@type': 'DefinedRegion',
+          addressCountry: 'IR',
+        },
+        deliveryTime: {
+          '@type': 'ShippingDeliveryTime',
+          handlingTime: {
+            '@type': 'QuantitativeValue',
+            minValue: 0,
+            maxValue: 1,
+            unitCode: 'DAY',
+          },
+          transitTime: {
+            '@type': 'QuantitativeValue',
+            minValue: 2,
+            maxValue: 4,
+            unitCode: 'DAY',
+          },
+        },
       },
       seller: {
         '@type': 'Organization',
