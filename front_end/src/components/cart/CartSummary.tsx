@@ -26,10 +26,11 @@ const CartSummary: React.FC<CartSummaryProps> = ({
   
   // Use provided shipping cost or fall back to cart summary shipping
   const effectiveShipping = shippingCost !== undefined ? shippingCost : summary.shipping;
+  const subtotalAfterDiscount = summary.subtotal - summary.discount;
   // Recalculate total - no tax, only subtotal + shipping - discount
   const effectiveTotal = showShipping
-    ? summary.subtotal - summary.discount + effectiveShipping
-    : summary.subtotal - summary.discount;
+    ? subtotalAfterDiscount + effectiveShipping
+    : subtotalAfterDiscount;
   const [promoInput, setPromoInput] = useState("");
   const [promoError, setPromoError] = useState("");
 
@@ -93,6 +94,13 @@ const CartSummary: React.FC<CartSummaryProps> = ({
               </motion.div>
             )}
           </AnimatePresence>
+
+          {showShipping && (
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">جمع پس از تخفیف</span>
+              <span>{formatPrice(subtotalAfterDiscount)}</span>
+            </div>
+          )}
 
           <div className="border-t border-border/10 pt-4 mt-4">
             <div className="flex justify-between font-bold text-primary">
