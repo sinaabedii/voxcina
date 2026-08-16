@@ -266,7 +266,7 @@ export default function AdminOrdersPage() {
           <input
             type="text"
             className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full pr-10 p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50 shadow-sm"
-            placeholder="جستجو شماره سفارش یا شناسه تراکنش..."
+            placeholder="جستجوی شماره سفارش، شناسه تراکنش یا توکن پرداخت اسنپ‌پی..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -501,12 +501,18 @@ export default function AdminOrdersPage() {
                                <span>روش پرداخت:</span>
                                <span>{getPaymentMethodText(order)}</span>
                              </p>
-                             {order.gateway_transaction_id && (
-                               <p className="text-voxcina-blue dark:text-voxcina-cream flex justify-between gap-2">
-                                 <span>شناسه تراکنش:</span>
-                                 <span className="font-mono text-xs truncate" dir="ltr">{order.gateway_transaction_id}</span>
-                               </p>
-                             )}
+                              {order.gateway_transaction_id && (
+                                <p className="text-voxcina-blue dark:text-voxcina-cream flex justify-between gap-2">
+                                  <span>شناسه تراکنش:</span>
+                                  <span className="font-mono text-xs truncate" dir="ltr">{order.gateway_transaction_id}</span>
+                                </p>
+                              )}
+                              {order.snappay_payment_token && (
+                                <p className="text-voxcina-blue dark:text-voxcina-cream flex justify-between gap-2">
+                                  <span>توکن پرداخت اسنپ‌پی:</span>
+                                  <span className="font-mono text-xs truncate" dir="ltr">{order.snappay_payment_token}</span>
+                                </p>
+                              )}
                           </div>
                         </div>
                         <div>

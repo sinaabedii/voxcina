@@ -69,6 +69,14 @@ type OrderAPIResponse struct {
 	ProductCount         int                         `json:"product_count"`
 }
 
+// AdminOrderAPIResponse includes the SnappPay payment token for admin-only
+// order inspection. Customer order responses intentionally expose only the
+// merchant transaction ID.
+type AdminOrderAPIResponse struct {
+	OrderAPIResponse
+	SnappPayPaymentToken string `json:"snappay_payment_token,omitempty"`
+}
+
 // Helper function to populate order items and create OrderAPIResponse
 func newOrderAPIResponse(
 	ctx context.Context,
@@ -138,6 +146,19 @@ func newOrderAPIResponse(
 		JalaliUpdatedAt:      utils.ToJalaliDateString(order.UpdatedAt),
 		ProductCount:         order.GetProductCount(),
 	}, nil
+}
+
+func newAdminOrderAPIResponse(ctx context.Context, order models.Order) (AdminOrderAPIResponse, error) {
+	response, err := newOrderAPIResponse(ctx, order)
+	if err != nil {
+		return AdminOrderAPIResponse{}, err
+	}
+
+	adminResponse := AdminOrderAPIResponse{OrderAPIResponse: response}
+	if response.GatewayName == "snappay" {
+		adminResponse.SnappPayPaymentToken = order.GatewayReference
+	}
+	return adminResponse, nil
 }
 
 // orderGatewayName keeps the payment gateway visible for failed attempts too.
@@ -1118,7 +1139,7 @@ func GetAdminOrderById(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Prepare the response with populated product details and Jalali dates
-	response, err := newOrderAPIResponse(ctx, order)
+	response, err := newAdminOrderAPIResponse(ctx, order)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error preparing order response: "+err.Error())
 		return
@@ -1277,10 +1298,15 @@ func GetAllOrders(w http.ResponseWriter, r *http.Request) {
 		filter["payment_status"] = paymentStatus
 	}
 
-	// Search by order number or gateway transaction ID (case-insensitive partial matching)
+	// Search by order number, gateway transaction ID, or SnappPay payment token
+	// (case-insensitive partial matching).
 	if search := r.URL.Query().Get("search"); search != "" {
 		pattern := bson.M{"$regex": search, "$options": "i"}
-		filter["$or"] = []bson.M{{"order_number": pattern}, {"gateway_transaction_id": pattern}}
+		filter["$or"] = []bson.M{
+			{"order_number": pattern},
+			{"gateway_transaction_id": pattern},
+			{"gateway_reference": pattern},
+		}
 	}
 
 	// Date range filter
@@ -1335,9 +1361,9 @@ func GetAllOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responses := make([]OrderAPIResponse, 0)
+	responses := make([]AdminOrderAPIResponse, 0)
 	for _, ord := range ordersData {
-		resp, err := newOrderAPIResponse(ctx, ord)
+		resp, err := newAdminOrderAPIResponse(ctx, ord)
 		if err != nil {
 			utils.LogAction(
 				"error",
@@ -1549,7 +1575,7 @@ func UpdateOrderStatusAdmin(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-	resp, err := newOrderAPIResponse(ctx, updatedOrder)
+	resp, err := newAdminOrderAPIResponse(ctx, updatedOrder)
 	if err != nil {
 		utils.ErrorResponse(
 			w,
@@ -1665,7 +1691,7 @@ func AddOrderNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := newOrderAPIResponse(ctx, updatedOrder)
+	response, err := newAdminOrderAPIResponse(ctx, updatedOrder)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error preparing order response: "+err.Error())
 		return
@@ -1880,9 +1906,9 @@ func GetRecentOrders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Transform orders to API response format
-	var responseOrders []OrderAPIResponse
+	var responseOrders []AdminOrderAPIResponse
 	for _, order := range orders {
-		apiOrder, err := newOrderAPIResponse(ctx, order)
+		apiOrder, err := newAdminOrderAPIResponse(ctx, order)
 		if err != nil {
 			// Log error but continue with other orders
 			utils.LogAction("error", fmt.Sprintf("Error populating order %s: %v", order.ID.Hex(), err))
@@ -1893,7 +1919,7 @@ func GetRecentOrders(w http.ResponseWriter, r *http.Request) {
 
 	// Ensure we always return an array, even if empty
 	if responseOrders == nil {
-		responseOrders = []OrderAPIResponse{}
+		responseOrders = []AdminOrderAPIResponse{}
 	}
 
 	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{

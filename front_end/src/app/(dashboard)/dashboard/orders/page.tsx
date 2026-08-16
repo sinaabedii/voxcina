@@ -362,6 +362,9 @@ export default function OrdersPage() {
                       شماره سفارش
                     </th>
                     <th className="text-right p-4 text-voxcina-blue/70 dark:text-voxcina-cream/70 font-medium">
+                      شناسه تراکنش
+                    </th>
+                    <th className="text-right p-4 text-voxcina-blue/70 dark:text-voxcina-cream/70 font-medium">
                       تاریخ
                     </th>
                     <th className="text-right p-4 text-voxcina-blue/70 dark:text-voxcina-cream/70 font-medium">
@@ -387,6 +390,9 @@ export default function OrdersPage() {
                     >
                       <td className="p-4 font-medium text-voxcina-blue dark:text-voxcina-cream">
                         {order.order_number}
+                      </td>
+                      <td className="p-4 text-xs font-mono text-voxcina-blue/70 dark:text-voxcina-cream/70" dir="ltr">
+                        {order.gateway_transaction_id || "-"}
                       </td>
                       <td className="p-4 text-voxcina-blue/70 dark:text-voxcina-cream/70 flex items-center">
                         <Calendar className="w-4 h-4 ml-2 text-voxcina-blue/40 dark:text-voxcina-cream/40" />

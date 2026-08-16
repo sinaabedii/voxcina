@@ -106,6 +106,7 @@ export interface Order {
   zibal_ref_number?: string; // Zibal reference number
   gateway_name?: 'zibal' | 'digipay' | 'snappay'; // Payment gateway used
   gateway_transaction_id?: string;
+  snappay_payment_token?: string; // Admin-only SnappPay payment token
   tracking_code?: string | null; // Nullable
   timeline?: OrderTimelineEntry[]; // Order status change history
   notes?: OrderNote[]; // Internal admin notes

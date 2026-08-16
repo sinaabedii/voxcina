@@ -867,7 +867,7 @@ func AdminCancelSnappPay(w http.ResponseWriter, r *http.Request) {
 	_ = updateSnappPayAttempt(ctx, attempt.ID, "cancelled", bson.M{"provider_status": "CANCEL", "cancelled_at": now})
 	var updated models.Order
 	_ = orders.FindOne(ctx, bson.M{"_id": order.ID}).Decode(&updated)
-	response, err := newOrderAPIResponse(ctx, updated)
+	response, err := newAdminOrderAPIResponse(ctx, updated)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
@@ -1040,7 +1040,7 @@ func AdminUpdateSnappPay(w http.ResponseWriter, r *http.Request) {
 	_ = updateSnappPayAttempt(ctx, attempt.ID, "updated", bson.M{"provider_status": "SETTLE", "last_update_at": now})
 	var updated models.Order
 	_ = orders.FindOne(ctx, bson.M{"_id": order.ID}).Decode(&updated)
-	response, err := newOrderAPIResponse(ctx, updated)
+	response, err := newAdminOrderAPIResponse(ctx, updated)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return

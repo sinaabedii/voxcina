@@ -87,6 +87,7 @@ const transformBackendOrder = (backendOrderData: any): Order => {
     zibal_ref_number: backendOrderData.zibal_ref_number,
     gateway_name: backendOrderData.gateway_name,
     gateway_transaction_id: backendOrderData.gateway_transaction_id,
+    snappay_payment_token: backendOrderData.snappay_payment_token,
     tracking_code: backendOrderData.tracking_code,
     timeline: transformedTimeline,
     notes: transformedNotes,
