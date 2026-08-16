@@ -29,9 +29,9 @@ func NewResearchAgent(braveClient *BraveSearchClient, openRouter *OpenRouterStru
 
 // ResearchFinding represents a finding from research
 type ResearchFinding struct {
-	Claim      string  `json:"claim"`
-	Evidence   string  `json:"evidence"`
-	Confidence float64 `json:"confidence"`
+	Claim      string   `json:"claim"`
+	Evidence   string   `json:"evidence"`
+	Confidence float64  `json:"confidence"`
 	Sources    []string `json:"sources"` // source IDs
 }
 
@@ -45,20 +45,20 @@ type ResearchOutline struct {
 
 // ResearchOutput is the structured output from the research agent
 type ResearchOutput struct {
-	Findings         []ResearchFinding `json:"findings"`
-	Outline          ResearchOutline   `json:"outline"`
-	Uncertainties    []string          `json:"uncertainties"`
-	ProhibitedClaims []string          `json:"prohibited_claims"`
-	RecommendedCategory string         `json:"recommended_category"`
-	RecommendedTags    []string         `json:"recommended_tags"`
+	Findings            []ResearchFinding `json:"findings"`
+	Outline             ResearchOutline   `json:"outline"`
+	Uncertainties       []string          `json:"uncertainties"`
+	ProhibitedClaims    []string          `json:"prohibited_claims"`
+	RecommendedCategory string            `json:"recommended_category"`
+	RecommendedTags     []string          `json:"recommended_tags"`
 }
 
 // ResearchSnapshot is what gets passed to the writing agent
 type ResearchSnapshot struct {
-	Output          ResearchOutput           `json:"output"`
+	Output          ResearchOutput              `json:"output"`
 	Sources         []models.BlogResearchSource `json:"sources"`
-	GeneratedAt     time.Time                `json:"generated_at"`
-	GenerationBrief models.GenerationBrief   `json:"generation_brief"`
+	GeneratedAt     time.Time                   `json:"generated_at"`
+	GenerationBrief models.GenerationBrief      `json:"generation_brief"`
 }
 
 // RunResearch executes the research stage
@@ -361,10 +361,15 @@ func (ra *ResearchAgent) buildResearchContext(sources []models.BlogResearchSourc
 	return context
 }
 
-// researchOutputSchema returns the JSON schema for research output
+// researchOutputSchema returns the JSON schema for research output.
+// Strict-compatible: every object has additionalProperties:false and required
+// lists every property. Required for OpenAI strict structured outputs
+// (gpt-5, gpt-4o) while remaining compatible with permissive models
+// (qwen, deepseek) — no search quality or richness is reduced.
 func researchOutputSchema() map[string]interface{} {
 	return map[string]interface{}{
-		"name": "research_output",
+		"name":   "research_output",
+		"strict": true,
 		"schema": map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
@@ -378,7 +383,8 @@ func researchOutputSchema() map[string]interface{} {
 							"confidence": map[string]interface{}{"type": "number"},
 							"sources":    map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}},
 						},
-						"required": []string{"claim", "evidence", "confidence"},
+						"required":             []string{"claim", "evidence", "confidence", "sources"},
+						"additionalProperties": false,
 					},
 				},
 				"outline": map[string]interface{}{
@@ -389,14 +395,16 @@ func researchOutputSchema() map[string]interface{} {
 						"subsections": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}},
 						"key_points":  map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}},
 					},
-					"required": []string{"title", "sections"},
+					"required":             []string{"title", "sections", "subsections", "key_points"},
+					"additionalProperties": false,
 				},
-				"uncertainties":      map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}},
-				"prohibited_claims":  map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}},
+				"uncertainties":        map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}},
+				"prohibited_claims":    map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}},
 				"recommended_category": map[string]interface{}{"type": "string"},
-				"recommended_tags":   map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}},
+				"recommended_tags":     map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}},
 			},
-			"required": []string{"findings", "outline"},
+			"required":             []string{"findings", "outline", "uncertainties", "prohibited_claims", "recommended_category", "recommended_tags"},
+			"additionalProperties": false,
 		},
 	}
 }

@@ -61,7 +61,7 @@ func (wa *WritingAgent) RunWriting(ctx context.Context, run *models.BlogPipeline
 	// Validate blocks
 	if err := wa.validator.ValidateBlocks(writingResult.Blocks); err != nil {
 		log.Printf("[blog] Block validation failed, attempting repair: %v", err)
-		
+
 		// Attempt one repair retry
 		repairedBlocks, repairErr := wa.attemptBlockRepair(ctx, snapshot, writingResult.Blocks, run.Model)
 		if repairErr != nil {
@@ -106,9 +106,9 @@ func (wa *WritingAgent) RunWriting(ctx context.Context, run *models.BlogPipeline
 			Name:   "تیم وکسینا",
 			Avatar: "",
 		},
-		IsActive:    true,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		IsActive:  true,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 
 	// Save post to database
@@ -246,24 +246,25 @@ You have these block types available:
 - If nothing in the article genuinely calls for a product recommendation, omit
   this block type entirely — it is optional, never forced.
 
-**Output Format:**
-Return JSON with this exact structure:
-{
-  "blocks": [
-    {"type": "title", "text": "عنوان مقاله", "order": 0},
-    {"type": "txt", "text": "شاید شما هم متوجه شده‌اید که...", "order": 1},
-    {"type": "image", "imageSlotID": "img-1", "alt": "توضیح تصویر", "order": 2},
-    {"type": "header", "text": "بخش اول", "order": 3},
-    {"type": "txt", "text": "محتوای بخش...", "order": 4},
-    {"type": "list", "items": ["نکته اول", "نکته دوم", "نکته سوم"], "ordered": false, "order": 5},
-    {"type": "quote", "text": "یک نقل‌قول کوتاه و کاربردی", "attribution": "تیم وکسینا", "order": 6},
-    {"type": "product", "productDescription": "یک پیراهن رسمی سرمه‌ای مناسب مصاحبه شغلی", "order": 7},
-    ...
-  ],
-  "excerpt": "خلاصه 50-100 کلمه‌ای مقاله",
-  "recommended_category": "دسته‌بندی پیشنهادی",
-  "recommended_tags": ["برچسب1", "برچسب2", "برچسب3"]
-}
+ **Output Format:**
+ Return JSON with this exact structure (strict schema requires every property
+ on every block — use "" for unused text fields, [] for unused items,
+ false for unused booleans on the irrelevant block types):
+ {
+   "blocks": [
+     {"type": "title", "id": "", "order": 0, "text": "عنوان مقاله", "imageSlotID": "", "imageID": "", "alt": "", "caption": "", "items": [], "ordered": false, "attribution": "", "productDescription": ""},
+     {"type": "txt", "id": "", "order": 1, "text": "شاید شما هم متوجه شدهاید که...", "imageSlotID": "", "imageID": "", "alt": "", "caption": "", "items": [], "ordered": false, "attribution": "", "productDescription": ""},
+     {"type": "image", "id": "", "order": 2, "text": "", "imageSlotID": "img-1", "imageID": "", "alt": "توضیح تصویر", "caption": "", "items": [], "ordered": false, "attribution": "", "productDescription": ""},
+     {"type": "header", "id": "", "order": 3, "text": "بخش اول", "imageSlotID": "", "imageID": "", "alt": "", "caption": "", "items": [], "ordered": false, "attribution": "", "productDescription": ""},
+     {"type": "list", "id": "", "order": 4, "text": "", "imageSlotID": "", "imageID": "", "alt": "", "caption": "", "items": ["نکته اول", "نکته دوم"], "ordered": false, "attribution": "", "productDescription": ""},
+     {"type": "quote", "id": "", "order": 5, "text": "یک نقلقول کوتاه و کاربردی", "imageSlotID": "", "imageID": "", "alt": "", "caption": "", "items": [], "ordered": false, "attribution": "تیم وکسینا", "productDescription": ""},
+     {"type": "product", "id": "", "order": 6, "text": "", "imageSlotID": "", "imageID": "", "alt": "", "caption": "", "items": [], "ordered": false, "attribution": "", "productDescription": "یک پیراهن رسمی سرمهای مناسب مصاحبه شغلی"},
+     ...
+   ],
+   "excerpt": "خلاصه 50-100 کلمهای مقاله",
+   "recommended_category": "دستهبندی پیشنهادی",
+   "recommended_tags": ["برچسب1", "برچسب2", "برچسب3"]
+ }
 
 IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, no code blocks.`,
 		brief.Topic,
@@ -531,10 +532,19 @@ func (wa *WritingAgent) calculateReadTime(blocks []models.BlogBlock) int {
 	return readTime
 }
 
-// writingOutputSchema returns the JSON schema for writing output
+// writingOutputSchema returns the JSON schema for writing output.
+// Strict-compatible: all objects have additionalProperties:false and required
+// lists every property (strict requires it). Conditional validation
+// (allOf/if) is not supported by OpenAI strict mode — instead every block
+// field is always present and the prompt tells the model to emit "" / [] /
+// false for unused fields. This keeps one schema that works on both strict
+// (gpt-5, gpt-4o) and permissive (qwen, deepseek) models with identical
+// richness — the search-derived content rules in buildWritingPrompt are
+// unchanged.
 func writingOutputSchema() map[string]interface{} {
 	return map[string]interface{}{
-		"name": "writing_output",
+		"name":   "writing_output",
+		"strict": true,
 		"schema": map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
@@ -559,66 +569,19 @@ func writingOutputSchema() map[string]interface{} {
 							"attribution":        map[string]interface{}{"type": "string"},
 							"productDescription": map[string]interface{}{"type": "string"},
 						},
-						"allOf": []map[string]interface{}{
-							{
-								"if": map[string]interface{}{
-									"properties": map[string]interface{}{
-										"type": map[string]interface{}{
-											"enum": []string{"title", "header", "txt", "quote"},
-										},
-									},
-								},
-								"then": map[string]interface{}{
-									"required": []string{"type", "order", "text"},
-								},
-							},
-							{
-								"if": map[string]interface{}{
-									"properties": map[string]interface{}{
-										"type": map[string]interface{}{
-											"const": "image",
-										},
-									},
-								},
-								"then": map[string]interface{}{
-									"required": []string{"type", "order", "imageSlotID", "alt"},
-								},
-							},
-							{
-								"if": map[string]interface{}{
-									"properties": map[string]interface{}{
-										"type": map[string]interface{}{
-											"const": "list",
-										},
-									},
-								},
-								"then": map[string]interface{}{
-									"required": []string{"type", "order", "items"},
-								},
-							},
-							{
-								"if": map[string]interface{}{
-									"properties": map[string]interface{}{
-										"type": map[string]interface{}{
-											"const": "product",
-										},
-									},
-								},
-								"then": map[string]interface{}{
-									"required": []string{"type", "order", "productDescription"},
-								},
-							},
-						},
+						"required":             []string{"type", "id", "order", "text", "imageSlotID", "imageID", "alt", "caption", "items", "ordered", "attribution", "productDescription"},
+						"additionalProperties": false,
 					},
 				},
-				"excerpt": map[string]interface{}{"type": "string"},
+				"excerpt":              map[string]interface{}{"type": "string"},
 				"recommended_category": map[string]interface{}{"type": "string"},
 				"recommended_tags": map[string]interface{}{
-					"type": "array",
+					"type":  "array",
 					"items": map[string]interface{}{"type": "string"},
 				},
 			},
-			"required": []string{"blocks", "excerpt"},
+			"required":             []string{"blocks", "excerpt", "recommended_category", "recommended_tags"},
+			"additionalProperties": false,
 		},
 	}
 }

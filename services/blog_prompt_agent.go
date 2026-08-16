@@ -372,6 +372,7 @@ func estimateWordCount(text string) int {
 
 // imagePromptItemProperties returns the shared property schema for a single
 // image prompt, used both standalone (cover) and as an array item (inline).
+// Strict-compatible shape; additionalProperties:false is added by callers.
 func imagePromptItemProperties() map[string]interface{} {
 	return map[string]interface{}{
 		"prompt":   map[string]interface{}{"type": "string"},
@@ -389,13 +390,17 @@ func imagePromptItemProperties() map[string]interface{} {
 }
 
 // imagePromptSchema returns the JSON schema for a single image prompt (cover image)
+// Strict-compatible for OpenAI strict models (gpt-5, gpt-4o) while still
+// accepted by qwen/deepseek.
 func imagePromptSchema() map[string]interface{} {
 	return map[string]interface{}{
-		"name": "image_prompt",
+		"name":   "image_prompt",
+		"strict": true,
 		"schema": map[string]interface{}{
-			"type":       "object",
-			"properties": imagePromptItemProperties(),
-			"required":   []string{"prompt", "alt_text", "caption", "aspect_ratio", "composition"},
+			"type":                 "object",
+			"properties":           imagePromptItemProperties(),
+			"required":             []string{"prompt", "alt_text", "caption", "aspect_ratio", "composition"},
+			"additionalProperties": false,
 		},
 	}
 }
@@ -403,25 +408,28 @@ func imagePromptSchema() map[string]interface{} {
 // inlinePromptsSchema returns the JSON schema for a batch of inline image
 // prompts generated together, so the model produces the whole set — and can
 // diversify across it — in a single structured response instead of one
-// context-blind call per slot.
+// context-blind call per slot. Strict-compatible.
 func inlinePromptsSchema(count int) map[string]interface{} {
 	return map[string]interface{}{
-		"name": "inline_image_prompts",
+		"name":   "inline_image_prompts",
+		"strict": true,
 		"schema": map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
 				"prompts": map[string]interface{}{
 					"type": "array",
 					"items": map[string]interface{}{
-						"type":       "object",
-						"properties": imagePromptItemProperties(),
-						"required":   []string{"prompt", "alt_text", "caption", "aspect_ratio", "composition"},
+						"type":                 "object",
+						"properties":           imagePromptItemProperties(),
+						"required":             []string{"prompt", "alt_text", "caption", "aspect_ratio", "composition"},
+						"additionalProperties": false,
 					},
 					"minItems": count,
 					"maxItems": count,
 				},
 			},
-			"required": []string{"prompts"},
+			"required":             []string{"prompts"},
+			"additionalProperties": false,
 		},
 	}
 }
