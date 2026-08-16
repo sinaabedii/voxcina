@@ -96,15 +96,6 @@ func persistPaymentReference(ctx context.Context, attemptsCol *mongo.Collection,
 	return fmt.Errorf("payment attempt disappeared while saving provider reference")
 }
 
-func compensateOrphanedSnappPayToken(token string) {
-	if snappPayService == nil || token == "" {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	_ = snappPayRevertWithRecovery(ctx, token)
-}
-
 func RequestPayment(w http.ResponseWriter, r *http.Request) {
 	userIDCtx := r.Context().Value("userID")
 	if userIDCtx == nil {
@@ -270,9 +261,6 @@ func RequestPayment(w http.ResponseWriter, r *http.Request) {
 
 	err = persistPaymentReference(ctx, attemptsCol, attempt.ID, payResp.GatewayRef)
 	if err != nil {
-		if gateway.Name() == "snappay" {
-			compensateOrphanedSnappPayToken(payResp.GatewayRef)
-		}
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to save payment attempt")
 		return
 	}
@@ -1008,9 +996,6 @@ func RetryPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err = persistPaymentReference(ctx, attemptsCol, attempt.ID, payResp.GatewayRef); err != nil {
-		if gateway.Name() == "snappay" {
-			compensateOrphanedSnappPayToken(payResp.GatewayRef)
-		}
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to save payment attempt")
 		return
 	}

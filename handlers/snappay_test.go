@@ -48,6 +48,7 @@ func TestReducedOrderItemsIncludesRemovedRowsAndQuantityDifferences(t *testing.T
 }
 
 func TestBuildSnappPayCartAllowsMerchantDiscountCode(t *testing.T) {
+	t.Setenv("SNAPPAY_DEFAULT_CATEGORY", "apparel")
 	order := models.Order{
 		ID:             primitive.NewObjectID(),
 		OrderNumber:    "DGS-TEST",
@@ -64,5 +65,38 @@ func TestBuildSnappPayCartAllowsMerchantDiscountCode(t *testing.T) {
 	}
 	if amount != 900 {
 		t.Fatalf("got SnappPay amount %d, want 900", amount)
+	}
+}
+
+func TestBuildSnappPayCartUsesPersianCategoryAndIncludesShippingAndTax(t *testing.T) {
+	t.Setenv("SNAPPAY_DEFAULT_CATEGORY", "apparel")
+	order := models.Order{
+		ID:             primitive.NewObjectID(),
+		Items:          []models.OrderItem{{ProductID: primitive.NewObjectID(), ProductName: "پیراهن", Quantity: 2, PriceAtPurchase: 100}},
+		ShippingCost:   10,
+		TaxAmount:      5,
+		DiscountAmount: 20,
+		TotalAmount:    195,
+	}
+
+	carts, amount, err := buildSnappPayCart(context.Background(), order)
+	if err != nil {
+		t.Fatalf("buildSnappPayCart returned an error: %v", err)
+	}
+	if amount != 1950 {
+		t.Fatalf("got SnappPay amount %d, want 1950", amount)
+	}
+	if len(carts) != 1 || len(carts[0].Items) != 1 {
+		t.Fatalf("got unexpected cart payload: %+v", carts)
+	}
+	cart := carts[0]
+	if !cart.ShipmentIncluded || !cart.TaxIncluded {
+		t.Fatal("shipment and tax must be marked as included")
+	}
+	if cart.Items[0].Category != "پوشاک" {
+		t.Fatalf("got category %q, want Persian category", cart.Items[0].Category)
+	}
+	if cart.TaxAmount != 50 || cart.TotalAmount != 2150 {
+		t.Fatalf("got tax/cart total %d/%d, want 50/2150", cart.TaxAmount, cart.TotalAmount)
 	}
 }

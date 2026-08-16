@@ -48,7 +48,7 @@ services:
       - SNAPPAY_PASSWORD=${SNAPPAY_PASSWORD}
       - SNAPPAY_VENTURE=${SNAPPAY_VENTURE}
       - SNAPPAY_CALLBACK_URL=${SNAPPAY_CALLBACK_URL}
-      - SNAPPAY_DEFAULT_CATEGORY=${SNAPPAY_DEFAULT_CATEGORY:-apparel}
+      - SNAPPAY_DEFAULT_CATEGORY=${SNAPPAY_DEFAULT_CATEGORY:-پوشاک}
       - SNAPPAY_COMMISSION_TYPE=${SNAPPAY_COMMISSION_TYPE:-100}
       # Keep the shared proxy for non-payment backend traffic. Payment gateway
       # clients use an explicit direct transport in services/payment_http_client.go.

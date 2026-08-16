@@ -22,7 +22,6 @@ const (
 	snappPayEligibilityPath = "/api/online/offer/v1/eligible"
 	snappPayVerifyPath      = "/api/online/payment/v1/verify"
 	snappPaySettlePath      = "/api/online/payment/v1/settle"
-	snappPayRevertPath      = "/api/online/payment/v1/revert"
 	snappPayStatusPath      = "/api/online/payment/v1/status"
 	snappPayCancelPath      = "/api/online/payment/v1/cancel"
 	snappPayUpdatePath      = "/api/online/payment/v1/update"
@@ -370,10 +369,6 @@ func (s *SnappPayService) SettlePayment(ctx context.Context, paymentToken string
 
 func (s *SnappPayService) CancelPayment(ctx context.Context, paymentToken string) (*LifecycleResponse, error) {
 	return s.lifecycleRequest(ctx, snappPayCancelPath, paymentToken)
-}
-
-func (s *SnappPayService) RevertPayment(ctx context.Context, paymentToken string) (*LifecycleResponse, error) {
-	return s.lifecycleRequest(ctx, snappPayRevertPath, paymentToken)
 }
 
 func (s *SnappPayService) lifecycleRequest(ctx context.Context, path, paymentToken string) (*LifecycleResponse, error) {

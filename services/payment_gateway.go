@@ -101,7 +101,6 @@ type SnappPayPaymentGateway interface {
 	SettlePayment(ctx context.Context, paymentToken string) (*LifecycleResponse, error)
 	CancelPayment(ctx context.Context, paymentToken string) (*LifecycleResponse, error)
 	UpdatePayment(ctx context.Context, req *UpdatePaymentRequest) (*LifecycleResponse, error)
-	RevertPayment(ctx context.Context, paymentToken string) (*LifecycleResponse, error)
 }
 
 type LifecycleResponse struct {

@@ -144,34 +144,6 @@ func snappPayCancelWithRecovery(ctx context.Context, paymentToken string) (*serv
 	return nil, lastErr
 }
 
-func snappPayRevertWithRecovery(ctx context.Context, paymentToken string) error {
-	var lastErr error
-	for attempt := 0; attempt < 3; attempt++ {
-		if _, err := snappPayService.RevertPayment(ctx, paymentToken); err == nil {
-			return nil
-		} else {
-			lastErr = err
-		}
-		status, statusErr := snappPayService.InquiryPayment(ctx, &services.InquiryRequest{GatewayRef: paymentToken})
-		if statusErr == nil {
-			switch status.Status {
-			case "REVERT", "CANCEL":
-				return nil
-			case "SETTLE":
-				_, cancelErr := snappPayCancelWithRecovery(ctx, paymentToken)
-				return cancelErr
-			}
-		}
-		if snappPayErrorCode(lastErr) != 1053 && snappPayErrorCode(lastErr) != 1000 {
-			break
-		}
-		if err := waitForSnappPayRetry(ctx); err != nil {
-			return err
-		}
-	}
-	return lastErr
-}
-
 func snappPayUpdateWithRecovery(ctx context.Context, request *services.UpdatePaymentRequest) (*services.LifecycleResponse, error) {
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
@@ -181,11 +153,6 @@ func snappPayUpdateWithRecovery(ctx context.Context, request *services.UpdatePay
 		}
 		lastErr = err
 		status, statusErr := snappPayService.InquiryPayment(ctx, &services.InquiryRequest{GatewayRef: request.PaymentToken})
-		if statusErr == nil && status.Status == "VERIFY" {
-			if _, settleErr := snappPaySettleWithRetry(ctx, request.PaymentToken); settleErr == nil {
-				status, statusErr = snappPayService.InquiryPayment(ctx, &services.InquiryRequest{GatewayRef: request.PaymentToken})
-			}
-		}
 		if statusErr == nil && (status.Status == "CANCEL" || status.Status == "REVERT") {
 			break
 		}
@@ -205,7 +172,7 @@ func reconcileSnappPayStatuses() {
 	cursor, err := db.Database.Collection("payment_attempts").Find(ctx, bson.M{
 		"gateway":           "snappay",
 		"gateway_reference": bson.M{"$exists": true, "$ne": ""},
-		"status":            bson.M{"$in": []string{"pending", "verifying", "verified", "verify_pending", "settle_pending", "settled_pending_local", "revert_pending"}},
+		"status":            bson.M{"$in": []string{"pending", "verifying", "verified", "verify_pending", "settle_pending", "settled_pending_local"}},
 	}, options.Find().SetLimit(100).SetSort(bson.D{{Key: "created_at", Value: 1}}))
 	if err != nil {
 		return
@@ -218,13 +185,6 @@ func reconcileSnappPayStatuses() {
 	for _, attempt := range attempts {
 		if ctx.Err() != nil {
 			return
-		}
-		if attempt.Status == "revert_pending" {
-			if err := snappPayRevertWithRecovery(ctx, attempt.GatewayReference); err == nil {
-				_ = updateSnappPayAttempt(ctx, attempt.ID, "failed", bson.M{"provider_status": "REVERT"})
-				setSnappPayOrderFailed(ctx, attempt.OrderID)
-			}
-			continue
 		}
 		status, statusErr := snappPayService.InquiryPayment(ctx, &services.InquiryRequest{GatewayRef: attempt.GatewayReference})
 		if statusErr != nil {
@@ -341,6 +301,19 @@ func validSnappPayMobile(value string) bool {
 	return true
 }
 
+func snappPayCategory() string {
+	category := strings.TrimSpace(os.Getenv("SNAPPAY_DEFAULT_CATEGORY"))
+	if category == "" {
+		return "پوشاک"
+	}
+	for _, r := range category {
+		if (r >= '\u0600' && r <= '\u06ff') || (r >= '\u0750' && r <= '\u077f') {
+			return category
+		}
+	}
+	return "پوشاک"
+}
+
 func buildSnappPayCart(ctx context.Context, order models.Order) ([]services.PaymentCart, int64, error) {
 	if len(order.Items) == 0 {
 		return nil, 0, fmt.Errorf("order has no items")
@@ -352,10 +325,7 @@ func buildSnappPayCart(ctx context.Context, order models.Order) ([]services.Paym
 		if item.Quantity <= 0 || item.PriceAtPurchase < 0 {
 			return nil, 0, fmt.Errorf("invalid order item quantity or price")
 		}
-		category := os.Getenv("SNAPPAY_DEFAULT_CATEGORY")
-		if category == "" {
-			category = "apparel"
-		}
+		category := snappPayCategory()
 		amount := snappPayMoney(item.PriceAtPurchase)
 		if amount <= 0 {
 			return nil, 0, fmt.Errorf("order item price must be positive")
@@ -372,7 +342,11 @@ func buildSnappPayCart(ctx context.Context, order models.Order) ([]services.Paym
 	}
 
 	shipping := snappPayMoney(order.ShippingCost)
-	cartTotal := itemTotal + shipping
+	tax := snappPayMoney(order.TaxAmount)
+	if shipping < 0 || tax < 0 {
+		return nil, 0, fmt.Errorf("invalid order shipping or tax")
+	}
+	cartTotal := itemTotal + shipping + tax
 	amount := snappPayMoney(order.TotalAmount)
 	discount := snappPayMoney(order.DiscountAmount)
 	if discount < 0 || discount > itemTotal {
@@ -385,10 +359,10 @@ func buildSnappPayCart(ctx context.Context, order models.Order) ([]services.Paym
 	return []services.PaymentCart{{
 		CartID:           stableProviderID(order.ID),
 		Items:            items,
-		ShipmentIncluded: false,
-		TaxIncluded:      false,
+		ShipmentIncluded: true,
+		TaxIncluded:      true,
 		ShippingAmount:   shipping,
-		TaxAmount:        0,
+		TaxAmount:        tax,
 		TotalAmount:      cartTotal,
 	}}, amount, nil
 }
@@ -639,18 +613,6 @@ func SnappPayCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if state != "OK" {
-		if snappPayService != nil && attempt.GatewayReference != "" {
-			if err := func() error {
-				revertCtx, revertCancel := context.WithTimeout(context.Background(), 30*time.Second)
-				defer revertCancel()
-				return snappPayRevertWithRecovery(revertCtx, attempt.GatewayReference)
-			}(); err != nil {
-				_ = updateSnappPayAttempt(ctx, attempt.ID, "revert_pending", bson.M{"callback_state": state, "revert_error": err.Error()})
-				values.Set("error", "revert_unknown")
-				snappPayRedirect(w, r, values)
-				return
-			}
-		}
 		_ = updateSnappPayAttempt(ctx, attempt.ID, "failed", bson.M{"callback_state": state})
 		setSnappPayOrderFailed(ctx, attempt.OrderID)
 		values.Set("status", "failed")
@@ -950,8 +912,8 @@ func reducedOrderItems(oldItems, newItems []models.OrderItem) []models.OrderItem
 }
 
 // AdminUpdateSnappPay updates a settled order after an item quantity/removal
-// decision. Merchant discount codes are part of the original order amount and
-// are sent as discountAmount; only the provider's payment token is updated.
+// decision. The discount is recalculated for the remaining items and sent as
+// discountAmount; only the provider's payment token is updated.
 // The operation deliberately requires confirmation because it is irreversible
 // and can be repeated on the same order.
 func AdminUpdateSnappPay(w http.ResponseWriter, r *http.Request) {
@@ -1023,11 +985,17 @@ func AdminUpdateSnappPay(w http.ResponseWriter, r *http.Request) {
 
 	updatedOrder := order
 	updatedOrder.Items = newItems
-	updatedOrder.TotalAmount = 0
+	var updatedSubtotal float64
 	for _, item := range newItems {
-		updatedOrder.TotalAmount += item.PriceAtPurchase * float64(item.Quantity)
+		updatedSubtotal += item.PriceAtPurchase * float64(item.Quantity)
 	}
-	updatedOrder.TotalAmount += updatedOrder.ShippingCost - updatedOrder.DiscountAmount
+	updatedDiscount, discountErr := calculateCheckoutDiscount(ctx, order.UserID, order.DiscountCode, newItems, updatedSubtotal)
+	if discountErr != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "محاسبه تخفیف سفارش بروزشده انجام نشد: "+discountErr.Error())
+		return
+	}
+	updatedOrder.DiscountAmount = updatedDiscount
+	updatedOrder.TotalAmount = updatedSubtotal + updatedOrder.ShippingCost + updatedOrder.TaxAmount - updatedDiscount
 	if updatedOrder.TotalAmount <= 0 || updatedOrder.TotalAmount >= order.TotalAmount {
 		utils.ErrorResponse(w, http.StatusBadRequest, "مبلغ بروزرسانی باید کمتر از مبلغ قبلی و مثبت باشد")
 		return
