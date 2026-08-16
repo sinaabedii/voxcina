@@ -1021,9 +1021,10 @@ func AdminUpdateSnappPay(w http.ResponseWriter, r *http.Request) {
 	}
 	now := time.Now()
 	updateSet := bson.M{
-		"items":        newItems,
-		"total_amount": updatedOrder.TotalAmount,
-		"updated_at":   now,
+		"items":           newItems,
+		"discount_amount": updatedOrder.DiscountAmount,
+		"total_amount":    updatedOrder.TotalAmount,
+		"updated_at":      now,
 	}
 	if updateResponse != nil && updateResponse.TransactionID != "" {
 		updateSet["gateway_transaction_id"] = updateResponse.TransactionID
