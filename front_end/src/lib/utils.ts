@@ -11,6 +11,7 @@ export function cn(...inputs: ClassValue[]) {
 export function formatPrice(price: number) {
   const formatter = new Intl.NumberFormat("fa-IR", {
     style: "decimal",
+    maximumFractionDigits: 0,
   });
 
   const priceInTomans = price;
