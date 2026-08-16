@@ -644,14 +644,44 @@ func ApplyNegotiatedCoupon(w http.ResponseWriter, r *http.Request) {
 	// coupons require ALL required products present, in the negotiated color
 	// (any size qualifies). Cart-recovery coupons only require that AT LEAST ONE
 	// of the color variants that were in the cart when the SMS was sent is still
-	// there — new items/colors added afterward don't count, but the customer can
-	// still qualify by keeping (or re-adding) just one of the original ones.
-	if len(coupon.RequiredProducts) > 0 && len(req.CartItems) > 0 {
+	// there. We must never trust an empty cart_items array, and ideally we
+	// validate against the server-side cart so a stale client cannot lie (bug #3).
+	// Prefer the server cart; fall back to client-supplied cart_items only when
+	// the server cart is unavailable (e.g. anonymous).
+	serverCart := buildServerCartContext(ctx, userID)
+	var cartForValidation []struct {
+		PID       string
+		Color     string
+		ColorName string
+	}
+	if len(serverCart) > 0 {
+		for _, it := range serverCart {
+			cartForValidation = append(cartForValidation, struct {
+				PID       string
+				Color     string
+				ColorName string
+			}{PID: it.ProductID, Color: it.Color, ColorName: it.ColorName})
+		}
+	} else {
+		for _, ci := range req.CartItems {
+			cartForValidation = append(cartForValidation, struct {
+				PID       string
+				Color     string
+				ColorName string
+			}{PID: ci.ProductID, Color: ci.Color, ColorName: ci.ColorName})
+		}
+	}
+	// Bug #3: if coupon has required products, an empty cart cannot satisfy them.
+	if len(coupon.RequiredProducts) > 0 && len(cartForValidation) == 0 {
+		utils.ErrorResponse(w, http.StatusBadRequest, "سبد خرید خالی است")
+		return
+	}
+	if len(coupon.RequiredProducts) > 0 && len(cartForValidation) > 0 {
 		if coupon.Source == "cart_recovery" {
 			found := false
 			for _, required := range coupon.RequiredProducts {
-				for _, cartItem := range req.CartItems {
-					if cartItem.ProductID != required.ProductID.Hex() {
+				for _, cartItem := range cartForValidation {
+					if cartItem.PID != required.ProductID.Hex() {
 						continue
 					}
 					if colorsOverlap(required.Color, required.ColorName, cartItem.Color, cartItem.ColorName) {
@@ -671,8 +701,8 @@ func ApplyNegotiatedCoupon(w http.ResponseWriter, r *http.Request) {
 			for _, required := range coupon.RequiredProducts {
 				requiredPID := required.ProductID.Hex()
 				found := false
-				for _, cartItem := range req.CartItems {
-					if cartItem.ProductID != requiredPID {
+				for _, cartItem := range cartForValidation {
+					if cartItem.PID != requiredPID {
 						continue
 					}
 					if required.Color == "" && required.ColorName == "" {
@@ -690,11 +720,11 @@ func ApplyNegotiatedCoupon(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-	} else if len(coupon.ProductIDs) > 0 && len(req.CartItems) > 0 {
+	} else if len(coupon.ProductIDs) > 0 && len(cartForValidation) > 0 {
 		for _, requiredPID := range coupon.ProductIDs {
 			found := false
-			for _, cartItem := range req.CartItems {
-				if cartItem.ProductID == requiredPID.Hex() {
+			for _, cartItem := range cartForValidation {
+				if cartItem.PID == requiredPID.Hex() {
 					found = true
 					break
 				}
@@ -704,6 +734,9 @@ func ApplyNegotiatedCoupon(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+	} else if len(coupon.ProductIDs) > 0 && len(cartForValidation) == 0 {
+		utils.ErrorResponse(w, http.StatusBadRequest, "سبد خرید خالی است")
+		return
 	}
 
 	// Note: used flag is set by the frontend via POST /api/discounts/activate

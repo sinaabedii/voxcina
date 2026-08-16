@@ -592,7 +592,12 @@ func GetUserPromotions(w http.ResponseWriter, r *http.Request) {
 
 // ActivateDiscount increments usage count when a voucher is applied to the cart.
 // POST /api/discounts/activate
-// Works for both admin discounts (increments used_count) and negotiated coupons (sets used=true).
+//   - Admin discounts: atomically increment used_count only while under max_uses
+//     (unlimited codes have max_uses==0). Returns 409 when the cap was reached.
+//     Admin codes are global and can be activated without user scoping (but the
+//     increment is guarded against concurrent over-subscription, bug #2).
+//   - Negotiated/cart-recovery coupons: set used=true only for the authenticated
+//     user's own coupon (user-scoped, bug #4). Requires authentication.
 func ActivateDiscount(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Code string `json:"code"`
@@ -609,25 +614,63 @@ func ActivateDiscount(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Try admin discount first
+	// Try admin discount first — global, no user scoping needed. The $or guard
+	// makes the increment atomic against concurrent activations (bug #2).
 	discountColl := db.Database.Collection("discounts")
-	res, err := discountColl.UpdateOne(ctx,
-		bson.M{"code": req.Code},
-		bson.M{"$inc": bson.M{"used_count": 1}},
+	res, err := discountColl.UpdateOne(ctx, bson.M{
+		"code": req.Code,
+		"$or": []bson.M{
+			{"max_uses": 0},
+			{"max_uses": bson.M{"$exists": false}},
+			{"$expr": bson.M{"$lt": []interface{}{"$used_count", "$max_uses"}}},
+		},
+	}, bson.M{"$inc": bson.M{"used_count": 1}})
+	if err == nil && res.MatchedCount > 0 {
+		utils.JSONResponse(w, http.StatusOK, map[string]bool{"success": true})
+		return
+	}
+	// Admin code exists but was blocked by the cap — surface 409 instead of
+	// falling through to the negotiated path or a generic 404.
+	if res.MatchedCount == 0 {
+		var c int64
+		c, _ = discountColl.CountDocuments(ctx, bson.M{"code": req.Code})
+		if c > 0 {
+			utils.ErrorResponse(w, http.StatusConflict, "کد تخفیف به سقف مصرف رسیده است")
+			return
+		}
+	}
+
+	// Try negotiated coupon — scoped to the authenticated user (bug #4).
+	var userID primitive.ObjectID
+	if uidCtx := r.Context().Value("userID"); uidCtx != nil {
+		if uid, ok := uidCtx.(primitive.ObjectID); ok && uid != primitive.NilObjectID {
+			userID = uid
+		}
+	}
+	// Also try Authorization header for routes not behind AuthMiddleware
+	if userID == primitive.NilObjectID {
+		if uid, ok := extractUserIDFromToken(r); ok {
+			userID = uid
+		}
+	}
+	if userID == primitive.NilObjectID {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "لطفاً وارد شوید")
+		return
+	}
+	negotiatedColl := db.Database.Collection("negotiated_coupons")
+	res, err = negotiatedColl.UpdateOne(ctx,
+		bson.M{"code": req.Code, "user_id": userID},
+		bson.M{"$set": bson.M{"used": true}},
 	)
 	if err == nil && res.MatchedCount > 0 {
 		utils.JSONResponse(w, http.StatusOK, map[string]bool{"success": true})
 		return
 	}
-
-	// Try negotiated coupon
-	negotiatedColl := db.Database.Collection("negotiated_coupons")
-	res, err = negotiatedColl.UpdateOne(ctx,
-		bson.M{"code": req.Code},
-		bson.M{"$set": bson.M{"used": true}},
-	)
-	if err == nil && res.MatchedCount > 0 {
-		utils.JSONResponse(w, http.StatusOK, map[string]bool{"success": true})
+	// Code belongs to someone else -> hide existence, return 404
+	var owned int64
+	owned, _ = negotiatedColl.CountDocuments(ctx, bson.M{"code": req.Code})
+	if owned > 0 {
+		utils.ErrorResponse(w, http.StatusNotFound, "کد تخفیف یافت نشد")
 		return
 	}
 
@@ -635,8 +678,7 @@ func ActivateDiscount(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeactivateDiscount decrements usage count when a voucher is removed from the cart.
-// POST /api/discounts/deactivate
-// Works for both admin discounts (decrements used_count, floored at 0) and negotiated coupons (sets used=false).
+// POST /api/discounts/deactivate — admin decrement is global; negotiated is owner-scoped (bug #4).
 func DeactivateDiscount(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Code string `json:"code"`
@@ -653,7 +695,7 @@ func DeactivateDiscount(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Try admin discount first — decrement used_count, ensure it doesn't go below 0
+	// Try admin discount first — global, no user scoping
 	discountColl := db.Database.Collection("discounts")
 	res, err := discountColl.UpdateOne(ctx,
 		bson.M{"code": req.Code, "used_count": bson.M{"$gt": 0}},
@@ -664,10 +706,25 @@ func DeactivateDiscount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Try negotiated coupon — set used back to false
+	// Try negotiated coupon — scoped to owner (bug #4)
+	var userID primitive.ObjectID
+	if uidCtx := r.Context().Value("userID"); uidCtx != nil {
+		if uid, ok := uidCtx.(primitive.ObjectID); ok && uid != primitive.NilObjectID {
+			userID = uid
+		}
+	}
+	if userID == primitive.NilObjectID {
+		if uid, ok := extractUserIDFromToken(r); ok {
+			userID = uid
+		}
+	}
+	if userID == primitive.NilObjectID {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "لطفاً وارد شوید")
+		return
+	}
 	negotiatedColl := db.Database.Collection("negotiated_coupons")
 	res, err = negotiatedColl.UpdateOne(ctx,
-		bson.M{"code": req.Code},
+		bson.M{"code": req.Code, "user_id": userID},
 		bson.M{"$set": bson.M{"used": false}},
 	)
 	if err == nil && res.MatchedCount > 0 {

@@ -895,12 +895,19 @@ export const useCartStore = create<CartStore>()(
           }
 
           set({ promoCode: { code, isValid: true, errorMessage: '', discountPercentage, maxDiscount, expireDate: discount.valid_to, minPurchase, description: discount.type === 'percentage' ? `${discount.value}٪ تخفیف` : `${formatPrice(discount.value)} تومان تخفیف`, type: 'admin' }, error: null });
-          // Increment usage count in backend
-          fetch('/api/discounts/activate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code }),
-          }).catch(() => {});
+          // Increment usage count in backend — authenticated via Authorization header
+          // so activate can also handle negotiated coupons scoped to the user.
+          {
+            const _token = localStorage.getItem('authToken');
+            fetch('/api/discounts/activate', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(_token ? { Authorization: `Bearer ${_token}` } : {}),
+              },
+              body: JSON.stringify({ code }),
+            }).catch(() => {});
+          }
         } catch {
           set({ error: 'خطا در بررسی کد تخفیف', promoCode: { code, isValid: false, errorMessage: 'خطای شبکه', discountPercentage: 0, maxDiscount: 0, expireDate: '', minPurchase: 0 } });
         }
@@ -929,23 +936,35 @@ export const useCartStore = create<CartStore>()(
           error: null,
         });
         get().calculateSummary();
-        // Mark as used in backend
-        fetch('/api/discounts/activate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: discount.code }),
-        }).catch(() => {});
+        // Mark as used in backend — authenticated so the server can scope it to the user
+        {
+          const _token = localStorage.getItem('authToken');
+          fetch('/api/discounts/activate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(_token ? { Authorization: `Bearer ${_token}` } : {}),
+            },
+            body: JSON.stringify({ code: discount.code }),
+          }).catch(() => {});
+        }
       },
 
       removePromoCode: () => {
         const { promoCode } = get();
         if (promoCode?.code) {
-          // Decrement usage count in backend (fire-and-forget)
-          fetch('/api/discounts/deactivate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: promoCode.code }),
-          }).catch(() => {});
+          // Decrement usage count in backend (fire-and-forget) — authenticated for owner-scoped coupons
+          {
+            const _token = localStorage.getItem('authToken');
+            fetch('/api/discounts/deactivate', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(_token ? { Authorization: `Bearer ${_token}` } : {}),
+              },
+              body: JSON.stringify({ code: promoCode.code }),
+            }).catch(() => {});
+          }
         }
         set({ promoCode: null, error: null });
         get().calculateSummary();

@@ -529,15 +529,15 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 	if orderData.PromoCode != "" {
 		now := time.Now()
 
-		// First check if it's a negotiated coupon (TRYN-XXX)
+		// First check if it's a negotiated coupon (TRYN-XXX / cart-recovery)
 		var nc models.NegotiatedCoupon
 		err := db.Database.Collection("negotiated_coupons").FindOne(ctx, bson.M{"code": orderData.PromoCode}).Decode(&nc)
 		if err == nil {
-			// Found as negotiated coupon — validate
-			if nc.Used {
-				utils.ErrorResponse(w, http.StatusBadRequest, "این کد تخفیف قبلاً استفاده شده است")
-				return
-			}
+			// Found as negotiated coupon — validate. `used` means "currently
+			// applied to a cart" (set by /discounts/activate, cleared by
+			// /discounts/deactivate). It must NOT block checkout — every
+			// applied coupon is `used==true` at checkout time, and stays that
+			// way after the order so it cannot be re-applied.
 			if now.After(nc.ValidUntil) {
 				utils.ErrorResponse(w, http.StatusBadRequest, "کد تخفیف شما منقضی شده است")
 				return
@@ -608,12 +608,17 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 				}
 				return
 			}
-			// Validate regular discount
+			// Validate regular discount — max_uses is enforced atomically at
+			// activation time (see discounts.go:ActivateDiscount which only
+			// increments while used_count < max_uses). At checkout we must
+			// only reject when the cap was actually exceeded (>), otherwise
+			// the normal apply→checkout flow for a max_uses=1 code is dead
+			// (apply bumps 0→1, checkout would see 1>=1 and reject).
 			if now.Before(discount.ValidFrom) || now.After(discount.ValidTo) {
 				utils.ErrorResponse(w, http.StatusBadRequest, "کد تخفیف منقضی شده است")
 				return
 			}
-			if discount.MaxUses > 0 && discount.UsedCount >= discount.MaxUses {
+			if discount.MaxUses > 0 && discount.UsedCount > discount.MaxUses {
 				utils.ErrorResponse(w, http.StatusBadRequest, "کد تخفیف به سقف مصرف رسیده است")
 				return
 			}
