@@ -16,9 +16,9 @@ import (
 
 // BraveSearchClient is a hardened client for Brave Search API.
 type BraveSearchClient struct {
-	apiKey   string
-	baseURL  string
-	client   *http.Client
+	apiKey  string
+	baseURL string
+	client  *http.Client
 }
 
 // NewBraveSearchClient creates a new Brave Search client from env vars.
@@ -43,10 +43,10 @@ func (c *BraveSearchClient) IsAvailable() bool {
 
 // SearchOptions configures a Brave Search request.
 type SearchOptions struct {
-	Count     int
-	Offset    int
+	Count      int
+	Offset     int
 	SearchLang string
-	Country   string
+	Country    string
 }
 
 // LLMContextSource represents a single source from the LLM context response.
@@ -186,7 +186,10 @@ func (c *BraveSearchClient) SearchWeb(ctx context.Context, query string, opts Se
 
 // FetchURLContent downloads and sanitizes content from a follow-up URL.
 // Enforces HTTPS only, blocks private/link-local IPs, enforces response limits,
-// 10s timeout, content-type check, and respects robots.txt.
+// 10s timeout and content-type check. robots.txt is intentionally NOT checked
+// for blog research — this is server-side backend fetching, not a public crawler,
+// so the voluntary robots.txt signal is bypassed to actually get Persian sources
+// (keeps HTTPS/IP/Content-Type/size/redirect safeguards).
 func FetchURLContent(ctx context.Context, targetURL string) (string, error) {
 	parsed, err := url.Parse(targetURL)
 	if err != nil {
@@ -210,11 +213,6 @@ func FetchURLContent(ctx context.Context, targetURL string) (string, error) {
 	}
 	if ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLoopback() {
 		return "", fmt.Errorf("blocked private/link-local IP: %s", ip.String())
-	}
-
-	// Check robots.txt (best-effort)
-	if !robotsAllowed(ctx, host) {
-		return "", fmt.Errorf("robots.txt disallows fetching %s", host)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
