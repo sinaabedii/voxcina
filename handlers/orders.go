@@ -60,6 +60,7 @@ type OrderAPIResponse struct {
 	ZibalRefNumber       *string                     `json:"zibal_ref_number,omitempty"`
 	GatewayName          string                      `json:"gateway_name,omitempty"`
 	GatewayTransactionID string                      `json:"gateway_transaction_id,omitempty"`
+	SnappPayPaymentToken string                      `json:"snappay_payment_token,omitempty"`
 	Timeline             []models.OrderTimelineEntry `json:"timeline,omitempty"`
 	Notes                []models.OrderNote          `json:"notes,omitempty"`
 	CreatedAt            time.Time                   `json:"created_at"`
@@ -69,12 +70,8 @@ type OrderAPIResponse struct {
 	ProductCount         int                         `json:"product_count"`
 }
 
-// AdminOrderAPIResponse includes the SnappPay payment token for admin-only
-// order inspection. Customer order responses intentionally expose only the
-// merchant transaction ID.
 type AdminOrderAPIResponse struct {
 	OrderAPIResponse
-	SnappPayPaymentToken string `json:"snappay_payment_token,omitempty"`
 }
 
 // Helper function to populate order items and create OrderAPIResponse
@@ -118,6 +115,12 @@ func newOrderAPIResponse(
 		})
 	}
 
+	gatewayName := orderGatewayName(ctx, order)
+	paymentToken := ""
+	if gatewayName == "snappay" {
+		paymentToken = order.GatewayReference
+	}
+
 	return OrderAPIResponse{
 		ID:                   order.ID,
 		UserID:               order.UserID,
@@ -136,8 +139,9 @@ func newOrderAPIResponse(
 		PaymentMethod:        order.PaymentMethod,
 		ZibalTrackID:         order.ZibalTrackID,
 		ZibalRefNumber:       order.ZibalRefNumber,
-		GatewayName:          orderGatewayName(ctx, order),
+		GatewayName:          gatewayName,
 		GatewayTransactionID: order.GatewayTransactionID,
+		SnappPayPaymentToken: paymentToken,
 		Timeline:             order.Timeline,
 		Notes:                order.Notes,
 		CreatedAt:            order.CreatedAt,
@@ -154,11 +158,7 @@ func newAdminOrderAPIResponse(ctx context.Context, order models.Order) (AdminOrd
 		return AdminOrderAPIResponse{}, err
 	}
 
-	adminResponse := AdminOrderAPIResponse{OrderAPIResponse: response}
-	if response.GatewayName == "snappay" {
-		adminResponse.SnappPayPaymentToken = order.GatewayReference
-	}
-	return adminResponse, nil
+	return AdminOrderAPIResponse{OrderAPIResponse: response}, nil
 }
 
 // orderGatewayName keeps the payment gateway visible for failed attempts too.

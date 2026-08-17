@@ -605,6 +605,9 @@ func SnappPayCallback(w http.ResponseWriter, r *http.Request) {
 		snappPayRedirect(w, r, values)
 		return
 	}
+	if attempt.GatewayReference != "" {
+		values.Set("paymentToken", attempt.GatewayReference)
+	}
 	if order.PaymentStatus == "paid" {
 		values.Set("success", "1")
 		values.Set("status", "paid")

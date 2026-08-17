@@ -182,14 +182,14 @@ const OrderDetailPage = () => {
                   {order.jalali_updated_at || formatDate(order.updated_at)}
                 </span>
               </div>
-              {order.gateway_transaction_id && (
+              {(order.snappay_payment_token || order.gateway_transaction_id) && (
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-voxcina-blue/60 dark:text-voxcina-cream/60 flex items-center gap-1.5">
                     <CreditCard className="w-3.5 h-3.5" />
-                    شناسه تراکنش پرداخت
+                    {order.snappay_payment_token ? "توکن پرداخت اسنپ‌پی" : "شناسه تراکنش پرداخت"}
                   </span>
                   <span className="font-mono text-xs bg-voxcina-cream/50 dark:bg-voxcina-blue/10 px-2 py-0.5 rounded text-voxcina-blue dark:text-voxcina-cream" dir="ltr">
-                    {order.gateway_transaction_id}
+                    {order.snappay_payment_token || order.gateway_transaction_id}
                   </span>
                 </div>
               )}

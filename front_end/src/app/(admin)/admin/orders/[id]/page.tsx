@@ -684,18 +684,12 @@ export default function AdminOrderDetailsPage() {
                    <span className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">{getPaymentGatewayText(order.gateway_name)}</span>
                 </div>
               )}
-              {order.gateway_transaction_id && (
-                <div className="flex justify-between items-center gap-3">
-                  <span className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">شناسه تراکنش</span>
-                  <span className="text-xs font-mono text-voxcina-blue dark:text-voxcina-cream truncate" dir="ltr">{order.gateway_transaction_id}</span>
-                </div>
-              )}
-              {order.snappay_payment_token && (
-                <div className="flex justify-between items-center gap-3">
-                  <span className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">توکن پرداخت اسنپ‌پی</span>
-                  <span className="text-xs font-mono text-voxcina-blue dark:text-voxcina-cream truncate" dir="ltr">{order.snappay_payment_token}</span>
-                </div>
-              )}
+               {(order.snappay_payment_token || order.gateway_transaction_id) && (
+                 <div className="flex justify-between items-center gap-3">
+                   <span className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">{order.snappay_payment_token ? "توکن پرداخت اسنپ‌پی" : "شناسه تراکنش"}</span>
+                   <span className="text-xs font-mono text-voxcina-blue dark:text-voxcina-cream truncate" dir="ltr">{order.snappay_payment_token || order.gateway_transaction_id}</span>
+                 </div>
+               )}
               
               <div className="border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 pt-3 mt-3 space-y-2">
                 <div className="flex justify-between items-center">
