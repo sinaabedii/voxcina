@@ -121,6 +121,20 @@ export default function CartPage() {
     }
 
     if (promoCode.type === "admin") {
+      const hasScope = Boolean(
+        promoCode.applicableProductIds?.length || promoCode.applicableCategoryIds?.length
+      );
+      if (hasScope) {
+        const remainingScopedItem = cart.items.some(
+          (cartItem) =>
+            cartItem.id !== item.id &&
+            (promoCode.applicableProductIds?.includes(cartItem.productId) ||
+              (cartItem.product.category_ids || []).some((categoryId) =>
+                promoCode.applicableCategoryIds?.includes(categoryId)
+              ))
+        );
+        if (!remainingScopedItem) return false;
+      }
       const remainingSubtotal = summary.subtotal - (item.price * item.quantity);
       if (promoCode.minPurchase > 0 && remainingSubtotal < promoCode.minPurchase) {
         return false;

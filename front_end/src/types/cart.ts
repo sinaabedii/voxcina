@@ -56,6 +56,8 @@ export interface PromoCode {
   errorMessage?: string;
   type?: "admin" | "negotiated" | "cart_recovery";
   productIds?: string[];
+  applicableProductIds?: string[];
+  applicableCategoryIds?: string[];
   // For negotiated coupons: restricts the discount to cart items whose
   // productId AND color match one of these entries (any size qualifies).
   requiredColors?: RequiredColorEntry[];

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -44,6 +45,19 @@ func TestReducedOrderItemsIncludesRemovedRowsAndQuantityDifferences(t *testing.T
 	}
 	if removed[1].ProductID != productB || removed[1].Quantity != 1 {
 		t.Fatalf("fully removed row was not calculated correctly: %+v", removed[1])
+	}
+}
+
+func TestNormalizeSnappPayDiscountDropsRulesThatNoLongerApply(t *testing.T) {
+	for _, ruleErr := range []error{errDiscountMinimumOrder, errDiscountProductScope} {
+		if got, err := normalizeSnappPayDiscount(125, ruleErr); got != 0 || err != nil {
+			t.Fatalf("rule error produced discount=%v, err=%v; want zero discount and no error", got, err)
+		}
+	}
+
+	underlyingErr := errors.New("database unavailable")
+	if got, err := normalizeSnappPayDiscount(125, underlyingErr); got != 0 || !errors.Is(err, underlyingErr) {
+		t.Fatalf("unexpected non-rule error handling: discount=%v, err=%v", got, err)
 	}
 }
 

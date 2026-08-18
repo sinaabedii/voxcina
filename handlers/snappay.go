@@ -914,6 +914,16 @@ func reducedOrderItems(oldItems, newItems []models.OrderItem) []models.OrderItem
 	return removed
 }
 
+func normalizeSnappPayDiscount(discount float64, err error) (float64, error) {
+	if err == nil {
+		return discount, nil
+	}
+	if errors.Is(err, errDiscountMinimumOrder) || errors.Is(err, errDiscountProductScope) {
+		return 0, nil
+	}
+	return 0, err
+}
+
 // AdminUpdateSnappPay updates a settled order after an item quantity/removal
 // decision. The discount is recalculated for the remaining items and sent as
 // discountAmount; only the provider's payment token is updated.
@@ -993,6 +1003,7 @@ func AdminUpdateSnappPay(w http.ResponseWriter, r *http.Request) {
 		updatedSubtotal += item.PriceAtPurchase * float64(item.Quantity)
 	}
 	updatedDiscount, discountErr := calculateCheckoutDiscount(ctx, order.UserID, order.DiscountCode, newItems, updatedSubtotal)
+	updatedDiscount, discountErr = normalizeSnappPayDiscount(updatedDiscount, discountErr)
 	if discountErr != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "محاسبه تخفیف سفارش بروزشده انجام نشد: "+discountErr.Error())
 		return

@@ -30,6 +30,7 @@ type ProductResponse struct {
 	OriginalPrice float64               `json:"originalPrice"`
 	MainImages    []string              `json:"mainImages,omitempty"`
 	ColorVariants []models.ColorVariant `json:"colorVariants"`
+	CategoryIDs   []primitive.ObjectID  `json:"category_ids"`
 	Brand         string                `json:"brand,omitempty"`
 	BrandID       primitive.ObjectID    `json:"brand_id,omitempty"`
 	InStock       bool                  `json:"inStock"`
@@ -277,6 +278,7 @@ func prepareCartResponse(ctx context.Context, cart models.Cart) (CartResponse, e
 				OriginalPrice: product.OriginalPrice,
 				MainImages:    product.MainImages,
 				ColorVariants: product.ColorVariants,
+				CategoryIDs:   product.CategoryIDs,
 				Brand:         product.Brand,
 				BrandID:       product.BrandID,
 				InStock:       product.InStock,

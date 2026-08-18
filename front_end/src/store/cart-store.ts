@@ -36,6 +36,22 @@ export const colorsOverlap = (color1?: string, colorName1?: string, color2?: str
   return values1.some((v) => values2.includes(v));
 };
 
+const scopedDiscountBase = (
+  items: CartItem[],
+  productIds: string[] = [],
+  categoryIds: string[] = []
+): number => {
+  if (productIds.length === 0 && categoryIds.length === 0) {
+    return items.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  }
+
+  return items.reduce((acc, item) => {
+    const productMatches = productIds.includes(item.productId);
+    const categoryMatches = (item.product.category_ids || []).some((categoryId) => categoryIds.includes(categoryId));
+    return productMatches || categoryMatches ? acc + item.price * item.quantity : acc;
+  }, 0);
+};
+
 /**
  * Task 9.1: Helper function to get auth state with error handling
  * Replaces duplicate try-catch blocks in addItem, updateItemQuantity, removeItem, clearCart, syncCartWithBackend
@@ -790,11 +806,18 @@ export const useCartStore = create<CartStore>()(
         let subtotal = cart.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
         let discountVal = 0;
         if (promoCode && promoCode.isValid) {
-            // Negotiated coupons only discount the specific color variant(s) they
-            // were negotiated for (main + complementary product, any size of that
-            // color) — not the whole cart. Admin-issued codes stay cart-wide.
             let discountBase = subtotal;
-            if (
+            if (promoCode.type === "admin") {
+              if (promoCode.minPurchase > 0 && subtotal < promoCode.minPurchase) {
+                discountBase = 0;
+              } else {
+                discountBase = scopedDiscountBase(
+                  cart.items,
+                  promoCode.applicableProductIds,
+                  promoCode.applicableCategoryIds
+                );
+              }
+            } else if (
               (promoCode.type === "negotiated" || promoCode.type === "cart_recovery") &&
               promoCode.requiredColors &&
               promoCode.requiredColors.length > 0
@@ -814,7 +837,7 @@ export const useCartStore = create<CartStore>()(
                     discountVal = potentialDiscount;
                 }
             } else if (promoCode.maxDiscount > 0) {
-                discountVal = promoCode.maxDiscount;
+                discountVal = Math.min(discountBase, promoCode.maxDiscount);
             }
         }
         discountVal = Math.min(subtotal, discountVal);
@@ -887,6 +910,8 @@ export const useCartStore = create<CartStore>()(
           const discountPercentage = discount.type === 'percentage' ? discount.value : 0;
           const maxDiscount = discount.type === 'fixed' ? discount.value : 0;
           const minPurchase = discount.min_order_amount || 0;
+          const applicableProductIds = discount.applicable_to?.product_ids || [];
+          const applicableCategoryIds = discount.applicable_to?.category_ids || [];
 
           if (currentSubtotal < minPurchase) {
             set({ error: `حداقل خرید برای این کد ${formatPrice(minPurchase)} تومان است`, promoCode: { code, isValid: false, errorMessage: `حداقل خرید ${formatPrice(minPurchase)}`, discountPercentage, maxDiscount, expireDate: discount.valid_to, minPurchase } });
@@ -894,7 +919,17 @@ export const useCartStore = create<CartStore>()(
             return;
           }
 
-          set({ promoCode: { code, isValid: true, errorMessage: '', discountPercentage, maxDiscount, expireDate: discount.valid_to, minPurchase, description: discount.type === 'percentage' ? `${discount.value}٪ تخفیف` : `${formatPrice(discount.value)} تومان تخفیف`, type: 'admin' }, error: null });
+          if (
+            (applicableProductIds.length > 0 || applicableCategoryIds.length > 0) &&
+            scopedDiscountBase(get().cart.items, applicableProductIds, applicableCategoryIds) === 0
+          ) {
+            const message = "این کد تخفیف برای محصولات سبد خرید شما نیست";
+            set({ error: message, promoCode: { code, isValid: false, errorMessage: message, discountPercentage, maxDiscount, expireDate: discount.valid_to, minPurchase } });
+            get().calculateSummary();
+            return;
+          }
+
+          set({ promoCode: { code, isValid: true, errorMessage: '', discountPercentage, maxDiscount, expireDate: discount.valid_to, minPurchase, applicableProductIds, applicableCategoryIds, description: discount.type === 'percentage' ? `${discount.value}٪ تخفیف` : `${formatPrice(discount.value)} تومان تخفیف`, type: 'admin' }, error: null });
           // Increment usage count in backend — authenticated via Authorization header
           // so activate can also handle negotiated coupons scoped to the user.
           {

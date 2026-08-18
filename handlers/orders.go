@@ -23,6 +23,24 @@ import (
 
 var ErrInventoryUnavailable = errors.New("inventory unavailable")
 
+var (
+	errDiscountMinimumOrder = errors.New("discount minimum order not met")
+	errDiscountProductScope = errors.New("discount does not apply to order")
+)
+
+type checkoutDiscountRuleError struct {
+	kind    error
+	message string
+}
+
+func (e *checkoutDiscountRuleError) Error() string {
+	return e.message
+}
+
+func (e *checkoutDiscountRuleError) Unwrap() error {
+	return e.kind
+}
+
 // OrderProductResponse is a subset of product information for order items.
 type OrderProductResponse struct {
 	ID    primitive.ObjectID `json:"id"`
@@ -232,10 +250,17 @@ func calculateCheckoutDiscount(ctx context.Context, userID primitive.ObjectID, c
 	var discount models.Discount
 	err := db.Database.Collection("discounts").FindOne(ctx, bson.M{"code": code}).Decode(&discount)
 	if err == nil {
-		if discount.Type == "fixed" {
-			return math.Min(subtotal, discount.Value), nil
+		if eligibilityErr := validateCheckoutDiscountEligibility(discount, userID); eligibilityErr != nil {
+			return 0, eligibilityErr
 		}
-		return math.Min(subtotal, subtotal*discount.Value/100), nil
+		if subtotal < discount.MinOrderAmount {
+			return calculateAdminDiscount(discount, nil, subtotal, nil)
+		}
+		categoryProductIDs, categoryErr := findCategoryDiscountProducts(ctx, discount.ApplicableTo.CategoryIDs, items)
+		if categoryErr != nil {
+			return 0, categoryErr
+		}
+		return calculateAdminDiscount(discount, items, subtotal, categoryProductIDs)
 	}
 	if err != mongo.ErrNoDocuments {
 		return 0, err
@@ -258,6 +283,90 @@ func calculateCheckoutDiscount(ctx context.Context, userID primitive.ObjectID, c
 		}
 	}
 	return math.Min(base, base*coupon.Value/100), nil
+}
+
+func validateCheckoutDiscountEligibility(discount models.Discount, userID primitive.ObjectID) error {
+	eligible, message := validateUserEligibility(discount, userID, true)
+	if !eligible {
+		return errors.New(message)
+	}
+	return nil
+}
+
+func findCategoryDiscountProducts(ctx context.Context, categoryIDs []primitive.ObjectID, items []models.OrderItem) (map[primitive.ObjectID]struct{}, error) {
+	categoryProductIDs := make(map[primitive.ObjectID]struct{})
+	if len(categoryIDs) == 0 {
+		return categoryProductIDs, nil
+	}
+
+	itemIDs := make([]primitive.ObjectID, 0, len(items))
+	seen := make(map[primitive.ObjectID]struct{}, len(items))
+	for _, item := range items {
+		if _, ok := seen[item.ProductID]; ok {
+			continue
+		}
+		seen[item.ProductID] = struct{}{}
+		itemIDs = append(itemIDs, item.ProductID)
+	}
+	if len(itemIDs) == 0 {
+		return categoryProductIDs, nil
+	}
+
+	cursor, err := db.Database.Collection("products").Find(ctx, bson.M{
+		"_id":          bson.M{"$in": itemIDs},
+		"category_ids": bson.M{"$in": categoryIDs},
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var products []models.Product
+	if err := cursor.All(ctx, &products); err != nil {
+		return nil, err
+	}
+	for _, product := range products {
+		categoryProductIDs[product.ID] = struct{}{}
+	}
+	return categoryProductIDs, nil
+}
+
+func calculateAdminDiscount(discount models.Discount, items []models.OrderItem, subtotal float64, categoryProductIDs map[primitive.ObjectID]struct{}) (float64, error) {
+	if subtotal < discount.MinOrderAmount {
+		return 0, &checkoutDiscountRuleError{
+			kind:    errDiscountMinimumOrder,
+			message: fmt.Sprintf("حداقل مبلغ سفارش برای این کد %s تومان است", formatPriceFa(discount.MinOrderAmount)),
+		}
+	}
+
+	base := subtotal
+	if len(discount.ApplicableTo.ProductIDs) > 0 || len(discount.ApplicableTo.CategoryIDs) > 0 {
+		productIDs := make(map[primitive.ObjectID]struct{}, len(discount.ApplicableTo.ProductIDs))
+		for _, productID := range discount.ApplicableTo.ProductIDs {
+			productIDs[productID] = struct{}{}
+		}
+		for productID := range categoryProductIDs {
+			productIDs[productID] = struct{}{}
+		}
+
+		base = 0
+		for _, item := range items {
+			if _, ok := productIDs[item.ProductID]; ok {
+				base += item.PriceAtPurchase * float64(item.Quantity)
+			}
+		}
+		if base == 0 {
+			return 0, &checkoutDiscountRuleError{
+				kind:    errDiscountProductScope,
+				message: "این کد تخفیف برای محصولات سبد خرید شما نیست",
+			}
+		}
+	}
+
+	if discount.Type == "fixed" {
+		return math.Min(base, discount.Value), nil
+	}
+	return math.Min(base, base*discount.Value/100), nil
 }
 
 // reduceInventory decreases the inventory for each item in the order
@@ -629,6 +738,10 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 				}
 				return
 			}
+			if eligibilityErr := validateCheckoutDiscountEligibility(discount, userID); eligibilityErr != nil {
+				utils.ErrorResponse(w, http.StatusBadRequest, eligibilityErr.Error())
+				return
+			}
 			// Validate regular discount — max_uses is enforced atomically at
 			// activation time (see discounts.go:ActivateDiscount which only
 			// increments while used_count < max_uses). At checkout we must
@@ -691,12 +804,15 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	calculatedDiscount, discountErr := calculateCheckoutDiscount(ctx, userID, orderData.PromoCode, itemsWithSnapshots, subtotal)
-	if discountErr != nil && discountErr != mongo.ErrNoDocuments {
-		utils.ErrorResponse(w, http.StatusBadRequest, "خطا در محاسبه کد تخفیف")
-		return
-	}
-	if discountErr == mongo.ErrNoDocuments {
-		utils.ErrorResponse(w, http.StatusBadRequest, "کد تخفیف نامعتبر است")
+	if discountErr != nil {
+		switch {
+		case discountErr == mongo.ErrNoDocuments:
+			utils.ErrorResponse(w, http.StatusBadRequest, "کد تخفیف نامعتبر است")
+		case errors.Is(discountErr, errDiscountMinimumOrder), errors.Is(discountErr, errDiscountProductScope):
+			utils.ErrorResponse(w, http.StatusBadRequest, discountErr.Error())
+		default:
+			utils.ErrorResponse(w, http.StatusBadRequest, "خطا در محاسبه کد تخفیف")
+		}
 		return
 	}
 	orderData.DiscountAmount = calculatedDiscount

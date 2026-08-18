@@ -129,6 +129,12 @@ func fetchNegotiatedCoupons(ctx context.Context, userID primitive.ObjectID) []mo
 }
 
 func buildTargetedVoucher(ctx context.Context, d models.Discount) (userVoucher, bool) {
+	if len(d.ApplicableTo.CategoryIDs) > 0 {
+		// The voucher payload cannot describe category restrictions. Do not
+		// present a category-scoped discount as a cart-wide voucher.
+		return userVoucher{}, false
+	}
+
 	products := make([]voucherProduct, 0)
 
 	for _, pid := range d.ApplicableTo.ProductIDs {
@@ -224,40 +230,27 @@ func resolveVoucherProduct(ctx context.Context, productID primitive.ObjectID, co
 		return voucherProduct{}, false
 	}
 
-	var image, resolvedColor, resolvedColorName string
-	inStock := false
-
-	if color != "" || colorName != "" {
-		if cv, _, ok := findColorVariant(&product, color, colorName); ok {
-			resolvedColor = canonicalColorValue(cv)
-			resolvedColorName = cv.ColorName
-			if len(cv.Images) > 0 {
-				image = cv.Images[0]
-			}
-			if cv.TryOnImage != "" && image == "" {
-				image = cv.TryOnImage
-			}
-			for _, sv := range cv.Sizes {
-				if sv.Quantity > 0 {
-					inStock = true
-					break
-				}
-			}
-		}
+	requestedColor := color != "" || colorName != ""
+	cv, hasVariant := voucherColorVariant(&product, color, colorName)
+	if requestedColor && !hasVariant {
+		return voucherProduct{}, false
 	}
 
-	if resolvedColor == "" && len(product.ColorVariants) > 0 {
-		cv := product.ColorVariants[0]
+	var image, resolvedColor, resolvedColorName string
+	inStock := false
+	if hasVariant {
 		resolvedColor = canonicalColorValue(cv)
 		resolvedColorName = cv.ColorName
 		if len(cv.Images) > 0 {
 			image = cv.Images[0]
 		}
-		for _, sv := range cv.Sizes {
-			if sv.Quantity > 0 {
-				inStock = true
-				break
-			}
+		if requestedColor && cv.TryOnImage != "" && image == "" {
+			image = cv.TryOnImage
+		}
+		if requestedColor {
+			inStock = voucherColorVariantInStock(cv)
+		} else {
+			inStock = voucherAnyColorVariantInStock(product.ColorVariants)
 		}
 	}
 
@@ -275,10 +268,46 @@ func resolveVoucherProduct(ctx context.Context, productID primitive.ObjectID, co
 	}, true
 }
 
+func voucherColorVariant(product *models.Product, color, colorName string) (models.ColorVariant, bool) {
+	if product == nil {
+		return models.ColorVariant{}, false
+	}
+	if color != "" || colorName != "" {
+		cv, _, ok := findColorVariant(product, color, colorName)
+		return cv, ok
+	}
+	if len(product.ColorVariants) == 0 {
+		return models.ColorVariant{}, false
+	}
+	return product.ColorVariants[0], true
+}
+
+func voucherColorVariantInStock(cv models.ColorVariant) bool {
+	for _, sv := range cv.Sizes {
+		if sv.Quantity > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func voucherAnyColorVariantInStock(variants []models.ColorVariant) bool {
+	for _, cv := range variants {
+		if voucherColorVariantInStock(cv) {
+			return true
+		}
+	}
+	return false
+}
+
 func formatPriceFa(amount float64) string {
 	digits := []string{"۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"}
 	intAmount := int64(amount)
 	s := fmt.Sprintf("%d", intAmount)
+	negative := len(s) > 0 && s[0] == '-'
+	if negative {
+		s = s[1:]
+	}
 	result := ""
 	count := 0
 	for i := len(s) - 1; i >= 0; i-- {
@@ -287,6 +316,9 @@ func formatPriceFa(amount float64) string {
 		}
 		result = string(digits[s[i]-'0']) + result
 		count++
+	}
+	if negative {
+		result = "-" + result
 	}
 	return result
 }
