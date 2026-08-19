@@ -1,15 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { useAuthStore } from "@/store/auth-store";
-import { useCartStore } from "@/store/cart-store";
 import { motion } from "framer-motion";
 import {
   BadgeCheck,
   Package,
   MapPin,
-  ShoppingCart,
   Calendar,
   Clock,
   ChevronLeft,
@@ -21,7 +20,6 @@ import ProfileSection from "@/components/dashboard/ProfileSection";
 
 export default function DashboardPage() {
   const { user, getProfile, isLoading: userLoading } = useAuthStore();
-  const { cart, syncCartWithBackend, isLoading: cartLoading } = useCartStore();
   const { orders, fetchUserOrders } = useDashboardStore();
   const [showWelcome, setShowWelcome] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -33,7 +31,6 @@ export default function DashboardPage() {
       try {
         await getProfile();
         await fetchUserOrders();
-        await syncCartWithBackend();
       } finally {
         setLoading(false);
       }
@@ -46,7 +43,6 @@ export default function DashboardPage() {
     pendingOrders: orders.filter(o => o.status === "pending" || o.status === "processing" || o.status === "shipping").length,
     completedOrders: orders.filter(o => o.status === "delivered").length,
     savedAddresses: user?.addresses?.length || 0,
-    cartItems: cart.items.length,
   };
 
   useEffect(() => {
@@ -76,7 +72,7 @@ export default function DashboardPage() {
     },
   };
 
-  if (loading || userLoading || cartLoading) {
+  if (loading || userLoading) {
     return <div className="container py-8 md:py-12 mx-auto px-4 md:px-8 text-center text-lg">در حال بارگذاری...</div>;
   }
 
@@ -117,8 +113,8 @@ export default function DashboardPage() {
                   سلام {user?.name?.split(" ")[0] || "کاربر"} عزیز!
                 </h2>
                 <p className="text-sm text-voxcina-blue/80 dark:text-voxcina-cream/90">
-                  به داشبورد شخصی خود خوش آمدید. از اینجا می‌توانید سفارش‌ها،
-                  آدرس‌ها و تنظیمات حساب خود را مدیریت کنید.
+                  به داشبورد شخصی خود خوش آمدید. از اینجا میتوانید سفارشها،
+                  آدرسها و تنظیمات حساب خود را مدیریت کنید.
                 </p>
                 <motion.div
                   className="flex gap-2 mt-2"
@@ -131,7 +127,7 @@ export default function DashboardPage() {
                     size="sm" 
                     className="rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
                   >
-                    مشاهده سفارش‌ها
+                    مشاهده سفارشها
                   </Button>
                   <Button
                     variant="primary"
@@ -190,31 +186,33 @@ export default function DashboardPage() {
           آمار کلی
         </motion.h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
           <motion.div 
             variants={itemVariants}
             whileHover={{ y: -5 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-voxcina-cream">
-                  <Package className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
-                  سفارش‌ها
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{stats.totalOrders}</div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
-                    {stats.pendingOrders} سفارش در انتظار ارسال
-                  </p>
-                  <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
-                    <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+            <Link href="/dashboard/orders" className="block" aria-label="مشاهده سفارشها">
+              <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10 hover:border-voxcina-blue/20 dark:hover:border-voxcina-cream/20 cursor-pointer">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-voxcina-cream">
+                    <Package className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
+                    سفارشها
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{stats.totalOrders}</div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
+                      {stats.pendingOrders} سفارش در انتظار ارسال
+                    </p>
+                    <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
+                      <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Link>
           </motion.div>
 
           <motion.div 
@@ -222,25 +220,27 @@ export default function DashboardPage() {
             whileHover={{ y: -5 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-voxcina-cream">
-                  <MapPin className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
-                  آدرس‌ها
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{stats.savedAddresses}</div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
-                    آدرس ذخیره شده
-                  </p>
-                  <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
-                    <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+            <Link href="/dashboard/addresses" className="block" aria-label="مدیریت آدرسها">
+              <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10 hover:border-voxcina-blue/20 dark:hover:border-voxcina-cream/20 cursor-pointer">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-voxcina-cream">
+                    <MapPin className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
+                    آدرسها
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{stats.savedAddresses}</div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
+                      آدرس ذخیره شده
+                    </p>
+                    <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
+                      <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Link>
           </motion.div>
 
           <motion.div 
@@ -248,53 +248,29 @@ export default function DashboardPage() {
             whileHover={{ y: -5 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-voxcina-cream">
-                  <ShoppingCart className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
-                  سبد خرید
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{stats.cartItems}</div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
-                    محصول در سبد خرید
-                  </p>
-                  <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
-                    <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+            <Link href="/dashboard/orders?status=delivered" className="block" aria-label="مشاهده سفارشهای تحویل شده">
+              <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10 hover:border-voxcina-blue/20 dark:hover:border-voxcina-cream/20 cursor-pointer">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-voxcina-cream">
+                    <Calendar className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
+                    تحویل شدهها
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">
+                    {stats.completedOrders}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div 
-            variants={itemVariants}
-            whileHover={{ y: -5 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-voxcina-cream">
-                  <Calendar className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
-                  تحویل شده‌ها
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">
-                  {stats.completedOrders}
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
-                    سفارش تکمیل شده
-                  </p>
-                  <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
-                    <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
+                      سفارش تکمیل شده
+                    </p>
+                    <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
+                      <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Link>
           </motion.div>
         </div>
       </motion.section>

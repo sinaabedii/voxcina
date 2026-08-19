@@ -14,6 +14,12 @@ const Sidebar = ({ embedded = false }: { embedded?: boolean }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const router = useRouter();
 
+  const isActiveHref = (href: string) => {
+    if (pathname === href) return true;
+    if (pathname.startsWith(href + "/")) return true;
+    return false;
+  };
+
   const sidebarItems = [
     {
       name: "داشبورد",
@@ -86,7 +92,7 @@ const Sidebar = ({ embedded = false }: { embedded?: boolean }) => {
             }}
           >
             {sidebarItems.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive = isActiveHref(item.href);
               return (
                 <motion.div
                   key={item.href}
@@ -182,7 +188,7 @@ const Sidebar = ({ embedded = false }: { embedded?: boolean }) => {
               className="space-y-2"
             >
               {sidebarItems.map((item) => {
-                const isActive = pathname === item.href;
+                const isActive = isActiveHref(item.href);
 
                 return (
                   <motion.div
@@ -287,7 +293,7 @@ const Sidebar = ({ embedded = false }: { embedded?: boolean }) => {
                     }}
                   >
                     {sidebarItems.map((item) => {
-                      const isActive = pathname === item.href;
+                      const isActive = isActiveHref(item.href);
 
                       return (
                         <motion.div

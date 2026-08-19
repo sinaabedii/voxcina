@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useOrderStore } from "@/store/order-store";
 import { Order } from "@/types/order";
 import { formatPrice, formatDate } from "@/lib/utils";
@@ -30,17 +31,45 @@ type OrderStatus =
   | "processing"
   | "shipped"
   | "delivered"
-  | "cancelled"
-  | "refunded";
+  | "cancelled";
+
+const VALID_STATUSES: OrderStatus[] = [
+  "all",
+  "pending",
+  "processing",
+  "shipped",
+  "delivered",
+  "cancelled",
+];
+
+function parseStatus(value: string | null): OrderStatus {
+  if (value && (VALID_STATUSES as string[]).includes(value)) return value as OrderStatus;
+  return "all";
+}
 
 export default function OrdersPage() {
-  const [activeTab, setActiveTab] = useState<OrderStatus>("all");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<OrderStatus>(() => parseStatus(searchParams.get("status")));
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { orders, isLoading, error, fetchOrders, pagination, setCurrentOrder } =
     useOrderStore();
 
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
+
+  // Keep activeTab in sync with ?status= deep-links (e.g. from dashboard stat tiles)
+  useEffect(() => {
+    const next = parseStatus(searchParams.get("status"));
+    setActiveTab((prev) => {
+      if (prev !== next) {
+        setCurrentPage(1);
+        return next;
+      }
+      return prev;
+    });
+  }, [searchParams]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -59,19 +88,33 @@ export default function OrdersPage() {
     if (debouncedSearchQuery) {
       filters.search = debouncedSearchQuery;
     }
-    fetchOrders(pagination?.currentPage || 1, 10, filters);
-  }, [activeTab, debouncedSearchQuery, fetchOrders, pagination?.currentPage]);
+    fetchOrders(currentPage, 10, filters);
+  }, [activeTab, debouncedSearchQuery, currentPage, fetchOrders]);
+
+  const syncStatusToUrl = (status: OrderStatus) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (status === "all") params.delete("status");
+    else params.set("status", status);
+    const qs = params.toString();
+    router.replace(`/dashboard/orders${qs ? `?${qs}` : ""}`, { scroll: false } as any);
+  };
+
+  const handleFilterChange = (status: OrderStatus) => {
+    setActiveTab(status);
+    setCurrentPage(1);
+    syncStatusToUrl(status);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    // Reset pagination when search changes; debounced value will trigger fetch
+    setCurrentPage(1);
+  };
 
   const handlePageChange = (newPage: number) => {
     if (newPage > 0 && newPage <= (pagination?.totalPages || 1)) {
-      const filters: Record<string, any> = {};
-      if (activeTab !== "all") {
-        filters.status = activeTab;
-      }
-      if (debouncedSearchQuery) {
-        filters.search = debouncedSearchQuery;
-      }
-      fetchOrders(newPage, 10, filters);
+      setCurrentPage(newPage);
     }
   };
 
@@ -274,7 +317,7 @@ export default function OrdersPage() {
             type="text"
             placeholder="جستجوی شماره سفارش..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
             className="w-full sm:w-64 h-10 pl-10 pr-4 rounded-xl border border-voxcina-cream/50 dark:border-voxcina-blue/50 bg-white dark:bg-voxcina-blue/30 focus:outline-none focus:border-voxcina-blue focus:ring-2 focus:ring-voxcina-blue/20 text-voxcina-blue dark:text-voxcina-cream placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50"
           />
           <Search className="w-5 h-5 absolute left-3 top-2.5 text-voxcina-blue/50 dark:text-voxcina-cream/50" />
@@ -296,7 +339,6 @@ export default function OrdersPage() {
               "shipped",
               "delivered",
               "cancelled",
-              "refunded",
             ] as OrderStatus[]
           ).map((status) => (
             <button
@@ -306,7 +348,7 @@ export default function OrdersPage() {
                   ? "bg-white dark:bg-voxcina-blue/40 shadow-soft text-voxcina-blue dark:text-voxcina-cream"
                   : "text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:bg-white/50 dark:hover:bg-voxcina-blue/30"
               }`}
-              onClick={() => setActiveTab(status)}
+              onClick={() => handleFilterChange(status)}
             >
               {status === "all"
                 ? "همه"
@@ -318,9 +360,7 @@ export default function OrdersPage() {
                 ? "ارسال شده"
                 : status === "delivered"
                 ? "تحویل شده"
-                : status === "cancelled"
-                ? "لغو شده"
-                : "مردود شده"}
+                : "لغو شده"}
             </button>
           ))}
         </div>
@@ -585,9 +625,9 @@ export default function OrdersPage() {
                   <span className="w-3 h-3 rounded-full bg-red-400 mt-1.5 ml-2 flex-shrink-0"></span>
                   <span>
                     <strong className="text-red-600 dark:text-red-400">
-                      لغو شده/مردود شده:
+                      لغو شده:
                     </strong>{" "}
-                    سفارش شما به دلایلی لغو یا مردود شده است.
+                    سفارش شما لغو شده است.
                   </span>
                 </li>
               </ul>

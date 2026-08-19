@@ -949,7 +949,7 @@ func GetOrder(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, http.StatusOK, response)
 }
 
-// GET /api/orders?userId=<userId>
+// GET /api/orders — authenticated user's own orders with status/search filtering and pagination.
 func GetUserOrders(w http.ResponseWriter, r *http.Request) {
 	// --- Get UserID from context (set by AuthMiddleware) ---
 	userIDCtx := r.Context().Value("userID")
@@ -1004,6 +1004,33 @@ func GetUserOrders(w http.ResponseWriter, r *http.Request) {
 
 	filter := bson.M{"user_id": userObjID, "is_active": true}
 
+	// Status filter — mirrors GetAllOrders semantics. Only the five real
+	// order statuses are valid (pending, processing, shipped, delivered,
+	// cancelled). "all" or empty means no status filtering. The legacy
+	// frontend sent "refunded" as an order status which never exists — that
+	// value belongs to payment_status, so a filtered query must correctly
+	// return zero results rather than being ignored.
+	if status := r.URL.Query().Get("status"); status != "" && status != "all" {
+		filter["status"] = status
+	}
+
+	// Search by order number, gateway transaction ID, or SnappPay payment token
+	// (case-insensitive partial matching), scoped to this user's orders.
+	if search := r.URL.Query().Get("search"); search != "" {
+		pattern := bson.M{"$regex": search, "$options": "i"}
+		filter["$or"] = []bson.M{
+			{"order_number": pattern},
+			{"gateway_transaction_id": pattern},
+			{"gateway_reference": pattern},
+		}
+	}
+
+	totalCount, err := collection.CountDocuments(ctx, filter)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error counting orders: "+err.Error())
+		return
+	}
+
 	cursor, err := collection.Find(ctx, filter, findOptions)
 	if err != nil {
 		utils.ErrorResponse(
@@ -1023,22 +1050,9 @@ func GetUserOrders(w http.ResponseWriter, r *http.Request) {
 
 	// Initialize responses as an empty slice, not nil
 	responses := make([]OrderAPIResponse, 0)
-	if len(orders) == 0 {
-		// No orders found, return a custom message
-		utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
-			"message":     "شما هنوز هیچ سفارشی ثبت نکرده‌اید.",
-			"link_text":   "مشاهده محصولات",
-			"link_url":    "/products", // Or your actual products page URL
-			"has_orders":  false,
-			"orders_data": responses, // Will be an empty array []
-		})
-		return
-	}
-
 	for _, order := range orders {
 		resp, err := newOrderAPIResponse(ctx, order)
 		if err != nil {
-			// Log or handle error for individual order preparation
 			utils.LogAction(
 				"error",
 				fmt.Sprintf(
@@ -1052,10 +1066,30 @@ func GetUserOrders(w http.ResponseWriter, r *http.Request) {
 		responses = append(responses, resp)
 	}
 
+	pagination := map[string]interface{}{
+		"currentPage": page,
+		"totalPages":  (totalCount + limit - 1) / limit,
+		"totalOrders": totalCount,
+		"pageSize":    limit,
+	}
+
+	if len(responses) == 0 {
+		utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+			"message":     "شما هنوز هیچ سفارشی ثبت نکردهاید.",
+			"link_text":   "مشاهده محصولات",
+			"link_url":    "/products",
+			"has_orders":  false,
+			"orders_data": responses,
+			"pagination":  pagination,
+		})
+		return
+	}
+
 	// If we have orders, return them along with a flag
 	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
 		"has_orders":  true,
 		"orders_data": responses,
+		"pagination":  pagination,
 	})
 }
 
