@@ -15,6 +15,10 @@ const Sidebar = ({ embedded = false }: { embedded?: boolean }) => {
   const router = useRouter();
 
   const isActiveHref = (href: string) => {
+    // "/dashboard" is a prefix of every dashboard sub-route — only highlight
+    // it on the exact dashboard page. Other entries stay highlighted on their
+    // detail pages (e.g. /dashboard/orders/[id] → سفارشهای من).
+    if (href === "/dashboard") return pathname === "/dashboard";
     if (pathname === href) return true;
     if (pathname.startsWith(href + "/")) return true;
     return false;
