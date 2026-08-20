@@ -1596,11 +1596,6 @@ func generateCouponCode() string {
 	return "TRYN-" + hex.EncodeToString(b)
 }
 
-func streamSellerAgent(ctx context.Context, model string, messages []map[string]interface{}, tools []map[string]interface{}, w io.Writer) (*streamResult, error) {
-	_, res, err := streamSellerAgentWithTools(ctx, model, messages, tools, w, ctx)
-	return res, err
-}
-
 func streamSellerAgentWithTools(ctx context.Context, model string, messages []map[string]interface{}, tools []map[string]interface{}, w io.Writer, toolCtx context.Context) (string, *streamResult, error) {
 	cfg := SellerConfig()
 
@@ -1766,13 +1761,6 @@ func messagesToolCalls(calls []accumulatedToolCall) []map[string]interface{} {
 		})
 	}
 	return out
-}
-
-func toolCallID(calls []accumulatedToolCall) string {
-	if len(calls) == 0 {
-		return "call_0"
-	}
-	return "call_0"
 }
 
 func buildToolResultMessage(hits []CatalogVariantHit) string {
