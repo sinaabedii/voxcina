@@ -5,6 +5,7 @@ go 1.24.1
 require (
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/gorilla/mux v1.8.1
+	github.com/yaa110/go-persian-calendar v1.3.0
 	go.mongodb.org/mongo-driver v1.17.3
 	golang.org/x/crypto v0.38.0
 	golang.org/x/image v0.26.0
