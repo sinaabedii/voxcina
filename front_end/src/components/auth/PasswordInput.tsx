@@ -51,19 +51,19 @@ export default function PasswordInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         error={error}
+        leftElement={
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+          >
+            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+          </button>
+        }
         rightElement={
-          <div className="flex items-center gap-1">
-            {showValidTick && isValid && (
-              <CheckCircle className="h-5 w-5 text-green-500" />
-            )}
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="text-gray-400 hover:text-gray-600 transition-colors p-1"
-            >
-              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-            </button>
-          </div>
+          showValidTick && isValid ? (
+            <CheckCircle className="h-5 w-5 text-green-500" />
+          ) : undefined
         }
         placeholder={placeholder}
         autoComplete={autoComplete}
