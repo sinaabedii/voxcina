@@ -29,6 +29,7 @@ const Modal: React.FC<ModalProps> = ({
   closeOnOverlayClick = true,
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
+  const mouseDownInsideRef = useRef(false);
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -48,9 +49,18 @@ const Modal: React.FC<ModalProps> = ({
     };
   }, [isOpen, onClose]);
 
+  const handleOverlayMouseDown = (e: React.MouseEvent) => {
+    mouseDownInsideRef.current =
+      !!contentRef.current?.contains(e.target as Node);
+  };
+
   const handleOverlayClick = (e: React.MouseEvent) => {
+    if (!closeOnOverlayClick) return;
+    // If the drag started inside the modal (e.g. selecting text in a
+    // textarea and scrolling), ignore the subsequent overlay click even
+    // when mouseup lands outside the modal.
+    if (mouseDownInsideRef.current) return;
     if (
-      closeOnOverlayClick &&
       contentRef.current &&
       !contentRef.current.contains(e.target as Node)
     ) {
@@ -70,6 +80,7 @@ const Modal: React.FC<ModalProps> = ({
             "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm",
             overlayClassName
           )}
+          onMouseDown={handleOverlayMouseDown}
           onClick={handleOverlayClick}
           aria-modal="true"
           role="dialog"

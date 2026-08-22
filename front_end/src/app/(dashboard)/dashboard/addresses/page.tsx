@@ -62,7 +62,7 @@ export default function AddressesPage() {
   const [vahed, setVahed] = useState("");
   const provinceRef = useRef("");
 
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     title: "",
     firstName: "",
     lastName: "",
@@ -77,36 +77,16 @@ export default function AddressesPage() {
     addressType: "home",
     latitude: 0,
     longitude: 0,
-  });
+  };
 
-  // Reset form when modal closes
+  const [formData, setFormData] = useState(initialFormData);
+
+  // Keep provinceRef in sync for city->map focus (draft persistence)
   useEffect(() => {
-    if (!isModalOpen) {
-      setEditingAddress(null);
-      setWizardStep(1);
-      setPelak("");
-      setTabaghe("");
-      setVahed("");
-      setFormData({
-        title: "",
-        firstName: "",
-        lastName: "",
-        phoneNumber: "",
-        province: "",
-        provinceCode: 0,
-        city: "",
-        cityCode: 0,
-        address: "",
-        postalCode: "",
-        isDefault: false,
-        addressType: "home",
-        latitude: 0,
-        longitude: 0,
-      });
-    }
-  }, [isModalOpen]);
+    provinceRef.current = formData.province;
+  }, [formData.province]);
 
-  // Fetch cities when province changes
+  // Fetch cities when province changes -- preserved exactly
   useEffect(() => {
     if (formData.province && provinces.length) {
       const selected = provinces.find((p) => p.province_name === formData.province);
@@ -221,27 +201,54 @@ export default function AddressesPage() {
   };
 
   const handleAddNew = () => {
-    setFormData({
-      title: "",
-      firstName: "",
-      lastName: "",
-      phoneNumber: "",
-      province: "",
-      provinceCode: 0,
-      city: "",
-      cityCode: 0,
-      address: "",
-      postalCode: "",
-      isDefault: addresses.length === 0, // Auto set as default if first address
-      addressType: "home",
-      latitude: 0,
-      longitude: 0,
-    });
+    // If the previous session was an edit, discard its data and start fresh
+    if (editingAddress !== null) {
+      setFormData({
+        ...initialFormData,
+        isDefault: addresses.length === 0,
+      });
+      setPelak("");
+      setTabaghe("");
+      setVahed("");
+      setWizardStep(1);
+      provinceRef.current = "";
+      setEditingAddress(null);
+      setIsModalOpen(true);
+      return;
+    }
+
+    const hasDraft =
+      formData.title ||
+      formData.firstName ||
+      formData.lastName ||
+      formData.phoneNumber ||
+      formData.province ||
+      formData.city ||
+      formData.address ||
+      formData.postalCode ||
+      pelak ||
+      tabaghe ||
+      vahed ||
+      formData.latitude !== 0 ||
+      formData.longitude !== 0 ||
+      wizardStep !== 1;
+
+    // Persist unsaved draft: keep existing values if user closed without submitting
+    if (!hasDraft) {
+      setFormData({
+        ...initialFormData,
+        isDefault: addresses.length === 0,
+      });
+      setPelak("");
+      setTabaghe("");
+      setVahed("");
+      setWizardStep(1);
+      provinceRef.current = "";
+    } else {
+      provinceRef.current = formData.province;
+    }
+
     setEditingAddress(null);
-    setWizardStep(1);
-    setPelak("");
-    setTabaghe("");
-    setVahed("");
     setIsModalOpen(true);
   };
 
@@ -325,6 +332,14 @@ export default function AddressesPage() {
         toast.success("آدرس جدید با موفقیت اضافه شد");
       }
       setIsModalOpen(false);
+      // Clear draft only after successful submission; unsaved input persists until then
+      setFormData(initialFormData);
+      setPelak("");
+      setTabaghe("");
+      setVahed("");
+      setWizardStep(1);
+      setEditingAddress(null);
+      provinceRef.current = "";
     } catch (error) {
       console.error("Failed to save address:", error);
       const errorMessage = editingAddress 
@@ -657,7 +672,7 @@ export default function AddressesPage() {
             ? "ویرایش آدرس"
             : "افزودن آدرس جدید"
         }
-        contentClassName="max-w-2xl"
+        contentClassName="max-w-4xl"
       >
         <form onSubmit={handleSubmit}>
           {/* ======== STEP 1: Map Selection ======== */}
