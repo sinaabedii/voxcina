@@ -273,6 +273,9 @@ const OrderDetailPage = () => {
                     <h4 className="font-semibold text-voxcina-blue dark:text-voxcina-cream truncate">
                       {item.product.name || item.product_name || `محصول شناسه: ${item.product.id}`}
                     </h4>
+                    {item.product.brand && (
+                      <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 mt-0.5">برند: {item.product.brand}</p>
+                    )}
                     {(item.variant.size !== "N/A" || item.variant.color !== "N/A" || item.variant.colorName) && (
                       <p className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50 mt-0.5">
                         {item.variant.size !== "N/A" && `سایز: ${item.variant.size}`}
@@ -312,6 +315,9 @@ const OrderDetailPage = () => {
                     <h4 className="text-sm font-semibold text-voxcina-blue dark:text-voxcina-cream truncate">
                       {item.product.name || item.product_name || `محصول شناسه: ${item.product.id}`}
                     </h4>
+                    {item.product.brand && (
+                      <p className="text-[11px] text-voxcina-blue/60 dark:text-voxcina-cream/60 mt-0.5">برند: {item.product.brand}</p>
+                    )}
                     {(item.variant.size !== "N/A" || item.variant.color !== "N/A" || item.variant.colorName) && (
                       <p className="text-[11px] text-voxcina-blue/50 dark:text-voxcina-cream/50 mt-0.5">
                         {item.variant.size !== "N/A" && `سایز: ${item.variant.size}`}

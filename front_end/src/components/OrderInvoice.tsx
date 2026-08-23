@@ -45,7 +45,7 @@ function generateInvoiceHTML(order: Order, baseUrl: string): string {
   const itemsHTML = order.items.map((item, idx) => `
     <tr style="border-bottom: 1px solid #e5e7eb;">
       <td style="padding: 6px 4px; text-align: center; color: #6b7280; font-size: 11px;">${idx + 1}</td>
-      <td style="padding: 6px 4px; font-weight: 500; color: #1f2937; font-size: 11px;">${item.product.name}</td>
+      <td style="padding: 6px 4px; font-weight: 500; color: #1f2937; font-size: 11px;">${item.product.name}${item.product.brand ? `<span style="color:#6b7280; font-weight:400;"> — ${item.product.brand}</span>` : ''}</td>
       <td style="padding: 6px 4px; text-align: center; color: #6b7280; font-size: 11px;">
         ${item.variant.size} ${item.variant.colorName ? `- ${item.variant.colorName}` : ''}
       </td>

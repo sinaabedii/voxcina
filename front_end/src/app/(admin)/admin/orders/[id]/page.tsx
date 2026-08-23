@@ -398,6 +398,9 @@ export default function AdminOrderDetailsPage() {
                       <h4 className="font-medium text-voxcina-blue dark:text-voxcina-cream truncate">
                         {item.product?.name || item.product_name || "نامشخص"}
                       </h4>
+                      {item.product?.brand && (
+                        <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 mt-0.5">برند: {item.product.brand}</p>
+                      )}
                       <div className="flex items-center gap-3 mt-1 text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">
                         {item.variant?.size && (
                           <span>سایز: {item.variant.size}</span>
@@ -460,18 +463,45 @@ export default function AdminOrderDetailsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">نام و نام خانوادگی</label>
-                  <p className="font-medium text-voxcina-blue dark:text-voxcina-cream">
-                    {shippingAddress.first_name} {shippingAddress.last_name}
-                  </p>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">حساب کاربری (ثبت‌شده)</label>
+                    <p className="font-medium text-voxcina-blue dark:text-voxcina-cream">
+                      {(() => {
+                        const o = order as any;
+                        const first = o.user_first_name || "";
+                        const last = o.user_last_name || "";
+                        const combined = `${first} ${last}`.trim();
+                        return combined || o.user_name || "-";
+                      })()}
+                    </p>
+                    {(order as any).user_phone && (
+                      <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 mt-1" dir="ltr">
+                        {(order as any).user_phone}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">شماره تماس حساب</label>
+                    <p className="font-medium text-voxcina-blue dark:text-voxcina-cream" dir="ltr">
+                      {(order as any).user_phone || "-"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">شماره تماس</label>
-                  <p className="font-medium text-voxcina-blue dark:text-voxcina-cream" dir="ltr">
-                    {shippingAddress.phone_number}
-                  </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 pt-4">
+                  <div>
+                    <label className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">گیرنده (آدرس ارسال)</label>
+                    <p className="font-medium text-voxcina-blue dark:text-voxcina-cream">
+                      {`${shippingAddress.first_name || ""} ${shippingAddress.last_name || ""}`.trim() || "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">شماره تماس گیرنده</label>
+                    <p className="font-medium text-voxcina-blue dark:text-voxcina-cream" dir="ltr">
+                      {shippingAddress.phone_number || "-"}
+                    </p>
+                  </div>
                 </div>
               </div>
             </CardContent>

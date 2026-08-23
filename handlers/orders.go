@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -43,9 +44,11 @@ func (e *checkoutDiscountRuleError) Unwrap() error {
 
 // OrderProductResponse is a subset of product information for order items.
 type OrderProductResponse struct {
-	ID    primitive.ObjectID `json:"id"`
-	Name  string             `json:"name"`
-	Image string             `json:"image"` // Assuming main image URL
+	ID      primitive.ObjectID `json:"id"`
+	Name    string             `json:"name"`
+	Image   string             `json:"image"` // Assuming main image URL
+	Brand   string             `json:"brand,omitempty"`
+	BrandID primitive.ObjectID `json:"brand_id,omitempty"`
 }
 
 // OrderItemAPIResponse represents a single item in an order for API responses.
@@ -90,6 +93,10 @@ type OrderAPIResponse struct {
 
 type AdminOrderAPIResponse struct {
 	OrderAPIResponse
+	UserFirstName string `json:"user_first_name,omitempty"`
+	UserLastName  string `json:"user_last_name,omitempty"`
+	UserName      string `json:"user_name,omitempty"`
+	UserPhone     string `json:"user_phone,omitempty"`
 }
 
 // Helper function to populate order items and create OrderAPIResponse
@@ -123,9 +130,11 @@ func newOrderAPIResponse(
 
 		populatedItems = append(populatedItems, OrderItemAPIResponse{
 			Product: OrderProductResponse{
-				ID:    product.ID,
-				Name:  product.Name,
-				Image: productImage,
+				ID:      product.ID,
+				Name:    product.Name,
+				Image:   productImage,
+				Brand:   product.Brand,
+				BrandID: product.BrandID,
 			},
 			Variant:         item.Variant,
 			Quantity:        item.Quantity,
@@ -176,7 +185,38 @@ func newAdminOrderAPIResponse(ctx context.Context, order models.Order) (AdminOrd
 		return AdminOrderAPIResponse{}, err
 	}
 
-	return AdminOrderAPIResponse{OrderAPIResponse: response}, nil
+	adminResponse := AdminOrderAPIResponse{OrderAPIResponse: response}
+
+	// Populate registered user details (first_name / last_name / phone)
+	// so the admin order details view can show both the account holder and
+	// the shipping-address recipient.
+	usersCollection := db.Database.Collection("users")
+	var user models.User
+	if err := usersCollection.FindOne(ctx, bson.M{"_id": order.UserID}).Decode(&user); err == nil {
+		adminResponse.UserFirstName = user.FirstName
+		adminResponse.UserLastName = user.LastName
+		adminResponse.UserPhone = user.Phone
+		// Prefer explicit Name, fall back to composed first+last.
+		if strings.TrimSpace(user.Name) != "" {
+			adminResponse.UserName = user.Name
+		} else if strings.TrimSpace(user.FirstName) != "" || strings.TrimSpace(user.LastName) != "" {
+			adminResponse.UserName = strings.TrimSpace(strings.TrimSpace(user.FirstName) + " " + strings.TrimSpace(user.LastName))
+		}
+		// If FirstName/LastName empty but Name exists, try to split for convenience.
+		if (adminResponse.UserFirstName == "" || adminResponse.UserLastName == "") && strings.TrimSpace(adminResponse.UserName) != "" {
+			parts := strings.Fields(adminResponse.UserName)
+			if len(parts) >= 1 && adminResponse.UserFirstName == "" {
+				adminResponse.UserFirstName = parts[0]
+			}
+			if len(parts) >= 2 && adminResponse.UserLastName == "" {
+				adminResponse.UserLastName = strings.Join(parts[1:], " ")
+			}
+		}
+	} else if err != mongo.ErrNoDocuments {
+		utils.LogAction("error", fmt.Sprintf("Failed to fetch user %s for order %s: %v", order.UserID.Hex(), order.ID.Hex(), err))
+	}
+
+	return adminResponse, nil
 }
 
 // orderGatewayName keeps the payment gateway visible for failed attempts too.

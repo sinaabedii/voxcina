@@ -33,6 +33,8 @@ const transformBackendOrder = (backendOrderData: any): Order => {
       id: item.product?.id || item.product_id, // Handle both nested and flat structures
       name: item.product?.name || item.product_name || 'نامشخص',
       image: item.product?.image || item.product_image || '',
+      brand: item.product?.brand || '',
+      brand_id: item.product?.brand_id || undefined,
     },
     product_id: item.product_id,
     product_name: item.product_name,
@@ -99,6 +101,10 @@ const transformBackendOrder = (backendOrderData: any): Order => {
     jalali_updated_at: backendOrderData.jalali_updated_at || '',
     jalali_paid_at: backendOrderData.jalali_paid_at,
     product_count: backendOrderData.product_count || 0,
+    user_first_name: backendOrderData.user_first_name,
+    user_last_name: backendOrderData.user_last_name,
+    user_name: backendOrderData.user_name,
+    user_phone: backendOrderData.user_phone,
   } as Order;
 };
 

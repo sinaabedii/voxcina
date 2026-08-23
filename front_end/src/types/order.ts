@@ -53,6 +53,8 @@ export interface OrderProductResponse {
   id: string; // Corresponds to primitive.ObjectID
   name: string;
   image: string;
+  brand?: string;
+  brand_id?: string;
 }
 
 // Order item structure that matches backend OrderItemAPIResponse
@@ -120,4 +122,9 @@ export interface Order {
   jalali_paid_at?: string;
   // Product count field that backend always sends
   product_count: number;
+  // Admin-only: registered user account holder (populated via AdminOrderAPIResponse)
+  user_first_name?: string;
+  user_last_name?: string;
+  user_name?: string;
+  user_phone?: string;
 }
