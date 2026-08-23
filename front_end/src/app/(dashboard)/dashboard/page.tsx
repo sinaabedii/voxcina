@@ -16,7 +16,6 @@ import {
 import Button from "@/components/ui/Button";
 import { useDashboardStore } from "@/store/dashboard-store";
 import RecentOrders from "@/components/dashboard/RecentOrders";
-import ProfileSection from "@/components/dashboard/ProfileSection";
 
 export default function DashboardPage() {
   const { user, getProfile, isLoading: userLoading } = useAuthStore();
@@ -162,15 +161,6 @@ export default function DashboardPage() {
           </motion.div>
         </motion.section>
       )}
-
-      <motion.section
-        className="mb-8"
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <ProfileSection />
-      </motion.section>
 
       <motion.section
         className="mb-8"
