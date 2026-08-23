@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { Search, MapPin, Loader2, Crosshair, X } from "lucide-react";
+import { MapPin, Loader2, Crosshair, X } from "lucide-react";
 import { MapComponent, MapTypes } from "@neshan-maps-platform/mapbox-gl-react";
 import "@neshan-maps-platform/mapbox-gl-react/dist/style.css";
 import nmp_mapboxgl, { Marker as NeshanMarker } from "@neshan-maps-platform/mapbox-gl";
@@ -18,12 +18,6 @@ const DEFAULT_ZOOM = 11;
 const EXTERNAL_ZOOM = 13; // city selection / existing address
 const PICKED_ZOOM = 16;   // user click / drag for precise selection
 
-interface SearchResult {
-  title: string;
-  address: string;
-  location: { x: number; y: number };
-}
-
 const MAP_KEY = process.env.NEXT_PUBLIC_NESHAN_API_KEY;
 
 const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressResolved }) => {
@@ -38,10 +32,6 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
   const isInternalChangeRef = useRef(false);
   const [mounted, setMounted] = useState(false);
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [showResults, setShowResults] = useState(false);
   const [resolvedAddress, setResolvedAddress] = useState<string>("");
   const [resolvingAddress, setResolvingAddress] = useState(false);
   const [locating, setLocating] = useState(false);
@@ -181,62 +171,6 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
     return () => clearTimeout(timer);
   }, [locationError]);
 
-  const searchAddress = useCallback(
-    async (term: string) => {
-      if (!term.trim()) {
-        setSearchResults([]);
-        return;
-      }
-      setSearching(true);
-      try {
-        const res = await fetch(
-          `/api/neshan/geocode?address=${encodeURIComponent(term)}`
-        );
-        if (!res.ok) throw new Error("geocode failed");
-        const data = await res.json();
-        if (data.location) {
-          setSearchResults([
-            {
-              title: term,
-              address: "",
-              location: { x: data.location.x, y: data.location.y },
-            },
-          ]);
-          setShowResults(true);
-        } else {
-          setSearchResults([]);
-        }
-      } catch {
-        setSearchResults([]);
-      } finally {
-        setSearching(false);
-      }
-    },
-    []
-  );
-
-  useEffect(() => {
-    const handle = setTimeout(() => {
-      if (searchTerm.trim().length >= 2) {
-        searchAddress(searchTerm);
-      } else {
-        setSearchResults([]);
-      }
-    }, 300);
-    return () => clearTimeout(handle);
-  }, [searchTerm, searchAddress]);
-
-  const pickResult = (r: SearchResult) => {
-    const lat = r.location.y;
-    const lng = r.location.x;
-    onChangeRef.current({ lat, lng });
-    onAddressResolvedRef.current?.(r.address || r.title);
-    setSearchTerm("");
-    setShowResults(false);
-    setSearchResults([]);
-    placeMarkerRef.current?.(lat, lng, true);
-  };
-
   const useMyLocation = () => {
     if (!navigator.geolocation) {
       setLocationError("مرورگر شما از موقعیت‌یابی پشتیبانی نمی‌کند");
@@ -292,64 +226,27 @@ const MapPicker: React.FC<MapPickerProps> = ({ location, onChange, onAddressReso
 
   return (
     <div className="space-y-2">
-      <div className="relative">
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-voxcina-blue/50 dark:text-voxcina-cream/50 pointer-events-none" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onFocus={() => searchResults.length > 0 && setShowResults(true)}
-              placeholder="جستجوی آدرس (مثلاً: پاسداران، تهران)"
-              className="w-full h-10 pr-9 pl-3 rounded-xl border border-secondary-200 dark:border-voxcina-blue/30 bg-white dark:bg-voxcina-blue/10 text-sm text-voxcina-blue dark:text-voxcina-cream focus:outline-none focus:ring-2 focus:ring-voxcina-blue/30"
-            />
-            {searching && (
-              <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-voxcina-blue/50 animate-spin" />
-            )}
-            {showResults && searchResults.length > 0 && (
-              <div className="absolute z-20 top-full mt-1 inset-x-0 max-h-60 overflow-y-auto rounded-xl border border-secondary-200 dark:border-voxcina-blue/30 bg-white dark:bg-voxcina-blue/95 shadow-lg">
-                {searchResults.map((r, idx) => (
-                  <button
-                    key={`${r.location.x}-${r.location.y}-${idx}`}
-                    type="button"
-                    onClick={() => pickResult(r)}
-                    className="w-full text-right px-3 py-2 hover:bg-voxcina-cream/40 dark:hover:bg-voxcina-blue/30 border-b border-secondary-100 dark:border-voxcina-blue/20 last:border-b-0 transition-colors"
-                  >
-                    <p className="text-xs font-bold text-voxcina-blue dark:text-voxcina-cream">
-                      {r.title}
-                    </p>
-                    {r.address && (
-                      <p className="text-[10px] text-voxcina-blue/60 dark:text-voxcina-cream/60 mt-0.5">
-                        {r.address}
-                      </p>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={useMyLocation}
-            disabled={locating}
-            className={cn(
-              "h-10 px-3 rounded-xl border border-secondary-200 dark:border-voxcina-blue/30 bg-white dark:bg-voxcina-blue/10 text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/40 dark:hover:bg-voxcina-blue/30 transition-colors flex items-center gap-1.5 text-xs font-medium disabled:opacity-50"
-            )}
-            title="موقعیت من"
-          >
-            {locating ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Crosshair className="h-4 w-4" />
-            )}
-            <span className="hidden sm:inline">موقعیت من</span>
-          </button>
-        </div>
-        {locationError && (
-          <p className="text-[10px] text-red-600 dark:text-red-400 mt-1">{locationError}</p>
-        )}
+      <div className="flex items-center justify-end">
+        <button
+          type="button"
+          onClick={useMyLocation}
+          disabled={locating}
+          className={cn(
+            "h-10 px-3 rounded-xl border border-secondary-200 dark:border-voxcina-blue/30 bg-white dark:bg-voxcina-blue/10 text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/40 dark:hover:bg-voxcina-blue/30 transition-colors flex items-center gap-1.5 text-xs font-medium disabled:opacity-50"
+          )}
+          title="موقعیت من"
+        >
+          {locating ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Crosshair className="h-4 w-4" />
+          )}
+          <span className="hidden sm:inline">موقعیت من</span>
+        </button>
       </div>
+      {locationError && (
+        <p className="text-[10px] text-red-600 dark:text-red-400">{locationError}</p>
+      )}
 
       <div className="relative w-full h-64 rounded-xl overflow-hidden border border-secondary-200 dark:border-voxcina-blue/30 [&_.mapboxgl-ctrl-logo]:hidden [&_.mapboxgl-ctrl-attrib-button]:hidden">
         <MapComponent

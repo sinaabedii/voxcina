@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -376,7 +377,73 @@ func FinalizeVerifiedPayment(attemptID primitive.ObjectID, verifiedAmount int64,
 		"$set": bson.M{"items": []models.CartItem{}, "updated_at": now},
 	})
 
+	// Order confirmation SMS (template 748931). Best-effort, non-blocking for
+	// the payment flow — delivery failure must never roll back a verified payment.
+	go sendOrderConfirmationSMS(attempt.UserID, attempt.OrderID, order.OrderNumber, order.ShippingAddress.PhoneNumber)
+
 	return nil
+}
+
+func sendOrderConfirmationSMS(userID, orderID primitive.ObjectID, orderNumber, shippingPhone string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var phone, firstName string
+	usersCol := db.Database.Collection("users")
+	var user models.User
+	if err := usersCol.FindOne(ctx, bson.M{"_id": userID}).Decode(&user); err == nil {
+		phone = strings.TrimSpace(user.Phone)
+		if strings.TrimSpace(user.FirstName) != "" {
+			firstName = strings.TrimSpace(user.FirstName)
+		} else if strings.TrimSpace(user.Name) != "" {
+			firstName = strings.Fields(strings.TrimSpace(user.Name))[0]
+		}
+	}
+	if strings.TrimSpace(phone) == "" {
+		phone = strings.TrimSpace(shippingPhone)
+	}
+	if strings.TrimSpace(phone) == "" {
+		return
+	}
+	if strings.TrimSpace(firstName) == "" {
+		firstName = "کاربر گرامی"
+	}
+	svc := services.NewSMSService()
+	if err := svc.SendOrderConfirmation(phone, firstName, orderNumber); err != nil {
+		fmt.Printf("order confirmation SMS failed for order %s (%s): %v\n", orderID.Hex(), orderNumber, err)
+	}
+	go sendAdminOrderAlertSMS(orderID, orderNumber)
+}
+
+func sendAdminOrderAlertSMS(orderID primitive.ObjectID, orderNumber string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	usersCol := db.Database.Collection("users")
+	cursor, err := usersCol.Find(ctx, bson.M{"role": "admin", "is_active": true})
+	if err != nil {
+		fmt.Printf("admin order alert: failed to query admins for order %s: %v\n", orderID.Hex(), err)
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var admins []models.User
+	if err := cursor.All(ctx, &admins); err != nil {
+		fmt.Printf("admin order alert: failed to decode admins for order %s: %v\n", orderID.Hex(), err)
+		return
+	}
+	phones := make([]string, 0, len(admins))
+	for _, u := range admins {
+		if p := strings.TrimSpace(u.Phone); p != "" {
+			phones = append(phones, p)
+		}
+	}
+	if len(phones) == 0 {
+		return
+	}
+	if err := services.NewSMSService().SendAdminOrderAlert(phones, orderNumber); err != nil {
+		fmt.Printf("admin order alert SMS failed for order %s (%s): %v\n", orderID.Hex(), orderNumber, err)
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -528,7 +595,7 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 		statusText = "در حال پردازش"
 		successParam = "1"
 
-		ordersCol.UpdateOne(ctx, bson.M{"_id": order.ID, "payment_status": bson.M{"$ne": "paid"}}, bson.M{
+		updateResult, _ := ordersCol.UpdateOne(ctx, bson.M{"_id": order.ID, "payment_status": bson.M{"$ne": "paid"}}, bson.M{
 			"$set": bson.M{
 				"payment_status":   paymentStatus,
 				"status":           orderStatus,
@@ -538,6 +605,9 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 				"updated_at":       now,
 			},
 		})
+		if updateResult != nil && updateResult.ModifiedCount > 0 {
+			go sendOrderConfirmationSMS(order.UserID, order.ID, order.OrderNumber, order.ShippingAddress.PhoneNumber)
+		}
 	} else if err == nil && !verifyResp.Success {
 		paymentStatus = "abandoned"
 		orderStatus = "pending"
@@ -679,7 +749,7 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request) {
 		canRetry = false
 
 		now := time.Now()
-		_, err := ordersCol.UpdateOne(ctx, bson.M{"_id": order.ID, "payment_status": bson.M{"$ne": "paid"}}, bson.M{
+		updateResult, err := ordersCol.UpdateOne(ctx, bson.M{"_id": order.ID, "payment_status": bson.M{"$ne": "paid"}}, bson.M{
 			"$set": bson.M{
 				"payment_status":   paymentStatus,
 				"zibal_ref_number": verifyResp.RefNumber,
@@ -693,6 +763,9 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to update order")
 			return
+		}
+		if updateResult != nil && updateResult.ModifiedCount > 0 {
+			go sendOrderConfirmationSMS(order.UserID, order.ID, order.OrderNumber, order.ShippingAddress.PhoneNumber)
 		}
 	} else if !verifyResp.Success {
 		paymentStatus = "abandoned"

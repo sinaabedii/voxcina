@@ -626,6 +626,8 @@ func ConfirmPayment(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 
+	go sendOrderConfirmationSMS(order.UserID, order.ID, order.OrderNumber, order.ShippingAddress.PhoneNumber)
+
 	// Fetch updated order for response
 	var updatedOrder models.Order
 	if err := ordersCollection.FindOne(ctx, bson.M{"_id": orderID}).Decode(&updatedOrder); err != nil {
