@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -409,7 +410,11 @@ func AdminListReturnRequests(w http.ResponseWriter, r *http.Request) {
 // terminal states immutable: two racing approvals resolve to one winner, and
 // deciding an already-decided request conflicts instead of overwriting.
 func AdminDecideReturnRequest(w http.ResponseWriter, r *http.Request) {
-	adminID, adminName, ok := adminIdentity(r)
+	// A context is created early so adminIdentity can resolve the display name.
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	adminID, adminName, ok := adminIdentity(ctx, r)
 	if !ok {
 		utils.ErrorResponse(w, http.StatusUnauthorized, "User ID not found in context")
 		return
@@ -446,9 +451,6 @@ func AdminDecideReturnRequest(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, http.StatusBadRequest, "action باید 'approve' یا 'reject' باشد")
 		return
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
 
 	now := time.Now()
 	result, err := db.Database.Collection("return_requests").UpdateOne(
@@ -493,7 +495,7 @@ func AdminDecideReturnRequest(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, http.StatusOK, updated)
 }
 
-// pushReturnTimelineEntry appends a note-only timeline entry to the order a
+// pushReturnTimelineEntry appends a note-only audit entry to the order a
 // return request belongs to, so admins see the decision in the order history.
 func pushReturnTimelineEntry(ctx context.Context, requestID primitive.ObjectID, status string, adminID primitive.ObjectID, adminName, note string) {
 	var req models.ReturnRequest
@@ -510,7 +512,10 @@ func pushReturnTimelineEntry(ctx context.Context, requestID primitive.ObjectID, 
 	}
 	update := bson.M{
 		"$push": bson.M{"timeline": models.OrderTimelineEntry{
-			Status:    req.Status,
+			// The order's own lifecycle is untouched by a return decision; it
+			// stays "delivered". Recording the return-request status here would
+			// corrupt the order timeline with statuses the order never had.
+			Status:    "delivered",
 			Timestamp: time.Now(),
 			Note:      entryNote,
 			AdminID:   adminID,
@@ -537,16 +542,28 @@ func authUserID(r *http.Request) (primitive.ObjectID, bool) {
 	return userID, true
 }
 
-// adminIdentity extracts admin ID and display name from middleware context.
-func adminIdentity(r *http.Request) (primitive.ObjectID, string, bool) {
+// adminIdentity extracts the admin's ObjectID from middleware context and
+// resolves a display name. AuthMiddleware sets "userID" and "role" but no
+// name, so the display name is looked up from the users collection on a
+// best-effort basis: first+last name, falling back to phone number.
+func adminIdentity(ctx context.Context, r *http.Request) (primitive.ObjectID, string, bool) {
 	userID, ok := authUserID(r)
 	if !ok {
 		return primitive.NilObjectID, "", false
 	}
+	var user struct {
+		FirstName   string `bson:"first_name,omitempty"`
+		LastName    string `bson:"last_name,omitempty"`
+		PhoneNumber string `bson:"phone_number,omitempty"`
+	}
 	adminName := ""
-	if nameCtx := r.Context().Value("userName"); nameCtx != nil {
-		if name, ok := nameCtx.(string); ok {
-			adminName = name
+	if err := db.Database.Collection("users").FindOne(
+		ctx, bson.M{"_id": userID},
+		optionsProjectionAdminName(),
+	).Decode(&user); err == nil {
+		adminName = strings.TrimSpace(user.FirstName + " " + user.LastName)
+		if adminName == "" {
+			adminName = user.PhoneNumber
 		}
 	}
 	return userID, adminName, true
@@ -672,6 +689,16 @@ func returnBlockMessage(reason string) string {
 
 func optionsFindOneLatest() *options.FindOneOptions {
 	return &options.FindOneOptions{Sort: bson.D{{Key: "created_at", Value: -1}}}
+}
+
+func optionsProjectionAdminName() *options.FindOneOptions {
+	return &options.FindOneOptions{
+		Projection: bson.D{
+			{Key: "first_name", Value: 1},
+			{Key: "last_name", Value: 1},
+			{Key: "phone_number", Value: 1},
+		},
+	}
 }
 
 func optionsList(skip, limit int64) *options.FindOptions {

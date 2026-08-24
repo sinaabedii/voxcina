@@ -71,7 +71,12 @@ export default function AdminReturnRequestsPage() {
     }
   };
 
-  const pendingCount = returnRequests.filter((r) => r.status === "pending").length;
+  // When the pending filter is active the server's total count is authoritative
+  // (it spans all pages); otherwise only the loaded page is known.
+  const pendingCount =
+    statusFilter === "pending"
+      ? returnRequestsPagination?.totalCount ?? returnRequests.filter((r) => r.status === "pending").length
+      : returnRequests.filter((r) => r.status === "pending").length;
 
   return (
     <div className="space-y-4">

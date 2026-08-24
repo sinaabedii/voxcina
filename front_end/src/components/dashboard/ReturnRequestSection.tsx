@@ -56,6 +56,7 @@ export default function ReturnRequestSection({ order }: ReturnRequestSectionProp
     currentReturnStatus,
     returnRequestLoading,
     fetchReturnRequestStatus,
+    clearReturnStatus,
     createReturnRequest,
     cancelReturnRequest,
   } = useOrderStore();
@@ -70,8 +71,11 @@ export default function ReturnRequestSection({ order }: ReturnRequestSectionProp
   const itemKey = (productId: string, variantId?: string) => `${productId}|${variantId || ""}`;
 
   useEffect(() => {
+    // Drop the previous order's data immediately so a slow response for the
+    // old order can never render against the new one.
+    clearReturnStatus();
     fetchReturnRequestStatus(order.id);
-  }, [order.id, fetchReturnRequestStatus]);
+  }, [order.id, fetchReturnRequestStatus, clearReturnStatus]);
 
   const eligibility = currentReturnStatus?.eligibility;
   const request = currentReturnStatus?.request;

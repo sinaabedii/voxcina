@@ -155,6 +155,7 @@ interface OrderActions {
   cancelSnappPay: (orderId: string) => Promise<Order | null>;
   updateSnappPay: (orderId: string, items: Array<{ product_id: string; size: string; color: string; color_name?: string; quantity: number }>) => Promise<Order | null>;
   fetchReturnRequestStatus: (orderId: string) => Promise<ReturnRequestStatusResponse | null>;
+  clearReturnStatus: () => void;
   createReturnRequest: (orderId: string, payload: CreateReturnRequestPayload) => Promise<ReturnRequest | null>;
   cancelReturnRequest: (orderId: string) => Promise<boolean>;
   fetchAdminReturnRequests: (filters?: { status?: string; order_id?: string; page?: number; limit?: number }) => Promise<void>;
@@ -662,6 +663,11 @@ export const useOrderStore = create<OrderState & AdminReturnState & OrderActions
             throw new Error("Failed to fetch return request status");
           }
           const data = (await response.json()) as ReturnRequestStatusResponse;
+          // Guard against out-of-order responses when the user has already
+          // navigated to a different order.
+          if (data.request && data.request.order_id !== orderId) {
+            return null;
+          }
           set({ currentReturnStatus: data, returnRequestLoading: false });
           return data;
         } catch (error) {
@@ -669,6 +675,10 @@ export const useOrderStore = create<OrderState & AdminReturnState & OrderActions
           set({ returnRequestLoading: false });
           return null;
         }
+      },
+
+      clearReturnStatus: () => {
+        set({ currentReturnStatus: null, returnRequestLoading: false });
       },
 
       createReturnRequest: async (orderId, payload) => {
