@@ -108,6 +108,7 @@ export interface Order {
   zibal_ref_number?: string; // Zibal reference number
   gateway_name?: 'zibal' | 'digipay' | 'snappay'; // Payment gateway used
   gateway_transaction_id?: string;
+  digipay_tracking_code?: string;
   snappay_payment_token?: string;
   tracking_code?: string | null; // Nullable
   timeline?: OrderTimelineEntry[]; // Order status change history

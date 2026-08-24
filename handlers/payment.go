@@ -519,6 +519,13 @@ func DigipayPaymentCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if verifyResp.RefNumber != "" {
+		ordersCol := db.Database.Collection("orders")
+		ordersCol.UpdateOne(ctx, bson.M{"_id": attempt.OrderID}, bson.M{
+			"$set": bson.M{"digipay_tracking_code": verifyResp.RefNumber},
+		})
+	}
+
 	redirectURL := fmt.Sprintf("%s/checkout/callback?success=1&orderId=%s&gateway=digipay",
 		appURL, attempt.OrderID.Hex())
 	http.Redirect(w, r, redirectURL, http.StatusSeeOther)

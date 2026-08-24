@@ -66,6 +66,7 @@ type Order struct {
 	GatewayName                 string               `bson:"gateway_name,omitempty"     json:"gateway_name,omitempty"`                 // Payment gateway: "zibal" | "digipay" | "snappay"
 	GatewayTransactionID        string               `bson:"gateway_transaction_id,omitempty" json:"gateway_transaction_id,omitempty"` // Merchant/provider transaction ID
 	GatewayReference            string               `bson:"gateway_reference,omitempty" json:"gateway_reference,omitempty"`           // Provider payment token/reference
+	DigipayTrackingCode         string               `bson:"digipay_tracking_code,omitempty" json:"digipay_tracking_code,omitempty"`   // DigiPay bank tracking code
 	TrackingCode                *string              `bson:"tracking_code,omitempty"    json:"tracking_code,omitempty"`                // Shipping tracking number (nullable)
 	Timeline                    []OrderTimelineEntry `bson:"timeline,omitempty"         json:"timeline,omitempty"`                     // Order status change history
 	Notes                       []OrderNote          `bson:"notes,omitempty"            json:"notes,omitempty"`                        // Internal admin notes

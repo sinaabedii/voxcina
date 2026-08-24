@@ -82,6 +82,7 @@ type OrderAPIResponse struct {
 	GatewayName          string                      `json:"gateway_name,omitempty"`
 	GatewayTransactionID string                      `json:"gateway_transaction_id,omitempty"`
 	SnappPayPaymentToken string                      `json:"snappay_payment_token,omitempty"`
+	DigipayTrackingCode  string                      `json:"digipay_tracking_code,omitempty"`
 	Timeline             []models.OrderTimelineEntry `json:"timeline,omitempty"`
 	Notes                []models.OrderNote          `json:"notes,omitempty"`
 	CreatedAt            time.Time                   `json:"created_at"`
@@ -169,6 +170,7 @@ func newOrderAPIResponse(
 		GatewayName:          gatewayName,
 		GatewayTransactionID: order.GatewayTransactionID,
 		SnappPayPaymentToken: paymentToken,
+		DigipayTrackingCode:  order.DigipayTrackingCode,
 		Timeline:             order.Timeline,
 		Notes:                order.Notes,
 		CreatedAt:            order.CreatedAt,
