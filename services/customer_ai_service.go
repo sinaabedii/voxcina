@@ -142,7 +142,7 @@ func loadCustomerAIConfig() (*CustomerAIConfig, error) {
 // defaultCustomerAIConfig provides a safe fallback configuration
 func defaultCustomerAIConfig() *CustomerAIConfig {
 	return &CustomerAIConfig{
-		SystemPrompt: `You are Voxcina, a Persian e-commerce shopping assistant.
+		SystemPrompt: `You are Voxa, a Persian e-commerce shopping assistant.
 
 You have access to these tools:
 1. {"tool": "search_products", "arguments": {"query": "search term"}} - Search for products
@@ -1003,7 +1003,7 @@ func (s *CustomerAIService) RunSupportAgent(
 		loginStatus = "logged_in"
 	}
 
-	systemPrompt := `You are Voxcina Smart Support Chatbot, an assistant for a Persian e-commerce website.
+	systemPrompt := `You are Voxa Smart Support Chatbot, an assistant for a Persian e-commerce website.
 Your tasks:
 - Understand the customer's message and recent chat history.
 - Provide a helpful, concise reply in Persian (Farsi) only.
