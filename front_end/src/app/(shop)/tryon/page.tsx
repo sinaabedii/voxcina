@@ -114,7 +114,7 @@ const RECOMMENDATION_TEMPLATES: Record<string, Record<string, (a: string, b: str
 
 const NEGOTIATION_OPENERS = [
   { icon: Tag, text: "سلام! می‌خوام یه تخفیف خوب برای این محصول بگیرم." },
-  { icon: Sparkles, text: "سلام سارا! این قیمت برام کمی بالاست، می‌تونی کمک کنی؟" },
+  { icon: Sparkles, text: "سلام ووکسا! این قیمت برام کمی بالاست، می‌تونی کمک کنی؟" },
   { icon: ShoppingBag, text: "سلام! اگه تخفیف خوبی بدی همین الان خرید می‌کنم." },
   { icon: Layers, text: "یه ست پیشنهاد بده" },
 ];
@@ -373,7 +373,7 @@ export default function TryOnRoomPage() {
     } else if (eligibleItems.length > 0 && chatMessages.length === 0) {
       // First visit — no persisted messages, cart has eligible items: show welcome
       const firstName = user?.name?.split(" ")[0] || "رفیق";
-      const welcomeText = `سلام ${firstName} جان، سارا هستم! لباستو پرو کن خریدت رو نهایی کنیم.`;
+      const welcomeText = `سلام ${firstName} جان، ووکسا هستم! لباستو پرو کن خریدت رو نهایی کنیم.`;
       setChatMessages([{ role: "agent", content: welcomeText }]);
       persistMessage({
         id: makeDbMessageId(),
@@ -1029,7 +1029,7 @@ export default function TryOnRoomPage() {
           </h1>
         </div>
         <p className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50 mr-10">
-          هوش مصنوعی، لباس‌ها را روی عکس شما پرو می‌کند و سارا به شما تخفیف می‌دهد
+          هوش مصنوعی، لباس‌ها را روی عکس شما پرو می‌کند و ووکسا به شما تخفیف می‌دهد
         </p>
       </motion.div>
 
@@ -1131,7 +1131,7 @@ export default function TryOnRoomPage() {
             )}
           >
             <Sparkles className="h-3.5 w-3.5" />
-            گفتگو با سارا
+            گفتگو با ووکسا
           </button>
         </div>
       )}
@@ -1330,7 +1330,7 @@ export default function TryOnRoomPage() {
                         <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-white dark:border-voxcina-blue/10" />
                       </div>
                       <div>
-                        <span className="text-sm font-bold text-voxcina-blue dark:text-voxcina-cream">سارا</span>
+                        <span className="text-sm font-bold text-voxcina-blue dark:text-voxcina-cream">ووکسا</span>
                         <span className="text-[10px] text-voxcina-blue/50 dark:text-voxcina-cream/50 block -mt-0.5">فروشنده هوشمند</span>
                       </div>
                     </div>
@@ -1564,7 +1564,7 @@ export default function TryOnRoomPage() {
                       <div className="bg-background border border-voxcina-blue/20 rounded-xl p-3 mt-3">
                         <div className="flex items-center gap-1.5 mb-2">
                           <ShoppingBag className="h-3.5 w-3.5 text-voxcina-blue dark:text-voxcina-cream" />
-                          <p className="text-[11px] font-bold text-voxcina-blue dark:text-voxcina-cream">نتیجه جستجوی سارا</p>
+                          <p className="text-[11px] font-bold text-voxcina-blue dark:text-voxcina-cream">نتیجه جستجوی ووکسا</p>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                           {catalogHits.map((hit) => (
@@ -1689,7 +1689,7 @@ export default function TryOnRoomPage() {
                       type="text"
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
-                      placeholder="پیام به سارا..."
+                      placeholder="پیام به ووکسا..."
                       className="flex-1 bg-white dark:bg-voxcina-blue/30 border border-secondary-400 dark:border-voxcina-blue/40 rounded-xl px-3 py-2 text-xs text-voxcina-blue dark:text-voxcina-cream placeholder:text-voxcina-blue/40 focus:outline-none focus:border-voxcina-blue/60 focus:ring-2 focus:ring-voxcina-blue/15 focus:shadow-focus-warm transition-all"
                       disabled={chatLoading}
                     />
