@@ -56,6 +56,8 @@ func NewRouter() *mux.Router {
 	// User promotions
 	userAuthRouter.HandleFunc("/promotions", handlers.GetUserPromotions).Methods(http.MethodGet)
 	userAuthRouter.HandleFunc("/vouchers", handlers.GetUserVouchers).Methods(http.MethodGet)
+	// User's own return requests across all orders
+	userAuthRouter.HandleFunc("/return-requests", handlers.ListUserReturnRequests).Methods(http.MethodGet)
 	// Address Management for authenticated user
 	userAuthRouter.HandleFunc("/addresses", handlers.GetUserAddresses).
 		Methods(http.MethodGet)

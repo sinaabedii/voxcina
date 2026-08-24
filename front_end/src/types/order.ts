@@ -149,6 +149,7 @@ export type ReturnIneligibilityReason =
 export interface ReturnRequestItem {
   product_id: string;
   product_name: string;
+  product_image?: string;
   variant: OrderVariant;
   quantity: number;
   price_at_purchase: number;

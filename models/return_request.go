@@ -33,11 +33,12 @@ const ReturnWindowDuration = 7 * 24 * time.Hour
 const ReturnReasonMaxLength = 1000
 
 // ReturnRequestItem snapshots one order item being returned. Snapshots (name,
-// variant, price) are taken at request time so the record stays accurate even
-// if the product is later renamed, re-imaged or deleted.
+// image, variant, price) are taken at request time so the record stays accurate
+// even if the product is later renamed, re-imaged or deleted.
 type ReturnRequestItem struct {
 	ProductID       primitive.ObjectID `bson:"product_id"        json:"product_id"`
 	ProductName     string             `bson:"product_name"      json:"product_name"`
+	ProductImage    string             `bson:"product_image,omitempty" json:"product_image,omitempty"`
 	Variant         OrderVariant       `bson:"variant"           json:"variant"`
 	Quantity        int                `bson:"quantity"          json:"quantity"`
 	PriceAtPurchase float64            `bson:"price_at_purchase" json:"price_at_purchase"`

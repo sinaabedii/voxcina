@@ -344,6 +344,65 @@ func CancelReturnRequest(w http.ResponseWriter, r *http.Request) {
 // Admin endpoints
 // ============================================================================
 
+// ListUserReturnRequests handles GET /api/users/return-requests
+// Lists the authenticated user's return requests across all their orders.
+// Response shape is identical to the admin endpoint so clients share parsing.
+// The badge pattern (?status=pending&limit=1) reads pagination.total_count.
+func ListUserReturnRequests(w http.ResponseWriter, r *http.Request) {
+	userID, ok := authUserID(r)
+	if !ok {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "User ID not found in context")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// Scope is forced from the JWT context; callers cannot widen it.
+	filter := bson.M{"user_id": userID}
+	if status := r.URL.Query().Get("status"); status != "" {
+		filter["status"] = status
+	}
+
+	page, limit := paginationParams(r, 20, 100)
+	skip := int64((page - 1) * limit)
+	limit64 := int64(limit)
+
+	collection := db.Database.Collection("return_requests")
+	total, err := collection.CountDocuments(ctx, filter)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error counting return requests: "+err.Error())
+		return
+	}
+
+	cursor, err := collection.Find(ctx, filter, optionsList(skip, limit64))
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching return requests: "+err.Error())
+		return
+	}
+	defer cursor.Close(ctx)
+
+	requests := []models.ReturnRequest{}
+	if err := cursor.All(ctx, &requests); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error decoding return requests: "+err.Error())
+		return
+	}
+
+	totalPages := int64(0)
+	if total > 0 {
+		totalPages = (total + limit64 - 1) / limit64
+	}
+	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
+		"return_requests": requests,
+		"pagination": map[string]interface{}{
+			"current_page": page,
+			"total_pages":  totalPages,
+			"total_count":  total,
+			"page_size":    limit,
+		},
+	})
+}
+
 // AdminListReturnRequests handles GET /api/admin/return-requests
 // Query params: status, order_id, page, limit.
 func AdminListReturnRequests(w http.ResponseWriter, r *http.Request) {
@@ -661,6 +720,7 @@ func buildReturnItems(order *models.Order, requested []struct {
 		items = append(items, models.ReturnRequestItem{
 			ProductID:       item.ProductID,
 			ProductName:     item.ProductName,
+			ProductImage:    item.ProductImage,
 			Variant:         item.Variant,
 			Quantity:        ri.Quantity,
 			PriceAtPurchase: item.PriceAtPurchase,
