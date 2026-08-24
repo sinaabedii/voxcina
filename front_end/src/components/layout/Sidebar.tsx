@@ -17,7 +17,7 @@ const Sidebar = ({ embedded = false }: { embedded?: boolean }) => {
   const isActiveHref = (href: string) => {
     // "/dashboard" is a prefix of every dashboard sub-route — only highlight
     // it on the exact dashboard page. Other entries stay highlighted on their
-    // detail pages (e.g. /dashboard/orders/[id] → سفارشهای من).
+    // detail pages (e.g. /dashboard/orders/[id] → سفارش‌های من).
     if (href === "/dashboard") return pathname === "/dashboard";
     if (pathname === href) return true;
     if (pathname.startsWith(href + "/")) return true;
@@ -31,22 +31,22 @@ const Sidebar = ({ embedded = false }: { embedded?: boolean }) => {
       icon: <User className="w-4 h-4 sm:w-5 sm:h-5" />,
     },
     {
-      name: "سفارشهای من",
+      name: "سفارش‌های من",
       href: "/dashboard/orders",
       icon: <Package className="w-4 h-4 sm:w-5 sm:h-5" />,
     },
     {
-      name: "آدرسهای من",
+      name: "آدرس‌های من",
       href: "/dashboard/addresses",
       icon: <MapPin className="w-4 h-4 sm:w-5 sm:h-5" />,
     },
     {
-      name: "علاقهمندیها",
+      name: "علاقه‌مندی‌ها",
       href: "/dashboard/favorites",
       icon: <Heart className="w-4 h-4 sm:w-5 sm:h-5" />,
     },
     {
-      name: "تخفیفهای من",
+      name: "تخفیف‌های من",
       href: "/dashboard/discounts",
       icon: <Ticket className="w-4 h-4 sm:w-5 sm:h-5" />,
     },
@@ -174,7 +174,7 @@ const Sidebar = ({ embedded = false }: { embedded?: boolean }) => {
               حساب کاربری
             </h2>
             <p className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60 mt-1">
-              مدیریت اطلاعات و سفارشها
+              مدیریت اطلاعات و سفارش‌ها
             </p>
           </div>
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/Card";
 import { motion } from "framer-motion";
 import { Clock, ChevronLeft } from "lucide-react";
@@ -45,6 +47,9 @@ const formatStatus = (order: Order) => order.status_text || order.statusText;
 const formatId = (order: Order) => order.order_number || order.id;
 
 export default function RecentOrders({ orders }: { orders: Order[] }) {
+  const router = useRouter();
+  const openOrder = (id: string) => router.push(`/dashboard/orders/${id}`);
+
   const recentOrders = [...orders]
     .sort((a, b) => {
       const da = new Date(a.created_at || a.createdAt || a.date || 0).getTime();
@@ -64,7 +69,7 @@ export default function RecentOrders({ orders }: { orders: Order[] }) {
             سفارشی یافت نشد
           </h3>
           <p className="text-voxcina-blue/70 dark:text-voxcina-cream/70">
-            هنوز هیچ سفارشی ثبت نکردهاید
+            هنوز هیچ سفارشی ثبت نکرده‌اید
           </p>
         </CardContent>
       </Card>
@@ -98,10 +103,11 @@ export default function RecentOrders({ orders }: { orders: Order[] }) {
               {recentOrders.map((order, index) => (
                 <motion.tr
                   key={order.id}
-                  className="border-b border-voxcina-cream/30 dark:border-voxcina-blue/10 hover:bg-voxcina-cream/20 dark:hover:bg-voxcina-blue/5 transition-colors"
+                  className="border-b border-voxcina-cream/30 dark:border-voxcina-blue/10 hover:bg-voxcina-cream/20 dark:hover:bg-voxcina-blue/5 transition-colors cursor-pointer"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
+                  onClick={() => openOrder(order.id)}
                 >
                   <td className="p-4 font-medium text-voxcina-blue dark:text-voxcina-cream">
                     {formatId(order)}
@@ -136,29 +142,31 @@ export default function RecentOrders({ orders }: { orders: Order[] }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
           >
-            <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm overflow-hidden rounded-xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-              <CardContent className="p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">
-                    {formatId(order)}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-full text-[11px] ${getStatusStyle(order.status)}`}>
-                    {formatStatus(order)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                    {formatDate(order)}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-bold text-voxcina-blue dark:text-voxcina-cream">
-                      {formatAmount(order)}
+            <Link href={`/dashboard/orders/${order.id}`} className="block">
+              <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm overflow-hidden rounded-xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10 cursor-pointer transition-shadow hover:shadow-md">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">
+                      {formatId(order)}
                     </span>
-                    <ChevronLeft className="h-4 w-4 text-voxcina-blue/40 dark:text-voxcina-cream/40" />
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] ${getStatusStyle(order.status)}`}>
+                      {formatStatus(order)}
+                    </span>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
+                      {formatDate(order)}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-bold text-voxcina-blue dark:text-voxcina-cream">
+                        {formatAmount(order)}
+                      </span>
+                      <ChevronLeft className="h-4 w-4 text-voxcina-blue/40 dark:text-voxcina-cream/40" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           </motion.div>
         ))}
       </div>
