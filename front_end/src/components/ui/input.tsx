@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { cn } from '@/lib/utils';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -11,16 +11,19 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   variant?: 'default' | 'minimal';
 }
 
-function Input({ 
-  className = '', 
-  label, 
-  error, 
-  helperText, 
-  leftElement, 
-  rightElement, 
+function Input({
+  className = '',
+  label,
+  error,
+  helperText,
+  leftElement,
+  rightElement,
   variant = 'default',
-  ...props 
+  id,
+  ...props
 }: InputProps) {
+  const generatedId = useId();
+  const inputId = id || generatedId;
   const baseClasses = cn(
     'flex w-full bg-transparent text-gray-900 dark:text-gray-100',
     'placeholder:text-gray-400 dark:placeholder:text-gray-500',
@@ -43,7 +46,7 @@ function Input({
   return (
     <div className="space-y-1.5">
       {label && (
-        <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+        <label htmlFor={inputId} className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
           {label}
         </label>
       )}
@@ -54,8 +57,10 @@ function Input({
           </div>
         )}
         <input
+          id={inputId}
           className={cn(
             baseClasses,
+            'select-text',
             leftElement && 'pl-11',
             rightElement && 'pr-11',
             className

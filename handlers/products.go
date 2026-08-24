@@ -731,10 +731,12 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 			if i < len(variantAIMetadataList) && hasVariantAIMetadata(variantAIMetadataList[i]) {
 				now := time.Now()
 				m := variantAIMetadataList[i]
-				if collection != "" {
+				// Admin-editable fields: only fall back to the collection/product
+				// defaults when the admin left them empty.
+				if len(m.Season) == 0 && collection != "" {
 					m.Season = []string{collection}
 				}
-				if gender != "" {
+				if m.Gender == "" && gender != "" {
 					m.Gender = gender
 				}
 				m.UpdatedAt = now
@@ -1944,7 +1946,13 @@ func hasVariantAIMetadata(metadata models.VariantAIMetadata) bool {
 		metadata.MaterialPersian != "" ||
 		metadata.StylePersian != "" ||
 		metadata.PatternPersian != "" ||
-		len(metadata.Keywords) > 0
+		metadata.FitType != "" ||
+		metadata.ColorFamily != "" ||
+		metadata.Gender != "" ||
+		len(metadata.Season) > 0 ||
+		len(metadata.Keywords) > 0 ||
+		len(metadata.Tags) > 0 ||
+		len(metadata.OccasionTags) > 0
 }
 
 // upsertVariantEmbeddings creates one embedding per AI-enriched color variant

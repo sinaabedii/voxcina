@@ -13,6 +13,14 @@ import CategoryModal from "@/components/admin/CategoryModal";
 import AddBrandModal from "@/components/admin/AddBrandModal";
 import ImageUploader, { ImageItem, getNewImageFiles, getImageSources } from "@/components/admin/ImageUploader";
 import PatternPicker from "@/components/ui/PatternPicker";
+import VariantAIMetadataEditor, {
+  VariantAIListDrafts,
+  VariantAIListField,
+  VARIANT_AI_LIST_FIELDS,
+  emptyVariantAIListDrafts,
+  listDraftsFromMetadata,
+  parseVariantAIList,
+} from "@/components/admin/VariantAIMetadataEditor";
 import { toEnglishNumber } from "@/lib/utils";
 
 export default function AddProductPage() {
@@ -61,6 +69,7 @@ export default function AddProductPage() {
     ageGroup: "بزرگسال",
   });
   const [variantAiMetadata, setVariantAiMetadata] = useState<{ [key: number]: VariantAIMetadata }>({});
+  const [variantAiListDrafts, setVariantAiListDrafts] = useState<{ [key: number]: VariantAIListDrafts }>({});
   const [variantAiGenerating, setVariantAiGenerating] = useState<{ [key: number]: boolean }>({});
   const [keywordsInput, setKeywordsInput] = useState("");
   const [tagsInput, setTagsInput] = useState("");
@@ -131,6 +140,36 @@ export default function AddProductPage() {
     setColorVariants(colorVariants.map((cv, i) => i === colorIdx ? { ...cv, [field]: value } : cv));
   };
 
+  const removeIndexFromMap = <T,>(map: { [key: number]: T }, removedIdx: number): { [key: number]: T } => {
+    const next: { [key: number]: T } = {};
+    Object.keys(map).forEach(key => {
+      const idx = Number(key);
+      if (idx === removedIdx) return;
+      next[idx > removedIdx ? idx - 1 : idx] = map[idx];
+    });
+    return next;
+  };
+
+  // Keeps every per-variant AI field editable by admins; list fields also
+  // refresh their raw comma-separated draft so typing feels natural.
+  const handleVariantAiFieldChange = (colorIdx: number, field: keyof VariantAIMetadata, value: string) => {
+    if (VARIANT_AI_LIST_FIELDS.includes(field as VariantAIListField)) {
+      setVariantAiListDrafts(prev => ({
+        ...prev,
+        [colorIdx]: { ...(prev[colorIdx] || emptyVariantAIListDrafts()), [field]: value },
+      }));
+      setVariantAiMetadata(prev => ({
+        ...prev,
+        [colorIdx]: { ...(prev[colorIdx] || {}), [field]: parseVariantAIList(value) } as VariantAIMetadata,
+      }));
+      return;
+    }
+    setVariantAiMetadata(prev => ({
+      ...prev,
+      [colorIdx]: { ...(prev[colorIdx] || {}), [field]: value } as VariantAIMetadata,
+    }));
+  };
+
   const handleColorImagesChange = (colorIdx: number, newImages: ImageItem[]) => {
     setColorImageItems(prev => ({ ...prev, [colorIdx]: newImages }));
     // Update preview URLs in colorVariants for display
@@ -157,6 +196,9 @@ export default function AddProductPage() {
     delete newColorTryOnFiles[colorIdx];
     setColorImageItems(newColorImageItems);
     setColorTryOnFiles(newColorTryOnFiles);
+    // Shift per-variant AI state so remaining colors keep their own metadata.
+    setVariantAiMetadata(prev => removeIndexFromMap(prev, colorIdx));
+    setVariantAiListDrafts(prev => removeIndexFromMap(prev, colorIdx));
   };
 
   // Size Handlers (nested within color variants)
@@ -405,6 +447,7 @@ export default function AddProductPage() {
         occasionTags: Array.isArray(gen.occasionTags) ? gen.occasionTags : [],
       };
       setVariantAiMetadata(prev => ({ ...prev, [colorIdx]: meta }));
+      setVariantAiListDrafts(prev => ({ ...prev, [colorIdx]: listDraftsFromMetadata(meta) }));
       toast.success(`اطلاعات رنگ ${cv.colorName || colorIdx + 1} با موفقیت تولید شد`);
     } catch {
       toast.error("خطا در ارتباط با سرویس هوش مصنوعی");
@@ -714,15 +757,19 @@ export default function AddProductPage() {
                   </Button>
                 </div>
               </div>
-              {variantAiMetadata[colorIdx]?.productTypePersian && (
-                <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-3 text-xs text-green-800 flex flex-wrap gap-2">
-                  <span>نوع: {variantAiMetadata[colorIdx].productTypePersian}</span>
-                  <span>طرح: {variantAiMetadata[colorIdx].patternPersian || "-"}</span>
-                  <span>خانواده رنگ: {variantAiMetadata[colorIdx].colorFamily || "-"}</span>
-                  <span>جنس: {variantAiMetadata[colorIdx].materialPersian || "-"}</span>
-                  <span>استایل: {variantAiMetadata[colorIdx].stylePersian || "-"}</span>
-                </div>
-              )}
+              {/* Per-color AI metadata — all fields shown and editable */}
+              <div className="mb-4 bg-white rounded-lg p-4 border border-green-100">
+                <label className="block text-sm font-medium mb-1">فیلدهای هوش مصنوعی این رنگ</label>
+                <p className="text-xs text-gray-500 mb-3">
+                  این فیلدها برای جستجوی هوشمند و چت‌بات استفاده می‌شوند؛ دستی پر کنید یا با دکمه «تولید AI این رنگ» بسازید و سپس ویرایش نمایید.
+                </p>
+                <VariantAIMetadataEditor
+                  metadata={variantAiMetadata[colorIdx] || {}}
+                  listDrafts={variantAiListDrafts[colorIdx] || emptyVariantAIListDrafts()}
+                  disabled={submitting || isLoading}
+                  onChange={(field, value) => handleVariantAiFieldChange(colorIdx, field, value)}
+                />
+              </div>
 
               {/* Color Info - Pattern Picker */}
               <div className="mb-4 bg-white rounded-lg p-4">

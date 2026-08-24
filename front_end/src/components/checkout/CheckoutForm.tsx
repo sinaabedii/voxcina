@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
-import { MapPin, Plus, Home, Briefcase, Check, Loader2 } from "lucide-react";
+import { MapPin, Plus, Home, Briefcase, BedDouble, Check, Loader2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
@@ -117,6 +117,10 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
         address.title?.toLowerCase().includes("شرکت") ||
         address.title?.toLowerCase().includes("دفتر")
           ? "work"
+          : address.title?.includes("خوابگاه") ||
+            address.title?.includes("دانشگاه") ||
+            address.title?.includes("پانسیون")
+          ? "dorm"
           : "home",
       latitude: address.latitude || 0,
       longitude: address.longitude || 0,
@@ -151,7 +155,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
     setIsSubmitting(true);
     const finalFormData = {
       ...formData,
-      title: formData.title || (formData.addressType === "home" ? "خانه" : "محل کار"),
+      title: formData.title || (formData.addressType === "home" ? "خانه" : formData.addressType === "dorm" ? "خوابگاه" : "محل کار"),
     };
     if (editingAddress) {
       updateAddress(editingAddress, finalFormData);
@@ -170,6 +174,8 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
       return <Home className="w-4 h-4 ml-1 text-primary" />;
     } else if (lowerTitle.includes("کار") || lowerTitle.includes("دفتر") || lowerTitle.includes("شرکت")) {
       return <Briefcase className="w-4 h-4 ml-1 text-primary" />;
+    } else if (title.includes("خوابگاه") || title.includes("دانشگاه") || title.includes("پانسیون")) {
+      return <BedDouble className="w-4 h-4 ml-1 text-primary" />;
     }
     return <MapPin className="w-4 h-4 ml-1 text-primary" />;
   };
@@ -326,6 +332,27 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
                     <Briefcase className="w-5 h-5" />
                   </div>
                   <span className="text-voxcina-blue dark:text-secondary-200 mr-2">محل کار</span>
+                </label>
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="addressType"
+                    value="dorm"
+                    checked={formData.addressType === "dorm"}
+                    onChange={handleChange}
+                    disabled={isSubmitting}
+                    className="sr-only"
+                  />
+                  <div
+                    className={`w-12 h-12 rounded-full flex items-center justify-center border-2 mr-2 transition-all duration-300 ${
+                      formData.addressType === "dorm"
+                        ? "border-voxcina-blue bg-voxcina-blue/5 text-voxcina-blue dark:bg-voxcina-blue/20 dark:text-secondary-200 scale-110"
+                        : "border-secondary-200 text-voxcina-blue/40 dark:border-voxcina-darkBlue/30 dark:text-secondary-400"
+                    } ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    <BedDouble className="w-5 h-5" />
+                  </div>
+                  <span className="text-voxcina-blue dark:text-secondary-200 mr-2">خوابگاه</span>
                 </label>
               </div>
             </div>

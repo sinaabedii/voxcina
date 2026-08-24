@@ -14,6 +14,7 @@ import {
   Trash,
   Home,
   Briefcase,
+  BedDouble,
   CheckCircle,
   AlertCircle,
   Loader2,
@@ -186,9 +187,12 @@ export default function AddressesPage() {
       address: address.address || "",
       postalCode: address.postalCode || "",
       isDefault: address.isDefault || false,
-      addressType: address.title?.toLowerCase().includes("کار") || 
-                   address.title?.toLowerCase().includes("شرکت") || 
-                   address.title?.toLowerCase().includes("دفتر") ? "work" : "home",
+      addressType: address.title?.toLowerCase().includes("کار") ||
+                   address.title?.toLowerCase().includes("شرکت") ||
+                   address.title?.toLowerCase().includes("دفتر") ? "work" :
+        address.title?.includes("خوابگاه") ||
+        address.title?.includes("دانشگاه") ||
+        address.title?.includes("پانسیون") ? "dorm" : "home",
       latitude: address.latitude || 0,
       longitude: address.longitude || 0,
     });
@@ -320,7 +324,7 @@ export default function AddressesPage() {
     const finalFormData = {
       ...formData,
       address: fullAddress,
-      title: formData.title || (formData.addressType === "home" ? "خانه" : "محل کار"),
+      title: formData.title || (formData.addressType === "home" ? "خانه" : formData.addressType === "dorm" ? "خوابگاه" : "محل کار"),
     };
 
     try {
@@ -376,6 +380,13 @@ export default function AddressesPage() {
       title?.toLowerCase().includes("دفتر")
     ) {
       return <Briefcase className="w-4 h-4 ml-2" />;
+    }
+    if (
+      title?.includes("خوابگاه") ||
+      title?.includes("دانشگاه") ||
+      title?.includes("پانسیون")
+    ) {
+      return <BedDouble className="w-4 h-4 ml-2" />;
     }
     return <Home className="w-4 h-4 ml-2" />;
   };
@@ -801,15 +812,15 @@ export default function AddressesPage() {
                   required
                   disabled={isSubmitting}
                   rows={2}
-                  className="w-full rounded-xl border border-secondary-200 dark:border-voxcina-darkBlue/30 bg-white dark:bg-voxcina-darkBlue/20 px-3 py-2 text-sm focus:outline-none focus:border-voxcina-blue focus:ring-2 focus:ring-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 disabled:opacity-50 disabled:cursor-not-allowed resize-none"
+                  className="w-full rounded-xl border border-secondary-200 dark:border-voxcina-darkBlue/30 bg-white dark:bg-voxcina-darkBlue/20 px-3 py-2 text-sm focus:outline-none focus:border-voxcina-blue focus:ring-2 focus:ring-voxcina-blue/20 text-voxcina-blue dark:text-secondary-200 disabled:opacity-50 disabled:cursor-not-allowed resize-none select-text"
                 />
               </div>
 
               {/* پلاک / طبقه / واحد */}
               <div className="grid grid-cols-3 gap-3">
-                <Input label="پلاک *" name="pelak" value={pelak} onChange={(e) => setPelak(e.target.value)} placeholder="مثال: ۱۲" disabled={isSubmitting} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
-                <Input label="طبقه *" name="tabaghe" value={tabaghe} onChange={(e) => setTabaghe(e.target.value)} placeholder="مثال: ۳" disabled={isSubmitting} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
-                <Input label="واحد" name="vahed" value={vahed} onChange={(e) => setVahed(e.target.value)} placeholder="اختیاری" disabled={isSubmitting} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
+                <Input label="پلاک *" name="pelak" value={pelak} onChange={(e) => setPelak(e.target.value)} placeholder="مثال: ۱۲" disabled={isSubmitting} dir="ltr" className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20 text-right" />
+                <Input label="طبقه *" name="tabaghe" value={tabaghe} onChange={(e) => setTabaghe(e.target.value)} placeholder="مثال: ۳" disabled={isSubmitting} dir="ltr" className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20 text-right" />
+                <Input label="واحد" name="vahed" value={vahed} onChange={(e) => setVahed(e.target.value)} placeholder="اختیاری" disabled={isSubmitting} dir="ltr" className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20 text-right" />
               </div>
 
               <div className="border-t border-secondary-200 dark:border-voxcina-blue/20"></div>
@@ -846,7 +857,7 @@ export default function AddressesPage() {
                 <div className="grid grid-cols-3 gap-3">
                   <Input label="نام *" name="firstName" value={formData.firstName} onChange={handleChange} required disabled={isSubmitting} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
                   <Input label="نام خانوادگی *" name="lastName" value={formData.lastName} onChange={handleChange} required disabled={isSubmitting} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
-                  <Input label="شماره تماس *" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} placeholder="۰۹۱۲۱۲۳۴۵۶۷" required disabled={isSubmitting} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
+                  <Input label="شماره تماس *" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} placeholder="۰۹۱۲۱۲۳۴۵۶۷" required disabled={isSubmitting} dir="ltr" inputMode="tel" className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20 text-right" />
                 </div>
               </div>
 
@@ -874,12 +885,21 @@ export default function AddressesPage() {
                     <Briefcase className="w-4 h-4" />
                     <span className="text-sm font-medium">محل کار</span>
                   </label>
+                  <label className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                    formData.addressType === "dorm"
+                      ? "border-voxcina-blue bg-voxcina-blue/5 text-voxcina-blue dark:bg-voxcina-blue/20 dark:text-secondary-200"
+                      : "border-secondary-200 text-voxcina-blue/50 dark:border-voxcina-darkBlue/30 dark:text-secondary-400 hover:border-voxcina-blue/30"
+                  } ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}>
+                    <input type="radio" name="addressType" value="dorm" checked={formData.addressType === "dorm"} onChange={handleChange} disabled={isSubmitting} className="sr-only" />
+                    <BedDouble className="w-4 h-4" />
+                    <span className="text-sm font-medium">خوابگاه</span>
+                  </label>
                 </div>
               </div>
 
-              <Input label="عنوان آدرس (اختیاری)" name="title" value={formData.title} onChange={handleChange} disabled={isSubmitting} placeholder={formData.addressType === "home" ? "مثال: خانه، منزل پدری" : "مثال: دفتر، شرکت"} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
+              <Input label="عنوان آدرس (اختیاری)" name="title" value={formData.title} onChange={handleChange} disabled={isSubmitting} placeholder={formData.addressType === "home" ? "مثال: خانه، منزل پدری" : formData.addressType === "dorm" ? "مثال: خوابگاه، پانسیون" : "مثال: دفتر، شرکت"} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
 
-              <Input label="کد پستی *" name="postalCode" value={formData.postalCode} onChange={handleChange} placeholder="مثال: ۱۲۳۴۵۶۷۸۹۰" required disabled={isSubmitting} className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20" />
+              <Input label="کد پستی *" name="postalCode" value={formData.postalCode} onChange={handleChange} placeholder="مثال: ۱۲۳۴۵۶۷۸۹۰" required disabled={isSubmitting} dir="ltr" className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20 text-right" />
 
               <div className="flex items-center bg-gradient-to-r from-voxcina-blue/5 to-secondary-200/70 dark:from-voxcina-blue/10 dark:to-voxcina-blue/5 p-3 rounded-xl">
                 <input type="checkbox" id="isDefault" name="isDefault" checked={formData.isDefault} onChange={handleChange} disabled={isSubmitting} className="ml-2 h-4 w-4 rounded border-secondary-300 text-voxcina-blue focus:ring-voxcina-blue/30 disabled:opacity-50" />
