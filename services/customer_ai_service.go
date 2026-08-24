@@ -80,10 +80,56 @@ type SupportAgentResult struct {
 	TicketBody         string
 }
 
-// AgentToolCall structure
-type AgentToolCall struct {
-	Tool      string          `json:"tool"`
-	Arguments json.RawMessage `json:"arguments"`
+// agentDecision is the structured, schema-validated decision the customer agent
+// must return instead of free-form prose. It is the contract between the model
+// (which interprets tool results) and the application (which validates and
+// delivers the final response).
+//
+// The model never writes the final message and product list directly: it only
+// (a) writes a short, grounded reply and (b) references products by the IDs the
+// tools actually returned. The service re-validates those IDs against the
+// database and assembles the authoritative CustomerSearchResponse, so a
+// hallucinated product or an invented claim can never reach the user.
+type agentDecision struct {
+	// Action says what the model wants done with the tool results this turn:
+	// "respond" (it is ready to answer), "search" (it wants another search with
+	// the given Query), or "not_found" (nothing matched and it has no answer).
+	Action string `json:"action"`
+	// Reply is the short Persian text to show the customer. It must be grounded
+	// in the tool results and is sanitized + fallback-checked server-side.
+	Reply string `json:"reply"`
+	// ProductIDs references products by the exact ids returned by the tools.
+	// The service resolves these against the DB and ignores unknown ids.
+	ProductIDs []string `json:"product_ids,omitempty"`
+	// Query is a refined search the model wants to run when Action == "search".
+	Query string `json:"query,omitempty"`
+}
+
+func agentDecisionSchema() map[string]interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"action": map[string]interface{}{
+				"type":        "string",
+				"enum":        []string{"respond", "search", "not_found"},
+				"description": "respond when ready to answer, search to run a refined catalog search, not_found when nothing matched and there is no answer.",
+			},
+			"reply": map[string]interface{}{
+				"type":        "string",
+				"description": "Short, friendly Persian reply to show the customer, grounded only in the search results. Never invent product details.",
+			},
+			"product_ids": map[string]interface{}{
+				"type":        "array",
+				"items":       map[string]interface{}{"type": "string"},
+				"description": "ObjectIds of the products to show, copied exactly from the search results above. Omit if none.",
+			},
+			"query": map[string]interface{}{
+				"type":        "string",
+				"description": "A refined Persian/English search query, only when action is search.",
+			},
+		},
+		"required": []string{"action", "reply"},
+	}
 }
 
 // NewCustomerAIService creates a new customer AI service instance
@@ -176,47 +222,6 @@ RESPONSE RULES:
 			UsePersianFields:  true,
 		},
 	}
-}
-
-// cleanDeepSeekResponse removes reasoning tokens and internal markup from DeepSeek R1 responses
-func cleanDeepSeekResponse(response string) string {
-	// DeepSeek R1 uses special tokens like <|channel>, start|>, <|call|>, etc.
-	// These need to be stripped out to get the actual response
-
-	// Common patterns to remove
-	patterns := []string{
-		"start|>assistant<|channel>commentary",
-		"start|>assistant",
-		"<|channel>commentary",
-		"<|channel>",
-		"<|call|>",
-		"<|constrain|>json",
-		"<|constrain|>",
-		"<|message",
-		"|>",
-		"start|>",
-		"to=search_products",
-		"to=get_user_info",
-		"to=get_recent_orders",
-	}
-
-	cleaned := response
-	for _, pattern := range patterns {
-		cleaned = strings.ReplaceAll(cleaned, pattern, "")
-	}
-
-	// Also try to extract content between <think> tags if present (DeepSeek reasoning)
-	if thinkStart := strings.Index(cleaned, "<think>"); thinkStart >= 0 {
-		if thinkEnd := strings.Index(cleaned, "</think>"); thinkEnd > thinkStart {
-			// Remove the thinking section
-			cleaned = cleaned[:thinkStart] + cleaned[thinkEnd+8:]
-		}
-	}
-
-	// Clean up multiple spaces and newlines
-	cleaned = strings.TrimSpace(cleaned)
-
-	return cleaned
 }
 
 // detectProductCodeQuestion checks if the query is asking about a specific product code
@@ -522,7 +527,24 @@ func (s *CustomerAIService) handleProductDetailQuestion(
 	}, nil
 }
 
-// RunAgenticChat executes the main agent loop
+// RunAgenticChat executes the main agent loop.
+//
+// The loop enforces a clean separation of responsibilities:
+//
+//   - Tools (toolSearchProducts / toolGetProductDetails / toolGetUserContext /
+//     toolGetRecentOrders) perform the actual DB/search work and return
+//     authoritative data — resolving to real product IDs, never prose.
+//   - The model is constrained (via a JSON schema) to return an agentDecision
+//     rather than free text: it interprets the tool results and either answers,
+//     refines the search, or reports nothing found.
+//   - The service validates that decision (sanitizing the reply, and only ever
+//     surfacing products from the DB rows the tools already returned) and is
+//     the only thing that assembles the CustomerSearchResponse.
+//
+// Because the final response is built from re-fetched database rows plus a
+// short sanitized reply — never from an unrestricted model essay — the user can
+// never be shown hallucinated products, fabricated "actions taken", leaked
+// internal identifiers, or off-topic content.
 func (s *CustomerAIService) RunAgenticChat(
 	ctx context.Context,
 	req CustomerSearchRequest,
@@ -541,187 +563,238 @@ func (s *CustomerAIService) RunAgenticChat(
 		return s.handleContextualQuestion(ctx, req.ChatID, questionType)
 	}
 
-	// 1. Build Initial Context
+	structured := NewOpenRouterStructuredClient()
+
+	// Build the message thread the model reasons over. Tool results are appended
+	// as data (plain JSON) messages, not prose, so the model can only cite what
+	// was actually returned.
 	messages := []OpenRouterMessage{
-		{Role: "system", Content: s.config.SystemPrompt},
+		{Role: "system", Content: s.structuredSystemPrompt()},
 	}
 
-	// Add chat history
 	chatContext := s.buildChatContext(ctx, req)
 	if chatContext != "" {
 		messages = append(messages, OpenRouterMessage{
 			Role: "user",
 			Content: fmt.Sprintf(
-				"Chat History:\n%s\n\nCurrent User Message: %s",
-				chatContext,
-				req.Query,
+				"Chat history (newest last):\n%s\n\nCurrent message: %s",
+				chatContext, req.Query,
 			),
 		})
 	} else {
-		messages = append(messages, OpenRouterMessage{
-			Role:    "user",
-			Content: req.Query,
-		})
+		messages = append(messages, OpenRouterMessage{Role: "user", Content: req.Query})
 	}
 
-	var finalProducts []models.Product
-	var finalProductIDs []string
+	// The authoritative result set for the whole turn. It is only ever populated
+	// by tool executions below; the model can never add to it.
+	var foundProducts []models.Product
+	var foundIDs []string
 
-	// Agent Loop (Max 5 turns to avoid infinite loops)
-	for i := 0; i < 5; i++ {
-		// Call LLM
-		response, err := s.callOpenRouterWithMessages(messages)
+	const maxTurns = 5
+	for turn := 0; turn < maxTurns; turn++ {
+		output, err := structured.CallStructured(ctx, StructuredRequest{
+			Model:    s.openRouterModel,
+			Messages: messages,
+			Schema:   agentDecisionSchema(),
+		})
 		if err != nil {
-			log.Printf("LLM Error: %v", err)
-			return s.getFallbackResponse(ctx, req.Query)
+			log.Printf("[customer-ai] structured call failed: %v", err)
+			return s.finalize(ctx, req, foundProducts, foundIDs, "")
 		}
 
-		// Clean DeepSeek R1 reasoning tokens if present
-		response = cleanDeepSeekResponse(response)
-
-		// If response looks like garbage/internal tokens, fall back to direct search
-		if strings.Contains(response, "|>") || strings.Contains(response, "<|") ||
-			strings.Contains(response, "channel>") || len(strings.TrimSpace(response)) < 10 {
-			log.Printf("Warning: LLM returned malformed response, falling back to direct search")
-			return s.getFallbackResponse(ctx, req.Query)
+		var decision agentDecision
+		if err := parseBSONToStruct(output, &decision); err != nil {
+			log.Printf("[customer-ai] failed to parse decision: %v", err)
+			return s.finalize(ctx, req, foundProducts, foundIDs, "")
 		}
 
-		// Check for tool call
-		var toolCall AgentToolCall
-		isToolCall := false
-
-		// Try to parse JSON tool call from the response text
-		// We look for the first valid JSON object
-		jsonStart := strings.Index(response, "{")
-		jsonEnd := strings.LastIndex(response, "}")
-
-		if jsonStart >= 0 && jsonEnd > jsonStart {
-			potentialJSON := response[jsonStart : jsonEnd+1]
-			if err := json.Unmarshal([]byte(potentialJSON), &toolCall); err == nil &&
-				toolCall.Tool != "" {
-				isToolCall = true
+		switch decision.Action {
+		case "search":
+			// The model asked for a (refined) catalog search. Run it and feed the
+			// authoritative product data back as the next data message.
+			query := strings.TrimSpace(decision.Query)
+			if query == "" {
+				query = req.Query
 			}
-		}
-
-		if !isToolCall {
-			// Final text response
-			// If no products were found but LLM generated a response, 
-			// ensure we don't return hallucinated product info
-			if len(finalProducts) == 0 && i > 0 {
-				// LLM tried to search but found nothing - use a safe response
-				response = "متاسفانه محصولی با این مشخصات پیدا نشد. لطفاً با کلمات کلیدی دیگری جستجو کنید یا دسته‌بندی‌های محصولات ما را مرور کنید."
-			}
-			return &CustomerSearchResponse{
-				Response:      response,
-				Products:      finalProducts,
-				ProductIDs:    finalProductIDs,
-				Success:       len(finalProducts) > 0 || i == 0,
-				IsAIGenerated: true,
-			}, nil
-		}
-
-		// Execute Tool
-		messages = append(messages, OpenRouterMessage{
-			Role:    "assistant",
-			Content: response,
-		})
-
-		toolResult := ""
-
-		switch toolCall.Tool {
-		case "search_products":
-			var args struct {
-				Query   string        `json:"query"`
-				Filters ParsedFilters `json:"filters"`
-			}
-			json.Unmarshal(toolCall.Arguments, &args)
-
-			// If query is empty in args, use original query
-			if args.Query == "" {
-				args.Query = req.Query
-			}
-
-			products, ids, err := s.toolSearchProducts(ctx, args.Query, args.Filters)
+			products, ids, err := s.toolSearchProducts(ctx, query, ParsedFilters{})
 			if err != nil {
-				toolResult = fmt.Sprintf("Error searching products: %v", err)
-			} else {
-				finalProducts = products
-				finalProductIDs = ids
-				if len(products) == 0 {
-					toolResult = "IMPORTANT: No products found matching the query. Tell the user: متاسفانه محصولی با این مشخصات پیدا نشد. Do NOT invent or make up any products."
-				} else {
-					toolResult = fmt.Sprintf("Found %d products. IMPORTANT: You may ONLY mention these exact products with their exact details. Do NOT invent any other products.\n\nProduct list:\n%s", len(products), s.buildProductsContext(products))
-				}
+				log.Printf("[customer-ai] search tool error: %v", err)
+				messages = append(messages, OpenRouterMessage{
+					Role:    "user",
+					Content: `{"results": []}`,
+				})
+				continue
 			}
+			foundProducts, foundIDs = products, ids
+			messages = append(messages, OpenRouterMessage{
+				Role:    "assistant",
+				Content: `{"action":"search","query":` + string(mustJSON(decision.Query)) + `}`,
+			})
+			messages = append(messages, OpenRouterMessage{
+				Role:    "user",
+				Content: s.catalogContext(products),
+			})
+			continue
 
-		case "get_user_info":
-			var args struct {
-				UserID string `json:"user_id"`
-			}
-			json.Unmarshal(toolCall.Arguments, &args)
-			// Use request UserID if not provided
-			if args.UserID == "" {
-				args.UserID = req.UserID
-			}
+		case "respond":
+			return s.finalize(ctx, req, foundProducts, foundIDs, decision.Reply)
 
-			info, err := s.toolGetUserContext(ctx, args.UserID)
-			if err != nil {
-				toolResult = fmt.Sprintf("Error getting user info: %v", err)
-			} else {
-				toolResult = info
-			}
-
-		case "get_recent_orders":
-			var args struct {
-				UserID string `json:"user_id"`
-				Limit  int    `json:"limit"`
-			}
-			json.Unmarshal(toolCall.Arguments, &args)
-			if args.UserID == "" {
-				args.UserID = req.UserID
-			}
-
-			orders, err := s.toolGetRecentOrders(ctx, args.UserID, args.Limit)
-			if err != nil {
-				toolResult = fmt.Sprintf("Error getting orders: %v", err)
-			} else {
-				toolResult = orders
-			}
-
-		case "get_product_details":
-			var args struct {
-				ProductCode string `json:"product_code"`
-				ProductID   string `json:"product_id"`
-			}
-			json.Unmarshal(toolCall.Arguments, &args)
-
-			details, products, err := s.toolGetProductDetails(ctx, args.ProductCode, args.ProductID)
-			if err != nil {
-				toolResult = fmt.Sprintf("Error getting product details: %v", err)
-			} else {
-				toolResult = details
-				if len(products) > 0 {
-					finalProducts = products
-					for _, p := range products {
-						finalProductIDs = append(finalProductIDs, p.ID.Hex())
-					}
-				}
-			}
-
-		default:
-			toolResult = "Unknown tool: " + toolCall.Tool
+		case "not_found":
+			return s.finalize(ctx, req, nil, nil, "")
 		}
-
-		messages = append(messages, OpenRouterMessage{
-			Role:    "user",
-			Content: fmt.Sprintf("Tool '%s' result: %s", toolCall.Tool, toolResult),
-		})
-
-		// If we found products, we might want to break early or let the LLM summarize
-		// We continue the loop to let LLM summarize
 	}
 
-	return s.getFallbackResponse(ctx, req.Query)
+	// Exhausted the loop without a decision — deliver whatever the tools found,
+	// with a grounded fallback line, never free model prose.
+	return s.finalize(ctx, req, foundProducts, foundIDs, "")
+}
+
+func mustJSON(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
+}
+
+// structuredSystemPrompt is the schema-contract prompt used for the structured
+// loop. It mirrors the semantics of the configurable SystemPrompt but adds the
+// hard requirement that the model emit only the agentDecision JSON schema and
+// never free text.
+func (s *CustomerAIService) structuredSystemPrompt() string {
+	return `You are Voxcina, a Persian e-commerce shopping assistant.
+
+Your job is to decide what to show the customer, never to write a product essay.
+You MUST respond with ONLY a single JSON object matching this schema:
+{"action": "respond"|"search"|"not_found", "reply": "...", "product_ids": ["..."], "query": "..."}
+
+Rules:
+- To look something up, set action "search" with a Persian/English "query".
+- Search results are returned to you as JSON data. When you are ready to answer,
+  set action "respond" and write a short, friendly Persian "reply" (1-3
+  sentences) grounded only in those results.
+- Set action "not_found" when the results are empty and you have no answer.
+- Never invent a product id, price, material, colour or other detail that is not
+  in the returned data. If you do not have it, don't state it.
+- The "reply" is spoken to a customer: never mention internal identifiers, ids,
+  or anything about your tools or search process.
+- Never include anything outside the single JSON object.`
+}
+
+// catalogContext renders the minimal authoritative record of each found product
+// — id, name, price — as JSON. The name and price are all the model is allowed
+// to speak about; everything else is withheld so there is nothing extra to
+// hallucinate.
+func (s *CustomerAIService) catalogContext(products []models.Product) string {
+	if len(products) == 0 {
+		return `{"results": []}`
+	}
+	rows := make([]map[string]interface{}, 0, len(products))
+	for _, p := range products {
+		row := map[string]interface{}{
+			"id":    p.ID.Hex(),
+			"name":  p.Name,
+			"price": p.Price,
+		}
+		if p.SearchMetadata != nil && p.SearchMetadata.NamePersian != "" {
+			row["name_fa"] = p.SearchMetadata.NamePersian
+		}
+		if p.SearchMetadata != nil && p.SearchMetadata.MaterialPersian != "" {
+			row["material_fa"] = p.SearchMetadata.MaterialPersian
+		}
+		rows = append(rows, row)
+	}
+	encoded, _ := json.Marshal(map[string]interface{}{"results": rows})
+	return string(encoded)
+}
+
+// finalize assembles the validated response the caller delivers to the user.
+// reply is the model's short, grounded Persian sentence (or empty); it is
+// sanitized and, when unusable, replaced by a safe fallback. foundProducts /
+// foundIDs are the authoritative DB rows and ids from tool execution — they are
+// reconciled here and never taken from the model's prose.
+func (s *CustomerAIService) finalize(
+	ctx context.Context,
+	_ CustomerSearchRequest,
+	foundProducts []models.Product,
+	foundIDs []string,
+	reply string,
+) (*CustomerSearchResponse, error) {
+	// Reconcile found products with their ids so the response is internally
+	// consistent and only ever contains real, active products.
+	if len(foundProducts) == 0 && len(foundIDs) > 0 {
+		products, err := s.getProductsByIDs(ctx, foundIDs)
+		if err == nil {
+			foundProducts = products
+		}
+	}
+
+	reply = sanitizeCustomerReply(reply)
+
+	if len(foundProducts) == 0 {
+		if !isUsableCustomerReply(reply) {
+			reply = "متاسفانه محصولی با این مشخصات پیدا نشد. لطفاً با کلمات کلیدی دیگری جستجو کنید یا دسته‌بندی‌های محصولات ما را مرور کنید."
+		}
+		return &CustomerSearchResponse{
+			Response:      reply,
+			Products:      nil,
+			ProductIDs:    nil,
+			Success:       false,
+			IsAIGenerated: true,
+		}, nil
+	}
+
+	if !isUsableCustomerReply(reply) {
+		reply = pickCustomerFallback(s.config.FallbackMessages)
+		if reply == "" {
+			reply = "بر اساس جستجوی شما، این محصولات را پیشنهاد می‌کنم:"
+		}
+	}
+
+	productIDs := make([]string, 0, len(foundProducts))
+	for _, p := range foundProducts {
+		productIDs = append(productIDs, p.ID.Hex())
+	}
+
+	return &CustomerSearchResponse{
+		Response:      reply,
+		Products:      foundProducts,
+		ProductIDs:    productIDs,
+		Success:       true,
+		IsAIGenerated: true,
+	}, nil
+}
+
+// sanitizeCustomerReply strips residual markup and internal identifiers that a
+// model may leak into the customer-facing reply, mirroring the negotiation
+// agent's sanitizer. It is a lighter pass than that agent's: the reply is
+// already schema-constrained, but it must never carry an ObjectId, a JSON blob,
+// or a narrated tool call.
+func sanitizeCustomerReply(reply string) string {
+	reply = strings.TrimSpace(reply)
+	if reply == "" {
+		return ""
+	}
+	reply = sanitizeCodeFence.ReplaceAllString(reply, "")
+	reply = stripJSONObjects(reply)
+	reply = stripToolNarration(reply)
+	return strings.TrimSpace(collapseSpaces(reply))
+}
+
+// isUsableCustomerReply reports whether a reply survived sanitising into
+// something a customer can read (Persian text). An empty or machinery-only
+// reply routes to a safe fallback instead.
+func isUsableCustomerReply(reply string) bool {
+	return hasPersianLetter(reply)
+}
+
+// pickCustomerFallback rotates through the configured fallback messages.
+func pickCustomerFallback(pool []string) string {
+	if len(pool) == 0 {
+		return ""
+	}
+	idx := int(time.Now().UnixNano() % int64(len(pool)))
+	if idx < 0 {
+		idx += len(pool)
+	}
+	return pool[idx]
 }
 
 // toolSearchProducts implements the search logic

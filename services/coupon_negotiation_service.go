@@ -760,7 +760,17 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 	modelUsed := cfg.Model
 	var firstStream bytes.Buffer
 	toolName, result, err := streamSellerAgentWithTools(ctx, cfg.Model, messages, tools, &firstStream, toolCtx)
-	if toolName == "search_catalog" && err == nil && result != nil {
+
+	// coupon/recommended are resolved early (instead of once at the very end,
+	// as before) whenever the grounding branch below needs them to describe
+	// the outcome to the model. computed tracks that so the shared resolution
+	// at the bottom of the function does not redo it against stale input.
+	var coupon *NegotiateCouponOut
+	var recommended *CouponCartItem
+	computed := false
+
+	switch {
+	case toolName == "search_catalog" && err == nil && result != nil:
 		// Execute the catalog search synchronously so the model sees real data.
 		catalogHits = executeSearchCatalog(toolCtx, result.toolCalls)
 		// Make returned catalog IDs valid for the existing recommendation/coupon
@@ -799,10 +809,32 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 		} else {
 			_, _ = io.Copy(w, &firstStream)
 		}
-	} else {
+
+	// A coupon or a recommendation was decided, but the model's chat channel
+	// came out empty or unusable — historically the single largest source of
+	// Voxa's canned "دمت گرم رفیق..." line landing on every voucher request,
+	// since a model that emits a tool call frequently emits no content
+	// alongside it. Resolve the outcome now and ask the model, tool-free, to
+	// describe THAT outcome in its own words — grounded in the real
+	// conversation instead of a fixed sentence. See groundTextualReply.
+	case err == nil && result != nil && needsTextGrounding(toolName, result):
+		coupon, recommended = interpretToolCalls(in, result)
+		computed = true
+		if grounded := groundTextualReply(ctx, cfg.Model, messages, result, coupon, recommended, toolCtx, w); grounded != nil {
+			result.content = grounded.content
+			result.tokensSent = result.tokensSent || grounded.tokensSent
+		} else {
+			_, _ = io.Copy(w, &firstStream)
+		}
+
+	default:
 		_, _ = io.Copy(w, &firstStream)
 	}
 	if err != nil {
+		// A fresh model call is about to run — any coupon/recommendation
+		// resolved above was decided against the pre-fallback result and must
+		// be re-resolved against whatever the fallback model actually does.
+		computed = false
 		if result != nil && result.tokensSent {
 			return nil, err
 		}
@@ -817,7 +849,9 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 		}
 	}
 
-	coupon, recommended := interpretToolCalls(in, result)
+	if !computed {
+		coupon, recommended = interpretToolCalls(in, result)
+	}
 
 	reply := sanitizeSellerReply(result.content)
 	if !isUsableReply(reply) {
@@ -827,19 +861,22 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 		reply = sanitizeSellerReply(couponMessage(result))
 	}
 	if !isUsableReply(reply) {
-		// Defensive fallback: the model did a tool-only turn with an empty
-		// `message` argument (seen in production as content="" + message="").
-		// Without this the bubble renders empty even though a coupon card is
-		// shown. Use a warm Persian line that never mentions percent/code —
-		// the system renders those via the card — and never invents products.
-		if coupon != nil {
-			reply = "دمت گرم رفیق! یه تخفیف خودمونی برات جور کردم، همین پایین برات گذاشتم. حیفه از دستش بدی!"
-		} else if recommended != nil && recommended.ProductName != "" {
-			reply = fmt.Sprintf("رفیق این %s حسابی به تیپت میاد، حیفه از دستش بدی! بگو تا برات نگهش دارم.", recommended.ProductName)
-		} else if len(catalogHits) > 0 {
-			reply = "رفیق چند تا گزینه خوشگل برات پیدا کردم، همین پایین گذاشتم — ببین کدومش بیشتر به دلت میشینه!"
-		} else {
-			reply = "دمت گرم رفیق! بگو چی تو ذهنته تا یه پیشنهاد درجهیک برات جور کنم."
+		// Last-resort fallback: even the grounding pass in groundTextualReply
+		// (or, for a turn it never ran for, the model itself) produced nothing
+		// usable — e.g. two consecutive network failures. This should now be
+		// rare rather than the common case it was before grounding existed, but
+		// it can still fire, so it rotates through a small set of warm Persian
+		// lines rather than repeating one fixed sentence — never mentioning a
+		// percent or code, and never inventing products.
+		switch {
+		case coupon != nil:
+			reply = pickFallback(couponFallbackReplies)
+		case recommended != nil && recommended.ProductName != "":
+			reply = fmt.Sprintf(pickFallback(recommendationFallbackTemplates), recommended.ProductName)
+		case len(catalogHits) > 0:
+			reply = pickFallback(catalogFallbackReplies)
+		default:
+			reply = pickFallback(genericFallbackReplies)
 		}
 		reply = sanitizeSellerReply(reply)
 	}
@@ -873,6 +910,134 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 		ResponseTimeMs:     time.Since(started).Milliseconds(),
 	}, nil
 }
+
+// needsTextGrounding reports whether the model's first pass decided something
+// (a coupon or a recommendation) but left the customer with nothing readable
+// to go with it — the case groundTextualReply exists to fix. search_catalog
+// is handled by its own always-ground branch above and never reaches here.
+func needsTextGrounding(toolName string, result *streamResult) bool {
+	if toolName != "offer_coupon" && toolName != "recommend_product" {
+		return false
+	}
+	return !isUsableReply(sanitizeSellerReply(result.content))
+}
+
+// groundTextualReply asks the model for one more, tool-free turn after a
+// coupon or recommendation call came back with an empty or unusable chat
+// channel. This is the fix for Voxa's replies collapsing onto the same fixed
+// sentence on voucher requests: many models simply do not emit chat content
+// on a turn where they also emit a tool call, so relying on that content was
+// never going to vary. Rather than fall straight to a canned line, this
+// replays the turn with the tool's outcome fed back as an established fact —
+// the coupon percent, its reason, whatever product it bundled — and asks the
+// model to announce it in its own words. tools is omitted so this pass can
+// only describe the decision already made, never revise or duplicate it.
+//
+// Returns nil (never partially written) when this pass itself fails or comes
+// back unusable, so the caller can fall through to its own fallback.
+func groundTextualReply(ctx context.Context, model string, messages []map[string]interface{}, result *streamResult, coupon *NegotiateCouponOut, recommended *CouponCartItem, toolCtx context.Context, w io.Writer) *streamResult {
+	grounded := make([]map[string]interface{}, len(messages), len(messages)+len(result.toolCalls)+2)
+	copy(grounded, messages)
+
+	grounded = append(grounded, map[string]interface{}{
+		"role":       "assistant",
+		"content":    result.content,
+		"tool_calls": messagesToolCalls(result.toolCalls),
+	})
+	for i, call := range result.toolCalls {
+		grounded = append(grounded, map[string]interface{}{
+			"role":         "tool",
+			"tool_call_id": fmt.Sprintf("call_%d", i),
+			"content":      toolOutcomeMessage(call.name, coupon, recommended),
+		})
+	}
+	grounded = append(grounded, map[string]interface{}{
+		"role": "system",
+		"content": "Your last turn produced no visible reply for the customer. Announce the outcome above now, " +
+			"as Voxa, in your normal warm bazaari Persian voice — 2-4 short sentences, grounded in the actual " +
+			"conversation. Never mention a percent or a code; never invent a product beyond what is named above.",
+	})
+
+	var buf bytes.Buffer
+	_, r2, err := streamSellerAgentWithTools(ctx, model, grounded, nil, &buf, toolCtx)
+	if err != nil || r2 == nil || !isUsableReply(sanitizeSellerReply(r2.content)) {
+		return nil
+	}
+	_, _ = io.Copy(w, &buf)
+	return r2
+}
+
+// toolOutcomeMessage reports, as data for the model, what a tool call this
+// turn actually resolved to — never the reverse. coupon and recommended are
+// the server's already-validated decision (interpretToolCalls has run by the
+// time this is called), so this cannot be used to smuggle a different number
+// or product past the reason gate; it only tells the model what to describe.
+func toolOutcomeMessage(callName string, coupon *NegotiateCouponOut, recommended *CouponCartItem) string {
+	switch callName {
+	case "offer_coupon":
+		if coupon == nil {
+			return `{"ok":false,"note":"no coupon was granted this turn"}`
+		}
+		payload := map[string]interface{}{"ok": true, "granted_percent": coupon.Value}
+		if coupon.Reason != "" {
+			payload["customer_reason_credited"] = coupon.Reason
+		}
+		if recommended != nil && coupon.CompProductID == recommended.ProductID {
+			payload["bundled_product"] = recommended.ProductName
+		}
+		b, _ := json.Marshal(payload)
+		return string(b)
+	case "recommend_product":
+		if recommended == nil {
+			return `{"ok":false,"note":"no card was shown — the customer had not asked for a product"}`
+		}
+		b, _ := json.Marshal(map[string]interface{}{
+			"ok": true, "product_name": recommended.ProductName, "price": recommended.Price,
+		})
+		return string(b)
+	default:
+		return `{"ok":true}`
+	}
+}
+
+// pickFallback rotates through pool instead of always returning its first
+// entry, so the rare turn that reaches a fallback at all does not also
+// repeat the exact same sentence every time. Mirrors the rotation already
+// used for the customer-search agent's FallbackMessages.
+func pickFallback(pool []string) string {
+	if len(pool) == 0 {
+		return ""
+	}
+	idx := int(time.Now().UnixNano() % int64(len(pool)))
+	if idx < 0 {
+		idx += len(pool)
+	}
+	return pool[idx]
+}
+
+// Fallback pools for the last-resort case where even groundTextualReply could
+// not produce usable text (e.g. two consecutive network failures). Grounding
+// makes this rare rather than the common path it used to be, but when it does
+// fire it should not read as a canned script either.
+var (
+	couponFallbackReplies = []string{
+		"دمت گرم رفیق! یه تخفیف خودمونی برات جور کردم، همین پایین برات گذاشتم. حیفه از دستش بدی!",
+		"به جون خودم یه کد تخفیف حسابی رد کردم برات، همین پایین منتظرته — از دستش نده رفیق!",
+		"چشمت روشن! یه تخفیف ویژه برات کنار گذاشتم، همین زیر می‌بینیش — بریم که بردیم!",
+	}
+	recommendationFallbackTemplates = []string{
+		"رفیق این %s حسابی به تیپت میاد، حیفه از دستش بدی! بگو تا برات نگهش دارم.",
+		"عزیزم یه نگاه به این %s بنداز، دقیقاً واسه تو جور شده! بگو نظرت چیه.",
+	}
+	catalogFallbackReplies = []string{
+		"رفیق چند تا گزینه خوشگل برات پیدا کردم، همین پایین گذاشتم — ببین کدومش بیشتر به دلت میشینه!",
+		"داداش این چند مدل رو نگاه کن، همین پایین ردیفشون کردم — بگو کدوم بیشتر خوشت اومد.",
+	}
+	genericFallbackReplies = []string{
+		"دمت گرم رفیق! بگو چی تو ذهنته تا یه پیشنهاد درجه‌یک برات جور کنم.",
+		"جانم رفیق، بگو دنبال چی می‌گردی تا برات جور کنم.",
+	}
+)
 
 func writeStreamEvent(w io.Writer, evt StreamEvent) {
 	data, err := json.Marshal(evt)
@@ -1607,10 +1772,15 @@ func streamSellerAgentWithTools(ctx context.Context, model string, messages []ma
 	requestBody := map[string]interface{}{
 		"model":       model,
 		"messages":    messages,
-		"tools":       tools,
 		"max_tokens":  cfg.MaxTokens,
 		"temperature": cfg.Temperature,
 		"stream":      true,
+	}
+	// Omit the key entirely rather than sending "tools": null — a nil/empty
+	// slice means this particular call must not invoke a tool (see
+	// groundTextualReply), and some providers reject an explicit null.
+	if len(tools) > 0 {
+		requestBody["tools"] = tools
 	}
 
 	jsonData, err := json.Marshal(requestBody)

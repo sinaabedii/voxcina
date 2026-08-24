@@ -24,7 +24,7 @@ go vet ./...
 ./main -migrate-avatars
 ```
 
-The only committed Go test is `services/payment_http_client_test.go`; `go test ./...` also discovers a Go-looking package inside `front_end/node_modules`.
+The only committed Go tests live in `handlers/`, `services/`, and `utils/`; they are unit tests with no MongoDB or network dependency. `go test ./...` also discovers a Go-looking package inside `front_end/node_modules` — ignore it. Run a focused test like `go test ./handlers -run TestEvaluateReturnEligibility -count=1`.
 
 Run frontend commands from `front_end/`:
 
@@ -44,8 +44,8 @@ For local services, copy `.env.example` to `.env`, set `JWT_SECRET` and Mongo cr
 
 - `front_end/next.config.js` proxies general `/api/*` requests to Go and rewrites `/uploads/*` to the backend. Filesystem API routes under `front_end/src/app/api/` handle Postex, try-on negotiation/streaming, Instagram, sitemap, revalidation, and upload-specific behavior; check the actual route before adding a backend endpoint.
 - Server Components fetch the Go service directly using `GO_BACKEND_URL` (`http://server:8080` in Compose, localhost fallback in local development).
-- JWT Bearer auth is initialized in `main.go`; `AuthMiddleware` protects user routes and `AdminAuthMiddleware` protects `/api/admin/*` with `role == "admin"`.
-- `start.sh` waits for MongoDB, checks `vocabulary_mappings`, seeds only when that collection is empty, then starts the API.
+- JWT Bearer auth is initialized in `main.go`; `AuthMiddleware` protects user routes and `AdminAuthMiddleware` protects `/api/admin/*` with `role == "admin"`. The middleware sets only `userID` and `role` in context — never `userName`; resolve display names from the `users` collection when an audit trail needs them.
+- `start.sh` waits for MongoDB (via `./main -healthcheck`), checks `vocabulary_mappings`, seeds only when that collection is empty, then starts the API.
 - There is no migration framework. Schema/index setup is in `db/`; special backfills currently use explicit `main.go` flags such as `-migrate-avatars`.
 
 ## High-Risk Domain Rules
@@ -56,19 +56,24 @@ For local services, copy `.env.example` to `.env`, set `JWT_SECRET` and Mongo cr
 - Public activity ingestion is `POST /api/activity/track` and `/batch`; it accepts anonymous sessions and stores `sessionId`. Retrieval routes require auth. `user_activities` has a TTL index driven by `ExpiresAt` at 180 days.
 - Hero public data is active, display-ordered `/api/hero-images`, cached for 360 seconds with `home`/`hero-images` tags. Admin hero writes trigger tag revalidation. Go hero content must remain a BSON/JSON object (`bson.M`), not a decoded `primitive.D` array.
 - SKU format is `{Gender}{Category}{Brand}{Style}{Color}{Size}` in `Coding.json`; size codes are single characters (`X,S,M,L,Q,R,T`).
+- Order statuses are exactly `pending | processing | shipped | delivered | cancelled` (`getStatusText` in `handlers/orders.go` localizes them); the frontend type union also lists `refunded` but the backend never sets it as an order status. `payment_status = "refunded"` exists only via the SnappPay transaction-cancel flow.
+- Transitioning an order to `delivered` stamps `delivered_at` (models/order.go), which drives the 7-day return window. Return requests (`return_requests` collection, `handlers/return_requests.go`) allow only delivered+paid orders within `delivered_at + 7×24h` (inclusive boundary, clock injected for tests; falls back to latest timeline `delivered` entry, then `updated_at`). Eligibility is computed server-side only — never trust a client clock for the window. One pending request per order is enforced by a partial unique index; terminal states (`approved/rejected/cancelled`) are immutable via a status-filtered UpdateOne. Approving a return does not refund or restock automatically.
 
 ## Deployment
 
 - The VPS SSH alias is `vps-ir` (`/root/voxcina`, SSH port `9011`); it has no direct internet and relies on the configured HTTP/SOCKS proxies. Deploy committed changes on `develop` only after checking the VPS worktree is clean.
-- Pull and deploy a frontend change with:
+- Fast frontend deploy (used for routine changes): pull on VPS, then copy source and build inside the running container. Copying alone applies nothing — the in-container build and restart are mandatory:
 
 ```bash
 ssh -o ConnectTimeout=10 vps-ir 'cd /root/voxcina && git pull --ff-only origin develop'
-ssh -o ConnectTimeout=10 vps-ir 'cd /root/voxcina && docker compose build --no-cache front_end && docker compose up -d front_end'
+ssh -o ConnectTimeout=10 vps-ir 'docker cp /root/voxcina/front_end/src/. voxcina_frontend:/app/src/'
+ssh -o ConnectTimeout=10 vps-ir 'docker exec voxcina_frontend npm run build'
+ssh -o ConnectTimeout=10 vps-ir 'docker restart voxcina_frontend'
 ```
 
-- The frontend Docker runner copies `.next`, `public`, and dependencies but not `src/`; do not `docker cp` source into a running container. Rebuild the full `front_end` image.
-- Backend-only deployment is `docker compose build server && docker compose up -d server`; inspect `docker compose ps` and service logs after either deployment.
+- The image-based alternative (`docker compose build --no-cache front_end && docker compose up -d front_end`) is slower but authoritative — the container's copied source is lost if the container is recreated from the old image.
+- Backend deploy: build a **static** binary — `CGO_ENABLED=0 GOOS=linux go build -o /tmp/voxcina-server .`, `scp` it to `vps-ir`, then `docker cp` to `api-server:/app/main` and restart. Without `CGO_ENABLED=0` the binary links glibc, the minimal container reports `./main: not found`, and `start.sh` loops forever on "MongoDB is unavailable - sleeping" — that message means the healthcheck binary failed to execute, not that MongoDB is down. Verify with `docker exec api-server ./main -healthcheck` before restarting. Verify with `file /tmp/voxcina-server | grep statically` before shipping.
+- Backend-only image rebuild is `docker compose build server && docker compose up -d server`; inspect `docker compose ps` and service logs after either deployment.
 - Before a no-cache VPS build, check `df -h /`. Unused Docker images can fill the root filesystem and cause MongoDB to fail with `No space left on device`; prune unused images only when necessary and never remove the MongoDB volume.
 - `scripts/update_front_end.sh [branch]` is a long-running auto-deploy loop that stops, builds, starts, and prunes the whole Compose stack; use the targeted commands above for a manual deployment.
 - On a fresh VPS, Docker bridge traffic to the Xray proxy on host port `10809` needs ACCEPT rules in the `ufw-before-input` chain; the persistent `/etc/systemd/system/docker-proxy-iptables.service` restores them after reboot.
