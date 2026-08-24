@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { motion } from "framer-motion";
@@ -25,11 +26,12 @@ import {
   RefreshCw,
   Trash2,
   BookOpen,
+  RotateCcw,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { formatPrice, toPersianNumber } from "@/lib/utils";
 import { useOrderStore } from "@/store/order-store";
-import { Order, OrderTimelineEntry, OrderNote } from "@/types/order";
+import { Order, OrderTimelineEntry, OrderNote, ReturnRequestStatus } from "@/types/order";
 import BackendImage from "@/components/BackendImage";
 import { toast } from "react-toastify";
 import { getPaymentGatewayText, getPaymentMethodText } from "@/lib/order-display";
@@ -103,7 +105,16 @@ export default function AdminOrderDetailsPage() {
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
   const [pendingSnappPayAction, setPendingSnappPayAction] = useState<"update" | "cancel" | null>(null);
 
-  const { cancelSnappPay, updateSnappPay } = useOrderStore();
+  const { cancelSnappPay, updateSnappPay, returnRequests, fetchAdminReturnRequests } = useOrderStore();
+
+  const orderReturnRequest = returnRequests.find((request) => request.order_id === orderId) || null;
+
+  // Fetch this order's return request(s), if any.
+  useEffect(() => {
+    if (orderId) {
+      fetchAdminReturnRequests({ order_id: orderId });
+    }
+  }, [orderId, fetchAdminReturnRequests]);
   
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -547,6 +558,56 @@ export default function AdminOrderDetailsPage() {
             </CardContent>
           </Card>
 
+
+          {/* Return request summary (درخواست مرجوعی) */}
+          {orderReturnRequest && (
+            <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 rounded-2xl overflow-hidden">
+              <CardHeader className="bg-voxcina-cream/20 dark:bg-voxcina-blue/20 border-b border-voxcina-cream/30 dark:border-voxcina-blue/30">
+                <CardTitle className="flex items-center gap-2 text-voxcina-blue dark:text-voxcina-cream">
+                  <RotateCcw className="w-5 h-5" />
+                  درخواست مرجوعی
+                  <span
+                    className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                      orderReturnRequest.status === "pending"
+                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
+                        : orderReturnRequest.status === "approved"
+                          ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+                          : "bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-gray-400"
+                    }`}
+                  >
+                    {orderReturnRequest.status === "pending"
+                      ? "در انتظار بررسی"
+                      : orderReturnRequest.status === "approved"
+                        ? "تایید شده"
+                        : orderReturnRequest.status === "rejected"
+                          ? "رد شده"
+                          : "لغو شده"}
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 text-xs space-y-1">
+                {orderReturnRequest.items.map((item, idx) => (
+                  <p key={idx} className="text-voxcina-blue dark:text-voxcina-cream">
+                    {toPersianNumber(item.quantity)} × {item.product_name}
+                    {(item.variant.size !== "N/A" || item.variant.colorName) && (
+                      <span className="text-voxcina-blue/50 dark:text-voxcina-cream/50">
+                        {" "}
+                        ({[item.variant.size !== "N/A" && item.variant.size, item.variant.colorName].filter(Boolean).join(" · ")})
+                      </span>
+                    )}
+                  </p>
+                ))}
+                {orderReturnRequest.reason && (
+                  <p className="text-voxcina-blue/60 dark:text-voxcina-cream/60">دلیل: {orderReturnRequest.reason}</p>
+                )}
+                {orderReturnRequest.status === "pending" && (
+                  <Link href="/admin/returns" className="inline-block mt-1 text-blue-600 dark:text-blue-400 hover:underline">
+                    بررسی و تصمیم‌گیری ←
+                  </Link>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Order Timeline */}
           <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 rounded-2xl overflow-hidden print:break-inside-avoid">

@@ -87,6 +87,7 @@ type OrderAPIResponse struct {
 	Notes                []models.OrderNote          `json:"notes,omitempty"`
 	CreatedAt            time.Time                   `json:"created_at"`
 	UpdatedAt            time.Time                   `json:"updated_at"`
+	DeliveredAt          *time.Time                  `json:"delivered_at,omitempty"`
 	JalaliCreatedAt      string                      `json:"jalali_created_at"`
 	JalaliUpdatedAt      string                      `json:"jalali_updated_at"`
 	ProductCount         int                         `json:"product_count"`
@@ -175,6 +176,7 @@ func newOrderAPIResponse(
 		Notes:                order.Notes,
 		CreatedAt:            order.CreatedAt,
 		UpdatedAt:            order.UpdatedAt,
+		DeliveredAt:          order.DeliveredAt,
 		JalaliCreatedAt:      utils.ToJalaliDateString(order.CreatedAt),
 		JalaliUpdatedAt:      utils.ToJalaliDateString(order.UpdatedAt),
 		ProductCount:         order.GetProductCount(),
@@ -1724,6 +1726,15 @@ func UpdateOrderStatusAdmin(w http.ResponseWriter, r *http.Request) {
 		"status":      payload.Status,
 		"status_text": statusText,
 		"updated_at":  time.Now(),
+	}
+
+	// Stamp the delivery time when an order transitions to "delivered". The
+	// return-request window (7 days) runs from this moment. Re-delivery (e.g.
+	// delivered -> shipped -> delivered again) refreshes the stamp and thus
+	// restarts the window.
+	if payload.Status == "delivered" {
+		now := time.Now()
+		updateSet["delivered_at"] = now
 	}
 
 	// If tracking code is provided (for shipped status), update it as well

@@ -180,6 +180,8 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/orders/{orderId}", handlers.UpdateOrderStatusAdmin).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/orders/{orderId}", handlers.DeleteOrder).Methods("DELETE")
 	adminRouter.HandleFunc("/orders/{orderId}/notes", handlers.AddOrderNote).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/return-requests", handlers.AdminListReturnRequests).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/return-requests/{requestId}", handlers.AdminDecideReturnRequest).Methods(http.MethodPut)
 
 	// Admin Ticket Management
 	adminRouter.HandleFunc("/tickets", handlers.AdminListTickets).Methods(http.MethodGet)
@@ -290,6 +292,9 @@ func NewRouter() *mux.Router {
 	orderAuthRouter.Use(middlewares.AuthMiddleware) // Apply general auth here
 	orderAuthRouter.HandleFunc("/{orderId}", handlers.GetOrder).Methods(http.MethodGet)
 	orderAuthRouter.HandleFunc("/{orderId}/confirm-payment", handlers.ConfirmPayment).Methods(http.MethodPost)
+	orderAuthRouter.HandleFunc("/{orderId}/return-request", handlers.GetReturnRequestStatus).Methods(http.MethodGet)
+	orderAuthRouter.HandleFunc("/{orderId}/return-request", handlers.CreateReturnRequest).Methods(http.MethodPost)
+	orderAuthRouter.HandleFunc("/{orderId}/return-request", handlers.CancelReturnRequest).Methods(http.MethodDelete)
 
 	// Wishlist
 	api.HandleFunc("/wishlist", handlers.GetWishlist).Methods(http.MethodGet)

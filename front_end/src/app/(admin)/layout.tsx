@@ -30,6 +30,7 @@ import {
   Activity,
   ShoppingBasket,
   Ticket,
+  RotateCcw,
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -106,6 +107,12 @@ export default function AdminLayout({
       href: "/admin/orders",
       icon: <ShoppingCart className="w-5 h-5 ml-3" />,
       section: "orders",
+    },
+    {
+      name: "درخواست‌های مرجوعی",
+      href: "/admin/returns",
+      icon: <RotateCcw className="w-5 h-5 ml-3" />,
+      section: "returns",
     },
     {
       name: "سبدهای خرید",

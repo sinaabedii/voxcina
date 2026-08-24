@@ -22,6 +22,7 @@ import {
   Loader2,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
+import ReturnRequestSection from "@/components/dashboard/ReturnRequestSection";
 import { useRouter, useParams } from "next/navigation";
 import { useOrderStore } from "@/store/order-store";
 import { Order } from "@/types/order";
@@ -356,6 +357,9 @@ const OrderDetailPage = () => {
               ))}
             </div>
           </section>
+
+          {/* Return request (درخواست مرجوعی) — delivered orders only */}
+          <ReturnRequestSection order={order} />
 
           {/* Financial summary */}
           <section>

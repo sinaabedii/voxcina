@@ -73,7 +73,8 @@ type Order struct {
 	IsActive                    bool                 `bson:"is_active"                  json:"is_active"`                              // Soft delete flag
 	CreatedAt                   time.Time            `bson:"created_at"                 json:"created_at"`
 	UpdatedAt                   time.Time            `bson:"updated_at"                 json:"updated_at"`
-	PaidAt                      *time.Time           `bson:"paid_at,omitempty"          json:"paid_at,omitempty"` // Payment completion time
+	PaidAt                      *time.Time           `bson:"paid_at,omitempty"          json:"paid_at,omitempty"`      // Payment completion time
+	DeliveredAt                 *time.Time           `bson:"delivered_at,omitempty"     json:"delivered_at,omitempty"` // When the order transitioned to "delivered"; drives the 7-day return window
 	SnappPayLastOperationAt     *time.Time           `bson:"snappay_last_operation_at,omitempty" json:"-"`
 	SnappPayOperationInProgress bool                 `bson:"snappay_operation_in_progress,omitempty" json:"-"`
 	SnappPayOperationStartedAt  *time.Time           `bson:"snappay_operation_started_at,omitempty" json:"-"`

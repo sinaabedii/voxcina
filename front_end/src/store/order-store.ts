@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { Order, OrderItem, ShippingAddress, OrderStats, AdminOrderFilters, OrderTimelineEntry, OrderNote } from "@/types/order";
+import { Order, OrderItem, ShippingAddress, OrderStats, AdminOrderFilters, OrderTimelineEntry, OrderNote, ReturnRequest, ReturnRequestStatusResponse, CreateReturnRequestPayload } from "@/types/order";
 import { useAuthStore } from "./auth-store";
 import { toast } from "react-toastify";
 
@@ -98,6 +98,7 @@ const transformBackendOrder = (backendOrderData: any): Order => {
     created_at: backendOrderData.created_at || new Date().toISOString(),
     updated_at: backendOrderData.updated_at || new Date().toISOString(),
     paid_at: backendOrderData.paid_at,
+    delivered_at: backendOrderData.delivered_at,
     jalali_created_at: backendOrderData.jalali_created_at || '',
     jalali_updated_at: backendOrderData.jalali_updated_at || '',
     jalali_paid_at: backendOrderData.jalali_paid_at,
@@ -121,6 +122,21 @@ interface OrderState {
     totalOrders: number;
     pageSize: number;
   } | null;
+  // Return request state for the currently viewed order (dashboard)
+  currentReturnStatus: ReturnRequestStatusResponse | null;
+  returnRequestLoading: boolean;
+}
+
+// Admin-side return request list state
+interface AdminReturnState {
+  returnRequests: ReturnRequest[];
+  returnRequestsPagination: {
+    currentPage: number;
+    totalPages: number;
+    totalCount: number;
+    pageSize: number;
+  } | null;
+  returnRequestsLoading: boolean;
 }
 
 interface OrderActions {
@@ -138,18 +154,28 @@ interface OrderActions {
   deleteOrder: (orderId: string) => Promise<void>;
   cancelSnappPay: (orderId: string) => Promise<Order | null>;
   updateSnappPay: (orderId: string, items: Array<{ product_id: string; size: string; color: string; color_name?: string; quantity: number }>) => Promise<Order | null>;
+  fetchReturnRequestStatus: (orderId: string) => Promise<ReturnRequestStatusResponse | null>;
+  createReturnRequest: (orderId: string, payload: CreateReturnRequestPayload) => Promise<ReturnRequest | null>;
+  cancelReturnRequest: (orderId: string) => Promise<boolean>;
+  fetchAdminReturnRequests: (filters?: { status?: string; order_id?: string; page?: number; limit?: number }) => Promise<void>;
+  decideReturnRequest: (requestId: string, action: 'approve' | 'reject', note?: string) => Promise<ReturnRequest | null>;
 }
 
-const initialState: OrderState = {
+const initialState: OrderState & AdminReturnState = {
   orders: [],
   currentOrder: null,
   orderStats: null,
   isLoading: false,
   error: null,
   pagination: null,
+  currentReturnStatus: null,
+  returnRequestLoading: false,
+  returnRequests: [],
+  returnRequestsPagination: null,
+  returnRequestsLoading: false,
 };
 
-export const useOrderStore = create<OrderState & OrderActions>()(
+export const useOrderStore = create<OrderState & AdminReturnState & OrderActions>()(
   persist(
     (set, get) => ({
       ...initialState,
@@ -617,6 +643,128 @@ export const useOrderStore = create<OrderState & OrderActions>()(
           console.error("Error deleting order:", error);
           set({ error: error instanceof Error ? error.message : "An unknown error occurred", isLoading: false });
           toast.error(error instanceof Error ? error.message : "An unknown error occurred");
+        }
+      },
+
+      // ======================================================================
+      // Return requests
+      // ======================================================================
+
+      fetchReturnRequestStatus: async (orderId) => {
+        const { isAuthenticated } = useAuthStore.getState();
+        if (!isAuthenticated) return null;
+        set({ returnRequestLoading: true });
+        try {
+          const response = await fetch(`/api/orders/${orderId}/return-request`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
+          });
+          if (!response.ok) {
+            throw new Error("Failed to fetch return request status");
+          }
+          const data = (await response.json()) as ReturnRequestStatusResponse;
+          set({ currentReturnStatus: data, returnRequestLoading: false });
+          return data;
+        } catch (error) {
+          console.error("Error fetching return request status:", error);
+          set({ returnRequestLoading: false });
+          return null;
+        }
+      },
+
+      createReturnRequest: async (orderId, payload) => {
+        try {
+          const response = await fetch(`/api/orders/${orderId}/return-request`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+            },
+            body: JSON.stringify(payload),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(data.error || data.message || "ثبت درخواست مرجوعی انجام نشد");
+          }
+          // Refresh the combined status so eligibility stays in sync.
+          await get().fetchReturnRequestStatus(orderId);
+          toast.success("درخواست مرجوعی ثبت شد و در انتظار بررسی است");
+          return data as ReturnRequest;
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : "ثبت درخواست مرجوعی انجام نشد");
+          return null;
+        }
+      },
+
+      cancelReturnRequest: async (orderId) => {
+        try {
+          const response = await fetch(`/api/orders/${orderId}/return-request`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(data.error || data.message || "لغو درخواست انجام نشد");
+          }
+          await get().fetchReturnRequestStatus(orderId);
+          toast.success("درخواست مرجوعی لغو شد");
+          return true;
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : "لغو درخواست انجام نشد");
+          return false;
+        }
+      },
+
+      fetchAdminReturnRequests: async (filters = {}) => {
+        set({ returnRequestsLoading: true });
+        try {
+          const params = new URLSearchParams();
+          if (filters.status) params.set("status", filters.status);
+          if (filters.order_id) params.set("order_id", filters.order_id);
+          params.set("page", String(filters.page ?? 1));
+          params.set("limit", String(filters.limit ?? 20));
+
+          const response = await fetch(`/api/admin/return-requests?${params.toString()}`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
+          });
+          if (!response.ok) {
+            throw new Error("Failed to fetch return requests");
+          }
+          const data = await response.json();
+          set({
+            returnRequests: data.return_requests || [],
+            returnRequestsPagination: data.pagination || null,
+            returnRequestsLoading: false,
+          });
+        } catch (error) {
+          console.error("Error fetching admin return requests:", error);
+          set({ returnRequests: [], returnRequestsPagination: null, returnRequestsLoading: false });
+        }
+      },
+
+      decideReturnRequest: async (requestId, action, note) => {
+        try {
+          const response = await fetch(`/api/admin/return-requests/${requestId}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+            },
+            body: JSON.stringify({ action, note }),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(data.error || data.message || "بررسی درخواست انجام نشد");
+          }
+          set((state) => ({
+            returnRequests: state.returnRequests.map((request) =>
+              request.id === requestId ? (data as ReturnRequest) : request,
+            ),
+          }));
+          toast.success(action === "approve" ? "درخواست مرجوعی تایید شد" : "درخواست مرجوعی رد شد");
+          return data as ReturnRequest;
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : "بررسی درخواست انجام نشد");
+          return null;
         }
       },
     }),

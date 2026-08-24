@@ -3,6 +3,7 @@ export interface OrderVariant {
   color: string;
   colorName?: string;
   sku?: string;
+  variantId?: string; // Backend variant reference; present on newer orders
 }
 
 // OrderTimelineEntry represents a single entry in the order timeline
@@ -117,6 +118,7 @@ export interface Order {
   created_at: string; // ISO Date string
   updated_at: string; // ISO Date string
   paid_at?: string; // Payment completion time
+  delivered_at?: string; // When the order was delivered; drives the return window
   // Fields from OrderAPIResponse (Jalali dates)
   jalali_created_at: string;
   jalali_updated_at: string;
@@ -128,4 +130,65 @@ export interface Order {
   user_last_name?: string;
   user_name?: string;
   user_phone?: string;
+}
+
+// ============================================================================
+// Return requests (درخواست مرجوعی)
+// ============================================================================
+
+export type ReturnRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+
+// Mirrors backend ReturnReason* constants — stable API contract.
+export type ReturnIneligibilityReason =
+  | 'not_delivered'
+  | 'not_paid'
+  | 'window_expired'
+  | 'already_approved'
+  | 'already_pending';
+
+export interface ReturnRequestItem {
+  product_id: string;
+  product_name: string;
+  variant: OrderVariant;
+  quantity: number;
+  price_at_purchase: number;
+}
+
+export interface ReturnRequest {
+  id: string;
+  order_id: string;
+  order_number: string;
+  user_id: string;
+  items: ReturnRequestItem[];
+  reason: string;
+  status: ReturnRequestStatus;
+  delivered_at: string;
+  window_ends_at: string;
+  admin_id?: string;
+  admin_name?: string;
+  admin_note?: string;
+  decided_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReturnEligibility {
+  can_request: boolean;
+  reason?: ReturnIneligibilityReason;
+  delivered_at?: string;
+  window_ends_at?: string;
+  jalali_window_ends_at?: string;
+  existing_request_id?: string;
+}
+
+export interface ReturnRequestStatusResponse {
+  request: ReturnRequest | null;
+  eligibility: ReturnEligibility;
+}
+
+// Payload for creating a return request; variant_id disambiguates orders
+// containing the same product in multiple sizes/colors.
+export interface CreateReturnRequestPayload {
+  items: { product_id: string; variant_id?: string; quantity: number }[];
+  reason: string;
 }
