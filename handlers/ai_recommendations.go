@@ -185,7 +185,7 @@ func ChatSupport(w http.ResponseWriter, r *http.Request) {
 				ticketNumber = ticket.TicketNumber
 				ticketID = ticket.ID.Hex()
 				if !strings.Contains(replyText, ticketNumber) {
-					replyText = fmt.Sprintf("%s\n\nتیکت شما با شماره %s ثبت شد و تیم پشتیبانی Voxa آن را بررسی خواهد کرد.", replyText, ticketNumber)
+					replyText = fmt.Sprintf("%s\n\nتیکت شما با شماره %s ثبت شد و تیم پشتیبانی Voxcina آن را بررسی خواهد کرد.", replyText, ticketNumber)
 				}
 			}
 		}

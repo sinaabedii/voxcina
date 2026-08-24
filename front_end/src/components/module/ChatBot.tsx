@@ -62,7 +62,7 @@ const emojis = {
 const initialMessages: Message[] = [
   {
     id: 1,
-    text: `سلام ${emojis.greeting} من دستیار هوشمند ووکسا هستم؛ امروز در چه موردی می‌تونم کمکتون کنم؟`,
+    text: `سلام ${emojis.greeting} من دستیار هوشمند ووکسینا هستم؛ امروز در چه موردی می‌تونم کمکتون کنم؟`,
     sender: "bot",
     time: new Date().toLocaleTimeString("fa-IR", {
       hour: "2-digit",
@@ -415,7 +415,7 @@ export default function ChatBot({ initialOpen = false }: ChatBotProps) {
     setMessages([
       {
         id: 1,
-        text: "سلام 👋 من دستیار هوشمند ووکسا هستم؛ امروز در چه موردی می‌تونم کمکتون کنم؟",
+        text: "سلام 👋 من دستیار هوشمند ووکسینا هستم؛ امروز در چه موردی می‌تونم کمکتون کنم؟",
         sender: "bot",
         time: new Date().toLocaleTimeString("fa-IR", {
           hour: "2-digit",
@@ -789,7 +789,7 @@ export default function ChatBot({ initialOpen = false }: ChatBotProps) {
                 </div>
                 <div>
                   <h3 className="font-bold text-xs md:text-sm">
-                    پشتیبانی Voxa
+                    پشتیبانی Voxcina
                   </h3>
                   <div className="flex items-center">
                     <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-green-400 ml-1"></span>

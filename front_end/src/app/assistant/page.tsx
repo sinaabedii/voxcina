@@ -109,7 +109,7 @@ const getInitialMessages = (): AssistantMessage[] => [
   {
     id: "welcome",
     role: "assistant",
-    text: "سلام! 👋\nمن دستیار هوشمند ووکسا هستم.\n\nبهم بگو دنبال چه استایلی هستی، چه مناسبتی داری یا چه بودجه‌ای مد نظرته — بهترین پیشنهادها رو برات پیدا می‌کنم.",
+    text: "سلام! 👋\nمن دستیار هوشمند وکسینا هستم.\n\nبهم بگو دنبال چه استایلی هستی، چه مناسبتی داری یا چه بودجه‌ای مد نظرته — بهترین پیشنهادها رو برات پیدا می‌کنم.",
     time: new Date().toLocaleTimeString("fa-IR", {
       hour: "2-digit",
       minute: "2-digit",
@@ -313,7 +313,7 @@ export default function AssistantPage() {
           >
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-black">
               <span className="bg-gradient-to-r from-voxcina-blue via-cyan-500 to-purple-500 bg-clip-text text-transparent">
-                سلام، من دستیار هوشمند ووکسام!
+                سلام، من دستیار هوشمند وکسینام!
               </span>
             </h1>
             <p className="text-sm text-voxcina-blue/60 dark:text-slate-400 mt-2">

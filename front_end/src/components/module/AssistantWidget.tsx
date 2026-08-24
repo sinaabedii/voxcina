@@ -100,7 +100,7 @@ export default function AssistantWidget() {
                         </span>
                       </div>
                       <h3 className="text-xs font-bold text-gray-800 mb-0.5 leading-tight">
-                        دستیار هوشمند ووکسا
+                        دستیار هوشمند وکسینا
                       </h3>
                       <p className="text-[10px] text-gray-500 leading-relaxed mb-1.5">
                         استایل شخصی‌تو پیدا کن!
