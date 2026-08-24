@@ -410,12 +410,12 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     return true;
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!validateSelection()) return;
     const selectedVariant = selectedColor ? findSelectedVariant() : undefined;
     const colorVal = selectedVariant?.color || selectedVariant?.colorName || selectedColor;
     const colorName = selectedVariant?.colorName || selectedColor;
-    addItem(product, quantity, selectedSize, colorVal, colorName, selectedVariant?.variantId);
+    await addItem(product, quantity, selectedSize, colorVal, colorName, selectedVariant?.variantId);
     toast.success("محصول به سبد خرید اضافه شد");
   };
 
@@ -498,7 +498,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     }
   };
 
-  const handleTryOnClick = () => {
+  const handleTryOnClick = async () => {
     if (!isAuthenticated) {
       alert("برای استفاده از پرو مجازی ابتدا وارد شوید");
       router.push("/sign-in");
@@ -508,7 +508,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     const selectedVariant = selectedColor ? findSelectedVariant() : undefined;
     const colorVal = selectedVariant?.color || selectedVariant?.colorName || selectedColor;
     const colorName = selectedVariant?.colorName || selectedColor;
-    addItem(product, quantity, selectedSize, colorVal, colorName, selectedVariant?.variantId);
+    await addItem(product, quantity, selectedSize, colorVal, colorName, selectedVariant?.variantId);
     router.push("/tryon");
   };
 

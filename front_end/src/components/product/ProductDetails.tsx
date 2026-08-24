@@ -70,8 +70,6 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
     return images.length > 0 ? images : []; // Fallback to empty array
   })();
 
-  const displayTryOnImage = selectedColorVariant?.tryOnImage;
-
   // Get available sizes for the selected color
   const availableSizes = selectedColorVariant?.sizes || [];
 
@@ -148,12 +146,6 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
               </div>
             )}
 
-            {/* try-on image overlay button */}
-            {displayTryOnImage && (
-              <button className="absolute top-4 right-4 bg-primary text-primary-foreground px-3 py-1 rounded-md text-sm">
-                پرو کردن مجازی
-              </button>
-            )}
           </div>
 
           {/* thumbnails */}
