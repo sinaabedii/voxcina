@@ -1416,6 +1416,13 @@ func DeleteOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Restore inventory before deactivating the order if it was paid
+	if orderToDeactivate.Status != "cancelled" && orderToDeactivate.PaymentStatus == "paid" {
+		if err := restoreInventory(ctx, orderToDeactivate.Items); err != nil {
+			utils.LogAction("error", fmt.Sprintf("Failed to restore inventory for deleted order %s: %v", orderID.Hex(), err))
+		}
+	}
+
 	// Perform soft delete
 	updateFields := bson.M{
 		"is_active":  false,
