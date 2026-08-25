@@ -44,6 +44,16 @@ export function toEnglishNumber(num: string) {
     .replace(/[٠-٩]/g, (c) => String(c.charCodeAt(0) - arabicCharCodeZero));
 }
 
+/**
+ * Keeps only the digits of a value typed into a numeric field. Persian (۰-۹)
+ * and Arabic-Indic (٠-٩) keyboards are accepted alongside ASCII, and grouping
+ * separators that ride along with a pasted amount are dropped, so what the
+ * form submits is always a plain number.
+ */
+export function toDigitsOnly(value: string) {
+  return toEnglishNumber(value).replace(/[^0-9]/g, "");
+}
+
 export function toPersianNumber(num: number | string) {
   const persianDigits = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
   return num.toString().replace(/[0-9]/g, (c) => persianDigits[parseInt(c)]);

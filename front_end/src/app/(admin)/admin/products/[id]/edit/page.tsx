@@ -19,7 +19,7 @@ import VariantAIMetadataEditor, {
   listDraftsFromMetadata,
   parseVariantAIList,
 } from "@/components/admin/VariantAIMetadataEditor";
-import { toEnglishNumber } from "@/lib/utils";
+import { formatPrice, toDigitsOnly, toEnglishNumber } from "@/lib/utils";
 
 export default function EditProductPage() {
   const router = useRouter();
@@ -625,12 +625,31 @@ export default function EditProductPage() {
         </div>
         <div className="flex gap-4">
           <div className="flex-1">
-            <label className="block mb-1">قیمت *</label>
-            <input className="input" type="number" value={price} onChange={e => setPrice(Number(e.target.value))} required />
+            <label className="block mb-1">قیمت (تومان) *</label>
+            <input
+              className="input"
+              type="text"
+              inputMode="numeric"
+              dir="ltr"
+              placeholder="مثال: 450000"
+              value={price ? String(price) : ""}
+              onChange={e => setPrice(Number(toDigitsOnly(e.target.value)))}
+              required
+            />
+            {price > 0 && <p className="mt-1 text-xs text-gray-500">{formatPrice(price)}</p>}
           </div>
           <div className="flex-1">
-            <label className="block mb-1">قیمت اصلی</label>
-            <input className="input" type="number" value={originalPrice} onChange={e => setOriginalPrice(Number(e.target.value))} />
+            <label className="block mb-1">قیمت اصلی (تومان)</label>
+            <input
+              className="input"
+              type="text"
+              inputMode="numeric"
+              dir="ltr"
+              placeholder="مثال: 550000"
+              value={originalPrice ? String(originalPrice) : ""}
+              onChange={e => setOriginalPrice(Number(toDigitsOnly(e.target.value)))}
+            />
+            {originalPrice > 0 && <p className="mt-1 text-xs text-gray-500">{formatPrice(originalPrice)}</p>}
           </div>
         </div>
         <div>

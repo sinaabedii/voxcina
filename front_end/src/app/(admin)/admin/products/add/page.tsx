@@ -21,7 +21,7 @@ import VariantAIMetadataEditor, {
   listDraftsFromMetadata,
   parseVariantAIList,
 } from "@/components/admin/VariantAIMetadataEditor";
-import { toEnglishNumber } from "@/lib/utils";
+import { formatPrice, toDigitsOnly, toEnglishNumber } from "@/lib/utils";
 
 export default function AddProductPage() {
   const router = useRouter();
@@ -76,8 +76,6 @@ export default function AddProductPage() {
   const [tagsInput, setTagsInput] = useState("");
   const [occasionInput, setOccasionInput] = useState("");
   const [seasonInput, setSeasonInput] = useState("");
-  const [priceInput, setPriceInput] = useState("");
-  const [originalPriceInput, setOriginalPriceInput] = useState("");
 
   const hasDiscount = originalPrice > 0 && originalPrice > price;
   const discountPercent = hasDiscount
@@ -258,55 +256,6 @@ export default function AddProductPage() {
     setSeasonInput(value);
     const parts = value.split(",").map(t => t.trim()).filter(t => t);
     setAiMetadata(prev => ({ ...prev, season: parts }));
-  };
-
-  const formatPrice = (value: number) => {
-    if (!value) return "";
-    try {
-      return value.toLocaleString("en-US");
-    } catch {
-      return String(value);
-    }
-  };
-
-  const handlePriceInputChange = (e: any) => {
-    const raw = String(e.target.value)
-      .replace(/,/g, "")
-      .replace(/[^0-9]/g, "");
-
-    if (raw === "") {
-      setPrice(0);
-      setPriceInput("");
-      return;
-    }
-
-    const numeric = Number(raw);
-    if (Number.isNaN(numeric)) {
-      return;
-    }
-
-    setPrice(numeric);
-    setPriceInput(formatPrice(numeric));
-  };
-
-  const handleOriginalPriceInputChange = (e: any) => {
-    const raw = String(e.target.value)
-      .replace(/,/g, "")
-      .replace(/[^0-9]/g, "");
-
-    if (raw === "") {
-      setOriginalPrice(0);
-      setOriginalPriceInput("");
-      return;
-    }
-
-    const numeric = Number(raw);
-    if (Number.isNaN(numeric)) {
-      return;
-    }
-
-    setOriginalPrice(numeric);
-    setOriginalPriceInput(formatPrice(numeric));
   };
 
   const handleGenerateAiMetadata = async () => {
@@ -592,13 +541,14 @@ export default function AddProductPage() {
                 inputMode="numeric"
                 dir="ltr"
                 placeholder="مثال: 450000"
-                value={priceInput}
-                onChange={handlePriceInputChange}
+                value={price ? String(price) : ""}
+                onChange={e => setPrice(Number(toDigitsOnly(e.target.value)))}
                 required
               />
               <p className="mt-1 text-xs text-gray-500">
                 قیمتی که خریدار در سایت مشاهده و پرداخت می‌کند.
               </p>
+              {price > 0 && <p className="mt-1 text-xs text-gray-500">{formatPrice(price)}</p>}
             </div>
             <div className="flex-1">
               <label className="block mb-1">قیمت اصلی (تومان)</label>
@@ -608,12 +558,13 @@ export default function AddProductPage() {
                 inputMode="numeric"
                 dir="ltr"
                 placeholder="مثال: 550000"
-                value={originalPriceInput}
-                onChange={handleOriginalPriceInputChange}
+                value={originalPrice ? String(originalPrice) : ""}
+                onChange={e => setOriginalPrice(Number(toDigitsOnly(e.target.value)))}
               />
               <p className="mt-1 text-xs text-gray-500">
                 در صورت ثبت تخفیف، قیمت اصلی قبل از تخفیف را اینجا وارد کنید.
               </p>
+              {originalPrice > 0 && <p className="mt-1 text-xs text-gray-500">{formatPrice(originalPrice)}</p>}
             </div>
           </div>
           {hasDiscount && (

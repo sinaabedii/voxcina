@@ -357,7 +357,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	price, err := strconv.ParseFloat(priceStr, 64)
+	price, err := parseProductPrice(priceStr)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid price format")
 		return
@@ -366,7 +366,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	// Set originalPrice, default to the same as price if not provided
 	originalPrice := price
 	if originalPriceStr != "" {
-		originalPrice, err = strconv.ParseFloat(originalPriceStr, 64)
+		originalPrice, err = parseProductPrice(originalPriceStr)
 		if err != nil {
 			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid originalPrice format")
 			return
@@ -1076,6 +1076,20 @@ func AdminListProducts(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, http.StatusOK, products)
 }
 
+// parseProductPrice reads a price submitted by the admin form. Persian and
+// Arabic-Indic digits arrive from IME keyboards and a pasted amount often
+// carries its grouping separators, while the stored value has to be a plain
+// number, so both are resolved here instead of being trusted from the client.
+func parseProductPrice(raw string) (float64, error) {
+	normalized := utils.NormalizePersianDigits(raw)
+	// Grouping separators are dropped; the Arabic decimal separator becomes the
+	// ASCII point ParseFloat expects.
+	normalized = strings.NewReplacer(
+		",", "", "\u066c", "", "\u060c", "", "\u200c", "", " ", "", "\u066b", ".",
+	).Replace(normalized)
+	return strconv.ParseFloat(normalized, 64)
+}
+
 // ProductCartUsage reports how many active shopping carts still hold a
 // product. The admin product form disables its update button while a product
 // sits in a cart, so a shopper's cart cannot change under them.
@@ -1468,7 +1482,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		updateIfProvided("name", r.FormValue("name"), stringParser)
 		updateIfProvided("description", r.FormValue("description"), stringParser)
 		if priceStr := r.FormValue("price"); priceStr != "" {
-			price, err := strconv.ParseFloat(priceStr, 64)
+			price, err := parseProductPrice(priceStr)
 			if err != nil {
 				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid price format")
 				return
@@ -1488,7 +1502,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if originalPriceStr := r.FormValue("originalPrice"); originalPriceStr != "" {
-			originalPrice, err := strconv.ParseFloat(originalPriceStr, 64)
+			originalPrice, err := parseProductPrice(originalPriceStr)
 			if err != nil {
 				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid originalPrice format")
 				return
