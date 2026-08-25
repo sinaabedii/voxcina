@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useState, useCallback, useTransition } from "react";
+import { useEffect, useState, useCallback, useTransition } from "react";
 import {
   X,
   ArrowUpDown,
@@ -9,20 +9,23 @@ import {
   Package,
   Loader2,
   Check,
-  RefreshCw,
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
+  SlidersHorizontal,
+  Sparkles,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 
 import { SORT_OPTIONS } from "@/lib/constants";
 import { ColorVariantListItem, PaginationInfo, ProductFilter } from "@/types/product";
+import { Brand } from "@/types/brand";
 import { Category } from "@/types/category";
 
 import Button from "@/components/ui/Button";
 import ProductGrid from "@/components/product/ProductGrid";
 import SmartSearch from "@/components/ui/SmartSearch";
+import ProductFilterPanel from "./ProductFilterPanel";
 
 /**
  * Products Page Content - Client Component
@@ -37,12 +40,14 @@ interface ProductsPageContentProps {
   initialProducts: ColorVariantListItem[];
   initialPagination: PaginationInfo | null;
   categories: Category[];
+  brands: Brand[];
   initialFilters: {
     category?: string;
     brand?: string;
     search?: string;
     sort?: string;
     inStockOnly?: boolean;
+    flashSaleOnly?: boolean;
   };
   currentPage: number;
 }
@@ -51,6 +56,7 @@ export default function ProductsPageContent({
   initialProducts,
   initialPagination,
   categories,
+  brands,
   initialFilters,
   currentPage,
 }: ProductsPageContentProps) {
@@ -60,10 +66,12 @@ export default function ProductsPageContent({
   const [isPending, startTransition] = useTransition();
 
   const [searchTerm, setSearchTerm] = useState(initialFilters.search || "");
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
 
   // Current filter state derived from URL
   const filter: ProductFilter = {
     categories: initialFilters.category ? [initialFilters.category] : [],
+    brands: initialFilters.brand ? [initialFilters.brand] : [],
     search: initialFilters.search,
     sort: initialFilters.sort as ProductFilter["sort"],
     inStockOnly: initialFilters.inStockOnly,
@@ -107,8 +115,17 @@ export default function ProductsPageContent({
     updateUrl({ category: newCategory });
   };
 
+  const handleBrandFilter = (brandName: string) => {
+    const newBrand = initialFilters.brand === brandName ? null : brandName;
+    updateUrl({ brand: newBrand });
+  };
+
   const handleInStockFilter = (checked: boolean) => {
     updateUrl({ inStockOnly: checked ? "true" : null });
+  };
+
+  const handleFlashSaleFilter = (checked: boolean) => {
+    updateUrl({ flashSale: checked ? "true" : null });
   };
 
   const handleSearchChange = (value: string) => {
@@ -132,12 +149,29 @@ export default function ProductsPageContent({
   };
 
   const activeCategory = initialFilters.category;
+  const activeBrand = initialFilters.brand;
 
-  const hasActiveFilters =
-    filter.search ||
-    (filter.categories && filter.categories.length > 0) ||
-    filter.inStockOnly ||
-    filter.sort;
+  // Counts only the narrowing filters — the drawer badge should not light up
+  // for a sort order or a search term, which have their own controls.
+  const activeFilterCount =
+    (activeCategory ? 1 : 0) +
+    (activeBrand ? 1 : 0) +
+    (initialFilters.inStockOnly ? 1 : 0) +
+    (initialFilters.flashSaleOnly ? 1 : 0);
+
+  const hasActiveFilters = Boolean(filter.search || filter.sort) || activeFilterCount > 0;
+
+  // A filter chosen inside the drawer re-renders the page underneath it; the
+  // drawer stays open so several filters can be combined in one pass, but the
+  // body must not scroll behind it.
+  useEffect(() => {
+    if (!isFilterDrawerOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isFilterDrawerOpen]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -192,6 +226,24 @@ export default function ProductsPageContent({
         </div>
 
         <div className="flex items-center gap-2 md:gap-4 flex-wrap sm:flex-nowrap">
+          <motion.button
+            type="button"
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setIsFilterDrawerOpen(true)}
+            className="flex h-10 items-center gap-2 rounded-xl border border-voxcina-cream/50 bg-white px-4 text-sm text-voxcina-blue shadow-sm transition-colors hover:border-voxcina-blue/40 dark:border-voxcina-blue/30 dark:bg-voxcina-blue/10 dark:text-voxcina-cream md:hidden"
+            aria-haspopup="dialog"
+            aria-expanded={isFilterDrawerOpen}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            فیلترها
+            {activeFilterCount > 0 && (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-voxcina-blue px-1.5 text-xs font-medium text-white dark:bg-voxcina-cream dark:text-voxcina-blue">
+                {activeFilterCount.toLocaleString("fa-IR")}
+              </span>
+            )}
+          </motion.button>
+
           <div className="relative z-10">
             <select
               className="h-10 rounded-xl border border-voxcina-cream/50 dark:border-voxcina-blue/30 bg-white dark:bg-voxcina-blue/10 px-4 py-2 w-32 md:w-44 appearance-none focus:outline-none focus:ring-2 focus:ring-voxcina-blue/50 dark:focus:ring-voxcina-cream/50 text-voxcina-blue dark:text-voxcina-cream text-sm shadow-sm"
@@ -257,6 +309,12 @@ export default function ProductsPageContent({
           onClick={() => handleInStockFilter(!filter.inStockOnly)}
           icon={<PackageCheck className="h-4 w-4" />}
         />
+        <FilterChip
+          label="فقط تخفیف‌دار"
+          isActive={!!initialFilters.flashSaleOnly}
+          onClick={() => handleFlashSaleFilter(!initialFilters.flashSaleOnly)}
+          icon={<Sparkles className="h-4 w-4" />}
+        />
       </motion.div>
 
       {/* Loading indicator for transitions */}
@@ -281,105 +339,21 @@ export default function ProductsPageContent({
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4 }}
         >
-          <div className="sticky top-24 space-y-6">
-            {/* In Stock Filter */}
-            <motion.div
-              className="bg-white/90 dark:bg-voxcina-blue/10 rounded-xl border border-voxcina-cream/30 dark:border-voxcina-blue/30 shadow-sm p-5 backdrop-blur-sm"
-              whileHover={{ y: -3 }}
-              transition={{ duration: 0.2 }}
-            >
-              <div className="flex items-center mb-2">
-                <div className="relative flex items-center">
-                  <input
-                    type="checkbox"
-                    id="in-stock-only"
-                    className="opacity-0 absolute h-5 w-5 cursor-pointer"
-                    checked={!!filter.inStockOnly}
-                    onChange={(e) => handleInStockFilter(e.target.checked)}
-                  />
-                  <div
-                    className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border border-voxcina-cream/50 dark:border-voxcina-blue/40 ${
-                      filter.inStockOnly
-                        ? "bg-voxcina-blue dark:bg-voxcina-cream"
-                        : "bg-transparent"
-                    }`}
-                  >
-                    {filter.inStockOnly && (
-                      <Check className="h-3 w-3 text-white dark:text-voxcina-blue" />
-                    )}
-                  </div>
-                  <label
-                    htmlFor="in-stock-only"
-                    className="ml-2 text-sm cursor-pointer text-voxcina-blue dark:text-voxcina-cream"
-                  >
-                    فقط کالاهای موجود
-                  </label>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Categories Filter */}
-            <motion.div
-              className="bg-white/90 dark:bg-voxcina-blue/10 rounded-xl border border-voxcina-cream/30 dark:border-voxcina-blue/30 shadow-sm p-5 backdrop-blur-sm"
-              whileHover={{ y: -3 }}
-              transition={{ duration: 0.2 }}
-            >
-              <h3 className="font-semibold text-lg mb-5 text-voxcina-blue dark:text-voxcina-cream">
-                دسته‌بندی‌ها
-              </h3>
-
-              {categories && categories.length > 0 ? (
-                <div className="space-y-3">
-                  {categories.map((category) => (
-                    <div key={category.id} className="flex items-center group">
-                      <div className="relative flex items-center">
-                        <input
-                          type="checkbox"
-                          id={`category-${category.id || ""}`}
-                          className="opacity-0 absolute h-5 w-5 cursor-pointer"
-                          checked={(filter.categories || []).includes(category.id || "")}
-                          onChange={() => category.id && handleCategoryFilter(category.id)}
-                        />
-                        <div
-                          className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border border-voxcina-cream/50 dark:border-voxcina-blue/40 transition-colors ${
-                            (filter.categories || []).includes(category.id || "")
-                              ? "bg-voxcina-blue dark:bg-voxcina-cream"
-                              : "bg-transparent group-hover:bg-voxcina-cream/30 dark:group-hover:bg-voxcina-blue/30"
-                          }`}
-                        >
-                          {(filter.categories || []).includes(category.id || "") && (
-                            <Check className="h-3 w-3 text-white dark:text-voxcina-blue" />
-                          )}
-                        </div>
-                        <label
-                          htmlFor={`category-${category.id || ""}`}
-                          className="ml-2 text-sm cursor-pointer text-voxcina-blue dark:text-voxcina-cream"
-                        >
-                          {category.name}
-                        </label>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-3 text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60 italic">
-                  دسته‌بندی‌ای یافت نشد
-                </div>
-              )}
-            </motion.div>
-
-            {hasActiveFilters && (
-              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                <Button
-                  variant="outline"
-                  fullWidth
-                  className="h-12 rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-all duration-300"
-                  onClick={handleClearFilters}
-                >
-                  پاک کردن فیلترها
-                </Button>
-              </motion.div>
-            )}
+          <div className="sticky top-24">
+            <ProductFilterPanel
+              categories={categories}
+              brands={brands}
+              activeCategory={activeCategory}
+              activeBrand={activeBrand}
+              inStockOnly={!!filter.inStockOnly}
+              flashSaleOnly={!!initialFilters.flashSaleOnly}
+              onToggleCategory={handleCategoryFilter}
+              onToggleBrand={handleBrandFilter}
+              onToggleInStock={handleInStockFilter}
+              onToggleFlashSale={handleFlashSaleFilter}
+              onClear={handleClearFilters}
+              hasActiveFilters={!!hasActiveFilters}
+            />
           </div>
         </motion.div>
 
@@ -450,6 +424,84 @@ export default function ProductsPageContent({
           )}
         </motion.div>
       </div>
+
+      {/* Mobile filter drawer — the same panel the desktop sidebar renders,
+          reached through the filters button since the sidebar is hidden on
+          small screens. */}
+      <AnimatePresence>
+        {isFilterDrawerOpen && (
+          <div className="fixed inset-0 z-50 md:hidden">
+            <motion.div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsFilterDrawerOpen(false)}
+            />
+            <motion.aside
+              role="dialog"
+              aria-modal="true"
+              aria-label="فیلترها"
+              className="absolute inset-y-0 right-0 flex w-[85%] max-w-sm flex-col bg-white shadow-2xl dark:bg-voxcina-blue/95"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 320, damping: 34 }}
+            >
+              <header className="flex items-center justify-between border-b border-voxcina-cream/40 px-5 py-4 dark:border-voxcina-blue/40">
+                <h2 className="flex items-center gap-2 font-semibold text-voxcina-blue dark:text-voxcina-cream">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  فیلترها
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setIsFilterDrawerOpen(false)}
+                  aria-label="بستن فیلترها"
+                  className="rounded-lg p-1.5 text-voxcina-blue/70 transition-colors hover:bg-voxcina-cream/40 dark:text-voxcina-cream/70 dark:hover:bg-voxcina-blue/40"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </header>
+
+              <div className="flex-1 overflow-y-auto px-5">
+                <ProductFilterPanel
+                  variant="drawer"
+                  categories={categories}
+                  brands={brands}
+                  activeCategory={activeCategory}
+                  activeBrand={activeBrand}
+                  inStockOnly={!!filter.inStockOnly}
+                  flashSaleOnly={!!initialFilters.flashSaleOnly}
+                  onToggleCategory={handleCategoryFilter}
+                  onToggleBrand={handleBrandFilter}
+                  onToggleInStock={handleInStockFilter}
+                  onToggleFlashSale={handleFlashSaleFilter}
+                  onClear={handleClearFilters}
+                  hasActiveFilters={!!hasActiveFilters}
+                />
+              </div>
+
+              <footer className="border-t border-voxcina-cream/40 px-5 py-4 dark:border-voxcina-blue/40">
+                <Button
+                  variant="primary"
+                  fullWidth
+                  className="h-12 rounded-xl"
+                  onClick={() => setIsFilterDrawerOpen(false)}
+                >
+                  {isPending ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      در حال اعمال...
+                    </span>
+                  ) : (
+                    `نمایش ${(initialPagination?.totalColorVariants ?? initialProducts.length).toLocaleString("fa-IR")} محصول`
+                  )}
+                </Button>
+              </footer>
+            </motion.aside>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -644,8 +696,8 @@ function PaginationControls({
 /**
  * Quick Filter Chip
  *
- * One filter, one tap. Used for the category and stock filters that the
- * sidebar also offers, so both stay in sync through the same URL parameters.
+ * One filter, one tap. Mirrors the category, stock and offer filters the
+ * panel offers, so both stay in sync through the same URL parameters.
  */
 function FilterChip({
   label,

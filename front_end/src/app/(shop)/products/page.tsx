@@ -11,6 +11,7 @@ import {
   PaginatedColorVariantsResponse,
   PaginationInfo,
 } from "@/types/product";
+import { Brand } from "@/types/brand";
 import { Category } from "@/types/category";
 import ProductsPageContent from "@/app/(shop)/products/_components/ProductsPageContent";
 import { Loading } from "@/components/ui";
@@ -36,6 +37,7 @@ interface ProductsPageProps {
     search?: string;
     sort?: string;
     inStockOnly?: string;
+    flashSale?: string;
   }>;
 }
 
@@ -66,6 +68,7 @@ async function getProducts(searchParams: {
   search?: string;
   sort?: string;
   inStockOnly?: string;
+  flashSale?: string;
 }): Promise<{ products: ColorVariantListItem[]; pagination: PaginationInfo | null }> {
   const page = searchParams.page || "1";
   const limit = "20";
@@ -91,6 +94,9 @@ async function getProducts(searchParams: {
   }
   if (searchParams.inStockOnly === "true") {
     queryParams.in_stock = "true";
+  }
+  if (searchParams.flashSale === "true") {
+    queryParams.is_flash_sale = "true";
   }
 
   const endpoint = buildApiUrl("/api/products", queryParams);
@@ -127,6 +133,18 @@ async function getCategories(): Promise<Category[]> {
     {
       revalidate: CACHE_TIMES.CATEGORIES,
       tags: ["categories"],
+    }
+  );
+}
+
+// Fetch brands for the filter panel
+async function getBrands(): Promise<Brand[]> {
+  return serverFetchWithFallback<Brand[]>(
+    "/api/brands",
+    [],
+    {
+      revalidate: CACHE_TIMES.BRANDS,
+      tags: ["brands"],
     }
   );
 }
@@ -203,9 +221,10 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const params = await searchParams;
   
   // Fetch data on the server (Requirements: 2.1)
-  const [{ products, pagination }, categories] = await Promise.all([
+  const [{ products, pagination }, categories, brands] = await Promise.all([
     getProducts(params),
     getCategories(),
+    getBrands(),
   ]);
 
   const currentPage = parseInt(params.page || "1", 10);
@@ -246,12 +265,14 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           initialProducts={products}
           initialPagination={pagination}
           categories={categories}
+          brands={brands}
           initialFilters={{
             category: params.category,
             brand: params.brand,
             search: params.search,
             sort: params.sort,
             inStockOnly: params.inStockOnly === "true",
+            flashSaleOnly: params.flashSale === "true",
           }}
           currentPage={currentPage}
         />
