@@ -4,8 +4,8 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState, useCallback, useTransition } from "react";
 import {
   X,
-  Filter,
   ArrowUpDown,
+  PackageCheck,
   Package,
   Loader2,
   Check,
@@ -14,7 +14,7 @@ import {
   ChevronRight,
   MoreHorizontal,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 import { SORT_OPTIONS } from "@/lib/constants";
 import { ColorVariantListItem, PaginationInfo, ProductFilter } from "@/types/product";
@@ -59,7 +59,6 @@ export default function ProductsPageContent({
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(initialFilters.search || "");
 
   // Current filter state derived from URL
@@ -131,6 +130,8 @@ export default function ProductsPageContent({
     updateUrl({ page: page > 1 ? String(page) : null });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  const activeCategory = initialFilters.category;
 
   const hasActiveFilters =
     filter.search ||
@@ -209,17 +210,6 @@ export default function ProductsPageContent({
             </div>
           </div>
 
-          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-            <Button
-              variant="outline"
-              onClick={() => setIsFilterOpen(true)}
-              className="flex items-center gap-2 rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-all duration-300"
-            >
-              <Filter className="h-4 w-4" />
-              فیلترها
-            </Button>
-          </motion.div>
-
           {hasActiveFilters && (
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
               <Button
@@ -233,6 +223,40 @@ export default function ProductsPageContent({
             </motion.div>
           )}
         </div>
+      </motion.div>
+
+      {/* Quick filters — the category and stock filters from the sidebar, as
+          one-tap chips. Rendered at every breakpoint, so small screens (where
+          the sidebar is hidden) reach the same filters without a drawer. */}
+      <motion.div
+        className="mb-8 flex items-center gap-2 overflow-x-auto scrollbar-hide py-1"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.05 }}
+      >
+        <FilterChip
+          label="همه محصولات"
+          isActive={!activeCategory}
+          onClick={() => updateUrl({ category: null })}
+        />
+        {categories.map((category) => (
+          <FilterChip
+            key={category.id}
+            label={category.name}
+            isActive={activeCategory === category.id}
+            onClick={() => category.id && handleCategoryFilter(category.id)}
+          />
+        ))}
+        <span
+          aria-hidden="true"
+          className="h-6 w-px flex-shrink-0 bg-voxcina-cream dark:bg-voxcina-blue/40"
+        />
+        <FilterChip
+          label="فقط کالاهای موجود"
+          isActive={!!filter.inStockOnly}
+          onClick={() => handleInStockFilter(!filter.inStockOnly)}
+          icon={<PackageCheck className="h-4 w-4" />}
+        />
       </motion.div>
 
       {/* Loading indicator for transitions */}
@@ -426,17 +450,6 @@ export default function ProductsPageContent({
           )}
         </motion.div>
       </div>
-
-      {/* Mobile Filter Drawer */}
-      <MobileFilterDrawer
-        isOpen={isFilterOpen}
-        onClose={() => setIsFilterOpen(false)}
-        categories={categories}
-        filter={filter}
-        onCategoryFilter={handleCategoryFilter}
-        onInStockFilter={handleInStockFilter}
-        onClearFilters={handleClearFilters}
-      />
     </div>
   );
 }
@@ -540,7 +553,7 @@ function PaginationControls({
             whileTap={currentPage > 1 ? { scale: 0.95 } : {}}
             aria-label="صفحه قبل"
           >
-            <ChevronRight className="h-5 w-5" />
+            <ChevronLeft className="h-5 w-5" />
           </motion.button>
 
           {/* Page Info */}
@@ -574,7 +587,7 @@ function PaginationControls({
             whileTap={currentPage < totalPages ? { scale: 0.95 } : {}}
             aria-label="صفحه بعد"
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronRight className="h-5 w-5" />
           </motion.button>
         </motion.div>
       </div>
@@ -627,173 +640,40 @@ function PaginationControls({
   );
 }
 
+
 /**
- * Mobile Filter Drawer Component
+ * Quick Filter Chip
+ *
+ * One filter, one tap. Used for the category and stock filters that the
+ * sidebar also offers, so both stay in sync through the same URL parameters.
  */
-function MobileFilterDrawer({
-  isOpen,
-  onClose,
-  categories,
-  filter,
-  onCategoryFilter,
-  onInStockFilter,
-  onClearFilters,
+function FilterChip({
+  label,
+  isActive,
+  onClick,
+  icon,
 }: {
-  isOpen: boolean;
-  onClose: () => void;
-  categories: Category[];
-  filter: ProductFilter;
-  onCategoryFilter: (categoryId: string) => void;
-  onInStockFilter: (checked: boolean) => void;
-  onClearFilters: () => void;
+  label: string;
+  isActive: boolean;
+  onClick: () => void;
+  icon?: React.ReactNode;
 }) {
-  const hasActiveFilters =
-    filter.search ||
-    (filter.categories && filter.categories.length > 0) ||
-    filter.inStockOnly ||
-    filter.sort;
-
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            className="fixed inset-0 z-50 bg-voxcina-blue/30 backdrop-blur-sm md:hidden"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-          />
-          <motion.div
-            className="fixed inset-y-0 right-0 w-[85%] max-w-sm bg-white/95 dark:bg-voxcina-blue/95 shadow-xl p-6 overflow-y-auto z-50 md:hidden backdrop-blur-sm border-l border-voxcina-cream/30 dark:border-voxcina-blue/50"
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring" as const, damping: 25, stiffness: 300 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-voxcina-blue dark:text-voxcina-cream">
-                فیلترها
-              </h2>
-              <motion.button
-                onClick={onClose}
-                className="w-8 h-8 rounded-full bg-voxcina-cream/30 dark:bg-voxcina-blue/30 flex items-center justify-center text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:bg-voxcina-cream/50 dark:hover:bg-voxcina-blue/50 hover:text-voxcina-blue dark:hover:text-voxcina-cream transition-colors"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-              >
-                <X className="h-5 w-5" />
-              </motion.button>
-            </div>
-
-            <div className="space-y-6">
-              {/* In Stock Filter */}
-              <div>
-                <div className="flex items-center">
-                  <div className="relative flex items-center">
-                    <input
-                      type="checkbox"
-                      id="mobile-in-stock-only"
-                      className="opacity-0 absolute h-5 w-5 cursor-pointer"
-                      checked={!!filter.inStockOnly}
-                      onChange={(e) => onInStockFilter(e.target.checked)}
-                    />
-                    <div
-                      className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border border-voxcina-cream/50 dark:border-voxcina-blue/40 ${
-                        filter.inStockOnly
-                          ? "bg-voxcina-blue dark:bg-voxcina-cream"
-                          : "bg-transparent"
-                      }`}
-                    >
-                      {filter.inStockOnly && (
-                        <Check className="h-3 w-3 text-white dark:text-voxcina-blue" />
-                      )}
-                    </div>
-                    <label
-                      htmlFor="mobile-in-stock-only"
-                      className="ml-2 text-sm cursor-pointer text-voxcina-blue dark:text-voxcina-cream"
-                    >
-                      فقط کالاهای موجود
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Categories */}
-              <div>
-                <h3 className="font-semibold text-lg mb-4 text-voxcina-blue dark:text-voxcina-cream">
-                  دسته‌بندی‌ها
-                </h3>
-                {categories && categories.length > 0 ? (
-                  <div className="space-y-3">
-                    {categories.map((category) => (
-                      <div key={category.id} className="flex items-center">
-                        <div className="relative flex items-center">
-                          <input
-                            type="checkbox"
-                            id={`mobile-category-${category.id || ""}`}
-                            className="opacity-0 absolute h-5 w-5 cursor-pointer"
-                            checked={(filter.categories || []).includes(category.id || "")}
-                            onChange={() => category.id && onCategoryFilter(category.id)}
-                          />
-                          <div
-                            className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border border-voxcina-cream/50 dark:border-voxcina-blue/40 transition-colors ${
-                              (filter.categories || []).includes(category.id || "")
-                                ? "bg-voxcina-blue dark:bg-voxcina-cream"
-                                : "bg-transparent"
-                            }`}
-                          >
-                            {(filter.categories || []).includes(category.id || "") && (
-                              <Check className="h-3 w-3 text-white dark:text-voxcina-blue" />
-                            )}
-                          </div>
-                          <label
-                            htmlFor={`mobile-category-${category.id || ""}`}
-                            className="ml-2 text-sm cursor-pointer text-voxcina-blue dark:text-voxcina-cream"
-                          >
-                            {category.name}
-                          </label>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-3 text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60 italic">
-                    دسته‌بندی‌ای یافت نشد
-                  </div>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="mt-8 space-y-4 sticky bottom-0 bg-white/90 dark:bg-voxcina-blue/90 pt-4 backdrop-blur-sm">
-                <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.2 }}>
-                  <Button
-                    variant="primary"
-                    fullWidth
-                    className="h-12 rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue dark:bg-voxcina-cream/90 dark:hover:bg-voxcina-cream dark:text-voxcina-blue text-white shadow-md hover:shadow-lg transition-all duration-300"
-                    onClick={onClose}
-                  >
-                    اعمال فیلترها
-                  </Button>
-                </motion.div>
-
-                {hasActiveFilters && (
-                  <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.2 }}>
-                    <Button
-                      variant="outline"
-                      fullWidth
-                      className="h-12 rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-all duration-300"
-                      onClick={onClearFilters}
-                    >
-                      پاک کردن فیلترها
-                    </Button>
-                  </motion.div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+    <motion.button
+      type="button"
+      onClick={onClick}
+      aria-pressed={isActive}
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.96 }}
+      className={`flex flex-shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-sm transition-colors duration-200 ${
+        isActive
+          ? "border-transparent bg-voxcina-blue text-white shadow-sm dark:bg-voxcina-cream dark:text-voxcina-blue"
+          : "border-voxcina-cream/60 bg-white/80 text-voxcina-blue hover:border-voxcina-blue/40 hover:bg-voxcina-cream/30 dark:border-voxcina-blue/40 dark:bg-voxcina-blue/10 dark:text-voxcina-cream dark:hover:bg-voxcina-blue/30"
+      }`}
+    >
+      {icon}
+      {label}
+      {isActive && <Check className="h-3.5 w-3.5" />}
+    </motion.button>
   );
 }
