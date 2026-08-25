@@ -13,6 +13,12 @@ import { Brand } from "@/types/brand";
 import { Category } from "@/types/category";
 import { useAuthStore } from "./auth-store";
 
+// Sequence number for `fetchProductById`. Navigating between two edit pages can
+// leave two requests in flight; only the newest one may write `activeProduct`,
+// otherwise a slow response for a product the admin already left behind
+// overwrites the one they are actually looking at.
+let activeProductRequestId = 0;
+
 /**
  * Product Store
  * 
@@ -154,6 +160,8 @@ export const useProductStore = create<ProductState>()(
 
       // Fetch single product for admin edit page
       fetchProductById: async (id: string) => {
+        const requestId = ++activeProductRequestId;
+        const isStale = () => requestId !== activeProductRequestId;
         set({ isLoading: true, error: null, activeProduct: null, activeProductReviews: [] });
         try {
           const response = await fetch(`/api/products/${id}`);
@@ -165,22 +173,24 @@ export const useProductStore = create<ProductState>()(
           if (!product) {
             throw new Error("محصول یافت نشد");
           }
+          if (isStale()) return;
 
           // Fetch product reviews (only approved ones returned by API)
           try {
             const revRes = await fetch(`/api/products/${id}/reviews`);
             const reviews = revRes.ok ? await revRes.json() : [];
+            if (isStale()) return;
             set({ activeProductReviews: Array.isArray(reviews) ? reviews : [] });
           } catch {
+            if (isStale()) return;
             set({ activeProductReviews: [] });
           }
 
           set({ activeProduct: product, isLoading: false });
 
-          if (product) {
-            get().addRecentlyViewed(product);
-          }
+          get().addRecentlyViewed(product);
         } catch (error) {
+          if (isStale()) return;
           set({
             error: error instanceof Error ? error.message : "خطای ناشناخته",
             isLoading: false,

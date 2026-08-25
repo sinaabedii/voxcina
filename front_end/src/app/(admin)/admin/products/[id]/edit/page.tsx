@@ -43,7 +43,9 @@ export default function EditProductPage() {
   const [isActive, setIsActive] = useState(true);
   const [inStock, setInStock] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  // Id of the product currently mirrored into the form fields below, so a
+  // route change re-hydrates instead of keeping the previous product's values.
+  const [loadedProductId, setLoadedProductId] = useState<string | null>(null);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const [categorySearch, setCategorySearch] = useState("");
@@ -106,85 +108,81 @@ export default function EditProductPage() {
     };
   }, [productId, adminToken]);
 
+  // Hydrate the form from the fetched product. `activeProduct` is shared store
+  // state that outlives this page, so on the first render after mount it can
+  // still hold the product edited earlier in the session; hydrating from that
+  // would fill (and then save) the form with the wrong product. Only the
+  // product whose id matches the route may hydrate, and every field is
+  // assigned so nothing carries over when the id changes.
   useEffect(() => {
-    if (activeProduct && !loaded) {
-      setName(activeProduct.name);
-      setDescription(activeProduct.description);
-      setPrice(activeProduct.price);
-      setOriginalPrice(activeProduct.originalPrice);
-      setCategoryIds(activeProduct.category_ids || []);
-      setBrandId(activeProduct.brand_id || "");
-      setColorVariants(activeProduct.colorVariants || []);
-      // Load existing per-variant AI metadata into local state
-      if (activeProduct.colorVariants && activeProduct.colorVariants.length > 0) {
-        const vMeta: { [key: number]: VariantAIMetadata } = {};
-        const vDrafts: { [key: number]: VariantAIListDrafts } = {};
-        activeProduct.colorVariants.forEach((cv, idx) => {
-          if (cv.aiMetadata) {
-            vMeta[idx] = cv.aiMetadata;
-            vDrafts[idx] = listDraftsFromMetadata(cv.aiMetadata);
-          }
-        });
-        setVariantAiMetadata(vMeta);
-        setVariantAiListDrafts(vDrafts);
-      }
-      setAttributes(activeProduct.attributes || []);
-      
-      // Load existing main images into ImageItems
-      if (activeProduct.mainImages && activeProduct.mainImages.length > 0) {
-        setMainImageItems(activeProduct.mainImages.map(url => createImageItemFromUrl(url)));
-      }
-      
-      // Load existing color variant images into ImageItems
-      if (activeProduct.colorVariants && activeProduct.colorVariants.length > 0) {
-        const colorImgs: { [key: number]: ImageItem[] } = {};
-        activeProduct.colorVariants.forEach((cv, idx) => {
-          if (cv.images && cv.images.length > 0) {
-            colorImgs[idx] = cv.images.map(url => createImageItemFromUrl(url));
-          }
-        });
-        setColorImageItems(colorImgs);
-      }
-      setIsFlashSale(activeProduct.is_flash_sale);
-      setIsActive(activeProduct.is_active);
-      setInStock(activeProduct.inStock);
-      if ((activeProduct as any).collection) {
-        setCollection((activeProduct as any).collection);
-      }
-      if ((activeProduct as any).searchMetadata) {
-        const sm = (activeProduct as any).searchMetadata;
-        setAiMetadata(prev => ({
-          ...prev,
-          namePersian: sm.namePersian || "",
-          descriptionPersian: sm.descriptionPersian || "",
-          keywords: Array.isArray(sm.keywords) ? sm.keywords : [],
-          tags: Array.isArray(sm.tags) ? sm.tags : [],
-          materialPersian: sm.materialPersian || "",
-          stylePersian: sm.stylePersian || "",
-          occasionTags: Array.isArray(sm.occasionTags) ? sm.occasionTags : [],
-          season: Array.isArray(sm.season) ? sm.season : [],
-          fitType: sm.fitType || "معمولی",
-          fitDescription: sm.fitDescription || "",
-          garmentPhrase: sm.garmentPhrase || "",
-          ageGroup: sm.ageGroup || "بزرگسال",
-        }));
-        if (Array.isArray(sm.keywords)) {
-          setKeywordsInput(sm.keywords.join(", "));
-        }
-        if (Array.isArray(sm.tags)) {
-          setTagsInput(sm.tags.join(", "));
-        }
-        if (Array.isArray(sm.occasionTags)) {
-          setOccasionInput(sm.occasionTags.join(", "));
-        }
-        if (Array.isArray(sm.season)) {
-          setSeasonInput(sm.season.join(", "));
-        }
-        setGender(sm.gender || "مردانه");
-      }
-      setLoaded(true);
+    if (!activeProduct || activeProduct.id !== productId || loadedProductId === productId) {
+      return;
     }
-  }, [activeProduct, loaded]);
+    const variants = activeProduct.colorVariants || [];
+    setName(activeProduct.name);
+    setDescription(activeProduct.description);
+    setPrice(activeProduct.price);
+    setOriginalPrice(activeProduct.originalPrice);
+    setCategoryIds(activeProduct.category_ids || []);
+    setBrandId(activeProduct.brand_id || "");
+    setColorVariants(variants);
+
+    // Load existing per-variant AI metadata into local state
+    const vMeta: { [key: number]: VariantAIMetadata } = {};
+    const vDrafts: { [key: number]: VariantAIListDrafts } = {};
+    variants.forEach((cv, idx) => {
+      if (cv.aiMetadata) {
+        vMeta[idx] = cv.aiMetadata;
+        vDrafts[idx] = listDraftsFromMetadata(cv.aiMetadata);
+      }
+    });
+    setVariantAiMetadata(vMeta);
+    setVariantAiListDrafts(vDrafts);
+    setAttributes(activeProduct.attributes || []);
+
+    // Load existing main images into ImageItems
+    setMainImageItems((activeProduct.mainImages || []).map(url => createImageItemFromUrl(url)));
+
+    // Load existing color variant images into ImageItems
+    const colorImgs: { [key: number]: ImageItem[] } = {};
+    variants.forEach((cv, idx) => {
+      if (cv.images && cv.images.length > 0) {
+        colorImgs[idx] = cv.images.map(url => createImageItemFromUrl(url));
+      }
+    });
+    setColorImageItems(colorImgs);
+    // Pending uploads belong to the product they were picked for
+    setColorTryOnFiles({});
+    setColorSwatchBlobs({});
+
+    setIsFlashSale(activeProduct.is_flash_sale);
+    setIsActive(activeProduct.is_active);
+    setInStock(activeProduct.inStock);
+    setCollection((activeProduct as any).collection || "");
+
+    const sm = (activeProduct as any).searchMetadata || {};
+    setAiMetadata({
+      namePersian: sm.namePersian || "",
+      descriptionPersian: sm.descriptionPersian || "",
+      keywords: Array.isArray(sm.keywords) ? sm.keywords : [],
+      tags: Array.isArray(sm.tags) ? sm.tags : [],
+      materialPersian: sm.materialPersian || "",
+      stylePersian: sm.stylePersian || "",
+      occasionTags: Array.isArray(sm.occasionTags) ? sm.occasionTags : [],
+      season: Array.isArray(sm.season) ? sm.season : [],
+      fitType: sm.fitType || "معمولی",
+      fitDescription: sm.fitDescription || "",
+      garmentPhrase: sm.garmentPhrase || "",
+      ageGroup: sm.ageGroup || "بزرگسال",
+    });
+    setKeywordsInput(Array.isArray(sm.keywords) ? sm.keywords.join(", ") : "");
+    setTagsInput(Array.isArray(sm.tags) ? sm.tags.join(", ") : "");
+    setOccasionInput(Array.isArray(sm.occasionTags) ? sm.occasionTags.join(", ") : "");
+    setSeasonInput(Array.isArray(sm.season) ? sm.season.join(", ") : "");
+    setGender(sm.gender || "مردانه");
+
+    setLoadedProductId(productId);
+  }, [activeProduct, productId, loadedProductId]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -607,7 +605,7 @@ export default function EditProductPage() {
     }
   };
 
-  if (!activeProduct && isLoading) {
+  if (loadedProductId !== productId && isLoading) {
     return <div className="text-center py-8">در حال بارگذاری...</div>;
   }
 
