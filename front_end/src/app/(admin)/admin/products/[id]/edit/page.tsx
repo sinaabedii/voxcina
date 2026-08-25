@@ -74,6 +74,10 @@ export default function EditProductPage() {
   const [tagsInput, setTagsInput] = useState("");
   const [occasionInput, setOccasionInput] = useState("");
   const [seasonInput, setSeasonInput] = useState("");
+  // Number of active shopping carts that still hold this product. Editing is
+  // blocked while it is greater than zero so a shopper's cart cannot change
+  // under them between adding the product and paying for it.
+  const [cartsHoldingProduct, setCartsHoldingProduct] = useState(0);
 
   useEffect(() => {
     fetchBrands();
@@ -82,6 +86,25 @@ export default function EditProductPage() {
       fetchProductById(productId);
     }
   }, [fetchBrands, fetchCategories, fetchProductById, productId]);
+
+  useEffect(() => {
+    if (!productId || !adminToken) return;
+    let cancelled = false;
+    fetch(`/api/admin/products/${productId}/cart-usage`, {
+      cache: "no-store",
+      headers: { Authorization: `Bearer ${adminToken}` },
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((usage) => {
+        if (!cancelled) setCartsHoldingProduct(Number(usage?.carts) || 0);
+      })
+      .catch(() => {
+        if (!cancelled) setCartsHoldingProduct(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [productId, adminToken]);
 
   useEffect(() => {
     if (activeProduct && !loaded) {
@@ -480,6 +503,10 @@ export default function EditProductPage() {
     }
     if (!name || !price || !categoryIds.length || !brandId) {
       toast.error("لطفا همه فیلدهای ضروری را پر کنید");
+      return;
+    }
+    if (cartsHoldingProduct > 0) {
+      toast.error("این محصول در سبد خرید مشتریان قرار دارد و تا خالی شدن سبدها قابل ویرایش نیست");
       return;
     }
     setSubmitting(true);
@@ -1070,7 +1097,12 @@ export default function EditProductPage() {
             موجود
           </label>
         </div>
-        <Button type="submit" variant="primary" disabled={submitting || isLoading}>{submitting ? "در حال ثبت..." : "ثبت تغییرات"}</Button>
+        {cartsHoldingProduct > 0 && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/10 dark:text-amber-300">
+            این محصول هم‌اکنون در {cartsHoldingProduct.toLocaleString("fa-IR")} سبد خرید قرار دارد؛ تا زمانی که از سبدها خارج نشود امکان ثبت تغییرات وجود ندارد.
+          </div>
+        )}
+        <Button type="submit" variant="primary" disabled={submitting || isLoading || cartsHoldingProduct > 0}>{submitting ? "در حال ثبت..." : "ثبت تغییرات"}</Button>
         {error && <div className="text-red-500">{error}</div>}
       </form>
     </div>

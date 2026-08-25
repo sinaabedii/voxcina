@@ -141,6 +141,15 @@ func Connect(cfg *config.Config) *mongo.Database {
 		log.Printf("Warning: Could not ensure order transaction ID indexes: %v", err)
 	}
 
+	// The admin product form asks how many active carts hold a product before
+	// it allows an edit, so that lookup must not scan every cart.
+	if _, err := Database.Collection("carts").Indexes().CreateOne(context.Background(), mongo.IndexModel{
+		Keys:    bson.D{{Key: "items.product_id", Value: 1}, {Key: "is_active", Value: 1}},
+		Options: options.Index().SetName("cart_item_product_idx"),
+	}); err != nil {
+		log.Printf("Warning: Could not ensure cart product index: %v", err)
+	}
+
 	// Create blog AI pipeline indexes
 	if err := EnsureBlogIndexes(Database); err != nil {
 		log.Printf("Warning: Could not ensure blog indexes: %v", err)

@@ -156,6 +156,7 @@ func NewRouter() *mux.Router {
 	// Product Management Routes (Admin)
 	adminRouter.HandleFunc("/products", handlers.AdminListProducts).Methods("GET")
 	adminRouter.HandleFunc("/products", handlers.AddProduct).Methods("POST")
+	adminRouter.HandleFunc("/products/{id}/cart-usage", handlers.GetProductCartUsage).Methods("GET")
 	adminRouter.HandleFunc("/products/{id}", handlers.UpdateProduct).Methods("PUT")
 	adminRouter.HandleFunc("/products/{id}", handlers.DeleteProduct).Methods("DELETE")
 

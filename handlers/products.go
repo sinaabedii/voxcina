@@ -1076,6 +1076,37 @@ func AdminListProducts(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, http.StatusOK, products)
 }
 
+// ProductCartUsage reports how many active shopping carts still hold a
+// product. The admin product form disables its update button while a product
+// sits in a cart, so a shopper's cart cannot change under them.
+type ProductCartUsage struct {
+	ProductID string `json:"product_id"`
+	Carts     int64  `json:"carts"`
+}
+
+// GetProductCartUsage handles GET /api/admin/products/{id}/cart-usage
+func GetProductCartUsage(w http.ResponseWriter, r *http.Request) {
+	productID, err := primitive.ObjectIDFromHex(mux.Vars(r)["id"])
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid product ID format")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	carts, err := db.Database.Collection("carts").CountDocuments(ctx, bson.M{
+		"is_active":        true,
+		"items.product_id": productID,
+	})
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error counting carts holding the product: "+err.Error())
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, ProductCartUsage{ProductID: productID.Hex(), Carts: carts})
+}
+
 // GetProduct handles GET /api/products/{id}
 func GetProduct(w http.ResponseWriter, r *http.Request) {
 	// Get ID from URL parameters or query string
