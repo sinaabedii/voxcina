@@ -83,7 +83,7 @@ type Product struct {
 	Collection    string               `bson:"collection,omitempty"     json:"collection,omitempty"` // Product collection (from seasons: بهار, تابستان, پاییز, زمستان)
 	Attributes    []ProductAttribute   `bson:"attributes"               json:"attributes"`           // Product-wide metadata
 	IsFlashSale   bool                 `bson:"is_flash_sale"            json:"is_flash_sale"`        // Part of flash-sale campaign?
-	IsActive      bool                 `bson:"is_active"                json:"is_active"`            // Soft delete flag
+	IsActive      bool                 `bson:"is_active"                json:"is_active"`            // Storefront visibility, toggled from the admin form; deleting removes the document
 	InStock       bool                 `bson:"in_stock"                 json:"inStock"`              // Calculated: true if any color+size has quantity > 0
 	CreatedAt     time.Time            `bson:"created_at"               json:"created_at"`
 	UpdatedAt     time.Time            `bson:"updated_at"               json:"updated_at"`

@@ -4,7 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import { useProductStore } from "@/store/product-store";
 import { useCategoryStore } from "@/store/category-store";
 import { useAuthStore } from "@/store/auth-store";
-import { CartReconciliation, ColorVariant, SizeVariant, ProductAttribute, VariantAIMetadata } from "@/types/product";
+import { ColorVariant, SizeVariant, ProductAttribute, VariantAIMetadata } from "@/types/product";
+import { describeCartReconciliation } from "@/lib/cart-reconciliation";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
@@ -20,27 +21,6 @@ import VariantAIMetadataEditor, {
   parseVariantAIList,
 } from "@/components/admin/VariantAIMetadataEditor";
 import { formatPrice, toDigitsOnly, toEnglishNumber } from "@/lib/utils";
-
-// Removing something from a shopper's cart is not an edit the admin should have
-// to discover later, so a save that reached the carts says exactly what it did.
-function describeCartReconciliation({
-  cartsChanged,
-  itemsRemoved,
-  itemsReduced,
-}: CartReconciliation): string {
-  const fa = (value: number) => value.toLocaleString("fa-IR");
-  const changes: string[] = [];
-  if (itemsRemoved > 0) {
-    changes.push(`${fa(itemsRemoved)} مورد حذف شد`);
-  }
-  if (itemsReduced > 0) {
-    changes.push(`تعداد ${fa(itemsReduced)} مورد کاهش یافت`);
-  }
-  if (changes.length === 0) {
-    return `${fa(cartsChanged)} سبد خرید به‌روزرسانی شد.`;
-  }
-  return `${fa(cartsChanged)} سبد خرید به‌روزرسانی شد: ${changes.join(" و ")}.`;
-}
 
 export default function EditProductPage() {
   const router = useRouter();

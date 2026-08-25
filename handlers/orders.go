@@ -495,6 +495,13 @@ func restoreInventory(ctx context.Context, items []models.OrderItem) error {
 	for _, item := range items {
 		var product models.Product
 		if err := productsCollection.FindOne(ctx, bson.M{"_id": item.ProductID}).Decode(&product); err != nil {
+			if errors.Is(err, mongo.ErrNoDocuments) {
+				// The product was deleted outright. The order keeps its own
+				// snapshot of what was bought, and there is no inventory row
+				// left to put the units back into — so skip it rather than
+				// abort the restock of every other item in the order.
+				continue
+			}
 			return fmt.Errorf("failed to find product %s: %w", item.ProductID.Hex(), err)
 		}
 

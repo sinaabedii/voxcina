@@ -757,9 +757,14 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 	toolCtx, toolCancel := context.WithTimeout(ctx, 20*time.Second)
 	defer toolCancel()
 
-	modelUsed := cfg.Model
+	// The dashboard's chat model, when an admin has set one, replaces the
+	// configured primary for this turn. The fallback stays as configured: it is
+	// the resilience path for when the primary will not answer at all.
+	primaryModel := ResolveModel(ChatModelOverride(ctx), cfg.Model)
+
+	modelUsed := primaryModel
 	var firstStream bytes.Buffer
-	toolName, result, err := streamSellerAgentWithTools(ctx, cfg.Model, messages, tools, &firstStream, toolCtx)
+	toolName, result, err := streamSellerAgentWithTools(ctx, primaryModel, messages, tools, &firstStream, toolCtx)
 
 	// coupon/recommended are resolved early (instead of once at the very end,
 	// as before) whenever the grounding branch below needs them to describe
@@ -798,7 +803,7 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 			})
 		}
 		// Second pass — model now answers with grounding.
-		_, r2, err2 := streamSellerAgentWithTools(ctx, cfg.Model, messages, tools, w, toolCtx)
+		_, r2, err2 := streamSellerAgentWithTools(ctx, primaryModel, messages, tools, w, toolCtx)
 		if err2 == nil && r2 != nil {
 			// Merge tool calls from both passes; keep second-pass content if non-empty
 			r2.toolCalls = append(result.toolCalls, r2.toolCalls...)
@@ -820,7 +825,7 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 	case err == nil && result != nil && needsTextGrounding(toolName, result):
 		coupon, recommended = interpretToolCalls(in, result)
 		computed = true
-		if grounded := groundTextualReply(ctx, cfg.Model, messages, result, coupon, recommended, toolCtx, w); grounded != nil {
+		if grounded := groundTextualReply(ctx, primaryModel, messages, result, coupon, recommended, toolCtx, w); grounded != nil {
 			result.content = grounded.content
 			result.tokensSent = result.tokensSent || grounded.tokensSent
 		} else {
@@ -838,7 +843,7 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 		if result != nil && result.tokensSent {
 			return nil, err
 		}
-		fmt.Printf("[negotiate-stream] primary model %s failed (no tokens sent): %v — trying fallback %s\n", cfg.Model, err, cfg.FallbackModel)
+		fmt.Printf("[negotiate-stream] primary model %s failed (no tokens sent): %v — trying fallback %s\n", primaryModel, err, cfg.FallbackModel)
 		modelUsed = cfg.FallbackModel
 		_, result, err = streamSellerAgentWithTools(ctx, cfg.FallbackModel, messages, tools, w, toolCtx)
 		if err != nil {

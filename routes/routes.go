@@ -139,6 +139,10 @@ func NewRouter() *mux.Router {
 		adminRouter.HandleFunc("/ai/field-descriptions", aiMetadataHandler.GetFieldDescriptions).Methods("GET")
 	}
 
+	// AI model settings shared by the chatbots and the try-on image generator (Admin)
+	adminRouter.HandleFunc("/ai/settings", handlers.GetAISettings).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/ai/settings", handlers.UpdateAISettings).Methods(http.MethodPut)
+
 	// Virtual try-on AI chat inspection (Admin)
 	adminRouter.HandleFunc("/ai/tryon-chats", handlers.ListAdminTryonChats).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/ai/tryon-chats/{chatId}", handlers.GetAdminTryonChat).Methods(http.MethodGet)

@@ -2111,10 +2111,10 @@ func DeleteProduct(w http.ResponseWriter, r *http.Request) {
 
 	collection := db.Database.Collection("products")
 
-	// Fetch the product to get its image paths before marking as inactive
-	var productToDeactivate models.Product
+	// Fetch the product to get its image paths before the document goes away
+	var productToDelete models.Product
 	err = collection.FindOne(ctx, bson.M{"_id": productID}).
-		Decode(&productToDeactivate)
+		Decode(&productToDelete)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			utils.ErrorResponse(
@@ -2128,48 +2128,63 @@ func DeleteProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if already inactive
-	if !productToDeactivate.IsActive {
-		utils.JSONResponse(w, http.StatusOK, map[string]string{
-			"message": "Product is already inactive",
-		})
-		return
-	}
-
-	// Soft delete: Set IsActive to false and update UpdatedAt
-	update := bson.M{
-		"$set": bson.M{
-			"is_active": false,
-			"updatedAt": time.Now(),
-		},
-	}
-
-	result, err := collection.UpdateOne(ctx, bson.M{"_id": productID}, update)
+	// The document goes first. If it were the carts, a failure here would have
+	// already taken items out of shoppers' carts for a product that still
+	// exists; the other way round the worst case is a cart line pointing at a
+	// missing product, which prepareCartResponse already drops on sight.
+	result, err := collection.DeleteOne(ctx, bson.M{"_id": productID})
 	if err != nil {
 		utils.ErrorResponse(
 			w,
 			http.StatusInternalServerError,
-			"Error deactivating product: "+err.Error(),
+			"Error deleting product: "+err.Error(),
 		)
 		return
 	}
-
-	if result.ModifiedCount == 0 {
-		// This could happen if the product was already inactive or if there was a race condition.
-		// Or if the product was deleted between the FindOne and UpdateOne calls.
-		utils.ErrorResponse(
-			w,
-			http.StatusNotFound,
-			"Product not found or no changes made (possibly already inactive)",
-		)
+	if result.DeletedCount == 0 {
+		utils.ErrorResponse(w, http.StatusNotFound, "Product not found")
 		return
+	}
+
+	// A deleted product has no availability left to reconcile against, so its
+	// cart lines are pulled outright rather than run through
+	// reconcileCartsForProduct.
+	cartSummary, cartErr := removeProductFromCarts(ctx, productID)
+	if cartErr != nil {
+		utils.LogAction("warning", fmt.Sprintf(
+			"Product %s deleted but cart cleanup failed: %v",
+			productID.Hex(), cartErr,
+		))
+	} else if cartSummary.touchedAnything() {
+		utils.LogAction("info", fmt.Sprintf(
+			"Product %s deleted and removed from %d cart(s) (%d item(s))",
+			productID.Hex(), cartSummary.CartsChanged, cartSummary.ItemsRemoved,
+		))
+	}
+
+	// Best-effort: drop the product and per-variant vectors so a deleted
+	// product stops surfacing in AI search and recommendations.
+	if faissClient := services.NewFaissClientFromEnv(); faissClient != nil {
+		faissCtx, faissCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		if fErr := faissClient.DeleteVariantEmbedding(faissCtx, productID.Hex(), ""); fErr != nil {
+			fmt.Printf("WARN: Failed to delete FAISS embedding for product %s: %v\n", productID.Hex(), fErr)
+		}
+		for _, colorVariant := range productToDelete.ColorVariants {
+			if colorVariant.VariantID == "" {
+				continue
+			}
+			if fErr := faissClient.DeleteVariantEmbedding(faissCtx, productID.Hex(), colorVariant.VariantID); fErr != nil {
+				fmt.Printf("WARN: Failed to delete FAISS variant embedding %s:%s: %v\n", productID.Hex(), colorVariant.VariantID, fErr)
+			}
+		}
+		faissCancel()
 	}
 
 	// Delete associated main images from the filesystem
-	for _, imagePath := range productToDeactivate.MainImages {
+	for _, imagePath := range productToDelete.MainImages {
 		serverFilePath := "." + imagePath // Assuming imagePath is like /uploads/products/main/image.jpg
 		if err := os.Remove(serverFilePath); err != nil {
-			// Log this error, but don't fail the entire request as the product is already deactivated.
+			// Log this error, but don't fail the entire request as the product row is already gone.
 			fmt.Printf(
 				"WARN: Failed to delete product image %s: %v\n",
 				serverFilePath,
@@ -2179,7 +2194,7 @@ func DeleteProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete color variant images
-	for _, colorVariant := range productToDeactivate.ColorVariants {
+	for _, colorVariant := range productToDelete.ColorVariants {
 		for _, vImagePath := range colorVariant.Images {
 			serverVFilePath := "." + vImagePath
 			if err := os.Remove(serverVFilePath); err != nil {
@@ -2202,13 +2217,18 @@ func DeleteProduct(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	utils.JSONResponse(
-		w,
-		http.StatusOK,
-		map[string]string{
-			"message": "Product deactivated and associated images marked for deletion",
-		},
-	)
+	response := productDeleteResponse{Message: "Product deleted with its images and cart entries"}
+	if cartErr == nil && cartSummary.touchedAnything() {
+		response.CartReconciliation = &cartSummary
+	}
+	utils.JSONResponse(w, http.StatusOK, response)
+}
+
+// productDeleteResponse mirrors productUpdateResponse: the outcome, plus what
+// the delete did to shoppers' carts when it reached any.
+type productDeleteResponse struct {
+	Message            string                `json:"message"`
+	CartReconciliation *cartReconcileSummary `json:"cartReconciliation,omitempty"`
 }
 
 // GetProductsByCollection handles GET /api/products/collection/{collectionValue}

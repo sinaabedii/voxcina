@@ -105,6 +105,13 @@ export interface CartReconciliation {
   itemsReduced: number;
 }
 
+// The admin delete endpoint reports what removing the product did to the carts
+// that were holding it.
+export interface ProductDeleteResult {
+  message: string;
+  cartReconciliation?: CartReconciliation;
+}
+
 export interface Product {
   id: string; // MongoDB ObjectID
   name: string;
@@ -124,7 +131,7 @@ export interface Product {
   collection?: string; // e.g., بهار, تابستان, پاییز, زمستان
   attributes: ProductAttribute[]; // Product-wide metadata
   is_flash_sale: boolean; // Part of flash-sale campaign?
-  is_active: boolean; // Soft delete flag
+  is_active: boolean; // Storefront visibility, toggled from the admin form; deleting removes the product
   inStock: boolean; // Calculated: true if any color+size has quantity > 0
   created_at: string; // ISO 8601 timestamp
   updated_at: string; // ISO 8601 timestamp

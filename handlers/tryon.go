@@ -36,7 +36,10 @@ import (
 	xdraw "golang.org/x/image/draw"
 )
 
-const tryOnModel = "google/gemini-2.5-flash-image"
+// defaultTryOnModel draws the virtual try-on images when the admin has not
+// named one in the dashboard. This model is only ever used for image
+// generation — the chat models are configured separately.
+const defaultTryOnModel = "google/gemini-2.5-flash-image"
 const tryOnMaxImageDimension = 1024
 const tryOnImageQuality = 85
 const tryOnTaskTTL = 30 * time.Minute
@@ -594,6 +597,15 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 
 		prompt := buildTryOnPrompt(garmentType, garmentInfo)
 
+		// Resolved once so the model recorded against the finished try-on is
+		// the one that actually drew it, even if an admin changes the setting
+		// while this generation is in flight.
+		imageModel := services.ResolveModel(
+			services.TryOnImageModelOverride(context.Background()),
+			defaultTryOnModel,
+		)
+		fmt.Printf("[tryon-%s] image model=%s\n", taskID, imageModel)
+
 		personBase64 := base64.StdEncoding.EncodeToString(resizedPerson)
 		garmentBase64 := base64.StdEncoding.EncodeToString(resizedGarment)
 
@@ -601,7 +613,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 		garmentDataURL := fmt.Sprintf("data:image/jpeg;base64,%s", garmentBase64)
 
 		requestBody := map[string]interface{}{
-			"model": tryOnModel,
+			"model": imageModel,
 			"messages": []map[string]interface{}{
 				{
 					"role": "user",
@@ -783,7 +795,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 		task.Image = savedPath
 		tryOnTasks.Store(taskID, task)
 		if virtualTryonService != nil {
-			_ = virtualTryonService.Complete(context.Background(), tryonID, savedPath, tryOnModel, prompt, time.Since(startTime).Milliseconds())
+			_ = virtualTryonService.Complete(context.Background(), tryonID, savedPath, imageModel, prompt, time.Since(startTime).Milliseconds())
 		}
 		fmt.Printf("[tryon-%s] task completed\n", taskID)
 	}()

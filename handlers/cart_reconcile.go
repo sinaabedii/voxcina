@@ -5,7 +5,9 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"backEnd/db"
 	"backEnd/models"
@@ -132,6 +134,55 @@ func reconcileCartItems(product *models.Product, items []models.CartItem, summar
 	}
 
 	return kept, changed
+}
+
+// removeProductFromCarts pulls every line for a product out of the carts that
+// hold it. Deleting a product is the one case reconcileCartItems cannot
+// express: it reconciles against a product's availability, and a deleted
+// product has none left. Inactive carts are cleaned too — the row is gone for
+// good, so nothing should be left pointing at it.
+func removeProductFromCarts(ctx context.Context, productID primitive.ObjectID) (cartReconcileSummary, error) {
+	var summary cartReconcileSummary
+	carts := db.Database.Collection("carts")
+	filter := bson.M{"items.product_id": productID}
+
+	// The lines are counted before they are pulled: $pull reports how many
+	// carts it touched, never how many items it took out, and the admin is
+	// shown both.
+	cursor, err := carts.Find(ctx, filter, options.Find().SetProjection(bson.M{"items.product_id": 1}))
+	if err != nil {
+		return summary, err
+	}
+	defer cursor.Close(ctx)
+
+	for cursor.Next(ctx) {
+		var cart struct {
+			Items []struct {
+				ProductID primitive.ObjectID `bson:"product_id"`
+			} `bson:"items"`
+		}
+		if err := cursor.Decode(&cart); err != nil {
+			return summary, err
+		}
+		for _, item := range cart.Items {
+			if item.ProductID == productID {
+				summary.ItemsRemoved++
+			}
+		}
+	}
+	if err := cursor.Err(); err != nil {
+		return summary, err
+	}
+
+	result, err := carts.UpdateMany(ctx, filter, bson.M{
+		"$pull": bson.M{"items": bson.M{"product_id": productID}},
+		"$set":  bson.M{"updated_at": time.Now()},
+	})
+	if err != nil {
+		return summary, err
+	}
+	summary.CartsChanged = int(result.ModifiedCount)
+	return summary, nil
 }
 
 // reconcileCartsForProduct rewrites every active cart holding the product so it

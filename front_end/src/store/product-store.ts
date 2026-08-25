@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import {
   CartReconciliation,
   Product,
+  ProductDeleteResult,
   ProductFilter,
   Review,
   PaginationInfo,
@@ -91,7 +92,7 @@ interface ProductState {
     productData: Partial<Product> | FormData,
     adminToken: string
   ) => Promise<ProductUpdateResult | null>;
-  deleteProduct: (id: string, adminToken: string) => Promise<boolean>;
+  deleteProduct: (id: string, adminToken: string) => Promise<ProductDeleteResult | null>;
 }
 
 export const useProductStore = create<ProductState>()(
@@ -519,21 +520,22 @@ export const useProductStore = create<ProductState>()(
               Authorization: `Bearer ${adminToken}`,
             },
           });
+          const result = await response.json();
           if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || "Failed to delete product");
+            throw new Error(result?.message || "Failed to delete product");
           }
           set((state) => ({
             products: state.products.filter((item) => item.productId !== id),
+            adminProducts: state.adminProducts.filter((item) => item.id !== id),
             isLoading: false,
           }));
-          return true;
+          return result as ProductDeleteResult;
         } catch (error) {
           set({
             error: error instanceof Error ? error.message : "Unknown error deleting product",
             isLoading: false,
           });
-          return false;
+          return null;
         }
       },
     }),

@@ -132,6 +132,15 @@ func agentDecisionSchema() map[string]interface{} {
 	}
 }
 
+// DefaultSupportChatModel is the model the support agent uses when no admin
+// override is set: OPENROUTER_MODEL, or the built-in default.
+func DefaultSupportChatModel() string {
+	if model := os.Getenv("OPENROUTER_MODEL"); model != "" {
+		return model
+	}
+	return "openai/gpt-oss-20b:free"
+}
+
 // NewCustomerAIService creates a new customer AI service instance
 func NewCustomerAIService(db *mongo.Database) (*CustomerAIService, error) {
 	apiKey := os.Getenv("OPENROUTER_API_KEY")
@@ -141,10 +150,9 @@ func NewCustomerAIService(db *mongo.Database) (*CustomerAIService, error) {
 		)
 	}
 
-	model := os.Getenv("OPENROUTER_MODEL")
-	if model == "" {
-		model = "openai/gpt-oss-20b:free" // Default model
-	}
+	// The dashboard's chat model wins over the environment so an admin can
+	// change which model answers customers without a redeploy.
+	model := ResolveModel(ChatModelOverride(context.Background()), DefaultSupportChatModel())
 
 	// Load configuration
 	config, err := loadCustomerAIConfig()

@@ -29,6 +29,7 @@ import { Product, ColorVariant } from "@/types/product";
 import { Category } from "@/types/category";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import { describeCartReconciliation } from "@/lib/cart-reconciliation";
 
 export default function AdminProductsPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -144,14 +145,22 @@ export default function AdminProductsPage() {
 
   const handleDeleteProduct = async (productId: string | undefined) => {
     if (!productId || !adminToken) return;
-    if (window.confirm("آیا از حذف این محصول اطمینان دارید؟")) {
-      const success = await deleteProduct(productId, adminToken);
-      if (success) {
-        toast.success("محصول با موفقیت حذف شد.");
-        fetchAdminProducts();
-      } else {
-        toast.error(productsError || "خطا در حذف محصول.");
+    // The product row, its images and its cart lines all go for good, so the
+    // confirmation says so rather than asking about a reversible "حذف".
+    const confirmed = window.confirm(
+      "این محصول برای همیشه از پایگاه داده حذف می‌شود و از سبد خرید همه مشتریان خارج خواهد شد. این کار قابل بازگشت نیست. ادامه می‌دهید؟"
+    );
+    if (!confirmed) return;
+
+    const result = await deleteProduct(productId, adminToken);
+    if (result) {
+      toast.success("محصول برای همیشه حذف شد.");
+      if (result.cartReconciliation) {
+        toast(describeCartReconciliation(result.cartReconciliation), { icon: "🛒", duration: 6000 });
       }
+      fetchAdminProducts();
+    } else {
+      toast.error(productsError || "خطا در حذف محصول.");
     }
   };
 
