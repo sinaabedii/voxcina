@@ -37,6 +37,41 @@ func TestPromptConfigAsksForTryOnFields(t *testing.T) {
 	}
 }
 
+// A garment's cut is often stated in its name ("نیم بگ") and only implied by
+// the photograph, so the fit guidance has to send the model to the name and
+// tell it to describe what that cut does on a body. Without this the field
+// drifts back to a silhouette read off the images alone.
+func TestPromptConfigDerivesFitFromTheProductName(t *testing.T) {
+	raw, err := os.ReadFile("../config/ai_prompts.json")
+	if err != nil {
+		t.Fatalf("read prompt config: %v", err)
+	}
+
+	var doc struct {
+		ProductMetadataGeneration AIPromptConfig `json:"product_metadata_generation"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatalf("prompt config is not valid JSON: %v", err)
+	}
+
+	cfg := doc.ProductMetadataGeneration
+	for _, want := range []string{"PRODUCT NAME", "نیم بگ", "اورسایز", "قواره"} {
+		if !strings.Contains(cfg.SystemPrompt, want) {
+			t.Errorf("system_prompt does not mention %q in its fit guidance", want)
+		}
+	}
+
+	// The name reaches the model through the user template, and calling it an
+	// "English Name" taught it to skip the Persian cut terms that are actually
+	// there.
+	if strings.Contains(cfg.UserPromptTemplate, "English Name") {
+		t.Error("user_prompt_template still labels the product name as English")
+	}
+	if !strings.Contains(cfg.UserPromptTemplate, "{name}") {
+		t.Error("user_prompt_template no longer passes the product name")
+	}
+}
+
 func TestParseAIResponseKeepsTryOnFields(t *testing.T) {
 	s := &AIMetadataService{}
 	parsed, err := s.parseAIResponse(`{
@@ -75,6 +110,27 @@ func TestNormalizeGarmentPhraseFlattensAndTrims(t *testing.T) {
 	long := strings.Repeat("قواره ", 200)
 	if got := []rune(normalizeGarmentPhrase(long)); len(got) > maxGarmentPhraseRunes {
 		t.Errorf("phrase not capped: got %d runes", len(got))
+	}
+}
+
+// The fit line describes silhouette plus construction, so it is allowed more
+// room than the garment phrase — and whatever is cut must leave whole words,
+// since the try-on prompt states the survivor as fact about the garment.
+func TestNormalizeFitDescriptionKeepsWholeWordsWithinItsOwnCap(t *testing.T) {
+	fit := "sits at the waist, relaxed through seat and thigh, dropping straight to a wide leg opening with a slight break over the shoe"
+	if got := normalizeFitDescription(fit); got != fit {
+		t.Errorf("a fit line of %d runes was altered: %q", len([]rune(fit)), got)
+	}
+
+	long := strings.Repeat("relaxed ", 200)
+	got := normalizeFitDescription(long)
+	if len([]rune(got)) > maxFitDescriptionRunes {
+		t.Errorf("fit line not capped: got %d runes", len([]rune(got)))
+	}
+	for _, word := range strings.Fields(got) {
+		if word != "relaxed" {
+			t.Errorf("truncation split a word: %q", word)
+		}
 	}
 }
 

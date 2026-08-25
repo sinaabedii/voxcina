@@ -692,27 +692,47 @@ func (s *AIMetadataService) validateMetadata(metadata *ProductMetadataResponse, 
 	// fields above, there is no safe stand-in: a guessed fit is worse than no
 	// fit, because the try-on prompt states it as fact. Empty simply drops the
 	// line from the prompt.
-	metadata.FitDescription = normalizeGarmentPhrase(metadata.FitDescription)
+	metadata.FitDescription = normalizeFitDescription(metadata.FitDescription)
 	metadata.GarmentPhrase = normalizeGarmentPhrase(metadata.GarmentPhrase)
 
 	return nil
 }
 
-// maxGarmentPhraseRunes bounds the free-text try-on fields. They are pasted
-// into an image-generation prompt, where a runaway paragraph would dilute the
-// instructions around it.
-const maxGarmentPhraseRunes = 160
+// The free-text try-on fields are pasted into an image-generation prompt, where
+// a runaway paragraph would dilute the instructions around it. The fit line
+// gets the larger budget of the two: it carries the silhouette plus the
+// construction details that shape it, while the garment phrase is a noun
+// phrase naming the garment.
+const (
+	maxGarmentPhraseRunes  = 160
+	maxFitDescriptionRunes = 320
+)
 
-// normalizeGarmentPhrase flattens an AI-written phrase to one trimmed line.
-// Newlines matter here: the try-on prompt is a line-oriented block, so an
-// embedded newline would fake a new instruction.
 func normalizeGarmentPhrase(value string) string {
+	return normalizePromptPhrase(value, maxGarmentPhraseRunes)
+}
+
+func normalizeFitDescription(value string) string {
+	return normalizePromptPhrase(value, maxFitDescriptionRunes)
+}
+
+// normalizePromptPhrase flattens an AI-written phrase to one trimmed line and
+// bounds its length. Newlines matter here: the try-on prompt is a line-oriented
+// block, so an embedded newline would fake a new instruction. An over-long
+// answer is cut back to the last whole word, because the prompt states whatever
+// survives as fact about the garment and half a word is worse than a shorter
+// sentence.
+func normalizePromptPhrase(value string, maxRunes int) string {
 	cleaned := strings.Join(strings.Fields(value), " ")
 	cleaned = strings.Trim(cleaned, " .;،")
 
 	runes := []rune(cleaned)
-	if len(runes) > maxGarmentPhraseRunes {
-		cleaned = strings.TrimSpace(string(runes[:maxGarmentPhraseRunes]))
+	if len(runes) > maxRunes {
+		truncated := string(runes[:maxRunes])
+		if lastSpace := strings.LastIndex(truncated, " "); lastSpace > 0 {
+			truncated = truncated[:lastSpace]
+		}
+		cleaned = strings.Trim(truncated, " .;،")
 	}
 	return cleaned
 }

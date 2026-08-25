@@ -1082,7 +1082,7 @@ export default function EditProductPage() {
               <input
                 className="input"
                 dir="ltr"
-                placeholder="loose, boxy cut with dropped shoulders"
+                placeholder="sits at the waist, relaxed through seat and thigh, straight to a wide leg opening"
                 value={aiMetadata.fitDescription}
                 onChange={e => setAiMetadata(prev => ({ ...prev, fitDescription: e.target.value }))}
               />
