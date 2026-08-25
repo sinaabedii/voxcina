@@ -96,6 +96,15 @@ export interface ProductSearchMetadata {
   ageGroup: string;
 }
 
+// What an admin product save did to the shoppers' carts. The backend sends it
+// alongside the saved product only when the edit changed availability — stock
+// levels or the active/in-stock flags — and some cart had to follow.
+export interface CartReconciliation {
+  cartsChanged: number;
+  itemsRemoved: number;
+  itemsReduced: number;
+}
+
 export interface Product {
   id: string; // MongoDB ObjectID
   name: string;

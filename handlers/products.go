@@ -1982,7 +1982,36 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 	upsertVariantEmbeddings(context.Background(), &updatedProduct)
 
-	utils.JSONResponse(w, http.StatusOK, updatedProduct)
+	// An inventory correction can strand what shoppers already hold, so the
+	// carts are reconciled against the saved product rather than the edit being
+	// refused. Edits that leave availability untouched never get here.
+	response := productUpdateResponse{Product: updatedProduct}
+	if productAvailabilityChanged(&existingProduct, &updatedProduct) {
+		summary, cartErr := reconcileCartsForProduct(ctx, &updatedProduct)
+		switch {
+		case cartErr != nil:
+			utils.LogAction("warning", fmt.Sprintf(
+				"Product %s saved but cart reconciliation failed: %v",
+				updatedProduct.ID.Hex(), cartErr,
+			))
+		case summary.touchedAnything():
+			response.CartReconciliation = &summary
+			utils.LogAction("info", fmt.Sprintf(
+				"Product %s availability change updated %d cart(s): %d item(s) removed, %d quantity(ies) reduced",
+				updatedProduct.ID.Hex(), summary.CartsChanged, summary.ItemsRemoved, summary.ItemsReduced,
+			))
+		}
+	}
+
+	utils.JSONResponse(w, http.StatusOK, response)
+}
+
+// productUpdateResponse is the saved product plus, when an edit changed what
+// shoppers can buy, what that did to their carts. The embedded product keeps
+// every existing field at the top level of the JSON body.
+type productUpdateResponse struct {
+	models.Product
+	CartReconciliation *cartReconcileSummary `json:"cartReconciliation,omitempty"`
 }
 
 func hasVariantAIMetadata(metadata models.VariantAIMetadata) bool {
