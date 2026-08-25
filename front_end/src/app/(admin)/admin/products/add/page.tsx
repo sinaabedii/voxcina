@@ -53,7 +53,8 @@ export default function AddProductPage() {
   const [gender, setGender] = useState("مردانه");
   const [collection, setCollection] = useState("");
   const [aiGenerating, setAiGenerating] = useState(false);
-  const [selectedAiModel, setSelectedAiModel] = useState("qwen3.5:9b");
+  const [productAiModel, setProductAiModel] = useState("google/gemini-3.7-flash");
+  const [variantAiModel, setVariantAiModel] = useState("google/gemini-3.7-flash");
   const [aiMetadata, setAiMetadata] = useState({
     namePersian: "",
     descriptionPersian: "",
@@ -333,7 +334,7 @@ export default function AddProductPage() {
           // The قواره attribute is the admin's own statement of the fit; the
           // generator leans on it rather than guessing the cut from photos.
           attributes: attributes.filter(a => a.name.trim() && a.value.trim()),
-          model: selectedAiModel,
+          model: productAiModel,
         }),
       });
 
@@ -420,7 +421,7 @@ export default function AddProductPage() {
           gender,
           collection,
           images,
-          model: selectedAiModel,
+          model: variantAiModel,
           color: cv.color,
           colorName: cv.colorName,
         }),
@@ -730,6 +731,17 @@ export default function AddProductPage() {
         <div className="border-t pt-4">
           <label className="block mb-2 font-medium text-lg">تنوع رنگ‌ها</label>
           <p className="text-xs text-gray-500 mb-4">هر رنگ می‌تواند تصاویر و سایزهای مختلف داشته باشد</p>
+          <div className="mb-4 bg-blue-50 rounded-lg p-3">
+            <label className="block text-sm font-medium mb-1">مدل هوش مصنوعی برای تولید اطلاعات رنگ‌ها (OpenRouter)</label>
+            <input
+              className="input"
+              dir="ltr"
+              placeholder="google/gemini-3.7-flash"
+              value={variantAiModel}
+              onChange={e => setVariantAiModel(e.target.value)}
+            />
+            <p className="text-xs text-gray-500 mt-1">نام مدل را به صورت owner/model وارد کنید، مثلاً z-ai/glm-5.3</p>
+          </div>
           
           {colorVariants.map((colorVariant, colorIdx) => (
             <div key={colorIdx} className="border rounded-lg p-4 mb-4 bg-gray-50">
@@ -921,20 +933,14 @@ export default function AddProductPage() {
           <div className="flex items-center justify-between gap-4">
             <h2 className="font-semibold">فیلدهای هوش مصنوعی برای جستجوی بهتر</h2>
             <div className="flex items-center gap-2">
-              <select
-                className="input text-sm w-auto"
-                value={selectedAiModel}
-                onChange={e => setSelectedAiModel(e.target.value)}
+              <input
+                className="input text-sm w-64"
+                dir="ltr"
+                placeholder="google/gemini-3.7-flash"
+                value={productAiModel}
+                onChange={e => setProductAiModel(e.target.value)}
                 disabled={aiGenerating || submitting || isLoading}
-              >
-                <option value="qwen/qwen3.7-plus">Qwen 3.7 Plus (OpenRouter)</option>
-                <option value="minimax/minimax-m3">MiniMax M3 (OpenRouter)</option>
-                <option value="stepfun/step-3.7-flash">Step 3.7 Flash (OpenRouter)</option>
-                <option value="google/gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (OpenRouter)</option>
-                <option value="qwen3.5:9b">Qwen 3.5 9B (Local, Fast)</option>
-                <option value="gemma4:31b">Gemma 4 31B (Local, Strong)</option>
-                <option value="qwen3.6.1-27b-4b">Qwen 3.6 27B MoE (Local)</option>
-              </select>
+              />
               <Button
                 type="button"
                 variant="outline"

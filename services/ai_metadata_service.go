@@ -3,14 +3,11 @@ package services
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -23,8 +20,6 @@ import (
 // AIMetadataService handles AI-powered product metadata generation
 type AIMetadataService struct {
 	openRouterAPIKey string
-	ollamaEndpoint   string
-	ollamaAPIKey     string
 	appURL           string
 	database         *mongo.Database
 	httpClient       *http.Client
@@ -102,11 +97,6 @@ type ProductMetadataResponse struct {
 // NewAIMetadataService creates a new AI metadata service
 func NewAIMetadataService(db *mongo.Database) (*AIMetadataService, error) {
 	apiKey := os.Getenv("OPENROUTER_API_KEY")
-	ollamaEndpoint := os.Getenv("OLLAMA_ENDPOINT")
-	if ollamaEndpoint == "" {
-		ollamaEndpoint = "http://host.docker.internal:10803" // Default local Ollama (bypass nginx auth)
-	}
-	ollamaAPIKey := os.Getenv("OLLAMA_API_KEY")
 	appURL := os.Getenv("APP_URL")
 
 	// Load prompt configuration
@@ -117,8 +107,6 @@ func NewAIMetadataService(db *mongo.Database) (*AIMetadataService, error) {
 
 	return &AIMetadataService{
 		openRouterAPIKey: apiKey,
-		ollamaEndpoint:   ollamaEndpoint,
-		ollamaAPIKey:     ollamaAPIKey,
 		appURL:           appURL,
 		database:         db,
 		httpClient: &http.Client{
@@ -159,7 +147,7 @@ func (s *AIMetadataService) GenerateMetadata(ctx context.Context, req ProductMet
 
 	// Set default model if not specified
 	if req.Model == "" {
-		req.Model = "qwen/qwen3.7-plus"
+		req.Model = "google/gemini-3.7-flash"
 	}
 
 	// Prepare messages
@@ -180,26 +168,17 @@ func (s *AIMetadataService) GenerateMetadata(ctx context.Context, req ProductMet
 		})
 	}
 
-	// Route to appropriate provider based on model
+	// All models route through OpenRouter.
 	var response string
-	if s.isLocalModel(req.Model) {
-		response, err = s.callOllama(req, messages)
-		if err != nil {
-			return nil, fmt.Errorf("Ollama API error: %v", err)
-		}
-	} else {
-		// Call OpenRouter API
-		openRouterReq := OpenRouterRequest{
-			Model:       req.Model,
-			Messages:    messages,
-			MaxTokens:   2000,
-			Temperature: 0.3,
-		}
-
-		response, err = s.callOpenRouter(openRouterReq)
-		if err != nil {
-			return nil, fmt.Errorf("OpenRouter API error: %v", err)
-		}
+	openRouterReq := OpenRouterRequest{
+		Model:       req.Model,
+		Messages:    messages,
+		MaxTokens:   2000,
+		Temperature: 0.3,
+	}
+	response, err = s.callOpenRouter(openRouterReq)
+	if err != nil {
+		return nil, fmt.Errorf("OpenRouter API error: %v", err)
 	}
 
 	// Parse AI response
@@ -214,22 +193,6 @@ func (s *AIMetadataService) GenerateMetadata(ctx context.Context, req ProductMet
 	}
 
 	return metadata, nil
-}
-
-// isLocalModel checks if the model should use local Ollama
-func (s *AIMetadataService) isLocalModel(model string) bool {
-	localModels := []string{
-		"qwen3.5:9b",
-		"gemma4:31b",
-		"qwen3.6.1-27b-4b",
-		"qwen3.6:27b-q4_K_M",
-	}
-	for _, m := range localModels {
-		if strings.Contains(model, m) {
-			return true
-		}
-	}
-	return false
 }
 
 // getVocabularies retrieves vocabulary options from database
@@ -386,164 +349,6 @@ func (s *AIMetadataService) callOpenRouter(req OpenRouterRequest) (string, error
 	return openRouterResp.Choices[0].Message.Content, nil
 }
 
-// OllamaRequest represents the request structure for Ollama API
-type OllamaRequest struct {
-	Model    string                 `json:"model"`
-	Messages []OllamaMessage        `json:"messages"`
-	Stream   bool                   `json:"stream"`
-	Options  map[string]interface{} `json:"options,omitempty"`
-}
-
-// OllamaMessage represents a message in Ollama chat
-type OllamaMessage struct {
-	Role    string   `json:"role"`
-	Content string   `json:"content"`
-	Images  []string `json:"images,omitempty"` // Base64 encoded images
-}
-
-// OllamaResponse represents the response from Ollama API
-type OllamaResponse struct {
-	Message OllamaMessage `json:"message"`
-	Done    bool          `json:"done"`
-	Error   string        `json:"error,omitempty"`
-}
-
-// resolveImageBase64 converts an image URL to base64-encoded data for Ollama.
-// The GPU server has no internet, so voxcina.com URLs must be resolved locally.
-func resolveImageBase64(imageURL string) (string, error) {
-	if strings.HasPrefix(imageURL, "data:") {
-		if idx := strings.Index(imageURL, ","); idx != -1 {
-			return imageURL[idx+1:], nil
-		}
-		return "", fmt.Errorf("invalid data URI")
-	}
-
-	parsed, err := url.Parse(imageURL)
-	if err != nil {
-		return "", err
-	}
-
-	filePath := parsed.Path
-	if filePath == "" {
-		return "", fmt.Errorf("could not extract path from URL: %s", imageURL)
-	}
-
-	fsPath := filepath.Join("/app", filePath)
-	data, err := os.ReadFile(fsPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read image %s: %v", fsPath, err)
-	}
-
-	return base64.StdEncoding.EncodeToString(data), nil
-}
-
-// extractContentAndImages processes a single content item map, extracting text and image data.
-func (s *AIMetadataService) extractContentAndImages(m map[string]interface{}, content string, images []string) (string, []string) {
-	if m["type"] == "text" {
-		if t, ok := m["text"].(string); ok {
-			content = t
-		}
-	} else if m["type"] == "image_url" {
-		if urlMap, ok := m["image_url"].(map[string]interface{}); ok {
-			if urlStr, ok := urlMap["url"].(string); ok {
-				b64, err := resolveImageBase64(urlStr)
-				if err == nil {
-					images = append(images, b64)
-				}
-			}
-		}
-	}
-	return content, images
-}
-
-// callOllama makes the API call to local Ollama
-func (s *AIMetadataService) callOllama(req ProductMetadataRequest, messages []OpenRouterMessage) (string, error) {
-	// Convert OpenRouter messages to Ollama format
-	ollamaMessages := make([]OllamaMessage, 0, len(messages))
-	for _, msg := range messages {
-		// Handle content which could be string or array (for vision)
-		content := ""
-		var images []string
-
-		switch c := msg.Content.(type) {
-		case string:
-			content = c
-		case []interface{}:
-			for _, item := range c {
-				if m, ok := item.(map[string]interface{}); ok {
-					content, images = s.extractContentAndImages(m, content, images)
-				}
-			}
-		case []map[string]interface{}:
-			for _, m := range c {
-				content, images = s.extractContentAndImages(m, content, images)
-			}
-		}
-
-		ollamaMessages = append(ollamaMessages, OllamaMessage{
-			Role:    msg.Role,
-			Content: content,
-			Images:  images,
-		})
-	}
-
-	ollamaReq := OllamaRequest{
-		Model:    req.Model,
-		Messages: ollamaMessages,
-		Stream:   false,
-		Options: map[string]interface{}{
-			"temperature": 0.3,
-			"num_predict": 4096,
-		},
-	}
-
-	jsonData, err := json.Marshal(ollamaReq)
-	if err != nil {
-		return "", err
-	}
-
-	url := strings.TrimSuffix(s.ollamaEndpoint, "/") + "/api/chat"
-	httpReq, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return "", err
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-	if s.ollamaAPIKey != "" {
-		httpReq.Header.Set("Authorization", "Bearer "+s.ollamaAPIKey)
-	}
-
-	resp, err := s.httpClient.Do(httpReq)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Ollama API returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var ollamaResp OllamaResponse
-	if err := json.Unmarshal(body, &ollamaResp); err != nil {
-		return "", fmt.Errorf("failed to parse Ollama response: %v\nBody: %s", err, string(body))
-	}
-
-	if ollamaResp.Error != "" {
-		return "", fmt.Errorf("Ollama error: %s", ollamaResp.Error)
-	}
-
-	if ollamaResp.Message.Content == "" {
-		return "", fmt.Errorf("Ollama returned empty content\nBody: %s", string(body))
-	}
-
-	return ollamaResp.Message.Content, nil
-}
-
 // parseAIResponse parses the AI response into structured metadata
 func (s *AIMetadataService) parseAIResponse(response string) (*ProductMetadataResponse, error) {
 	// Remove markdown code blocks if present
@@ -586,7 +391,7 @@ func (s *AIMetadataService) GenerateVariantMetadata(ctx context.Context, req Var
 	// Build a variant-aware prompt that emphasizes this variant's color/pattern
 	userPrompt := s.buildVariantPrompt(req, vocabularies)
 	if req.Model == "" {
-		req.Model = "qwen/qwen3.7-plus"
+		req.Model = "google/gemini-3.7-flash"
 	}
 	variantSystemPrompt := s.promptConfig.VariantSystemPrompt
 	if strings.TrimSpace(variantSystemPrompt) == "" {
@@ -599,22 +404,15 @@ func (s *AIMetadataService) GenerateVariantMetadata(ctx context.Context, req Var
 		messages = append(messages, OpenRouterMessage{Role: "user", Content: userPrompt})
 	}
 	var response string
-	if s.isLocalModel(req.Model) {
-		response, err = s.callOllama(req.ProductMetadataRequest, messages)
-		if err != nil {
-			return nil, fmt.Errorf("Ollama API error: %v", err)
-		}
-	} else {
-		openRouterReq := OpenRouterRequest{
-			Model:       req.Model,
-			Messages:    messages,
-			MaxTokens:   2200,
-			Temperature: 0.3,
-		}
-		response, err = s.callOpenRouter(openRouterReq)
-		if err != nil {
-			return nil, fmt.Errorf("OpenRouter API error: %v", err)
-		}
+	openRouterReq := OpenRouterRequest{
+		Model:       req.Model,
+		Messages:    messages,
+		MaxTokens:   2200,
+		Temperature: 0.3,
+	}
+	response, err = s.callOpenRouter(openRouterReq)
+	if err != nil {
+		return nil, fmt.Errorf("OpenRouter API error: %v", err)
 	}
 	vMeta, err := s.parseVariantAIResponse(response)
 	if err != nil {
