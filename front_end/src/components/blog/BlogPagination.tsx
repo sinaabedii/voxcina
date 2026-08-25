@@ -82,7 +82,7 @@ export default function BlogPagination({ currentPage, totalPages, onPageChange }
         aria-label="صفحه بعد"
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-voxcina-blue shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:bg-secondary-200 hover:shadow-medium disabled:pointer-events-none disabled:opacity-30 disabled:hover:translate-y-0 sm:h-11 sm:w-11"
       >
-        <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+        <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
       </button>
     </nav>
   );

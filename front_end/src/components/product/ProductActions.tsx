@@ -568,13 +568,13 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
                 className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 dark:bg-voxcina-blue/50 rounded-full p-3 shadow-md hover:bg-white dark:hover:bg-voxcina-blue/70 transition-colors z-20 md:opacity-0 md:group-hover:opacity-100 duration-300"
                 onClick={(e) => { e.stopPropagation(); handleNextImage(); }}
               >
-                <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-white" />
+                <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-white" />
               </button>
               <button
                 className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 dark:bg-voxcina-blue/50 rounded-full p-3 shadow-md hover:bg-white dark:hover:bg-voxcina-blue/70 transition-colors z-20 md:opacity-0 md:group-hover:opacity-100 duration-300"
                 onClick={(e) => { e.stopPropagation(); handlePrevImage(); }}
               >
-                <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-white" />
+                <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-white" />
               </button>
               <div className="absolute bottom-4 left-4 bg-voxcina-blue/70 dark:bg-voxcina-cream/20 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-sm z-10 pointer-events-none">
                 {selectedImage + 1} / {productImages?.length || 1}
@@ -984,10 +984,10 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
             <div className="relative w-full max-w-5xl h-[80vh] flex items-center justify-center">
               <BackendImage src={productImages?.[selectedImage] || ''} alt={product?.name || ''} className="object-contain max-w-full max-h-full" priority />
               <button className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-sm transition-colors" onClick={(e) => { e.stopPropagation(); handleNextImage(); }}>
-                <ChevronLeft className="h-8 w-8" />
+                <ChevronRight className="h-8 w-8" />
               </button>
               <button className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-sm transition-colors" onClick={(e) => { e.stopPropagation(); handlePrevImage(); }}>
-                <ChevronRight className="h-8 w-8" />
+                <ChevronLeft className="h-8 w-8" />
               </button>
             </div>
             <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-2 overflow-x-auto px-4">

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { RequiredColorEntry } from "@/types/tryon";
 import {
   VirtualTryon,
   TryonChat,
@@ -9,12 +10,6 @@ import {
   linkTryonToChat,
   makeMessageId,
 } from "@/lib/tryon-api";
-
-interface RequiredColorEntry {
-  productId: string;
-  color?: string;
-  colorName?: string;
-}
 
 /**
  * Identifies which garment is being tried on.

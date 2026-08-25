@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
+
+	"backEnd/utils"
 )
 
 // Address represents a shipping or billing address for a user
@@ -27,6 +29,34 @@ type Address struct {
 	State     string `bson:"state,omitempty"     json:"state,omitempty"`
 	Country   string `bson:"country,omitempty"   json:"country,omitempty"`
 	IsDefault bool   `bson:"is_default"          json:"is_default"`
+}
+
+// AddressDigitFields are the BSON names of the address fields NormalizeDigits
+// rewrites. The one-time backfill (-migrate-address-digits) walks this list, so
+// adding a user-typed numeric field here means adding it to NormalizeDigits too.
+var AddressDigitFields = []string{"postal_code", "phone_number", "address", "street"}
+
+// NormalizeDigits rewrites the user-typed fields of an address so numbers are
+// stored as ASCII digits. Persian (U+06F0-U+06F9) and Arabic-Indic
+// (U+0660-U+0669) digits arrive from IME keyboards, while every consumer of
+// these fields assumes ASCII: postal-code validation (^\d{10}$), search, and
+// the shipping integrations. A Persian-digit postal code is unmatchable and
+// unparseable, so the invariant is enforced here rather than trusted from each
+// client.
+//
+// Name-like fields (title, city, province, first/last name) are deliberately
+// left alone: digits inside them are display text, not values.
+//
+// Address is embedded in users.addresses and copied into
+// orders.shipping_address, so normalizing here covers both.
+func (a *Address) NormalizeDigits() {
+	if a == nil {
+		return
+	}
+	a.PostalCode = utils.NormalizePersianDigits(a.PostalCode)
+	a.PhoneNumber = utils.NormalizePersianDigits(a.PhoneNumber)
+	a.Address = utils.NormalizePersianDigits(a.Address)
+	a.Street = utils.NormalizePersianDigits(a.Street)
 }
 
 // User represents a registered user

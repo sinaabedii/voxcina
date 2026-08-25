@@ -167,6 +167,7 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/users/filter/count", handlers.GetFilteredUserCount).Methods("POST")
 	adminRouter.HandleFunc("/users/{userId}", handlers.GetUserByID).Methods("GET")
 	adminRouter.HandleFunc("/users/{userId}/role", handlers.UpdateUserRole).Methods("PUT")
+	adminRouter.HandleFunc("/users/{userId}", handlers.UpdateUserAsAdmin).Methods("PUT")
 	adminRouter.HandleFunc("/users/{userId}", handlers.DeleteUser).
 		Methods("DELETE")
 		// Soft delete

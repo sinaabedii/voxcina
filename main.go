@@ -24,6 +24,8 @@ func main() {
 	healthCheck := flag.Bool("healthcheck", false, "Check MongoDB connection")
 	checkVocab := flag.Bool("check-vocab", false, "Check vocabulary mappings count")
 	migrateAvatars := flag.Bool("migrate-avatars", false, "Backfill the avatar field for existing categories")
+	migrateAddressDigits := flag.Bool("migrate-address-digits", false, "Rewrite Persian/Arabic-Indic digits to ASCII in stored addresses")
+	dryRun := flag.Bool("dry-run", false, "With a migration flag: report what would change without writing")
 	flag.Parse()
 
 	// Load configuration
@@ -117,6 +119,12 @@ func main() {
 	if *migrateAvatars {
 		log.Println("Running avatar migration...")
 		os.Exit(avatarMigrationEntryPoint(database))
+	}
+
+	// Normalize Persian/Arabic-Indic digits in stored addresses if requested
+	if *migrateAddressDigits {
+		log.Println("Running address digit migration...")
+		os.Exit(addressDigitMigrationEntryPoint(database, *dryRun))
 	}
 
 	// Configure JWT before registering the HTTP router. Authentication must

@@ -648,6 +648,11 @@ func AddUserAddress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Numbers typed on a Persian keyboard arrive as U+06F0-U+06F9. Store them
+	// as ASCII so postal-code validation, search and the shipping integrations
+	// can read them back, whichever client wrote the address.
+	newAddress.NormalizeDigits()
+
 	// --- Basic Validation for Latitude and Longitude ---
 	if newAddress.Latitude == 0 && newAddress.Longitude == 0 {
 		utils.ErrorResponse(
@@ -782,6 +787,8 @@ func UpdateUserAddress(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
+
+	addressUpdatePayload.NormalizeDigits()
 
 	// --- Basic Validation for Latitude and Longitude ---
 	if addressUpdatePayload.Latitude == 0 && addressUpdatePayload.Longitude == 0 {
@@ -1284,6 +1291,99 @@ func UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 			http.StatusInternalServerError,
 			"Error fetching updated user: "+err.Error(),
 		)
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, updatedUser)
+}
+
+// UpdateUserAsAdmin handles PUT /api/admin/users/{userId}
+// Allows admin to update user fields like isActive, name, email
+// Requires admin authentication
+func UpdateUserAsAdmin(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userIDStr, ok := vars["userId"]
+	if !ok {
+		utils.ErrorResponse(w, http.StatusBadRequest, "User ID not provided in path")
+		return
+	}
+	userID, err := primitive.ObjectIDFromHex(userIDStr)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid User ID format")
+		return
+	}
+
+	var payload struct {
+		IsActive *bool  `json:"isActive,omitempty"`
+		Name     string `json:"name,omitempty"`
+		Email    string `json:"email,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	userCollection := db.Database.Collection("users")
+
+	var existingUser models.User
+	if err := userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&existingUser); err != nil {
+		if err == mongo.ErrNoDocuments {
+			utils.ErrorResponse(w, http.StatusNotFound, "User not found")
+		} else {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching user: "+err.Error())
+		}
+		return
+	}
+
+	updateFields := bson.M{"updated_at": time.Now()}
+	hasUpdates := false
+
+	if payload.IsActive != nil {
+		updateFields["is_active"] = *payload.IsActive
+		hasUpdates = true
+	}
+	if payload.Name != "" {
+		updateFields["name"] = payload.Name
+		hasUpdates = true
+	}
+	if payload.Email != "" {
+		updateFields["email"] = payload.Email
+		hasUpdates = true
+	}
+
+	if !hasUpdates {
+		utils.ErrorResponse(w, http.StatusBadRequest, "No valid fields to update")
+		return
+	}
+
+	updateDoc := bson.M{"$set": updateFields}
+
+	if payload.IsActive != nil && *payload.IsActive == false {
+		updateDoc["$inc"] = bson.M{"token_version": 1}
+	}
+
+	result, err := userCollection.UpdateOne(ctx, bson.M{"_id": userID}, updateDoc)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error updating user: "+err.Error())
+		return
+	}
+
+	if result.MatchedCount == 0 {
+		utils.ErrorResponse(w, http.StatusNotFound, "User not found for update")
+		return
+	}
+
+	if payload.IsActive != nil && *payload.IsActive == false {
+		if err := GetRefreshTokenService().RevokeAllForUser(ctx, userID, false); err != nil {
+			log.Printf("Warning: user deactivated but refresh-token revocation failed for %v: %v", userID, err)
+		}
+	}
+
+	var updatedUser models.User
+	if err := userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&updatedUser); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching updated user: "+err.Error())
 		return
 	}
 

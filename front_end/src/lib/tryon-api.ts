@@ -1,4 +1,5 @@
 import { sessionManager } from "@/lib/session-manager";
+import { NegotiationTurn } from "@/types/tryon";
 
 export type TryonStatus = "processing" | "done" | "error";
 export type GarmentType = "upper_body" | "lower_body" | "dresses";
@@ -201,4 +202,73 @@ export function makeMessageId(): string {
     return (crypto as Crypto).randomUUID();
   }
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export interface NegotiateStreamBody {
+  message: string;
+  tryon_product_id: string;
+  tryon_color?: string;
+  tryon_id: string;
+  chat_id: string;
+}
+
+export interface NegotiationStreamHandlers {
+  /** A slice of the reply as the agent writes it. */
+  onToken: (text: string) => void;
+  /** The finished turn: the full reply plus whatever cards it produced. */
+  onDone: (turn: NegotiationTurn) => void;
+}
+
+interface NegotiationStreamEvent extends NegotiationTurn {
+  type: "token" | "done" | "error";
+  text?: string;
+  error?: string;
+}
+
+/**
+ * Runs one negotiation turn over server-sent events. The backend rebuilds the
+ * garment, cart and history from the database and persists both halves of the
+ * turn itself, so the body only names which try-on and which fitting room the
+ * message belongs to.
+ */
+export async function streamNegotiation(
+  body: NegotiateStreamBody,
+  { onToken, onDone }: NegotiationStreamHandlers
+): Promise<void> {
+  const res = await sessionManager.fetchWithAuth("/api/tryon/negotiate-stream", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok || !res.body) throw new Error("خطا در ارتباط با فروشنده");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (value) buffer += decoder.decode(value, { stream: true });
+    if (done) buffer += decoder.decode();
+
+    const lines = buffer.split("\n");
+    // The last line may be half a frame — keep it for the next read.
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      let event: NegotiationStreamEvent;
+      try {
+        event = JSON.parse(line.slice(6));
+      } catch (err) {
+        if (err instanceof SyntaxError) continue;
+        throw err;
+      }
+      if (event.type === "token") onToken(event.text || "");
+      else if (event.type === "done") onDone(event);
+      else if (event.type === "error") throw new Error(event.error || "خطا در مذاکره");
+    }
+
+    if (done) break;
+  }
 }

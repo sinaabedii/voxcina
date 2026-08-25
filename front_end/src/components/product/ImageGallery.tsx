@@ -132,7 +132,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                   handleNextImage();
                 }}
               >
-                <ChevronLeft className="h-5 w-5 text-foreground" />
+                <ChevronRight className="h-5 w-5 text-foreground" />
               </button>
               <button
                 className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-card/80 rounded-full p-3 shadow-md hover:bg-card transition-colors z-20 md:opacity-0 md:group-hover:opacity-100 duration-300"
@@ -141,7 +141,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                   handlePrevImage();
                 }}
               >
-                <ChevronRight className="h-5 w-5 text-foreground" />
+                <ChevronLeft className="h-5 w-5 text-foreground" />
               </button>
             </>
           )}
@@ -216,7 +216,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                       handleNextImage();
                     }}
                   >
-                    <ChevronLeft className="h-8 w-8" />
+                    <ChevronRight className="h-8 w-8" />
                   </button>
 
                   <button
@@ -226,7 +226,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                       handlePrevImage();
                     }}
                   >
-                    <ChevronRight className="h-8 w-8" />
+                    <ChevronLeft className="h-8 w-8" />
                   </button>
                 </>
               )}

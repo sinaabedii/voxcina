@@ -1,140 +1,50 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import Link from "next/link";
-import {
-  Camera, Shirt, ShoppingBag, Tag, Send,
-  Sparkles, User, Upload, Lock, Check, X, RefreshCw, Maximize2, Layers, Plus,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
+import { Camera } from "lucide-react";
 import { toast } from "react-toastify";
+
+import ChatComposer, { NEGOTIATION_OPENERS } from "@/components/tryon/ChatComposer";
+import ChatHeader from "@/components/tryon/ChatHeader";
+import ChatTranscript from "@/components/tryon/ChatTranscript";
+import CompareModal, { ComparePair } from "@/components/tryon/CompareModal";
+import EmptyFittingRoom from "@/components/tryon/EmptyFittingRoom";
+import FittingRoomItems from "@/components/tryon/FittingRoomItems";
+import FittingRoomTabs, { FittingRoomTab } from "@/components/tryon/FittingRoomTabs";
+import PhotoGuideModal from "@/components/tryon/PhotoGuideModal";
+import PhotoUploadCard from "@/components/tryon/PhotoUploadCard";
+import SizePickerModal from "@/components/tryon/SizePickerModal";
+import TryOnActionButton from "@/components/tryon/TryOnActionButton";
+import TryOnStepIndicator from "@/components/tryon/TryOnStepIndicator";
+import ImageCropModal from "@/components/ui/ImageCropModal";
+import { useProtectedRoute } from "@/hooks/useProtectedRoute";
+import { activityTracker } from "@/lib/activity-tracker";
+import { getCanonicalColor } from "@/lib/product-variants";
+import { sessionManager } from "@/lib/session-manager";
+import { makeMessageId as makeDbMessageId, streamNegotiation } from "@/lib/tryon-api";
+import { containerVariants, itemVariants } from "@/lib/tryon-motion";
+import {
+  buildRecommendedProduct,
+  computeEligibleItems,
+  getRecommendedColor,
+  getRecommendedColorName,
+  getRecommendedSize,
+  getRecommendedVariant,
+  matchesRecommendedVariant,
+  missingCouponProducts,
+} from "@/lib/tryon-recommendation";
+import {
+  AGENT_ERROR_REPLY,
+  agentMessageForTurn,
+  replaceStreamingMessage,
+  restoreChatMessages,
+  welcomeReply,
+} from "@/lib/tryon-transcript";
+import { cn, toPersianNumber } from "@/lib/utils";
 import { useCartStore } from "@/store/cart-store";
 import { useTryOnStore } from "@/store/tryon-store";
-import { useProtectedRoute } from "@/hooks/useProtectedRoute";
-import { cn, formatPrice } from "@/lib/utils";
-import { ColorVariant, Product } from "@/types/product";
-import { CartItem } from "@/types/cart";
-import Button from "@/components/ui/Button";
-import BackendImage from "@/components/BackendImage";
-import BeforeAfterSlider from "@/components/ui/BeforeAfterSlider";
-import CountdownTimer from "@/components/ui/CountdownTimer";
-import ImageCropModal from "@/components/ui/ImageCropModal";
-import Modal from "@/components/ui/Modal";
-import PhotoGuideModal from "@/components/tryon/PhotoGuideModal";
-import SizeSelector from "@/components/ui/SizeSelector";
-import { activityTracker } from "@/lib/activity-tracker";
-import { sessionManager } from "@/lib/session-manager";
-import { makeMessageId as makeDbMessageId } from "@/lib/tryon-api";
-import {
-  findColorVariant,
-  getCanonicalColor,
-  getCartItemImage,
-  getProductDisplayImage,
-  getVariantUrlValue,
-} from "@/lib/product-variants";
-
-interface TryOnEligibleItem {
-  cartItem: CartItem;
-  colorVariant: ColorVariant;
-  product: Product;
-}
-
-interface ChatMessage {
-  role: "user" | "agent" | "agent_streaming" | "tryon" | "tryon_processing";
-  content: string;
-  tryonData?: {
-    roomNumber?: number;
-    beforeImage?: string;
-    afterImage?: string;
-    productName?: string;
-    processingId?: number;
-  };
-}
-
-const toPersianDigits = (n: number) => n.toLocaleString("fa-IR", { useGrouping: false });
-
-function colorsOverlap(color1?: string, colorName1?: string, color2?: string, colorName2?: string): boolean {
-  const values1 = [color1, colorName1].filter((v): v is string => !!v && v.trim() !== "");
-  const values2 = [color2, colorName2].filter((v): v is string => !!v && v.trim() !== "");
-  if (values1.length === 0 || values2.length === 0) return false;
-  return values1.some((v) => values2.includes(v));
-}
-
-interface CouponOffer {
-  code: string;
-  value: number;
-  valid_until: string;
-  product_ids: string[];
-  comp_product_id?: string;
-  main_color?: string;
-  main_color_name?: string;
-  comp_color?: string;
-  comp_color_name?: string;
-}
-
-interface RecommendedProduct {
-  product_id: string;
-  product_name: string;
-  price: number;
-  image: string;
-  color?: string;
-  color_name?: string;
-  size?: string;
-  selected_color?: string;
-  sizes?: string[];
-  product?: Product;
-}
-
-interface CatalogVariantHit {
-  product_id: string;
-  variant_id: string;
-  product_name: string;
-  price: number;
-  color?: string;
-  color_name?: string;
-  image?: string;
-  in_stock: boolean;
-  sizes?: string[];
-}
-
-const RECOMMENDATION_TEMPLATES: Record<string, Record<string, (a: string, b: string) => string>> = {
-  upper_body: {
-    lower_body: (upper, lower) =>
-      `این ${lower} ست فوق‌العاده‌ای با ${upper} انتخابی شما می‌شود!`,
-  },
-  lower_body: {
-    upper_body: (lower, upper) =>
-      `یک ${upper} شیک می‌تواند این ${lower} را به یک تیپ کامل تبدیل کند.`,
-  },
-  dresses: {
-    upper_body: (dress, other) => `این ${other} همراه با ${dress} استایل لایه‌ای جذابی می‌سازد.`,
-    lower_body: (dress, other) => `این ${other} با ${dress} ترکیب جالبی می‌شود!`,
-  },
-};
-
-const NEGOTIATION_OPENERS = [
-  { icon: Tag, text: "سلام! می‌خوام یه تخفیف خوب برای این محصول بگیرم." },
-  { icon: Sparkles, text: "سلام ووکسا! این قیمت برام کمی بالاست، می‌تونی کمک کنی؟" },
-  { icon: ShoppingBag, text: "سلام! اگه تخفیف خوبی بدی همین الان خرید می‌کنم." },
-  { icon: Layers, text: "یه ست پیشنهاد بده" },
-];
-
-function getComplementaryType(garmentType: string): string {
-  if (garmentType === "upper_body") return "lower_body";
-  if (garmentType === "lower_body") return "upper_body";
-  return "";
-}
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.06 } },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 12 },
-  visible: { opacity: 1, y: 0 },
-};
-
+import { ChatMessage, RecommendedProduct, RequiredColorEntry, TryOnEligibleItem } from "@/types/tryon";
 
 export default function TryOnRoomPage() {
   const { isLoading: authLoading, isAuthorized, user } = useProtectedRoute({ requiredAuth: true });
@@ -146,22 +56,14 @@ export default function TryOnRoomPage() {
     isProcessing,
     error,
     setUploadedFile,
-    setUploadedPreview,
-    setResultImage,
     startTryOn,
-    clear,
-    clearResult,
     inspectedItemName,
-    inspectedGarmentType,
     setInspectedItem,
     clearInspectedItem,
     couponCode,
-    couponValue,
-    couponValidUntil,
     couponProductIds,
     couponRequiredColors,
     setCoupon,
-    clearCoupon,
     chatId,
     persistedMessages,
     persistedTryons,
@@ -170,7 +72,6 @@ export default function TryOnRoomPage() {
     loadSession,
     persistMessage,
     persistTryonMessage,
-    setCurrentTryonId,
     startNewRoom,
   } = useTryOnStore();
 
@@ -180,21 +81,17 @@ export default function TryOnRoomPage() {
   const [chatLoading, setChatLoading] = useState(false);
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponExpired, setCouponExpired] = useState(false);
-  const [recommendedProduct, setRecommendedProduct] = useState<RecommendedProduct | null>(null);
-  const [catalogHits, setCatalogHits] = useState<CatalogVariantHit[]>([]);
-  const [recommendedAdding, setRecommendedAdding] = useState(false);
-  const [sizeModalOpen, setSizeModalOpen] = useState(false);
-  const [sizeModalSize, setSizeModalSize] = useState<string | undefined>(undefined);
   const [couponApplying, setCouponApplying] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
+  // The cards hang off their message; these track only what a card action is
+  // busy with — the product whose buttons spin, and the one the size modal adds.
+  const [recommendedAdding, setRecommendedAdding] = useState<string | null>(null);
+  const [sizeModalProduct, setSizeModalProduct] = useState<RecommendedProduct | null>(null);
   const [tryOnCount, setTryOnCount] = useState(0);
   const [showNegotiationPrompt, setShowNegotiationPrompt] = useState(false);
-  const [compareModalData, setCompareModalData] = useState<{ beforeImage: string; afterImage: string } | null>(null);
-  const [mobileTab, setMobileTab] = useState<"products" | "chat">("products");
+  const [comparePair, setComparePair] = useState<ComparePair | null>(null);
+  const [mobileTab, setMobileTab] = useState<FittingRoomTab>("products");
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
   // Two inputs rather than one with a toggled `capture`: the attribute is read
   // when the picker opens, so flipping it in state right before .click() is not
   // guaranteed to have been applied yet.
@@ -202,90 +99,22 @@ export default function TryOnRoomPage() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const negotiationInitializedRef = useRef(false);
 
-  const computeEligibleItems = useCallback((items: CartItem[]): TryOnEligibleItem[] => {
-    return items
-      .filter((item) => item.product?.colorVariants?.length)
-      .map((item) => {
-        const colorVariant = findColorVariant(item.product, item.color, item.colorName) || item.product.colorVariants[0];
-        return colorVariant?.tryOnImage
-          ? { cartItem: item, colorVariant, product: item.product }
-          : null;
-      })
-      .filter((x): x is TryOnEligibleItem => x !== null);
-  }, []);
-
   const eligibleItems = useMemo<TryOnEligibleItem[]>(
     () => computeEligibleItems(cart.items),
-    [cart.items, computeEligibleItems]
+    [cart.items]
   );
-
-  const complementaryItems = useMemo(() => {
-    if (!inspectedGarmentType || activeItemIndex === null) return null;
-    const compType = getComplementaryType(inspectedGarmentType);
-    if (!compType) {
-      if (inspectedGarmentType === "dresses") {
-        const others = eligibleItems.filter((_, idx) => idx !== activeItemIndex);
-        if (!others.length) return null;
-        const item = others[0];
-        const dressName = eligibleItems[activeItemIndex].product.name;
-        const otherName = item.product.name;
-        const targetType = item.colorVariant.tryOnGarmentType || "upper_body";
-        const templateKey = targetType as keyof typeof RECOMMENDATION_TEMPLATES.dresses;
-        const template = RECOMMENDATION_TEMPLATES.dresses[templateKey];
-        return {
-          item,
-          text: template ? template(dressName, otherName) : `این ${otherName} با ${dressName} ترکیب جالبی می‌شود!`,
-          index: eligibleItems.indexOf(item),
-        };
-      }
-      return null;
-    }
-    const match = eligibleItems.find(
-      (item, idx) =>
-        idx !== activeItemIndex &&
-        (item.colorVariant.tryOnGarmentType || "upper_body") === compType
-    );
-    if (!match) return null;
-    const activeItem = eligibleItems[activeItemIndex];
-    const compTypeKey = compType as keyof typeof RECOMMENDATION_TEMPLATES;
-    const srcTypeKey = inspectedGarmentType as keyof typeof RECOMMENDATION_TEMPLATES;
-    const templates = RECOMMENDATION_TEMPLATES[srcTypeKey];
-    const textFn = templates?.[compTypeKey];
-    return {
-      item: match,
-      text: textFn
-        ? textFn(activeItem.product.name, match.product.name)
-        : `پیشنهاد می‌کنیم ${match.product.name} را هم پرو کنید!`,
-      index: eligibleItems.indexOf(match),
-    };
-  }, [inspectedGarmentType, activeItemIndex, eligibleItems]);
+  const hasPhoto = !!(uploadedFile || uploadedPreview);
 
   const steps = [
-    { label: "آپلود عکس", done: !!(uploadedFile || uploadedPreview) },
+    { label: "آپلود عکس", done: hasPhoto },
     { label: "انتخاب لباس", done: activeItemIndex !== null },
     { label: "نتیجه + مذاکره", done: !!resultImage && !error },
   ];
-  const currentStep = steps.findIndex((s) => !s.done);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [chatMessages]);
-
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setCompareModalData(null);
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, []);
 
   // Load persisted chat session for this user on mount
   useEffect(() => {
     if (!isAuthorized) return;
-    const id = ensureChatId();
-    loadSession(id).then(() => {
-      // restore handled by store.loadSession (sets persistedMessages/persistedTryons)
-    });
+    loadSession(ensureChatId());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthorized]);
 
@@ -299,81 +128,10 @@ export default function TryOnRoomPage() {
     if (isLoadingSession) return;
 
     if (persistedMessages.length > 0) {
-      // Restore from DB
-      const tryonPersonImageMap = new Map<string, string>();
-      for (const t of persistedTryons) {
-        if (t.tryon_id && t.person_image_url) {
-          tryonPersonImageMap.set(t.tryon_id, t.person_image_url);
-        }
-      }
-
-      const restored: ChatMessage[] = persistedMessages.map((m) => {
-        if (m.role === "tryon" && m.tryon_data) {
-          let beforeImg = m.tryon_data.before_image || "";
-          if (beforeImg.startsWith("blob:") && m.tryon_data.tryon_id) {
-            const backendUrl = tryonPersonImageMap.get(m.tryon_data.tryon_id);
-            if (backendUrl) beforeImg = backendUrl;
-          }
-          return {
-            role: "tryon",
-            content: m.content,
-            tryonData: {
-              roomNumber: m.tryon_data.room_number,
-              beforeImage: beforeImg,
-              afterImage: m.tryon_data.after_image,
-              productName: m.tryon_data.product_name,
-              tryonId: m.tryon_data.tryon_id,
-            },
-          };
-        }
-        if (m.role === "user" || m.role === "agent") {
-          // Historic fix: before the backend guarantee, tool-only turns were
-          // persisted with content="" and tool_call.arguments.message="".
-          // Filling them here keeps the reload view from showing an empty
-          // bubble beside a valid coupon card.
-          let content = m.content || "";
-          if (!content.trim() && m.role === "agent" && (m as any).tool_call) {
-            const tc = (m as any).tool_call;
-            const msgArg = tc.arguments?.message;
-            if (typeof msgArg === "string" && msgArg.trim()) content = msgArg.trim();
-            else if (tc.name === "offer_coupon") content = "دمت گرم رفیق! یه تخفیف خودمونی برات جور کردم، همین پایین برات گذاشتم. حیفه از دستش بدی!";
-            else if (tc.name === "recommend_product") {
-              const rp = tc.result?.recommended_product;
-              const nm = rp?.product_name || "";
-              content = nm ? `رفیق این ${nm} حسابی به تیپت میاد، حیفه از دستش بدی! بگو تا برات نگهش دارم.` : "رفیق یه پیشنهاد خوشگل برات دارم — همین پایین گذاشتم!";
-            } else if (tc.name === "search_catalog") content = "رفیق چند تا گزینه خوشگل برات پیدا کردم، همین پایین گذاشتم — ببین کدومش بیشتر به دلت میشینه!";
-          }
-          if (!content.trim() && m.role === "agent") {
-            content = "دمت گرم رفیق! بگو چی تو ذهنته تا یه پیشنهاد درجهیک برات جور کنم.";
-          }
-          return { role: m.role as "user" | "agent", content };
-        }
-        return { role: "agent", content: m.content };
-      });
-      setChatMessages(restored);
-
-      // Restore recommended product / catalog hits only when the latest agent
-      // message actually recommended something. A card is rendered from the tool
-      // call of a single turn; reaching back to ANY historic recommendation
-      // would put an old card back on screen after the conversation had long
-      // moved on to unrecommending turns.
-      const lastAgentMsg = [...persistedMessages].reverse().find((m) => m.role === "agent");
-      const lastRec = lastAgentMsg?.tool_call?.result?.recommended_product;
-      const lastHits = lastAgentMsg?.tool_call?.result?.catalog_hits;
-      if (lastRec) {
-        setRecommendedProduct(lastRec as RecommendedProduct);
-      } else {
-        setRecommendedProduct(null);
-      }
-      if (Array.isArray(lastHits)) {
-        setCatalogHits(lastHits as CatalogVariantHit[]);
-      } else {
-        setCatalogHits([]);
-      }
+      setChatMessages(restoreChatMessages(persistedMessages, persistedTryons));
     } else if (eligibleItems.length > 0 && chatMessages.length === 0) {
       // First visit — no persisted messages, cart has eligible items: show welcome
-      const firstName = user?.name?.split(" ")[0] || "رفیق";
-      const welcomeText = `سلام ${firstName} جان، ووکسا هستم! لباستو پرو کن خریدت رو نهایی کنیم.`;
+      const welcomeText = welcomeReply(user?.name?.split(" ")[0] || "رفیق");
       setChatMessages([{ role: "agent", content: welcomeText }]);
       persistMessage({
         id: makeDbMessageId(),
@@ -449,17 +207,21 @@ export default function TryOnRoomPage() {
     openCropModal(file);
   };
 
-  const handleFileDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith("image/")) {
-      // A dropped file is already chosen, so the guide would only stand between
-      // the user and the crop step. The guide stays one click away on the zone.
-      openCropModal(file);
-    } else if (file) {
-      toast.error("لطفاً یک فایل تصویری انتخاب کنید");
+  const handleClearImage = () => {
+    setUploadedFile(null);
+    setActiveItemIndex(null);
+  };
+
+  const handleSelectItem = (index: number) => {
+    if (!hasPhoto || isProcessing) return;
+    if (activeItemIndex === index) {
+      setActiveItemIndex(null);
+      clearInspectedItem();
+      return;
     }
+    const item = eligibleItems[index];
+    setActiveItemIndex(index);
+    setInspectedItem(item.product.name, item.colorVariant.tryOnGarmentType || "upper_body");
   };
 
   const handleTryOn = async (item: TryOnEligibleItem, index: number) => {
@@ -472,12 +234,13 @@ export default function TryOnRoomPage() {
     }
 
     const processingId = Date.now();
-    const procMsg: ChatMessage = {
+    setChatMessages((prev) => [...prev, {
       role: "tryon_processing",
       content: item.product.name,
       tryonData: { processingId, productName: item.product.name },
-    };
-    setChatMessages((prev) => [...prev, procMsg]);
+    }]);
+    const dropProcessingCard = () =>
+      setChatMessages((prev) => prev.filter((m) => m.tryonData?.processingId !== processingId));
 
     try {
       // After reload, uploadedFile is null but uploadedPreview is set from DB.
@@ -499,21 +262,21 @@ export default function TryOnRoomPage() {
         size: item.cartItem.size,
       });
     } catch {
-      setChatMessages((prev) => prev.filter((m) => m.tryonData?.processingId !== processingId));
+      dropProcessingCard();
       return;
     }
 
     const store = useTryOnStore.getState();
     if (!store.resultImage) {
-      setChatMessages((prev) => prev.filter((m) => m.tryonData?.processingId !== processingId));
+      dropProcessingCard();
       return;
     }
 
     const newCount = tryOnCount + 1;
     setTryOnCount(newCount);
-    const newMsg: ChatMessage = {
+    const resultMsg: ChatMessage = {
       role: "tryon",
-      content: `اتاق پرو ${toPersianDigits(newCount)}`,
+      content: `اتاق پرو ${toPersianNumber(newCount)}`,
       tryonData: {
         roomNumber: newCount,
         beforeImage: store.uploadedPreview || "",
@@ -522,17 +285,15 @@ export default function TryOnRoomPage() {
       },
     };
     setChatMessages((prev) => prev.map((m) =>
-      m.tryonData?.processingId === processingId ? newMsg : m
+      m.tryonData?.processingId === processingId ? resultMsg : m
     ));
 
     // Persist the tryon card to the chat transcript
-    const colorVariant = item.colorVariant;
-    const liveState = useTryOnStore.getState();
     persistTryonMessage({
-      tryon_id: liveState.currentTryonId || "",
+      tryon_id: store.currentTryonId || "",
       product_id: item.product.id,
       product_name: item.product.name,
-      color: colorVariant?.colorName || colorVariant?.color,
+      color: item.colorVariant?.colorName || item.colorVariant?.color,
       size: item.cartItem.size,
       garment_type: garmentType,
       before_image: store.uploadedPreview || "",
@@ -546,13 +307,13 @@ export default function TryOnRoomPage() {
     // session_id / anonymous fallback is needed here. Other activity
     // sections (cart, checkout, product pages) are untouched.
     const activityMeta: Record<string, unknown> = {
-      tryon_id: liveState.currentTryonId || "",
-      chat_id: liveState.chatId || "",
+      tryon_id: store.currentTryonId || "",
+      chat_id: store.chatId || "",
       product_id: item.product.id,
       product_name: item.product.name,
       garment_type: garmentType,
       room_number: newCount,
-      color: colorVariant?.colorName || colorVariant?.color,
+      color: item.colorVariant?.colorName || item.colorVariant?.color,
       size: item.cartItem.size,
     };
     activityTracker.trackImageViewed(
@@ -579,126 +340,53 @@ export default function TryOnRoomPage() {
     }
   };
 
-  const handleSelectOpener = (text: string, item: TryOnEligibleItem) => {
-    setShowNegotiationPrompt(false);
-    setCouponApplied(false);
-    setCouponExpired(false);
-    sendNegotiationMessage(text, item);
-  };
-
-  const buildRecommendedProduct = (rec: RecommendedProduct): Product => {
-    if (rec.product) return rec.product;
-    const selectedColor = rec.selected_color || rec.color || rec.color_name || "";
-    const selectedColorName = rec.color_name || rec.selected_color || rec.color || "";
-    return {
-      id: rec.product_id,
-      name: rec.product_name,
-      description: "",
-      price: rec.price,
-      originalPrice: rec.price,
-      mainImages: rec.image ? [rec.image] : [],
-      colorVariants: [{
-        color: selectedColor,
-        colorName: selectedColorName,
-        images: rec.image ? [rec.image] : [],
-        tryOnImage: rec.image,
-        tryOnGarmentType: "upper_body",
-        sizes: (rec.sizes?.length ? rec.sizes : rec.size ? [rec.size] : []).map(size => ({ size, quantity: 99, sku: "" })),
-      }],
-      category_ids: [],
-      brand_id: "",
-      attributes: [],
-      is_flash_sale: false,
-      is_active: true,
-      inStock: true,
-      created_at: "",
-      updated_at: "",
-    };
-  };
-
-  const getRecommendedColor = (rec: RecommendedProduct): string | undefined => {
-    const variant = rec.product
-      ? findColorVariant(rec.product, rec.selected_color || rec.color, rec.color_name)
-      : undefined;
-    return getCanonicalColor(variant) || rec.selected_color || rec.color || rec.color_name || undefined;
-  };
-
-  const getRecommendedVariant = (rec: RecommendedProduct): ColorVariant | undefined =>
-    rec.product
-      ? findColorVariant(rec.product, rec.selected_color || rec.color, rec.color_name)
-      : undefined;
-
-  const getRecommendedColorName = (rec: RecommendedProduct): string | undefined => {
-    const variant = rec.product
-      ? findColorVariant(rec.product, rec.selected_color || rec.color, rec.color_name)
-      : undefined;
-    return variant?.colorName || rec.color_name || rec.selected_color || rec.color || undefined;
-  };
-
-  const getRecommendedSize = (rec: RecommendedProduct): string | undefined => {
-    if (!rec.product) return rec.size || rec.sizes?.[0];
-    const color = getRecommendedColor(rec);
-    const cv = findColorVariant(rec.product, color, rec.color_name);
-    return cv?.sizes?.find((s) => s.quantity > 0)?.size || rec.size;
-  };
-
-  const getRecommendedSizeOptions = (rec: RecommendedProduct): { available: string[] } => {
-    const color = getRecommendedColor(rec);
-    const colorName = getRecommendedColorName(rec);
-    const variant = rec.product ? findColorVariant(rec.product, color, colorName) : undefined;
-    if (variant?.sizes?.length) {
-      return { available: variant.sizes.filter((s) => s.quantity > 0).map((s) => s.size) };
-    }
-    return { available: rec.sizes || [] };
-  };
-
-  const getRecommendedDisplayImage = (rec: RecommendedProduct): string | null => {
-    const image = getProductDisplayImage(rec.product, getRecommendedColor(rec), getRecommendedColorName(rec));
-    if (image) return image;
-    return rec.image || null;
-  };
-
-  const matchesRecommendedVariant = (item: TryOnEligibleItem, rec: RecommendedProduct): boolean => {
-    const color = getRecommendedColor(rec);
-    const colorName = getRecommendedColorName(rec);
-    return item.product.id === rec.product_id && !!findColorVariant([item.colorVariant], color, colorName);
-  };
-
   const tryOnRecommendedProduct = async (rec: RecommendedProduct) => {
-    const color = getRecommendedColor(rec);
-    const size = getRecommendedSize(rec);
-    const colorName = getRecommendedColorName(rec);
     const currentItems = computeEligibleItems(useCartStore.getState().cart.items);
     let index = currentItems.findIndex((ei) => matchesRecommendedVariant(ei, rec));
     if (index === -1) {
-      const product = buildRecommendedProduct(rec);
-      await addItem(product, 1, size, color, colorName, getRecommendedVariant(rec)?.variantId);
+      await addItem(
+        buildRecommendedProduct(rec),
+        1,
+        getRecommendedSize(rec),
+        getRecommendedColor(rec),
+        getRecommendedColorName(rec),
+        getRecommendedVariant(rec)?.variantId
+      );
       const updatedItems = computeEligibleItems(useCartStore.getState().cart.items);
       index = updatedItems.findIndex((ei) => matchesRecommendedVariant(ei, rec));
-      if (index !== -1) {
-        await handleTryOn(updatedItems[index], index);
-      }
-    } else {
-      await handleTryOn(currentItems[index], index);
+      if (index !== -1) await handleTryOn(updatedItems[index], index);
+      return;
     }
+    await handleTryOn(currentItems[index], index);
   };
 
   const addRecommendedToCart = async (rec: RecommendedProduct, size?: string) => {
-    const color = getRecommendedColor(rec);
-    const resolvedSize = size || getRecommendedSize(rec);
-    const colorName = getRecommendedColorName(rec);
     const currentItems = computeEligibleItems(useCartStore.getState().cart.items);
-    const exists = currentItems.some((ei) => matchesRecommendedVariant(ei, rec));
-    if (!exists) {
-      const product = buildRecommendedProduct(rec);
-      await addItem(product, 1, resolvedSize, color, colorName, getRecommendedVariant(rec)?.variantId);
-      toast.success("به سبد خرید اضافه شد");
-    } else {
+    if (currentItems.some((ei) => matchesRecommendedVariant(ei, rec))) {
       toast.info("این محصول در سبد خرید شما موجود است");
+      return;
     }
+    await addItem(
+      buildRecommendedProduct(rec),
+      1,
+      size || getRecommendedSize(rec),
+      getRecommendedColor(rec),
+      getRecommendedColorName(rec),
+      getRecommendedVariant(rec)?.variantId
+    );
+    toast.success("به سبد خرید اضافه شد");
   };
 
-  // Resolve the garment Sara negotiates over. Talking to her never required a
+  /** Runs one card action at a time, keeping every card's buttons in step. */
+  const runRecommendationAction = async (rec: RecommendedProduct, action: () => Promise<void>) => {
+    setRecommendedAdding(rec.product_id);
+    try {
+      await action();
+    } catch { /* ignore */ }
+    setRecommendedAdding(null);
+  };
+
+  // Resolve the garment Voxa negotiates over. Talking to her never required a
   // try-on, so the chain falls back past the explicit selection: the actively
   // selected item, then the item behind the last try-on, then the first
   // eligible cart item. Without the fallback a message typed before any try-on
@@ -715,6 +403,10 @@ export default function TryOnRoomPage() {
     [activeItemIndex, eligibleItems, inspectedItemName]
   );
 
+  // The negotiation prompts target the same item the input box does, so both
+  // work when no product is explicitly selected (e.g. after a page reload).
+  const negotiationTargetItem = resolveNegotiationTarget();
+
   const sendNegotiationMessage = async (message: string, item?: TryOnEligibleItem) => {
     const targetItem = resolveNegotiationTarget(item);
     if (!targetItem) {
@@ -725,145 +417,58 @@ export default function TryOnRoomPage() {
     }
 
     setChatLoading(true);
-    setRecommendedProduct(null);
-    setCatalogHits([]);
-    const userMsg: ChatMessage = { role: "user", content: message };
-    setChatMessages((prev) => [...prev, userMsg]);
+    setChatMessages((prev) => [...prev, { role: "user", content: message }]);
 
     // Snapshot live state for the body
     const liveState = useTryOnStore.getState();
+    let streamed = "";
 
     try {
-      // The backend rebuilds the garment, cart and history from the database
-      // and persists both halves of this turn itself, so the body only names
-      // which try-on and which fitting room the message belongs to.
-      const res = await sessionManager.fetchWithAuth("/api/tryon/negotiate-stream", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      await streamNegotiation({
+        message,
+        tryon_product_id: targetItem.product.id,
+        tryon_color: getCanonicalColor(targetItem.colorVariant) || targetItem.colorVariant.colorName,
+        tryon_id: liveState.currentTryonId || "",
+        chat_id: liveState.chatId || "",
+      }, {
+        onToken: (text) => {
+          streamed += text;
+          setChatMessages((prev) =>
+            replaceStreamingMessage(prev, { role: "agent_streaming", content: streamed })
+          );
         },
-        body: JSON.stringify({
-          message,
-          tryon_product_id: targetItem.product.id,
-          tryon_color: getCanonicalColor(targetItem.colorVariant) || targetItem.colorVariant.colorName,
-          tryon_id: liveState.currentTryonId || "",
-          chat_id: liveState.chatId || "",
-        }),
-      });
+        onDone: (turn) => {
+          setChatMessages((prev) => replaceStreamingMessage(prev, agentMessageForTurn(turn, streamed)));
 
-      if (!res.ok || !res.body) throw new Error("خطا در ارتباط با فروشنده");
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let agentContent = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (value) {
-          buffer += decoder.decode(value, { stream: true });
-        }
-        if (done) {
-          buffer += decoder.decode();
-        }
-
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const data = JSON.parse(line.slice(6));
-            if (data.type === "token") {
-              agentContent += data.text;
-              setChatMessages((prev) => {
-                const copy = [...prev];
-                const lastIdx = copy.length - 1;
-                if (copy[lastIdx]?.role === "agent_streaming") {
-                  copy[lastIdx] = { role: "agent_streaming", content: agentContent } as ChatMessage;
-                } else {
-                  copy.push({ role: "agent_streaming", content: agentContent } as ChatMessage);
-                }
-                return copy;
+          if (turn.coupon) {
+            const { code, value, valid_until, product_ids, comp_product_id } = turn.coupon;
+            const requiredColors: RequiredColorEntry[] = [];
+            if (product_ids?.[0]) {
+              requiredColors.push({
+                productId: product_ids[0],
+                color: turn.coupon.main_color,
+                colorName: turn.coupon.main_color_name,
               });
-            } else if (data.type === "done") {
-              // Defensive: backend guarantees a non-empty reply, but guard the
-              // historic case where both streamed tokens and reply were empty
-              // (tool-only turn with blank message arg) so the bubble never
-              // renders blank beside the coupon card.
-              if (!data.reply && !agentContent) {
-                const fallbackCoupon = data.coupon ? "دمت گرم رفیق! یه تخفیف خودمونی برات جور کردم، همین پایین برات گذاشتم. حیفه از دستش بدی!" : "";
-                const fallbackRec = data.recommended_product ? `رفیق این ${(data.recommended_product as any).product_name || "محصول"} حسابی به تیپت میاد، حیفه از دستش بدی! بگو تا برات نگهش دارم.` : "";
-                const fallbackHit = Array.isArray(data.catalog_hits) && data.catalog_hits.length ? "رفیق چند تا گزینه خوشگل برات پیدا کردم، همین پایین گذاشتم — ببین کدومش بیشتر به دلت میشینه!" : "";
-                data.reply = data.reply || agentContent || fallbackCoupon || fallbackRec || fallbackHit || "دمت گرم رفیق! بگو چی تو ذهنته تا یه پیشنهاد درجهیک برات جور کنم.";
-              }
-              agentContent = data.reply || agentContent;
-              setChatMessages((prev) => {
-                const copy = [...prev];
-                const lastIdx = copy.length - 1;
-                if (copy[lastIdx]?.role === "agent_streaming") {
-                  copy[lastIdx] = { role: "agent", content: agentContent } as ChatMessage;
-                } else {
-                  copy.push({ role: "agent", content: agentContent } as ChatMessage);
-                }
-                return copy;
-              });
-
-              const hits = Array.isArray(data.catalog_hits) ? data.catalog_hits as CatalogVariantHit[] : [];
-              setCatalogHits(hits);
-
-              if (data.coupon) {
-                const c = data.coupon as CouponOffer;
-                const requiredColors: { productId: string; color?: string; colorName?: string }[] = [];
-                if (c.product_ids?.[0]) {
-                  requiredColors.push({ productId: c.product_ids[0], color: c.main_color, colorName: c.main_color_name });
-                }
-                if (c.comp_product_id) {
-                  requiredColors.push({ productId: c.comp_product_id, color: c.comp_color, colorName: c.comp_color_name });
-                }
-                setCoupon(c.code, c.value, c.valid_until, c.product_ids, requiredColors);
-                setCouponExpired(false);
-              }
-              // Show a product only when the agent actually named one this
-              // turn — she recommended it, or the coupon bundles it (the server
-              // resolves that comp product into recommended_product too). Any
-              // other turn clears the card: the old behavior kept the previous
-              // card on screen forever, so a greeting three turns after a
-              // coupon still sat next to a product the agent had stopped
-              // talking about.
-              if (data.recommended_product) {
-                setRecommendedProduct(data.recommended_product as RecommendedProduct);
-              } else {
-                setRecommendedProduct(null);
-              }
-
-              // The backend persists both halves of this turn to the room
-              // transcript, including the tool_call the reload path reads back.
-            } else if (data.type === "error") {
-              throw new Error(data.error || "خطا در مذاکره");
             }
-          } catch (parseErr) {
-            if (parseErr instanceof SyntaxError) continue;
-            throw parseErr;
+            if (comp_product_id) {
+              requiredColors.push({
+                productId: comp_product_id,
+                color: turn.coupon.comp_color,
+                colorName: turn.coupon.comp_color_name,
+              });
+            }
+            setCoupon(code, value, valid_until, product_ids, requiredColors);
+            setCouponExpired(false);
           }
-        }
 
-        if (done) break;
-      }
-    } catch (err: any) {
-      const errMsg: ChatMessage = {
-        role: "agent",
-        content: "وای رفیق ببخشید، الان یه لحظه سرم شلوغ شد و صدات به من نرسید! یه بار دیگه بگو چی می‌خواستی.",
-      };
-      setChatMessages((prev) => {
-        const copy = [...prev];
-        const lastIdx = copy.length - 1;
-        if (copy[lastIdx]?.role === "agent_streaming") {
-          copy.splice(lastIdx, 1);
-        }
-        copy.push(errMsg);
-        return copy;
+          // The backend persists both halves of this turn to the room
+          // transcript, including the tool_call the reload path reads back.
+        },
       });
+    } catch {
+      setChatMessages((prev) =>
+        replaceStreamingMessage(prev, { role: "agent", content: AGENT_ERROR_REPLY })
+      );
       // A failed turn never reaches the backend's own persistence, so record
       // both halves here to keep the transcript complete across a reload.
       persistMessage({
@@ -875,7 +480,7 @@ export default function TryOnRoomPage() {
       persistMessage({
         id: makeDbMessageId(),
         role: "agent",
-        content: errMsg.content,
+        content: AGENT_ERROR_REPLY,
         timestamp: new Date().toISOString(),
       });
     } finally {
@@ -883,12 +488,18 @@ export default function TryOnRoomPage() {
     }
   };
 
-  const handleChatSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim()) return;
-    const msg = chatInput.trim();
+  const handleChatSubmit = () => {
+    const message = chatInput.trim();
+    if (!message) return;
     setChatInput("");
-    sendNegotiationMessage(msg);
+    sendNegotiationMessage(message);
+  };
+
+  const handleSelectOpener = (text: string) => {
+    setShowNegotiationPrompt(false);
+    setCouponApplied(false);
+    setCouponExpired(false);
+    sendNegotiationMessage(text, negotiationTargetItem ?? undefined);
   };
 
   const handleApplyCoupon = async () => {
@@ -896,18 +507,11 @@ export default function TryOnRoomPage() {
 
     const cartItems = useCartStore.getState().cart.items;
 
-    // Check that ALL required products (main + complementary) are in the cart,
-    // in the exact color variant the coupon was negotiated for (any size).
+    // The coupon only pays out once every product it was negotiated for is in
+    // the cart, in the exact color variant it was pinned to (any size).
     if (couponProductIds.length > 0) {
-      const missingProducts = couponProductIds.filter((pid) => {
-        const required = couponRequiredColors.find((rc) => rc.productId === pid);
-        return !cartItems.some((item) => {
-          if (item.productId !== pid) return false;
-          if (!required || (!required.color && !required.colorName)) return true;
-          return colorsOverlap(required.color, required.colorName, item.color, item.colorName);
-        });
-      });
-      if (missingProducts.length > 0) {
+      const missing = missingCouponProducts(cartItems, couponProductIds, couponRequiredColors);
+      if (missing.length > 0) {
         toast.warning("این کد تخفیف زمانی اعمال می شود که هر دو محصول اصلی و پیشنهادی، در همان رنگ پیشنهادی، در سبد خرید باشند");
         return;
       }
@@ -915,17 +519,17 @@ export default function TryOnRoomPage() {
 
     setCouponApplying(true);
     try {
-      const cartItemsPayload = cartItems.map((item) => ({
-        product_id: item.productId,
-        color: item.color,
-        color_name: item.colorName,
-      }));
       const res = await sessionManager.fetchWithAuth("/api/tryon/apply-negotiated-coupon", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ code: couponCode, cart_items: cartItemsPayload }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: couponCode,
+          cart_items: cartItems.map((item) => ({
+            product_id: item.productId,
+            color: item.color,
+            color_name: item.colorName,
+          })),
+        }),
       });
 
       if (!res.ok) {
@@ -947,46 +551,20 @@ export default function TryOnRoomPage() {
     }
   };
 
-  const handleClearImage = () => {
-    setUploadedFile(null);
-    setActiveItemIndex(null);
-  };
-
-  const handleClearAll = () => {
-    clear();
-    setActiveItemIndex(null);
-    setChatMessages([]);
-    setCatalogHits([]);
-    setCouponApplied(false);
-    setCouponExpired(false);
-    setTryOnCount(0);
-    setCompareModalData(null);
-    setShowNegotiationPrompt(false);
-    negotiationInitializedRef.current = false;
-    negotiationRestoredRef.current = false;
-    setMobileTab("products");
-  };
-
   const handleStartNewRoom = useCallback(() => {
     startNewRoom();
     setActiveItemIndex(null);
     setChatMessages([]);
-    setRecommendedProduct(null);
-    setCatalogHits([]);
     setCouponApplied(false);
     setCouponExpired(false);
     setTryOnCount(0);
-    setCompareModalData(null);
+    setComparePair(null);
     setShowNegotiationPrompt(false);
     negotiationInitializedRef.current = false;
     negotiationRestoredRef.current = false;
     hydratedForChatIdRef.current = null;
     restoredFromDbRef.current = false;
   }, [startNewRoom]);
-
-  const handleClearResult = () => {
-    clearResult();
-  };
 
   if (authLoading || cartLoading) {
     return (
@@ -1005,10 +583,6 @@ export default function TryOnRoomPage() {
   if (!isAuthorized) return null;
 
   const activeItem = activeItemIndex !== null ? eligibleItems[activeItemIndex] : null;
-
-  // The negotiation prompts target the same item the input box does, so both
-  // work when no product is explicitly selected (e.g. after a page reload).
-  const negotiationTargetItem = resolveNegotiationTarget();
 
   return (
     <div className="container py-4 md:py-6 flex flex-col flex-1 min-h-0 overflow-hidden">
@@ -1033,721 +607,97 @@ export default function TryOnRoomPage() {
         </p>
       </motion.div>
 
-      {/* Step indicator */}
-      {eligibleItems.length > 0 && (
-        <div className="flex items-center gap-1 md:gap-2 mb-3 md:mb-4 flex-shrink-0">
-          {steps.map((step, idx) => (
-            <div key={idx} className="flex items-center gap-1 md:gap-2">
-              {idx > 0 && (
-                <div className={cn(
-                  "w-4 md:w-8 h-0.5 rounded-full transition-colors",
-                  step.done ? "bg-voxcina-blue/15" : idx === currentStep ? "bg-voxcina-blue/30" : "bg-secondary-300/50 dark:bg-voxcina-blue/20"
-                )} />
-              )}
-              <div className="flex items-center gap-1.5">
-                <div className={cn(
-                  "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-all",
-                  step.done
-                    ? "bg-voxcina-blue text-voxcina-cream shadow-inset-button"
-                    : idx === currentStep
-                    ? "bg-voxcina-blue text-voxcina-cream shadow-inset-button animate-pulse-soft"
-                    : "bg-voxcina-blue/10 dark:bg-voxcina-blue/20 text-voxcina-blue/40 dark:text-voxcina-cream/40"
-                )}>
-                  {step.done ? <Check className="h-3 w-3" /> : idx + 1}
-                </div>
-                <span className={cn(
-                  "text-[10px] md:text-xs transition-colors hidden sm:inline",
-                  step.done
-                    ? "text-voxcina-blue dark:text-voxcina-cream font-medium"
-                    : idx === currentStep
-                    ? "text-voxcina-blue dark:text-voxcina-cream font-medium"
-                    : "text-voxcina-blue/40 dark:text-voxcina-cream/40"
-                )}>
-                  {step.label}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {eligibleItems.length === 0 ? (
+        <EmptyFittingRoom cartIsEmpty={cart.items.length === 0} />
+      ) : (
+        <>
+          <TryOnStepIndicator steps={steps} />
 
-      {eligibleItems.length === 0 && (
-        <motion.div
-          className="flex flex-col items-center justify-center py-16 text-center flex-1 relative"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          {/* Decorative gradient wash — Lovable-style atmospheric */}
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-pink-400/8 rounded-full blur-3xl animate-pulse-soft" />
-            <div className="absolute bottom-1/4 right-1/4 w-40 h-40 bg-purple-400/6 rounded-full blur-3xl animate-pulse-soft" style={{ animationDelay: "1.5s" }} />
-            <div className="absolute top-1/2 left-1/3 w-48 h-48 bg-blue-400/6 rounded-full blur-3xl animate-pulse-soft" style={{ animationDelay: "3s" }} />
-          </div>
+          <FittingRoomTabs value={mobileTab} onChange={setMobileTab} productCount={eligibleItems.length} />
 
           <motion.div
-            className="w-20 h-20 rounded-2xl bg-background border border-secondary-300 dark:border-voxcina-blue/20 flex items-center justify-center mb-4 relative z-10 shadow-inset-button"
-            animate={{ y: [0, -8, 0] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            className="flex flex-col lg:flex-row gap-4 md:gap-5 flex-1 min-h-0"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
           >
-            <ShoppingBag className="h-10 w-10 text-voxcina-blue/30 dark:text-voxcina-cream/30" />
-          </motion.div>
-          <h2 className="text-lg font-bold text-voxcina-blue dark:text-voxcina-cream mb-2 relative z-10">
-            {cart.items.length === 0 ? "محصولی برای پرو مجازی انتخاب نشده" : "محصولات سبد خرید قابلیت پرو مجازی ندارند"}
-          </h2>
-          <p className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60 mb-4 max-w-md relative z-10">
-            {cart.items.length === 0
-              ? "ابتدا یک محصول به سبد خرید اضافه کنید."
-              : "محصولاتی که تصویر پرو مجازی دارند در اینجا نمایش داده می‌شوند."}
-          </p>
-          <Link href="/products" className="relative z-10">
-            <Button variant="primary" size="lg">مشاهده محصولات</Button>
-          </Link>
-        </motion.div>
-      )}
+            {/* Left sidebar: photo upload + cart items */}
+            <div className={cn(
+              "w-full lg:w-[360px] xl:w-[400px] flex-shrink-0 flex-1 lg:flex-initial max-lg:min-h-0 space-y-3 overflow-y-auto scrollbar-thin",
+              mobileTab === "products" ? "block" : "hidden lg:block"
+            )}>
+              <PhotoUploadCard
+                previewUrl={uploadedPreview}
+                onOpenGuide={() => setGuideOpen(true)}
+                onClear={handleClearImage}
+                onFileDropped={openCropModal}
+              />
 
-      {eligibleItems.length > 0 && (
-        <div className="lg:hidden flex-shrink-0 mb-3 flex bg-background rounded-xl border border-secondary-400 dark:border-voxcina-blue/30 p-1">
-          <button
-            type="button"
-            onClick={() => setMobileTab("products")}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all",
-              mobileTab === "products"
-                ? "bg-voxcina-blue text-voxcina-cream shadow-inset-button"
-                : "text-voxcina-blue/60 dark:text-voxcina-cream/60"
-            )}
-          >
-            <Shirt className="h-3.5 w-3.5" />
-            محصولات ({eligibleItems.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileTab("chat")}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all",
-              mobileTab === "chat"
-                ? "bg-voxcina-blue text-voxcina-cream shadow-inset-button"
-                : "text-voxcina-blue/60 dark:text-voxcina-cream/60"
-            )}
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            گفتگو با ووکسا
-          </button>
-        </div>
-      )}
+              <FittingRoomItems
+                items={eligibleItems}
+                activeIndex={activeItemIndex}
+                unlocked={hasPhoto}
+                onSelect={handleSelectItem}
+              />
 
-      {eligibleItems.length > 0 && (
-        <motion.div
-          className="flex flex-col lg:flex-row gap-4 md:gap-5 flex-1 min-h-0"
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-        >
-          {/* Left sidebar: photo upload + cart items */}
-          <div className={cn(
-            "w-full lg:w-[360px] xl:w-[400px] flex-shrink-0 flex-1 lg:flex-initial max-lg:min-h-0 space-y-3 overflow-y-auto scrollbar-thin",
-            mobileTab === "products" ? "block" : "hidden lg:block"
-          )}>
-            {/* Photo upload — large drop zone */}
-            <motion.div
-              className="bg-background rounded-xl border border-secondary-300 dark:border-voxcina-blue/20 overflow-hidden"
-              variants={itemVariants}
-            >
-              {uploadedPreview ? (
-                <div className="flex items-center gap-3 p-2.5">
-                  <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border border-secondary-300 dark:border-voxcina-blue/20">
-                    <img src={uploadedPreview} alt="تصویر شما" className="w-full h-full object-cover" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-voxcina-blue dark:text-voxcina-cream">تصویر شما</p>
-                    <p className="text-[10px] text-voxcina-blue/40 dark:text-voxcina-cream/40 mt-0.5">عکس آپلود شده</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); handleClearImage(); }}
-                    className="flex-shrink-0 w-7 h-7 bg-red-500/90 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ) : (
-                // Opens the guide instead of the picker directly, so the photo
-                // requirements are read before a photo is chosen. Drag and drop
-                // still lands straight on the crop step.
-                <button
-                  type="button"
-                  onClick={() => setGuideOpen(true)}
-                  className={cn(
-                    "w-full text-right flex items-center gap-3 p-2.5 cursor-pointer rounded-xl border-2 border-dashed transition-all",
-                    dragOver
-                      ? "border-secondary-400 dark:border-voxcina-blue/40 bg-voxcina-blue/[0.04]"
-                      : "border-secondary-300 dark:border-voxcina-blue/20 hover:bg-voxcina-blue/[0.04] dark:hover:bg-voxcina-cream/[0.04]"
-                  )}
-                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={handleFileDrop}
-                >
-                  <div className="w-16 h-16 rounded-xl flex-shrink-0 border border-secondary-300 dark:border-voxcina-blue/20 flex items-center justify-center bg-voxcina-blue/[0.04] dark:bg-voxcina-cream/[0.04]">
-                    <Upload className="h-6 w-6 text-voxcina-blue/40 dark:text-voxcina-cream/40" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70">عکس خود را آپلود کنید</p>
-                    <p className="text-[10px] text-voxcina-blue/40 dark:text-voxcina-cream/40 mt-0.5">
-                      <span className="lg:hidden">برای دیدن راهنما و انتخاب عکس ضربه بزنید</span>
-                      <span className="hidden lg:inline">اینجا رها کنید یا برای دیدن راهنما کلیک کنید</span>
-                    </p>
-                  </div>
-                </button>
-              )}
-            </motion.div>
-
-            {/* Cart items list */}
-            <motion.div
-              className="bg-background rounded-xl border border-secondary-300 dark:border-voxcina-blue/20 p-3"
-              variants={itemVariants}
-            >
-              <h3 className="text-xs font-bold text-voxcina-blue dark:text-voxcina-cream mb-3 flex items-center gap-2 px-1">
-                <ShoppingBag className="h-3.5 w-3.5" />
-                محصولات ({eligibleItems.length})
-              </h3>
-              <div className="space-y-2">
-                <AnimatePresence>
-                  {eligibleItems.map((item, idx) => (
-                    <motion.div
-                      key={item.cartItem.id}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -6 }}
-                      className={cn(
-                        "flex items-center gap-3 p-2.5 rounded-xl border transition-all duration-200 cursor-pointer group",
-                        activeItemIndex === idx
-                          ? "border-voxcina-blue/40 dark:border-voxcina-cream/40 bg-voxcina-blue/[0.04] dark:bg-voxcina-cream/[0.04]"
-                          : "border-transparent hover:border-secondary-300 dark:hover:border-voxcina-blue/30 hover:bg-voxcina-blue/[0.04] dark:hover:bg-voxcina-cream/[0.04]",
-                        !(uploadedFile || uploadedPreview) && "opacity-50"
-                      )}
-                      onClick={() => {
-                        if (!(uploadedFile || uploadedPreview) || isProcessing) return;
-                        if (activeItemIndex === idx) {
-                          setActiveItemIndex(null);
-                          clearInspectedItem();
-                          return;
-                        }
-                        setActiveItemIndex(idx);
-                        const garmentType = item.colorVariant.tryOnGarmentType || "upper_body";
-                        setInspectedItem(item.product.name, garmentType);
-                      }}
-                    >
-                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-voxcina-blue/[0.04] dark:bg-voxcina-cream/[0.04] flex-shrink-0 border border-secondary-300/60 dark:border-voxcina-blue/20">
-                        <BackendImage src={getCartItemImage(item.cartItem) || ""} alt={item.product.name} className="w-full h-full object-cover" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-voxcina-blue dark:text-voxcina-cream truncate leading-tight">{item.product.name}</p>
-                        <p className="text-[10px] text-voxcina-blue/40 dark:text-voxcina-cream/40 mt-0.5">
-                          {item.cartItem.colorName || item.colorVariant.colorName}
-                          {item.cartItem.size && ` · ${item.cartItem.size}`}
-                        </p>
-                        <p className="text-[11px] font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-0.5">{formatPrice(item.product.price)}</p>
-                      </div>
-                      <div className={cn(
-                        "flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all",
-                        activeItemIndex === idx
-                          ? "bg-voxcina-blue text-voxcina-cream shadow-inset-button"
-                          : "bg-voxcina-blue/10 dark:bg-voxcina-blue/20 text-voxcina-blue/40 dark:text-voxcina-cream/40 group-hover:bg-voxcina-blue/20 dark:group-hover:bg-voxcina-cream/20"
-                      )}>
-                        {(uploadedFile || uploadedPreview) ? <Shirt className="h-3.5 w-3.5" /> : <Lock className="h-3 w-3" />}
-                      </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
-              {!(uploadedFile || uploadedPreview) && (
-                <p className="text-[10px] text-voxcina-blue/40 dark:text-voxcina-cream/40 mt-2 text-center flex items-center justify-center gap-1">
-                  <Lock className="h-3 w-3" />
-                  ابتدا عکس خود را آپلود کنید
-                </p>
-              )}
-            </motion.div>
-
-            {/* Try-on button */}
-            {eligibleItems.length > 0 && (
-              <motion.button
-                type="button"
-                variants={itemVariants}
+              <TryOnActionButton
+                productName={activeItem?.product.name}
+                processing={isProcessing}
+                disabled={!hasPhoto || activeItemIndex === null || isProcessing}
                 onClick={() => {
-                  if (activeItemIndex !== null) {
-                    handleTryOn(eligibleItems[activeItemIndex], activeItemIndex);
-                  }
+                  if (activeItemIndex !== null) handleTryOn(eligibleItems[activeItemIndex], activeItemIndex);
                 }}
-                disabled={!(uploadedFile || uploadedPreview) || activeItemIndex === null || isProcessing}
-                className={cn(
-                  "w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-300",
-                  !(uploadedFile || uploadedPreview) || activeItemIndex === null || isProcessing
-                    ? "bg-voxcina-blue/10 dark:bg-voxcina-blue/20 text-voxcina-blue/30 dark:text-voxcina-cream/30 cursor-not-allowed"
-                    : "bg-voxcina-blue text-voxcina-cream shadow-inset-button hover:opacity-90 active:opacity-80"
-                )}
-              >
-                {isProcessing ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                    در حال پرو...
-                  </>
-                ) : activeItemIndex !== null ? (
-                  <>
-                    <Shirt className="h-4 w-4" />
-                    پرو کن {activeItem?.product.name ? `— ${activeItem.product.name}` : ""}
-                  </>
-                ) : (
-                  <>
-                    <Shirt className="h-4 w-4" />
-                    ابتدا یک لباس انتخاب کنید
-                  </>
-                )}
-              </motion.button>
-            )}
-          </div>
+              />
+            </div>
 
-          {/* Right panel: result + chat */}
-          <div className={cn(
-            "min-h-0 flex-col flex-1",
-            mobileTab === "chat" ? "flex" : "hidden lg:flex"
-          )}>
-            <motion.div
-              className="bg-background rounded-xl border border-secondary-400 dark:border-voxcina-blue/30 flex flex-col flex-1 min-h-0 max-h-[600px] overflow-hidden"
-              variants={itemVariants}
-            >
-              {/* Always-visible chat card */}
-              <div className="flex flex-col flex-1 min-h-0">
-                {/* Chat section */}
+            {/* Right panel: the conversation with Voxa */}
+            <div className={cn(
+              "min-h-0 flex-col flex-1",
+              mobileTab === "chat" ? "flex" : "hidden lg:flex"
+            )}>
+              <motion.div
+                className="bg-background rounded-xl border border-secondary-400 dark:border-voxcina-blue/30 flex flex-col flex-1 min-h-0 max-h-[600px] overflow-hidden"
+                variants={itemVariants}
+              >
                 <div className="flex flex-col flex-1 min-h-0 px-3 py-3">
                   <div className="flex flex-col flex-1 min-h-0 bg-white dark:bg-voxcina-blue/20 rounded-xl border border-secondary-400 dark:border-voxcina-blue/30 overflow-hidden p-3">
-                  {/* Chat header */}
-                  <div className="flex items-center gap-2.5 mb-2.5 flex-shrink-0 w-full justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="relative flex-shrink-0">
-                        <div className="w-9 h-9 rounded-full bg-voxcina-blue flex items-center justify-center shadow-inset-button">
-                          <Sparkles className="h-4 w-4 text-voxcina-cream" />
-                        </div>
-                        <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-white dark:border-voxcina-blue/10" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-bold text-voxcina-blue dark:text-voxcina-cream">ووکسا</span>
-                        <span className="text-[10px] text-voxcina-blue/50 dark:text-voxcina-cream/50 block -mt-0.5">فروشنده هوشمند</span>
-                      </div>
-                    </div>
-                    <span>
-                      <button
-                        type="button"
-                        onClick={handleStartNewRoom}
-                        className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold text-voxcina-cream bg-voxcina-blue/90 hover:bg-voxcina-blue rounded-lg shadow-inset-button transition-all"
-                      >
-                        <Plus className="h-3 w-3" />
-                        {' جدید'}
-                      </button>
-                    </span>
-                  </div>
+                    <ChatHeader onNewRoom={handleStartNewRoom} />
 
-                  {/* Messages container */}
-                  <div
-                    ref={chatContainerRef}
-                    className="flex-1 min-h-0 overflow-y-auto scrollbar-thin space-y-1.5 rounded-xl bg-voxcina-blue/[0.06] dark:bg-voxcina-cream/[0.05] border border-secondary-400 dark:border-voxcina-blue/30 p-3"
-                  >
-                    {isLoadingSession ? (
-                      <div className="space-y-3 p-2">
-                        <div className="flex items-start gap-1.5">
-                          <div className="w-7 h-7 rounded-full bg-voxcina-blue/10 dark:bg-voxcina-cream/10 animate-pulse flex-shrink-0" />
-                          <div className="space-y-1.5 flex-1 max-w-[65%]">
-                            <div className="h-3 bg-voxcina-blue/10 dark:bg-voxcina-cream/10 rounded-xl animate-pulse" />
-                            <div className="h-3 bg-voxcina-blue/10 dark:bg-voxcina-cream/10 rounded-xl animate-pulse w-4/5" />
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-1.5 flex-row-reverse">
-                          <div className="w-7 h-7 rounded-full bg-voxcina-blue/10 dark:bg-voxcina-cream/10 animate-pulse flex-shrink-0" />
-                          <div className="space-y-1.5 flex-1 max-w-[45%]">
-                            <div className="h-3 bg-voxcina-blue/10 dark:bg-voxcina-cream/10 rounded-xl animate-pulse" />
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-1.5">
-                          <div className="w-7 h-7 rounded-full bg-voxcina-blue/10 dark:bg-voxcina-cream/10 animate-pulse flex-shrink-0" />
-                          <div className="space-y-1.5 flex-1 max-w-[75%]">
-                            <div className="h-3 bg-voxcina-blue/10 dark:bg-voxcina-cream/10 rounded-xl animate-pulse" />
-                            <div className="h-3 bg-voxcina-blue/10 dark:bg-voxcina-cream/10 rounded-xl animate-pulse w-3/5" />
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                    <AnimatePresence>
-                      {chatMessages.map((msg, idx) => {
-                        const prevMsg = chatMessages[idx - 1];
-                        const isGrouped = prevMsg && prevMsg.role === msg.role;
-
-                        if (msg.role === "tryon") {
-                          return (
-                            <motion.div
-                              key={idx}
-                              initial={{ opacity: 0, y: 8, scale: 0.98 }}
-                              animate={{ opacity: 1, y: 0, scale: 1 }}
-                              className="flex flex-col items-center gap-1.5 mt-3"
-                            >
-                              {msg.tryonData?.afterImage && (
-                                <div
-                                  className="relative w-24 h-24 rounded-full overflow-hidden border border-secondary-400 dark:border-voxcina-blue/30 shadow-inset-button cursor-pointer group"
-                                  onClick={() => setCompareModalData({ beforeImage: msg.tryonData?.beforeImage || "", afterImage: msg.tryonData?.afterImage || "" })}
-                                >
-                                  <img
-                                    src={msg.tryonData.afterImage}
-                                    alt={msg.content}
-                                    className="absolute inset-0 w-full h-full object-cover blur-[6px] group-hover:blur-0 transition-all duration-300"
-                                    draggable={false}
-                                  />
-                                  <div className="absolute inset-0 flex items-center justify-center bg-voxcina-blue/20 group-hover:bg-transparent transition-all duration-300 pointer-events-none">
-                                    <Maximize2 className="h-5 w-5 text-voxcina-cream opacity-100 group-hover:opacity-0 transition-opacity duration-200" />
-                                  </div>
-                                </div>
-                              )}
-                              <div className="text-center">
-                                <p className="text-[11px] font-bold text-voxcina-blue dark:text-voxcina-cream">{msg.content}</p>
-                                {msg.tryonData?.productName && (
-                                  <p className="text-[10px] text-voxcina-blue/40 dark:text-voxcina-cream/40">{msg.tryonData.productName}</p>
-                                )}
-                              </div>
-                            </motion.div>
-                          );
-                        }
-
-                        if (msg.role === "tryon_processing") {
-                          return (
-                            <motion.div
-                              key={idx}
-                              initial={{ opacity: 0, y: 6 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className="flex items-start gap-1.5 mt-2"
-                            >
-                              <div className="flex-shrink-0 w-7 h-7 rounded-full bg-voxcina-blue flex items-center justify-center shadow-inset-button">
-                                <RefreshCw className="h-3 w-3 text-voxcina-cream animate-spin" />
-                              </div>
-                              <div className="bg-white dark:bg-voxcina-blue/25 rounded-xl rounded-tl-sm border border-secondary-400 dark:border-voxcina-blue/30 px-3 py-2">
-                                <p className="text-xs text-voxcina-blue dark:text-voxcina-cream">
-                                  در حال پرو {msg.tryonData?.productName || "لباس"}...
-                                </p>
-                                <p className="text-[10px] text-voxcina-blue/40 dark:text-voxcina-cream/40 mt-0.5">
-                                  حدود ۳۰ ثانیه
-                                </p>
-                              </div>
-                            </motion.div>
-                          );
-                        }
-
-                        return (
-                          <motion.div
-                            key={idx}
-                            initial={{ opacity: 0, y: 6, scale: 0.98 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            className={cn(
-                              "flex items-start gap-1.5",
-                              msg.role === "user" ? "flex-row-reverse" : "flex-row",
-                              isGrouped ? "mt-0.5" : "mt-2"
-                            )}
-                          >
-                            <div className={cn("flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center", isGrouped && "invisible")}>
-                              {msg.role === "user" ? (
-                                <div className="w-full h-full rounded-full bg-voxcina-blue flex items-center justify-center shadow-inset-button">
-                                  <User className="h-3.5 w-3.5 text-voxcina-cream" />
-                                </div>
-                              ) : (
-                                <div className="w-full h-full rounded-full bg-voxcina-blue flex items-center justify-center shadow-inset-button">
-                                  <Sparkles className="h-3 w-3 text-voxcina-cream" />
-                                </div>
-                              )}
-                            </div>
-                            <div
-                              className={cn(
-                                "max-w-[80%] rounded-xl px-3 py-2 text-xs leading-relaxed",
-                                msg.role === "user"
-                                  ? "bg-voxcina-blue text-voxcina-cream rounded-tr-sm shadow-inset-button"
-                                  : "bg-white dark:bg-voxcina-blue/25 text-voxcina-blue dark:text-voxcina-cream rounded-tl-sm border border-secondary-400 dark:border-voxcina-blue/30"
-                              )}
-                            >
-                              {msg.content}
-                            </div>
-                          </motion.div>
-                        );
-                      })}
-                    </AnimatePresence>
-                    )}
-
-                    {/* Typing indicator as inline bubble */}
-                    {chatLoading && (
-                      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex items-start gap-1.5 mt-2">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-voxcina-blue flex items-center justify-center shadow-inset-button">
-                          <Sparkles className="h-3 w-3 text-voxcina-cream" />
-                        </div>
-                        <div className="bg-white dark:bg-voxcina-blue/25 rounded-xl rounded-tl-sm border border-secondary-400 dark:border-voxcina-blue/30 px-3 py-2.5">
-                          <div className="flex items-center gap-1">
-                            <div className="w-1.5 h-1.5 bg-voxcina-blue/40 dark:bg-voxcina-cream/40 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                            <div className="w-1.5 h-1.5 bg-voxcina-blue/40 dark:bg-voxcina-cream/40 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                            <div className="w-1.5 h-1.5 bg-voxcina-blue/40 dark:bg-voxcina-cream/40 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {/* Coupon card with countdown */}
-                    {couponCode && (
-                      <div
-                        className={cn(
-                          "rounded-lg p-2.5 mt-2.5 transition-colors",
-                          couponExpired
-                            ? "bg-background border border-gray-300 dark:border-gray-700"
-                            : "bg-background border border-emerald-400/40 dark:border-emerald-500/40"
-                        )}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <Tag className={cn(
-                            "h-3.5 w-3.5 flex-shrink-0",
-                            couponExpired ? "text-gray-400" : "text-emerald-600 dark:text-emerald-400"
-                          )} />
-                          <span className={cn(
-                            "text-xs font-bold",
-                            couponExpired ? "text-gray-500 dark:text-gray-400" : "text-emerald-700 dark:text-emerald-300"
-                          )}>
-                            {couponExpired ? "کد تخفیف منقضی شد" : `${couponValue}٪ تخفیف`}
-                          </span>
-                          {!couponExpired && couponValidUntil && (
-                            <div className="mr-auto flex items-center bg-voxcina-blue/[0.04] dark:bg-voxcina-cream/[0.04] rounded-md px-1.5 py-0.5">
-                              <CountdownTimer
-                                validUntil={couponValidUntil}
-                                onExpire={() => {
-                                  setCouponExpired(true);
-                                }}
-                                className="text-[10px]"
-                              />
-                            </div>
-                          )}
-                        </div>
-
-                        {!couponExpired && (
-                          <>
-                            <div className="border-t border-dashed border-emerald-300/40 dark:border-emerald-700/40 my-1.5" />
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono font-bold text-[10px] select-all tracking-wider text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 rounded-md px-1.5 py-0.5">
-                                {couponCode}
-                              </span>
-                              {activeItem && couponValue && (
-                                <span className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70 whitespace-nowrap">
-                                  صرفه‌جویی {formatPrice(activeItem.product.price * couponValue / 100)}ت
-                                </span>
-                              )}
-                              <div className="mr-auto">
-                                {couponApplied ? (
-                                  <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                                    <Check className="h-3 w-3" />
-                                    اعمال شد
-                                  </span>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={handleApplyCoupon}
-                                    disabled={couponApplying}
-                                    className="h-7 min-w-[4.25rem] flex-shrink-0 whitespace-nowrap rounded-md bg-emerald-600 px-2.5 text-[11px] leading-none text-white shadow-inset-button hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 disabled:opacity-60"
-                                  >
-                                    {couponApplying ? "..." : "اعمال کد"}
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )}
-
-                    {catalogHits.length > 0 && (
-                      <div className="bg-background border border-voxcina-blue/20 rounded-xl p-3 mt-3">
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <ShoppingBag className="h-3.5 w-3.5 text-voxcina-blue dark:text-voxcina-cream" />
-                          <p className="text-[11px] font-bold text-voxcina-blue dark:text-voxcina-cream">نتیجه جستجوی ووکسا</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          {catalogHits.map((hit) => (
-                            <Link
-                              key={`${hit.product_id}:${hit.variant_id}`}
-                              href={`/products/${hit.product_id}?variant=${encodeURIComponent(hit.variant_id || hit.color || hit.color_name || "")}`}
-                              target="_blank"
-                              rel="noopener noreferrer nofollow"
-                              className="flex items-center gap-2 rounded-lg border border-secondary-300 dark:border-voxcina-blue/20 p-1.5 hover:border-voxcina-blue/50 transition-colors"
-                            >
-                              <div className="w-10 h-10 rounded-md overflow-hidden bg-background flex-shrink-0">
-                                {hit.image ? (
-                                  <BackendImage src={hit.image} alt={hit.product_name} className="w-full h-full object-cover" />
-                                ) : (
-                                  <ShoppingBag className="w-full h-full p-2 text-voxcina-blue/30" />
-                                )}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-[10px] font-medium truncate text-voxcina-blue dark:text-voxcina-cream">{hit.product_name}</p>
-                                <p className="text-[9px] text-voxcina-blue/60 dark:text-voxcina-cream/60">{hit.color_name || hit.color || ""}</p>
-                                <p className="text-[10px] font-semibold text-voxcina-blue dark:text-voxcina-cream">{formatPrice(hit.price)}</p>
-                              </div>
-                            </Link>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Recommended product card */}
-                    {recommendedProduct && (
-                      <div
-                        className="bg-background border border-secondary-400 dark:border-voxcina-blue/30 rounded-xl p-3 mt-3"
-                      >
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <Sparkles className="h-3.5 w-3.5 text-voxcina-blue dark:text-voxcina-cream animate-badge-float" />
-                          <p className="text-[11px] font-bold text-voxcina-blue dark:text-voxcina-cream">پیشنهاد فروشنده</p>
-                        </div>
-                        <Link
-                          href={`/products/${recommendedProduct.product_id}?${getRecommendedVariant(recommendedProduct)?.variantId ? "variant" : "color"}=${encodeURIComponent(getVariantUrlValue(getRecommendedVariant(recommendedProduct)) || getRecommendedColor(recommendedProduct) || "")}`}
-                          target="_blank"
-                          rel="noopener noreferrer nofollow"
-                          className="flex items-center gap-3 mb-2 group"
-                        >
-                          <div className="w-14 h-14 rounded-xl overflow-hidden bg-background border border-secondary-300 dark:border-voxcina-blue/20 flex-shrink-0">
-                            {getRecommendedDisplayImage(recommendedProduct) ? (
-                              <BackendImage
-                                src={getRecommendedDisplayImage(recommendedProduct)!}
-                                alt={recommendedProduct.product_name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <ShoppingBag className="h-6 w-6 text-voxcina-blue/30 dark:text-voxcina-cream/30" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-voxcina-blue dark:text-voxcina-cream truncate group-hover:underline">{recommendedProduct.product_name}</p>
-                            <p className="text-[11px] font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-0.5">{formatPrice(recommendedProduct.price)}</p>
-                          </div>
-                        </Link>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            className="text-[10px] flex-1 h-7 shadow-inset-button focus:shadow-focus-warm"
-                            onClick={() => {
-                              setSizeModalSize(undefined);
-                              setSizeModalOpen(true);
-                            }}
-                            disabled={recommendedAdding}
-                          >
-                            <ShoppingBag className="h-3 w-3 ml-1" />
-                            افزودن به سبد
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-[10px] flex-1 h-7 border-voxcina-blue/40 dark:border-voxcina-cream/40 text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-blue/[0.04] dark:hover:bg-voxcina-cream/[0.04] focus:shadow-focus-warm"
-                            onClick={async () => {
-                              setRecommendedAdding(true);
-                              try {
-                                await tryOnRecommendedProduct(recommendedProduct);
-                              } catch { /* ignore */ }
-                              setRecommendedAdding(false);
-                            }}
-                            disabled={recommendedAdding}
-                          >
-                            <Camera className="h-3 w-3 ml-1" />
-                            {recommendedAdding ? "..." : "پرو کن"}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    <div ref={chatEndRef} />
-                  </div>
-
-                  {/* Suggestions above input */}
-                  {resultImage && !chatLoading && (
-                    <div className="flex-shrink-0 space-y-2 mt-2">
-                      {showNegotiationPrompt && negotiationTargetItem && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {NEGOTIATION_OPENERS.map((opener, i) => (
-                            <button
-                              key={i}
-                              onClick={() => handleSelectOpener(opener.text, negotiationTargetItem)}
-                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white dark:bg-voxcina-blue/30 border border-secondary-400 dark:border-voxcina-blue/40 text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:border-voxcina-blue/40 dark:hover:border-voxcina-cream/40 hover:bg-voxcina-blue/[0.08] dark:hover:bg-voxcina-cream/[0.08] hover:text-voxcina-blue dark:hover:text-voxcina-cream transition-all text-xs"
-                            >
-                              <opener.icon className="h-3 w-3" />
-                              {opener.text}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Chat input */}
-                  <form onSubmit={handleChatSubmit} className="flex gap-2 mt-2 flex-shrink-0">
-                    <input
-                      type="text"
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      placeholder="پیام به ووکسا..."
-                      className="flex-1 bg-white dark:bg-voxcina-blue/30 border border-secondary-400 dark:border-voxcina-blue/40 rounded-xl px-3 py-2 text-xs text-voxcina-blue dark:text-voxcina-cream placeholder:text-voxcina-blue/40 focus:outline-none focus:border-voxcina-blue/60 focus:ring-2 focus:ring-voxcina-blue/15 focus:shadow-focus-warm transition-all"
-                      disabled={chatLoading}
+                    <ChatTranscript
+                      messages={chatMessages}
+                      loading={isLoadingSession}
+                      typing={chatLoading}
+                      coupon={{
+                        activeCode: couponCode,
+                        expired: couponExpired,
+                        applied: couponApplied,
+                        applying: couponApplying,
+                        basePrice: activeItem?.product.price ?? null,
+                        onApply: handleApplyCoupon,
+                        onExpire: () => setCouponExpired(true),
+                      }}
+                      recommendation={{
+                        busyProductId: recommendedAdding,
+                        onAddToCart: (product) => setSizeModalProduct(product),
+                        onTryOn: (product) => runRecommendationAction(product, () => tryOnRecommendedProduct(product)),
+                      }}
+                      onCompare={(beforeImage, afterImage) => setComparePair({ beforeImage, afterImage })}
                     />
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      size="sm"
-                      disabled={chatLoading || !chatInput.trim()}
-                      className="rounded-xl px-3 shadow-inset-button focus:shadow-focus-warm"
-                    >
-                      <Send className="h-3.5 w-3.5" />
-                    </Button>
-                  </form>
+
+                    <ChatComposer
+                      value={chatInput}
+                      onChange={setChatInput}
+                      onSubmit={handleChatSubmit}
+                      disabled={chatLoading}
+                      showOpeners={!!resultImage && !chatLoading && showNegotiationPrompt && !!negotiationTargetItem}
+                      onSelectOpener={handleSelectOpener}
+                    />
                   </div>
                 </div>
-              </div>
-
-              {/* Full comparison modal */}
-              <AnimatePresence>
-                {compareModalData && (
-                  <motion.div
-                    className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    onClick={() => setCompareModalData(null)}
-                  >
-                    <motion.div
-                      className="bg-background rounded-xl border border-secondary-400 dark:border-voxcina-blue/30 p-3 max-w-2xl w-full max-h-[85vh] overflow-hidden"
-                      initial={{ scale: 0.95, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.95, opacity: 0 }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-bold text-voxcina-blue dark:text-voxcina-cream">مقایسه تصاویر</span>
-                        <button
-                          type="button"
-                          onClick={() => setCompareModalData(null)}
-                          className="w-7 h-7 bg-red-500/10 hover:bg-red-500/20 rounded-full flex items-center justify-center transition-colors"
-                        >
-                          <X className="h-3.5 w-3.5 text-red-500" />
-                        </button>
-                      </div>
-                      <BeforeAfterSlider
-                        beforeImage={compareModalData.beforeImage}
-                        afterImage={compareModalData.afterImage}
-                        beforeLabel="اصلی"
-                        afterLabel="پرو"
-                        className="w-full max-h-[70vh]"
-                      />
-                    </motion.div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          </div>
-        </motion.div>
+              </motion.div>
+            </div>
+          </motion.div>
+        </>
       )}
 
       {/* Photo pickers. Kept at the page root so they outlive the upload zone,
@@ -1789,58 +739,21 @@ export default function TryOnRoomPage() {
         onCancel={() => setImageToCrop(null)}
       />
 
-      {/* Size selection modal — shown before adding the seller-recommended product to cart */}
-      <Modal
-        isOpen={sizeModalOpen && !!recommendedProduct}
-        onClose={() => setSizeModalOpen(false)}
-        title="انتخاب سایز"
-        contentClassName="max-w-sm"
-      >
-        {recommendedProduct && (() => {
-          const { available: availableSizes } = getRecommendedSizeOptions(recommendedProduct);
-          return (
-            <>
-              <p className="text-sm text-muted-foreground mb-4">{recommendedProduct.product_name}</p>
-              {availableSizes.length > 0 ? (
-                <SizeSelector
-                  sizes={availableSizes}
-                  selectedSize={sizeModalSize}
-                  onSizeChange={setSizeModalSize}
-                  showLabel={false}
-                />
-              ) : (
-                <p className="text-sm text-muted-foreground mb-4">سایزی برای این محصول موجود نیست.</p>
-              )}
-              <div className="flex gap-2 mt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => setSizeModalOpen(false)}
-                >
-                  انصراف
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="flex-1"
-                  disabled={!sizeModalSize || recommendedAdding}
-                  onClick={async () => {
-                    setRecommendedAdding(true);
-                    try {
-                      await addRecommendedToCart(recommendedProduct, sizeModalSize);
-                      setSizeModalOpen(false);
-                    } catch { /* ignore */ }
-                    setRecommendedAdding(false);
-                  }}
-                >
-                  {recommendedAdding ? "..." : "افزودن به سبد"}
-                </Button>
-              </div>
-            </>
-          );
-        })()}
-      </Modal>
+      <SizePickerModal
+        product={sizeModalProduct}
+        adding={!!recommendedAdding}
+        onClose={() => setSizeModalProduct(null)}
+        onConfirm={(size) => {
+          if (!sizeModalProduct) return;
+          const product = sizeModalProduct;
+          runRecommendationAction(product, async () => {
+            await addRecommendedToCart(product, size);
+            setSizeModalProduct(null);
+          });
+        }}
+      />
+
+      <CompareModal pair={comparePair} onClose={() => setComparePair(null)} />
     </div>
   );
 }
