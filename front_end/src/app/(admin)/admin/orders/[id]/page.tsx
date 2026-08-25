@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -251,6 +251,20 @@ export default function AdminOrderDetailsPage() {
     setIsUpdatingPayment(false);
     setPendingSnappPayAction(null);
   };
+
+  // Snapppay rejects an update that does not lower the paid amount, and the
+  // order must keep at least one item — a cart the admin left untouched, or
+  // emptied completely, has to go through cancel instead.
+  const snappPayUpdate = useMemo(() => {
+    let remainingItems = 0;
+    let reducedRows = 0;
+    (order?.items ?? []).forEach((item, index) => {
+      const quantity = Math.max(0, Math.floor(updateQuantities[index] ?? item.quantity));
+      if (quantity > 0) remainingItems += 1;
+      if (quantity < item.quantity) reducedRows += 1;
+    });
+    return { allowed: remainingItems > 0 && reducedRows > 0, remainingItems };
+  }, [order, updateQuantities]);
 
   const handleUpdateSnappPay = async () => {
     if (!order || order.gateway_name !== "snappay") return;
@@ -775,10 +789,28 @@ export default function AdminOrderDetailsPage() {
                    <span className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">{getPaymentGatewayText(order.gateway_name)}</span>
                 </div>
               )}
-               {(order.snappay_payment_token || order.gateway_transaction_id) && (
+               {order.merchant_transaction_id && (
                  <div className="flex justify-between items-center gap-3">
-                   <span className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">{order.snappay_payment_token ? "توکن پرداخت اسنپ‌پی" : "شناسه تراکنش"}</span>
-                   <span className="text-xs font-mono text-voxcina-blue dark:text-voxcina-cream truncate" dir="ltr">{order.snappay_payment_token || order.gateway_transaction_id}</span>
+                   <span className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">شناسه تراکنش فروشگاه</span>
+                   <span className="text-xs font-mono text-voxcina-blue dark:text-voxcina-cream truncate" dir="ltr">{order.merchant_transaction_id}</span>
+                 </div>
+               )}
+               {order.gateway_transaction_id && (
+                 <div className="flex justify-between items-center gap-3">
+                   <span className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">شناسه تراکنش درگاه</span>
+                   <span className="text-xs font-mono text-voxcina-blue dark:text-voxcina-cream truncate" dir="ltr">{order.gateway_transaction_id}</span>
+                 </div>
+               )}
+               {order.snappay_payment_token && (
+                 <div className="flex justify-between items-center gap-3">
+                   <span className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">توکن پرداخت اسنپ‌پی</span>
+                   <span className="text-xs font-mono text-voxcina-blue dark:text-voxcina-cream truncate" dir="ltr">{order.snappay_payment_token}</span>
+                 </div>
+               )}
+               {order.digipay_tracking_code && (
+                 <div className="flex justify-between items-center gap-3">
+                   <span className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">کد پیگیری دیجی‌پی</span>
+                   <span className="text-xs font-mono text-voxcina-blue dark:text-voxcina-cream truncate" dir="ltr">{order.digipay_tracking_code}</span>
                  </div>
                )}
               
@@ -852,7 +884,7 @@ export default function AdminOrderDetailsPage() {
                       <Button variant="outline" size="sm" className="flex-1 rounded-lg" onClick={() => setPendingSnappPayAction(null)} disabled={isUpdatingPayment}>
                         انصراف
                       </Button>
-                      <Button size="sm" className="flex-1 rounded-lg bg-red-600 hover:bg-red-700" onClick={() => pendingSnappPayAction === "cancel" ? handleCancelSnappPay() : handleUpdateSnappPay()} disabled={isUpdatingPayment}>
+                      <Button size="sm" className="flex-1 rounded-lg bg-red-600 hover:bg-red-700" onClick={() => pendingSnappPayAction === "cancel" ? handleCancelSnappPay() : handleUpdateSnappPay()} disabled={isUpdatingPayment || (pendingSnappPayAction === "update" && !snappPayUpdate.allowed)}>
                         {isUpdatingPayment && <RefreshCw className="w-4 h-4 animate-spin ml-1" />}
                         تایید نهایی
                       </Button>
@@ -861,10 +893,17 @@ export default function AdminOrderDetailsPage() {
                 ) : (
                   <>
                     <p className="text-xs leading-5 text-amber-700 dark:text-amber-400">مرحله اول: عملیات را انتخاب کنید. پس از نمایش جزئیات، تایید نهایی جداگانه لازم است؛ تغییر یا لغو تراکنش اسنپ‌پی غیرقابل برگشت است.</p>
-                    <Button variant="outline" size="sm" className="w-full rounded-lg" onClick={() => setPendingSnappPayAction("update")} disabled={isUpdatingPayment}>
+                    <Button variant="outline" size="sm" className="w-full rounded-lg" onClick={() => setPendingSnappPayAction("update")} disabled={isUpdatingPayment || !snappPayUpdate.allowed}>
                       <RefreshCw className="w-4 h-4 ml-1" />
                       بروزرسانی اقلام و مبلغ
                     </Button>
+                    {!snappPayUpdate.allowed && (
+                      <p className="text-xs leading-5 text-amber-700/80 dark:text-amber-400/80">
+                        {snappPayUpdate.remainingItems === 0
+                          ? "حداقل یک قلم باید در سفارش باقی بماند؛ برای حذف کامل از لغو سفارش استفاده کنید."
+                          : "برای بروزرسانی، ابتدا تعداد حداقل یک قلم را در فهرست اقلام کاهش دهید."}
+                      </p>
+                    )}
                     <Button variant="outline" size="sm" className="w-full rounded-lg text-red-600 border-red-200 hover:bg-red-50" onClick={() => setPendingSnappPayAction("cancel")} disabled={isUpdatingPayment}>
                       <XCircle className="w-4 h-4 ml-1" />
                       لغو کامل سفارش و بازگشت وجه

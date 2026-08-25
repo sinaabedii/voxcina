@@ -17,7 +17,6 @@ function CallbackContent() {
   const [message, setMessage] = useState("");
   const [orderId, setOrderId] = useState<string | null>(null);
   const [paymentReference, setPaymentReference] = useState<string | null>(null);
-  const [paymentToken, setPaymentToken] = useState<string | null>(null);
   const [gateway, setGateway] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
 
@@ -55,13 +54,11 @@ function CallbackContent() {
       const success = searchParams.get("success");
       const trackIdParam = searchParams.get("trackId");
       const transactionIdParam = searchParams.get("transactionId");
-      const paymentTokenParam = searchParams.get("paymentToken");
       const orderIdParam = searchParams.get("orderId");
       const paymentStatus = searchParams.get("status");
       const gatewayParam = searchParams.get("gateway");
 
-      setPaymentReference(transactionIdParam || trackIdParam);
-      setPaymentToken(paymentTokenParam);
+      setPaymentReference(transactionIdParam);
       setOrderId(orderIdParam);
       if (gatewayParam) setGateway(gatewayParam);
 
@@ -75,9 +72,7 @@ function CallbackContent() {
           source: "payment_callback",
         });
         setTimeout(() => {
-          const reference = transactionIdParam || trackIdParam || "";
-          const tokenQuery = paymentTokenParam ? `&paymentToken=${encodeURIComponent(paymentTokenParam)}` : "";
-          router.push(`/checkout/success?orderId=${orderIdParam}&transactionId=${encodeURIComponent(reference)}${tokenQuery}`);
+          router.push(`/checkout/success?orderId=${orderIdParam}&transactionId=${encodeURIComponent(transactionIdParam ?? "")}`);
         }, 1500);
       } else if (paymentStatus === "abandoned") {
         // User pressed back on payment page
@@ -101,9 +96,7 @@ function CallbackContent() {
           // The reconciler will finalize the order within minutes.
           await clearCart();
           setTimeout(() => {
-            const reference = transactionIdParam || trackIdParam || "";
-            const tokenQuery = paymentTokenParam ? `&paymentToken=${encodeURIComponent(paymentTokenParam)}` : "";
-            router.push(`/checkout/success?orderId=${orderIdParam}&transactionId=${encodeURIComponent(reference)}${tokenQuery}`);
+            router.push(`/checkout/success?orderId=${orderIdParam}&transactionId=${encodeURIComponent(transactionIdParam ?? "")}`);
           }, 1500);
           setStatus("success");
           setMessage("پرداخت با موفقیت انجام شد");
@@ -154,13 +147,9 @@ function CallbackContent() {
               {message}
             </h1>
             <p className="text-muted-foreground mb-4">در حال انتقال به صفحه سفارش...</p>
-            {paymentToken ? (
+            {paymentReference && (
               <p className="text-sm text-muted-foreground">
-                توکن پرداخت اسنپ‌پی: <span className="font-mono">{paymentToken}</span>
-              </p>
-            ) : paymentReference && (
-              <p className="text-sm text-muted-foreground">
-                شناسه تراکنش: <span className="font-mono">{paymentReference}</span>
+                شناسه تراکنش: <span className="font-mono" dir="ltr">{paymentReference}</span>
               </p>
             )}
           </>

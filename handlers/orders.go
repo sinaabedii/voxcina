@@ -62,43 +62,44 @@ type OrderItemAPIResponse struct {
 // OrderAPIResponse represents the full order structure for API responses.
 // It includes populated product details for items and Jalali dates.
 type OrderAPIResponse struct {
-	ID                   primitive.ObjectID          `json:"id"`
-	UserID               primitive.ObjectID          `json:"user_id"`
-	OrderNumber          string                      `json:"order_number"`
-	Items                []OrderItemAPIResponse      `json:"items"`
-	TotalAmount          float64                     `json:"total_amount"`
-	ShippingCost         float64                     `json:"shipping_cost"`
-	TaxAmount            float64                     `json:"tax_amount"`
-	DiscountAmount       float64                     `json:"discount_amount"`
-	DiscountCode         string                      `json:"discount_code,omitempty"`
-	ShippingAddress      models.Address              `json:"shipping_address"`
-	Status               string                      `json:"status"`
-	StatusText           string                      `json:"status_text"`
-	TrackingCode         *string                     `json:"tracking_code,omitempty"`
-	PaymentStatus        string                      `json:"payment_status"`
-	PaymentMethod        string                      `json:"payment_method"`
-	ZibalTrackID         *int64                      `json:"zibal_track_id,omitempty"`
-	ZibalRefNumber       *string                     `json:"zibal_ref_number,omitempty"`
-	GatewayName          string                      `json:"gateway_name,omitempty"`
-	GatewayTransactionID string                      `json:"gateway_transaction_id,omitempty"`
-	SnappPayPaymentToken string                      `json:"snappay_payment_token,omitempty"`
-	DigipayTrackingCode  string                      `json:"digipay_tracking_code,omitempty"`
-	Timeline             []models.OrderTimelineEntry `json:"timeline,omitempty"`
-	Notes                []models.OrderNote          `json:"notes,omitempty"`
-	CreatedAt            time.Time                   `json:"created_at"`
-	UpdatedAt            time.Time                   `json:"updated_at"`
-	DeliveredAt          *time.Time                  `json:"delivered_at,omitempty"`
-	JalaliCreatedAt      string                      `json:"jalali_created_at"`
-	JalaliUpdatedAt      string                      `json:"jalali_updated_at"`
-	ProductCount         int                         `json:"product_count"`
+	ID                    primitive.ObjectID          `json:"id"`
+	UserID                primitive.ObjectID          `json:"user_id"`
+	OrderNumber           string                      `json:"order_number"`
+	Items                 []OrderItemAPIResponse      `json:"items"`
+	TotalAmount           float64                     `json:"total_amount"`
+	ShippingCost          float64                     `json:"shipping_cost"`
+	TaxAmount             float64                     `json:"tax_amount"`
+	DiscountAmount        float64                     `json:"discount_amount"`
+	DiscountCode          string                      `json:"discount_code,omitempty"`
+	ShippingAddress       models.Address              `json:"shipping_address"`
+	Status                string                      `json:"status"`
+	StatusText            string                      `json:"status_text"`
+	TrackingCode          *string                     `json:"tracking_code,omitempty"`
+	PaymentStatus         string                      `json:"payment_status"`
+	PaymentMethod         string                      `json:"payment_method"`
+	ZibalTrackID          *int64                      `json:"zibal_track_id,omitempty"`
+	ZibalRefNumber        *string                     `json:"zibal_ref_number,omitempty"`
+	GatewayName           string                      `json:"gateway_name,omitempty"`
+	MerchantTransactionID string                      `json:"merchant_transaction_id,omitempty"`
+	GatewayTransactionID  string                      `json:"gateway_transaction_id,omitempty"`
+	Timeline              []models.OrderTimelineEntry `json:"timeline,omitempty"`
+	Notes                 []models.OrderNote          `json:"notes,omitempty"`
+	CreatedAt             time.Time                   `json:"created_at"`
+	UpdatedAt             time.Time                   `json:"updated_at"`
+	DeliveredAt           *time.Time                  `json:"delivered_at,omitempty"`
+	JalaliCreatedAt       string                      `json:"jalali_created_at"`
+	JalaliUpdatedAt       string                      `json:"jalali_updated_at"`
+	ProductCount          int                         `json:"product_count"`
 }
 
 type AdminOrderAPIResponse struct {
 	OrderAPIResponse
-	UserFirstName string `json:"user_first_name,omitempty"`
-	UserLastName  string `json:"user_last_name,omitempty"`
-	UserName      string `json:"user_name,omitempty"`
-	UserPhone     string `json:"user_phone,omitempty"`
+	SnappPayPaymentToken string `json:"snappay_payment_token,omitempty"`
+	DigipayTrackingCode  string `json:"digipay_tracking_code,omitempty"`
+	UserFirstName        string `json:"user_first_name,omitempty"`
+	UserLastName         string `json:"user_last_name,omitempty"`
+	UserName             string `json:"user_name,omitempty"`
+	UserPhone            string `json:"user_phone,omitempty"`
 }
 
 // Helper function to populate order items and create OrderAPIResponse
@@ -145,41 +146,36 @@ func newOrderAPIResponse(
 	}
 
 	gatewayName := orderGatewayName(ctx, order)
-	paymentToken := ""
-	if gatewayName == "snappay" {
-		paymentToken = order.GatewayReference
-	}
 
 	return OrderAPIResponse{
-		ID:                   order.ID,
-		UserID:               order.UserID,
-		OrderNumber:          order.OrderNumber,
-		Items:                populatedItems,
-		TotalAmount:          order.TotalAmount,
-		ShippingCost:         order.ShippingCost,
-		TaxAmount:            order.TaxAmount,
-		DiscountAmount:       order.DiscountAmount,
-		DiscountCode:         order.DiscountCode,
-		ShippingAddress:      order.ShippingAddress,
-		Status:               order.Status,
-		StatusText:           order.StatusText,
-		TrackingCode:         order.TrackingCode,
-		PaymentStatus:        order.PaymentStatus,
-		PaymentMethod:        order.PaymentMethod,
-		ZibalTrackID:         order.ZibalTrackID,
-		ZibalRefNumber:       order.ZibalRefNumber,
-		GatewayName:          gatewayName,
-		GatewayTransactionID: order.GatewayTransactionID,
-		SnappPayPaymentToken: paymentToken,
-		DigipayTrackingCode:  order.DigipayTrackingCode,
-		Timeline:             order.Timeline,
-		Notes:                order.Notes,
-		CreatedAt:            order.CreatedAt,
-		UpdatedAt:            order.UpdatedAt,
-		DeliveredAt:          order.DeliveredAt,
-		JalaliCreatedAt:      utils.ToJalaliDateString(order.CreatedAt),
-		JalaliUpdatedAt:      utils.ToJalaliDateString(order.UpdatedAt),
-		ProductCount:         order.GetProductCount(),
+		ID:                    order.ID,
+		UserID:                order.UserID,
+		OrderNumber:           order.OrderNumber,
+		Items:                 populatedItems,
+		TotalAmount:           order.TotalAmount,
+		ShippingCost:          order.ShippingCost,
+		TaxAmount:             order.TaxAmount,
+		DiscountAmount:        order.DiscountAmount,
+		DiscountCode:          order.DiscountCode,
+		ShippingAddress:       order.ShippingAddress,
+		Status:                order.Status,
+		StatusText:            order.StatusText,
+		TrackingCode:          order.TrackingCode,
+		PaymentStatus:         order.PaymentStatus,
+		PaymentMethod:         order.PaymentMethod,
+		ZibalTrackID:          order.ZibalTrackID,
+		ZibalRefNumber:        order.ZibalRefNumber,
+		GatewayName:           gatewayName,
+		MerchantTransactionID: order.MerchantTransactionID,
+		GatewayTransactionID:  order.GatewayTransactionID,
+		Timeline:              order.Timeline,
+		Notes:                 order.Notes,
+		CreatedAt:             order.CreatedAt,
+		UpdatedAt:             order.UpdatedAt,
+		DeliveredAt:           order.DeliveredAt,
+		JalaliCreatedAt:       utils.ToJalaliDateString(order.CreatedAt),
+		JalaliUpdatedAt:       utils.ToJalaliDateString(order.UpdatedAt),
+		ProductCount:          order.GetProductCount(),
 	}, nil
 }
 
@@ -189,7 +185,13 @@ func newAdminOrderAPIResponse(ctx context.Context, order models.Order) (AdminOrd
 		return AdminOrderAPIResponse{}, err
 	}
 
-	adminResponse := AdminOrderAPIResponse{OrderAPIResponse: response}
+	adminResponse := AdminOrderAPIResponse{
+		OrderAPIResponse:    response,
+		DigipayTrackingCode: order.DigipayTrackingCode,
+	}
+	if response.GatewayName == "snappay" {
+		adminResponse.SnappPayPaymentToken = order.GatewayReference
+	}
 
 	// Populate registered user details (first_name / last_name / phone)
 	// so the admin order details view can show both the account holder and
@@ -698,6 +700,10 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The order keeps its own copy of the address, so it needs the same
+	// ASCII-digit invariant the user's address book gets.
+	orderData.ShippingAddress.NormalizeDigits()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -1060,12 +1066,14 @@ func GetUserOrders(w http.ResponseWriter, r *http.Request) {
 		filter["status"] = status
 	}
 
-	// Search by order number, gateway transaction ID, or SnappPay payment token
-	// (case-insensitive partial matching), scoped to this user's orders.
+	// Search by order number, either transaction ID (the one this store
+	// generates and the one the provider returns), or the SnappPay payment
+	// token (case-insensitive partial matching), scoped to this user's orders.
 	if search := r.URL.Query().Get("search"); search != "" {
 		pattern := bson.M{"$regex": search, "$options": "i"}
 		filter["$or"] = []bson.M{
 			{"order_number": pattern},
+			{"merchant_transaction_id": pattern},
 			{"gateway_transaction_id": pattern},
 			{"gateway_reference": pattern},
 		}
@@ -1494,12 +1502,14 @@ func GetAllOrders(w http.ResponseWriter, r *http.Request) {
 		filter["payment_status"] = paymentStatus
 	}
 
-	// Search by order number, gateway transaction ID, or SnappPay payment token
-	// (case-insensitive partial matching).
+	// Search by order number, either transaction ID (the one this store
+	// generates and the one the provider returns), or the SnappPay payment
+	// token (case-insensitive partial matching).
 	if search := r.URL.Query().Get("search"); search != "" {
 		pattern := bson.M{"$regex": search, "$options": "i"}
 		filter["$or"] = []bson.M{
 			{"order_number": pattern},
+			{"merchant_transaction_id": pattern},
 			{"gateway_transaction_id": pattern},
 			{"gateway_reference": pattern},
 		}

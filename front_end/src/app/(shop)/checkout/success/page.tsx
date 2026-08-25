@@ -14,8 +14,7 @@ function SuccessContent() {
   const [isLoading, setIsLoading] = useState(true);
 
   const orderId = searchParams.get("orderId");
-  const callbackTransactionId = searchParams.get("transactionId") || searchParams.get("trackId");
-  const callbackPaymentToken = searchParams.get("paymentToken");
+  const callbackTransactionId = searchParams.get("transactionId");
   const paymentMethod = searchParams.get("method");
 
   useEffect(() => {
@@ -116,13 +115,11 @@ function SuccessContent() {
                   {orderDetails.total_amount?.toLocaleString("fa-IR")} تومان
                 </span>
               </div>
-              {(orderDetails.snappay_payment_token || callbackPaymentToken || orderDetails.gateway_transaction_id || callbackTransactionId) && (
+              {(orderDetails.merchant_transaction_id || callbackTransactionId) && (
                 <div className="flex justify-between">
-                    <span className="text-muted-foreground">
-                      {orderDetails.snappay_payment_token || callbackPaymentToken ? "توکن پرداخت اسنپ‌پی:" : "شناسه تراکنش پرداخت:"}
-                    </span>
+                  <span className="text-muted-foreground">شناسه تراکنش پرداخت:</span>
                   <span className="font-medium font-mono" dir="ltr">
-                    {orderDetails.snappay_payment_token || callbackPaymentToken || orderDetails.gateway_transaction_id || callbackTransactionId}
+                    {orderDetails.merchant_transaction_id || callbackTransactionId}
                   </span>
                 </div>
               )}

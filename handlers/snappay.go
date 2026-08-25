@@ -33,8 +33,22 @@ var snappPayReconcileStop chan struct{}
 const snappPayOperationCooldown = 30 * time.Second
 const snappPayOperationStaleAfter = 5 * time.Minute
 
+const (
+	// Snapppay documents a 30-second ceiling on VERIFY: once it is reached the
+	// merchant must stop waiting and ask Get Payment Status what happened
+	// instead of treating the payment as failed.
+	snappPayVerifyTimeout = 30 * time.Second
+	// Budget for the Get Payment Status reconciliation that follows a verify
+	// or settle which timed out or answered false.
+	snappPayReconcileTimeout = 25 * time.Second
+	// Below this the browser request can no longer wait for reconciliation
+	// without running into the proxy timeout, so it continues detached.
+	snappPayReconcileInline = 8 * time.Second
+)
+
 var errSnappPayOperationCooldown = errors.New("snappay operation cooldown active")
 var errSnappPayOrderUnavailable = errors.New("snappay order unavailable")
+var errSnappPayReconcileDeferred = errors.New("snappay reconciliation continues in the background")
 
 func InitSnappPayService() {
 	snappPayService = services.NewSnappPayService()
@@ -78,6 +92,36 @@ func StartSnappPayStatusReconciler() func() {
 			snappPayReconcileStop = nil
 		}
 	}
+}
+
+// snappPayVerify calls VERIFY under the deadline Snapppay documents. Callers
+// treat a timeout as "unknown", not as a failure, and reconcile through
+// Get Payment Status.
+func snappPayVerify(ctx context.Context, attempt models.PaymentAttempt) (*services.VerifyResponse, error) {
+	verifyCtx, cancel := context.WithTimeout(ctx, snappPayVerifyTimeout)
+	defer cancel()
+	return snappPayService.VerifyPayment(verifyCtx, &services.VerifyRequest{
+		GatewayRef:     attempt.GatewayReference,
+		ExpectedAmount: attempt.ExpectedAmount,
+	})
+}
+
+// snappPayReconcile finishes a payment whose verify or settle did not answer.
+// It runs inline while the browser request still has time to wait for it, and
+// once that budget is spent it continues detached from the request so the
+// settle is not postponed until the next reconciler tick.
+func snappPayReconcile(ctx context.Context, attempt models.PaymentAttempt) (bool, error) {
+	if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) < snappPayReconcileInline {
+		detached, cancel := context.WithTimeout(context.WithoutCancel(ctx), snappPayReconcileTimeout)
+		go func() {
+			defer cancel()
+			_, _ = snappPayStatusAndFinalize(detached, attempt)
+		}()
+		return false, errSnappPayReconcileDeferred
+	}
+	reconcileCtx, cancel := context.WithTimeout(ctx, snappPayReconcileTimeout)
+	defer cancel()
+	return snappPayStatusAndFinalize(reconcileCtx, attempt)
 }
 
 func snappPayErrorCode(err error) int {
@@ -213,14 +257,6 @@ func reconcileSnappPayStatuses() {
 			setSnappPayOrderFailed(ctx, attempt.OrderID)
 		}
 	}
-}
-
-func snappPayTransactionID() string {
-	// Snapppay accepts IDs longer than ten characters when they contain a
-	// letter. The timestamp plus digest suffix is unique per payment attempt.
-	now := strconv.FormatInt(time.Now().UnixNano(), 36)
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s:%d", now, time.Now().UnixNano())))
-	return "SP" + now + fmt.Sprintf("%x", digest[:3])
 }
 
 func stableProviderID(id primitive.ObjectID) int64 {
@@ -543,7 +579,7 @@ func snappPayStatusAndFinalizeRetry(ctx context.Context, attempt models.PaymentA
 		return false, err
 	}
 	if status.Status == "PENDING" && retryVerify {
-		verifyResponse, verifyErr := snappPayService.VerifyPayment(ctx, &services.VerifyRequest{GatewayRef: attempt.GatewayReference, ExpectedAmount: attempt.ExpectedAmount})
+		verifyResponse, verifyErr := snappPayVerify(ctx, attempt)
 		if verifyErr != nil || verifyResponse == nil || !verifyResponse.Success {
 			reason := "پاسخ نامعتبر"
 			if verifyErr != nil {
@@ -605,9 +641,6 @@ func SnappPayCallback(w http.ResponseWriter, r *http.Request) {
 		snappPayRedirect(w, r, values)
 		return
 	}
-	if attempt.GatewayReference != "" {
-		values.Set("paymentToken", attempt.GatewayReference)
-	}
 	if order.PaymentStatus == "paid" {
 		values.Set("success", "1")
 		values.Set("status", "paid")
@@ -627,7 +660,7 @@ func SnappPayCallback(w http.ResponseWriter, r *http.Request) {
 	// the existing transition and reconciles through status instead of calling
 	// verify a second time.
 	if attempt.Status == "verifying" || attempt.Status == "verified" {
-		if settled, statusErr := snappPayStatusAndFinalize(ctx, attempt); statusErr == nil && settled {
+		if settled, statusErr := snappPayReconcile(ctx, attempt); statusErr == nil && settled {
 			values.Set("success", "1")
 			values.Set("status", "paid")
 		} else {
@@ -643,12 +676,18 @@ func SnappPayCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	verifyResponse, verifyErr := snappPayService.VerifyPayment(ctx, &services.VerifyRequest{GatewayRef: attempt.GatewayReference, ExpectedAmount: attempt.ExpectedAmount})
+	verifyResponse, verifyErr := snappPayVerify(ctx, attempt)
 	if verifyErr != nil || verifyResponse == nil || !verifyResponse.Success {
-		if settled, statusErr := snappPayStatusAndFinalize(ctx, attempt); statusErr == nil && settled {
+		settled, statusErr := snappPayReconcile(ctx, attempt)
+		switch {
+		case statusErr == nil && settled:
 			values.Set("success", "1")
 			values.Set("status", "paid")
-		} else {
+		case errors.Is(statusErr, errSnappPayReconcileDeferred):
+			// The attempt keeps its "verifying" status so the background
+			// reconciliation owns the transition on its own.
+			values.Set("error", "verify_pending")
+		default:
 			_ = updateSnappPayAttempt(ctx, attempt.ID, "verify_pending", bson.M{"callback_state": state, "verify_error": errorString(verifyErr)})
 			values.Set("error", "verify_unknown")
 		}
@@ -660,10 +699,14 @@ func SnappPayCallback(w http.ResponseWriter, r *http.Request) {
 
 	settleResponse, settleErr := snappPaySettleWithRetry(ctx, attempt.GatewayReference)
 	if settleErr != nil || settleResponse == nil {
-		if settled, statusErr := snappPayStatusAndFinalize(ctx, attempt); statusErr == nil && settled {
+		settled, statusErr := snappPayReconcile(ctx, attempt)
+		switch {
+		case statusErr == nil && settled:
 			values.Set("success", "1")
 			values.Set("status", "paid")
-		} else {
+		case errors.Is(statusErr, errSnappPayReconcileDeferred):
+			values.Set("error", "settle_unknown")
+		default:
 			_ = updateSnappPayAttempt(ctx, attempt.ID, "settle_pending", bson.M{"verify_transaction_id": verifyResponse.RefNumber, "settle_error": errorString(settleErr)})
 			values.Set("error", "settle_unknown")
 		}
@@ -671,10 +714,13 @@ func SnappPayCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if settled, finalizeErr := snappPayStatusAndFinalize(ctx, attempt); finalizeErr != nil || !settled {
-		if finalizeErr != nil && handleSnappPayLocalFinalizationFailure(ctx, attempt, finalizeErr) {
+	if settled, finalizeErr := snappPayReconcile(ctx, attempt); finalizeErr != nil || !settled {
+		switch {
+		case errors.Is(finalizeErr, errSnappPayReconcileDeferred):
+			values.Set("error", "finalize_pending")
+		case finalizeErr != nil && handleSnappPayLocalFinalizationFailure(ctx, attempt, finalizeErr):
 			values.Set("error", "inventory_unavailable")
-		} else {
+		default:
 			_ = updateSnappPayAttempt(ctx, attempt.ID, "settled_pending_local", bson.M{"settle_transaction_id": settleResponse.TransactionID, "finalize_error": errorString(finalizeErr)})
 			values.Set("error", "finalize_pending")
 		}

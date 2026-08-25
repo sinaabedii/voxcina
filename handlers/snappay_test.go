@@ -11,17 +11,29 @@ import (
 	"backEnd/models"
 )
 
-func TestSnappPayTransactionIDMatchesDocumentedShape(t *testing.T) {
-	first := snappPayTransactionID()
-	second := snappPayTransactionID()
+func TestMerchantTransactionIDMatchesDocumentedShape(t *testing.T) {
+	first := merchantTransactionID()
+	second := merchantTransactionID()
 	if first == second {
-		t.Fatal("generated SnappPay transaction IDs must be unique")
+		t.Fatal("generated transaction IDs must be unique")
 	}
 	if len(first) < 5 {
 		t.Fatalf("transaction ID %q is shorter than the documented minimum", first)
 	}
-	if len(first) > 10 && !strings.ContainsAny(first, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") {
+	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	if len(first) > 10 && !strings.ContainsAny(first, letters) {
 		t.Fatalf("transaction ID %q longer than ten characters must contain a letter", first)
+	}
+	digits := 0
+	for _, character := range first {
+		if character >= '0' && character <= '9' {
+			digits++
+		}
+	}
+	// The ID is read out loud when support traces a payment, so digits must
+	// outnumber letters.
+	if digits <= len(first)-digits {
+		t.Fatalf("transaction ID %q must contain more digits than letters", first)
 	}
 }
 

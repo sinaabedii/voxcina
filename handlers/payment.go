@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -58,6 +59,20 @@ func generateUUID() string {
 	b[8] = (b[8] & 0x3f) | 0x80
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
 		b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+}
+
+// merchantTransactionID returns the transaction ID this store generates for an
+// online payment. It is the only transaction ID the customer is shown and the
+// one support traces an order by, so the body is digits alone: a millisecond
+// timestamp followed by a random suffix. The two-letter prefix stays because
+// Snapppay only accepts identifiers longer than ten characters when they
+// contain a letter.
+func merchantTransactionID() string {
+	suffix := make([]byte, 4)
+	if _, err := rand.Read(suffix); err != nil {
+		return fmt.Sprintf("TX%d", time.Now().UnixNano())
+	}
+	return fmt.Sprintf("TX%d%06d", time.Now().UnixMilli(), binary.BigEndian.Uint32(suffix)%1000000)
 }
 
 // RequestPaymentPayload is sent by the client to request a payment.
@@ -187,9 +202,12 @@ func RequestPayment(w http.ResponseWriter, r *http.Request) {
 		appURL = "http://localhost:3000"
 	}
 
+	// Snapppay echoes the transaction ID we send it back on its callback, so
+	// there the store's own transaction ID doubles as the provider ID.
+	merchantTxID := merchantTransactionID()
 	providerID := generateUUID()
 	if gateway.Name() == "snappay" {
-		providerID = snappPayTransactionID()
+		providerID = merchantTxID
 	}
 
 	var callbackURL string
@@ -269,12 +287,12 @@ func RequestPayment(w http.ResponseWriter, r *http.Request) {
 	// Update order with gateway and payment status
 	ordersCol.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
 		"$set": bson.M{
-			"gateway_name":           gateway.Name(),
-			"gateway_transaction_id": providerID,
-			"gateway_reference":      payResp.GatewayRef,
-			"payment_method":         "online",
-			"payment_status":         "pending",
-			"updated_at":             now,
+			"gateway_name":            gateway.Name(),
+			"merchant_transaction_id": merchantTxID,
+			"gateway_reference":       payResp.GatewayRef,
+			"payment_method":          "online",
+			"payment_status":          "pending",
+			"updated_at":              now,
 		},
 	})
 
@@ -519,15 +537,23 @@ func DigipayPaymentCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ordersCol := db.Database.Collection("orders")
 	if verifyResp.RefNumber != "" {
-		ordersCol := db.Database.Collection("orders")
 		ordersCol.UpdateOne(ctx, bson.M{"_id": attempt.OrderID}, bson.M{
 			"$set": bson.M{"digipay_tracking_code": verifyResp.RefNumber},
 		})
 	}
 
-	redirectURL := fmt.Sprintf("%s/checkout/callback?success=1&orderId=%s&gateway=digipay",
-		appURL, attempt.OrderID.Hex())
+	// The callback page shows the store's own transaction ID, never DigiPay's
+	// tracking code, so it is read back from the order here.
+	var paidOrder models.Order
+	merchantTxID := ""
+	if err := ordersCol.FindOne(ctx, bson.M{"_id": attempt.OrderID}).Decode(&paidOrder); err == nil {
+		merchantTxID = paidOrder.MerchantTransactionID
+	}
+
+	redirectURL := fmt.Sprintf("%s/checkout/callback?success=1&transactionId=%s&orderId=%s&gateway=digipay",
+		appURL, merchantTxID, attempt.OrderID.Hex())
 	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 }
 
@@ -574,8 +600,8 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if order.PaymentStatus == "paid" {
-		redirectURL := fmt.Sprintf("%s/checkout/callback?success=1&trackId=%s&orderId=%s&status=paid&gateway=zibal",
-			appURL, trackIDStr, order.ID.Hex())
+		redirectURL := fmt.Sprintf("%s/checkout/callback?success=1&trackId=%s&transactionId=%s&orderId=%s&status=paid&gateway=zibal",
+			appURL, trackIDStr, order.MerchantTransactionID, order.ID.Hex())
 		http.Redirect(w, r, redirectURL, http.StatusFound)
 		return
 	}
@@ -645,8 +671,8 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	redirectURL := fmt.Sprintf("%s/checkout/callback?success=%s&trackId=%s&orderId=%s&status=%s&gateway=zibal",
-		appURL, successParam, trackIDStr, order.ID.Hex(), paymentStatus)
+	redirectURL := fmt.Sprintf("%s/checkout/callback?success=%s&trackId=%s&transactionId=%s&orderId=%s&status=%s&gateway=zibal",
+		appURL, successParam, trackIDStr, order.MerchantTransactionID, order.ID.Hex(), paymentStatus)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
@@ -1002,9 +1028,12 @@ func RetryPayment(w http.ResponseWriter, r *http.Request) {
 	if gateway.Name() == "snappay" {
 		amountRials = snappPayMoney(order.TotalAmount)
 	}
+	// Snapppay echoes the transaction ID we send it back on its callback, so
+	// there the store's own transaction ID doubles as the provider ID.
+	merchantTxID := merchantTransactionID()
 	providerID := generateUUID()
 	if gateway.Name() == "snappay" {
-		providerID = snappPayTransactionID()
+		providerID = merchantTxID
 	}
 
 	appURL := os.Getenv("APP_URL")
@@ -1082,12 +1111,12 @@ func RetryPayment(w http.ResponseWriter, r *http.Request) {
 
 	ordersCol.UpdateOne(ctx, bson.M{"_id": order.ID}, bson.M{
 		"$set": bson.M{
-			"gateway_name":           gateway.Name(),
-			"gateway_transaction_id": providerID,
-			"gateway_reference":      payResp.GatewayRef,
-			"payment_method":         "online",
-			"payment_status":         "pending",
-			"updated_at":             now,
+			"gateway_name":            gateway.Name(),
+			"merchant_transaction_id": merchantTxID,
+			"gateway_reference":       payResp.GatewayRef,
+			"payment_method":          "online",
+			"payment_status":          "pending",
+			"updated_at":              now,
 		},
 	})
 

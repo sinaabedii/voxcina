@@ -180,14 +180,14 @@ const OrderDetailPage = () => {
                   {order.jalali_updated_at || formatDate(order.updated_at)}
                 </span>
               </div>
-              {order.snappay_payment_token && (
+              {(order.merchant_transaction_id || order.gateway_transaction_id) && (
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-voxcina-blue/60 dark:text-voxcina-cream/60 flex items-center gap-1.5">
                     <CreditCard className="w-3 h-3" />
-                    توکن پرداخت اسنپپی
+                    شناسه تراکنش
                   </span>
                   <span className="font-mono text-[11px] bg-voxcina-cream/50 dark:bg-voxcina-blue/10 px-1.5 py-0.5 rounded text-voxcina-blue dark:text-voxcina-cream" dir="ltr">
-                    {order.snappay_payment_token}
+                    {order.merchant_transaction_id || order.gateway_transaction_id}
                   </span>
                 </div>
               )}
@@ -199,17 +199,6 @@ const OrderDetailPage = () => {
                   </span>
                   <span className="font-mono text-[11px] bg-voxcina-cream/50 dark:bg-voxcina-blue/10 px-1.5 py-0.5 rounded text-voxcina-blue dark:text-voxcina-cream" dir="ltr">
                     {order.zibal_track_id}
-                  </span>
-                </div>
-              )}
-              {order.digipay_tracking_code && (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-voxcina-blue/60 dark:text-voxcina-cream/60 flex items-center gap-1.5">
-                    <CreditCard className="w-3 h-3" />
-                    کد پیگیری دیجی‌پی
-                  </span>
-                  <span className="font-mono text-[11px] bg-voxcina-cream/50 dark:bg-voxcina-blue/10 px-1.5 py-0.5 rounded text-voxcina-blue dark:text-voxcina-cream" dir="ltr">
-                    {order.digipay_tracking_code}
                   </span>
                 </div>
               )}

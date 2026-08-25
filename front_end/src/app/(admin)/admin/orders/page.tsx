@@ -501,10 +501,22 @@ export default function AdminOrdersPage() {
                                <span>روش پرداخت:</span>
                                <span>{getPaymentMethodText(order)}</span>
                              </p>
-                               {(order.snappay_payment_token || order.gateway_transaction_id) && (
+                               {order.merchant_transaction_id && (
                                  <p className="text-voxcina-blue dark:text-voxcina-cream flex justify-between gap-2">
-                                   <span>{order.snappay_payment_token ? "توکن پرداخت اسنپ‌پی:" : "شناسه تراکنش:"}</span>
-                                   <span className="font-mono text-xs truncate" dir="ltr">{order.snappay_payment_token || order.gateway_transaction_id}</span>
+                                   <span>شناسه تراکنش فروشگاه:</span>
+                                   <span className="font-mono text-xs truncate" dir="ltr">{order.merchant_transaction_id}</span>
+                                 </p>
+                               )}
+                               {order.gateway_transaction_id && (
+                                 <p className="text-voxcina-blue dark:text-voxcina-cream flex justify-between gap-2">
+                                   <span>شناسه تراکنش درگاه:</span>
+                                   <span className="font-mono text-xs truncate" dir="ltr">{order.gateway_transaction_id}</span>
+                                 </p>
+                               )}
+                               {order.snappay_payment_token && (
+                                 <p className="text-voxcina-blue dark:text-voxcina-cream flex justify-between gap-2">
+                                   <span>توکن پرداخت اسنپ‌پی:</span>
+                                   <span className="font-mono text-xs truncate" dir="ltr">{order.snappay_payment_token}</span>
                                  </p>
                                )}
                           </div>

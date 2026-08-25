@@ -46,7 +46,13 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
     }
   };
 
-  const enabledGateways = PAYMENT_GATEWAYS.filter((g) => g.enabled);
+  // Snapppay is offered only while its eligibility service approves the cart
+  // amount. A false answer hides the method outright instead of listing it as
+  // an option the customer cannot take.
+  const isSnappPayEligible = !snappPayEligibilityLoading && snappPayEligibility?.eligible === true;
+  const enabledGateways = PAYMENT_GATEWAYS.filter(
+    (gateway) => gateway.enabled && (gateway.id !== "snappay" || isSnappPayEligible)
+  );
 
   return (
     <Card className="border border-voxcina-cream/30 dark:border-voxcina-blue/30 bg-white/90 dark:bg-voxcina-blue/10 shadow-sm rounded-2xl backdrop-blur-sm animate-fadeIn">
@@ -105,25 +111,19 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
                       {enabledGateways.map((gateway) => {
                         const isSelected = selectedGateway === gateway.id;
                         const isSnappPay = gateway.id === "snappay";
-                        const isSnappPayAvailable = !snappPayEligibilityLoading && snappPayEligibility?.eligible === true;
-                        const isDisabled = isSnappPay && !isSnappPayAvailable;
                         return (
                           <div key={gateway.id}>
                             <div
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (isDisabled) return;
                                 onSelectGateway?.(gateway.id);
                               }}
-                              aria-disabled={isDisabled}
                               className={`flex items-center rounded-xl border cursor-pointer transition-all duration-200 ${
                                 "gap-3 px-3 py-3 sm:gap-4 sm:px-4 sm:py-2.5"
                               } ${
-                                isDisabled
-                                  ? "cursor-not-allowed border-slate-200 bg-slate-50/80 opacity-60 dark:border-slate-700 dark:bg-slate-900/30"
-                                  : isSelected
-                                    ? "border-voxcina-blue bg-voxcina-blue/5 shadow-soft dark:border-voxcina-cream dark:bg-voxcina-cream/5"
-                                    : "border-voxcina-cream/30 hover:border-voxcina-blue/50 dark:border-voxcina-blue/30 dark:hover:border-voxcina-cream/30"
+                                isSelected
+                                  ? "border-voxcina-blue bg-voxcina-blue/5 shadow-soft dark:border-voxcina-cream dark:bg-voxcina-cream/5"
+                                  : "border-voxcina-cream/30 hover:border-voxcina-blue/50 dark:border-voxcina-blue/30 dark:hover:border-voxcina-cream/30"
                               }`}
                             >
                               <span
@@ -168,8 +168,8 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
                                     <span className="block text-sm font-medium text-[#161616] dark:text-voxcina-cream">
                                       {snappPayEligibility?.title_message || "پرداخت اقساطی اسنپ‌پی"}
                                     </span>
-                                    <span className={`block text-xs dark:text-voxcina-cream/70 ${isDisabled ? "text-rose-600" : "text-[#616475]"}`}>
-                                      {snappPayEligibilityLoading ? "در حال بررسی وضعیت اسنپ‌پی..." : isDisabled ? "این درگاه فعلا فعال نیست چند دقیقه بعد امتحان کنید یا تیکت بگذارید" : snappPayEligibility?.description || "۴ قسط بدون کارمزد"}
+                                    <span className="block text-xs text-[#616475] dark:text-voxcina-cream/70">
+                                      {snappPayEligibility?.description || "۴ قسط بدون کارمزد"}
                                     </span>
                                   </div>
                                 ) : (
