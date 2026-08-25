@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useProductStore } from "@/store/product-store";
 import { useCategoryStore } from "@/store/category-store";
 import { useAuthStore } from "@/store/auth-store";
-import { ColorVariant, SizeVariant, ProductAttribute, VariantAIMetadata } from "@/types/product";
+import { CartReconciliation, ColorVariant, SizeVariant, ProductAttribute, VariantAIMetadata } from "@/types/product";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
@@ -20,6 +20,27 @@ import VariantAIMetadataEditor, {
   parseVariantAIList,
 } from "@/components/admin/VariantAIMetadataEditor";
 import { formatPrice, toDigitsOnly, toEnglishNumber } from "@/lib/utils";
+
+// Removing something from a shopper's cart is not an edit the admin should have
+// to discover later, so a save that reached the carts says exactly what it did.
+function describeCartReconciliation({
+  cartsChanged,
+  itemsRemoved,
+  itemsReduced,
+}: CartReconciliation): string {
+  const fa = (value: number) => value.toLocaleString("fa-IR");
+  const changes: string[] = [];
+  if (itemsRemoved > 0) {
+    changes.push(`${fa(itemsRemoved)} مورد حذف شد`);
+  }
+  if (itemsReduced > 0) {
+    changes.push(`تعداد ${fa(itemsReduced)} مورد کاهش یافت`);
+  }
+  if (changes.length === 0) {
+    return `${fa(cartsChanged)} سبد خرید به‌روزرسانی شد.`;
+  }
+  return `${fa(cartsChanged)} سبد خرید به‌روزرسانی شد: ${changes.join(" و ")}.`;
+}
 
 export default function EditProductPage() {
   const router = useRouter();
@@ -503,10 +524,6 @@ export default function EditProductPage() {
       toast.error("لطفا همه فیلدهای ضروری را پر کنید");
       return;
     }
-    if (cartsHoldingProduct > 0) {
-      toast.error("این محصول در سبد خرید مشتریان قرار دارد و تا خالی شدن سبدها قابل ویرایش نیست");
-      return;
-    }
     setSubmitting(true);
     const formData = new FormData();
     formData.append("name", name);
@@ -599,6 +616,10 @@ export default function EditProductPage() {
     setSubmitting(false);
     if (result) {
       toast.success("محصول با موفقیت ویرایش شد");
+      const cartChanges = result.cartReconciliation;
+      if (cartChanges) {
+        toast(describeCartReconciliation(cartChanges), { icon: "🛒", duration: 6000 });
+      }
       router.push("/admin/products");
     } else {
       toast.error(error || "خطا در ویرایش محصول");
@@ -1116,10 +1137,10 @@ export default function EditProductPage() {
         </div>
         {cartsHoldingProduct > 0 && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/10 dark:text-amber-300">
-            این محصول هم‌اکنون در {cartsHoldingProduct.toLocaleString("fa-IR")} سبد خرید قرار دارد؛ تا زمانی که از سبدها خارج نشود امکان ثبت تغییرات وجود ندارد.
+            این محصول هم‌اکنون در {cartsHoldingProduct.toLocaleString("fa-IR")} سبد خرید قرار دارد. اگر موجودی یک رنگ و سایز به صفر برسد، یا محصول را غیرفعال یا ناموجود کنید، آن مورد به‌طور خودکار از سبد خرید مشتریان حذف می‌شود؛ اگر موجودی کمتر از تعداد داخل سبد شود، تعداد به موجودی باقی‌مانده کاهش می‌یابد. تغییر فیلدهای هوش مصنوعی و سایر اطلاعات، سبدها را دست‌نخورده باقی می‌گذارد.
           </div>
         )}
-        <Button type="submit" variant="primary" disabled={submitting || isLoading || cartsHoldingProduct > 0}>{submitting ? "در حال ثبت..." : "ثبت تغییرات"}</Button>
+        <Button type="submit" variant="primary" disabled={submitting || isLoading}>{submitting ? "در حال ثبت..." : "ثبت تغییرات"}</Button>
         {error && <div className="text-red-500">{error}</div>}
       </form>
     </div>

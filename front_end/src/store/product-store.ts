@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
+  CartReconciliation,
   Product,
   ProductFilter,
   Review,
@@ -18,6 +19,12 @@ import { useAuthStore } from "./auth-store";
 // otherwise a slow response for a product the admin already left behind
 // overwrites the one they are actually looking at.
 let activeProductRequestId = 0;
+
+// The admin update endpoint answers with the saved product, plus a note about
+// the carts it had to change when the edit took stock away.
+export type ProductUpdateResult = Product & {
+  cartReconciliation?: CartReconciliation;
+};
 
 /**
  * Product Store
@@ -83,7 +90,7 @@ interface ProductState {
     id: string,
     productData: Partial<Product> | FormData,
     adminToken: string
-  ) => Promise<Product | null>;
+  ) => Promise<ProductUpdateResult | null>;
   deleteProduct: (id: string, adminToken: string) => Promise<boolean>;
 }
 
