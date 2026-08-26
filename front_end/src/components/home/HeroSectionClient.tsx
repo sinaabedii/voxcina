@@ -5,6 +5,7 @@ import { getImageProps } from "next/image";
 import { Pause, Play } from "lucide-react";
 import {
   HeroImage,
+  HeroContent,
   DEFAULT_GRADIENT,
   DEFAULT_OVERLAY_GRADIENT,
   normalizeHeroContent,
@@ -27,15 +28,26 @@ interface HeroSlide {
 const ROTATION_INTERVAL_MS = 6000;
 const persianNumberFormatter = new Intl.NumberFormat("fa-IR");
 
-function getSlideContent(slide: HeroSlide) {
+function getDesktopContent(slide: HeroSlide): HeroContent {
   return normalizeHeroContent(slide.desktopImage?.content || slide.mobileImage?.content || null);
 }
 
-function getPrimaryHeading(slides: HeroSlide[]) {
+function getMobileContent(slide: HeroSlide): HeroContent {
+  return normalizeHeroContent(slide.mobileImage?.content || slide.desktopImage?.content || null);
+}
+
+function areContentsEqual(a: HeroContent, b: HeroContent): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function getPrimaryHeading(
+  slides: HeroSlide[],
+  getContent: (slide: HeroSlide) => HeroContent
+) {
   const slide = slides[0];
   if (!slide) return null;
 
-  const content = getSlideContent(slide);
+  const content = getContent(slide);
   const heading = content.enabled
     ? content.elements.find((element) => element.visible && element.type === "heading")
     : undefined;
@@ -106,21 +118,34 @@ interface HeroSlideViewProps {
   slide: HeroSlide;
   active: boolean;
   first: boolean;
-  primaryHeading: ReturnType<typeof getPrimaryHeading>;
+  desktopPrimaryHeading: ReturnType<typeof getPrimaryHeading>;
+  mobilePrimaryHeading: ReturnType<typeof getPrimaryHeading>;
 }
 
-function HeroSlideView({ slide, active, first, primaryHeading }: HeroSlideViewProps) {
+function HeroSlideView({
+  slide,
+  active,
+  first,
+  desktopPrimaryHeading,
+  mobilePrimaryHeading,
+}: HeroSlideViewProps) {
   const { desktopImage, mobileImage } = slide;
 
-  /**
-   * Content is authored once per hero. The desktop record wins so the same copy
-   * renders on both breakpoints — duplicating it per device would put two <h1>
-   * elements in the DOM. Records saved before content authoring existed keep
-   * their legacy gradient-class behaviour untouched.
-   */
-  const authoredContent = desktopImage?.content || mobileImage?.content || null;
-  const content = getSlideContent(slide);
-  const isLegacyStyling = !authoredContent;
+  // --- Root cause fix ---
+  // Previously: authoredContent = desktopImage?.content || mobileImage?.content
+  // and content = normalize(desktop || mobile) was used for BOTH breakpoints.
+  // The <picture> element correctly switched the image per breakpoint, but the
+  // text/overlay/background always came from the desktop record. On a phone the
+  // user therefore saw the mobile image with desktop copy.
+  // Now we resolve per-device content and render it responsively.
+  const desktopAuthored = desktopImage?.content || null;
+  const mobileAuthored = mobileImage?.content || null;
+  const hasAnyContent = !!(desktopAuthored || mobileAuthored);
+  const isLegacyStyling = !hasAnyContent;
+
+  const desktopContent = getDesktopContent(slide);
+  const mobileContent = getMobileContent(slide);
+  const sameContent = areContentsEqual(desktopContent, mobileContent);
 
   const desktopOverlay = getOverlayGradient(desktopImage);
   const mobileOverlay = getOverlayGradient(mobileImage);
@@ -158,17 +183,164 @@ function HeroSlideView({ slide, active, first, primaryHeading }: HeroSlideViewPr
         ? "opacity-30 md:opacity-100"
         : "opacity-100 md:opacity-30";
 
-  const sectionBackground = isLegacyStyling
+  // Single-content path (legacy or identical per-device content) keeps one layer.
+  const singleContent = desktopContent;
+  const singleBackground = isLegacyStyling
     ? undefined
     : {
         backgroundImage: buildGradient(
-          content.background.direction,
-          content.background.from,
-          content.background.via,
-          content.background.to
+          singleContent.background.direction,
+          singleContent.background.from,
+          singleContent.background.via,
+          singleContent.background.to
         ),
       };
 
+  // Per-device backgrounds / overlays for the responsive dual path.
+  const desktopBackground = isLegacyStyling
+    ? undefined
+    : {
+        backgroundImage: buildGradient(
+          desktopContent.background.direction,
+          desktopContent.background.from,
+          desktopContent.background.via,
+          desktopContent.background.to
+        ),
+      };
+  const mobileBackground = isLegacyStyling
+    ? undefined
+    : {
+        backgroundImage: buildGradient(
+          mobileContent.background.direction,
+          mobileContent.background.from,
+          mobileContent.background.via,
+          mobileContent.background.to
+        ),
+      };
+
+  // Use responsive dual rendering when modern contents differ per device.
+  const useResponsiveContent = !isLegacyStyling && !sameContent;
+
+  if (useResponsiveContent) {
+    // Resolve per-device branch images (fallback to the other device if one is missing)
+    const desktopBranchImage = desktopImage || mobileImage;
+    const mobileBranchImage = mobileImage || desktopImage;
+    const desktopBranchImageProps = desktopImageProps || mobileImageProps;
+    const mobileBranchImageProps = mobileImageProps || desktopImageProps;
+
+    return (
+      <div
+        className="hero-slide absolute inset-0"
+        aria-hidden={!active}
+        style={{
+          opacity: active ? 1 : 0,
+          pointerEvents: active ? "auto" : "none",
+        }}
+      >
+        {/* Preload only first slide; keep media queries so correct device image is prioritized */}
+        {first && desktopImageProps && (
+          <link
+            rel="preload"
+            as="image"
+            href={desktopImageProps.src}
+            imageSrcSet={desktopImageProps.srcSet}
+            imageSizes="(min-width: 1280px) 1280px, 100vw"
+            media="(min-width: 768px)"
+            fetchPriority="high"
+          />
+        )}
+        {first && mobileImageProps && (
+          <link
+            rel="preload"
+            as="image"
+            href={mobileImageProps.src}
+            imageSrcSet={mobileImageProps.srcSet}
+            imageSizes="100vw"
+            media="(max-width: 767px)"
+            fetchPriority="high"
+          />
+        )}
+
+        {/* Desktop branch — visible md and up */}
+        <div className="hidden md:block absolute inset-0" style={desktopBackground}>
+          {(desktopBranchImageProps) && (
+            <div className="absolute inset-0 md:bg-fixed">
+              <img
+                {...desktopBranchImageProps!}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 h-full w-full object-cover"
+                style={{ opacity: desktopContent.imageOpacity / 100 }}
+              />
+              {desktopContent.overlay.enabled && (
+                <div
+                  className="absolute inset-0 z-10"
+                  style={{
+                    backgroundImage: buildGradient(
+                      desktopContent.overlay.direction,
+                      desktopContent.overlay.from,
+                      desktopContent.overlay.via,
+                      desktopContent.overlay.to
+                    ),
+                    opacity: desktopContent.overlay.opacity / 100,
+                  }}
+                />
+              )}
+            </div>
+          )}
+          {desktopContent.showDecorations && <HeroDecorations />}
+          <HeroContentLayer
+            content={desktopContent}
+            active={active}
+            interactive={active}
+            seoPrimaryHeadingId={desktopPrimaryHeading?.elementId}
+            isSeoPrimarySlide={desktopPrimaryHeading?.slideKey === slide.key}
+            enforceSingleH1
+          />
+        </div>
+
+        {/* Mobile branch — visible below md */}
+        <div className="md:hidden absolute inset-0" style={mobileBackground}>
+          {(mobileBranchImageProps) && (
+            <div className="absolute inset-0">
+              <img
+                {...mobileBranchImageProps!}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 h-full w-full object-cover"
+                style={{ opacity: mobileContent.imageOpacity / 100 }}
+              />
+              {mobileContent.overlay.enabled && (
+                <div
+                  className="absolute inset-0 z-10"
+                  style={{
+                    backgroundImage: buildGradient(
+                      mobileContent.overlay.direction,
+                      mobileContent.overlay.from,
+                      mobileContent.overlay.via,
+                      mobileContent.overlay.to
+                    ),
+                    opacity: mobileContent.overlay.opacity / 100,
+                  }}
+                />
+              )}
+            </div>
+          )}
+          {mobileContent.showDecorations && <HeroDecorations />}
+          <HeroContentLayer
+            content={mobileContent}
+            active={active}
+            interactive={active}
+            seoPrimaryHeadingId={mobilePrimaryHeading?.elementId}
+            isSeoPrimarySlide={mobilePrimaryHeading?.slideKey === slide.key}
+            enforceSingleH1
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Legacy or identical-content single layer (preserves original SEO single-h1 behaviour)
   return (
     <div
       className="hero-slide absolute inset-0"
@@ -178,7 +350,7 @@ function HeroSlideView({ slide, active, first, primaryHeading }: HeroSlideViewPr
         pointerEvents: active ? "auto" : "none",
       }}
     >
-      <div className="absolute inset-0" style={sectionBackground}>
+      <div className="absolute inset-0" style={singleBackground}>
         {/* Only the first slide is preloaded; the remaining slides can fill the cache naturally. */}
         {first && desktopImageProps && (
           <link
@@ -219,7 +391,7 @@ function HeroSlideView({ slide, active, first, primaryHeading }: HeroSlideViewPr
                 className={`absolute inset-0 h-full w-full object-cover ${
                   isLegacyStyling ? legacyImageOpacityClass : ""
                 }`}
-                style={isLegacyStyling ? undefined : { opacity: content.imageOpacity / 100 }}
+                style={isLegacyStyling ? undefined : { opacity: singleContent.imageOpacity / 100 }}
               />
             </picture>
 
@@ -233,17 +405,17 @@ function HeroSlideView({ slide, active, first, primaryHeading }: HeroSlideViewPr
                 )}
               </>
             ) : (
-              content.overlay.enabled && (
+              singleContent.overlay.enabled && (
                 <div
                   className="absolute inset-0 z-10"
                   style={{
                     backgroundImage: buildGradient(
-                      content.overlay.direction,
-                      content.overlay.from,
-                      content.overlay.via,
-                      content.overlay.to
+                      singleContent.overlay.direction,
+                      singleContent.overlay.from,
+                      singleContent.overlay.via,
+                      singleContent.overlay.to
                     ),
-                    opacity: content.overlay.opacity / 100,
+                    opacity: singleContent.overlay.opacity / 100,
                   }}
                 />
               )
@@ -252,14 +424,14 @@ function HeroSlideView({ slide, active, first, primaryHeading }: HeroSlideViewPr
         )}
       </div>
 
-      {content.showDecorations && <HeroDecorations />}
+      {singleContent.showDecorations && <HeroDecorations />}
 
       <HeroContentLayer
-        content={content}
+        content={singleContent}
         active={active}
         interactive={active}
-        seoPrimaryHeadingId={primaryHeading?.elementId}
-        isSeoPrimarySlide={primaryHeading?.slideKey === slide.key}
+        seoPrimaryHeadingId={desktopPrimaryHeading?.elementId}
+        isSeoPrimarySlide={desktopPrimaryHeading?.slideKey === slide.key}
         enforceSingleH1
       />
     </div>
@@ -268,7 +440,10 @@ function HeroSlideView({ slide, active, first, primaryHeading }: HeroSlideViewPr
 
 const HeroSectionClient: React.FC<HeroSectionClientProps> = ({ heroImages }) => {
   const slides = buildHeroSlides(heroImages);
-  const primaryHeading = getPrimaryHeading(slides);
+  const desktopPrimaryHeading = getPrimaryHeading(slides, getDesktopContent);
+  const mobilePrimaryHeading = getPrimaryHeading(slides, getMobileContent);
+  // Keep single heading fallback for sr-only: prefer desktop, fallback to mobile
+  const primaryHeading = desktopPrimaryHeading || mobilePrimaryHeading;
   const [activeIndex, setActiveIndex] = useState(0);
   const [isUserPaused, setIsUserPaused] = useState(false);
   const [isPointerOver, setIsPointerOver] = useState(false);
@@ -390,7 +565,8 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({ heroImages }) => 
           slide={slide}
           active={index === activeIndex}
           first={index === 0}
-          primaryHeading={primaryHeading}
+          desktopPrimaryHeading={desktopPrimaryHeading}
+          mobilePrimaryHeading={mobilePrimaryHeading}
         />
       ))}
 
