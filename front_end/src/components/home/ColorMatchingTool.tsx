@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface SkinTone {
@@ -27,6 +28,7 @@ const AdvancedColorMatchingTool: React.FC = () => {
   const [step, setStep] = useState<Step>("upload");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [skinTone, setSkinTone] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const skinTones: SkinTone[] = [
@@ -303,31 +305,62 @@ const AdvancedColorMatchingTool: React.FC = () => {
     ],
   };
 
+  const MAX_IMAGE_SIZE_MB = 5;
+
   const handleImageUpload = (
     event: React.ChangeEvent<HTMLInputElement>
   ): void => {
     const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e: ProgressEvent<FileReader>) => {
-        if (e.target?.result && typeof e.target.result === "string") {
-          setSelectedImage(e.target.result);
-          setStep("analysis");
-        }
-      };
-      reader.readAsDataURL(file);
+    // allow re-selecting same file
+    event.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setUploadError("فرمت فایل نامعتبر است. لطفاً یک تصویر انتخاب کنید.");
+      return;
     }
+    if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+      setUploadError(`حجم تصویر نباید بیشتر از ${MAX_IMAGE_SIZE_MB} مگابایت باشد.`);
+      return;
+    }
+    setUploadError(null);
+    const reader = new FileReader();
+    reader.onload = (e: ProgressEvent<FileReader>) => {
+      if (e.target?.result && typeof e.target.result === "string") {
+        setSelectedImage(e.target.result);
+        setStep("analysis");
+      }
+    };
+    reader.onerror = () => {
+      setUploadError("خطا در خواندن فایل. دوباره تلاش کنید.");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSkipUpload = (): void => {
+    setUploadError(null);
+    setSelectedImage(null);
+    setStep("analysis");
+  };
+
+  const handleBackToUpload = (): void => {
+    setStep("upload");
+  };
+
+  const handleBackToAnalysis = (): void => {
+    setStep("analysis");
   };
 
   const handleSkinToneSelect = (toneId: string): void => {
     setSkinTone(toneId);
-    setTimeout(() => setStep("results"), 1000);
+    setStep("results");
   };
 
   const resetTool = (): void => {
     setStep("upload");
     setSelectedImage(null);
     setSkinTone(null);
+    setUploadError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const selectedToneData = skinTones.find((tone) => tone.id === skinTone);
@@ -361,8 +394,17 @@ const AdvancedColorMatchingTool: React.FC = () => {
                 className="text-center"
               >
                 <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label="انتخاب عکس برای تطبیق رنگ"
                   onClick={() => fileInputRef.current?.click()}
-                  className="cursor-pointer border-2 border-dashed border-voxcina-blue/30 rounded-2xl sm:rounded-3xl p-8 sm:p-12 hover:border-voxcina-blue/60 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  className="cursor-pointer border-2 border-dashed border-voxcina-blue/30 rounded-2xl sm:rounded-3xl p-8 sm:p-12 hover:border-voxcina-blue/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-voxcina-blue focus-visible:ring-offset-2 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg"
                 >
                   <div className="mb-4 sm:mb-6">
                     <svg
@@ -370,6 +412,7 @@ const AdvancedColorMatchingTool: React.FC = () => {
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
+                      aria-hidden="true"
                     >
                       <path
                         strokeLinecap="round"
@@ -380,15 +423,22 @@ const AdvancedColorMatchingTool: React.FC = () => {
                     </svg>
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-voxcina-blue mb-2">
-                    عکس خود را آپلود کنید
+                    عکس خود را آپلود کنید{" "}
+                    <span className="text-sm font-normal text-voxcina-blue/60">
+                      (اختیاری)
+                    </span>
                   </h3>
                   <p className="text-sm sm:text-base text-voxcina-blue/70 mb-4 sm:mb-6 max-w-md mx-auto">
                     برای تشخیص دقیق‌تر تون پوست، عکسی با نور طبیعی و بدون فیلتر
-                    انتخاب کنید
+                    انتخاب کنید — یا مستقیم تون پوست را انتخاب کنید
                   </p>
-                  <button className="bg-voxcina-blue text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-medium hover:bg-voxcina-darkBlue transition-colors text-sm sm:text-base">
+                  <span className="inline-block bg-voxcina-blue text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-medium hover:bg-voxcina-darkBlue transition-colors text-sm sm:text-base">
                     انتخاب عکس
-                  </button>
+                  </span>
+                  <p className="text-xs text-voxcina-blue/50 mt-3">
+                    JPG, PNG تا {MAX_IMAGE_SIZE_MB} مگ — عکس فقط در مرورگر شما
+                    نمایش داده می‌شود و ذخیره نمی‌شود
+                  </p>
                 </div>
                 <input
                   ref={fileInputRef}
@@ -396,7 +446,29 @@ const AdvancedColorMatchingTool: React.FC = () => {
                   accept="image/*"
                   onChange={handleImageUpload}
                   className="hidden"
+                  aria-hidden="true"
+                  tabIndex={-1}
                 />
+                {uploadError && (
+                  <div
+                    role="alert"
+                    className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm"
+                  >
+                    {uploadError}
+                  </div>
+                )}
+                <div className="mt-4 flex flex-col sm:flex-row gap-3 justify-center items-center">
+                  <button
+                    onClick={handleSkipUpload}
+                    className="text-sm sm:text-base text-voxcina-blue font-medium underline underline-offset-4 hover:text-voxcina-darkBlue transition-colors px-4 py-2"
+                  >
+                    رد کردن و انتخاب دستی تون پوست
+                  </button>
+                  <span className="hidden sm:inline text-voxcina-blue/30">|</span>
+                  <p className="text-xs text-voxcina-blue/60">
+                    آپلود اختیاری است و تاثیری بر هوشمندی ندارد
+                  </p>
+                </div>
 
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -435,22 +507,46 @@ const AdvancedColorMatchingTool: React.FC = () => {
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -50 }}
-                className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 items-center"
+                className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 items-start"
               >
                 <div className="relative order-2 lg:order-1">
-                  {selectedImage && (
-                    <img
-                      src={selectedImage}
-                      alt="تصویر آپلود شده"
-                      className="w-full max-w-sm mx-auto rounded-xl sm:rounded-2xl shadow-lg"
-                    />
+                  {selectedImage ? (
+                    <>
+                      <img
+                        src={selectedImage}
+                        alt="تصویر آپلود شده"
+                        className="w-full max-w-sm mx-auto rounded-xl sm:rounded-2xl shadow-lg"
+                      />
+                      <div className="absolute top-3 sm:top-4 right-3 sm:right-4 bg-voxcina-blue text-white px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium">
+                        عکس شما
+                      </div>
+                    </>
+                  ) : (
+                    <div className="w-full max-w-sm mx-auto rounded-xl sm:rounded-2xl border-2 border-dashed border-voxcina-blue/20 bg-voxcina-blue/5 p-8 text-center">
+                      <p className="text-sm text-voxcina-blue/70">
+                        عکسی آپلود نکردید — مستقیم تون پوست خود را انتخاب کنید
+                      </p>
+                      <button
+                        onClick={handleBackToUpload}
+                        className="mt-3 text-sm font-medium text-voxcina-blue underline underline-offset-4 hover:text-voxcina-darkBlue"
+                      >
+                        بازگشت و آپلود عکس
+                      </button>
+                    </div>
                   )}
-                  <div className="absolute top-3 sm:top-4 right-3 sm:right-4 bg-voxcina-blue text-white px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium">
-                    عکس شما
-                  </div>
                 </div>
 
                 <div className="order-1 lg:order-2">
+                  <button
+                    onClick={handleBackToUpload}
+                    className="mb-4 inline-flex items-center gap-2 text-sm text-voxcina-blue/70 hover:text-voxcina-blue transition-colors"
+                    aria-label="بازگشت به مرحله آپلود"
+                  >
+                    <svg className="w-4 h-4 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                    بازگشت
+                  </button>
                   <h3 className="text-xl sm:text-2xl font-bold text-voxcina-blue mb-4 sm:mb-6">
                     تون پوست خود را انتخاب کنید
                   </h3>
@@ -528,43 +624,57 @@ const AdvancedColorMatchingTool: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
                   {recommendations.map((color, index) => (
                     <motion.div
-                      key={index}
+                      key={`${color.hex}-${color.name}`}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="bg-white rounded-xl sm:rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group"
+                      transition={{ delay: index * 0.08 }}
+                      className="bg-white rounded-xl sm:rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 group"
                     >
-                      <div
-                        className="h-24 sm:h-32 relative"
-                        style={{ backgroundColor: color.hex }}
+                      <Link
+                        href={`/products?search=${encodeURIComponent(color.name)}`}
+                        aria-label={`مشاهده محصولات رنگ ${color.name}`}
+                        className="block"
                       >
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300 flex items-center justify-center">
-                          <motion.button
-                            initial={{ scale: 0 }}
-                            whileInView={{ scale: 1 }}
-                            transition={{ delay: index * 0.2 }}
-                            className="bg-white/20 backdrop-blur-md text-white px-3 sm:px-4 py-1 sm:py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 text-xs sm:text-sm font-medium"
-                          >
-                            مشاهده محصولات
-                          </motion.button>
+                        <div
+                          className="h-24 sm:h-32 relative border-b border-gray-100"
+                          style={{
+                            backgroundColor: color.hex,
+                            borderColor: color.hex === "#FFFFFF" || color.hex === "#FFFAFA" ? "#e5e7eb" : "transparent",
+                            borderWidth: color.hex === "#FFFFFF" || color.hex === "#FFFAFA" ? "1px" : "0",
+                            borderBottomWidth: "1px",
+                          }}
+                        >
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300 flex items-center justify-center">
+                            <span className="bg-white/90 backdrop-blur-md text-voxcina-blue px-3 sm:px-4 py-1 sm:py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 text-xs sm:text-sm font-medium shadow-sm">
+                              مشاهده محصولات
+                            </span>
+                          </div>
+                          <span className="absolute bottom-2 left-2 bg-white/90 backdrop-blur text-[10px] font-mono text-voxcina-blue px-1.5 py-0.5 rounded border border-gray-200">
+                            {color.hex}
+                          </span>
                         </div>
-                      </div>
+                      </Link>
                       <div className="p-3 sm:p-4">
-                        <h4 className="font-medium text-voxcina-blue mb-1 text-sm sm:text-base">
-                          {color.name}
-                        </h4>
-                        <p className="text-xs sm:text-sm text-voxcina-blue/70 mb-2">
-                          {color.products} محصول موجود
-                        </p>
+                        <Link
+                          href={`/products?search=${encodeURIComponent(color.name)}`}
+                          className="hover:text-voxcina-darkBlue transition-colors"
+                        >
+                          <h4 className="font-medium text-voxcina-blue mb-1 text-sm sm:text-base">
+                            {color.name}
+                          </h4>
+                        </Link>
                         <div className="flex flex-wrap gap-1 mb-2">
-                          {color.occasions.slice(0, 2).map((occasion, idx) => (
+                          {color.occasions.slice(0, 2).map((occasion) => (
                             <span
-                              key={idx}
+                              key={occasion}
                               className="bg-gray-100 text-voxcina-blue px-2 py-0.5 rounded text-xs"
                             >
                               {occasion}
                             </span>
                           ))}
+                          <span className="bg-voxcina-blue/10 text-voxcina-blue px-2 py-0.5 rounded text-xs">
+                            {color.category === "warm" ? "گرم" : color.category === "cool" ? "سرد" : "خنثی"}
+                          </span>
                         </div>
                         <p className="text-xs text-voxcina-blue/60 line-clamp-2">
                           {color.description}
@@ -595,26 +705,29 @@ const AdvancedColorMatchingTool: React.FC = () => {
 
                 <div className="text-center space-y-3 sm:space-y-4">
                   <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="bg-voxcina-blue text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-300 text-sm sm:text-base"
+                    <Link
+                      href={`/products?search=${encodeURIComponent(recommendations[0]?.name || selectedToneData.name)}`}
+                      className="bg-voxcina-blue text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-medium shadow-lg hover:shadow-xl hover:bg-voxcina-darkBlue transition-all duration-300 text-sm sm:text-base text-center"
                     >
                       مشاهده محصولات پیشنهادی
-                    </motion.button>
-                    <motion.button
-                      onClick={resetTool}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
+                    </Link>
+                    <button
+                      onClick={handleBackToAnalysis}
                       className="bg-white text-voxcina-blue border-2 border-voxcina-blue px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-medium hover:bg-voxcina-blue hover:text-white transition-all duration-300 text-sm sm:text-base"
                     >
+                      تغییر تون پوست
+                    </button>
+                    <button
+                      onClick={resetTool}
+                      className="bg-gray-100 text-voxcina-blue px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-medium hover:bg-gray-200 transition-all duration-300 text-sm sm:text-base"
+                    >
                       تست مجدد
-                    </motion.button>
+                    </button>
                   </div>
 
                   <p className="text-xs sm:text-sm text-voxcina-blue/60 max-w-2xl mx-auto">
                     این توصیه‌ها براساس اصول رنگ‌شناسی و تناسب با تون پوست
-                    ایرانیان تهیه شده‌اند
+                    ایرانیان تهیه شده‌اند — برای دیدن محصولات هر رنگ، روی کارت رنگ بزنید
                   </p>
                 </div>
               </motion.div>

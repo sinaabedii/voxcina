@@ -210,6 +210,19 @@ module.exports = {
             display: 'none'
           }
         },
+        // Fades the left/right edges of a horizontal carousel so partially-
+        // visible cards don't end in a hard cut. The gradient alpha transition
+        // happens over ~10% of the strip width on each side, which produces a
+        // perceptible soft/blurred edge without the cost of backdrop-filter
+        // on a continuously-scrolling element. Direction is independent of RTL.
+        '.carousel-edge-mask': {
+          '-webkit-mask-image': 'linear-gradient(to right, transparent 0, rgba(0,0,0,0.35) 4%, #000 10%, #000 90%, rgba(0,0,0,0.35) 96%, transparent 100%)',
+          'mask-image': 'linear-gradient(to right, transparent 0, rgba(0,0,0,0.35) 4%, #000 10%, #000 90%, rgba(0,0,0,0.35) 96%, transparent 100%)',
+          '-webkit-mask-size': '100% 100%',
+          'mask-size': '100% 100%',
+          '-webkit-mask-repeat': 'no-repeat',
+          'mask-repeat': 'no-repeat',
+        },
         '.scrollbar-thin': {
           'scrollbar-width': 'thin',
           '&::-webkit-scrollbar': {
