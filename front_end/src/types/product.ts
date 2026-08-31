@@ -118,6 +118,7 @@ export interface Product {
   description: string;
   price: number; // Base price
   originalPrice: number; // Original price before discounts
+  weight?: number; // Product-level shipping weight in grams (not per-color); 0 when unset
 
   // Main product images (shared across all colors, shown in gallery alongside color-specific images)
   mainImages?: string[];

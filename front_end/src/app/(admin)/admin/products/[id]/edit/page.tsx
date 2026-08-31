@@ -32,6 +32,7 @@ export default function EditProductPage() {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState(0);
   const [originalPrice, setOriginalPrice] = useState(0);
+  const [weight, setWeight] = useState(0);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [brandId, setBrandId] = useState("");
   const [mainImageItems, setMainImageItems] = useState<ImageItem[]>([]);
@@ -124,6 +125,7 @@ export default function EditProductPage() {
     setDescription(activeProduct.description);
     setPrice(activeProduct.price);
     setOriginalPrice(activeProduct.originalPrice);
+    setWeight(activeProduct.weight || 0);
     setCategoryIds(activeProduct.category_ids || []);
     setBrandId(activeProduct.brand_id || "");
     setColorVariants(variants);
@@ -510,6 +512,7 @@ export default function EditProductPage() {
     formData.append("description", description);
     formData.append("price", price.toString());
     formData.append("originalPrice", originalPrice ? originalPrice.toString() : price.toString());
+    formData.append("weight", weight ? weight.toString() : "0");
     formData.append("categoryIds", JSON.stringify(categoryIds));
     formData.append("brandId", brandId);
     if (collection) {
@@ -650,6 +653,21 @@ export default function EditProductPage() {
             />
             {originalPrice > 0 && <p className="mt-1 text-xs text-gray-500">{formatPrice(originalPrice)}</p>}
           </div>
+        </div>
+        <div>
+          <label className="block mb-1">وزن محصول (گرم)</label>
+          <input
+            className="input"
+            type="text"
+            inputMode="numeric"
+            dir="ltr"
+            placeholder="مثال: 350"
+            value={weight ? String(weight) : ""}
+            onChange={e => setWeight(Number(toDigitsOnly(e.target.value)))}
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            وزن بسته‌بندی محصول به گرم؛ برای محاسبه هزینه ارسال استفاده می‌شود.
+          </p>
         </div>
         <div>
           <label className="block mb-1">جنسیت *</label>

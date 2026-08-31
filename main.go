@@ -25,6 +25,7 @@ func main() {
 	checkVocab := flag.Bool("check-vocab", false, "Check vocabulary mappings count")
 	migrateAvatars := flag.Bool("migrate-avatars", false, "Backfill the avatar field for existing categories")
 	migrateAddressDigits := flag.Bool("migrate-address-digits", false, "Rewrite Persian/Arabic-Indic digits to ASCII in stored addresses")
+	migrateProductWeight := flag.Bool("migrate-product-weight", false, "Ensure every product has a weight field, defaulting existing products to 0")
 	dryRun := flag.Bool("dry-run", false, "With a migration flag: report what would change without writing")
 	flag.Parse()
 
@@ -125,6 +126,12 @@ func main() {
 	if *migrateAddressDigits {
 		log.Println("Running address digit migration...")
 		os.Exit(addressDigitMigrationEntryPoint(database, *dryRun))
+	}
+
+	// Ensure every product carries a weight field (defaults existing to 0) if requested
+	if *migrateProductWeight {
+		log.Println("Running product weight migration...")
+		os.Exit(productWeightMigrationEntryPoint(database, *dryRun))
 	}
 
 	// Configure JWT before registering the HTTP router. Authentication must

@@ -305,6 +305,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	description := r.FormValue("description")
 	priceStr := r.FormValue("price")
 	originalPriceStr := r.FormValue("originalPrice")
+	weightStr := r.FormValue("weight")
 	categoryIDsJSON := r.FormValue("categoryIds")
 	brandIDStr := r.FormValue("brandId")
 	collection := strings.TrimSpace(r.FormValue("collection"))
@@ -369,6 +370,16 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		originalPrice, err = parseProductPrice(originalPriceStr)
 		if err != nil {
 			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid originalPrice format")
+			return
+		}
+	}
+
+	// Product-level shipping weight in grams. Optional; defaults to 0.
+	var weight float64
+	if weightStr != "" {
+		weight, err = parseProductWeight(weightStr)
+		if err != nil {
+			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid weight format")
 			return
 		}
 	}
@@ -710,6 +721,7 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		Description:    description,
 		Price:          price,
 		OriginalPrice:  originalPrice,
+		Weight:         weight,
 		MainImages:     mainImagePaths, // Changed from Images
 		CategoryIDs:    categoryIDs,
 		BrandID:        brandID,
@@ -1088,6 +1100,20 @@ func parseProductPrice(raw string) (float64, error) {
 		",", "", "\u066c", "", "\u060c", "", "\u200c", "", " ", "", "\u066b", ".",
 	).Replace(normalized)
 	return strconv.ParseFloat(normalized, 64)
+}
+
+// parseProductWeight parses a product weight in grams. It reuses the same digit
+// normalization as prices (accepts Persian/Arabic-Indic digits and grouping
+// separators) but rejects negative values, since a weight cannot be negative.
+func parseProductWeight(raw string) (float64, error) {
+	w, err := parseProductPrice(raw)
+	if err != nil {
+		return 0, err
+	}
+	if w < 0 {
+		return 0, fmt.Errorf("weight cannot be negative")
+	}
+	return w, nil
 }
 
 // ProductCartUsage reports how many active shopping carts still hold a
@@ -1508,6 +1534,16 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			update["original_price"] = originalPrice
+			somethingToUpdate = true
+		}
+
+		if weightStr := r.FormValue("weight"); weightStr != "" {
+			weight, err := parseProductWeight(weightStr)
+			if err != nil {
+				utils.ErrorResponse(w, http.StatusBadRequest, "Invalid weight format: "+err.Error())
+				return
+			}
+			update["weight"] = weight
 			somethingToUpdate = true
 		}
 

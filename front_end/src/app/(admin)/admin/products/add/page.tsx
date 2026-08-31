@@ -32,6 +32,7 @@ export default function AddProductPage() {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState(0);
   const [originalPrice, setOriginalPrice] = useState(0);
+  const [weight, setWeight] = useState(0);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [brandId, setBrandId] = useState("");
   const [mainImageItems, setMainImageItems] = useState<ImageItem[]>([]); // Main product images with ordering
@@ -435,6 +436,7 @@ export default function AddProductPage() {
     formData.append("description", description);
     formData.append("price", price.toString());
     formData.append("originalPrice", originalPrice ? originalPrice.toString() : price.toString());
+    formData.append("weight", weight ? weight.toString() : "0");
     formData.append("categoryIds", JSON.stringify(categoryIds));
     formData.append("brandId", brandId);
 
@@ -577,6 +579,21 @@ export default function AddProductPage() {
               هشدار: قیمت اصلی کمتر از قیمت نهایی است. در صورت نداشتن تخفیف، قیمت اصلی را خالی بگذارید یا بزرگ‌تر از قیمت نهایی تنظیم کنید.
             </p>
           )}
+        </div>
+        <div>
+          <label className="block mb-1">وزن محصول (گرم)</label>
+          <input
+            className="input"
+            type="text"
+            inputMode="numeric"
+            dir="ltr"
+            placeholder="مثال: 350"
+            value={weight ? String(weight) : ""}
+            onChange={e => setWeight(Number(toDigitsOnly(e.target.value)))}
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            وزن بسته‌بندی محصول به گرم؛ برای محاسبه هزینه ارسال استفاده می‌شود.
+          </p>
         </div>
         <div>
           <label className="block mb-1">جنسیت *</label>

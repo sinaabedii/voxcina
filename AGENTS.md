@@ -22,6 +22,7 @@ go vet ./...
 ./main -seed
 ./main -check-vocab
 ./main -migrate-avatars
+./main -migrate-product-weight
 ```
 
 The only committed Go tests live in `handlers/`, `services/`, and `utils/`; they are unit tests with no MongoDB or network dependency. `go test ./...` also discovers a Go-looking package inside `front_end/node_modules` — ignore it. Run a focused test like `go test ./handlers -run TestEvaluateReturnEligibility -count=1`.
