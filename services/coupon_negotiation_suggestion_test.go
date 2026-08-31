@@ -137,6 +137,7 @@ func TestRecommendationKeptWhenCustomerAsked(t *testing.T) {
 
 func TestRecommendationKeptWhenCouponBundles(t *testing.T) {
 	in := SellerAgentInput{
+		Mode:                  SellerModeCheckout,
 		Request:               NegotiateRequest{Message: "سلام چیزی میخوای؟"},
 		TryonContext:          "پیراهن آبی - آبی - 1200000 تومان",
 		ComplementaryProducts: []CouponCartItem{{ProductID: "comp-1", ProductName: "شلوار جین راسته"}},

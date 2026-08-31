@@ -151,10 +151,16 @@ func buildSellerInput(ctx context.Context, userID primitive.ObjectID, req servic
 	return input, nil
 }
 
-// describeTryonProduct renders the one-line garment summary the prompt shows as
-// "Just tried on", using the catalogue price rather than a client-supplied one.
-// It also returns the canonical colour value and display name of the matched
-// variant, so the coupon is pinned to the same values the cart stores.
+// describeTryonProduct renders the garment summary the prompt shows as
+// "Garment in focus", using the catalogue price rather than a client-supplied
+// one. It also returns the canonical colour value and display name of the
+// matched variant, so the coupon is pinned to the same values the cart stores.
+//
+// The summary carries the variant's own facts — material, fit, type, and the
+// sizes actually in stock — because the prompt forbids Voxa from stating any
+// garment fact that is not in the context. With only a name and a price there,
+// she had to dodge the most common fitting-room questions ("جنسش چیه؟",
+// "سایز XL داری؟") about the very item on screen; now she can answer them.
 func describeTryonProduct(ctx context.Context, productID, color string) (summary, colorValue, colorName string, err error) {
 	objID, err := primitive.ObjectIDFromHex(productID)
 	if err != nil {
@@ -167,12 +173,56 @@ func describeTryonProduct(ctx context.Context, productID, color string) (summary
 	}
 
 	colorName = color
+	facts := ""
 	if cv, _, ok := findColorVariant(&product, color, color); ok {
 		colorValue = canonicalColorValue(cv)
 		colorName = cv.ColorName
+		facts = variantFactLine(&product, cv)
 	}
 
-	return fmt.Sprintf("%s - %s - %.0f تومان", product.Name, colorName, product.Price), colorValue, colorName, nil
+	summary = fmt.Sprintf("%s - %s - %.0f تومان", product.Name, colorName, product.Price)
+	if facts != "" {
+		summary += " | " + facts
+	}
+	return summary, colorValue, colorName, nil
+}
+
+// variantFactLine packs the per-variant facts a customer asks about in the
+// fitting room: what it is made of, how it fits, and which sizes are actually
+// available right now. Sizes are listed only when in stock, with quantity, so
+// "همین الان فقط L مونده" is a grounded answer instead of a guess.
+func variantFactLine(product *models.Product, cv models.ColorVariant) string {
+	var parts []string
+	if product.Brand != "" {
+		parts = append(parts, "برند: "+product.Brand)
+	}
+	if cv.AIMetadata != nil {
+		if cv.AIMetadata.ProductTypePersian != "" {
+			parts = append(parts, "نوع: "+cv.AIMetadata.ProductTypePersian)
+		}
+		if cv.AIMetadata.MaterialPersian != "" {
+			parts = append(parts, "جنس: "+cv.AIMetadata.MaterialPersian)
+		}
+		if cv.AIMetadata.FitType != "" {
+			parts = append(parts, "قواره: "+cv.AIMetadata.FitType)
+		}
+		if cv.AIMetadata.Gender != "" {
+			parts = append(parts, "مناسب: "+cv.AIMetadata.Gender)
+		}
+	}
+	var sizes []string
+	for _, s := range cv.Sizes {
+		if s.Quantity > 0 {
+			sizes = append(sizes, fmt.Sprintf("%s(%d عدد)", s.Size, s.Quantity))
+		}
+	}
+	switch {
+	case len(sizes) > 0:
+		parts = append(parts, "سایزهای موجود: "+strings.Join(sizes, "، "))
+	case len(cv.Sizes) > 0:
+		parts = append(parts, "فعلاً بدون موجودی")
+	}
+	return strings.Join(parts, " | ")
 }
 
 // buildServerCartContext reads the user's real cart so prices in the prompt

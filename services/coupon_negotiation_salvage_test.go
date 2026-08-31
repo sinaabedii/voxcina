@@ -82,7 +82,7 @@ func TestSalvageNarratedCouponIgnoresNonCoupons(t *testing.T) {
 // A typed-out call reaching the visible channel must still produce the coupon
 // the customer asked for — this is the A02/A09/A12/A13 "coupon=None" failure.
 func TestInterpretToolCallsRecoversCouponTypedAsContent(t *testing.T) {
-	in := SellerAgentInput{State: ResolveNegotiationState(0, 0, "")}
+	in := SellerAgentInput{Mode: SellerModeCheckout, State: ResolveNegotiationState(0, 0, "")}
 	result := &streamResult{
 		content: "```json\n{\"name\":\"offer_coupon\",\"arguments\":{\"value\":5,\"message\":\"یه تخفیف برات گذاشتم\"}}\n```",
 	}
@@ -100,7 +100,7 @@ func TestInterpretToolCallsRecoversCouponTypedAsContent(t *testing.T) {
 // there is not trusted: the grant holds at the floor no matter what percent the
 // text claims.
 func TestCouponTypedAsContentCannotRaiseTheDiscount(t *testing.T) {
-	in := SellerAgentInput{State: ResolveNegotiationState(1, 10, "stated budget")}
+	in := SellerAgentInput{Mode: SellerModeCheckout, State: ResolveNegotiationState(1, 10, "stated budget")}
 	result := &streamResult{
 		content: `{"name":"offer_coupon","arguments":{"value":25,"reason":"برای عروسی داداشم"}}`,
 	}
@@ -119,7 +119,7 @@ func TestCouponTypedAsContentCannotRaiseTheDiscount(t *testing.T) {
 // percent dropped the justification, the reason gate saw an unjustified
 // increase, and the discount silently stayed at the floor (10 -> 10).
 func TestCouponNarratedInReasoningKeepsItsReason(t *testing.T) {
-	in := SellerAgentInput{State: ResolveNegotiationState(1, 10, "بودجه‌اش محدوده")}
+	in := SellerAgentInput{Mode: SellerModeCheckout, State: ResolveNegotiationState(1, 10, "بودجه‌اش محدوده")}
 	result := &streamResult{
 		reasoning: `Customer named a new occasion, so: {"name":"offer_coupon","arguments":{"value":15,"reason":"عروسی داداشش"}}`,
 	}
@@ -213,5 +213,26 @@ func TestBalancedJSONObjectsFindsNestedPayload(t *testing.T) {
 	}
 	if objs[1] != `{"b":1}` {
 		t.Errorf("second object = %q, want the nested one", objs[1])
+	}
+}
+
+// The fitting room is discount-free by design: it is not even offered the
+// offer_coupon tool. But a model can still narrate the call as text, and the
+// salvage paths would mint a real, redeemable code from it. interpretToolCalls
+// must gate the mint on checkout mode so a tryon turn can never discount.
+func TestTryonModeNeverMintsCouponEvenNarrated(t *testing.T) {
+	for _, mode := range []string{SellerModeTryon, ""} {
+		in := SellerAgentInput{
+			Mode:  mode,
+			State: ResolveNegotiationState(0, 0, ""),
+		}
+		result := &streamResult{
+			content:   "```json\n{\"name\":\"offer_coupon\",\"arguments\":{\"value\":20,\"message\":\"یه تخفیف برات گذاشتم\"}}\n```",
+			reasoning: `call offer_coupon with value 20`,
+		}
+		coupon, _ := interpretToolCalls(in, result)
+		if coupon != nil {
+			t.Errorf("mode %q: tryon must never mint a coupon, got %v%% code %s", mode, coupon.Value, coupon.Code)
+		}
 	}
 }

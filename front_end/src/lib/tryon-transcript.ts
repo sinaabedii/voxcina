@@ -9,9 +9,13 @@ import {
 /**
  * The fitting room transcript: what the agent says when a turn produced only
  * tool output, and how a stored room reads back as chat messages.
+ *
+ * NOTE: Discount negotiation (offer_coupon / COUPON_REPLY) has been moved to the
+ * checkout negotiation agent (SellerModeCheckout). The fitting-room assistant
+ * (SellerModeTryon) is styling/product only and never mints a coupon — see
+ * services/coupon_negotiation_service.go buildTools/configForMode.
  */
 
-const COUPON_REPLY = "دمت گرم رفیق! یه تخفیف خودمونی برات جور کردم، همین پایین برات گذاشتم. حیفه از دستش بدی!";
 const CATALOG_REPLY = "رفیق چند تا گزینه خوشگل برات پیدا کردم، همین پایین گذاشتم — ببین کدومش بیشتر به دلت میشینه!";
 const DEFAULT_REPLY = "دمت گرم رفیق! بگو چی تو ذهنته تا یه پیشنهاد درجهیک برات جور کنم.";
 
@@ -29,14 +33,13 @@ const recommendationReply = (productName?: string) =>
  * What the agent says for a turn that spoke only through its tools. The backend
  * guarantees a reply, so this covers the historic turns that were stored with an
  * empty message and keeps a bubble from rendering blank beside a valid card.
+ * (Coupon branch removed — tryon never offers a discount.)
  */
 const replyForCards = (
-  hasCoupon: boolean,
   recommendedName: string | undefined,
   hasCatalogHits: boolean,
   hasRecommendation: boolean
 ): string => {
-  if (hasCoupon) return COUPON_REPLY;
   if (hasRecommendation) return recommendationReply(recommendedName);
   if (hasCatalogHits) return CATALOG_REPLY;
   return DEFAULT_REPLY;
@@ -54,18 +57,12 @@ export function agentMessageForTurn(turn: NegotiationTurn, streamed: string): Ch
   const content =
     turn.reply ||
     streamed ||
-    replyForCards(!!turn.coupon, rec?.product_name, hits.length > 0, !!rec);
+    replyForCards(rec?.product_name, hits.length > 0, !!rec);
 
   const message: ChatMessage = { role: "agent", content };
-  if (turn.coupon) {
-    message.coupon = {
-      code: turn.coupon.code,
-      value: turn.coupon.value,
-      valid_until: turn.coupon.valid_until,
-    };
-  }
-  // She recommended it, or the coupon bundles it — the server resolves that
-  // comp product into recommended_product too.
+  // Coupon handling removed — tryon assistant never mints a coupon (checkout
+  // negotiation owns offer_coupon). Historic coupon cards are still restored
+  // via restoreCards for old rooms, but no new coupon is attached here.
   if (rec) message.recommendedProduct = rec;
   if (hits.length) message.catalogHits = hits;
   return message;
@@ -75,13 +72,10 @@ export function agentMessageForTurn(turn: NegotiationTurn, streamed: string): Ch
 function restoreCards(message: ChatMessage, toolCall?: TryonChatMessage["tool_call"]) {
   const result = toolCall?.result;
   if (!result) return;
-  if (
-    typeof result.code === "string" &&
-    typeof result.value === "number" &&
-    typeof result.valid_until === "string"
-  ) {
-    message.coupon = { code: result.code, value: result.value, valid_until: result.valid_until };
-  }
+  // Coupon fields are no longer produced by the tryon agent (moved to checkout).
+  // Keep reading recommended_product / catalog_hits for styling turns.
+  // Historic rooms that still carry a coupon result will simply not render a
+  // coupon card here — checkout owns that UI now.
   if (result.recommended_product) {
     message.recommendedProduct = result.recommended_product as RecommendedProduct;
   }
@@ -102,8 +96,8 @@ function restoreContent(stored: TryonChatMessage): string {
   if (typeof messageArg === "string" && messageArg.trim()) return messageArg.trim();
 
   const recommended = toolCall?.result?.recommended_product as RecommendedProduct | undefined;
+  // offer_coupon branch removed — tryon never uses it post-decoupling.
   return replyForCards(
-    toolCall?.name === "offer_coupon",
     recommended?.product_name,
     toolCall?.name === "search_catalog",
     toolCall?.name === "recommend_product"

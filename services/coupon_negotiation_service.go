@@ -839,6 +839,8 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 
 	// Tool-loop: the model may call search_catalog mid-turn; we execute it,
 	// feed the result back, and let it continue streaming text + coupons.
+	// toolCtx bounds the database search only — model passes run under the
+	// request context with their own per-call timeout (see streamSellerAgentWithTools).
 	var catalogHits []CatalogVariantHit
 	toolCtx, toolCancel := context.WithTimeout(ctx, 20*time.Second)
 	defer toolCancel()
@@ -850,7 +852,7 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 
 	modelUsed := primaryModel
 	var firstStream bytes.Buffer
-	toolName, result, err := streamSellerAgentWithTools(ctx, primaryModel, messages, tools, &firstStream, toolCtx, in.Mode)
+	toolName, result, err := streamSellerAgentWithTools(ctx, primaryModel, messages, tools, &firstStream, in.Mode)
 
 	// coupon/recommended are resolved early (instead of once at the very end,
 	// as before) whenever the grounding branch below needs them to describe
@@ -889,7 +891,7 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 			})
 		}
 		// Second pass — model now answers with grounding.
-		_, r2, err2 := streamSellerAgentWithTools(ctx, primaryModel, messages, tools, w, toolCtx, in.Mode)
+		_, r2, err2 := streamSellerAgentWithTools(ctx, primaryModel, messages, tools, w, in.Mode)
 		if err2 == nil && r2 != nil {
 			// Merge tool calls from both passes; keep second-pass content if non-empty
 			r2.toolCalls = append(result.toolCalls, r2.toolCalls...)
@@ -911,11 +913,17 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 	case err == nil && result != nil && needsTextGrounding(toolName, result):
 		coupon, recommended = interpretToolCalls(in, result)
 		computed = true
-		if grounded := groundTextualReply(ctx, primaryModel, messages, result, coupon, recommended, toolCtx, w, in.Mode); grounded != nil {
-			result.content = grounded.content
-			result.tokensSent = result.tokensSent || grounded.tokensSent
-		} else {
-			_, _ = io.Copy(w, &firstStream)
+		// Ground only when there is an outcome to announce. A hallucinated
+		// offer_coupon in tryon resolves to nothing (interpretToolCalls
+		// mode-gates it), and asking the model to "announce" a non-event would
+		// only teach it to talk about discounts it must never mention.
+		if coupon != nil || recommended != nil {
+			if grounded := groundTextualReply(ctx, primaryModel, messages, result, coupon, recommended, w, in.Mode); grounded != nil {
+				result.content = grounded.content
+				result.tokensSent = result.tokensSent || grounded.tokensSent
+			} else {
+				_, _ = io.Copy(w, &firstStream)
+			}
 		}
 
 	default:
@@ -931,7 +939,7 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 		}
 		fmt.Printf("[negotiate-stream] primary model %s failed (no tokens sent): %v — trying fallback %s\n", primaryModel, err, cfg.FallbackModel)
 		modelUsed = cfg.FallbackModel
-		_, result, err = streamSellerAgentWithTools(ctx, cfg.FallbackModel, messages, tools, w, toolCtx, in.Mode)
+		_, result, err = streamSellerAgentWithTools(ctx, cfg.FallbackModel, messages, tools, w, in.Mode)
 		if err != nil {
 			return nil, fmt.Errorf("both streaming models failed: %v", err)
 		}
@@ -945,10 +953,11 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 	}
 
 	reply := sanitizeSellerReply(result.content)
-	if !isUsableReply(reply) {
+	if !isUsableReply(reply) && in.Mode == SellerModeCheckout {
 		// Either a tool-only turn produced no chat text, or everything the model
 		// wrote was machinery the sanitizer dropped. Fall back to the message it
-		// put in the tool call so the customer still hears from Voxa.
+		// put in the tool call so the customer still hears from Voxa. Only
+		// checkout has a coupon tool message to fall back to.
 		reply = sanitizeSellerReply(couponMessage(result))
 	}
 	if !isUsableReply(reply) {
@@ -959,15 +968,27 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 		// it can still fire, so it rotates through a small set of warm Persian
 		// lines rather than repeating one fixed sentence — never mentioning a
 		// percent or code, and never inventing products.
-		switch {
-		case coupon != nil:
-			reply = pickFallback(couponFallbackReplies)
-		case recommended != nil && recommended.ProductName != "":
-			reply = fmt.Sprintf(pickFallback(recommendationFallbackTemplates), recommended.ProductName)
-		case len(catalogHits) > 0:
-			reply = pickFallback(catalogFallbackReplies)
-		default:
-			reply = pickFallback(genericFallbackReplies)
+		//
+		// Decoupled: tryon (SellerModeTryon) never mints a coupon, checkout
+		// (SellerModeCheckout) never shows product cards. Keep fallback pools
+		// mode-scoped so a checkout greeting does not fall back to a tryon
+		// product line and vice versa.
+		if in.Mode == SellerModeCheckout {
+			switch {
+			case coupon != nil:
+				reply = pickFallback(couponFallbackReplies)
+			default:
+				reply = pickFallback(checkoutGenericFallbackReplies)
+			}
+		} else {
+			switch {
+			case recommended != nil && recommended.ProductName != "":
+				reply = fmt.Sprintf(pickFallback(recommendationFallbackTemplates), recommended.ProductName)
+			case len(catalogHits) > 0:
+				reply = pickFallback(catalogFallbackReplies)
+			default:
+				reply = pickFallback(genericFallbackReplies)
+			}
 		}
 		reply = sanitizeSellerReply(reply)
 	}
@@ -1026,7 +1047,7 @@ func needsTextGrounding(toolName string, result *streamResult) bool {
 //
 // Returns nil (never partially written) when this pass itself fails or comes
 // back unusable, so the caller can fall through to its own fallback.
-func groundTextualReply(ctx context.Context, model string, messages []map[string]interface{}, result *streamResult, coupon *NegotiateCouponOut, recommended *CouponCartItem, toolCtx context.Context, w io.Writer, mode string) *streamResult {
+func groundTextualReply(ctx context.Context, model string, messages []map[string]interface{}, result *streamResult, coupon *NegotiateCouponOut, recommended *CouponCartItem, w io.Writer, mode string) *streamResult {
 	grounded := make([]map[string]interface{}, len(messages), len(messages)+len(result.toolCalls)+2)
 	copy(grounded, messages)
 
@@ -1050,7 +1071,7 @@ func groundTextualReply(ctx context.Context, model string, messages []map[string
 	})
 
 	var buf bytes.Buffer
-	_, r2, err := streamSellerAgentWithTools(ctx, model, grounded, nil, &buf, toolCtx, mode)
+	_, r2, err := streamSellerAgentWithTools(ctx, model, grounded, nil, &buf, mode)
 	if err != nil || r2 == nil || !isUsableReply(sanitizeSellerReply(r2.content)) {
 		return nil
 	}
@@ -1110,11 +1131,19 @@ func pickFallback(pool []string) string {
 // not produce usable text (e.g. two consecutive network failures). Grounding
 // makes this rare rather than the common path it used to be, but when it does
 // fire it should not read as a canned script either.
+//
+// Decoupled pools: coupon/checkout vs recommendation/catalog/generic/tryon.
+// Tryon never coupons, checkout never shows product cards — pools are kept
+// separate so a checkout greeting cannot fall back to a tryon product line.
 var (
 	couponFallbackReplies = []string{
 		"دمت گرم رفیق! یه تخفیف خودمونی برات جور کردم، همین پایین برات گذاشتم. حیفه از دستش بدی!",
 		"به جون خودم یه کد تخفیف حسابی رد کردم برات، همین پایین منتظرته — از دستش نده رفیق!",
 		"چشمت روشن! یه تخفیف ویژه برات کنار گذاشتم، همین زیر می‌بینیش — بریم که بردیم!",
+	}
+	checkoutGenericFallbackReplies = []string{
+		"سلام رفیق! بگو چطور می‌تونم بهترین قیمت رو برات جور کنم — بودجه‌ت رو بگو تا تخفیف بهتری برات بگیرم.",
+		"جانم رفیق، حتماً کمکت می‌کنم بهترین تخفیف رو بگیری — بگو چی تو ذهنته؟",
 	}
 	recommendationFallbackTemplates = []string{
 		"رفیق این %s حسابی به تیپت میاد، حیفه از دستش بدی! بگو تا برات نگهش دارم.",
@@ -1413,7 +1442,16 @@ func collapseSpaces(s string) string {
 // the model was actually shown, so a hallucinated id can never end up as a
 // required product on a real coupon.
 func interpretToolCalls(in SellerAgentInput, result *streamResult) (*NegotiateCouponOut, *CouponCartItem) {
-	couponParams := resolveCouponParams(result)
+	// Coupons belong to checkout alone. The fitting room is not even offered
+	// the tool, but a model can still narrate an offer_coupon call as text (or
+	// hallucinate the channel), and the salvage paths below would happily mint
+	// it — handing out a real, redeemable code from a room whose whole design
+	// says it cannot discount. Mode-gate the mint at the one place that
+	// matters: the decision, not the prompt.
+	var couponParams *couponToolParams
+	if in.Mode == SellerModeCheckout {
+		couponParams = resolveCouponParams(result)
+	}
 	recommended := resolveRecommendation(in, result.toolCalls)
 
 	var coupon *NegotiateCouponOut
@@ -1856,7 +1894,7 @@ func generateCouponCode() string {
 	return "TRYN-" + hex.EncodeToString(b)
 }
 
-func streamSellerAgentWithTools(ctx context.Context, model string, messages []map[string]interface{}, tools []map[string]interface{}, w io.Writer, toolCtx context.Context, mode string) (string, *streamResult, error) {
+func streamSellerAgentWithTools(ctx context.Context, model string, messages []map[string]interface{}, tools []map[string]interface{}, w io.Writer, mode string) (string, *streamResult, error) {
 	cfg := configForMode(mode)
 
 	apiKey := os.Getenv("OPENROUTER_API_KEY")
