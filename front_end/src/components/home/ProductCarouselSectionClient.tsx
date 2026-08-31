@@ -9,6 +9,66 @@ import { Button, SectionTitle } from "@/components/ui";
 import { getCanonicalColor } from "@/lib/product-variants";
 import { gsap } from "@/lib/gsap";
 
+/**
+ * RTL-aware scroll helpers.
+ *
+ * The carousel lives inside a Persian `dir="rtl"` page, where the browser's
+ * `scrollLeft` semantics differ from LTR:
+ *  - Modern Chrome/Firefox/Safari use a *negative* model: `scrollLeft` starts
+ *    at `0` at the right edge and goes negative as you reveal content to the
+ *    left, reaching `-(scrollWidth - clientWidth)`.
+ *  - Very old browsers (pre-2017 Chrome) used a *positive-descending* model.
+ *
+ * GSAP tweening `scrollLeft` directly toward a positive `maxScroll` therefore
+ * does nothing on RTL. We normalise all logic around a *logical offset* (0..max,
+ * where 0 is the visual start and max is fully revealed) and convert to/from
+ * the browser's raw `scrollLeft` with these helpers.
+ */
+let cachedRtlScrollModel: "negative" | "positive" | null = null;
+
+function detectRtlScrollModel(): "negative" | "positive" {
+  if (cachedRtlScrollModel) return cachedRtlScrollModel;
+  const outer = document.createElement("div");
+  outer.dir = "rtl";
+  outer.style.cssText =
+    "position:absolute;top:-1000px;left:-1000px;width:4px;height:1px;overflow:auto;visibility:hidden;";
+  const inner = document.createElement("div");
+  inner.style.cssText = "width:8px;height:1px;";
+  outer.appendChild(inner);
+  document.body.appendChild(outer);
+  if (outer.scrollLeft > 0) {
+    cachedRtlScrollModel = "positive";
+  } else {
+    outer.scrollLeft = 1;
+    cachedRtlScrollModel = outer.scrollLeft === 0 ? "negative" : "positive";
+  }
+  document.body.removeChild(outer);
+  return cachedRtlScrollModel;
+}
+
+function isRtl(el: HTMLElement): boolean {
+  return getComputedStyle(el).direction === "rtl";
+}
+
+/** Raw `scrollLeft` value that produces the given logical offset. */
+function offsetToRaw(el: HTMLElement, offset: number): number {
+  if (!isRtl(el)) return offset;
+  const max = el.scrollWidth - el.clientWidth;
+  return detectRtlScrollModel() === "negative" ? -offset : max - offset;
+}
+
+/** Current logical offset (0..max) regardless of scroll direction model. */
+function getScrollOffset(el: HTMLElement): number {
+  if (!isRtl(el)) return el.scrollLeft;
+  const max = el.scrollWidth - el.clientWidth;
+  return detectRtlScrollModel() === "negative" ? -el.scrollLeft : max - el.scrollLeft;
+}
+
+/** Set the logical offset (0..max) regardless of scroll direction model. */
+function setScrollOffset(el: HTMLElement, offset: number): void {
+  el.scrollLeft = offsetToRaw(el, offset);
+}
+
 interface ProductCarouselSectionClientProps {
   title: string;
   viewAllHref: string;
@@ -79,6 +139,10 @@ export default function ProductCarouselSectionClient({
   const prefersReducedMotionRef = useRef(false);
   const isCoarsePointerRef = useRef(false);
   const productsLengthRef = useRef(products.length);
+  // Stable handle to the (recreated-each-render) startAutoScroll so long-lived
+  // effects like the IntersectionObserver can call the latest version without
+  // re-subscribing.
+  const startAutoScrollRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     productsLengthRef.current = products.length;
@@ -86,9 +150,9 @@ export default function ProductCarouselSectionClient({
 
   // Tunables ----------------------------------------------------------------
   // A full sweep (start → end) takes AUTO_SCROLL_DURATION seconds. The tween
-  // uses "power1.inOut" so it gently accelerates from rest, cruises in the
-  // middle, and decelerates into the wrap.
-  const AUTO_SCROLL_DURATION = 30; // seconds per full sweep
+  // uses a linear ("none") ease so the carousel is visibly moving from the
+  // very first frame rather than easing in imperceptibly slowly.
+  const AUTO_SCROLL_DURATION = 18; // seconds per full sweep
   const AUTO_RESUME_DELAY = 2200; // ms to stay paused after user interaction
 
   const killAutoScroll = () => {
@@ -96,6 +160,10 @@ export default function ProductCarouselSectionClient({
       autoScrollTweenRef.current.kill();
       autoScrollTweenRef.current = null;
     }
+    // Deliberately do NOT re-enable mandatory snap here: it would snap the
+    // container to the nearest card edge (yanking it back toward the start)
+    // whenever the user merely hovers a card. Keep `scroll-snap-type: none`
+    // so the carousel holds its current pixel position while paused.
   };
 
   const startAutoScroll = () => {
@@ -109,26 +177,32 @@ export default function ProductCarouselSectionClient({
     const maxScroll = el.scrollWidth - el.clientWidth;
     if (maxScroll <= 1) return;
 
-    // If we're already at/past the end (e.g. products shrank), reset to 0
-    // so the next sweep starts cleanly.
-    if (el.scrollLeft >= maxScroll - 1) {
-      el.scrollLeft = 0;
+    // If we're already at/past the end (e.g. products shrank), reset to the
+    // start so the next sweep starts cleanly.
+    if (getScrollOffset(el) >= maxScroll - 1) {
+      setScrollOffset(el, 0);
     }
 
-    const remaining = maxScroll - el.scrollLeft;
+    // The tween takes over scroll control: disable mandatory snap and CSS
+    // smooth-scrolling, which would otherwise fight GSAP's per-frame writes.
+    el.classList.remove("snap-x", "snap-mandatory");
+    el.classList.add("snap-none");
+    el.style.scrollBehavior = "auto";
+
+    const remaining = maxScroll - getScrollOffset(el);
     // Scale the duration proportionally to the remaining distance so a
     // mid-sweep restart doesn't suddenly jump in speed.
     const duration = (remaining / maxScroll) * AUTO_SCROLL_DURATION;
 
     autoScrollTweenRef.current = gsap.to(el, {
-      scrollLeft: maxScroll,
+      scrollLeft: offsetToRaw(el, maxScroll),
       duration,
-      ease: "power1.inOut",
+      ease: "none",
       overwrite: "auto",
       onComplete: () => {
         autoScrollTweenRef.current = null;
-        // Seamless wrap — the mask hides the jump back to 0.
-        if (sliderRef.current) sliderRef.current.scrollLeft = 0;
+        // Seamless wrap — the mask hides the jump back to the start.
+        if (sliderRef.current) setScrollOffset(sliderRef.current, 0);
         if (
           !isHoveredRef.current &&
           !isDragging &&
@@ -142,6 +216,7 @@ export default function ProductCarouselSectionClient({
       },
     });
   };
+  startAutoScrollRef.current = startAutoScroll;
 
   const pauseAutoScroll = useCallback((resumeDelay = AUTO_RESUME_DELAY) => {
     killAutoScroll();
@@ -172,9 +247,13 @@ export default function ProductCarouselSectionClient({
     if (!e.isPrimary) return;
     activePointerIdRef.current = e.pointerId;
     pointerStartXRef.current = e.clientX;
-    pointerStartScrollLeftRef.current = sliderRef.current.scrollLeft;
+    pointerStartScrollLeftRef.current = getScrollOffset(sliderRef.current);
     setIsDragging(true);
     pauseAutoScroll(0);
+    // Disable mandatory snap while dragging so the browser doesn't fight the
+    // finger — it will be re-enabled on release to align to the nearest card.
+    sliderRef.current.classList.remove("snap-x", "snap-mandatory");
+    sliderRef.current.classList.add("snap-none");
     try {
       sliderRef.current.setPointerCapture(e.pointerId);
     } catch {
@@ -189,21 +268,32 @@ export default function ProductCarouselSectionClient({
     // native touch panning on coarse pointers; we just need the auto-scroll
     // tween to stay dead, which `isDragging` already guarantees.
     const walk = (e.clientX - pointerStartXRef.current) * 1.5;
-    sliderRef.current.scrollLeft = pointerStartScrollLeftRef.current - walk;
+    setScrollOffset(sliderRef.current, pointerStartScrollLeftRef.current - walk);
   };
 
   const endDrag = (e?: React.PointerEvent) => {
     if (e && activePointerIdRef.current !== null && e.pointerId !== activePointerIdRef.current) {
       return;
     }
-    setIsDragging(false);
+    // Only treat this as a real drag end if a drag actually started. The
+    // handler may fire via pointercancel without a prior pointerdown, in which
+    // case we must NOT re-enable mandatory snap (it would snap the carousel to
+    // the nearest card edge — the visible "jump" when leaving hover).
+    const wasDragging = activePointerIdRef.current !== null;
     activePointerIdRef.current = null;
+    setIsDragging(false);
+    if (!wasDragging) return;
     if (sliderRef.current) {
       try {
         sliderRef.current.releasePointerCapture(e?.pointerId ?? -1);
       } catch {
         // Ignore: capture might already be released.
       }
+      // On release, restore mandatory snap so a manual drag aligns to the
+      // nearest card edge (a small, expected settle — not a jump to start).
+      sliderRef.current.classList.add("snap-x", "snap-mandatory");
+      sliderRef.current.classList.remove("snap-none");
+      sliderRef.current.style.scrollBehavior = "";
     }
     scheduleResume();
   };
@@ -216,7 +306,7 @@ export default function ProductCarouselSectionClient({
     if (typeof window !== "undefined" && "PointerEvent" in window) return; // Pointer Events already handle it
     setIsDragging(true);
     setStartX(e.clientX);
-    setScrollLeft(sliderRef.current.scrollLeft);
+    setScrollLeft(getScrollOffset(sliderRef.current));
     pauseAutoScroll(0);
   };
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -224,21 +314,11 @@ export default function ProductCarouselSectionClient({
     if (typeof window !== "undefined" && "PointerEvent" in window) return;
     e.preventDefault();
     const walk = (e.clientX - startX) * 1.5;
-    sliderRef.current.scrollLeft = scrollLeft - walk;
+    setScrollOffset(sliderRef.current, scrollLeft - walk);
   };
   const handleMouseUp = () => {
     if (typeof window !== "undefined" && "PointerEvent" in window) return;
     setIsDragging(false);
-    scheduleResume();
-  };
-
-  // Track hover on the section (header / arrow buttons / empty area).
-  const handleSectionMouseEnter = () => {
-    isHoveredRef.current = true;
-    killAutoScroll();
-  };
-  const handleSectionMouseLeave = () => {
-    isHoveredRef.current = false;
     scheduleResume();
   };
 
@@ -324,7 +404,11 @@ export default function ProductCarouselSectionClient({
           if (!entry.isIntersecting) {
             killAutoScroll();
           } else {
-            scheduleResume();
+            // First appearance (or re-entry): start right away instead of
+            // routing through scheduleResume, which adds the 2200ms
+            // interaction-resume delay. startAutoScroll still respects a
+            // recent interaction via resumeAtRef, so we won't fight the user.
+            startAutoScrollRef.current();
           }
         }
       },
@@ -332,7 +416,7 @@ export default function ProductCarouselSectionClient({
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [scheduleResume]);
+  }, []);
 
   // Boot the auto-scroll once the layout is stable.
   useEffect(() => {
@@ -348,18 +432,31 @@ export default function ProductCarouselSectionClient({
 
   // Arrow click: pause, GSAP-animate to next slot, then schedule resume.
   const scroll = (direction: "left" | "right") => {
-    if (!sliderRef.current) return;
+    const el = sliderRef.current;
+    if (!el) return;
 
     pauseAutoScroll(0);
     const scrollAmount = 260;
-    const currentScroll = sliderRef.current.scrollLeft;
-    const nextScroll = direction === "right" ? currentScroll + scrollAmount : currentScroll - scrollAmount;
+    const max = el.scrollWidth - el.clientWidth;
+    const currentOffset = getScrollOffset(el);
+    const nextOffset = direction === "right" ? currentOffset + scrollAmount : currentOffset - scrollAmount;
+    const clamped = Math.min(Math.max(0, nextOffset), Math.max(0, max));
 
-    gsap.to(sliderRef.current, {
-      scrollLeft: Math.max(0, nextScroll),
+    // Disable CSS smooth/snap during the GSAP animation, then restore after.
+    el.classList.remove("snap-x", "snap-mandatory");
+    el.classList.add("snap-none");
+    el.style.scrollBehavior = "auto";
+
+    gsap.to(el, {
+      scrollLeft: offsetToRaw(el, clamped),
       duration: 0.55,
       ease: "power2.out",
       overwrite: "auto",
+      onComplete: () => {
+        el.classList.add("snap-x", "snap-mandatory");
+        el.classList.remove("snap-none");
+        el.style.scrollBehavior = "";
+      },
     });
     scheduleResume();
   };
@@ -369,7 +466,7 @@ export default function ProductCarouselSectionClient({
     if (typeof window !== "undefined" && "PointerEvent" in window) return;
     if (!sliderRef.current || !e.touches[0]) return;
     pointerStartXRef.current = e.touches[0].clientX;
-    pointerStartScrollLeftRef.current = sliderRef.current.scrollLeft;
+    pointerStartScrollLeftRef.current = getScrollOffset(sliderRef.current);
     setIsDragging(true);
     pauseAutoScroll(0);
   };
@@ -377,7 +474,7 @@ export default function ProductCarouselSectionClient({
     if (typeof window !== "undefined" && "PointerEvent" in window) return;
     if (!isDragging || !sliderRef.current || !e.touches[0]) return;
     const walk = (e.touches[0].clientX - pointerStartXRef.current) * 1.5;
-    sliderRef.current.scrollLeft = pointerStartScrollLeftRef.current - walk;
+    setScrollOffset(sliderRef.current, pointerStartScrollLeftRef.current - walk);
   };
   const handleTouchEndFallback = () => {
     if (typeof window !== "undefined" && "PointerEvent" in window) return;
@@ -388,8 +485,6 @@ export default function ProductCarouselSectionClient({
   return (
     <section
       className={`${className ?? "container px-4 md:px-8 mb-16 md:mb-24"} animate-slideUp`}
-      onMouseEnter={handleSectionMouseEnter}
-      onMouseLeave={handleSectionMouseLeave}
     >
       <SectionTitle
         title={title}
@@ -457,7 +552,6 @@ export default function ProductCarouselSectionClient({
             onPointerMove={handlePointerMove}
             onPointerUp={endDrag}
             onPointerCancel={endDrag}
-            onPointerLeave={endDrag}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
