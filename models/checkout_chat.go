@@ -21,10 +21,10 @@ type CheckoutChat struct {
 	ChatID string             `bson:"chat_id" json:"chat_id"`
 	UserID primitive.ObjectID `bson:"user_id" json:"user_id"`
 
-	Title    string                 `bson:"title" json:"title"`
-	Messages []CheckoutChatMessage  `bson:"messages" json:"messages"`
-	Metadata CheckoutChatMetadata   `bson:"metadata" json:"metadata"`
-	Status   string                 `bson:"status" json:"status"`
+	Title    string                `bson:"title" json:"title"`
+	Messages []CheckoutChatMessage `bson:"messages" json:"messages"`
+	Metadata CheckoutChatMetadata  `bson:"metadata" json:"metadata"`
+	Status   string                `bson:"status" json:"status"`
 
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
@@ -52,10 +52,10 @@ type CheckoutChatToolCall struct {
 
 // CheckoutChatMetadata stores per-session analytics.
 type CheckoutChatMetadata struct {
-	TotalMessages  int      `bson:"total_messages" json:"total_messages"`
-	UserMessages   int      `bson:"user_messages" json:"user_messages"`
-	AgentMessages  int      `bson:"agent_messages" json:"agent_messages"`
-	CouponsOffered []string `bson:"coupons_offered,omitempty" json:"coupons_offered,omitempty"`
+	TotalMessages  int       `bson:"total_messages" json:"total_messages"`
+	UserMessages   int       `bson:"user_messages" json:"user_messages"`
+	AgentMessages  int       `bson:"agent_messages" json:"agent_messages"`
+	CouponsOffered []string  `bson:"coupons_offered,omitempty" json:"coupons_offered,omitempty"`
 	FirstMessageAt time.Time `bson:"first_message_at,omitempty" json:"first_message_at,omitempty"`
 	LastMessageAt  time.Time `bson:"last_message_at,omitempty" json:"last_message_at,omitempty"`
 }
