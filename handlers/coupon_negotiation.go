@@ -93,7 +93,7 @@ func NegotiateCouponStream(w http.ResponseWriter, r *http.Request) {
 // database. The client supplies only identifiers, and each is checked against
 // the authenticated user before anything derived from it reaches the prompt.
 func buildSellerInput(ctx context.Context, userID primitive.ObjectID, req services.NegotiateRequest) (services.SellerAgentInput, error) {
-	input := services.SellerAgentInput{Request: req}
+	input := services.SellerAgentInput{Mode: services.SellerModeTryon, Request: req}
 
 	// A try-on record is the authoritative statement of what was worn, so it
 	// overrides the product and colour the client claims. It is also the only

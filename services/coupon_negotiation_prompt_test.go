@@ -55,38 +55,66 @@ func systemPromptOf(t *testing.T, in SellerAgentInput) string {
 	return content
 }
 
-// config/ai_prompts.json overrides the built-in template wholesale, so a
+// config/ai_prompts.json overrides the built-in templates wholesale, so a
 // placeholder the shipped file forgets is a placeholder that never renders in
-// production no matter what the Go default says.
-func TestShippedPromptTemplateCarriesEveryPlaceholder(t *testing.T) {
-	data, err := os.ReadFile("../" + sellerAgentConfigPath)
-	if err != nil {
-		t.Skipf("%s unreadable from the package dir: %v", sellerAgentConfigPath, err)
+// production no matter what the Go default says. The tryon assistant and the
+// checkout negotiator are separate agents with separate placeholder sets —
+// see services/coupon_negotiation_service.go's defaultTryonAgentConfig and
+// defaultSellerAgentConfig.
+func TestShippedTryonPromptTemplateCarriesEveryPlaceholder(t *testing.T) {
+	tmpl := shippedTemplate(t, "tryon_assistant_agent")
+	if tmpl == "" {
+		t.Skip("shipped config supplies no tryon template; the built-in default applies")
 	}
-
-	var root struct {
-		Seller *SellerAgentConfig `json:"seller_negotiation_agent"`
-	}
-	if err := json.Unmarshal(data, &root); err != nil {
-		t.Fatalf("%s is not valid JSON: %v", sellerAgentConfigPath, err)
-	}
-	if root.Seller == nil || root.Seller.SystemPromptTemplate == "" {
-		t.Skip("shipped config supplies no seller template; the built-in default applies")
-	}
-
 	for _, placeholder := range []string{
 		"{{TRYON_CONTEXT}}",
 		"{{TRYON_STATUS}}",
 		"{{SUGGESTED}}",
 		"{{CART}}",
 		"{{COMPLEMENTARY}}",
+	} {
+		if !strings.Contains(tmpl, placeholder) {
+			t.Errorf("shipped tryon_assistant_agent system_prompt_template is missing %s", placeholder)
+		}
+	}
+}
+
+func TestShippedCheckoutPromptTemplateCarriesEveryPlaceholder(t *testing.T) {
+	tmpl := shippedTemplate(t, "checkout_negotiation_agent")
+	if tmpl == "" {
+		t.Skip("shipped config supplies no checkout template; the built-in default applies")
+	}
+	for _, placeholder := range []string{
+		"{{CART}}",
 		"{{NEGOTIATION_STATE}}",
 		"{{FLOOR}}",
 		"{{NEXT_STEP}}",
 		"{{MAX_DISCOUNT}}",
 	} {
-		if !strings.Contains(root.Seller.SystemPromptTemplate, placeholder) {
-			t.Errorf("shipped system_prompt_template is missing %s", placeholder)
+		if !strings.Contains(tmpl, placeholder) {
+			t.Errorf("shipped checkout_negotiation_agent system_prompt_template is missing %s", placeholder)
 		}
 	}
+}
+
+func shippedTemplate(t *testing.T, key string) string {
+	t.Helper()
+	data, err := os.ReadFile("../" + sellerAgentConfigPath)
+	if err != nil {
+		t.Skipf("%s unreadable from the package dir: %v", sellerAgentConfigPath, err)
+	}
+
+	var root map[string]json.RawMessage
+	if err := json.Unmarshal(data, &root); err != nil {
+		t.Fatalf("%s is not valid JSON: %v", sellerAgentConfigPath, err)
+	}
+	raw, ok := root[key]
+	if !ok {
+		return ""
+	}
+	var cfg SellerAgentConfig
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		t.Fatalf("%s.%s is not a valid agent config: %v", sellerAgentConfigPath, key, err)
+	}
+	return cfg.SystemPromptTemplate
 }

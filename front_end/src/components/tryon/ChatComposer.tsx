@@ -1,14 +1,14 @@
 "use client";
 
-import { Layers, Send, ShoppingBag, Sparkles, Tag } from "lucide-react";
+import { Layers, Search, Send, Shirt, Sparkles } from "lucide-react";
 import Button from "@/components/ui/Button";
 
-/** Ways into a negotiation, offered once a try-on result is on screen. */
-export const NEGOTIATION_OPENERS = [
-  { icon: Tag, text: "سلام! می‌خوام یه تخفیف خوب برای این محصول بگیرم." },
-  { icon: Sparkles, text: "سلام ووکسا! این قیمت برام کمی بالاست، می‌تونی کمک کنی؟" },
-  { icon: ShoppingBag, text: "سلام! اگه تخفیف خوبی بدی همین الان خرید می‌کنم." },
+/** Ways into a chat about the garment/recommendations, offered once a try-on result is on screen. */
+export const TRYON_CHAT_OPENERS = [
+  { icon: Sparkles, text: "این روم من چطوره؟" },
   { icon: Layers, text: "یه ست پیشنهاد بده" },
+  { icon: Shirt, text: "سایزش برام مناسبه؟" },
+  { icon: Search, text: "رنگ دیگه‌ای هم داره؟" },
 ];
 
 interface ChatComposerProps {
@@ -35,7 +35,7 @@ export default function ChatComposer({
       {showOpeners && (
         <div className="flex-shrink-0 space-y-2 mt-2">
           <div className="flex flex-wrap gap-1.5">
-            {NEGOTIATION_OPENERS.map((opener) => (
+            {TRYON_CHAT_OPENERS.map((opener) => (
               <button
                 key={opener.text}
                 onClick={() => onSelectOpener(opener.text)}

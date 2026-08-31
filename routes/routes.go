@@ -379,6 +379,12 @@ func NewRouter() *mux.Router {
 	couponsRouter.Use(middlewares.AuthMiddleware)
 	couponsRouter.HandleFunc("/apply", handlers.ApplyNegotiatedCoupon).Methods(http.MethodPost)
 
+	// Checkout-page discount negotiation chat — cart-scoped, independent of
+	// the try-on room.
+	couponsRouter.HandleFunc("/negotiate-stream", handlers.NegotiateCheckoutCouponStream).Methods(http.MethodPost)
+	couponsRouter.HandleFunc("/sessions/messages", handlers.AppendCheckoutChatMessages).Methods(http.MethodPost)
+	couponsRouter.HandleFunc("/sessions/{chatId}", handlers.GetCheckoutChatSession).Methods(http.MethodGet)
+
 	// Admin Dashboard Statistics
 	adminRouter.HandleFunc("/dashboard-stats", handlers.DashboardStatsHandler).Methods("GET")
 

@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Camera } from "lucide-react";
 import { toast } from "react-toastify";
 
-import ChatComposer, { NEGOTIATION_OPENERS } from "@/components/tryon/ChatComposer";
+import ChatComposer, { TRYON_CHAT_OPENERS } from "@/components/tryon/ChatComposer";
 import ChatHeader from "@/components/tryon/ChatHeader";
 import ChatTranscript from "@/components/tryon/ChatTranscript";
 import CompareModal, { ComparePair } from "@/components/tryon/CompareModal";
@@ -154,7 +154,7 @@ export default function TryOnRoomPage() {
     if (!resultImage || chatMessages.length === 0) return;
 
     negotiationRestoredRef.current = true;
-    const openerTexts = new Set(NEGOTIATION_OPENERS.map((o) => o.text));
+    const openerTexts = new Set(TRYON_CHAT_OPENERS.map((o) => o.text));
     const userUsedOpener = chatMessages.some((m) => m.role === "user" && openerTexts.has(m.content));
     if (!userUsedOpener) {
       setShowNegotiationPrompt(true);
@@ -603,7 +603,7 @@ export default function TryOnRoomPage() {
           </h1>
         </div>
         <p className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50 mr-10">
-          هوش مصنوعی، لباس‌ها را روی عکس شما پرو می‌کند و ووکسا به شما تخفیف می‌دهد
+          هوش مصنوعی، لباس‌ها را روی عکس شما پرو می‌کند و ووکسا در انتخاب کمکتان می‌کند
         </p>
       </motion.div>
 

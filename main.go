@@ -73,6 +73,9 @@ func main() {
 	// Initialize virtual try-on + tryon chat services
 	handlers.InitVirtualTryonService(database)
 	log.Println("Virtual tryon service initialized")
+	// Initialize checkout-page discount negotiation chat service
+	handlers.InitCheckoutChatService(database)
+	log.Println("Checkout negotiation chat service initialized")
 	// Initialize Zibal payment service
 	handlers.InitZibalService()
 	log.Println("Zibal payment service initialized")

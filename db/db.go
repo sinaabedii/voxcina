@@ -93,6 +93,12 @@ func Connect(cfg *config.Config) *mongo.Database {
 		// Non-critical, continue anyway
 	}
 
+	// Checkout discount-negotiation chat indexes
+	if err := CreateCheckoutChatIndexes(); err != nil {
+		log.Printf("Warning: Could not ensure checkout chat indexes: %v", err)
+		// Non-critical, continue anyway
+	}
+
 	// Homepage promotional slider indexes
 	if err := CreateSliderIndexes(); err != nil {
 		log.Printf("Warning: Could not ensure slider indexes: %v", err)
