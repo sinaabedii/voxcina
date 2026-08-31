@@ -93,8 +93,8 @@
     "U": "Brand U",
     "V": "Brand V",
     "W": "Brand W",
-    "X": "Brand X",
-    "Y": "Brand Y",
+    "X": "Levi's",
+    "Y": "Wrangler",
     "Z": "متفرقه"
   },
   "categories": [
@@ -103,7 +103,7 @@
       "gender_prefix": "M",
       "items": [
         {
-          "name": "تیشرت ساده (basic)",
+          "name": "تیشرت ساده",
           "category_code": "10",
           "size_type": "clothing"
         },
@@ -138,7 +138,7 @@
           "size_type": "clothing"
         },
         {
-          "name": "تیشرت ساده (basic T-shirt)",
+          "name": "تیشرت بیسیک (basic T-shirt)",
           "category_code": "17",
           "size_type": "clothing"
         }
@@ -231,7 +231,7 @@
           "size_type": "pants_waist"
         },
         {
-          "name": "شلوار جین گشاد (Relaxed/Loose)",
+          "name": "شلوار جین نیم‌بگ (Relaxed/Loose)",
           "category_code": "43",
           "size_type": "pants_waist"
         },
