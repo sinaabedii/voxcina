@@ -206,7 +206,7 @@ export default function OrdersPage() {
           disabled={pagination.currentPage === 1}
           className="rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronRight className="w-4 h-4" />
         </Button>
         {startPage > 1 && (
           <>
@@ -264,7 +264,7 @@ export default function OrdersPage() {
           disabled={pagination.currentPage === pagination.totalPages}
           className="rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronLeft className="w-4 h-4" />
         </Button>
       </div>
     );

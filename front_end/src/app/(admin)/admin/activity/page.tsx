@@ -367,7 +367,7 @@ export default function AdminActivityPage() {
                   onClick={() => paginate(page - 1)}
                   disabled={page === 1}
                 >
-                  <ChevronLeft className="h-5 w-5" />
+                  <ChevronRight className="h-5 w-5" />
                 </Button>
 
                 {getPaginationItems(page, totalPages).map((item, index) => item === "ellipsis-left" || item === "ellipsis-right" ? (
@@ -406,7 +406,7 @@ export default function AdminActivityPage() {
                   onClick={() => paginate(page + 1)}
                   disabled={page === totalPages}
                 >
-                  <ChevronRight className="h-5 w-5" />
+                  <ChevronLeft className="h-5 w-5" />
                 </Button>
 
                 <Button

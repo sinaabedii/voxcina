@@ -605,7 +605,7 @@ function PaginationControls({
             whileTap={currentPage > 1 ? { scale: 0.95 } : {}}
             aria-label="صفحه قبل"
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronRight className="h-5 w-5" />
           </motion.button>
 
           {/* Page Info */}
@@ -639,7 +639,7 @@ function PaginationControls({
             whileTap={currentPage < totalPages ? { scale: 0.95 } : {}}
             aria-label="صفحه بعد"
           >
-            <ChevronRight className="h-5 w-5" />
+            <ChevronLeft className="h-5 w-5" />
           </motion.button>
         </motion.div>
       </div>

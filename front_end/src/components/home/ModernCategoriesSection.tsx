@@ -139,20 +139,20 @@ const ModernCategoriesSection = ({ initialCategories }: ModernCategoriesSectionP
               size="sm"
               onClick={() => scrollByDirection("start")}
               className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 bg-white/95 shadow-lg ring-1 ring-black/5 rounded-full p-2.5 opacity-0 group-hover/scroller:opacity-100 transition-all duration-300 hover:bg-white hover:scale-110"
-              aria-label="دسته‌بندی‌های قبلی"
+              aria-label="دسته‌بندی‌های بعدی"
             >
-              <ChevronRight className="w-5 h-5 text-voxcina-blue" />
+              <ChevronLeft className="w-5 h-5 text-voxcina-blue" />
             </Button>
 
-<Button
+            <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={() => scrollByDirection("end")}
               className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 bg-white/95 shadow-lg ring-1 ring-black/5 rounded-full p-2.5 opacity-0 group-hover/scroller:opacity-100 transition-all duration-300 hover:bg-white hover:scale-110"
-              aria-label="دستهبندیهای بعدی"
+              aria-label="دسته‌بندی‌های قبلی"
             >
-              <ChevronLeft className="w-5 h-5 text-voxcina-blue" />
+              <ChevronRight className="w-5 h-5 text-voxcina-blue" />
             </Button>
 
             <div

@@ -525,7 +525,7 @@ export default function ProductCarouselSectionClient({
             className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 dark:bg-voxcina-blue/90 shadow-lg rounded-full p-2 sm:p-3 opacity-0 group-hover/slider:opacity-100 transition-opacity duration-300 hover:bg-white dark:hover:bg-voxcina-blue -translate-x-1/2"
             aria-label="بعدی"
           >
-            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-voxcina-blue dark:text-white" />
+            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-voxcina-blue dark:text-white" />
           </Button>
 
           <Button
@@ -536,7 +536,7 @@ export default function ProductCarouselSectionClient({
             className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 dark:bg-voxcina-blue/90 shadow-lg rounded-full p-2 sm:p-3 opacity-0 group-hover/slider:opacity-100 transition-opacity duration-300 hover:bg-white dark:hover:bg-voxcina-blue translate-x-1/2"
             aria-label="قبلی"
           >
-            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-voxcina-blue dark:text-white" />
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-voxcina-blue dark:text-white" />
           </Button>
 
           <div

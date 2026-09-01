@@ -14,7 +14,7 @@ import {
   Users,
   ShoppingCart,
   Clock,
-  ChevronRight,
+  ChevronLeft,
   AlertCircle,
   Tags,
   DollarSign,
@@ -302,7 +302,7 @@ export default function AdminDashboardPage() {
                   </p>
                   <Link href="/admin/users" aria-label="مدیریت کاربران">
                     <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
-                      <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+                      <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
                       <span className="sr-only">مدیریت کاربران</span>
                     </div>
                   </Link>
@@ -331,7 +331,7 @@ export default function AdminDashboardPage() {
                   </p>
                   <Link href="/admin/orders" aria-label="مدیریت سفارش‌ها">
                     <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
-                      <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+                      <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
                       <span className="sr-only">مدیریت سفارش‌ها</span>
                     </div>
                   </Link>
@@ -362,7 +362,7 @@ export default function AdminDashboardPage() {
                   </p>
                   <Link href="/admin/orders" aria-label="مدیریت سفارش‌ها">
                     <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
-                      <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+                      <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
                       <span className="sr-only">مدیریت سفارش‌ها</span>
                     </div>
                   </Link>
@@ -393,7 +393,7 @@ export default function AdminDashboardPage() {
                   </p>
                   <Link href="/admin/orders" aria-label="مدیریت سفارش‌ها">
                     <div className="h-8 w-8 flex items-center justify-center rounded-full bg-red-50 dark:bg-red-900/20">
-                      <ChevronRight className="h-5 w-5 text-red-500 dark:text-red-400" />
+                      <ChevronLeft className="h-5 w-5 text-red-500 dark:text-red-400" />
                       <span className="sr-only">مدیریت سفارش‌ها</span>
                     </div>
                   </Link>
@@ -422,7 +422,7 @@ export default function AdminDashboardPage() {
                   </p>
                   <Link href="/admin/categories" aria-label="مدیریت دسته‌بندی‌ها">
                     <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
-                      <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+                      <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
                       <span className="sr-only">مدیریت دسته‌بندی‌ها</span>
                     </div>
                   </Link>
@@ -451,7 +451,7 @@ export default function AdminDashboardPage() {
                   </p>
                   <Link href="/admin/reviews" aria-label="مدیریت نظرات">
                     <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
-                      <ChevronRight className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
+                      <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
                       <span className="sr-only">مدیریت نظرات</span>
                     </div>
                   </Link>
@@ -725,7 +725,7 @@ export default function AdminDashboardPage() {
                               console.log('Navigate to order:', order.id);
                             }}
                           >
-                            <ChevronRight className="h-5 w-5" />
+                            <ChevronLeft className="h-5 w-5" />
                           </motion.button>
                         </td>
                       </motion.tr>

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Shield, CheckCircle } from "lucide-react";
+import { ArrowRight, Shield, CheckCircle } from "lucide-react";
 import Button from "@/components/ui/Button";
 import AuthWrapper from "@/components/auth/AuthWrapper";
 import PhoneInput, { persianToEnglishDigits, validatePhone } from "@/components/auth/PhoneInput";
@@ -307,7 +307,7 @@ export default function ForgotPasswordPage() {
               onClick={handleGoBack}
               className="flex items-center gap-2 text-sm text-gray-500 hover:text-voxcina-blue transition-colors"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4" />
               <span>تغییر شماره</span>
             </button>
             <span className="text-sm font-medium text-gray-900 direction-ltr">

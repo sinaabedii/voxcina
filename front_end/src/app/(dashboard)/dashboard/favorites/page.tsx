@@ -5,7 +5,7 @@ import { useProductStore } from '@/store/product-store';
 import { useDashboardStore } from '@/store/dashboard-store';
 import { useCartStore } from '@/store/cart-store';
 import { Card, CardContent } from '@/components/ui/Card';
-import { Heart, ShoppingCart, Trash2, Search, Clock, Filter, ArrowRight, Check } from 'lucide-react';
+import { Heart, ShoppingCart, Trash2, Search, Clock, Filter, ArrowLeft, Check } from 'lucide-react';
 import { ColorVariantListItem, Product } from '@/types/product';
 import { motion } from 'framer-motion';
 import Button from '@/components/ui/Button';
@@ -345,7 +345,7 @@ export default function FavoritesPage() {
 	                          className="p-2 text-voxcina-blue hover:text-voxcina-darkBlue hover:bg-voxcina-blue/5 dark:text-secondary-200 dark:hover:bg-voxcina-blue/20 rounded-full"
                           onClick={() => router.push(`/products/${product.productId}?${product.colorVariant.variantId ? "variant" : "color"}=${encodeURIComponent(getVariantUrlValue(product.colorVariant) || "")}`)}
 	                        >
-                          <ArrowRight className="w-4 h-4" />
+                          <ArrowLeft className="w-4 h-4" />
                         </Button>
                       </div>
                       

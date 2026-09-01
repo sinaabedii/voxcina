@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/input";
@@ -351,7 +351,7 @@ export default function SignUpPage() {
               onClick={handleGoBack}
               className="flex items-center gap-2 text-sm text-gray-500 hover:text-voxcina-blue transition-colors"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4" />
               <span>تغییر اطلاعات</span>
             </button>
             <span className="text-sm font-medium text-gray-900 direction-ltr">

@@ -7,6 +7,7 @@ import {
   Truck,
   Search,
   ArrowRight,
+  ArrowLeft,
   CheckCircle,
   Clock,
   X,
@@ -820,7 +821,7 @@ export default function OrderTrackingPage() {
                     className="text-voxcina-blue dark:text-secondary-300 font-medium hover:text-voxcina-blue/80 dark:hover:text-secondary-200 transition-colors inline-flex items-center"
                   >
                     سایت پیگیری مرسولات پستی
-                    <ArrowRight className="w-4 h-4 mr-1" />
+                    <ArrowLeft className="w-4 h-4 mr-1" />
                   </Link>
                 </div>
               </motion.div>
@@ -854,7 +855,7 @@ export default function OrderTrackingPage() {
                     className="text-voxcina-blue dark:text-secondary-300 font-medium hover:text-voxcina-blue/80 dark:hover:text-secondary-200 transition-colors inline-flex items-center"
                   >
                     اطلاعات بیشتر درباره ارسال
-                    <ArrowRight className="w-4 h-4 mr-1" />
+                    <ArrowLeft className="w-4 h-4 mr-1" />
                   </Link>
                 </div>
               </motion.div>
@@ -888,7 +889,7 @@ export default function OrderTrackingPage() {
                     className="text-voxcina-blue dark:text-secondary-300 font-medium hover:text-voxcina-blue/80 dark:hover:text-secondary-200 transition-colors inline-flex items-center"
                   >
                     شرایط مرجوعی کالا
-                    <ArrowRight className="w-4 h-4 mr-1" />
+                    <ArrowLeft className="w-4 h-4 mr-1" />
                   </Link>
                 </div>
               </motion.div>
