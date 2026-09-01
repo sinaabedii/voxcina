@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"regexp"
+	"sort"
 	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -51,12 +53,11 @@ type ProductWithColors struct {
 
 // ProductMatchAgent resolves a blog writer's short product description into
 // a real, in-stock catalog product + color. It exposes a metadata search tool
-// directly over the `products` collection (no dependency on the customer
-// assistant's vector-search path, which isn't actually wired up in this
-// deployment) and drives a small tool-use loop on top of it: the LLM can
-// inspect a candidate product's available colors and pick one, or ask to
-// search again with a refined query to look at a different product, repeating
-// until it commits to a choice or gives up.
+// over the `products` collection via a hybrid vector → text → ranked-regex
+// path (mirroring the negotiator's variant KNN strategy): the LLM can inspect
+// a candidate product's available colors and pick one, or ask to search again
+// with a refined query to look at a different product, repeating until it
+// commits to a choice or gives up.
 type ProductMatchAgent struct {
 	db         *mongo.Database
 	openRouter *OpenRouterStructuredClient
@@ -70,52 +71,115 @@ func NewProductMatchAgent(db *mongo.Database) *ProductMatchAgent {
 	}
 }
 
-// searchProductsByMetadata is the agent's product-search tool: it matches the
-// query against Persian + English catalog metadata and returns each matching
-// product together with every color it currently has in stock (out-of-stock
-// products/colors are never surfaced).
+// searchProductsByMetadata is the agent's product-search tool: it returns the
+// most related in-stock products for a free-form Persian description. The
+// previous implementation used an unranked regex Find with natural/_id order
+// and truncated to the first N hits, so the "most related" product could be
+// at position 21+ and never surface. This hybrid implementation degrades
+// gracefully: 1) FAISS vector KNN via per-variant embeddings (best-effort,
+// ordered by semantic distance), 2) Mongo $text search on the weighted
+// ai_persian_text_search index, 3) regex candidates scored and sorted in Go
+// by term coverage + popularity (deterministic relevance).
 func (a *ProductMatchAgent) searchProductsByMetadata(ctx context.Context, query string, limit int) ([]ProductWithColors, error) {
-	terms := strings.Fields(strings.ToLower(strings.TrimSpace(query)))
-	if len(terms) == 0 {
+	query = strings.TrimSpace(query)
+	if query == "" {
 		return nil, nil
 	}
 	if limit <= 0 {
 		limit = 5
 	}
 
-	var orConditions []bson.M
-	for _, term := range terms {
-		orConditions = append(orConditions,
-			bson.M{"search_metadata.name_persian": bson.M{"$regex": term, "$options": "i"}},
-			bson.M{"search_metadata.description_persian": bson.M{"$regex": term, "$options": "i"}},
-			bson.M{"search_metadata.keywords": bson.M{"$regex": term, "$options": "i"}},
-			bson.M{"search_metadata.tags": bson.M{"$regex": term, "$options": "i"}},
-			bson.M{"search_metadata.material_persian": bson.M{"$regex": term, "$options": "i"}},
-			bson.M{"search_metadata.material_tags": bson.M{"$regex": term, "$options": "i"}},
-			bson.M{"search_metadata.style_persian": bson.M{"$regex": term, "$options": "i"}},
-			bson.M{"search_metadata.occasion_tags": bson.M{"$regex": term, "$options": "i"}},
-			bson.M{"search_metadata.colors_persian.name_persian": bson.M{"$regex": term, "$options": "i"}},
-			bson.M{"search_metadata.colors_persian.synonyms": bson.M{"$regex": term, "$options": "i"}},
-			bson.M{"name": bson.M{"$regex": term, "$options": "i"}},
-			bson.M{"description": bson.M{"$regex": term, "$options": "i"}},
-			bson.M{"brand": bson.M{"$regex": term, "$options": "i"}},
-		)
+	// 1) Vector (semantic) — best-effort, already ordered by distance.
+	if vecRes, err := a.vectorSearchProducts(ctx, query, limit); err == nil && len(vecRes) > 0 {
+		return vecRes, nil
+	} else if err != nil {
+		log.Printf("[blog] vector search fallback: %v", err)
 	}
 
+	// 2) Text index (weighted ai_persian_text_search).
+	if textRes, err := a.textSearchProducts(ctx, query, limit); err == nil && len(textRes) > 0 {
+		return textRes, nil
+	}
+
+	// 3) Ranked regex fallback — deterministic term-coverage sort.
+	return a.rankedRegexSearchProducts(ctx, query, limit)
+}
+
+// vectorSearchProducts runs a FAISS variant-KNN query and resolves the ids
+// back to in-stock ProductWithColors, preserving vector order.
+func (a *ProductMatchAgent) vectorSearchProducts(ctx context.Context, query string, limit int) ([]ProductWithColors, error) {
+	vec, _, err := GenerateEmbedding(ctx, query)
+	if err != nil || len(vec) == 0 {
+		return nil, err
+	}
+	fc := NewFaissClientFromEnv()
+	if fc == nil {
+		return nil, errors.New("faiss not configured")
+	}
+	k := limit*4 + 4
+	if k < 12 {
+		k = 12
+	}
+	ids, err := fc.SearchSimilarVariants(ctx, vec, k)
+	if err != nil || len(ids) == 0 {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	results := make([]ProductWithColors, 0, limit)
+	for _, fid := range ids {
+		if len(results) >= limit {
+			break
+		}
+		pid, _ := ParseVariantFAISSKey(fid)
+		if pid == "" {
+			pid = fid
+		}
+		if seen[pid] {
+			continue
+		}
+		objID, err := primitive.ObjectIDFromHex(pid)
+		if err != nil {
+			continue
+		}
+		var product models.Product
+		if err := a.db.Collection("products").FindOne(ctx, bson.M{"_id": objID, "is_active": true}).Decode(&product); err != nil {
+			continue
+		}
+		colors := inStockColors(product)
+		if len(colors) == 0 {
+			continue
+		}
+		seen[pid] = true
+		results = append(results, ProductWithColors{
+			ProductID: product.ID.Hex(),
+			Name:      product.Name,
+			Brand:     product.Brand,
+			Price:     product.Price,
+			Colors:    colors,
+		})
+	}
+	if len(results) == 0 {
+		return nil, errors.New("no vector hits resolved")
+	}
+	return results, nil
+}
+
+// textSearchProducts uses the weighted ai_persian_text_search text index
+// (name_persian:10, keywords:8, tags:5, description_persian:3).
+func (a *ProductMatchAgent) textSearchProducts(ctx context.Context, query string, limit int) ([]ProductWithColors, error) {
 	filter := bson.M{
-		"$and": []bson.M{
-			{"$or": orConditions},
-			{"is_active": true},
-		},
+		"$text":     bson.M{"$search": query},
+		"is_active": true,
 	}
-
-	// Fetch more than `limit` since some matches may have zero in-stock colors.
-	cursor, err := a.db.Collection("products").Find(ctx, filter, options.Find().SetLimit(int64(limit*4)))
+	opts := options.Find().
+		SetProjection(bson.M{"score": bson.M{"$meta": "textScore"}}).
+		SetSort(bson.M{"score": bson.M{"$meta": "textScore"}}).
+		SetLimit(int64(limit * 4))
+	cursor, err := a.db.Collection("products").Find(ctx, filter, opts)
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
-
 	results := make([]ProductWithColors, 0, limit)
 	for cursor.Next(ctx) && len(results) < limit {
 		var product models.Product
@@ -135,6 +199,160 @@ func (a *ProductMatchAgent) searchProductsByMetadata(ctx context.Context, query 
 		})
 	}
 	return results, nil
+}
+
+// rankedRegexSearchProducts is the deterministic fallback: regex candidates
+// are scored in Go by how many distinct query terms they actually contain
+// (across Persian/English metadata, name/description/brand and variant AI
+// fields), then sorted by score desc + popularity desc.
+func (a *ProductMatchAgent) rankedRegexSearchProducts(ctx context.Context, query string, limit int) ([]ProductWithColors, error) {
+	rawTerms := strings.Fields(strings.ToLower(strings.TrimSpace(query)))
+	if len(rawTerms) == 0 {
+		return nil, nil
+	}
+	// Deduplicate terms to avoid double-counting.
+	seenTerm := map[string]bool{}
+	var terms []string
+	for _, t := range rawTerms {
+		if !seenTerm[t] {
+			seenTerm[t] = true
+			terms = append(terms, t)
+		}
+	}
+	var orConditions []bson.M
+	for _, term := range terms {
+		esc := regexp.QuoteMeta(term)
+		orConditions = append(orConditions,
+			bson.M{"search_metadata.name_persian": bson.M{"$regex": esc, "$options": "i"}},
+			bson.M{"search_metadata.description_persian": bson.M{"$regex": esc, "$options": "i"}},
+			bson.M{"search_metadata.keywords": bson.M{"$regex": esc, "$options": "i"}},
+			bson.M{"search_metadata.tags": bson.M{"$regex": esc, "$options": "i"}},
+			bson.M{"search_metadata.material_persian": bson.M{"$regex": esc, "$options": "i"}},
+			bson.M{"search_metadata.material_tags": bson.M{"$regex": esc, "$options": "i"}},
+			bson.M{"search_metadata.style_persian": bson.M{"$regex": esc, "$options": "i"}},
+			bson.M{"search_metadata.occasion_tags": bson.M{"$regex": esc, "$options": "i"}},
+			bson.M{"search_metadata.colors_persian.name_persian": bson.M{"$regex": esc, "$options": "i"}},
+			bson.M{"search_metadata.colors_persian.synonyms": bson.M{"$regex": esc, "$options": "i"}},
+			bson.M{"name": bson.M{"$regex": esc, "$options": "i"}},
+			bson.M{"description": bson.M{"$regex": esc, "$options": "i"}},
+			bson.M{"brand": bson.M{"$regex": esc, "$options": "i"}},
+			// Variant AI metadata — so "پنبه" / "کژوال" stored per color is findable.
+			bson.M{"color_variants.ai_metadata.material_persian": bson.M{"$regex": esc, "$options": "i"}},
+			bson.M{"color_variants.ai_metadata.style_persian": bson.M{"$regex": esc, "$options": "i"}},
+			bson.M{"color_variants.ai_metadata.product_type_persian": bson.M{"$regex": esc, "$options": "i"}},
+			bson.M{"color_variants.ai_metadata.keywords": bson.M{"$regex": esc, "$options": "i"}},
+			bson.M{"color_variants.color_name": bson.M{"$regex": esc, "$options": "i"}},
+		)
+	}
+	filter := bson.M{
+		"$and": []bson.M{
+			{"$or": orConditions},
+			{"is_active": true},
+		},
+	}
+	// Pull a larger pool for scoring; sorting happens in Go so the order is
+	// deterministic regardless of Mongo natural order.
+	poolSize := limit * 8
+	if poolSize < 20 {
+		poolSize = 20
+	}
+	cursor, err := a.db.Collection("products").Find(ctx, filter, options.Find().SetLimit(int64(poolSize)))
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+	type scored struct {
+		pwc        ProductWithColors
+		score      int
+		popularity float64
+	}
+	var pool []scored
+	for cursor.Next(ctx) {
+		var product models.Product
+		if err := cursor.Decode(&product); err != nil {
+			continue
+		}
+		colors := inStockColors(product)
+		if len(colors) == 0 {
+			continue
+		}
+		score := productRelevanceScore(product, terms)
+		pop := 0.0
+		if product.SearchMetadata != nil {
+			pop = product.SearchMetadata.PopularityScore
+		}
+		pool = append(pool, scored{
+			pwc: ProductWithColors{
+				ProductID: product.ID.Hex(),
+				Name:      product.Name,
+				Brand:     product.Brand,
+				Price:     product.Price,
+				Colors:    colors,
+			},
+			score:      score,
+			popularity: pop,
+		})
+	}
+	if len(pool) == 0 {
+		return nil, nil
+	}
+	sort.Slice(pool, func(i, j int) bool {
+		if pool[i].score != pool[j].score {
+			return pool[i].score > pool[j].score
+		}
+		return pool[i].popularity > pool[j].popularity
+	})
+	results := make([]ProductWithColors, 0, limit)
+	for i := 0; i < len(pool) && len(results) < limit; i++ {
+		results = append(results, pool[i].pwc)
+	}
+	return results, nil
+}
+
+// productRelevanceScore counts how many distinct query terms appear as
+// substrings in the concatenated searchable text of a product (product-level
+// + all variant AI fields). Case-insensitive, Persian-friendly.
+func productRelevanceScore(product models.Product, terms []string) int {
+	var b strings.Builder
+	if product.SearchMetadata != nil {
+		m := product.SearchMetadata
+		b.WriteString(strings.ToLower(m.NamePersian + " "))
+		b.WriteString(strings.ToLower(m.DescriptionPersian + " "))
+		b.WriteString(strings.ToLower(strings.Join(m.Keywords, " ") + " "))
+		b.WriteString(strings.ToLower(strings.Join(m.Tags, " ") + " "))
+		b.WriteString(strings.ToLower(m.MaterialPersian + " "))
+		b.WriteString(strings.ToLower(strings.Join(m.MaterialTags, " ") + " "))
+		b.WriteString(strings.ToLower(m.StylePersian + " "))
+		b.WriteString(strings.ToLower(strings.Join(m.OccasionTags, " ") + " "))
+		for _, cm := range m.ColorsPersian {
+			b.WriteString(strings.ToLower(cm.NamePersian + " "))
+			b.WriteString(strings.ToLower(strings.Join(cm.Synonyms, " ") + " "))
+		}
+	}
+	b.WriteString(strings.ToLower(product.Name + " "))
+	b.WriteString(strings.ToLower(product.Description + " "))
+	b.WriteString(strings.ToLower(product.Brand + " "))
+	for _, cv := range product.ColorVariants {
+		b.WriteString(strings.ToLower(cv.ColorName + " "))
+		if cv.AIMetadata != nil {
+			am := cv.AIMetadata
+			b.WriteString(strings.ToLower(am.ProductTypePersian + " "))
+			b.WriteString(strings.ToLower(am.MaterialPersian + " "))
+			b.WriteString(strings.ToLower(am.StylePersian + " "))
+			b.WriteString(strings.ToLower(am.PatternPersian + " "))
+			b.WriteString(strings.ToLower(am.ColorFamily + " "))
+			b.WriteString(strings.ToLower(strings.Join(am.Keywords, " ") + " "))
+			b.WriteString(strings.ToLower(strings.Join(am.Tags, " ") + " "))
+		}
+	}
+	haystack := b.String()
+	score := 0
+	for _, term := range terms {
+		if term != "" && strings.Contains(haystack, term) {
+			score++
+		}
+	}
+	return score
 }
 
 // inStockColors lists every color variant on a product that has at least one
