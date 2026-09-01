@@ -9,6 +9,19 @@ const nextConfig = {
     inlineCss: true, // Inline critical CSS (fixes render-blocking CSS on first visit)
   },
 
+  // Drop Next's hard-coded legacy polyfill module (vercel/next.js#86785): every
+  // API it shims is Baseline-supported by the ESM-capable browsers that load
+  // this chunk, but Next injects it unconditionally regardless of browserslist.
+  // src/lib/empty-polyfill-module.js replaces it. If an upgrade moves the
+  // internal path, this alias silently stops matching — after any Next bump,
+  // grep built chunks for "trimStart" (or watch the Lighthouse audit reappear).
+  turbopack: {
+    resolveAlias: {
+      '../build/polyfills/polyfill-module': './src/lib/empty-polyfill-module.js',
+      'next/dist/build/polyfills/polyfill-module': './src/lib/empty-polyfill-module.js',
+    },
+  },
+
   // Enable compression
   compress: true,
   
