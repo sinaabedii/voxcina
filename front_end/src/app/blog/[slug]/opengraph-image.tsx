@@ -13,7 +13,7 @@ export const size = {
 export const contentType = 'image/png';
 
 interface Props {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 const FONTS_DIR = join(process.cwd(), 'public', 'fonts');
@@ -37,7 +37,7 @@ function loadFont(name: string, weight: FontWeight) {
  * SEO: Blog OG images improve social engagement
  */
 export default async function Image({ params }: Props) {
-  const { slug } = params;
+  const { slug } = await params;
 
   const fontRegular = loadFont('iransansx-regular.woff', 400);
   const fontBold = loadFont('iransansx-bold.woff', 700);

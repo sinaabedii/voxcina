@@ -8,10 +8,11 @@ const GO_BACKEND_URL = process.env.GO_BACKEND_URL || "http://localhost:8080";
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
   // Create the path from the segments
-  const path = params.path?.join("/") || "";
+  const { path: pathSegments } = await params;
+  const path = pathSegments?.join("/") || "";
   const backendUrl = `${GO_BACKEND_URL}/uploads/${path}`;
   
   console.log(`Proxying image request to: ${backendUrl}`);

@@ -63,10 +63,13 @@ export function DropdownMenuTrigger({ children, asChild }: DropdownMenuTriggerPr
   };
 
   if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children, {
-      onClick: handleClick,
-      ...children.props,
-    });
+    return React.cloneElement(
+      children as React.ReactElement<Record<string, unknown>>,
+      {
+        onClick: handleClick,
+        ...(children.props as Record<string, unknown>),
+      }
+    );
   }
 
   return (

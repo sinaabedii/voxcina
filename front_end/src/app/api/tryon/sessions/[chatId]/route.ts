@@ -4,12 +4,13 @@ const GO_BACKEND_URL = process.env.GO_BACKEND_URL || "http://server:8080";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { chatId: string } }
+  { params }: { params: Promise<{ chatId: string }> }
 ) {
+  const { chatId } = await params;
   const authHeader = req.headers.get("authorization") || "";
   try {
     const resp = await fetch(
-      `${GO_BACKEND_URL}/api/tryon/sessions/${encodeURIComponent(params.chatId)}`,
+      `${GO_BACKEND_URL}/api/tryon/sessions/${encodeURIComponent(chatId)}`,
       {
         method: "GET",
         headers: { Authorization: authHeader },
@@ -25,12 +26,13 @@ export async function GET(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { chatId: string } }
+  { params }: { params: Promise<{ chatId: string }> }
 ) {
+  const { chatId } = await params;
   const authHeader = req.headers.get("authorization") || "";
   try {
     const resp = await fetch(
-      `${GO_BACKEND_URL}/api/tryon/sessions/${encodeURIComponent(params.chatId)}`,
+      `${GO_BACKEND_URL}/api/tryon/sessions/${encodeURIComponent(chatId)}`,
       {
         method: "DELETE",
         headers: { Authorization: authHeader },

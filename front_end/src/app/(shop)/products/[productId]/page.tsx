@@ -14,9 +14,9 @@ import { ColorVariantListItem } from "@/types/product";
 export { generateMetadata } from "./metadata";
 
 interface ProductDetailPageProps {
-  params: {
+  params: Promise<{
     productId: string;
-  };
+  }>;
 }
 
 /**
@@ -94,7 +94,7 @@ async function getProductData(productId: string) {
  * - 1.5: Return 404 for non-existent products
  */
 export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
-  const { productId } = params;
+  const { productId } = await params;
   
   // Fetch all product data on the server
   const data = await getProductData(productId);

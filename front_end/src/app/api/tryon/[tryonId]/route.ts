@@ -4,12 +4,13 @@ const GO_BACKEND_URL = process.env.GO_BACKEND_URL || "http://server:8080";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { tryonId: string } }
+  { params }: { params: Promise<{ tryonId: string }> }
 ) {
+  const { tryonId } = await params;
   const authHeader = req.headers.get("authorization") || "";
   try {
     const resp = await fetch(
-      `${GO_BACKEND_URL}/api/tryon/${encodeURIComponent(params.tryonId)}`,
+      `${GO_BACKEND_URL}/api/tryon/${encodeURIComponent(tryonId)}`,
       {
         method: "GET",
         headers: { Authorization: authHeader },

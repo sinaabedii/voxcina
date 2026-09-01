@@ -26,7 +26,7 @@ interface UseScrollRevealOptions {
  * Respects prefers-reduced-motion: items are simply set to their final state.
  */
 export function useScrollReveal(
-  containerRef: RefObject<HTMLElement>,
+  containerRef: RefObject<HTMLElement | null>,
   { selector, y = 24, stagger = 0.08, start = "top 85%", deps = [] }: UseScrollRevealOptions
 ) {
   const batchRef = useRef<ScrollTrigger[]>([]);

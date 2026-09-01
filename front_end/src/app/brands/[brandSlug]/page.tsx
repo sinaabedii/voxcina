@@ -10,7 +10,7 @@ import ItemListSchema, { ItemListItem } from "@/components/SEO/ItemListSchema";
 import BrandPageClient from "@/app/brands/[brandSlug]/BrandPageClient";
 
 interface BrandPageProps {
-  params: { brandSlug: string };
+  params: Promise<{ brandSlug: string }>;
 }
 
 /**
@@ -71,7 +71,8 @@ async function getBrandData(brandSlug: string) {
  * Generate dynamic metadata for brand pages
  */
 export async function generateMetadata({ params }: BrandPageProps): Promise<Metadata> {
-  const data = await getBrandData(params.brandSlug);
+  const { brandSlug } = await params;
+  const data = await getBrandData(brandSlug);
 
   if (!data) {
     return {
@@ -109,10 +110,10 @@ export async function generateMetadata({ params }: BrandPageProps): Promise<Meta
       type: 'website',
     },
     alternates: {
-      canonical: `https://voxcina.com/brands/${params.brandSlug}`,
+      canonical: `https://voxcina.com/brands/${brandSlug}`,
       languages: {
-        'fa-IR': `https://voxcina.com/brands/${params.brandSlug}`,
-        'x-default': `https://voxcina.com/brands/${params.brandSlug}`,
+        'fa-IR': `https://voxcina.com/brands/${brandSlug}`,
+        'x-default': `https://voxcina.com/brands/${brandSlug}`,
       },
     },
   };
@@ -127,7 +128,7 @@ export async function generateMetadata({ params }: BrandPageProps): Promise<Meta
  * SEO: Brand pages are important for product discovery
  */
 export default async function BrandPage({ params }: BrandPageProps) {
-  const { brandSlug } = params;
+  const { brandSlug } = await params;
   
   // Fetch brand data on the server
   const data = await getBrandData(brandSlug);

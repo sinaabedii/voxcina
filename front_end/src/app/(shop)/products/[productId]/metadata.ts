@@ -9,26 +9,27 @@ import { Product } from '@/types/product';
  * 
  * Requirements: 1.1, 1.3, 6.1, 6.3
  */
-export async function generateMetadata({ params }: { params: { productId: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ productId: string }> }): Promise<Metadata> {
+  const { productId } = await params;
   try {
     // Fetch product using server-side utility with ISR caching
-    const product = await serverFetch<Product>(`/api/products/${params.productId}`, {
+    const product = await serverFetch<Product>(`/api/products/${productId}`, {
       revalidate: CACHE_TIMES.PRODUCT_DETAIL,
-      tags: ['product', `product-${params.productId}`]
+      tags: ['product', `product-${productId}`]
     });
-    
+
     if (!product) {
       return {
         title: 'محصول یافت نشد',
         description: 'متأسفانه محصول مورد نظر یافت نشد.',
       };
     }
-    
+
     // Format price for display
     const formattedPrice = new Intl.NumberFormat('fa-IR').format(product.price);
-    
+
     // Canonical path for this product
-    const canonicalPath = `/products/${params.productId}`;
+    const canonicalPath = `/products/${productId}`;
 
     // Shared by openGraph and twitter so the two cards can't drift apart.
     const socialDescription = product.description?.substring(0, 160) || `خرید ${product.name} با قیمت ${formattedPrice} تومان`;

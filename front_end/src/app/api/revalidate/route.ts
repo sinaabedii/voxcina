@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "tags is required" }, { status: 400 });
   }
 
-  tags.forEach((tag: string) => revalidateTag(tag));
+  tags.forEach((tag: string) => revalidateTag(tag, 'max'));
 
   return NextResponse.json({ revalidated: true, tags });
 }

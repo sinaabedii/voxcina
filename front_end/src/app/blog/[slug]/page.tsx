@@ -9,7 +9,7 @@ import type { BlogCategory, BlogPost } from '@/types/blog';
 import { serverFetch } from '@/lib/server-api';
 
 interface BlogPostPageProps {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 /**
@@ -19,9 +19,10 @@ interface BlogPostPageProps {
  * Includes JSON-LD structured data for Article schema.
  */
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
-  const post = await serverFetch<BlogPost>(`/api/blog-posts/${params.slug}`, {
+  const { slug } = await params;
+  const post = await serverFetch<BlogPost>(`/api/blog-posts/${slug}`, {
     revalidate: 3600,
-    tags: ['blog', `blog-${params.slug}`],
+    tags: ['blog', `blog-${slug}`],
   });
 
   if (!post) {
@@ -70,7 +71,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
 }
 
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
-  const { slug } = params;
+  const { slug } = await params;
 
   // Fetch the blog post by slug using server-side fetch utility
   const post = await serverFetch<BlogPost>(`/api/blog-posts/${slug}`, {

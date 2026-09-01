@@ -14,7 +14,7 @@ export const size = {
 export const contentType = 'image/png';
 
 interface Props {
-  params: { productId: string };
+  params: Promise<{ productId: string }>;
 }
 
 const FONTS_DIR = join(process.cwd(), 'public', 'fonts');
@@ -70,7 +70,7 @@ async function loadProductImage(url: string): Promise<string | null> {
  * SEO: Product OG images increase click-through from social
  */
 export default async function Image({ params }: Props) {
-  const { productId } = params;
+  const { productId } = await params;
 
   const fontRegular = loadFont('iransansx-regular.woff', 400);
   const fontBold = loadFont('iransansx-bold.woff', 700);

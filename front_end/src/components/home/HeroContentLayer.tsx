@@ -165,7 +165,7 @@ function HeadingElement({
   element: HeroElement;
   headingLevel?: HeroHeadingLevel;
 }) {
-  const Tag = (headingLevel || element.headingLevel || "h2") as keyof JSX.IntrinsicElements;
+  const Tag = (headingLevel || element.headingLevel || "h2") as keyof React.JSX.IntrinsicElements;
 
   return (
     <Tag

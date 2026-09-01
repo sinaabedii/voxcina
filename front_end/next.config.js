@@ -1,19 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   poweredByHeader: false,
 
   // Experimental optimizations
   experimental: {
     optimizePackageImports: ['lucide-react'], // Tree-shake icons (96 files use this)
+    inlineCss: true, // Inline critical CSS (fixes render-blocking CSS on first visit)
   },
 
-  // Don't fail builds on lint errors (lint runs via `npm run lint` separately)
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  
   // Enable compression
   compress: true,
   
@@ -46,11 +41,6 @@ const nextConfig = {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
-  },
-  i18n: {
-    locales: ['fa'],
-    defaultLocale: 'fa',
-    localeDetection: false,
   },
   async rewrites() {
     const isProduction = process.env.NODE_ENV === 'production';

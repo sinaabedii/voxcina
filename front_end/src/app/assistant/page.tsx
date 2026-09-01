@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactElement } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,7 +23,7 @@ interface UserInfo {
 }
 
 type FeatureCardProps = {
-  icon: JSX.Element;
+  icon: ReactElement;
   title: string;
   text: string;
 };

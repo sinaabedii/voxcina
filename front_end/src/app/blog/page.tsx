@@ -24,9 +24,9 @@ const BLOG_DESCRIPTION =
 export async function generateMetadata({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | undefined };
+  searchParams: Promise<{ [key: string]: string | undefined }>;
 }): Promise<Metadata> {
-  const { page, category, tag, search } = searchParams;
+  const { page, category, tag, search } = await searchParams;
   const isFiltered = Boolean(category || tag || search);
   const canonicalPath = !isFiltered && page && page !== '1'
     ? `/blog?page=${encodeURIComponent(page)}`
@@ -55,8 +55,8 @@ export async function generateMetadata({
   };
 }
 
-export default async function BlogPage({ searchParams }: { searchParams: { [key: string]: string | undefined } }) {
-  const { page = '1', limit = '9', category, tag, search } = searchParams;
+export default async function BlogPage({ searchParams }: { searchParams: Promise<{ [key: string]: string | undefined }> }) {
+  const { page = '1', limit = '9', category, tag, search } = await searchParams;
 
   // Build query string
   const queryParams = new URLSearchParams();
