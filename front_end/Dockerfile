@@ -1,5 +1,5 @@
 # ===== Stage 1 — builder =====
-FROM docker.arvancloud.ir/node:20-alpine AS builder
+FROM docker.arvancloud.ir/node:22-alpine AS builder
 WORKDIR /app
 
 # Proxy support for npm install (VPS has no direct internet)
@@ -36,7 +36,7 @@ COPY . ./
 RUN npm run build
 
 # ===== Stage 2 — runtime =====
-FROM docker.arvancloud.ir/node:20-alpine AS runner
+FROM docker.arvancloud.ir/node:22-alpine AS runner
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
