@@ -103,10 +103,14 @@ type CareerSubmission struct {
 	CompanyName  string `bson:"company_name,omitempty"  json:"company_name,omitempty"`
 	BusinessType string `bson:"business_type,omitempty" json:"business_type,omitempty"`
 
-	// Job-only.
-	Position        string `bson:"position,omitempty"         json:"position,omitempty"`
-	ExperienceYears int    `bson:"experience_years,omitempty" json:"experience_years,omitempty"`
-	PortfolioURL    string `bson:"portfolio_url,omitempty"    json:"portfolio_url,omitempty"`
+	// Job-only. Position is a snapshot of the JobPosition title taken when the
+	// application was received, so the record keeps the role it was posted under
+	// even after the posting is renamed or deleted. PositionID links to the live
+	// posting while it exists; older submissions predate it and carry only a title.
+	PositionID      *primitive.ObjectID `bson:"position_id,omitempty" json:"position_id,omitempty"`
+	Position        string              `bson:"position,omitempty"         json:"position,omitempty"`
+	ExperienceYears int                 `bson:"experience_years,omitempty" json:"experience_years,omitempty"`
+	PortfolioURL    string              `bson:"portfolio_url,omitempty"    json:"portfolio_url,omitempty"`
 
 	// Attached CV. Required for job applications, optional for partnerships.
 	Resume *CareerResumeRef `bson:"resume,omitempty" json:"resume,omitempty"`

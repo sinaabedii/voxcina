@@ -86,7 +86,12 @@ func SubmitCareerApplication(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	submission, errMsg := buildCareerSubmission(r)
+	// Created before validation: resolving the chosen job position is a
+	// database read, so it needs a context too.
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	submission, errMsg := buildCareerSubmission(ctx, r)
 	if errMsg != "" {
 		utils.ErrorResponse(w, http.StatusBadRequest, errMsg)
 		return
@@ -110,9 +115,6 @@ func SubmitCareerApplication(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	submission.CreatedAt = now
 	submission.UpdatedAt = now
-
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
 
 	// The CV row is written first so the submission never references a file
 	// that does not exist; an insert failure below cleans it up.
@@ -161,7 +163,7 @@ func SubmitCareerApplication(w http.ResponseWriter, r *http.Request) {
 
 // buildCareerSubmission validates the text fields of the form and returns a
 // populated submission, or a Persian error message ready for the client.
-func buildCareerSubmission(r *http.Request) (*models.CareerSubmission, string) {
+func buildCareerSubmission(ctx context.Context, r *http.Request) (*models.CareerSubmission, string) {
 	submissionType := strings.TrimSpace(r.FormValue("type"))
 	if submissionType != models.CareerSubmissionTypePartnership &&
 		submissionType != models.CareerSubmissionTypeJob {
@@ -208,10 +210,20 @@ func buildCareerSubmission(r *http.Request) (*models.CareerSubmission, string) {
 		return submission, ""
 	}
 
-	submission.Position = cleanCareerText(r.FormValue("position"), 80)
-	if submission.Position == "" {
+	// The applicant picks exactly one advertised opening. Only its id is
+	// trusted: the title is read back from the posting, so a crafted request
+	// can never invent a role, and an opening closed since the page loaded is
+	// rejected here rather than silently accepted.
+	positionID, idErr := primitive.ObjectIDFromHex(strings.TrimSpace(r.FormValue("position_id")))
+	if idErr != nil {
 		return nil, "موقعیت شغلی موردنظر را انتخاب کنید"
 	}
+	position, lookupErr := lookupActiveJobPosition(ctx, positionID)
+	if lookupErr != nil {
+		return nil, "موقعیت شغلی انتخاب‌شده دیگر فعال نیست. لطفاً یکی از موقعیت‌های موجود را انتخاب کنید"
+	}
+	submission.PositionID = &positionID
+	submission.Position = position.Title
 	if raw := strings.TrimSpace(utils.NormalizePersianDigits(r.FormValue("experience_years"))); raw != "" {
 		years, err := strconv.Atoi(raw)
 		if err != nil || years < 0 || years > models.CareerExperienceMaxYears {

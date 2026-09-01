@@ -117,6 +117,14 @@ func Connect(cfg *config.Config) *mongo.Database {
 		// Non-critical, continue anyway
 	}
 
+	// Admin-managed job postings behind the /careers open-positions section.
+	if err := CreateJobPositionIndexes(); err != nil {
+		log.Printf("Warning: Could not ensure job position indexes: %v", err)
+		// Non-critical, continue anyway
+	} else if err := SeedDefaultJobPositions(); err != nil {
+		log.Printf("Warning: Could not seed default job positions: %v", err)
+	}
+
 	// Payment attempts are the idempotency and callback lookup record for all
 	// gateways. Partial unique indexes ignore legacy attempts created before a
 	// provider reference was assigned.

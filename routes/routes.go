@@ -197,6 +197,12 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/career-submissions/{id}", handlers.AdminUpdateCareerSubmission).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/career-submissions/{id}", handlers.AdminDeleteCareerSubmission).Methods(http.MethodDelete)
 
+	// Admin Job Postings (the open positions advertised on /careers)
+	adminRouter.HandleFunc("/job-positions", handlers.AdminListJobPositions).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/job-positions", handlers.AdminCreateJobPosition).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/job-positions/{id}", handlers.AdminUpdateJobPosition).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/job-positions/{id}", handlers.AdminDeleteJobPosition).Methods(http.MethodDelete)
+
 	// Admin Ticket Management
 	adminRouter.HandleFunc("/tickets", handlers.AdminListTickets).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/tickets/{ticketId}/status", handlers.AdminUpdateTicketStatus).Methods(http.MethodPut)
@@ -343,6 +349,11 @@ func NewRouter() *mux.Router {
 	// Delete a specific review by its ID (user must be owner or admin)
 	reviewRouter.HandleFunc("/{reviewId}", handlers.DeleteReview).
 		Methods(http.MethodDelete)
+
+	// Careers page — the open positions listing feeds both the public section
+	// and the required position dropdown on the job application form.
+	api.HandleFunc("/careers/positions", handlers.ListOpenJobPositions).
+		Methods(http.MethodGet)
 
 	// Careers page — public partnership request / job application submissions
 	// (multipart; a job application carries a PDF CV)
