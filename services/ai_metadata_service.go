@@ -74,6 +74,100 @@ type VariantMetadataResponse struct {
 	Gender              string `json:"gender"`
 }
 
+// coerceStringSlice decodes a JSON value that the schema declares as a string
+// array but which models intermittently emit as a bare string, e.g.
+// "season": "پاییز". Strict decoding turned that shape deviation into a failed
+// request, so the decode boundary normalizes the two shapes here and still
+// rejects anything that is genuinely not string data.
+func coerceStringSlice(raw json.RawMessage) ([]string, error) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, nil
+	}
+	var list []string
+	if err := json.Unmarshal(raw, &list); err == nil {
+		return list, nil
+	}
+	var single string
+	if err := json.Unmarshal(raw, &single); err == nil {
+		if strings.TrimSpace(single) == "" {
+			return nil, nil
+		}
+		return []string{single}, nil
+	}
+	return nil, fmt.Errorf("expected an array of strings or a single string, got %s", raw)
+}
+
+// assignCoercedStringSlice writes a coerced value into one slice field, naming
+// the field in the error so a bad payload points at the offending key.
+func assignCoercedStringSlice(field *[]string, raw json.RawMessage, name string) error {
+	value, err := coerceStringSlice(raw)
+	if err != nil {
+		return fmt.Errorf("%s: %w", name, err)
+	}
+	*field = value
+	return nil
+}
+
+// UnmarshalJSON decodes the model answer while normalizing the string-array
+// fields (keywords, tags, occasionTags, season) that models intermittently emit
+// as a bare string. The exported field types stay []string for every consumer;
+// only the decode boundary is tolerant.
+func (m *ProductMetadataResponse) UnmarshalJSON(data []byte) error {
+	type productMetadataResponseAlias ProductMetadataResponse
+	aux := struct {
+		Season       json.RawMessage `json:"season"`
+		Keywords     json.RawMessage `json:"keywords"`
+		Tags         json.RawMessage `json:"tags"`
+		OccasionTags json.RawMessage `json:"occasionTags"`
+		*productMetadataResponseAlias
+	}{productMetadataResponseAlias: (*productMetadataResponseAlias)(m)}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if err := assignCoercedStringSlice(&m.Season, aux.Season, "season"); err != nil {
+		return err
+	}
+	if err := assignCoercedStringSlice(&m.Keywords, aux.Keywords, "keywords"); err != nil {
+		return err
+	}
+	if err := assignCoercedStringSlice(&m.Tags, aux.Tags, "tags"); err != nil {
+		return err
+	}
+	return assignCoercedStringSlice(&m.OccasionTags, aux.OccasionTags, "occasionTags")
+}
+
+// UnmarshalJSON must shadow the method promoted from the embedded
+// ProductMetadataResponse: otherwise unmarshalling a variant answer would run
+// the embedded method on the whole payload and silently drop the variant-only
+// fields (productTypePersian, colorFamily, gender, ...).
+//
+// The embedded part is decoded directly so its own tolerant method runs, and
+// the variant-only fields go through a flat struct. An alias of this type
+// cannot be embedded in the shadow struct like the product-level method does:
+// the alias would promote the embedded UnmarshalJSON up onto the shadow struct
+// and json would route the whole payload to it, dropping every other field.
+func (v *VariantMetadataResponse) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &v.ProductMetadataResponse); err != nil {
+		return err
+	}
+	aux := struct {
+		ProductTypePersian  string `json:"productTypePersian"`
+		ProductTypeStandard string `json:"productTypeStandard"`
+		PatternPersian      string `json:"patternPersian"`
+		ColorFamily         string `json:"colorFamily"`
+		Gender              string `json:"gender"`
+	}{}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	v.ProductTypePersian = aux.ProductTypePersian
+	v.ProductTypeStandard = aux.ProductTypeStandard
+	v.PatternPersian = aux.PatternPersian
+	v.ColorFamily = aux.ColorFamily
+	v.Gender = aux.Gender
+	return nil
+}
+
 // ProductMetadataResponse represents the AI-generated metadata
 type ProductMetadataResponse struct {
 	NamePersian        string   `json:"namePersian"`
