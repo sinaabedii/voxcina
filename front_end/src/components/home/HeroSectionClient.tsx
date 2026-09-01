@@ -506,7 +506,15 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({ heroImages }) => 
     timer.startedAt = startedAt;
     const updateRemaining = () => {
       if (timer.startedAt !== startedAt) return;
-      setRemainingMs(Math.max(0, timer.remainingMs - (performance.now() - startedAt)));
+      const remaining = Math.max(0, timer.remainingMs - (performance.now() - startedAt));
+      // The value only feeds a screen-reader aria-label — the visible progress
+      // bar is a pure CSS animation. Re-rendering the whole hero subtree 10x/s
+      // invalidated styles constantly, so every later geometry read (carousel
+      // scrollLeft tweens, ScrollTrigger) forced a synchronous reflow. Commit
+      // only when the displayed second changes (1Hz instead of 10Hz).
+      setRemainingMs((current) =>
+        Math.ceil(current / 1000) === Math.ceil(remaining / 1000) ? current : remaining
+      );
     };
     updateRemaining();
     const countdownInterval = window.setInterval(updateRemaining, 100);
