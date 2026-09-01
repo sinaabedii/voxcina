@@ -19,6 +19,12 @@ import type { Category } from "@/types/category";
 import { Slider } from "@/types/slider";
 import type { Metadata } from "next";
 
+// Next 16 no longer infers page ISR from fetch(next.revalidate). Without this,
+// the page is prerendered as static (initialRevalidateSeconds: false) at build
+// time when GO_BACKEND_URL="" — the fallback [] is then cached forever and the
+// homepage stays empty. Explicit page revalidate restores ISR (600s).
+export const revalidate = 600;
+
 export const metadata: Metadata = {
   title: {
     absolute: "وکسینا | فروشگاه اینترنتی لباس و پوشاک | خرید آنلاین مد و استایل",
