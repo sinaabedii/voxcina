@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/store/auth-store";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
@@ -34,6 +34,17 @@ import {
   Briefcase,
 } from "lucide-react";
 
+/**
+ * A sidebar item is active when the current route is it, or is nested under it.
+ *
+ * "/admin" is compared exactly: every admin route starts with that prefix, so a
+ * prefix test would leave the dashboard permanently highlighted.
+ */
+function isSectionActive(pathname: string, href: string): boolean {
+  if (href === "/admin") return pathname === "/admin";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export default function AdminLayout({
   children,
 }: {
@@ -41,6 +52,7 @@ export default function AdminLayout({
 }) {
   const { user, logout } = useAuthStore();
   const router = useRouter();
+  const pathname = usePathname();
   
   // Use the new protected route hook with admin role requirement (Requirement 3.4)
   const { isLoading, isAuthorized } = useProtectedRoute({
@@ -51,7 +63,6 @@ export default function AdminLayout({
   
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [activeSection, setActiveSection] = useState("dashboard");
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -68,14 +79,12 @@ export default function AdminLayout({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Close the mobile drawer whenever the route changes. The previous version
+  // listened for `popstate`, which only fires on browser back/forward — never
+  // on a <Link> click, the case that actually matters here.
   useEffect(() => {
-    const handleRouteChange = () => {
-      setIsMobileSidebarOpen(false);
-    };
-
-    window.addEventListener("popstate", handleRouteChange);
-    return () => window.removeEventListener("popstate", handleRouteChange);
-  }, []);
+    setIsMobileSidebarOpen(false);
+  }, [pathname]);
 
   // Sidebar items for admin
   const sidebarItems = [
@@ -83,115 +92,96 @@ export default function AdminLayout({
       name: "داشبورد",
       href: "/admin",
       icon: <LayoutDashboard className="w-5 h-5 ml-3" />,
-      section: "dashboard",
     },
     {
       name: "محصولات",
       href: "/admin/products",
       icon: <Package className="w-5 h-5 ml-3" />,
-      section: "products",
     },
     {
       name: "دسته‌بندی‌ها",
       href: "/admin/categories",
       icon: <Tags className="w-5 h-5 ml-3" />,
-      section: "categories",
     },
     {
       name: "برندها",
       href: "/admin/brands",
       icon: <ShoppingBag className="w-5 h-5 ml-3" />,
-      section: "brands",
     },
     {
       name: "سفارش‌ها",
       href: "/admin/orders",
       icon: <ShoppingCart className="w-5 h-5 ml-3" />,
-      section: "orders",
     },
     {
       name: "درخواست‌های مرجوعی",
       href: "/admin/returns",
       icon: <RotateCcw className="w-5 h-5 ml-3" />,
-      section: "returns",
     },
     {
       name: "سبدهای خرید",
       href: "/admin/carts",
       icon: <ShoppingBasket className="w-5 h-5 ml-3" />,
-      section: "carts",
     },
     {
       name: "تیکت‌ها",
       href: "/admin/tickets",
       icon: <Headphones className="w-5 h-5 ml-3" />,
-      section: "tickets",
     },
     {
       name: "همکاری و استخدام",
       href: "/admin/careers",
       icon: <Briefcase className="w-5 h-5 ml-3" />,
-      section: "careers",
     },
     {
       name: "کاربران",
       href: "/admin/users",
       icon: <Users className="w-5 h-5 ml-3" />,
-      section: "users",
     },
     {
       name: "فعالیت کاربران",
       href: "/admin/activity",
       icon: <Activity className="w-5 h-5 ml-3" />,
-      section: "activity",
     },
     {
       name: "تخفیف‌ها",
       href: "/admin/discounts",
       icon: <Percent className="w-5 h-5 ml-3" />,
-      section: "discounts",
     },
     {
       name: "کدها و کوپن‌ها",
       href: "/admin/vouchers",
       icon: <Ticket className="w-5 h-5 ml-3" />,
-      section: "vouchers",
     },
     {
       name: "نظرات",
       href: "/admin/reviews",
       icon: <Star className="w-5 h-5 ml-3" />,
-      section: "reviews",
     },
     {
       name: "گفتگوهای هوش مصنوعی",
       href: "/admin/ai-chats",
       icon: <Bot className="w-5 h-5 ml-3" />,
-      section: "ai-chats",
     },
     {
       name: "بلاگ‌ها",
       href: "/admin/blogs",
       icon: <FileText className="w-5 h-5 ml-3" />,
-      section: "blogs",
     },
     {
       name: "تصاویر هیرو",
       href: "/admin/hero-images",
       icon: <Image className="w-5 h-5 ml-3" />,
-      section: "hero-images",
     },
     {
       name: "سوالات متداول",
       href: "/admin/faqs",
       icon: <HelpCircle className="w-5 h-5 ml-3" />,
-      section: "faqs",
     },
     {
       name: "تنظیمات",
       href: "/admin/settings",
       icon: <Settings className="w-5 h-5 ml-3" />,
-      section: "settings",
     },
   ];
 
@@ -366,13 +356,13 @@ export default function AdminLayout({
               />
 
               <motion.div
-                className="fixed inset-y-0 right-0 w-72 bg-white/90 dark:bg-voxcina-blue/90 z-50 md:hidden border-l border-voxcina-cream/30 dark:border-voxcina-blue/50 backdrop-blur-sm shadow-lg"
+                className="fixed inset-y-0 right-0 flex w-72 flex-col bg-white/90 dark:bg-voxcina-blue/90 z-50 md:hidden border-l border-voxcina-cream/30 dark:border-voxcina-blue/50 backdrop-blur-sm shadow-lg"
                 initial={{ x: "100%" }}
                 animate={{ x: 0 }}
                 exit={{ x: "100%" }}
                 transition={{ type: "spring" as const, damping: 25, stiffness: 300 }}
               >
-                <div className="p-4 border-b border-voxcina-cream/30 dark:border-voxcina-blue/30 flex items-center justify-between">
+                <div className="flex-shrink-0 p-4 border-b border-voxcina-cream/30 dark:border-voxcina-blue/30 flex items-center justify-between">
                   <h2 className="font-bold text-lg text-voxcina-blue dark:text-voxcina-cream">
                     پنل مدیریت {APP_NAME}
                   </h2>
@@ -385,30 +375,16 @@ export default function AdminLayout({
                     <X size={18} />
                   </motion.button>
                 </div>
-                <div className="w-full h-full bg-white/90 dark:bg-voxcina-blue/90 backdrop-blur-sm overflow-y-auto">
+                <div className="w-full flex-1 min-h-0 bg-white/90 dark:bg-voxcina-blue/90 backdrop-blur-sm overflow-y-auto overscroll-contain">
                   <div className="py-8 px-4">
-                    <nav className="space-y-2">
-                      <motion.div
-                        initial="hidden"
-                        animate="visible"
-                        variants={{
-                          visible: {
-                            transition: {
-                              staggerChildren: 0.05,
-                            },
-                          },
-                        }}
-                      >
+                    <nav>
+                      <div className="space-y-1">
                         {sidebarItems.map((item) => {
-                          const isActive = activeSection === item.section;
+                          const isActive = isSectionActive(pathname, item.href);
 
                           return (
                             <motion.div
                               key={item.href}
-                              variants={{
-                                hidden: { opacity: 0, x: -20 },
-                                visible: { opacity: 1, x: 0 },
-                              }}
                               whileHover={{ x: 3 }}
                               transition={{ duration: 0.2 }}
                             >
@@ -419,10 +395,7 @@ export default function AdminLayout({
                                     ? "bg-voxcina-blue dark:bg-voxcina-cream/90 text-white dark:text-voxcina-blue font-medium shadow-sm"
                                     : "text-voxcina-blue/80 dark:text-voxcina-cream/80 hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 hover:text-voxcina-blue dark:hover:text-voxcina-cream"
                                 }`}
-                                onClick={() => {
-                                  setActiveSection(item.section);
-                                  setIsMobileSidebarOpen(false);
-                                }}
+                                onClick={() => setIsMobileSidebarOpen(false)}
                               >
                                 <div
                                   className={`flex items-center justify-center w-8 h-8 rounded-lg mr-3 transition-all duration-300 ${
@@ -440,10 +413,6 @@ export default function AdminLayout({
                         })}
 
                         <motion.div
-                          variants={{
-                            hidden: { opacity: 0, x: -20 },
-                            visible: { opacity: 1, x: 0 },
-                          }}
                           whileHover={{ x: 3 }}
                           transition={{ duration: 0.2 }}
                         >
@@ -457,7 +426,7 @@ export default function AdminLayout({
                             خروج از حساب
                           </button>
                         </motion.div>
-                      </motion.div>
+                      </div>
                     </nav>
                   </div>
                 </div>
@@ -466,7 +435,17 @@ export default function AdminLayout({
           )}
         </AnimatePresence>
 
-        <div className="hidden md:block w-72 h-full sticky top-16 border-l border-voxcina-cream/30 dark:border-voxcina-blue/30 py-6 bg-white/90 dark:bg-voxcina-blue/90 backdrop-blur-sm overflow-y-auto">
+        {/* The sticky sidebar must have a *bounded* height for `overflow-y-auto`
+            to mean anything. It previously used `h-full`, which resolves to the
+            full flex-row height, so the box was as tall as its ~19 items: there
+            was no overflow to scroll, and because the element is sticky the tail
+            of the menu stayed parked below the fold, unreachable on any viewport
+            shorter than the menu. Pinning it to the viewport minus the 4rem
+            header makes the sidebar scroll on its own.
+            `shrink-0` stops a wide admin table from squeezing it. */}
+        <aside
+          aria-label="منوی پنل مدیریت"
+          className="hidden md:block w-72 shrink-0 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto overscroll-contain border-l border-voxcina-cream/30 dark:border-voxcina-blue/30 py-6 bg-white/90 dark:bg-voxcina-blue/90 backdrop-blur-sm">
           <div className="py-8 px-4">
             <div className="px-4 mb-6">
               <h2 className="text-lg font-bold text-voxcina-blue dark:text-voxcina-cream">
@@ -477,28 +456,14 @@ export default function AdminLayout({
               </p>
             </div>
 
-            <nav className="space-y-2">
-              <motion.div
-                initial="hidden"
-                animate="visible"
-                variants={{
-                  visible: {
-                    transition: {
-                      staggerChildren: 0.05,
-                    },
-                  },
-                }}
-              >
+            <nav>
+              <div className="space-y-1">
                 {sidebarItems.map((item) => {
-                  const isActive = activeSection === item.section;
+                  const isActive = isSectionActive(pathname, item.href);
 
                   return (
                     <motion.div
                       key={item.href}
-                      variants={{
-                        hidden: { opacity: 0, x: -20 },
-                        visible: { opacity: 1, x: 0 },
-                      }}
                       whileHover={{ x: 3 }}
                       transition={{ duration: 0.2 }}
                     >
@@ -509,7 +474,6 @@ export default function AdminLayout({
                             ? "bg-voxcina-blue dark:bg-voxcina-cream/90 text-white dark:text-voxcina-blue font-medium shadow-sm"
                             : "text-voxcina-blue/80 dark:text-voxcina-cream/80 hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 hover:text-voxcina-blue dark:hover:text-voxcina-cream"
                         }`}
-                        onClick={() => setActiveSection(item.section)}
                       >
                         <div
                           className={`flex items-center justify-center w-8 h-8 rounded-lg mr-3 transition-all duration-300 ${
@@ -527,10 +491,6 @@ export default function AdminLayout({
                 })}
 
                 <motion.div
-                  variants={{
-                    hidden: { opacity: 0, x: -20 },
-                    visible: { opacity: 1, x: 0 },
-                  }}
                   whileHover={{ x: 3 }}
                   transition={{ duration: 0.2 }}
                 >
@@ -544,10 +504,10 @@ export default function AdminLayout({
                     خروج از حساب
                   </button>
                 </motion.div>
-              </motion.div>
+              </div>
             </nav>
           </div>
-        </div>
+        </aside>
 
         <motion.main
           className="flex-grow p-4 md:p-6 lg:p-8 overflow-x-hidden"

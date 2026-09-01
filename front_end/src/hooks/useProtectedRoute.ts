@@ -6,7 +6,7 @@
  * Implements Requirement 7.2 for URL security (no token exposure in URLs).
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth-store';
 import { localStorageManager } from '@/lib/local-storage-manager';
@@ -103,6 +103,23 @@ export function useProtectedRoute(options: UseProtectedRouteOptions = {}): UsePr
   const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
 
   /**
+   * The current path, read through a ref so the redirect helpers below keep a
+   * stable identity.
+   *
+   * Those helpers are dependencies of the auth effect. When they depended on
+   * `pathname` directly they were rebuilt on every route change, so the effect
+   * re-ran on every navigation and re-evaluated its redirect conditions in the
+   * middle of one. Any momentary gap in auth state — a token refresh landing
+   * between two renders, say — then fired router.push() and cancelled the
+   * navigation the user had just started, which reads as a sidebar link that
+   * did nothing. The effect now runs only when auth state actually changes.
+   */
+  const pathnameRef = useRef(pathname);
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
+
+  /**
    * Check if user has the required role
    */
   const hasRequiredRole = useCallback((): boolean => {
@@ -128,14 +145,15 @@ export function useProtectedRoute(options: UseProtectedRouteOptions = {}): UsePr
    * Implements Requirement 3.2
    */
   const storeReturnUrl = useCallback(() => {
-    if (pathname && pathname !== redirectUrl && pathname !== '/sign-up') {
+    const currentPath = pathnameRef.current;
+    if (currentPath && currentPath !== redirectUrl && currentPath !== '/sign-up') {
       // Validate the URL before storing to prevent token exposure (Requirement 7.2)
-      const validatedUrl = validateReturnUrl(pathname);
+      const validatedUrl = validateReturnUrl(currentPath);
       if (validatedUrl) {
         localStorageManager.setReturnUrl(validatedUrl);
       }
     }
-  }, [pathname, redirectUrl]);
+  }, [redirectUrl]);
 
   /**
    * Handle redirect for unauthenticated users
