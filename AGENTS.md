@@ -4,7 +4,12 @@
 
 - The repository root is the Go module `backEnd`; there is no `backEnd/` directory. Go imports use `backEnd/...`.
 - Backend entrypoint is `main.go`; request flow is `routes/` -> `handlers/` -> `services/`/`db/` -> MongoDB.
-- `front_end/` is a Next.js 14 App Router application. Use `@/*` for `front_end/src/*`; client state is in Zustand stores under `front_end/src/store/`.
+- `front_end/` is a Next.js 16 App Router application (React 19, Node 22 — `.nvmrc` and `node:22-alpine` in `front_end/Dockerfile` must stay in sync; production builds run on Turbopack). Use `@/*` for `front_end/src/*`; client state is in Zustand stores under `front_end/src/store/`.
+- Next 16 quirks that already bit this repo:
+  - `params`/`searchParams` are Promises — `await` them in pages/layouts (all routes are migrated; new ones must follow).
+  - A page's ISR is **not** inferred from `fetch(..., { next: { revalidate } })` anymore. The Docker builder runs `npm run build` with `GO_BACKEND_URL=""`, so backend fetches are skipped at build time; a page without an explicit `export const revalidate = N` (see `src/app/page.tsx`, 600) or `force-dynamic` gets cached **forever with empty data**.
+  - Request guards live in `front_end/src/proxy.ts` — Next 16 renamed `middleware.ts`/`export function middleware`; the old names emit deprecation warnings.
+  - `next.config.js` `turbopack.resolveAlias` replaces Next's hard-coded legacy polyfill module (unconditional `require` in `next/dist/client/app-globals.js`, upstream vercel/next.js#86785) with `src/lib/empty-polyfill-module.js`. After any Next upgrade, run a build and `grep -rl '"trimStart"in String.prototype' .next/static/chunks/` — output means the internal path moved and the alias silently stopped matching.
 - The UI is Persian RTL with the single `fa` locale configured in `front_end/next.config.js`; do not introduce another locale without changing routing/configuration.
 - Compose exposes frontend on `localhost:3000`, backend on `localhost:8088` (container port `8080`), and MongoDB only on `127.0.0.1:27017`.
 - Uploaded files live in the host `uploads/` directory and are mounted into both backend and frontend containers; do not bake them into images.
@@ -22,22 +27,25 @@ go vet ./...
 ./main -seed
 ./main -check-vocab
 ./main -migrate-avatars
+./main -migrate-address-digits
 ./main -migrate-product-weight
 ```
+
+Migration flags accept `-dry-run` to report changes without writing.
 
 The only committed Go tests live in `handlers/`, `services/`, and `utils/`; they are unit tests with no MongoDB or network dependency. `go test ./...` also discovers a Go-looking package inside `front_end/node_modules` — ignore it. Run a focused test like `go test ./handlers -run TestEvaluateReturnEligibility -count=1`.
 
 Run frontend commands from `front_end/`:
 
 ```bash
-npm ci
+npm ci --legacy-peer-deps
 npm run dev
 npm run lint
 npx tsc --noEmit
 npm run build
 ```
 
-`next.config.js` ignores lint during `next build`, so run `npm run lint` separately. The production build is incremental; never delete `.next` to fix a normal build issue.
+`--legacy-peer-deps` is required (the Dockerfile uses it too): `lucide-react` and `@neshan-maps-platform/*` publish React 16–18 peer ranges that conflict with React 19. Next 16 does not lint during `next build` at all and its `next lint` command is gone — `npm run lint` is standalone flat-config `eslint .`. Never delete `.next` to fix a normal build issue; the build is incremental. Adding a new `<Image quality={N}>` value requires adding N to `images.qualities` in `next.config.js` (currently `[75, 85]`) or ImageResponse re-encodes on every request.
 
 For local services, copy `.env.example` to `.env`, set `JWT_SECRET` and Mongo credentials, then run `docker compose up -d --build`. Frontend-only browser/service keys are documented in `front_end/.env.example`; secrets must remain server-side and `.env` is ignored.
 
@@ -77,6 +85,7 @@ ssh -o ConnectTimeout=10 vps-ir 'docker exec voxcina_frontend npm run build'
 ssh -o ConnectTimeout=10 vps-ir 'docker restart voxcina_frontend'
 ```
 
+- `next.config.js` lives outside `src/` and is NOT covered by that copy — if it changed, also `docker cp /root/voxcina/front_end/next.config.js voxcina_frontend:/app/next.config.js` before building. Changes to `package.json`, `package-lock.json`, or `Dockerfile` (e.g. `npm ci`-time patches) require the full image rebuild below, not the fast flow.
 - The image-based alternative (`docker compose build --no-cache front_end && docker compose up -d front_end`) is slower but authoritative — the container's copied source is lost if the container is recreated from the old image.
 - Backend deploy: build a **static** binary — `CGO_ENABLED=0 GOOS=linux go build -o /tmp/voxcina-server .`, `scp` it to `vps-ir`, then `docker cp` to `api-server:/app/main` and restart. Without `CGO_ENABLED=0` the binary links glibc, the minimal container reports `./main: not found`, and `start.sh` loops forever on "MongoDB is unavailable - sleeping" — that message means the healthcheck binary failed to execute, not that MongoDB is down. Verify with `docker exec api-server ./main -healthcheck` before restarting. Verify with `file /tmp/voxcina-server | grep statically` before shipping.
 - Backend-only image rebuild is `docker compose build server && docker compose up -d server`; inspect `docker compose ps` and service logs after either deployment.
