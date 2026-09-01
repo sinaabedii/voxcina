@@ -111,6 +111,12 @@ func Connect(cfg *config.Config) *mongo.Database {
 		// Non-critical, continue anyway
 	}
 
+	// Careers page submissions (partnership requests + job applications)
+	if err := CreateCareerSubmissionIndexes(); err != nil {
+		log.Printf("Warning: Could not ensure career submission indexes: %v", err)
+		// Non-critical, continue anyway
+	}
+
 	// Payment attempts are the idempotency and callback lookup record for all
 	// gateways. Partial unique indexes ignore legacy attempts created before a
 	// provider reference was assigned.

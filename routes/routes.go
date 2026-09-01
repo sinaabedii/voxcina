@@ -191,6 +191,12 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/return-requests", handlers.AdminListReturnRequests).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/return-requests/{requestId}", handlers.AdminDecideReturnRequest).Methods(http.MethodPut)
 
+	// Admin Careers Inbox (partnership requests + job applications)
+	adminRouter.HandleFunc("/career-submissions", handlers.AdminListCareerSubmissions).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/career-submissions/{id}/resume", handlers.AdminDownloadCareerResume).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/career-submissions/{id}", handlers.AdminUpdateCareerSubmission).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/career-submissions/{id}", handlers.AdminDeleteCareerSubmission).Methods(http.MethodDelete)
+
 	// Admin Ticket Management
 	adminRouter.HandleFunc("/tickets", handlers.AdminListTickets).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/tickets/{ticketId}/status", handlers.AdminUpdateTicketStatus).Methods(http.MethodPut)
@@ -337,6 +343,11 @@ func NewRouter() *mux.Router {
 	// Delete a specific review by its ID (user must be owner or admin)
 	reviewRouter.HandleFunc("/{reviewId}", handlers.DeleteReview).
 		Methods(http.MethodDelete)
+
+	// Careers page — public partnership request / job application submissions
+	// (multipart; a job application carries a PDF CV)
+	api.HandleFunc("/careers/submissions", handlers.SubmitCareerApplication).
+		Methods(http.MethodPost)
 
 	// Newsletter & Analytics
 	api.HandleFunc("/newsletter/subscribe", handlers.SubscribeNewsletter).
