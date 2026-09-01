@@ -7,16 +7,19 @@ import {
   Award,
   Briefcase,
   Building2,
+  ChevronDown,
   Clock,
   Handshake,
+  Inbox,
   MapPin,
   TrendingUp,
   Users,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { CareerSubmissionType } from "@/types/career";
-import { HIRING_STEPS, OPEN_POSITIONS } from "@/lib/careers";
+import { CareerSubmissionType, JobPosition } from "@/types/career";
+import { HIRING_STEPS } from "@/lib/careers";
+import { fetchOpenPositions } from "@/lib/careers-api";
 import { toPersianNumber } from "@/lib/utils";
 import CareerForm from "./_components/CareerForm";
 
@@ -51,9 +54,17 @@ const BENEFITS = [
   },
 ];
 
-export default function CareersClient() {
+interface CareersClientProps {
+  /** Rendered on the server so the openings are in the HTML; kept in state
+   *  afterwards because the list can go stale while the page is open. */
+  initialPositions: JobPosition[];
+}
+
+export default function CareersClient({ initialPositions }: CareersClientProps) {
+  const [positions, setPositions] = useState<JobPosition[]>(initialPositions);
   const [activeTab, setActiveTab] = useState<CareerSubmissionType>("job");
-  const [presetPosition, setPresetPosition] = useState<string>();
+  const [presetPositionId, setPresetPositionId] = useState<string>();
+  const [expandedPositionId, setExpandedPositionId] = useState<string | null>(null);
   const formSectionRef = useRef<HTMLElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const reduceMotion = useReducedMotion();
@@ -70,9 +81,9 @@ export default function CareersClient() {
       };
 
   const goToForm = useCallback(
-    (tab: CareerSubmissionType, position?: string) => {
+    (tab: CareerSubmissionType, positionId?: string) => {
       setActiveTab(tab);
-      setPresetPosition(position);
+      setPresetPositionId(positionId);
       formSectionRef.current?.scrollIntoView({
         behavior: reduceMotion ? "auto" : "smooth",
         block: "start",
@@ -80,6 +91,16 @@ export default function CareersClient() {
     },
     [reduceMotion]
   );
+
+  /**
+   * Re-reads the openings after a rejected application. An admin can close a
+   * posting while this page sits open; without this the visitor would keep
+   * picking a role the server no longer accepts.
+   */
+  const refreshPositions = useCallback(async () => {
+    const fresh = await fetchOpenPositions();
+    if (fresh.length > 0) setPositions(fresh);
+  }, []);
 
   /** Arrow keys move between tabs, as a tablist is expected to behave. */
   const handleTabKeyDown = (event: React.KeyboardEvent, index: number) => {
@@ -117,13 +138,15 @@ export default function CareersClient() {
               transition={{ duration: 0.5 }}
               className="max-w-3xl"
             >
-              <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-voxcina-blue/15 bg-white/70 px-3.5 py-1.5 text-xs font-medium text-voxcina-blue dark:border-secondary-200/15 dark:bg-voxcina-blue/10 dark:text-secondary-200">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-green-500/60" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+              {positions.length > 0 && (
+                <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-voxcina-blue/15 bg-white/70 px-3.5 py-1.5 text-xs font-medium text-voxcina-blue dark:border-secondary-200/15 dark:bg-voxcina-blue/10 dark:text-secondary-200">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-green-500/60" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                  </span>
+                  {toPersianNumber(positions.length)} موقعیت شغلی باز
                 </span>
-                {toPersianNumber(OPEN_POSITIONS.length - 1)} موقعیت شغلی باز
-              </span>
+              )}
 
               <h1 className="mb-5 text-3xl font-bold leading-tight text-voxcina-darkBlue sm:text-4xl md:text-5xl lg:text-6xl dark:text-white">
                 با ما رشد کنید،
@@ -140,14 +163,16 @@ export default function CareersClient() {
               </p>
 
               <div className="flex flex-col gap-3 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={() => goToForm("job")}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-voxcina-blue to-voxcina-darkBlue px-6 py-3 text-sm font-semibold text-white shadow-soft transition-all hover:shadow-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-voxcina-blue/50 focus-visible:ring-offset-2"
-                >
-                  <Briefcase className="h-4 w-4" />
-                  ارسال رزومه
-                </button>
+                {positions.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => goToForm("job")}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-voxcina-blue to-voxcina-darkBlue px-6 py-3 text-sm font-semibold text-white shadow-soft transition-all hover:shadow-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-voxcina-blue/50 focus-visible:ring-offset-2"
+                  >
+                    <Briefcase className="h-4 w-4" />
+                    ارسال رزومه
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => goToForm("partnership")}
@@ -203,52 +228,127 @@ export default function CareersClient() {
                 موقعیت‌های شغلی باز
               </h2>
               <p className="mx-auto max-w-xl text-sm text-gray-600 dark:text-secondary-200/80">
-                روی هر موقعیت بزنید تا فرم با همان عنوان برای شما پر شود.
+                {positions.length > 0
+                  ? "روی هر موقعیت بزنید تا فرم با همان عنوان برای شما پر شود."
+                  : "در حال حاضر موقعیت شغلی بازی نداریم."}
               </p>
             </motion.div>
 
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              {OPEN_POSITIONS.map((role, index) => (
-                <motion.article
-                  key={role.id}
-                  {...reveal}
-                  transition={{ duration: 0.45, delay: reduceMotion ? 0 : index * 0.06 }}
-                  className="group flex flex-col rounded-2xl border border-voxcina-blue/10 bg-white p-5 shadow-soft transition-all hover:border-voxcina-blue/30 hover:shadow-medium dark:border-secondary-200/10 dark:bg-voxcina-darkBlue/40"
-                >
-                  <h3 className="mb-2 text-base font-bold text-voxcina-darkBlue sm:text-lg dark:text-white">
-                    {role.title}
-                  </h3>
+            {positions.length === 0 ? (
+              <div className="mx-auto max-w-lg rounded-2xl border border-dashed border-voxcina-blue/20 bg-white/70 p-8 text-center dark:border-secondary-200/15 dark:bg-voxcina-darkBlue/30">
+                <Inbox
+                  className="mx-auto mb-3 h-9 w-9 text-voxcina-blue/40 dark:text-secondary-300/50"
+                  aria-hidden="true"
+                />
+                <p className="mb-1 text-sm font-semibold text-voxcina-darkBlue dark:text-white">
+                  فعلاً موقعیت شغلی بازی وجود ندارد
+                </p>
+                <p className="text-xs leading-relaxed text-gray-600 dark:text-secondary-200/80">
+                  به‌زودی موقعیت‌های تازه‌ای منتشر می‌شود. اگر پیشنهاد همکاری
+                  تجاری دارید، از فرم پایین همین صفحه استفاده کنید.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {positions.map((role, index) => {
+                  const hasDetails =
+                    !!role.description?.trim() ||
+                    (role.requirements?.length ?? 0) > 0;
+                  const isExpanded = expandedPositionId === role.id;
 
-                  <ul className="mb-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-voxcina-blue/70 dark:text-secondary-300">
-                    <li className="flex items-center gap-1">
-                      <Building2 className="h-3.5 w-3.5" aria-hidden="true" />
-                      {role.department}
-                    </li>
-                    <li className="flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                      {role.employmentType}
-                    </li>
-                    <li className="flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
-                      {role.location}
-                    </li>
-                  </ul>
+                  return (
+                    <motion.article
+                      key={role.id}
+                      {...reveal}
+                      transition={{
+                        duration: 0.45,
+                        delay: reduceMotion ? 0 : index * 0.06,
+                      }}
+                      className="group flex flex-col rounded-2xl border border-voxcina-blue/10 bg-white p-5 shadow-soft transition-all hover:border-voxcina-blue/30 hover:shadow-medium dark:border-secondary-200/10 dark:bg-voxcina-darkBlue/40"
+                    >
+                      <h3 className="mb-2 text-base font-bold text-voxcina-darkBlue sm:text-lg dark:text-white">
+                        {role.title}
+                      </h3>
 
-                  <p className="mb-4 flex-1 text-sm leading-relaxed text-gray-600 dark:text-secondary-200/80">
-                    {role.summary}
-                  </p>
+                      <ul className="mb-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-voxcina-blue/70 dark:text-secondary-300">
+                        <li className="flex items-center gap-1">
+                          <Building2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          {role.department}
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                          {role.employment_type}
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+                          {role.location}
+                        </li>
+                      </ul>
 
-                  <button
-                    type="button"
-                    onClick={() => goToForm("job", role.title)}
-                    className="inline-flex items-center gap-1.5 self-start rounded-lg text-sm font-semibold text-voxcina-blue transition-colors hover:text-voxcina-darkBlue focus:outline-none focus-visible:ring-2 focus-visible:ring-voxcina-blue/40 dark:text-secondary-200 dark:hover:text-white"
-                  >
-                    درخواست این موقعیت
-                    <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-                  </button>
-                </motion.article>
-              ))}
-            </div>
+                      <p className="mb-4 flex-1 text-sm leading-relaxed text-gray-600 dark:text-secondary-200/80">
+                        {role.summary}
+                      </p>
+
+                      {hasDetails && isExpanded && (
+                        <div
+                          id={`position-details-${role.id}`}
+                          className="mb-4 space-y-3 rounded-xl bg-voxcina-blue/5 p-4 dark:bg-voxcina-blue/10"
+                        >
+                          {role.description?.trim() && (
+                            <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-600 dark:text-secondary-200/80">
+                              {role.description}
+                            </p>
+                          )}
+                          {(role.requirements?.length ?? 0) > 0 && (
+                            <div>
+                              <h4 className="mb-1.5 text-xs font-bold text-voxcina-darkBlue dark:text-white">
+                                نیازمندی‌ها
+                              </h4>
+                              <ul className="list-inside list-disc space-y-1 text-xs leading-relaxed text-gray-600 dark:text-secondary-200/80">
+                                {role.requirements?.map((item) => (
+                                  <li key={item}>{item}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                        <button
+                          type="button"
+                          onClick={() => goToForm("job", role.id)}
+                          className="inline-flex items-center gap-1.5 rounded-lg text-sm font-semibold text-voxcina-blue transition-colors hover:text-voxcina-darkBlue focus:outline-none focus-visible:ring-2 focus-visible:ring-voxcina-blue/40 dark:text-secondary-200 dark:hover:text-white"
+                        >
+                          درخواست این موقعیت
+                          <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+                        </button>
+
+                        {hasDetails && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedPositionId(isExpanded ? null : role.id)
+                            }
+                            aria-expanded={isExpanded}
+                            aria-controls={`position-details-${role.id}`}
+                            className="inline-flex items-center gap-1 rounded-lg text-xs font-medium text-voxcina-blue/70 transition-colors hover:text-voxcina-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-voxcina-blue/40 dark:text-secondary-300 dark:hover:text-secondary-100"
+                          >
+                            {isExpanded ? "بستن جزئیات" : "جزئیات بیشتر"}
+                            <ChevronDown
+                              className={`h-3.5 w-3.5 transition-transform ${
+                                isExpanded ? "rotate-180" : ""
+                              }`}
+                              aria-hidden="true"
+                            />
+                          </button>
+                        )}
+                      </div>
+                    </motion.article>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </section>
 
@@ -322,7 +422,7 @@ export default function CareersClient() {
                   tabIndex={activeTab === tab.id ? 0 : -1}
                   onClick={() => {
                     setActiveTab(tab.id);
-                    setPresetPosition(undefined);
+                    setPresetPositionId(undefined);
                   }}
                   onKeyDown={(event) => handleTabKeyDown(event, index)}
                   className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-voxcina-blue/40 ${
@@ -351,7 +451,11 @@ export default function CareersClient() {
                   <CareerForm
                     key={tab.id}
                     mode={tab.id}
-                    presetPosition={tab.id === "job" ? presetPosition : undefined}
+                    positions={positions}
+                    presetPositionId={
+                      tab.id === "job" ? presetPositionId : undefined
+                    }
+                    onSubmitFailed={tab.id === "job" ? refreshPositions : undefined}
                   />
                 )}
               </div>

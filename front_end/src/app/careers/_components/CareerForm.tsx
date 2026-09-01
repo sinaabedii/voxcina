@@ -2,9 +2,9 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, CheckCircle2, Copy, Send } from "lucide-react";
-import { CareerSubmissionType } from "@/types/career";
-import { BUSINESS_TYPES, OPEN_POSITIONS } from "@/lib/careers";
+import { AlertCircle, CheckCircle2, Copy, Inbox, Send } from "lucide-react";
+import { CareerSubmissionType, JobPosition } from "@/types/career";
+import { BUSINESS_TYPES } from "@/lib/careers";
 import { submitCareerApplication } from "@/lib/careers-api";
 import { toDigitsOnly, toPersianNumber } from "@/lib/utils";
 import ResumeUploader from "./ResumeUploader";
@@ -19,7 +19,9 @@ interface FormValues {
   message: string;
   company_name: string;
   business_type: string;
-  position: string;
+  /** Id of the chosen open position, not its title — the server resolves the
+   *  title from the posting itself. */
+  position_id: string;
   experience_years: string;
   portfolio_url: string;
   /** Honeypot — hidden from real users, filled only by bots. */
@@ -33,7 +35,7 @@ const emptyValues: FormValues = {
   message: "",
   company_name: "",
   business_type: "",
-  position: "",
+  position_id: "",
   experience_years: "",
   portfolio_url: "",
   website: "",
@@ -49,7 +51,8 @@ type FieldErrors = Partial<Record<keyof FormValues | "resume", string>>;
 function validate(
   mode: CareerSubmissionType,
   values: FormValues,
-  resume: File | null
+  resume: File | null,
+  positions: JobPosition[]
 ): FieldErrors {
   const errors: FieldErrors = {};
 
@@ -80,8 +83,12 @@ function validate(
       errors.business_type = "نوع کسب‌وکار را انتخاب کنید.";
     }
   } else {
-    if (!values.position) {
-      errors.position = "موقعیت شغلی موردنظر را انتخاب کنید.";
+    // Exactly one currently-open position, and it has to be one the page is
+    // actually offering — a stale tab must not post a closed role.
+    if (!values.position_id) {
+      errors.position_id = "موقعیت شغلی موردنظر را انتخاب کنید.";
+    } else if (!positions.some((role) => role.id === values.position_id)) {
+      errors.position_id = "این موقعیت دیگر باز نیست. یکی از موقعیت‌های موجود را انتخاب کنید.";
     }
     if (!resume) {
       errors.resume = "بارگذاری رزومه PDF الزامی است.";
@@ -97,11 +104,22 @@ function validate(
 
 interface CareerFormProps {
   mode: CareerSubmissionType;
-  /** Position title picked from the open-roles list; pre-fills the select. */
-  presetPosition?: string;
+  /** Live openings, straight from the backend. The job form is only usable
+   *  while this is non-empty. */
+  positions: JobPosition[];
+  /** Position picked from the open-roles list; pre-selects the dropdown. */
+  presetPositionId?: string;
+  /** Called after a rejected submission so the parent can re-read the
+   *  openings — the list may have changed while this page was open. */
+  onSubmitFailed?: () => void;
 }
 
-export default function CareerForm({ mode, presetPosition }: CareerFormProps) {
+export default function CareerForm({
+  mode,
+  positions,
+  presetPositionId,
+  onSubmitFailed,
+}: CareerFormProps) {
   const [values, setValues] = useState<FormValues>(emptyValues);
   const [resume, setResume] = useState<File | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -113,16 +131,25 @@ export default function CareerForm({ mode, presetPosition }: CareerFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
 
   const positionOptions = useMemo(
-    () => OPEN_POSITIONS.map((role) => ({ value: role.title, label: role.title })),
-    []
+    () => positions.map((role) => ({ value: role.id, label: role.title })),
+    [positions]
   );
 
   // A role chosen from the open-positions list drops straight into the select.
   useEffect(() => {
-    if (presetPosition) {
-      setValues((prev) => ({ ...prev, position: presetPosition }));
+    if (presetPositionId) {
+      setValues((prev) => ({ ...prev, position_id: presetPositionId }));
     }
-  }, [presetPosition]);
+  }, [presetPositionId]);
+
+  // A single opening is not a choice worth making: pre-select it.
+  useEffect(() => {
+    if (mode === "job" && positions.length === 1) {
+      setValues((prev) =>
+        prev.position_id ? prev : { ...prev, position_id: positions[0].id }
+      );
+    }
+  }, [mode, positions]);
 
   const setValue = (field: keyof FormValues, value: string) => {
     setValues((prev) => ({ ...prev, [field]: value }));
@@ -147,7 +174,7 @@ export default function CareerForm({ mode, presetPosition }: CareerFormProps) {
     setHasSubmitted(true);
     setServerError(null);
 
-    const found = validate(mode, values, resume);
+    const found = validate(mode, values, resume, positions);
     setErrors(found);
     if (Object.keys(found).length > 0) {
       // Move focus to the first problem so the reason is announced and visible.
@@ -172,7 +199,7 @@ export default function CareerForm({ mode, presetPosition }: CareerFormProps) {
       message: values.message.trim(),
       company_name: mode === "partnership" ? values.company_name.trim() : undefined,
       business_type: mode === "partnership" ? values.business_type : undefined,
-      position: mode === "job" ? values.position : undefined,
+      position_id: mode === "job" ? values.position_id : undefined,
       experience_years: mode === "job" ? values.experience_years : undefined,
       portfolio_url: mode === "job" ? values.portfolio_url.trim() : undefined,
       website: values.website,
@@ -182,6 +209,9 @@ export default function CareerForm({ mode, presetPosition }: CareerFormProps) {
 
     if (!result.ok) {
       setServerError(result.error || "ثبت درخواست با خطا مواجه شد.");
+      // The openings may be what went stale; let the page re-read them so the
+      // dropdown matches reality on the next attempt.
+      onSubmitFailed?.();
       return;
     }
     setReferenceCode(result.referenceCode || "");
@@ -249,6 +279,27 @@ export default function CareerForm({ mode, presetPosition }: CareerFormProps) {
             ثبت درخواست جدید
           </button>
         </div>
+      </div>
+    );
+  }
+
+  // An application must name an opening, so with none published there is
+  // nothing to apply to. Saying so beats rendering a form whose required
+  // dropdown is empty and whose submit can only ever fail.
+  if (mode === "job" && positions.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-voxcina-blue/20 bg-white/70 p-6 text-center sm:p-10 dark:border-secondary-200/15 dark:bg-voxcina-blue/5">
+        <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-voxcina-blue/10 text-voxcina-blue dark:bg-voxcina-blue/20 dark:text-secondary-200">
+          <Inbox className="h-7 w-7" />
+        </span>
+        <h3 className="mb-2 text-lg font-bold text-voxcina-darkBlue dark:text-white">
+          در حال حاضر موقعیت شغلی بازی نداریم
+        </h3>
+        <p className="mx-auto max-w-md text-sm leading-relaxed text-gray-600 dark:text-secondary-200/80">
+          به‌محض انتشار موقعیت‌های تازه، همین‌جا می‌توانید رزومه خود را ارسال
+          کنید. اگر پیشنهاد همکاری تجاری دارید، از زبانه «همکاری تجاری» استفاده
+          کنید.
+        </p>
       </div>
     );
   }
@@ -344,13 +395,14 @@ export default function CareerForm({ mode, presetPosition }: CareerFormProps) {
         ) : (
           <>
             <SelectField
-              id="job-position"
+              id="job-position_id"
               label="موقعیت شغلی موردنظر"
               required
               options={positionOptions}
-              value={values.position}
-              onChange={(e) => setValue("position", e.target.value)}
-              error={errors.position}
+              value={values.position_id}
+              onChange={(e) => setValue("position_id", e.target.value)}
+              error={errors.position_id}
+              hint="یکی از موقعیت‌های باز را انتخاب کنید."
             />
 
             <TextField

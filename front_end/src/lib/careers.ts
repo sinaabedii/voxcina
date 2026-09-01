@@ -3,65 +3,27 @@ import { CareerSubmissionStatus, CareerSubmissionType } from "@/types/career";
 /**
  * Content and shared rules for the /careers page.
  *
- * Everything the page advertises lives here so the copy can be changed without
- * touching a component: edit OPEN_POSITIONS to change which roles are listed,
- * BUSINESS_TYPES to change the partnership dropdown.
+ * The open positions themselves are NOT here: they are admin-managed records
+ * served by GET /api/careers/positions, so a new opening goes live from
+ * /admin/careers without a deploy. What remains is static page copy and the
+ * limits the upload form shares with the backend.
  */
 
 /** Must match models.CareerResumeMaxSize on the Go side. */
 export const RESUME_MAX_SIZE = 5 * 1024 * 1024;
 export const RESUME_ACCEPT = "application/pdf,.pdf";
 
-export interface OpenPosition {
-  id: string;
-  /** Sent to the backend verbatim and shown to the admin, so the label itself
-   *  is the stored value — a record keeps the title it was posted under even
-   *  after this list changes. */
-  title: string;
-  department: string;
-  employmentType: string;
-  location: string;
-  summary: string;
-}
-
-export const OPEN_POSITIONS: OpenPosition[] = [
-  {
-    id: "product-manager",
-    title: "مدیر محصول",
-    department: "محصول",
-    employmentType: "تمام‌وقت",
-    location: "تهران",
-    summary:
-      "هدایت نقشه راه محصول، اولویت‌بندی قابلیت‌ها و همکاری نزدیک با تیم‌های طراحی، فنی و بازرگانی.",
-  },
-  {
-    id: "frontend",
-    title: "توسعه‌دهنده فرانت‌اند",
-    department: "فناوری",
-    employmentType: "تمام‌وقت",
-    location: "تهران / دورکاری",
-    summary:
-      "توسعه رابط کاربری فروشگاه با Next.js و TypeScript، با تمرکز بر سرعت، دسترس‌پذیری و تجربه موبایل.",
-  },
-  {
-    id: "marketing",
-    title: "متخصص بازاریابی دیجیتال",
-    department: "بازاریابی",
-    employmentType: "تمام‌وقت",
-    location: "تهران",
-    summary:
-      "طراحی و اجرای کمپین‌های عملکردی، تحلیل داده‌های رشد و مدیریت کانال‌های شبکه‌های اجتماعی.",
-  },
-  {
-    id: "other",
-    title: "سایر موقعیت‌ها (ارسال رزومه عمومی)",
-    department: "عمومی",
-    employmentType: "—",
-    location: "—",
-    summary:
-      "موقعیت موردنظرتان را در فهرست نمی‌بینید؟ رزومه‌تان را بفرستید تا در نخستین فرصت مناسب با شما تماس بگیریم.",
-  },
-];
+/** Contract types a posting may advertise. Must match
+ *  models.JobPositionEmploymentTypes on the Go side — the backend rejects
+ *  anything outside this set, so the two lists have to agree exactly. */
+export const EMPLOYMENT_TYPES = [
+  "تمام‌وقت",
+  "پاره‌وقت",
+  "دورکاری",
+  "کارآموزی",
+  "پروژه‌ای",
+  "سایر",
+] as const;
 
 export const BUSINESS_TYPES = [
   { value: "تولیدکننده / تأمین‌کننده محصول", label: "تولیدکننده / تأمین‌کننده محصول" },

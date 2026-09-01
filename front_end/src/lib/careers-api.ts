@@ -1,4 +1,4 @@
-import { CareerApplicationPayload } from "@/types/career";
+import { CareerApplicationPayload, JobPosition } from "@/types/career";
 
 export interface CareerSubmitResult {
   ok: boolean;
@@ -27,7 +27,9 @@ export async function submitCareerApplication(
 
   if (payload.company_name) body.append("company_name", payload.company_name);
   if (payload.business_type) body.append("business_type", payload.business_type);
-  if (payload.position) body.append("position", payload.position);
+  // Only the id travels: the backend reads the title back from the posting, so
+  // an application can never name a role that was not advertised.
+  if (payload.position_id) body.append("position_id", payload.position_id);
   if (payload.experience_years) {
     body.append("experience_years", payload.experience_years);
   }
@@ -61,5 +63,26 @@ export async function submitCareerApplication(
       ok: false,
       error: "ارتباط با سرور برقرار نشد. اتصال اینترنت خود را بررسی کنید.",
     };
+  }
+}
+
+/**
+ * Reads the open positions from the browser.
+ *
+ * The /careers page itself renders them server-side (see its page.tsx) so the
+ * listing is in the HTML for search engines; this is the client-side fallback
+ * used to refresh the list without a reload.
+ */
+export async function fetchOpenPositions(): Promise<JobPosition[]> {
+  try {
+    const response = await fetch("/api/careers/positions", {
+      cache: "no-store",
+    });
+    if (!response.ok) return [];
+
+    const data = await response.json().catch(() => null);
+    return Array.isArray(data?.positions) ? data.positions : [];
+  } catch {
+    return [];
   }
 }
