@@ -27,7 +27,7 @@ ENV NODE_ENV=production \
 # behavior on the VPS's proxied Alpine environment.
 COPY package*.json ./
 # Temporarily unset NODE_ENV to install devDependencies
-RUN NODE_ENV=development npm ci --include=dev --no-audit --no-fund
+RUN NODE_ENV=development npm ci --legacy-peer-deps --include=dev --no-audit --no-fund
 # Restore production environment
 ENV NODE_ENV=production
 
