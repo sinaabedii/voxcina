@@ -31,6 +31,7 @@ import {
   ShoppingBasket,
   Ticket,
   RotateCcw,
+  Briefcase,
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -125,6 +126,12 @@ export default function AdminLayout({
       href: "/admin/tickets",
       icon: <Headphones className="w-5 h-5 ml-3" />,
       section: "tickets",
+    },
+    {
+      name: "همکاری و استخدام",
+      href: "/admin/careers",
+      icon: <Briefcase className="w-5 h-5 ml-3" />,
+      section: "careers",
     },
     {
       name: "کاربران",
