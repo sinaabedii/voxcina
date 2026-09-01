@@ -113,7 +113,7 @@ export const PAYMENT_GATEWAYS: Array<{
     mobileLogo: "/images/payment/snappay-official-mobile.svg",
     enabled: true,
     description: "پرداخت اعتباری و اقساطی اسنپ‌پی",
-    features: ["credit", "installments"],
+    features: [],
   },
   {
     id: "zarinpal",
