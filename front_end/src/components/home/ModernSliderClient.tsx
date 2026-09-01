@@ -278,7 +278,7 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
         <div className="absolute bottom-0 left-0 w-full h-1 bg-white/20">
           <div
             key={progressKey}
-            className={`h-full bg-white ${isAutoPlaying ? "animate-slider-progress" : ""}`}
+            className={`h-full w-full bg-white origin-right ${isAutoPlaying ? "animate-slider-progress" : ""}`}
             style={{ animationDuration: "6s" }}
           />
         </div>

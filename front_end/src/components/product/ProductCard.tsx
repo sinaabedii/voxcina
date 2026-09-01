@@ -17,12 +17,15 @@ interface ProductCardProps {
   item: ColorVariantListItem;
   glassEffect?: boolean;
   ribbonLabel?: string;
+  /** Mark this card's image as the page LCP (eager + preload + fetchPriority=high). */
+  priority?: boolean;
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({
   item,
   glassEffect = false,
   ribbonLabel,
+  priority = false,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
@@ -136,7 +139,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
               width={300}
               height={375}
               className="object-contain w-full h-full group-hover:scale-105 transition-transform duration-700"
-              loading="lazy"
+              loading={priority ? undefined : "lazy"}
+              priority={priority}
               quality={70}
               sizes="(max-width: 640px) 160px, (max-width: 768px) 200px, (max-width: 1024px) 220px, 250px"
             />

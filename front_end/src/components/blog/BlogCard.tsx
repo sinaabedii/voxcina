@@ -7,9 +7,11 @@ import AuthorAvatar from './AuthorAvatar';
 interface BlogCardProps {
   post: BlogPost;
   variant?: 'default' | 'compact' | 'featured' | 'grid';
+  /** Mark this card's cover as the page LCP (eager + preload + fetchPriority=high). */
+  priority?: boolean;
 }
 
-export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
+export default function BlogCard({ post, variant = 'default', priority = false }: BlogCardProps) {
   const dateValue = post.publishedAt || post.createdAt;
   const formattedDate = dateValue
     ? new Date(dateValue).toLocaleDateString('fa-IR', {
@@ -34,7 +36,8 @@ export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
             fill
             className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            loading="lazy"
+            loading={priority ? undefined : 'lazy'}
+            priority={priority}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-voxcina-darkBlue via-voxcina-blue/45 to-voxcina-blue/5 transition-opacity duration-500 group-hover:opacity-95" />
         </div>
@@ -80,7 +83,8 @@ export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"
             sizes="(max-width: 640px) 100vw, (max-width: 768px) 80vw, 50vw"
-            loading="lazy"
+            loading={priority ? undefined : 'lazy'}
+            priority={priority}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-voxcina-blue/90 to-transparent"></div>
         </div>
@@ -125,7 +129,8 @@ export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"
             sizes="(max-width: 640px) 64px, 80px"
-            loading="lazy"
+            loading={priority ? undefined : 'lazy'}
+            priority={priority}
           />
         </div>
         <div className="flex flex-col justify-center">
@@ -158,7 +163,8 @@ export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
           fill
           className="object-cover transition-transform duration-500 group-hover:scale-105"
           sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
-          loading="lazy"
+          loading={priority ? undefined : 'lazy'}
+          priority={priority}
         />
       </div>
       <div className="flex flex-1 flex-col p-4 sm:p-5">

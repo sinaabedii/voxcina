@@ -65,7 +65,7 @@ export default function BrandPageClient({ brand, products }: BrandPageClientProp
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
             >
-              <ProductCard item={product} />
+              <ProductCard item={product} priority={index === 0} />
             </motion.div>
           ))}
         </motion.div>

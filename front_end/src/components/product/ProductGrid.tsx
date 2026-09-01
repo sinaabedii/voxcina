@@ -6,6 +6,8 @@ interface ProductGridProps {
   items: ColorVariantListItem[]; // Changed from products: Product[]
   columns?: 2 | 3 | 4 | 5;
   glassEffect?: boolean;
+  /** True when this grid's first card is the page LCP (e.g. catalog top of fold). */
+  priorityFirst?: boolean;
 }
 
 /**
@@ -16,6 +18,7 @@ export default function ProductGrid({
   items,
   columns = 4,
   glassEffect = false,
+  priorityFirst = false,
 }: ProductGridProps) {
   // تنظیم تعداد ستون‌ها
   const gridCols = {
@@ -32,6 +35,7 @@ export default function ProductGrid({
           key={`${item.productId}-${item.colorVariant.variantId || getCanonicalColor(item.colorVariant) || item.colorVariant.colorName}`}
           item={item}
           glassEffect={glassEffect}
+          priority={priorityFirst && index === 0}
         />
       ))}
     </div>

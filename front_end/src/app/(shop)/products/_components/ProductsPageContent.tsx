@@ -409,7 +409,7 @@ export default function ProductsPageContent({
               </motion.p>
 
               <motion.div variants={itemVariants}>
-                <ProductGrid items={initialProducts} columns={3} />
+                <ProductGrid items={initialProducts} columns={3} priorityFirst />
               </motion.div>
 
               {/* Pagination Controls */}

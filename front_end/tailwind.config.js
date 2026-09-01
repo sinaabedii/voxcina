@@ -139,13 +139,16 @@ module.exports = {
           "0%": { transform: "translate(-50%, -50%) rotate(0deg)" },
           "100%": { transform: "translate(-50%, -50%) rotate(360deg)" },
         },
+        // Animate `transform: scaleX` rather than `width` so the progress bar
+        // never invalidates layout (no per-frame reflow). Each consumer pairs
+        // the keyframe with a `transform-origin` matching its grow/shrink edge.
         "slider-progress": {
-          "0%": { width: "0%" },
-          "100%": { width: "100%" },
+          "0%": { transform: "scaleX(0)" },
+          "100%": { transform: "scaleX(1)" },
         },
         "hero-progress": {
-          "0%": { width: "100%" },
-          "100%": { width: "0%" },
+          "0%": { transform: "scaleX(1)" },
+          "100%": { transform: "scaleX(0)" },
         },
         "pulse-glow": {
           "0%, 100%": { opacity: "0.4", transform: "scale(1)" },

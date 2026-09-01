@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Package, SlidersHorizontal, ChevronDown } from "lucide-react";
 import ProductCard from "@/components/product/ProductCard";
@@ -96,9 +97,12 @@ export default function CategoryPageClient({
       >
         {category.image && (
           <div className="relative h-48 md:h-64 rounded-xl overflow-hidden mb-6">
-            <img
-              src={category.image.startsWith('http') ? category.image : category.image}
+            <Image
+              src={category.image}
               alt={category.name}
+              fill
+              priority
+              sizes="100vw"
               className="w-full h-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -210,7 +214,7 @@ export default function CategoryPageClient({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.03 }}
               >
-                <ProductCard item={product} />
+                <ProductCard item={product} priority={index === 0} />
               </motion.div>
             ))}
           </motion.div>

@@ -623,7 +623,7 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({ heroImages }) => 
                     <span
                       key={`${slide.key}-${activeIndex}`}
                       aria-hidden="true"
-                      className="absolute inset-y-0 right-0 w-full rounded-full bg-white animate-hero-progress"
+                      className="absolute inset-y-0 right-0 w-full rounded-full bg-white animate-hero-progress origin-right"
                       style={{ animationPlayState: isRotationPaused ? "paused" : "running" }}
                     />
                   )}

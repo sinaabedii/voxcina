@@ -71,7 +71,7 @@ export default function TrendingPageClient({ items }: TrendingPageClientProps) {
               {new Intl.NumberFormat("fa-IR").format(featured.viewCount || 0)} بازدید
             </span>
           </div>
-          <ProductCard item={featured} glassEffect />
+          <ProductCard item={featured} glassEffect priority />
         </motion.div>
 
         <div className="grid grid-cols-2 gap-4 sm:gap-6">
