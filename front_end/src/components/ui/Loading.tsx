@@ -1,5 +1,7 @@
 "use client";
 
+import { motion } from "framer-motion";
+
 interface LoadingProps {
   size?: "sm" | "md" | "lg" | "xl";
   text?: string;
@@ -14,12 +16,6 @@ const sizeMap = {
   xl: { container: "w-20 h-20", dot: "w-3 h-3" },
 };
 
-// Pure-CSS spinner (animate-spin + animate-pulse-soft). Previously this used
-// framer-motion, but Loading is reached via the root `loading.tsx` boundary,
-// which Next.js embeds in every route's RSC payload — so framer-motion was
-// eagerly loaded on every page (including the homepage, where nothing else
-// needs it). CSS keyframes replicate the same rings + pulsing dots without the
-// ~44 KB framer chunk on initial load.
 export default function Loading({ size = "md", text, fullScreen, overlay }: LoadingProps) {
   const { container, dot } = sizeMap[size];
 
@@ -27,25 +23,30 @@ export default function Loading({ size = "md", text, fullScreen, overlay }: Load
     <div className="flex flex-col items-center gap-4">
       <div className={`${container} relative`}>
         {/* Outer rotating ring */}
-        <div
-          className="absolute inset-0 rounded-full border-2 border-voxcina-blue/20 dark:border-voxcina-cream/20 animate-spin"
-          style={{ borderTopColor: "transparent", borderRightColor: "transparent", animationDuration: "1.5s" }}
+        <motion.div
+          className="absolute inset-0 rounded-full border-2 border-voxcina-blue/20 dark:border-voxcina-cream/20"
+          style={{ borderTopColor: "transparent", borderRightColor: "transparent" }}
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
         />
-
-        {/* Inner counter-rotating ring */}
-        <div
-          className="absolute inset-1 rounded-full border-2 border-voxcina-blue/40 dark:border-voxcina-cream/40 animate-spin"
-          style={{ borderBottomColor: "transparent", borderLeftColor: "transparent", animationDuration: "2s", animationDirection: "reverse" }}
+        
+        {/* Inner pulsing ring */}
+        <motion.div
+          className="absolute inset-1 rounded-full border-2 border-voxcina-blue/40 dark:border-voxcina-cream/40"
+          style={{ borderBottomColor: "transparent", borderLeftColor: "transparent" }}
+          animate={{ rotate: -360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
         />
 
         {/* Center dots */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="flex gap-1">
             {[0, 1, 2].map((i) => (
-              <div
+              <motion.div
                 key={i}
-                className={`${dot} rounded-full bg-voxcina-blue dark:bg-voxcina-cream animate-pulse-soft`}
-                style={{ animationDuration: "0.8s", animationDelay: `${i * 0.15}s` }}
+                className={`${dot} rounded-full bg-voxcina-blue dark:bg-voxcina-cream`}
+                animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }}
               />
             ))}
           </div>
@@ -53,9 +54,13 @@ export default function Loading({ size = "md", text, fullScreen, overlay }: Load
       </div>
 
       {text && (
-        <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 font-medium animate-pulse-soft">
+        <motion.p
+          className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 font-medium"
+          animate={{ opacity: [0.5, 1, 0.5] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        >
           {text}
-        </p>
+        </motion.p>
       )}
     </div>
   );
@@ -84,10 +89,11 @@ export function ButtonLoading({ className = "" }: { className?: string }) {
   return (
     <div className={`flex gap-1 ${className}`}>
       {[0, 1, 2].map((i) => (
-        <div
+        <motion.div
           key={i}
-          className="w-1.5 h-1.5 rounded-full bg-current animate-pulse-soft"
-          style={{ animationDuration: "0.6s", animationDelay: `${i * 0.1}s` }}
+          className="w-1.5 h-1.5 rounded-full bg-current"
+          animate={{ scale: [1, 1.3, 1], opacity: [0.4, 1, 0.4] }}
+          transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.1 }}
         />
       ))}
     </div>
