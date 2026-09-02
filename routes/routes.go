@@ -68,10 +68,14 @@ func NewRouter() *mux.Router {
 	userAuthRouter.HandleFunc("/addresses/{addressIndex}", handlers.DeleteUserAddress).
 		Methods(http.MethodDelete)
 
-	// Product Catalog endpoints
+	// Product Catalog endpoints.
+	//
+	// gorilla/mux matches in registration order, so every literal path under
+	// /products must be registered BEFORE the /products/{id} wildcard —
+	// otherwise {id} swallows it and the handler becomes unreachable.
+	// routes_shadow_test.go guards this for the whole router.
 	api.HandleFunc("/products", handlers.ListProducts).Methods(http.MethodGet)
 	api.HandleFunc("/products/trending", handlers.GetTrendingProductVariants).Methods(http.MethodGet)
-	api.HandleFunc("/products/{id}", handlers.GetProduct).Methods(http.MethodGet)
 	api.HandleFunc("/products/search", handlers.SearchProducts).Methods(http.MethodGet)
 	api.HandleFunc("/products/recommendations", handlers.ProductRecommendations).
 		Methods(http.MethodGet)
@@ -79,6 +83,7 @@ func NewRouter() *mux.Router {
 		Methods(http.MethodGet)
 	api.HandleFunc("/products/collection/{collectionValue}", handlers.GetProductsByCollection).
 		Methods(http.MethodGet)
+	api.HandleFunc("/products/{id}", handlers.GetProduct).Methods(http.MethodGet)
 
 	// AI-Powered Search and Chat endpoints
 	api.HandleFunc("/search/smart", handlers.SmartSearch).Methods(http.MethodPost)
@@ -225,20 +230,27 @@ func NewRouter() *mux.Router {
 	// Vocabulary Mappings (Public for frontend dropdowns)
 	api.HandleFunc("/vocabulary-mappings", handlers.GetVocabularyMappings).Methods(http.MethodGet)
 
-	// Categories & Navigation (Public Read-Only Access)
+	// Categories & Navigation (Public Read-Only Access).
+	// "homepage" is a literal path and must precede the /categories/{id}
+	// wildcard, same ordering rule as the product routes above.
 	api.HandleFunc("/categories", handlers.GetCategories).Methods(http.MethodGet)
+	api.HandleFunc("/categories/homepage", handlers.GetHomepageCategories).
+		Methods(http.MethodGet)
 	api.HandleFunc("/categories/{id}", handlers.GetCategoryByID).Methods(http.MethodGet)
-	api.HandleFunc("/categories/{id}", handlers.UpdateCategory).Methods(http.MethodPut)
-	api.HandleFunc("/categories/{id}", handlers.DeleteCategory).Methods(http.MethodDelete)
 	api.HandleFunc("/categories/{id}/products", handlers.GetCategoryProducts).
 		Methods(http.MethodGet)
 	api.HandleFunc("/brands", handlers.GetBrands).Methods(http.MethodGet)
-	api.HandleFunc("/brands", handlers.CreateBrand).Methods(http.MethodPost)
 	api.HandleFunc("/brands/{id}", handlers.GetBrandByID).Methods(http.MethodGet)
-	api.HandleFunc("/brands/{id}", handlers.UpdateBrand).Methods(http.MethodPut)
-	api.HandleFunc("/brands/{id}", handlers.DeleteBrand).Methods(http.MethodDelete)
-	api.HandleFunc("/categories/homepage", handlers.GetHomepageCategories).
-		Methods(http.MethodGet)
+
+	// Category & brand mutations are admin-only. They previously sat on the
+	// public router with no middleware, so anyone could rewrite or delete the
+	// catalog taxonomy; the admin dashboard already sent a bearer token to
+	// them, so it only needed to be pointed at the /admin prefix.
+	adminRouter.HandleFunc("/categories/{id}", handlers.UpdateCategory).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/categories/{id}", handlers.DeleteCategory).Methods(http.MethodDelete)
+	adminRouter.HandleFunc("/brands", handlers.CreateBrand).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/brands/{id}", handlers.UpdateBrand).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/brands/{id}", handlers.DeleteBrand).Methods(http.MethodDelete)
 
 	// Promotions & Banners
 	api.HandleFunc("/promotions/home", handlers.GetHomePromotions).Methods(http.MethodGet)
@@ -382,14 +394,16 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/footer", handlers.GetFooter).Methods(http.MethodGet)
 	api.HandleFunc("/faqs", handlers.GetFaqs).Methods(http.MethodGet)
 
-	// Discount Coupon Routes
-	api.HandleFunc("/discounts", handlers.CreateDiscount).Methods(http.MethodPost)
-	api.HandleFunc("/discounts", handlers.GetAllDiscounts).Methods(http.MethodGet)
-	api.HandleFunc("/discounts/{id}", handlers.GetDiscountByID).Methods(http.MethodGet)
+	// Discount Coupon Routes.
+	//
+	// Only the storefront's own coupon flow is public here: resolving one code
+	// the shopper typed, and activating/releasing it against their cart.
+	// Creating, editing, deleting, and listing discounts are admin operations
+	// and live on adminRouter (/api/admin/discounts) — they were previously
+	// duplicated on this unauthenticated router, which let anyone mint or
+	// delete codes, and let anyone GET the full list of every coupon code.
 	api.HandleFunc("/discounts/code/{code}", handlers.GetDiscountByCode).
 		Methods(http.MethodGet)
-	api.HandleFunc("/discounts/{id}", handlers.UpdateDiscount).Methods(http.MethodPut)
-	api.HandleFunc("/discounts/{id}", handlers.DeleteDiscount).Methods(http.MethodDelete)
 	api.HandleFunc("/discounts/activate", handlers.ActivateDiscount).Methods(http.MethodPost)
 	api.HandleFunc("/discounts/deactivate", handlers.DeactivateDiscount).Methods(http.MethodPost)
 

@@ -58,7 +58,7 @@ export const useBrandStore = create<BrandState>()((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { adminToken } = useAuthStore.getState();
-      const response = await fetch("/api/brands", {
+      const response = await fetch("/api/admin/brands", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${adminToken}`,
@@ -84,7 +84,7 @@ export const useBrandStore = create<BrandState>()((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { adminToken } = useAuthStore.getState();
-      const response = await fetch(`/api/brands/${id}`, {
+      const response = await fetch(`/api/admin/brands/${id}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${adminToken}`,
@@ -114,7 +114,7 @@ export const useBrandStore = create<BrandState>()((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { adminToken } = useAuthStore.getState();
-      const response = await fetch(`/api/brands/${id}`, {
+      const response = await fetch(`/api/admin/brands/${id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${adminToken}`,

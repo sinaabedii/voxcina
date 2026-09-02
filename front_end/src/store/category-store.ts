@@ -167,7 +167,7 @@ export const useCategoryStore = create<CategoryState>()((set, get) => ({
   ) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`/api/categories/${id}`, {
+      const response = await fetch(`/api/admin/categories/${id}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${adminToken}`,
@@ -204,7 +204,7 @@ export const useCategoryStore = create<CategoryState>()((set, get) => ({
   deleteCategory: async (id: string, adminToken: string) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`/api/categories/${id}`, {
+      const response = await fetch(`/api/admin/categories/${id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${adminToken}`,

@@ -354,7 +354,7 @@ export const useProductStore = create<ProductState>()(
       createBrand: async (brandData: FormData, adminToken: string) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await fetch("/api/brands", {
+          const response = await fetch("/api/admin/brands", {
             method: "POST",
             headers: {
               Authorization: `Bearer ${adminToken}`,
@@ -388,7 +388,7 @@ export const useProductStore = create<ProductState>()(
         set({ isLoading: true, error: null });
         try {
           const isFormData = brandData instanceof FormData;
-          const response = await fetch(`/api/brands/${id}`, {
+          const response = await fetch(`/api/admin/brands/${id}`, {
             method: "PUT",
             headers: {
               ...(isFormData ? {} : { "Content-Type": "application/json" }),
@@ -418,7 +418,7 @@ export const useProductStore = create<ProductState>()(
       deleteBrand: async (id: string, adminToken: string) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await fetch(`/api/brands/${id}`, {
+          const response = await fetch(`/api/admin/brands/${id}`, {
             method: "DELETE",
             headers: {
               Authorization: `Bearer ${adminToken}`,
