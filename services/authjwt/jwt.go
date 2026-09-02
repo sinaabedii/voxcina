@@ -121,9 +121,24 @@ const (
 	// AccessTokenTTL is the requested seven-day access-token lifetime.
 	AccessTokenTTL = 7 * 24 * time.Hour
 
-	// RefreshTokenTTL is one month (30 days). Each refresh rotates the token so
-	// reuse of a rotated token revokes the family.
+	// RefreshTokenTTL is one month (30 days) for web clients. Each refresh
+	// rotates the token so reuse of a rotated token revokes the family.
+	// Android sessions are exempt — see ClientAndroid and RefreshExpiryFor.
 	RefreshTokenTTL = 30 * 24 * time.Hour
+
+	// Client platforms recorded on a refresh-token row (from the
+	// X-Client-Platform header at issuance). The stored value — never the
+	// header of a later request — governs the token's lifetime and rotation
+	// policy, so a permanent session can never be silently downgraded.
+	ClientAndroid = "android"
+	ClientWeb     = "web"
+
+	// AndroidRefreshTokenYears is how far ahead a mobile refresh token's
+	// expiry is set. A populated far-future date (rather than zero/absent)
+	// keeps every expiry comparison — the JWT `exp` claim, the record's
+	// ExpiresAt in Rotate, and the TTL index on expires_at — on its normal
+	// code path with no special cases.
+	AndroidRefreshTokenYears = 100
 
 	// ProactiveRefreshThreshold is how close to access-token expiry (in
 	// seconds) the frontend should proactively refresh. Documentation only; the
@@ -154,6 +169,16 @@ func NewJTI() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+// RefreshExpiryFor returns the expiry time a refresh token issued at `now`
+// should carry for the given client platform: android sessions are effectively
+// permanent, everything else gets the web default of RefreshTokenTTL.
+func RefreshExpiryFor(now time.Time, client string) time.Time {
+	if client == ClientAndroid {
+		return now.AddDate(AndroidRefreshTokenYears, 0, 0)
+	}
+	return now.Add(RefreshTokenTTL)
+}
+
 // SignAccessToken constructs and signs a short-lived access token for the given
 // user, role and token version. Must be called after InitJWT.
 func SignAccessToken(userID primitive.ObjectID, email, role string, version int64) (string, error) {
@@ -179,7 +204,9 @@ func SignAccessToken(userID primitive.ObjectID, email, role string, version int6
 
 // SignRefreshToken constructs and signs a long-lived refresh token. The JTI is
 // stored (hashed) server-side so the token can be rotated and re-use detected.
-func SignRefreshToken(userID primitive.ObjectID, email, role string, version int64, jti string) (string, error) {
+// The caller supplies the expiry (see RefreshExpiryFor) so the JWT `exp` and
+// the persisted record's expires_at can never disagree per client.
+func SignRefreshToken(userID primitive.ObjectID, email, role string, version int64, jti string, expiresAt time.Time) (string, error) {
 	key, err := Key()
 	if err != nil {
 		return "", err
@@ -193,7 +220,7 @@ func SignRefreshToken(userID primitive.ObjectID, email, role string, version int
 		TokenVersion: version,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        jti,
-			ExpiresAt: jwt.NewNumericDate(now.Add(RefreshTokenTTL)),
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 		},

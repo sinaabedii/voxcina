@@ -365,7 +365,7 @@ func VerifySignupOTP(w http.ResponseWriter, r *http.Request) {
 	otpCollection.DeleteOne(ctx, bson.M{"_id": otp.ID})
 
 	// Generate access + refresh token pair (signed with token_type + token_version).
-	pair, err := issueTokenPairForUser(ctx, &user)
+	pair, err := issueTokenPairForUser(ctx, &user, clientPlatformFromRequest(r))
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در تولید توکن")
 		return

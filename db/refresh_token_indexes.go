@@ -17,7 +17,10 @@ import (
 //  1. jti (unique)            - fast per-token lookup and rotation/revoke updates
 //  2. user_id + expires_at     - enumerate a user's active refresh tokens (logout-all)
 //  3. family                  - revoke an entire token family on reuse detection
-//  4. TTL on expires_at        - eventually purge expired rotated/revoked tokens
+//  4. TTL on expires_at        - eventually purge dead rows. Android tokens carry a
+//     far-future expires_at and live until revoked; every revocation path re-stamps
+//     expires_at to now+grace (services.refreshTokenPurgeGrace), which is what makes
+//     this index the sweeper for those rows too. The key must stay expires_at.
 //
 // jti must be unique so two distinct refresh tokens never collide and so a
 // single UpdateOne matching jti hits exactly the intended record.

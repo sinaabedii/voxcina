@@ -141,7 +141,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	// --- Generate access + refresh token pair (signed with token_type + token_version) ---
 	// issueTokenPairForUser persists a hashed refresh-token record in the
 	// refresh_tokens collection so /api/users/refresh can rotate + revoke it.
-	pair, err := issueTokenPairForUser(ctx, &user)
+	pair, err := issueTokenPairForUser(ctx, &user, clientPlatformFromRequest(r))
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error generating tokens: "+err.Error())
 		return
@@ -216,7 +216,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	// `issueTokenPairForUser`'s underlying helper reads the user's current
 	// token_version so any prior logout/deactivation makes the new access token
 	// effective immediately; it also persists a hashed refresh-token record.
-	pair, err := issueTokenPairForUser(ctx, &user)
+	pair, err := issueTokenPairForUser(ctx, &user, clientPlatformFromRequest(r))
 	if err != nil {
 		utils.ErrorResponse(
 			w,
@@ -1608,7 +1608,7 @@ func LoginViaSMS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Generate access + refresh token pair (signed with token_type + token_version).
-	pair, err := issueTokenPairForUser(ctx, &user)
+	pair, err := issueTokenPairForUser(ctx, &user, clientPlatformFromRequest(r))
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error generating tokens: "+err.Error())
 		return

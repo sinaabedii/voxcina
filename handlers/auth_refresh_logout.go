@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -14,6 +15,7 @@ import (
 
 	"backEnd/models"
 	"backEnd/services"
+	"backEnd/services/authjwt"
 	"backEnd/utils"
 )
 
@@ -50,18 +52,31 @@ type TokenPairResult struct {
 	RefreshToken string `json:"refreshToken"`
 }
 
+// clientPlatformFromRequest reads X-Client-Platform (sent unconditionally by
+// the Android app; absent on the web storefront) and normalizes it to the
+// stored form. Everything that is not an explicit "android" — including the
+// web, curl, and future unknown clients — gets today's web policy.
+func clientPlatformFromRequest(r *http.Request) string {
+	if strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Client-Platform")), authjwt.ClientAndroid) {
+		return authjwt.ClientAndroid
+	}
+	return authjwt.ClientWeb
+}
+
 // issueTokenPairForUser is used by Login/Register/Signup/LoginViaSMS to issue a
 // brand-new access/refresh token pair for an authenticated user. It uses the
 // latest user role / token_version from the DB so revocations immediately take
 // effect on the next refresh, and persists a hashed refresh-token record (so the
-// refresh handler can later rotate/revoke it). Returns an error if the user is
-// inactive or the JWT signing key has not been configured.
-func issueTokenPairForUser(ctx context.Context, user *models.User) (*TokenPairResult, error) {
+// refresh handler can later rotate/revoke it). `client` (from
+// clientPlatformFromRequest) is stored on the record and fixes the session's
+// lifetime + rotation policy for its whole life. Returns an error if the user
+// is inactive or the JWT signing key has not been configured.
+func issueTokenPairForUser(ctx context.Context, user *models.User, client string) (*TokenPairResult, error) {
 	if !user.IsActive {
 		return nil, services.ErrUserInactive
 	}
 	pair, err := GetRefreshTokenService().IssueNewPair(
-		ctx, user.ID, user.Email, user.Role, user.TokenVersion,
+		ctx, user.ID, user.Email, user.Role, user.TokenVersion, client,
 	)
 	if err != nil {
 		return nil, err
@@ -71,11 +86,14 @@ func issueTokenPairForUser(ctx context.Context, user *models.User) (*TokenPairRe
 
 // RefreshToken handles POST /api/users/refresh.
 //
-// It accepts a refresh-token JWT in the request body, rotates it (invalidating
-// the old one), re-validates the user against the database, and returns a NEW
-// access token AND a NEW refresh token (rotation). Attempting to reuse an
-// already-rotated token is treated as token theft and causes the entire token
-// family to be revoked — see services.RefreshTokenService.Rotate for details.
+// It accepts a refresh-token JWT in the request body, re-validates the user
+// against the database, and rotates the pair — invalidating the old token and
+// rejecting reuse of a rotated one as token theft (family revocation).
+//
+// The one exception is the Android platform, whose sessions never rotate:
+// the response carries a new access token and the SAME refresh token, per the
+// policy stored on the token's record. The response shape is identical either
+// way, so no client can observe the difference.
 //
 // Response (200):
 //
@@ -134,15 +152,24 @@ func RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 // Logout handles POST /api/users/logout (authenticated).
 //
-// In the stateless access-token world we cannot retroactively invalidate an
-// access token (it is valid until its short `exp`). Instead we:
-//   - revoke the refresh token presented in the request body, and
-//   - increment the user's token_version so the access token becomes invalid
-//     as soon as AuthMiddleware reads the user document next (typically within
-//     the same minute).
+// The endpoint is device-scoped for the Android app and account-wide for the
+// web storefront, selected by the X-Client-Platform header that the app sends
+// on every request:
 //
-// The client MUST also clear its local token storage, as before. Request body
-// shape (refreshToken optional but recommended):
+//   - android: revoke ONLY the family of the refresh token presented in the
+//     body, and do NOT increment token_version. The session being signed out
+//     is the one presenting the bearer token, and the app discards it
+//     immediately; bumping the version is precisely what would reach the
+//     user's other devices. A request with no (or unparsable/empty) refresh
+//     token still answers 200 — the client has already cleared itself and
+//     there is nothing useful to report.
+//   - web / no header: today's behavior byte-for-byte — revoke every refresh
+//     token for the user AND increment token_version, so other browser
+//     sessions die on their next request.
+//
+// Either way the client MUST also clear its local token storage.
+//
+// Request body shape (refreshToken required only for android):
 //
 //	{"refreshToken": "<refresh jwt>"}
 func Logout(w http.ResponseWriter, r *http.Request) {
@@ -157,8 +184,32 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	svc := GetRefreshTokenService()
 
-	// Increment token_version so the short-lived access token is also rejected
-	// once the middleware re-reads the user document.
+	if clientPlatformFromRequest(r) == authjwt.ClientAndroid {
+		// Best-effort body read: the app always sends the token, but a
+		// missing one is a signed-out device, not a failed logout.
+		var req struct {
+			RefreshToken string `json:"refreshToken"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		if strings.TrimSpace(req.RefreshToken) != "" {
+			if err := svc.RevokeSessionByRefreshToken(ctx, userID, req.RefreshToken); err != nil {
+				if errors.Is(err, services.ErrTokenNotFound) {
+					utils.ErrorResponse(w, http.StatusUnauthorized, "Invalid refresh token")
+					return
+				}
+				utils.ErrorResponse(w, http.StatusInternalServerError, "Error completing logout")
+				return
+			}
+		}
+		utils.JSONResponse(w, http.StatusOK, map[string]string{
+			"message": "Logout successful.",
+		})
+		return
+	}
+
+	// Web/legacy path, unchanged: full account revocation + token_version
+	// bump so outstanding access tokens die when the middleware next reads
+	// the user document.
 	if err := svc.RevokeAllForUser(ctx, userID, true); err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error completing logout")
 		return

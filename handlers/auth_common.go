@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"regexp"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
@@ -67,7 +68,7 @@ func SignAccessToken(userID primitive.ObjectID, email, role string, version int6
 
 // SignRefreshToken is a thin wrapper around authjwt.SignRefreshToken.
 func SignRefreshToken(userID primitive.ObjectID, email, role string, version int64, jti string) (string, error) {
-	return authjwt.SignRefreshToken(userID, email, role, version, jti)
+	return authjwt.SignRefreshToken(userID, email, role, version, jti, authjwt.RefreshExpiryFor(time.Now(), authjwt.ClientWeb))
 }
 
 // NewJTI is a thin wrapper around authjwt.NewJTI.
