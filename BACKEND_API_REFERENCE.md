@@ -1,6 +1,6 @@
 # Backend API Reference
 
-Go backend (`net/http` + `gorilla/mux` + MongoDB). Router is built in `routes/routes.go` and mounted at `/api` by `main.go`. Default port `8080` (`PORT` env).
+Go backend (`net/http` + `gorilla/mux` + MongoDB). Router is built in `routes/routes.go` and mounted at `/api` by `main.go`. The Go process itself listens on port `8080` (`PORT` env), but it is **not** exposed publicly — external clients reach it through the public origin below.
 
 **Scope of this document:** product APIs, the try-on agent, cart, checkout, and the user-specific profile surface (addresses, orders, payments). Admin-only variants are included where they belong to the same resource.
 
@@ -9,16 +9,23 @@ Go backend (`net/http` + `gorilla/mux` + MongoDB). Router is built in `routes/ro
 ## Conventions
 
 ### Base URL
+
 ```
-http://<host>:8080/api
+https://voxcina.com
 ```
-Static mounts outside `/api`: `/admin/` (dashboard SPA) and `/uploads/` (product/try-on images).
+
+Every path in this document is relative to it — `GET /api/products` is `https://voxcina.com/api/products`. Image fields come back as root-relative paths, so `/uploads/products/main/abc.webp` is `https://voxcina.com/uploads/products/main/abc.webp`.
+
+> No `Access-Control-Allow-Origin` is sent anywhere in the stack, so browser JavaScript served from a **different** origin cannot call this API. Server-to-server, mobile, and same-origin browser calls are unaffected.
 
 ### Authentication
 `middlewares.AuthMiddleware` (`middlewares/auth.go`) expects:
 ```
 Authorization: Bearer <access_token>
 ```
+
+Get a token from `POST /api/users/login` (returns `token` + `refreshToken`); renew with `POST /api/users/refresh` (returns `accessToken` + `refreshToken`).
+
 The middleware parses the JWT, then re-reads the user document on **every request** and rejects when `is_active == false` or when `token_version` no longer matches the token's embedded version — so logout, deactivation, role change and password change take effect immediately.
 
 It injects into the request context:
