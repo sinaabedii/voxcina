@@ -13,6 +13,7 @@ import (
 	"backEnd/config"
 	"backEnd/db"
 	"backEnd/handlers"
+	"backEnd/middlewares"
 	"backEnd/mongo_data"
 	"backEnd/routes"
 	"backEnd/services"
@@ -160,7 +161,10 @@ func main() {
 
 	// Serve static files from the "uploads" directory at /uploads/
 	uploadsFS := http.FileServer(http.Dir("./uploads"))
-	mainMux.Handle("/uploads/", http.StripPrefix("/uploads/", uploadsFS))
+	mainMux.Handle(
+		"/uploads/",
+		middlewares.UploadsCacheControl(http.StripPrefix("/uploads/", uploadsFS)),
+	)
 
 	log.Println("Server is running on port", cfg.Port)
 	if err := http.ListenAndServe(":"+cfg.Port, mainMux); err != nil {

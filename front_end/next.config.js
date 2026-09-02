@@ -131,15 +131,10 @@ const nextConfig = {
           },
         ],
       },
-      {
-        source: '/uploads/(.*)',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-        ],
-      },
+      // No /uploads/ rule here on purpose: `headers()` matches on path only,
+      // so it stamped `immutable` onto 404s too and a CDN would then serve a
+      // missing image as broken for a year. The Go backend sets Cache-Control
+      // per status instead (middlewares.UploadsCacheControl).
       {
         source: '/fonts/(.*)',
         headers: [
