@@ -128,6 +128,8 @@ export default function ProductCarouselSectionClient({
   const pointerStartXRef = useRef(0);
   const pointerStartScrollLeftRef = useRef(0);
   const activePointerIdRef = useRef<number | null>(null);
+  const hasDraggedRef = useRef(false);
+  const DRAG_THRESHOLD = 8; // px — must move this far before a tap becomes a drag
 
   // Auto-scroll state lives in refs so the tween code can read it
   // without re-subscribing on every state change.
@@ -241,6 +243,8 @@ export default function ProductCarouselSectionClient({
   // Unified pointer-down handler: works for mouse, pen, and touch via the
   // Pointer Events API. This is the single source of truth for "the user
   // started interacting" across both desktop and mobile.
+  // Best practice: distinguish a TAP (click on ProductCard) from a DRAG.
+  // A tap must NOT steal the click from child Links, nor toggle snap-scroll.
   const handlePointerDown = (e: React.PointerEvent) => {
     if (!sliderRef.current) return;
     // Only primary pointer / single-finger gestures.
@@ -248,26 +252,36 @@ export default function ProductCarouselSectionClient({
     activePointerIdRef.current = e.pointerId;
     pointerStartXRef.current = e.clientX;
     pointerStartScrollLeftRef.current = getScrollOffset(sliderRef.current);
-    setIsDragging(true);
+    hasDraggedRef.current = false;
+    // Do NOT set isDragging or capture yet — wait for DRAG_THRESHOLD to be
+    // exceeded. This lets a plain tap propagate as a click to ProductCard's
+    // Link. We still pause auto-scroll so the container doesn't fight the user.
     pauseAutoScroll(0);
-    // Disable mandatory snap while dragging so the browser doesn't fight the
-    // finger — it will be re-enabled on release to align to the nearest card.
-    sliderRef.current.classList.remove("snap-x", "snap-mandatory");
-    sliderRef.current.classList.add("snap-none");
-    try {
-      sliderRef.current.setPointerCapture(e.pointerId);
-    } catch {
-      // setPointerCapture can throw if the pointer was already released.
-    }
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDragging || !sliderRef.current) return;
+    if (!sliderRef.current) return;
     if (activePointerIdRef.current !== e.pointerId) return;
+    const dx = e.clientX - pointerStartXRef.current;
+    // Threshold gate: a few pixels of jitter (e.g. tap) must not be treated
+    // as a drag. Only once the threshold is exceeded do we enter drag mode,
+    // capture the pointer and disable snap.
+    if (!hasDraggedRef.current) {
+      if (Math.abs(dx) < DRAG_THRESHOLD) return;
+      hasDraggedRef.current = true;
+      setIsDragging(true);
+      sliderRef.current.classList.remove("snap-x", "snap-mandatory");
+      sliderRef.current.classList.add("snap-none");
+      try {
+        sliderRef.current.setPointerCapture(e.pointerId);
+      } catch {
+        // setPointerCapture can throw if the pointer was already released.
+      }
+    }
     // Don't preventDefault on passive listeners — let the browser handle
     // native touch panning on coarse pointers; we just need the auto-scroll
     // tween to stay dead, which `isDragging` already guarantees.
-    const walk = (e.clientX - pointerStartXRef.current) * 1.5;
+    const walk = dx * 1.5;
     setScrollOffset(sliderRef.current, pointerStartScrollLeftRef.current - walk);
   };
 
@@ -275,27 +289,43 @@ export default function ProductCarouselSectionClient({
     if (e && activePointerIdRef.current !== null && e.pointerId !== activePointerIdRef.current) {
       return;
     }
-    // Only treat this as a real drag end if a drag actually started. The
-    // handler may fire via pointercancel without a prior pointerdown, in which
-    // case we must NOT re-enable mandatory snap (it would snap the carousel to
-    // the nearest card edge — the visible "jump" when leaving hover).
-    const wasDragging = activePointerIdRef.current !== null;
+    // Only treat this as a real interaction if a pointerdown actually started.
+    const wasPointerDown = activePointerIdRef.current !== null;
+    const wasDrag = hasDraggedRef.current;
     activePointerIdRef.current = null;
-    setIsDragging(false);
-    if (!wasDragging) return;
-    if (sliderRef.current) {
-      try {
-        sliderRef.current.releasePointerCapture(e?.pointerId ?? -1);
-      } catch {
-        // Ignore: capture might already be released.
+    if (!wasPointerDown) return;
+    if (wasDrag) {
+      setIsDragging(false);
+      if (sliderRef.current) {
+        try {
+          sliderRef.current.releasePointerCapture(e?.pointerId ?? -1);
+        } catch {
+          // Ignore: capture might already be released.
+        }
+        // On release, restore mandatory snap so a manual drag aligns to the
+        // nearest card edge (a small, expected settle — not a jump to start).
+        sliderRef.current.classList.add("snap-x", "snap-mandatory");
+        sliderRef.current.classList.remove("snap-none");
+        sliderRef.current.style.scrollBehavior = "";
       }
-      // On release, restore mandatory snap so a manual drag aligns to the
-      // nearest card edge (a small, expected settle — not a jump to start).
-      sliderRef.current.classList.add("snap-x", "snap-mandatory");
-      sliderRef.current.classList.remove("snap-none");
-      sliderRef.current.style.scrollBehavior = "";
+      // Keep hasDraggedRef true until the subsequent click (capture phase)
+      // suppresses the Link navigation. It is cleared in handleSliderClickCapture.
+      scheduleResume();
+    } else {
+      // Tap — no drag occurred, snap was never disabled so don't toggle it.
+      // Just resume auto-scroll after the grace period.
+      scheduleResume();
+      // Do not clear hasDraggedRef here; it is already false and the click
+      // should propagate normally to the ProductCard Link.
     }
-    scheduleResume();
+  };
+
+  const handleSliderClickCapture = (e: React.MouseEvent) => {
+    if (hasDraggedRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      hasDraggedRef.current = false;
+    }
   };
 
   // Fallback mouse handlers for environments without Pointer Events (very old
@@ -552,6 +582,7 @@ export default function ProductCarouselSectionClient({
             onPointerMove={handlePointerMove}
             onPointerUp={endDrag}
             onPointerCancel={endDrag}
+            onClickCapture={handleSliderClickCapture}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
