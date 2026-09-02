@@ -97,8 +97,10 @@ func NewRouter() *mux.Router {
 	tryonRouter.HandleFunc("/generate", handlers.VirtualTryOn).Methods(http.MethodPost)
 	tryonRouter.HandleFunc("/status", handlers.VirtualTryOnStatus).Methods(http.MethodGet)
 	tryonRouter.HandleFunc("/status-stream", handlers.VirtualTryOnStatusStream).Methods(http.MethodGet)
-	tryonRouter.HandleFunc("/negotiate-stream", handlers.NegotiateCouponStream).Methods(http.MethodPost)
-	tryonRouter.HandleFunc("/apply-negotiated-coupon", handlers.ApplyNegotiatedCoupon).Methods(http.MethodPost)
+	// Fitting-room chat with Voxa: styling answers and catalog recommendations.
+	// Discount negotiation is NOT here — it belongs to the checkout page and
+	// lives under /api/coupons (couponsRouter below).
+	tryonRouter.HandleFunc("/chat-stream", handlers.TryOnChatStream).Methods(http.MethodPost)
 
 	// Persisted try-on history + chat sessions
 	tryonRouter.HandleFunc("/history", handlers.ListUserTryons).Methods(http.MethodGet)
@@ -407,10 +409,10 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/discounts/activate", handlers.ActivateDiscount).Methods(http.MethodPost)
 	api.HandleFunc("/discounts/deactivate", handlers.DeactivateDiscount).Methods(http.MethodPost)
 
-	// Generic negotiated/cart-recovery coupon application (authenticated).
-	// Reuses the same handler as the tryon-specific route below — it already
-	// validates ownership, expiry, and required-product/color matching purely
-	// from the JWT user + request body, with no tryon-specific dependency.
+	// Negotiated/cart-recovery coupon application (authenticated). Validates
+	// ownership, expiry, and required-product/color matching purely from the
+	// JWT user + request body — the single apply path for every coupon source
+	// now that the fitting room no longer mints any.
 	couponsRouter := api.PathPrefix("/coupons").Subrouter()
 	couponsRouter.Use(middlewares.AuthMiddleware)
 	couponsRouter.HandleFunc("/apply", handlers.ApplyNegotiatedCoupon).Methods(http.MethodPost)

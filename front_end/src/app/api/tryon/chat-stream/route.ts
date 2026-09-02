@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     const body = await req.text();
     const authHeader = req.headers.get("authorization") || "";
 
-    const resp = await fetch(`${GO_BACKEND_URL}/api/tryon/negotiate-stream`, {
+    const resp = await fetch(`${GO_BACKEND_URL}/api/tryon/chat-stream`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
 
     if (!resp.ok || !resp.body) {
       return NextResponse.json(
-        { error: "خطا در ارتباط با سرویس مذاکره" },
+        { error: "خطا در ارتباط با سرویس گفتگو" },
         { status: resp.status || 502 }
       );
     }
@@ -51,12 +51,12 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     if (err?.name === "AbortError" || err?.name === "TimeoutError") {
       return NextResponse.json(
-        { error: "زمان مذاکره به پایان رسید" },
+        { error: "زمان گفتگو به پایان رسید" },
         { status: 504 }
       );
     }
     return NextResponse.json(
-      { error: "خطا در ارتباط با سرویس مذاکره" },
+      { error: "خطا در ارتباط با سرویس گفتگو" },
       { status: 502 }
     );
   }

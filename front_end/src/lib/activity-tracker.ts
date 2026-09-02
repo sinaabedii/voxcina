@@ -471,7 +471,7 @@ class ActivityTracker {
   }
 
   /**
-   * Track start of a conversation (e.g. coupon negotiation chatbot).
+   * Track start of a conversation (e.g. the fitting-room styling chat).
    * Pass `metadata.context` to disambiguate the conversation type.
    */
   public trackChatStarted(metadata?: Record<string, any>): void {

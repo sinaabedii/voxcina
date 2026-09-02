@@ -21,8 +21,7 @@ import ImageCropModal from "@/components/ui/ImageCropModal";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import { activityTracker } from "@/lib/activity-tracker";
 import { getCanonicalColor } from "@/lib/product-variants";
-import { sessionManager } from "@/lib/session-manager";
-import { makeMessageId as makeDbMessageId, streamNegotiation } from "@/lib/tryon-api";
+import { makeMessageId as makeDbMessageId, streamTryOnChat } from "@/lib/tryon-api";
 import { containerVariants, itemVariants } from "@/lib/tryon-motion";
 import {
   buildRecommendedProduct,
@@ -32,7 +31,6 @@ import {
   getRecommendedSize,
   getRecommendedVariant,
   matchesRecommendedVariant,
-  missingCouponProducts,
 } from "@/lib/tryon-recommendation";
 import {
   AGENT_ERROR_REPLY,
@@ -44,11 +42,11 @@ import {
 import { cn, toPersianNumber } from "@/lib/utils";
 import { useCartStore } from "@/store/cart-store";
 import { useTryOnStore } from "@/store/tryon-store";
-import { ChatMessage, RecommendedProduct, RequiredColorEntry, TryOnEligibleItem } from "@/types/tryon";
+import { ChatMessage, RecommendedProduct, TryOnEligibleItem } from "@/types/tryon";
 
 export default function TryOnRoomPage() {
   const { isLoading: authLoading, isAuthorized, user } = useProtectedRoute({ requiredAuth: true });
-  const { cart, isLoading: cartLoading, addItem, applyNegotiatedDiscount } = useCartStore();
+  const { cart, isLoading: cartLoading, addItem } = useCartStore();
   const {
     uploadedPreview,
     uploadedFile,
@@ -60,10 +58,6 @@ export default function TryOnRoomPage() {
     inspectedItemName,
     setInspectedItem,
     clearInspectedItem,
-    couponCode,
-    couponProductIds,
-    couponRequiredColors,
-    setCoupon,
     chatId,
     persistedMessages,
     persistedTryons,
@@ -79,15 +73,12 @@ export default function TryOnRoomPage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
-  const [couponApplied, setCouponApplied] = useState(false);
-  const [couponExpired, setCouponExpired] = useState(false);
-  const [couponApplying, setCouponApplying] = useState(false);
   // The cards hang off their message; these track only what a card action is
   // busy with — the product whose buttons spin, and the one the size modal adds.
   const [recommendedAdding, setRecommendedAdding] = useState<string | null>(null);
   const [sizeModalProduct, setSizeModalProduct] = useState<RecommendedProduct | null>(null);
   const [tryOnCount, setTryOnCount] = useState(0);
-  const [showNegotiationPrompt, setShowNegotiationPrompt] = useState(false);
+  const [showChatOpeners, setShowChatOpeners] = useState(false);
   const [comparePair, setComparePair] = useState<ComparePair | null>(null);
   const [mobileTab, setMobileTab] = useState<FittingRoomTab>("products");
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
@@ -97,7 +88,7 @@ export default function TryOnRoomPage() {
   // guaranteed to have been applied yet.
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const negotiationInitializedRef = useRef(false);
+  const chatInitializedRef = useRef(false);
 
   const eligibleItems = useMemo<TryOnEligibleItem[]>(
     () => computeEligibleItems(cart.items),
@@ -108,7 +99,7 @@ export default function TryOnRoomPage() {
   const steps = [
     { label: "آپلود عکس", done: hasPhoto },
     { label: "انتخاب لباس", done: activeItemIndex !== null },
-    { label: "نتیجه + مذاکره", done: !!resultImage && !error },
+    { label: "نتیجه + گفتگو", done: !!resultImage && !error },
   ];
 
   // Load persisted chat session for this user on mount
@@ -145,20 +136,20 @@ export default function TryOnRoomPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId, isLoadingSession, eligibleItems.length]);
 
-  // After hydration, restore negotiation prompt visibility.
-  // Show prompts if a try-on result exists and the user hasn't used an opener yet.
-  const negotiationRestoredRef = useRef(false);
+  // After hydration, restore chat-opener visibility.
+  // Show openers if a try-on result exists and the user hasn't used one yet.
+  const chatRestoredRef = useRef(false);
   useEffect(() => {
-    if (negotiationRestoredRef.current) return;
+    if (chatRestoredRef.current) return;
     if (!hydratedForChatIdRef.current || isLoadingSession) return;
     if (!resultImage || chatMessages.length === 0) return;
 
-    negotiationRestoredRef.current = true;
+    chatRestoredRef.current = true;
     const openerTexts = new Set(TRYON_CHAT_OPENERS.map((o) => o.text));
     const userUsedOpener = chatMessages.some((m) => m.role === "user" && openerTexts.has(m.content));
     if (!userUsedOpener) {
-      setShowNegotiationPrompt(true);
-      negotiationInitializedRef.current = true;
+      setShowChatOpeners(true);
+      chatInitializedRef.current = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resultImage, chatMessages.length, isLoadingSession]);
@@ -326,14 +317,12 @@ export default function TryOnRoomPage() {
       { ...activityMeta, stage: "after_generation" }
     );
 
-    if (!negotiationInitializedRef.current) {
-      negotiationInitializedRef.current = true;
-      setCouponApplied(false);
-      setCouponExpired(false);
-      setShowNegotiationPrompt(true);
+    if (!chatInitializedRef.current) {
+      chatInitializedRef.current = true;
+      setShowChatOpeners(true);
       activityTracker.trackChatStarted({
         ...activityMeta,
-        context: "coupon_negotiation",
+        context: "tryon_styling_chat",
         trigger: "post_tryon",
         cartItemCount: cart.items.length,
       });
@@ -386,12 +375,12 @@ export default function TryOnRoomPage() {
     setRecommendedAdding(null);
   };
 
-  // Resolve the garment Voxa negotiates over. Talking to her never required a
-  // try-on, so the chain falls back past the explicit selection: the actively
+  // Resolve the garment the conversation centers on. Talking to Voxa never
+  // required a try-on, so the chain falls back past the explicit selection: the actively
   // selected item, then the item behind the last try-on, then the first
   // eligible cart item. Without the fallback a message typed before any try-on
   // resolved to null and was dropped with no bubble and no error.
-  const resolveNegotiationTarget = useCallback(
+  const resolveChatTarget = useCallback(
     (explicit?: TryOnEligibleItem): TryOnEligibleItem | null =>
       explicit
       ?? (activeItemIndex !== null ? eligibleItems[activeItemIndex] : null)
@@ -403,12 +392,12 @@ export default function TryOnRoomPage() {
     [activeItemIndex, eligibleItems, inspectedItemName]
   );
 
-  // The negotiation prompts target the same item the input box does, so both
+  // The opener suggestions target the same item the input box does, so both
   // work when no product is explicitly selected (e.g. after a page reload).
-  const negotiationTargetItem = resolveNegotiationTarget();
+  const chatTargetItem = resolveChatTarget();
 
-  const sendNegotiationMessage = async (message: string, item?: TryOnEligibleItem) => {
-    const targetItem = resolveNegotiationTarget(item);
+  const sendChatMessage = async (message: string, item?: TryOnEligibleItem) => {
+    const targetItem = resolveChatTarget(item);
     if (!targetItem) {
       // Only reachable with an empty fitting room, where the chat is not even
       // rendered — still say so rather than swallowing the message.
@@ -424,7 +413,7 @@ export default function TryOnRoomPage() {
     let streamed = "";
 
     try {
-      await streamNegotiation({
+      await streamTryOnChat({
         message,
         tryon_product_id: targetItem.product.id,
         tryon_color: getCanonicalColor(targetItem.colorVariant) || targetItem.colorVariant.colorName,
@@ -439,28 +428,6 @@ export default function TryOnRoomPage() {
         },
         onDone: (turn) => {
           setChatMessages((prev) => replaceStreamingMessage(prev, agentMessageForTurn(turn, streamed)));
-
-          if (turn.coupon) {
-            const { code, value, valid_until, product_ids, comp_product_id } = turn.coupon;
-            const requiredColors: RequiredColorEntry[] = [];
-            if (product_ids?.[0]) {
-              requiredColors.push({
-                productId: product_ids[0],
-                color: turn.coupon.main_color,
-                colorName: turn.coupon.main_color_name,
-              });
-            }
-            if (comp_product_id) {
-              requiredColors.push({
-                productId: comp_product_id,
-                color: turn.coupon.comp_color,
-                colorName: turn.coupon.comp_color_name,
-              });
-            }
-            setCoupon(code, value, valid_until, product_ids, requiredColors);
-            setCouponExpired(false);
-          }
-
           // The backend persists both halves of this turn to the room
           // transcript, including the tool_call the reload path reads back.
         },
@@ -492,76 +459,23 @@ export default function TryOnRoomPage() {
     const message = chatInput.trim();
     if (!message) return;
     setChatInput("");
-    sendNegotiationMessage(message);
+    sendChatMessage(message);
   };
 
   const handleSelectOpener = (text: string) => {
-    setShowNegotiationPrompt(false);
-    setCouponApplied(false);
-    setCouponExpired(false);
-    sendNegotiationMessage(text, negotiationTargetItem ?? undefined);
-  };
-
-  const handleApplyCoupon = async () => {
-    if (!couponCode || couponApplying || couponExpired) return;
-
-    const cartItems = useCartStore.getState().cart.items;
-
-    // The coupon only pays out once every product it was negotiated for is in
-    // the cart, in the exact color variant it was pinned to (any size).
-    if (couponProductIds.length > 0) {
-      const missing = missingCouponProducts(cartItems, couponProductIds, couponRequiredColors);
-      if (missing.length > 0) {
-        toast.warning("این کد تخفیف زمانی اعمال می شود که هر دو محصول اصلی و پیشنهادی، در همان رنگ پیشنهادی، در سبد خرید باشند");
-        return;
-      }
-    }
-
-    setCouponApplying(true);
-    try {
-      const res = await sessionManager.fetchWithAuth("/api/tryon/apply-negotiated-coupon", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: couponCode,
-          cart_items: cartItems.map((item) => ({
-            product_id: item.productId,
-            color: item.color,
-            color_name: item.colorName,
-          })),
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "خطا" }));
-        toast.error(err.error || "خطا در اعمال کد تخفیف");
-        return;
-      }
-
-      const data = await res.json();
-      if (data.valid && data.discount) {
-        applyNegotiatedDiscount(data.discount);
-        setCouponApplied(true);
-        toast.success("کد تخفیف اعمال شد!");
-      }
-    } catch {
-      toast.error("خطا در اعمال کد تخفیف");
-    } finally {
-      setCouponApplying(false);
-    }
+    setShowChatOpeners(false);
+    sendChatMessage(text, chatTargetItem ?? undefined);
   };
 
   const handleStartNewRoom = useCallback(() => {
     startNewRoom();
     setActiveItemIndex(null);
     setChatMessages([]);
-    setCouponApplied(false);
-    setCouponExpired(false);
     setTryOnCount(0);
     setComparePair(null);
-    setShowNegotiationPrompt(false);
-    negotiationInitializedRef.current = false;
-    negotiationRestoredRef.current = false;
+    setShowChatOpeners(false);
+    chatInitializedRef.current = false;
+    chatRestoredRef.current = false;
     hydratedForChatIdRef.current = null;
     restoredFromDbRef.current = false;
   }, [startNewRoom]);
@@ -667,15 +581,6 @@ export default function TryOnRoomPage() {
                       messages={chatMessages}
                       loading={isLoadingSession}
                       typing={chatLoading}
-                      coupon={{
-                        activeCode: couponCode,
-                        expired: couponExpired,
-                        applied: couponApplied,
-                        applying: couponApplying,
-                        basePrice: activeItem?.product.price ?? null,
-                        onApply: handleApplyCoupon,
-                        onExpire: () => setCouponExpired(true),
-                      }}
                       recommendation={{
                         busyProductId: recommendedAdding,
                         onAddToCart: (product) => setSizeModalProduct(product),
@@ -689,7 +594,7 @@ export default function TryOnRoomPage() {
                       onChange={setChatInput}
                       onSubmit={handleChatSubmit}
                       disabled={chatLoading}
-                      showOpeners={!!resultImage && !chatLoading && showNegotiationPrompt && !!negotiationTargetItem}
+                      showOpeners={!!resultImage && !chatLoading && showChatOpeners && !!chatTargetItem}
                       onSelectOpener={handleSelectOpener}
                     />
                   </div>

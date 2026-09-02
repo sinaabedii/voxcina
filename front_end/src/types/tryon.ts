@@ -9,36 +9,6 @@ export interface TryOnEligibleItem {
 }
 
 /**
- * The color one of a coupon's products must be in for the coupon to apply.
- * Any size of that color qualifies.
- */
-export interface RequiredColorEntry {
-  productId: string;
-  color?: string;
-  colorName?: string;
-}
-
-/**
- * What a coupon card needs to draw itself. Kept on the message that offered it;
- * whether it is still the live offer is decided against the store's coupon.
- */
-export interface MessageCoupon {
-  code: string;
-  value: number;
-  valid_until: string;
-}
-
-/** A coupon as the negotiation stream sends it, with the products it binds to. */
-export interface CouponOffer extends MessageCoupon {
-  product_ids: string[];
-  comp_product_id?: string;
-  main_color?: string;
-  main_color_name?: string;
-  comp_color?: string;
-  comp_color_name?: string;
-}
-
-/**
  * A product the agent put on screen. The full product document is deliberately
  * absent on the wire — buildRecommendedProduct rebuilds enough of one to add it
  * to the cart or try it on.
@@ -69,10 +39,13 @@ export interface CatalogVariantHit {
   sizes?: string[];
 }
 
-/** The finished turn the negotiation stream reports in its `done` event. */
-export interface NegotiationTurn {
+/**
+ * The finished turn the fitting-room chat stream reports in its `done` event.
+ * Styling and recommendations only — discount negotiation lives on the
+ * checkout page (see types/checkout-chat.ts).
+ */
+export interface TryOnChatTurn {
   reply?: string;
-  coupon?: CouponOffer;
   recommended_product?: RecommendedProduct;
   catalog_hits?: CatalogVariantHit[];
 }
@@ -93,7 +66,6 @@ export interface ChatMessage {
   tryonData?: TryonMessageData;
   // Cards the agent put on screen during this turn. They belong to the
   // message so the transcript keeps them where they were said.
-  coupon?: MessageCoupon;
   recommendedProduct?: RecommendedProduct;
   catalogHits?: CatalogVariantHit[];
 }

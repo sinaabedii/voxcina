@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Send, Sparkles, Tag, User } from "lucide-react";
 import { toast } from "react-hot-toast";
 
-import CouponCard from "@/components/tryon/CouponCard";
+import CouponCard from "./CouponCard";
 import { streamCheckoutNegotiation } from "@/lib/checkout-chat-api";
 import { cn } from "@/lib/utils";
 import { useCartStore } from "@/store/cart-store";

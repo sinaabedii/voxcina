@@ -20,14 +20,14 @@ import (
 	"backEnd/utils"
 )
 
-// NegotiateRequest is the raw client payload for a negotiation turn.
+// SellerChatRequest is the raw client payload for a seller-agent chat turn.
 //
 // Only these fields are trusted, and even they are verified before use: the
 // handler checks TryonID and ChatID belong to the authenticated user. Everything
 // the agent actually reasons over — the tried-on garment, the cart, the chat
 // history, the discount ladder — is rebuilt server-side into SellerAgentInput,
 // so a caller cannot forge context or smuggle instructions into the prompt.
-type NegotiateRequest struct {
+type SellerChatRequest struct {
 	Message        string `json:"message"`
 	TryonProductID string `json:"tryon_product_id"`
 	TryonColor     string `json:"tryon_color"`
@@ -50,7 +50,7 @@ type SellerAgentInput struct {
 	// Mode selects which prompt/tool set the agent runs with. Defaults to
 	// SellerModeTryon (the zero value) when left unset.
 	Mode         string
-	Request      NegotiateRequest
+	Request      SellerChatRequest
 	TryonContext string
 	// TryonDone reports whether the garment in TryonContext was actually worn in
 	// the fitting room, as opposed to merely being the item the conversation is

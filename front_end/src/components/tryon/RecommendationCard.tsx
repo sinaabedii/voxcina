@@ -18,7 +18,7 @@ interface RecommendationCardProps {
   onTryOn: () => void;
 }
 
-/** The piece the agent is pitching — recommended outright, or bundled with a coupon. */
+/** The piece the agent is pitching — recommended outright or as a styling companion. */
 export default function RecommendationCard({
   product,
   busy,

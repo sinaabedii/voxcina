@@ -3,22 +3,9 @@
 import { motion } from "framer-motion";
 import { Maximize2, RefreshCw, Sparkles, User } from "lucide-react";
 import CatalogHitsCard from "./CatalogHitsCard";
-import CouponCard from "./CouponCard";
 import RecommendationCard from "./RecommendationCard";
 import { cn } from "@/lib/utils";
 import { ChatMessage, RecommendedProduct } from "@/types/tryon";
-
-/** Everything the coupon card needs that is not on the message itself. */
-export interface CouponCardState {
-  /** The room's live coupon code — the card matching it is the applicable one. */
-  activeCode: string | null;
-  expired: boolean;
-  applied: boolean;
-  applying: boolean;
-  basePrice: number | null;
-  onApply: () => void;
-  onExpire: () => void;
-}
 
 export interface RecommendationActions {
   /** The product whose add-to-cart or try-on is in flight, if any. */
@@ -31,7 +18,6 @@ interface ChatMessageItemProps {
   message: ChatMessage;
   /** Same speaker as the message above — the avatar column stays empty. */
   grouped: boolean;
-  coupon: CouponCardState;
   recommendation: RecommendationActions;
   onCompare: (beforeImage: string, afterImage: string) => void;
 }
@@ -43,7 +29,6 @@ interface ChatMessageItemProps {
 export default function ChatMessageItem({
   message,
   grouped,
-  coupon,
   recommendation,
   onCompare,
 }: ChatMessageItemProps) {
@@ -137,18 +122,6 @@ export default function ChatMessageItem({
         </div>
       </motion.div>
 
-      {message.coupon && (
-        <CouponCard
-          coupon={message.coupon}
-          isCurrent={coupon.activeCode === message.coupon.code}
-          expired={coupon.expired}
-          applied={coupon.applied}
-          applying={coupon.applying}
-          basePrice={coupon.basePrice}
-          onApply={coupon.onApply}
-          onExpire={coupon.onExpire}
-        />
-      )}
       {!!message.catalogHits?.length && <CatalogHitsCard hits={message.catalogHits} />}
       {message.recommendedProduct && (
         <RecommendationCard

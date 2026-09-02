@@ -13,7 +13,7 @@ import (
 // a customer who had worn nothing how the shirt looked on them.
 func TestSystemPromptReportsFittingRoomStatus(t *testing.T) {
 	base := SellerAgentInput{
-		Request:      NegotiateRequest{Message: "سلام خوبی؟"},
+		Request:      SellerChatRequest{Message: "سلام خوبی؟"},
 		TryonContext: "پیراهن آبی - آبی - 1200000 تومان",
 		State:        ResolveNegotiationState(0, 0, ""),
 	}

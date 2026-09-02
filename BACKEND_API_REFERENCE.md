@@ -397,7 +397,7 @@ ok  	backEnd/routes
 
 # 2. Try-On Agent
 
-Two cooperating subsystems: **image generation** (person photo + garment → AI-composited image) and the **fitting-room chat agent "Voxa"**, which talks about the garment, recommends complements, and negotiates a discount coupon.
+Two cooperating subsystems: **image generation** (person photo + garment → AI-composited image) and the **fitting-room chat agent "Voxa"**, which answers questions about the garment and recommends complements from the catalog. Discount negotiation is **not** part of the fitting room — it is the checkout page's cart-scoped chat (§2.8).
 
 All routes under `/api/tryon` require `Bearer` auth.
 
@@ -413,8 +413,7 @@ All routes under `/api/tryon` require `Bearer` auth.
 | DELETE | `/api/tryon/sessions/{chatId}` | soft-delete a room |
 | POST | `/api/tryon/sessions/messages` | persist chat turns |
 | POST | `/api/tryon/link` | attach a try-on to a room |
-| POST | `/api/tryon/negotiate-stream` | SSE seller-agent turn |
-| POST | `/api/tryon/apply-negotiated-coupon` | validate + resolve a coupon |
+| POST | `/api/tryon/chat-stream` | SSE fitting-room chat turn (styling + recommendations, never coupons) |
 
 Admin inspection: `GET /api/admin/ai/tryon-chats`, `GET /api/admin/ai/tryon-chats/{chatId}`, and model config at `GET|PUT /api/admin/ai/settings`.
 
@@ -580,14 +579,14 @@ Missing `id` and `timestamp` are filled server-side. Side effect: a message whos
 
 ---
 
-## 2.6 The negotiation agent
+## 2.6 The fitting-room chat agent
 
-`POST /api/tryon/negotiate-stream` — SSE. The cart-scoped twin lives at `POST /api/coupons/negotiate-stream` (checkout page; requires `chat_id`).
+`POST /api/tryon/chat-stream` — SSE. Styling answers and catalog recommendations about the tried-on garment (`SellerModeTryon`). The agent has **no coupon tool**: when the customer asks for a discount, Voxa stays in character and points them at the checkout-page chat (§2.8).
 
 **Request** — deliberately minimal:
 ```json
 {
-  "message": "میشه یه تخفیف بدی؟",
+  "message": "این روم من چطوره؟",
   "tryon_product_id": "664a...",
   "tryon_color": "#1B1B1B",
   "tryon_id": "…",
@@ -595,32 +594,23 @@ Missing `id` and `timestamp` are filled server-side. Side effect: a message whos
 }
 ```
 
-> **Security model:** only these fields are accepted, and even they are verified to belong to the authenticated user. Everything the agent reasons over — the tried-on garment, the live cart, the chat history, the discount ladder, complementary products — is **rebuilt server-side** from MongoDB into `SellerAgentInput`. A client cannot forge context or inject instructions into the prompt, and the discount percentage never appears in the chat text.
+> **Security model:** only these fields are accepted, and even they are verified to belong to the authenticated user. Everything the agent reasons over — the tried-on garment, the live cart, the chat history, complementary products — is **rebuilt server-side** from MongoDB into `SellerAgentInput`. A client cannot forge context or inject instructions into the prompt.
 
 **Response** — `text/event-stream`, one `data:` line per event:
 
 ```
-data: {"type":"token","text":"باشه، "}
-data: {"type":"token","text":"یه کاریش می‌کنم…"}
-data: {"type":"done","reply":"باشه، یه کاریش می‌کنم…","coupon":{…},"recommended_product":{…},"catalog_hits":[…]}
+data: {"type":"token","text":"چس می‌شه، "}
+data: {"type":"token","text":"یه شلوار هم بذار کنارش…"}
+data: {"type":"done","reply":"…","recommended_product":{…},"catalog_hits":[…]}
 ```
 
-Event types: `token` (incremental text) · `done` (terminal, carries the decision) · `error`.
+Event types: `token` (incremental text) · `done` (terminal, carries the decision) · `error`. The `coupon` key exists in the shared `StreamEvent` type but is only ever populated by the checkout negotiation stream (§2.8) — try-on turns carry `recommended_product` / `catalog_hits` or nothing.
 
 ```jsonc
 // StreamEvent
 {
   "type": "done",
   "reply": "…full assistant text…",
-  "coupon": {
-    "code": "TRYN-4F2A",
-    "value": 12,                       // percent
-    "valid_until": "2026-09-05T12:00:00Z",
-    "product_ids": ["664a...", "664b..."],
-    "comp_product_id": "664b...",
-    "main_color": "#1B1B1B", "main_color_name": "مشکی",
-    "comp_color": "#FFFFFF", "comp_color_name": "سفید"
-  },
   "recommended_product": {
     "product_id": "664b...", "product_name": "شلوار جین",
     "price": 1450000, "color": "#2B3A67", "color_name": "سرمه‌ای",
@@ -634,24 +624,20 @@ Event types: `token` (incremental text) · `done` (terminal, carries the decisio
 }
 ```
 
-The `coupon.reason` and reuse flag are internal (`json:"-"`) and never reach the client. When a turn merely restates the current best price, the existing coupon is reused rather than minting a duplicate code — so a room keeps one consistent deal.
-
-**Negotiation state** is server-authoritative (`NegotiationState`: `GrantCount`, `PrevMaxValue`, `LastReason`, `Floor`, `Ceiling`, `NextStep`). Going above the previous maximum has to be *earned* — the customer must supply a concrete new justification that differs from `LastReason`; simply asking again leaves the band unchanged.
-
-Persistence runs on a fresh `context.Background()` with a 10 s timeout, not the request context, so a client disconnecting mid-stream cannot cancel the coupon/transcript writes.
+Persistence runs on a fresh `context.Background()` with a 10 s timeout, not the request context, so a client disconnecting mid-stream cannot cancel the transcript writes.
 
 **Errors:** `401` not signed in · `400` malformed body, empty `message`, or a try-on/room that fails the ownership check. Once the SSE headers are on the wire, failures arrive as `{"type":"error","error":"…"}` with a `200` status.
 
 ---
 
-## 2.7 `POST /api/tryon/apply-negotiated-coupon`
+## 2.7 `POST /api/coupons/apply`
 
-Also mounted as **`POST /api/coupons/apply`** — the same handler, used for cart-recovery and checkout coupons too.
+The single validation endpoint for every negotiated or cart-recovery coupon — the fitting room no longer mints any.
 
 **Request**
 ```json
 {
-  "code": "TRYN-4F2A",
+  "code": "CHK-4F2A",
   "cart_items": [ { "product_id": "664a...", "color": "#1B1B1B", "color_name": "مشکی" } ]
 }
 ```
@@ -661,7 +647,7 @@ Also mounted as **`POST /api/coupons/apply`** — the same handler, used for car
 - Coupon must exist, belong to the caller, and be unused (`used: false`).
 - Must not be past `valid_until` → `410`.
 - If it has `required_products`, an empty cart always fails.
-- **Try-on / checkout coupons:** *all* required products must be present, in the negotiated color (any size).
+- **Checkout-negotiated coupons:** *all* required products must be present, in the negotiated color (any size).
 - **`source: "cart_recovery"` coupons:** *at least one* of the original color variants must still be present.
 
 **Response `200`**
@@ -669,7 +655,7 @@ Also mounted as **`POST /api/coupons/apply`** — the same handler, used for car
 {
   "valid": true,
   "discount": {
-    "code": "TRYN-4F2A",
+    "code": "CHK-4F2A",
     "type": "percentage",
     "value": 12,
     "discountPercentage": 12,
@@ -680,7 +666,7 @@ Also mounted as **`POST /api/coupons/apply`** — the same handler, used for car
     "required_products": [
       { "product_id": "664a...", "color": "#1B1B1B", "color_name": "مشکی" }
     ],
-    "source": ""
+    "source": "checkout_negotiation"
   }
 }
 ```
@@ -689,7 +675,9 @@ Also mounted as **`POST /api/coupons/apply`** — the same handler, used for car
 
 This endpoint only **validates and resolves**. Marking a coupon consumed is a separate call: `POST /api/discounts/activate` (`{"code": "…"}`), with `POST /api/discounts/deactivate` to release it.
 
-## 2.8 Checkout negotiation chat (cart-scoped twin)
+## 2.8 Checkout discount negotiation chat
+
+The fitting room's discount capability moved here wholesale. Cart-scoped, authenticated, independent of any try-on.
 
 | Method | Path |
 |---|---|
@@ -697,9 +685,28 @@ This endpoint only **validates and resolves**. Marking a coupon consumed is a se
 | POST | `/api/coupons/sessions/messages` |
 | GET | `/api/coupons/sessions/{chatId}` |
 
-Same request/SSE contract as §2.6, but `chat_id` is **required** and there is no try-on garment — the agent's world is built purely from the cart. Transcripts persist to `CheckoutChat` (roles limited to `user` | `agent`, tool calls limited to `offer_coupon`) and issued coupons carry `source: "checkout_negotiation"`.
+Same SSE envelope as §2.6 with one addition: `chat_id` is **required** and the `done` event can carry a `coupon`. There is no try-on garment — the agent's world is built purely from the cart. Transcripts persist to `CheckoutChat` (roles limited to `user` | `agent`, tool calls limited to `offer_coupon`) and issued coupons carry `source: "checkout_negotiation"`.
 
----
+```jsonc
+// done event on the checkout stream
+{
+  "type": "done",
+  "reply": "باشه، یه کاریش می‌کنم…",
+  "coupon": {
+    "code": "CHK-4F2A",
+    "value": 12,                       // percent
+    "valid_until": "2026-09-05T12:00:00Z",
+    "product_ids": ["664a...", "664b..."],
+    "comp_product_id": "664b...",
+    "main_color": "#1B1B1B", "main_color_name": "مشکی",
+    "comp_color": "#FFFFFF", "comp_color_name": "سفید"
+  }
+}
+```
+
+The `coupon.reason` and reuse flag are internal (`json:"-"`) and never reach the client. When a turn merely restates the current best price, the existing coupon is reused rather than minting a duplicate code — so a session keeps one consistent deal.
+
+**Negotiation state** is server-authoritative (`NegotiationState`: `GrantCount`, `PrevMaxValue`, `LastReason`, `Floor`, `Ceiling`, `NextStep`). Going above the previous maximum has to be *earned* — the customer must supply a concrete new justification that differs from `LastReason`; simply asking again leaves the band unchanged.
 
 # 3. User Cart
 
@@ -1368,9 +1375,8 @@ GET    /api/tryon/sessions/{chatId}              [auth]
 DELETE /api/tryon/sessions/{chatId}              [auth]
 POST   /api/tryon/sessions/messages              [auth]
 POST   /api/tryon/link                           [auth]
-POST   /api/tryon/negotiate-stream               [auth, SSE]
-POST   /api/tryon/apply-negotiated-coupon        [auth]
-POST   /api/coupons/apply                        [auth]  (same handler)
+POST   /api/tryon/chat-stream                    [auth, SSE]
+POST   /api/coupons/apply                        [auth]
 POST   /api/coupons/negotiate-stream             [auth, SSE]
 POST   /api/coupons/sessions/messages            [auth]
 GET    /api/coupons/sessions/{chatId}            [auth]

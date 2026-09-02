@@ -1,4 +1,12 @@
-import { MessageCoupon } from "@/types/tryon";
+/**
+ * What a coupon card needs to draw itself. Kept on the message that offered it;
+ * whether it is still the live offer is decided against the session's coupon.
+ */
+export interface MessageCoupon {
+  code: string;
+  value: number;
+  valid_until: string;
+}
 
 export type CheckoutChatRole = "user" | "agent";
 export type CheckoutChatStatus = "active" | "deleted";

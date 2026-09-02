@@ -12,7 +12,7 @@ interface TryOnStepIndicatorProps {
   steps: TryOnStep[];
 }
 
-/** Upload → pick a garment → negotiate, with the first unfinished step lit. */
+/** Upload → pick a garment → chat with Voxa, with the first unfinished step lit. */
 export default function TryOnStepIndicator({ steps }: TryOnStepIndicatorProps) {
   const currentStep = steps.findIndex((step) => !step.done);
 

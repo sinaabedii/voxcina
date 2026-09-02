@@ -56,7 +56,7 @@ func TestMentionsProductMatchesPartialNames(t *testing.T) {
 // no idea a card is on screen and either talks past it or pushes it again.
 func TestSystemPromptNamesCardsAlreadyOnScreen(t *testing.T) {
 	base := SellerAgentInput{
-		Request:      NegotiateRequest{Message: "سلام"},
+		Request:      SellerChatRequest{Message: "سلام"},
 		TryonContext: "پیراهن آبی - آبی - 1200000 تومان",
 		State:        ResolveNegotiationState(0, 0, ""),
 	}
@@ -106,7 +106,7 @@ func TestDoneEventCarriesNoCandidateProducts(t *testing.T) {
 // greeting, a price question or small talk must not become a card.
 func TestRecommendationDroppedWhenCustomerDidNotAsk(t *testing.T) {
 	in := SellerAgentInput{
-		Request:               NegotiateRequest{Message: "سلام خوبی؟"},
+		Request:               SellerChatRequest{Message: "سلام خوبی؟"},
 		ComplementaryProducts: []CouponCartItem{{ProductID: "comp-1", ProductName: "شلوار جین راسته"}},
 	}
 	result := &streamResult{toolCalls: []accumulatedToolCall{
@@ -123,7 +123,7 @@ func TestRecommendationDroppedWhenCustomerDidNotAsk(t *testing.T) {
 
 func TestRecommendationKeptWhenCustomerAsked(t *testing.T) {
 	in := SellerAgentInput{
-		Request:               NegotiateRequest{Message: "یه شلوار جین مشکی سایز ۳۲ داری؟"},
+		Request:               SellerChatRequest{Message: "یه شلوار جین مشکی سایز ۳۲ داری؟"},
 		ComplementaryProducts: []CouponCartItem{{ProductID: "comp-1", ProductName: "شلوار جین راسته"}},
 	}
 	result := &streamResult{toolCalls: []accumulatedToolCall{
@@ -138,7 +138,7 @@ func TestRecommendationKeptWhenCustomerAsked(t *testing.T) {
 func TestRecommendationKeptWhenCouponBundles(t *testing.T) {
 	in := SellerAgentInput{
 		Mode:                  SellerModeCheckout,
-		Request:               NegotiateRequest{Message: "سلام چیزی میخوای؟"},
+		Request:               SellerChatRequest{Message: "سلام چیزی میخوای؟"},
 		TryonContext:          "پیراهن آبی - آبی - 1200000 تومان",
 		ComplementaryProducts: []CouponCartItem{{ProductID: "comp-1", ProductName: "شلوار جین راسته"}},
 		State:                 ResolveNegotiationState(0, 0, ""),

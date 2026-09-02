@@ -59,7 +59,7 @@ interface CheckoutNegotiationStreamEvent extends CheckoutNegotiationTurn {
 
 /**
  * Runs one checkout discount-negotiation turn over server-sent events. Mirrors
- * streamNegotiation in tryon-api.ts, but cart-scoped: the backend rebuilds the
+ * streamTryOnChat in tryon-api.ts, but cart-scoped: the backend rebuilds the
  * cart and history from the database, so the body only names the chat.
  */
 export async function streamCheckoutNegotiation(

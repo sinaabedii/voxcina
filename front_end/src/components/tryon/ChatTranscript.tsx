@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
-import ChatMessageItem, { CouponCardState, RecommendationActions } from "./ChatMessageItem";
+import ChatMessageItem, { RecommendationActions } from "./ChatMessageItem";
 import { cn } from "@/lib/utils";
 import { ChatMessage } from "@/types/tryon";
 
@@ -13,7 +13,6 @@ interface ChatTranscriptProps {
   loading: boolean;
   /** The agent is composing a reply. */
   typing: boolean;
-  coupon: CouponCardState;
   recommendation: RecommendationActions;
   onCompare: (beforeImage: string, afterImage: string) => void;
 }
@@ -70,7 +69,6 @@ export default function ChatTranscript({
   messages,
   loading,
   typing,
-  coupon,
   recommendation,
   onCompare,
 }: ChatTranscriptProps) {
@@ -91,7 +89,6 @@ export default function ChatTranscript({
               key={idx}
               message={message}
               grouped={messages[idx - 1]?.role === message.role}
-              coupon={coupon}
               recommendation={recommendation}
               onCompare={onCompare}
             />

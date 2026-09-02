@@ -2,7 +2,7 @@ import { TryonChatMessage, VirtualTryon } from "@/lib/tryon-api";
 import {
   CatalogVariantHit,
   ChatMessage,
-  NegotiationTurn,
+  TryOnChatTurn,
   RecommendedProduct,
 } from "@/types/tryon";
 
@@ -51,7 +51,7 @@ const replyForCards = (
  * either cleared the recommendation or left the coupon stranded at the bottom
  * of the transcript.
  */
-export function agentMessageForTurn(turn: NegotiationTurn, streamed: string): ChatMessage {
+export function agentMessageForTurn(turn: TryOnChatTurn, streamed: string): ChatMessage {
   const hits = Array.isArray(turn.catalog_hits) ? turn.catalog_hits : [];
   const rec = turn.recommended_product;
   const content =
@@ -60,9 +60,6 @@ export function agentMessageForTurn(turn: NegotiationTurn, streamed: string): Ch
     replyForCards(rec?.product_name, hits.length > 0, !!rec);
 
   const message: ChatMessage = { role: "agent", content };
-  // Coupon handling removed — tryon assistant never mints a coupon (checkout
-  // negotiation owns offer_coupon). Historic coupon cards are still restored
-  // via restoreCards for old rooms, but no new coupon is attached here.
   if (rec) message.recommendedProduct = rec;
   if (hits.length) message.catalogHits = hits;
   return message;
@@ -72,10 +69,9 @@ export function agentMessageForTurn(turn: NegotiationTurn, streamed: string): Ch
 function restoreCards(message: ChatMessage, toolCall?: TryonChatMessage["tool_call"]) {
   const result = toolCall?.result;
   if (!result) return;
-  // Coupon fields are no longer produced by the tryon agent (moved to checkout).
-  // Keep reading recommended_product / catalog_hits for styling turns.
-  // Historic rooms that still carry a coupon result will simply not render a
-  // coupon card here — checkout owns that UI now.
+  // Only styling turns are read back: the tryon agent never had a coupon tool
+  // post-decoupling, and old rooms' offer_coupon tool calls render no card —
+  // checkout owns coupon UI now.
   if (result.recommended_product) {
     message.recommendedProduct = result.recommended_product as RecommendedProduct;
   }

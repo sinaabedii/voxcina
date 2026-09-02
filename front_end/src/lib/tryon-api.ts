@@ -1,5 +1,5 @@
 import { sessionManager } from "@/lib/session-manager";
-import { NegotiationTurn } from "@/types/tryon";
+import { TryOnChatTurn } from "@/types/tryon";
 
 export type TryonStatus = "processing" | "done" | "error";
 export type GarmentType = "upper_body" | "lower_body" | "dresses";
@@ -204,7 +204,7 @@ export function makeMessageId(): string {
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export interface NegotiateStreamBody {
+export interface TryOnChatStreamBody {
   message: string;
   tryon_product_id: string;
   tryon_color?: string;
@@ -212,30 +212,31 @@ export interface NegotiateStreamBody {
   chat_id: string;
 }
 
-export interface NegotiationStreamHandlers {
+export interface TryOnChatStreamHandlers {
   /** A slice of the reply as the agent writes it. */
   onToken: (text: string) => void;
   /** The finished turn: the full reply plus whatever cards it produced. */
-  onDone: (turn: NegotiationTurn) => void;
+  onDone: (turn: TryOnChatTurn) => void;
 }
 
-interface NegotiationStreamEvent extends NegotiationTurn {
+interface TryOnChatStreamEvent extends TryOnChatTurn {
   type: "token" | "done" | "error";
   text?: string;
   error?: string;
 }
 
 /**
- * Runs one negotiation turn over server-sent events. The backend rebuilds the
- * garment, cart and history from the database and persists both halves of the
- * turn itself, so the body only names which try-on and which fitting room the
- * message belongs to.
+ * Runs one fitting-room chat turn (styling answers and product recommendations)
+ * over server-sent events. The backend rebuilds the garment, cart and history
+ * from the database and persists both halves of the turn itself, so the body
+ * only names which try-on and which room the message belongs to. Discount
+ * negotiation is the checkout page's chat — see checkout-chat-api.ts.
  */
-export async function streamNegotiation(
-  body: NegotiateStreamBody,
-  { onToken, onDone }: NegotiationStreamHandlers
+export async function streamTryOnChat(
+  body: TryOnChatStreamBody,
+  { onToken, onDone }: TryOnChatStreamHandlers
 ): Promise<void> {
-  const res = await sessionManager.fetchWithAuth("/api/tryon/negotiate-stream", {
+  const res = await sessionManager.fetchWithAuth("/api/tryon/chat-stream", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -257,7 +258,7 @@ export async function streamNegotiation(
 
     for (const line of lines) {
       if (!line.startsWith("data: ")) continue;
-      let event: NegotiationStreamEvent;
+      let event: TryOnChatStreamEvent;
       try {
         event = JSON.parse(line.slice(6));
       } catch (err) {
@@ -266,7 +267,7 @@ export async function streamNegotiation(
       }
       if (event.type === "token") onToken(event.text || "");
       else if (event.type === "done") onDone(event);
-      else if (event.type === "error") throw new Error(event.error || "خطا در مذاکره");
+      else if (event.type === "error") throw new Error(event.error || "خطا در گفتگو");
     }
 
     if (done) break;

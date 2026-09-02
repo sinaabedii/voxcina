@@ -3,23 +3,23 @@
 import { Check, Tag } from "lucide-react";
 import CountdownTimer from "@/components/ui/CountdownTimer";
 import { cn, formatPrice } from "@/lib/utils";
-import { MessageCoupon } from "@/types/tryon";
+import { MessageCoupon } from "@/types/checkout-chat";
 
 interface CouponCardProps {
   coupon: MessageCoupon;
-  /** This is the room's live offer. Only the live one can be applied. */
+  /** This is the session's live offer. Only the live one can be applied. */
   isCurrent: boolean;
   expired: boolean;
   applied: boolean;
   applying: boolean;
-  /** Price the savings line is figured from — the garment being tried on. */
+  /** Price the savings line is figured from — the cart subtotal. */
   basePrice?: number | null;
   onApply: () => void;
   onExpire: () => void;
 }
 
 /**
- * The coupon the agent negotiated. A coupon a later offer replaced stays on
+ * A coupon the checkout negotiation agent granted. A coupon a later offer replaced stays on
  * screen as a spent card rather than an apply button that would quietly hand
  * over the newer code.
  */

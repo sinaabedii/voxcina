@@ -6,7 +6,7 @@ import {
 } from "@/lib/product-variants";
 import { CartItem } from "@/types/cart";
 import { ColorVariant, Product } from "@/types/product";
-import { RecommendedProduct, RequiredColorEntry, TryOnEligibleItem } from "@/types/tryon";
+import { RecommendedProduct, TryOnEligibleItem } from "@/types/tryon";
 
 /**
  * Reading a recommendation. The agent names a product and a color; everything
@@ -118,33 +118,3 @@ export const computeEligibleItems = (items: CartItem[]): TryOnEligibleItem[] =>
         : null;
     })
     .filter((x): x is TryOnEligibleItem => x !== null);
-
-const colorsOverlap = (
-  color1?: string,
-  colorName1?: string,
-  color2?: string,
-  colorName2?: string
-): boolean => {
-  const values1 = [color1, colorName1].filter((v): v is string => !!v && v.trim() !== "");
-  const values2 = [color2, colorName2].filter((v): v is string => !!v && v.trim() !== "");
-  if (values1.length === 0 || values2.length === 0) return false;
-  return values1.some((v) => values2.includes(v));
-};
-
-/**
- * Which of a coupon's products the cart is still missing. A product counts only
- * in the exact color the coupon was negotiated for; any size of it qualifies.
- */
-export const missingCouponProducts = (
-  cartItems: CartItem[],
-  productIds: string[],
-  requiredColors: RequiredColorEntry[]
-): string[] =>
-  productIds.filter((pid) => {
-    const required = requiredColors.find((rc) => rc.productId === pid);
-    return !cartItems.some((item) => {
-      if (item.productId !== pid) return false;
-      if (!required || (!required.color && !required.colorName)) return true;
-      return colorsOverlap(required.color, required.colorName, item.color, item.colorName);
-    });
-  });

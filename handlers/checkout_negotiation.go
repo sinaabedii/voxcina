@@ -27,7 +27,7 @@ func InitCheckoutChatService(db *mongo.Database) {
 }
 
 // NegotiateCheckoutCouponStream handles POST /api/coupons/negotiate-stream.
-// It is the cart-scoped counterpart to NegotiateCouponStream: the customer
+// It is the cart-scoped counterpart to TryOnChatStream: the customer
 // negotiates a discount on whatever is in their cart, with no tried-on
 // garment required.
 func NegotiateCheckoutCouponStream(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +37,7 @@ func NegotiateCheckoutCouponStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req services.NegotiateRequest
+	var req services.SellerChatRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "فرمت درخواست نامعتبر است")
 		return
@@ -97,7 +97,7 @@ func NegotiateCheckoutCouponStream(w http.ResponseWriter, r *http.Request) {
 // buildCheckoutSellerInput assembles the agent's view of the world from the
 // database, scoped to the customer's cart — there is no tried-on garment to
 // look up here.
-func buildCheckoutSellerInput(ctx context.Context, userID primitive.ObjectID, req services.NegotiateRequest) services.SellerAgentInput {
+func buildCheckoutSellerInput(ctx context.Context, userID primitive.ObjectID, req services.SellerChatRequest) services.SellerAgentInput {
 	input := services.SellerAgentInput{Mode: services.SellerModeCheckout, Request: req}
 
 	input.CartItems = buildServerCartContext(ctx, userID)
@@ -140,7 +140,7 @@ func loadCheckoutNegotiationHistory(ctx context.Context, userID primitive.Object
 }
 
 // persistCheckoutNegotiationTurn writes both halves of the turn to the
-// session transcript, mirroring persistNegotiationTurn.
+// session transcript, mirroring persistTryOnChatTurn.
 func persistCheckoutNegotiationTurn(ctx context.Context, userID primitive.ObjectID, input services.SellerAgentInput, turn *services.SellerTurnResult) {
 	chatID := input.Request.ChatID
 	if chatID == "" || checkoutChatService == nil {

@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { RequiredColorEntry } from "@/types/tryon";
 import {
   VirtualTryon,
   TryonChat,
@@ -50,14 +49,6 @@ interface TryOnState {
   inspectedItemName: string | null;
   inspectedGarmentType: string | null;
 
-  couponCode: string | null;
-  couponValue: number | null;
-  couponValidUntil: string | null;
-  couponProductIds: string[];
-  // The color variant each required product's coupon eligibility is locked
-  // to (main product + complementary product); any size of that color qualifies.
-  couponRequiredColors: RequiredColorEntry[];
-
   __tryOnAbortController: AbortController | null;
 
   // Persisted session linkage
@@ -74,8 +65,6 @@ interface TryOnState {
   setResultImage: (url: string | null) => void;
   setInspectedItem: (name: string, garmentType: string) => void;
   clearInspectedItem: () => void;
-  setCoupon: (code: string, value: number, validUntil: string, productIds?: string[], requiredColors?: RequiredColorEntry[]) => void;
-  clearCoupon: () => void;
   clearResult: () => void;
   clear: () => void;
   startTryOn: (garmentImageUrl: string, garmentType: string, garment?: TryOnGarmentMeta) => Promise<void>;
@@ -117,11 +106,6 @@ export const useTryOnStore = create<TryOnState>()(
     inspectedItemName: null,
     inspectedGarmentType: null,
 
-    couponCode: null,
-    couponValue: null,
-    couponValidUntil: null,
-    couponProductIds: [],
-    couponRequiredColors: [],
     __tryOnAbortController: null,
 
     chatId: null,
@@ -155,18 +139,6 @@ export const useTryOnStore = create<TryOnState>()(
     clearInspectedItem: () =>
       set({ inspectedItemName: null, inspectedGarmentType: null }),
 
-    setCoupon: (code, value, validUntil, productIds, requiredColors) =>
-      set({
-        couponCode: code,
-        couponValue: value,
-        couponValidUntil: validUntil,
-        couponProductIds: productIds || [],
-        couponRequiredColors: requiredColors || [],
-      }),
-
-    clearCoupon: () =>
-      set({ couponCode: null, couponValue: null, couponValidUntil: null, couponProductIds: [], couponRequiredColors: [] }),
-
     clearResult: () => {
       const state = get();
       if (state.__tryOnAbortController) {
@@ -196,11 +168,6 @@ export const useTryOnStore = create<TryOnState>()(
         error: null,
         inspectedItemName: null,
         inspectedGarmentType: null,
-        couponCode: null,
-        couponValue: null,
-        couponValidUntil: null,
-        couponProductIds: [],
-        couponRequiredColors: [],
         __tryOnAbortController: null,
         chatId: null,
         currentTryonId: null,
@@ -329,20 +296,6 @@ export const useTryOnStore = create<TryOnState>()(
             persistedMessages: data.chat.messages || [],
             persistedTryons: data.tryons || [],
           });
-          // Restore last coupon if present
-          const lastCouponMsg = [...(data.chat.messages || [])]
-            .reverse()
-            .find((m) => m.tool_call?.name === "offer_coupon" && m.tool_call.result);
-          if (lastCouponMsg?.tool_call?.result) {
-            const r = lastCouponMsg.tool_call.result;
-            if (typeof r.code === "string" && typeof r.value === "number" && typeof r.valid_until === "string") {
-              set({
-                couponCode: r.code,
-                couponValue: r.value,
-                couponValidUntil: r.valid_until,
-              });
-            }
-          }
           // Restore last tryon state if no live result
           if (data.tryons?.length) {
             const lastDone = [...data.tryons].reverse().find((t) => t.status === "done");
@@ -452,11 +405,6 @@ export const useTryOnStore = create<TryOnState>()(
         resultImage: null,
         inspectedItemName: null,
         inspectedGarmentType: null,
-        couponCode: null,
-        couponValue: null,
-        couponValidUntil: null,
-        couponProductIds: [],
-        couponRequiredColors: [],
       });
     },
   })
