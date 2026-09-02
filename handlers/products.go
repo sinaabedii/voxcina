@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -822,6 +823,71 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, http.StatusCreated, product)
 }
 
+// productViewTotals sums the materialized per-variant view counters in
+// product_variant_views (fed by real product_view activity events) into one
+// total per product. A missing or empty collection yields an empty map, which
+// lets popularity sorting fall back to reviews and then recency.
+func productViewTotals(ctx context.Context) map[string]int64 {
+	totals := map[string]int64{}
+
+	type viewTotal struct {
+		ProductID primitive.ObjectID `bson:"_id"`
+		Views     int64              `bson:"views"`
+	}
+
+	cursor, err := db.Database.Collection("product_variant_views").Aggregate(ctx, mongo.Pipeline{
+		{{Key: "$group", Value: bson.M{
+			"_id":   "$product_id",
+			"views": bson.M{"$sum": "$view_count"},
+		}}},
+	})
+	if err != nil {
+		return totals
+	}
+	defer cursor.Close(ctx)
+
+	var results []viewTotal
+	if err := cursor.All(ctx, &results); err != nil {
+		return totals
+	}
+	for _, result := range results {
+		totals[result.ProductID.Hex()] = result.Views
+	}
+	return totals
+}
+
+// sortProductsByPopularity ranks products by real engagement data:
+// lifetime views first, then review volume and rating as secondary signals.
+// When no popularity has been recorded at all the input order (newest first)
+// is preserved, so a "popular" listing never degrades into an arbitrary one.
+func sortProductsByPopularity(ctx context.Context, products []models.Product) {
+	views := productViewTotals(ctx)
+	hasPopularitySignals := len(views) > 0
+	for _, product := range products {
+		if product.ReviewCount > 0 {
+			hasPopularitySignals = true
+			break
+		}
+	}
+	if !hasPopularitySignals {
+		return
+	}
+
+	sort.SliceStable(products, func(i, j int) bool {
+		vi, vj := views[products[i].ID.Hex()], views[products[j].ID.Hex()]
+		if vi != vj {
+			return vi > vj
+		}
+		if products[i].ReviewCount != products[j].ReviewCount {
+			return products[i].ReviewCount > products[j].ReviewCount
+		}
+		if products[i].AverageRating != products[j].AverageRating {
+			return products[i].AverageRating > products[j].AverageRating
+		}
+		return products[i].CreatedAt.After(products[j].CreatedAt)
+	})
+}
+
 // ListProducts handles GET /api/products
 // Returns paginated color variants as separate items (not full products)
 func ListProducts(w http.ResponseWriter, r *http.Request) {
@@ -913,16 +979,17 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 	case "price-desc":
 		findOptions.SetSort(bson.D{{Key: "price", Value: -1}})
 	case "popular":
-		findOptions.SetSort(bson.D{{Key: "review_count", Value: -1}, {Key: "average_rating", Value: -1}})
+		// Real popularity is ranked in memory below (view counters + reviews);
+		// newest-first here makes that stable sort degrade to newest when no
+		// popularity signals have been recorded yet.
+		findOptions.SetSort(bson.D{{Key: "created_at", Value: -1}})
 	case "discount":
 		// Sort by discount percentage (original_price - price) / original_price
 		// Since MongoDB doesn't easily compute this, sort by original_price desc as proxy
 		findOptions.SetSort(bson.D{{Key: "original_price", Value: -1}})
 	default:
-		// Also support legacy is_new parameter
-		if r.URL.Query().Get("is_new") == "true" {
-			findOptions.SetSort(bson.D{{Key: "created_at", Value: -1}})
-		}
+		// Default order (and the legacy is_new=true path) is newest first.
+		findOptions.SetSort(bson.D{{Key: "created_at", Value: -1}})
 	}
 
 	// Fetch all active products matching filters
@@ -944,6 +1011,10 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 		}
 		utils.JSONResponse(w, http.StatusOK, response)
 		return
+	}
+
+	if sortParam == "popular" {
+		sortProductsByPopularity(ctx, products)
 	}
 
 	// Expand every matching product into one row per color variant. Each

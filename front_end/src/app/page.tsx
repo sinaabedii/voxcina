@@ -51,9 +51,10 @@ interface ProductsResponse {
 async function getHomePageData() {
   // Fetch all data in parallel for better performance
   const [featuredProductsData, newProductsData, slidersData, categories] = await Promise.all([
-    // Fetch featured/popular products
+    // Fetch featured/popular products (real view/review ranking server-side,
+    // degrading to newest-first until any popularity is recorded)
     serverFetchWithFallback<ProductsResponse | ColorVariantListItem[]>(
-      '/api/products?limit=10',
+      '/api/products?sort=popular&limit=10',
       [],
       { revalidate: CACHE_TIMES.HOME_PAGE, tags: ['home', 'featured-products'] }
     ),
