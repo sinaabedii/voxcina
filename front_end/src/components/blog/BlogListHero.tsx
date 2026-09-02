@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { useGSAP } from "@gsap/react";
-import { gsap, SplitText } from "@/lib/gsap";
+import { gsap, SplitText } from "@/lib/gsap-plugins";
 
 interface BlogListHeroProps {
   title: string;

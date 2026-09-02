@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useGSAP } from "@gsap/react";
-import { gsap, ScrollTrigger } from "@/lib/gsap";
+import { gsap, ScrollTrigger } from "@/lib/gsap-plugins";
 import { ColorVariantListItem } from "@/types/product";
 import BackendImage from "@/components/BackendImage";
 import TexturedBackground from "@/components/ui/TexturedBackground";

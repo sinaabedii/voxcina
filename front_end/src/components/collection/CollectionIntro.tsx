@@ -2,7 +2,7 @@
 
 import { useRef, useState, useCallback } from "react";
 import { useGSAP } from "@gsap/react";
-import { gsap, SplitText } from "@/lib/gsap";
+import { gsap, SplitText } from "@/lib/gsap-plugins";
 import TexturedBackground from "@/components/ui/TexturedBackground";
 
 interface CollectionIntroProps {

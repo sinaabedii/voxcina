@@ -2,7 +2,7 @@
 
 import { RefObject, useRef } from "react";
 import { useGSAP } from "@gsap/react";
-import { gsap, ScrollTrigger } from "@/lib/gsap";
+import { gsap, ScrollTrigger } from "@/lib/gsap-plugins";
 
 interface UseScrollRevealOptions {
   /** CSS selector (relative to the container) for the items to reveal. */

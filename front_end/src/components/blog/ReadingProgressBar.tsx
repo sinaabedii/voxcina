@@ -2,7 +2,7 @@
 
 import { RefObject, useEffect, useRef, useState } from "react";
 import { useGSAP } from "@gsap/react";
-import { gsap } from "@/lib/gsap";
+import { gsap } from "@/lib/gsap-plugins";
 
 interface ReadingProgressBarProps {
   /** The article element whose scroll range drives the bar. */

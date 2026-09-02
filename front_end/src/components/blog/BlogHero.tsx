@@ -4,7 +4,7 @@ import { useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useGSAP } from "@gsap/react";
-import { gsap, SplitText } from "@/lib/gsap";
+import { gsap, SplitText } from "@/lib/gsap-plugins";
 import { BlogPost } from "@/types/blog";
 import { CalendarIcon, ClockIcon, ArrowRight as ArrowRightIcon } from "lucide-react";
 import AuthorAvatar from "./AuthorAvatar";

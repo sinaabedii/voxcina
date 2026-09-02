@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useGSAP } from "@gsap/react";
-import { gsap, ScrollTrigger } from "@/lib/gsap";
+import { gsap, ScrollTrigger } from "@/lib/gsap-plugins";
 import { getHeadingItems } from "@/lib/blog-blocks";
 import type { BlogBlock } from "@/types/blog";
 import { cn } from "@/lib/utils";
