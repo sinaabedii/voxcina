@@ -210,6 +210,17 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/job-positions/{id}", handlers.AdminUpdateJobPosition).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/job-positions/{id}", handlers.AdminDeleteJobPosition).Methods(http.MethodDelete)
 
+	// Admin-curated product collections (bundles of specific color variants)
+	adminRouter.HandleFunc("/shop-collections", handlers.AdminListShopCollections).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/shop-collections", handlers.AdminCreateShopCollection).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/shop-collections/{id}", handlers.AdminGetShopCollection).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/shop-collections/{id}", handlers.AdminUpdateShopCollection).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/shop-collections/{id}", handlers.AdminDeleteShopCollection).Methods(http.MethodDelete)
+
+	// Public reads of the same curated collections (active only).
+	api.HandleFunc("/shop-collections", handlers.ListShopCollections).Methods(http.MethodGet)
+	api.HandleFunc("/shop-collections/{id}", handlers.GetShopCollection).Methods(http.MethodGet)
+
 	// Admin Ticket Management
 	adminRouter.HandleFunc("/tickets", handlers.AdminListTickets).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/tickets/{ticketId}/status", handlers.AdminUpdateTicketStatus).Methods(http.MethodPut)

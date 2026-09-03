@@ -125,6 +125,12 @@ func Connect(cfg *config.Config) *mongo.Database {
 		log.Printf("Warning: Could not seed default job positions: %v", err)
 	}
 
+	// Admin-curated product collections (bundles of specific color variants).
+	if err := CreateShopCollectionIndexes(); err != nil {
+		log.Printf("Warning: Could not ensure shop collection indexes: %v", err)
+		// Non-critical, continue anyway
+	}
+
 	// Payment attempts are the idempotency and callback lookup record for all
 	// gateways. Partial unique indexes ignore legacy attempts created before a
 	// provider reference was assigned.

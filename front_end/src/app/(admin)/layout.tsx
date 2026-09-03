@@ -32,6 +32,7 @@ import {
   Ticket,
   RotateCcw,
   Briefcase,
+  Layers,
 } from "lucide-react";
 
 /**
@@ -107,6 +108,11 @@ export default function AdminLayout({
       name: "برندها",
       href: "/admin/brands",
       icon: <ShoppingBag className="w-5 h-5 ml-3" />,
+    },
+    {
+      name: "کالکشن‌ها",
+      href: "/admin/collections",
+      icon: <Layers className="w-5 h-5 ml-3" />,
     },
     {
       name: "سفارش‌ها",
