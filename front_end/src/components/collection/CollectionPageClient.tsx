@@ -6,21 +6,27 @@ import { useRouter } from "next/navigation";
 import { Package, ArrowRight } from "lucide-react";
 import Footer from "@/components/layout/Footer";
 import Button from "@/components/ui/Button";
-import { ColorVariantListItem } from "@/types/product";
 import CollectionIntro from "@/components/collection/CollectionIntro";
-import CollectionScrollShowcase from "@/components/collection/CollectionScrollShowcase";
+import CollectionsShowcase from "@/components/collection/CollectionsShowcase";
 import TexturedBackground from "@/components/ui/TexturedBackground";
+import type { ShopCollectionView } from "@/types/shopCollection";
 
 interface CollectionPageClientProps {
+  /** Headline for the intro overlay — the set's name, or a single bundle's. */
   title: string;
   tagline: string;
-  items: ColorVariantListItem[];
+  collections: ShopCollectionView[];
 }
 
+/**
+ * Client shell shared by /collection and /collection/{id}: the branded intro
+ * overlay, then the scroll-scrubbed showcase that plays one scene per curated
+ * collection (the single-collection route simply passes one).
+ */
 export default function CollectionPageClient({
   title,
   tagline,
-  items,
+  collections,
 }: CollectionPageClientProps) {
   const router = useRouter();
   const [introDone, setIntroDone] = useState(false);
@@ -54,14 +60,16 @@ export default function CollectionPageClient({
       </button>
 
       <main className="relative isolate min-h-screen">
-        {items.length === 0 ? (
+        {collections.length === 0 ? (
           <div className="py-24 text-center">
             <TexturedBackground withLogo={false} />
             <div className="container">
               <Package className="w-16 h-16 text-voxcina-blue/40 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold mb-4 text-voxcina-blue">محصولی در این کالکشن یافت نشد</h2>
+              <h2 className="text-2xl font-bold mb-4 text-voxcina-blue">
+                کالکشنی برای نمایش وجود ندارد
+              </h2>
               <p className="text-voxcina-blue/70 mb-8">
-                در حال حاضر محصولی در این کالکشن موجود نیست.
+                در حال حاضر کالکشن منتشرشده‌ای موجود نیست.
               </p>
               <Link href="/products">
                 <Button variant="primary" size="lg">
@@ -71,7 +79,7 @@ export default function CollectionPageClient({
             </div>
           </div>
         ) : (
-          <CollectionScrollShowcase items={items} />
+          <CollectionsShowcase collections={collections} />
         )}
       </main>
 

@@ -20,7 +20,7 @@ interface UseScrollRevealOptions {
 /**
  * Fades + lifts items into view as they scroll into the viewport, batched so a
  * fast scroll reveals a whole group together instead of one-by-one.
- * Thin wrapper around ScrollTrigger.batch() — see CollectionScrollShowcase.tsx
+ * Thin wrapper around ScrollTrigger.batch() — see CollectionsShowcase.tsx
  * for the sibling pattern (pinned scroll) this project already uses.
  *
  * Respects prefers-reduced-motion: items are simply set to their final state.

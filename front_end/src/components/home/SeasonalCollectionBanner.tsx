@@ -31,7 +31,7 @@ export default function SeasonalCollectionBanner() {
 
             <div>
               <Link
-                href="/collection/%D8%AA%D8%A7%D8%A8%D8%B3%D8%AA%D8%A7%D9%86"
+                href="/collection"
                 className="inline-flex gap-2 items-center font-medium text-voxcina-blue hover:text-voxcina-darkBlue transition-colors group"
               >
                 <span>مشاهده کالکشن</span>

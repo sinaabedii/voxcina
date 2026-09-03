@@ -32,6 +32,7 @@ export const CACHE_TIMES = {
   BRANDS: 600,             // 10 minutes - brands stable
   SLIDERS: 600,            // 10 minutes - sliders stable
   HERO_IMAGES: 360,       // 6 minutes - hero images stable (Requirements: 3.2)
+  SHOP_COLLECTIONS: 300,   // 5 minutes - curated bundles change with their items
 } as const;
 
 /**

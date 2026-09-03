@@ -441,7 +441,7 @@ export const DEFAULT_HERO_CONTENT: HeroContent = {
       color: { ...DEFAULT_COLOR_STYLE },
       button: {
         ...DEFAULT_BUTTON_STYLE,
-        href: "/collection/%D8%AA%D8%A7%D8%A8%D8%B3%D8%AA%D8%A7%D9%86",
+        href: "/collection",
         variant: "gradient",
         from: "#06b6d4",
         to: "#2563eb",

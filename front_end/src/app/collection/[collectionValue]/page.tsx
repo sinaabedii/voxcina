@@ -1,166 +1,106 @@
 import { Metadata } from "next";
-import { Suspense } from "react";
-import {
-  serverFetch,
-  buildApiUrl,
-  CACHE_TIMES,
-} from "@/lib/server-api";
-import { ColorVariantListItem } from "@/types/product";
+import { redirect } from "next/navigation";
 import { APP_NAME } from "@/lib/constants";
 import BreadcrumbSchema, { BreadcrumbItem } from "@/components/SEO/BreadcrumbSchema";
 import ItemListSchema, { ItemListItem } from "@/components/SEO/ItemListSchema";
-import { Loading } from "@/components/ui";
-import CollectionPageClient from "./CollectionPageClient";
+import CollectionBundle from "@/components/collection/CollectionBundle";
+import { fetchCollectionBundleItems, fetchShopCollection } from "@/lib/shop-collections";
 
 interface CollectionPageProps {
   params: Promise<{ collectionValue: string }>;
 }
 
-interface CollectionApiResponse {
-  data: ColorVariantListItem[];
-  pagination: {
-    totalPages: number;
-    currentPage: number;
-    nextPage?: number;
-    prevPage?: number;
-    totalProducts: number;
-    totalItems: number;
-  };
-  collection: string;
-}
+const SITE_URL = "https://voxcina.com";
 
-/** Fetched in one request — the scroll showcase presents every collection
- * item via scroll, so there's no server-side pagination anymore. */
-const MAX_COLLECTION_ITEMS = 300;
-
-const COLLECTION_TITLES: Record<string, string> = {
-  "بهار": "کالکشن بهار",
-  "تابستان": "کالکشن تابستان",
-  "پاییز": "کالکشن پاییز",
-  "زمستان": "کالکشن زمستان",
-};
-
-const COLLECTION_TAGLINES: Record<string, string> = {
-  "بهار": "مجموعهای از محصولات زیبا و رنگارنگ برای فصل بهار",
-  "تابستان": "لباسهای خنک و راحت برای روزهای گرم تابستان",
-  "پاییز": "استایلهای گرم و شیک برای روزهای پاییزی",
-  "زمستان": "پوشاک گرم و مد روز برای فصل سرد زمستان",
-};
-
-function getCollectionTitle(collection: string): string {
-  return COLLECTION_TITLES[collection] || `کالکشن ${collection}`;
-}
-
-function getCollectionTagline(collection: string): string {
-  return COLLECTION_TAGLINES[collection] || `محصولات ویژه کالکشن ${collection}`;
-}
-
-/**
- * Server-side collection data fetching for SSR. Fetches the full collection
- * (up to MAX_COLLECTION_ITEMS) in a single request — the scroll showcase
- * has no client-side pagination.
- */
-async function getCollectionData(collectionValue: string) {
-  const decodedCollection = decodeURIComponent(collectionValue);
-
-  const endpoint = buildApiUrl(
-    `/api/products/collection/${encodeURIComponent(decodedCollection)}`,
-    { page: "1", limit: String(MAX_COLLECTION_ITEMS) }
-  );
-
-  const response = await serverFetch<CollectionApiResponse>(endpoint, {
-    revalidate: CACHE_TIMES.PRODUCTS_LIST,
-    tags: ["products", `collection-${decodedCollection}`],
-  });
-
-  const items: ColorVariantListItem[] = response?.data || [];
-
-  return { collection: decodedCollection, items };
+/** The route param is a collection id; anything else is a stale season URL. */
+async function getCollection(collectionValue: string) {
+  return fetchShopCollection(decodeURIComponent(collectionValue));
 }
 
 export async function generateMetadata({ params }: CollectionPageProps): Promise<Metadata> {
   const { collectionValue } = await params;
-  const data = await getCollectionData(collectionValue);
+  const collection = await getCollection(collectionValue);
 
-  const title = getCollectionTitle(data.collection);
-  const description = getCollectionTagline(data.collection);
+  // Unknown id (or a legacy season path): the page redirects to /collection,
+  // so point the metadata there instead of describing a page that never renders.
+  if (!collection) {
+    return { title: "کالکشن‌ها", alternates: { canonical: `${SITE_URL}/collection` } };
+  }
 
-  const siteUrl = "https://voxcina.com";
-  const canonicalUrl = `${siteUrl}/collection/${collectionValue}`;
-
-  const alternates: Metadata["alternates"] = {
-    canonical: canonicalUrl,
-    languages: {
-      "fa-IR": canonicalUrl,
-      "x-default": canonicalUrl,
-    },
-  };
+  const canonicalUrl = `${SITE_URL}/collection/${collection.id}`;
+  const description =
+    collection.description || `مجموعه ${collection.title} از فروشگاه آنلاین ${APP_NAME}`;
 
   return {
-    title,
-    description: `${description} از فروشگاه آنلاین ${APP_NAME}. جدیدترین محصولات با بهترین قیمت.`,
-    keywords: [data.collection, "کالکشن", "خرید آنلاین", "فروشگاه اینترنتی", "وکسینا"],
+    title: `کالکشن ${collection.title}`,
+    description,
+    keywords: [collection.title, "کالکشن", "ست لباس", "خرید آنلاین", "وکسینا"],
     openGraph: {
-      title: `${title} | ${APP_NAME}`,
+      title: `کالکشن ${collection.title} | ${APP_NAME}`,
       description,
       locale: "fa_IR",
       type: "website",
       url: canonicalUrl,
+      images: collection.images?.[0] ? [{ url: collection.images[0] }] : undefined,
     },
-    alternates,
+    alternates: {
+      canonical: canonicalUrl,
+      languages: {
+        "fa-IR": canonicalUrl,
+        "x-default": canonicalUrl,
+      },
+    },
   };
 }
 
 /**
- * Collection Page — Server Component.
+ * Single Collection Page — Server Component.
  *
- * Fetches the full collection server-side (SSR/ISR) and hands off to the
- * client component for the GSAP-powered intro and scroll-scrubbed product
- * showcase (no grid, no pagination — every product appears/disappears as
- * the user scrolls through a single pinned section).
+ * The buying side of a curated collection: the set is presented with its own
+ * image and price, and every piece is listed with the size inventory of the
+ * exact color the admin picked, so the whole set goes into the cart in one
+ * action with a size chosen per piece.
+ *
+ * The route used to take a season name; those paths (and any unknown or
+ * unpublished id) redirect to /collection.
  */
 export default async function CollectionPage({ params }: CollectionPageProps) {
   const { collectionValue } = await params;
+  const collection = await getCollection(collectionValue);
 
-  const data = await getCollectionData(collectionValue);
-  const { collection, items } = data;
+  if (!collection) redirect("/collection");
 
-  const title = getCollectionTitle(collection);
-  const tagline = getCollectionTagline(collection);
+  const items = await fetchCollectionBundleItems(collection);
+
+  const title = `کالکشن ${collection.title}`;
+  const tagline = collection.description || `مجموعه ${collection.title}`;
 
   const breadcrumbItems: BreadcrumbItem[] = [
     { name: "خانه", url: "/" },
-    { name: title, url: `/collection/${collectionValue}` },
+    { name: "کالکشن‌ها", url: "/collection" },
+    { name: collection.title, url: `/collection/${collection.id}` },
   ];
 
   const itemListItems: ItemListItem[] = items.map((item) => ({
     name: item.name,
-    url: `/products/${item.productId}`,
-    image: item.colorVariant?.images?.[0] || "",
+    url: item.link,
+    image: item.image || "",
   }));
 
   return (
     <>
       <BreadcrumbSchema items={breadcrumbItems} />
 
-      {items.length > 0 && (
+      {itemListItems.length > 0 && (
         <ItemListSchema
           listName={title}
           description={tagline}
-          listUrl={`/collection/${collectionValue}`}
+          listUrl={`/collection/${collection.id}`}
           items={itemListItems}
         />
       )}
 
-      <Suspense
-        fallback={
-          <div className="container py-16 flex items-center justify-center min-h-[60vh]">
-            <Loading size="lg" text="در حال بارگذاری محصولات..." />
-          </div>
-        }
-      >
-        <CollectionPageClient title={title} tagline={tagline} items={items} />
-      </Suspense>
+      <CollectionBundle collection={collection} items={items} />
     </>
   );
 }

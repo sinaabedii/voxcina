@@ -27,7 +27,6 @@ interface Product {
   created_at?: string;
   updated_at?: string;
   updatedAt?: string;
-  collection?: string;
 }
 
 interface Category {
@@ -45,6 +44,12 @@ interface Brand {
   slug: string;
   isActive?: boolean;
   updatedAt?: string;
+}
+
+interface ShopCollection {
+  id?: string;
+  _id?: string;
+  updated_at?: string;
 }
 
 interface BlogPost {
@@ -125,6 +130,32 @@ async function safeFetch<T>(endpoint: string): Promise<T[]> {
     .flatMap((page) => page.items);
 }
 
+/**
+ * Curated collections come back under a `collections` key, so they need their
+ * own reader rather than the paginated `data` shape safeFetch handles.
+ */
+async function fetchShopCollections(): Promise<ShopCollection[]> {
+  const backendUrl = getBackendUrl();
+  if (!backendUrl) return [];
+
+  try {
+    const response = await fetch(`${backendUrl}/api/shop-collections`, {
+      next: { revalidate: 3600 },
+    });
+
+    if (!response.ok) {
+      console.warn(`[sitemap] Failed to fetch /api/shop-collections: ${response.status}`);
+      return [];
+    }
+
+    const data = (await response.json()) as { collections?: ShopCollection[] } | null;
+    return data?.collections || [];
+  } catch (error) {
+    console.warn('[sitemap] Could not fetch /api/shop-collections:', error);
+    return [];
+  }
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Only include canonical, publicly indexable pages here. `lastModified` is
   // intentionally omitted for static pages because the current date would be
@@ -144,6 +175,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${BASE_URL}/blog`,
       changeFrequency: 'daily',
       priority: 0.9,
+    },
+    {
+      url: `${BASE_URL}/collection`,
+      changeFrequency: 'weekly',
+      priority: 0.8,
     },
     {
       url: `${BASE_URL}/about`,
@@ -188,11 +224,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   // Fetch dynamic content from backend
-  const [products, categories, brands, blogPosts] = await Promise.all([
+  const [products, categories, brands, blogPosts, shopCollections] = await Promise.all([
     safeFetch<Product>('/api/products?limit=1000'),
     safeFetch<Category>('/api/categories'),
     safeFetch<Brand>('/api/brands'),
     safeFetch<BlogPost>('/api/blog-posts?limit=50'),
+    fetchShopCollections(),
   ]);
 
   // The products endpoint returns one row per color variant. Deduplicate by
@@ -214,18 +251,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     };
   });
 
-  // Collection pages are public, canonical landing pages and their values are
-  // available on the same product-list response.
-  const collectionValues = new Set(
-    products
-      .map((product) => product.collection?.trim())
-      .filter((collection): collection is string => Boolean(collection))
-  );
-  const collectionUrls: MetadataRoute.Sitemap = Array.from(collectionValues, (collection) => ({
-    url: `${BASE_URL}/collection/${encodeURIComponent(collection)}`,
-    changeFrequency: 'weekly' as const,
-    priority: 0.7,
-  }));
+  // Collection pages are public, canonical landing pages — one per published
+  // curated collection, plus the /collection landing page listed above.
+  const collectionUrls: MetadataRoute.Sitemap = shopCollections
+    .map((collection) => ({ id: collection.id || collection._id, updated: collection.updated_at }))
+    .filter((collection): collection is { id: string; updated: string | undefined } => Boolean(collection.id))
+    .map((collection) => ({
+      url: `${BASE_URL}/collection/${collection.id}`,
+      lastModified: toDate(collection.updated),
+      changeFrequency: 'weekly' as const,
+      priority: 0.7,
+    }));
 
   // Generate category URLs
   const categoryUrls: MetadataRoute.Sitemap = categories

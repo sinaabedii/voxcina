@@ -24,6 +24,11 @@ interface BrandLike {
   _id?: string;
 }
 
+interface CollectionLike {
+  id?: string;
+  title?: string;
+}
+
 /** Destinations that always exist regardless of catalogue contents. */
 const STATIC_OPTIONS: LinkOption[] = [
   { label: "همه محصولات", href: "/products" },
@@ -58,9 +63,9 @@ export default function LinkPicker({ value, onChange }: LinkPickerProps) {
         fetch("/api/brands")
           .then((r) => (r.ok ? r.json() : []))
           .catch(() => []),
-        // Collections aren't a resource of their own — they're a field on
-        // products, so the real set is whatever products currently declare.
-        fetch("/api/products?limit=100")
+        // Curated collections are their own resource; the public endpoint
+        // returns exactly the published ones a CTA may link to.
+        fetch("/api/shop-collections")
           .then((r) => (r.ok ? r.json() : null))
           .catch(() => null),
       ]);
@@ -73,9 +78,9 @@ export default function LinkPicker({ value, onChange }: LinkPickerProps) {
       const brandList: BrandLike[] = Array.isArray(brands)
         ? brands
         : brands?.data ?? [];
-      const productRows: { collection?: string }[] = Array.isArray(collections)
+      const collectionRows: CollectionLike[] = Array.isArray(collections)
         ? collections
-        : collections?.data ?? [];
+        : collections?.collections ?? [];
 
       const categoryOptions = categoryList
         .filter((c) => c.slug)
@@ -91,12 +96,15 @@ export default function LinkPicker({ value, onChange }: LinkPickerProps) {
           href: `/brands/${b.slug}`,
         }));
 
-      const collectionOptions = Array.from(
-        new Set(productRows.map((p) => p.collection).filter(Boolean) as string[])
-      ).map((collection) => ({
-        label: `کالکشن: ${collection}`,
-        href: `/collection/${encodeURIComponent(collection)}`,
-      }));
+      const collectionOptions = [
+        { label: "همه کالکشن‌ها", href: "/collection" },
+        ...collectionRows
+          .filter((c) => c.id)
+          .map((c) => ({
+            label: `کالکشن: ${c.title ?? c.id}`,
+            href: `/collection/${c.id}`,
+          })),
+      ];
 
       setOptions([
         ...STATIC_OPTIONS,
