@@ -22,6 +22,7 @@ import VariantAIMetadataEditor, {
   parseVariantAIList,
 } from "@/components/admin/VariantAIMetadataEditor";
 import { formatPrice, toDigitsOnly, toEnglishNumber } from "@/lib/utils";
+import { duplicateColorSizes } from "@/lib/sku-color-duplication";
 
 export default function AddProductPage() {
   const router = useRouter();
@@ -50,6 +51,8 @@ export default function AddProductPage() {
   const [categorySearch, setCategorySearch] = useState("");
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
+  // How many duplicated colors the "duplicate color" button should append.
+  const [duplicateCount, setDuplicateCount] = useState(1);
 
   const [gender, setGender] = useState("مردانه");
   const [collection, setCollection] = useState("");
@@ -199,6 +202,45 @@ export default function AddProductPage() {
     // Shift per-variant AI state so remaining colors keep their own metadata.
     setVariantAiMetadata(prev => removeIndexFromMap(prev, colorIdx));
     setVariantAiListDrafts(prev => removeIndexFromMap(prev, colorIdx));
+  };
+
+  // Appends duplicated colors whose sizes/quantities/SKUs come from the given
+  // color; only the color code inside each SKU is incremented (0-9 then A-Z).
+  // Color name, swatch, images, try-on and AI fields stay empty.
+  const handleDuplicateColorVariant = (colorIdx: number) => {
+    const source = colorVariants[colorIdx];
+    if (!source || source.sizes.length === 0) {
+      toast.error("ابتدا برای این رنگ، سایزها و کدهای SKU را وارد کنید");
+      return;
+    }
+    const count = Math.max(1, Math.min(20, Math.floor(duplicateCount) || 1));
+    const additions: ColorVariant[] = [];
+    // Each duplication computes the next code from SKUs that already exist —
+    // including the ones appended by this loop — so successive duplicates get
+    // successive codes.
+    let skusInProduct = colorVariants.flatMap(cv => cv.sizes.map(s => s.sku));
+    for (let i = 0; i < count; i++) {
+      const duplicatedSizes = duplicateColorSizes(source.sizes, skusInProduct);
+      if (!duplicatedSizes) {
+        toast.error("کد رنگ بعدی در دسترس نیست؛ SKUهای این رنگ را بررسی کنید");
+        break;
+      }
+      additions.push({
+        color: "",
+        colorName: "",
+        images: [],
+        sizes: duplicatedSizes,
+        tryOnGarmentType: source.tryOnGarmentType,
+      });
+      skusInProduct = [...skusInProduct, ...duplicatedSizes.map(s => s.sku)];
+    }
+    if (additions.length === 0) return;
+    setColorVariants([...colorVariants, ...additions]);
+    toast.success(
+      additions.length === 1
+        ? "یک رنگ با همان سایزها و کدهای جدید ساخته شد"
+        : `${additions.length} رنگ با همان سایزها و کدهای متوالی ساخته شد`,
+    );
   };
 
   // Size Handlers (nested within color variants)
@@ -714,9 +756,29 @@ export default function AddProductPage() {
           {colorVariants.map((colorVariant, colorIdx) => (
             <div key={colorIdx} className="border rounded-lg p-4 mb-4 bg-gray-50">
               {/* Color Header */}
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <h3 className="font-medium">رنگ {colorIdx + 1}</h3>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1" title="تعداد رنگهای تکراری که با دکمه ساخته میشوند">
+                    <label className="text-xs text-gray-500">تعداد</label>
+                    <input
+                      className="input w-14 text-sm"
+                      type="number"
+                      min="1"
+                      max="20"
+                      value={duplicateCount}
+                      onChange={e => setDuplicateCount(Math.max(1, Math.min(20, Math.floor(Number(e.target.value)) || 1)))}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={colorVariant.sizes.length === 0 || submitting || isLoading}
+                    onClick={() => handleDuplicateColorVariant(colorIdx)}
+                  >
+                    کپی سایزها و کدها به رنگ جدید
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"
