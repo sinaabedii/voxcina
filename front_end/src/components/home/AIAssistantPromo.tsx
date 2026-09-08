@@ -1,9 +1,22 @@
 import Link from "next/link";
 import { Sparkles, Camera, Zap, ArrowLeft, Tag, Wand2 } from "lucide-react";
+import Section from "@/components/ui/Section";
+
+const FEATURE_PILLS = [
+  { icon: Camera, text: "پرو مجازی" },
+  { icon: Tag, text: "مذاکره تخفیف" },
+  { icon: Zap, text: "پیشنهاد هوشمند" },
+] as const;
+
+const STATS = [
+  { value: "۱۰۰۰+", label: "پرو روزانه" },
+  { value: "۹۸٪", label: "رضایت کاربران" },
+  { value: "۲۴/۷", label: "آماده مذاکره" },
+] as const;
 
 export default function AIAssistantPromo() {
   return (
-    <section className="container px-4 md:px-8 mb-16 md:mb-24 animate-slideUp">
+    <Section>
       <div className="relative rounded-3xl overflow-hidden">
         {/* Background layers */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#0b1020] via-[#0f172a] to-[#1e293b]" />
@@ -52,13 +65,9 @@ export default function AIAssistantPromo() {
 
               {/* Feature pills */}
               <div className="flex flex-wrap gap-3">
-                {[
-                  { icon: Camera, text: "پرو مجازی" },
-                  { icon: Tag, text: "مذاکره تخفیف" },
-                  { icon: Zap, text: "پیشنهاد هوشمند" },
-                ].map((feature, index) => (
+                {FEATURE_PILLS.map((feature) => (
                   <div
-                    key={index}
+                    key={feature.text}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm"
                   >
                     <feature.icon className="w-3.5 h-3.5 text-cyan-300" />
@@ -81,12 +90,8 @@ export default function AIAssistantPromo() {
 
               {/* Stats */}
               <div className="flex flex-wrap gap-6 sm:gap-10 pt-4">
-                {[
-                  { value: "۱۰۰۰+", label: "پرو روزانه" },
-                  { value: "۹۸٪", label: "رضایت کاربران" },
-                  { value: "۲۴/۷", label: "آماده مذاکره" },
-                ].map((stat, index) => (
-                  <div key={index} className="text-center sm:text-right">
+                {STATS.map((stat) => (
+                  <div key={stat.label} className="text-center sm:text-right">
                     <div className="text-xl sm:text-2xl font-bold text-cyan-400">
                       {stat.value}
                     </div>
@@ -186,6 +191,6 @@ export default function AIAssistantPromo() {
         {/* Bottom decorative line */}
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
       </div>
-    </section>
+    </Section>
   );
 }

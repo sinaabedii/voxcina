@@ -1,24 +1,9 @@
-import { serverFetchWithFallback, CACHE_TIMES } from "@/lib/server-api";
 import { HeroImage } from "@/types/hero-image";
 import HeroSectionClient from "./HeroSectionClient";
 
-/**
- * API response format for hero images
- */
-interface HeroImagesResponse {
-  heroImages: HeroImage[];
-}
-
-/** Fetch active hero images with ISR caching and a graceful empty fallback. */
-export async function getHeroImages(): Promise<HeroImage[]> {
-  const response = await serverFetchWithFallback<HeroImagesResponse>(
-    '/api/hero-images',
-    { heroImages: [] },
-    { revalidate: CACHE_TIMES.HERO_IMAGES, tags: ['home', 'hero-images'] }
-  );
-  
-  return Array.isArray(response?.heroImages) ? response.heroImages : [];
-}
+// Re-export canonical fetcher from the shared data layer so both the
+// page and this component resolve to the same ISR cache semantics.
+export { getHeroImages } from "@/lib/data/home";
 
 /**
  * HeroSection - Server Component

@@ -1,14 +1,9 @@
 import Link from "next/link";
+import Section from "@/components/ui/Section";
 
-/**
- * Seasonal Collection Banner - Client component for animations
- * Displays the seasonal collection promotional banner
- * 
- * Requirements: 3.4, 5.1
- */
 export default function SeasonalCollectionBanner() {
   return (
-    <section className="container px-4 md:px-8 mb-16 md:mb-24 overflow-hidden animate-slideUp">
+    <Section className="overflow-hidden">
       <div className="relative rounded-3xl bg-gradient-to-br from-secondary-200 via-secondary-100 to-white shadow-soft overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-2">
           <div className="p-6 sm:p-8 md:p-12 lg:p-16 flex flex-col justify-center relative">
@@ -53,6 +48,6 @@ export default function SeasonalCollectionBanner() {
         <div className="hidden md:block absolute -bottom-6 right-12 w-12 h-12 bg-voxcina-blue rounded-full opacity-20"></div>
         <div className="hidden md:block absolute top-12 left-6 w-24 h-24 bg-secondary-600 rounded-full opacity-10"></div>
       </div>
-    </section>
+    </Section>
   );
 }

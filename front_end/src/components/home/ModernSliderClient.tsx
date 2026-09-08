@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Slider } from "@/types/slider";
 import { overlayClassFor, contentAlignmentFor } from "@/lib/slider-presentation";
+import Section from "@/components/ui/Section";
 
 interface ModernSliderSectionClientProps {
   sliders: Slider[];
@@ -40,41 +41,38 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
     };
   }, [isAutoPlaying, sliderData]);
 
-  const handleNext = () => {
-    if (!sliderData || sliderData.length === 0) return;
+  const pauseAndResume = useCallback(() => {
     setIsAutoPlaying(false);
+    setProgressKey((prev) => prev + 1);
+    const id = setTimeout(() => setIsAutoPlaying(true), 5000);
+    return () => clearTimeout(id);
+  }, []);
+
+  const handleNext = useCallback(() => {
+    if (sliderData.length === 0) return;
+    pauseAndResume();
     setCurrentSlide((prev) => (prev + 1) % sliderData.length);
-    setProgressKey((prev) => prev + 1);
-    setTimeout(() => setIsAutoPlaying(true), 5000);
-  };
+  }, [pauseAndResume, sliderData.length]);
 
-  const handlePrev = () => {
-    if (!sliderData || sliderData.length === 0) return;
-    setIsAutoPlaying(false);
-    setCurrentSlide(
-      (prev) => (prev - 1 + sliderData.length) % sliderData.length
-    );
-    setProgressKey((prev) => prev + 1);
-    setTimeout(() => setIsAutoPlaying(true), 5000);
-  };
+  const handlePrev = useCallback(() => {
+    if (sliderData.length === 0) return;
+    pauseAndResume();
+    setCurrentSlide((prev) => (prev - 1 + sliderData.length) % sliderData.length);
+  }, [pauseAndResume, sliderData.length]);
 
-  const handleGoToSlide = (index: number) => {
-    if (!sliderData || sliderData.length === 0) return;
-    setIsAutoPlaying(false);
-    setCurrentSlide(index);
-    setProgressKey((prev) => prev + 1);
-    setTimeout(() => setIsAutoPlaying(true), 5000);
-  };
+  const handleGoToSlide = useCallback(
+    (index: number) => {
+      if (sliderData.length === 0) return;
+      pauseAndResume();
+      setCurrentSlide(index);
+    },
+    [pauseAndResume, sliderData.length],
+  );
 
-  // Sliders are entirely admin-authored. With none published there is nothing
-  // to promote, so the section collapses rather than reserving 400-700px for a
-  // placeholder — the old "Loading Slides..." box was permanent, not transient.
-  if (sliderData.length === 0) {
-    return null;
-  }
+  if (sliderData.length === 0) return null;
 
   return (
-    <section className="container px-4 md:px-8 mb-16 md:mb-24">
+    <Section>
       <div className="relative h-[400px] sm:h-[450px] md:h-[500px] lg:h-[600px] xl:h-[700px] rounded-2xl md:rounded-3xl overflow-hidden">
         <div key={currentSlide} className="absolute inset-0 animate-fadeIn">
             <div className="absolute inset-0">
@@ -283,6 +281,6 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
           />
         </div>
       </div>
-    </section>
+    </Section>
   );
 };
