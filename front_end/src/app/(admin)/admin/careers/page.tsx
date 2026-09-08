@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Briefcase, Inbox } from "lucide-react";
 import SubmissionsPanel from "./_components/SubmissionsPanel";
 import PositionsPanel from "./_components/PositionsPanel";
+import { AdminPageHeader } from "@/components/admin/ui";
+import { Briefcase, Inbox } from "lucide-react";
 
 /**
  * Careers admin — the inbox of incoming requests and the openings that feed
@@ -39,21 +40,17 @@ export default function AdminCareersPage() {
   const active = TABS.find((tab) => tab.id === activeTab) ?? TABS[0];
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="flex items-center gap-2 text-xl font-bold md:text-2xl">
-          <Briefcase className="h-6 w-6" />
-          همکاری و استخدام
-        </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          {active.description}
-        </p>
-      </div>
+    <div>
+      <AdminPageHeader
+        title="همکاری و استخدام"
+        subtitle={active.description}
+        icon={<Briefcase className="h-6 w-6" />}
+      />
 
       <div
         role="tablist"
         aria-label="بخش‌های همکاری و استخدام"
-        className="flex w-full max-w-md rounded-xl border border-border bg-background p-1"
+        className="flex w-full max-w-md rounded-xl border border-voxcina-cream/60 dark:border-voxcina-blue/30 bg-white/80 dark:bg-voxcina-blue/20 p-1 mb-4"
       >
         {TABS.map((tab) => (
           <button
@@ -64,10 +61,10 @@ export default function AdminCareersPage() {
             aria-selected={activeTab === tab.id}
             aria-controls={`careers-panel-${tab.id}`}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+            className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-voxcina-blue/40 ${
               activeTab === tab.id
-                ? "bg-blue-600 text-white"
-                : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-zinc-800"
+                ? "bg-voxcina-blue text-white dark:bg-voxcina-cream dark:text-voxcina-blue"
+                : "text-voxcina-blue/60 hover:bg-voxcina-cream/50 dark:text-voxcina-cream/60 dark:hover:bg-voxcina-blue/30"
             }`}
           >
             <tab.icon className="h-4 w-4" />

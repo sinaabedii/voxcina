@@ -3,34 +3,40 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/Card";
-import { motion } from "framer-motion";
 import {
   ShoppingBasket,
-  Search,
-  ChevronRight,
-  ChevronLeft,
   Clock,
   Calendar,
   User,
   Phone,
   Trash2,
-  SlidersHorizontal,
   Package,
   PackageX,
   Loader2,
-  X,
   MessageSquareText,
   AlertCircle,
   CheckCircle2,
   AlertTriangle,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
-import Modal from "@/components/ui/Modal";
-import Input from "@/components/ui/input";
 import { toast } from "react-toastify";
 import { formatPrice } from "@/lib/utils";
 import { useCartAdminStore } from "@/store/cart-admin-store";
 import { AdminCartFilters, CartRecoverySmsDetail, CartRecoverySmsResult } from "@/types/cart-admin";
+import {
+  AdminPageHeader,
+  AdminToolbar,
+  AdminBadge,
+  AdminError,
+  AdminEmpty,
+  AdminPagination,
+  AdminModal,
+  AdminModalActions,
+  AdminField,
+  AdminInput,
+  AdminSelect,
+  AdminStatCard,
+} from "@/components/admin/ui";
 
 const recoveryReasonLabels: Record<string, string> = {
   active_coupon_exists: "کد فعال قبلی",
@@ -66,6 +72,7 @@ export default function AdminCartsPage() {
   const [recoveryCreatedFrom, setRecoveryCreatedFrom] = useState("");
   const [recoveryCreatedTo, setRecoveryCreatedTo] = useState("");
   const [allowHigherDiscount, setAllowHigherDiscount] = useState(false);
+  const [cartToDeactivate, setCartToDeactivate] = useState<string | null>(null);
 
   const buildFilters = useCallback((): AdminCartFilters => {
     const filters: AdminCartFilters = {};
@@ -95,12 +102,6 @@ export default function AdminCartsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, statusFilter, searchTerm, sortBy, onlyWithItems]);
 
-  const paginate = (pageNumber: number) => {
-    if (pageNumber > 0 && pageNumber <= (pagination?.totalPages || 1)) {
-      setCurrentPage(pageNumber);
-    }
-  };
-
   const clearFilters = () => {
     setStatusFilter("active");
     setSortBy("newest");
@@ -109,9 +110,20 @@ export default function AdminCartsPage() {
     setCurrentPage(1);
   };
 
+  const hasActiveFilters =
+    statusFilter !== "active" ||
+    sortBy !== "newest" ||
+    onlyWithItems ||
+    searchTerm !== "";
+
   const handleDelete = (cartId: string) => {
-    if (window.confirm("آیا از غیرفعال کردن این سبد خرید اطمینان دارید؟")) {
-      deleteCart(cartId);
+    setCartToDeactivate(cartId);
+  };
+
+  const handleConfirmDeactivate = () => {
+    if (cartToDeactivate) {
+      deleteCart(cartToDeactivate);
+      setCartToDeactivate(null);
     }
   };
 
@@ -156,238 +168,119 @@ export default function AdminCartsPage() {
     }
   };
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.05 } },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { type: "spring" as const, stiffness: 300, damping: 30 },
-    },
-  };
-
   return (
     <div className="py-8 md:py-12 transition-all duration-500 ease-in-out">
-      <motion.div
-        className="flex flex-col md:flex-row md:items-center justify-between mb-8"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <h1 className="text-2xl md:text-3xl font-bold text-voxcina-blue dark:text-voxcina-cream mb-4 md:mb-0 relative inline-block">
-          <span className="relative z-10">سبدهای خرید کاربران</span>
-          <span className="absolute bottom-1 left-0 w-full h-3 bg-voxcina-cream dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
-        </h1>
-        <Button
-          variant="primary"
-          size="sm"
-          className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue dark:bg-voxcina-cream/90 dark:hover:bg-voxcina-cream dark:text-voxcina-blue text-white"
-          onClick={() => openRecoveryModal()}
-        >
-          <MessageSquareText className="w-4 h-4 ml-1" />
-          ارسال پیامک بازگشت به سبد خرید
-        </Button>
-      </motion.div>
+      <AdminPageHeader
+        title="سبدهای خرید کاربران"
+        actions={
+          <Button
+            variant="primary"
+            size="sm"
+            className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue dark:bg-voxcina-cream/90 dark:hover:bg-voxcina-cream dark:text-voxcina-blue text-white"
+            onClick={() => openRecoveryModal()}
+          >
+            <MessageSquareText className="w-4 h-4 ml-1" />
+            ارسال پیامک بازگشت به سبد خرید
+          </Button>
+        }
+      />
 
       {/* Statistics Summary */}
-      <motion.div
-        className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
+      <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <AdminStatCard
+          icon={ShoppingBasket}
+          label="کل سبدهای فعال"
+          value={(stats?.total_carts ?? 0).toLocaleString("fa-IR")}
+          isLoading={isLoading}
+        />
+        <AdminStatCard
+          icon={Package}
+          label="دارای کالا"
+          value={(stats?.carts_with_items ?? 0).toLocaleString("fa-IR")}
+          tone="green"
+          isLoading={isLoading}
+        />
+        <AdminStatCard
+          icon={PackageX}
+          label="خالی"
+          value={(stats?.empty_carts ?? 0).toLocaleString("fa-IR")}
+          tone="amber"
+          isLoading={isLoading}
+        />
+      </div>
+
+      <AdminToolbar
+        searchValue={searchTerm}
+        onSearchChange={(v) => {
+          setSearchTerm(v);
+          setCurrentPage(1);
+        }}
+        searchPlaceholder="جستجو بر اساس نام یا شماره موبایل کاربر..."
+        filterOpen={isFilterOpen}
+        onToggleFilters={() => setIsFilterOpen(!isFilterOpen)}
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={clearFilters}
       >
-        <motion.div variants={itemVariants}>
-          <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">کل سبدهای فعال</p>
-                  <p className="text-2xl font-bold text-voxcina-blue dark:text-voxcina-cream">
-                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (stats?.total_carts ?? 0).toLocaleString("fa-IR")}
-                  </p>
-                </div>
-                <div className="p-3 bg-voxcina-blue/10 dark:bg-voxcina-cream/10 rounded-xl">
-                  <ShoppingBasket className="w-6 h-6 text-voxcina-blue dark:text-voxcina-cream" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <AdminField label="وضعیت سبد">
+            <AdminSelect
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="active">فعال</option>
+              <option value="inactive">غیرفعال</option>
+              <option value="all">همه</option>
+            </AdminSelect>
+          </AdminField>
 
-        <motion.div variants={itemVariants}>
-          <Card className="border border-green-200 dark:border-green-800/30 shadow-sm rounded-2xl backdrop-blur-sm bg-green-50/90 dark:bg-green-900/10">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-green-700 dark:text-green-400">دارای کالا</p>
-                  <p className="text-2xl font-bold text-green-800 dark:text-green-300">
-                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (stats?.carts_with_items ?? 0).toLocaleString("fa-IR")}
-                  </p>
-                </div>
-                <div className="p-3 bg-green-200/50 dark:bg-green-800/30 rounded-xl">
-                  <Package className="w-6 h-6 text-green-700 dark:text-green-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+          <AdminField label="مرتب‌سازی">
+            <AdminSelect
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="newest">جدیدترین فعالیت</option>
+              <option value="oldest">قدیمی‌ترین فعالیت</option>
+              <option value="created_desc">تاریخ ایجاد (جدید به قدیم)</option>
+              <option value="created_asc">تاریخ ایجاد (قدیم به جدید)</option>
+            </AdminSelect>
+          </AdminField>
 
-        <motion.div variants={itemVariants}>
-          <Card className="border border-amber-200 dark:border-amber-800/30 shadow-sm rounded-2xl backdrop-blur-sm bg-amber-50/90 dark:bg-amber-900/10">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-amber-700 dark:text-amber-400">خالی</p>
-                  <p className="text-2xl font-bold text-amber-800 dark:text-amber-300">
-                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (stats?.empty_carts ?? 0).toLocaleString("fa-IR")}
-                  </p>
-                </div>
-                <div className="p-3 bg-amber-200/50 dark:bg-amber-800/30 rounded-xl">
-                  <PackageX className="w-6 h-6 text-amber-700 dark:text-amber-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </motion.div>
-
-      {/* Search + Filter toggle */}
-      <motion.div
-        className="mb-6 flex flex-col md:flex-row md:items-center gap-3"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <div className="relative flex-grow">
-          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-            <Search className="w-5 h-5 text-voxcina-blue/50 dark:text-voxcina-cream/50" />
+          <div className="flex items-end">
+            <label className="flex items-center gap-2 text-sm text-voxcina-blue dark:text-voxcina-cream cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="w-4 h-4 rounded border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue focus:ring-voxcina-blue/40"
+                checked={onlyWithItems}
+                onChange={(e) => {
+                  setOnlyWithItems(e.target.checked);
+                  setCurrentPage(1);
+                }}
+              />
+              فقط سبدهای دارای کالا
+            </label>
           </div>
-          <input
-            type="text"
-            className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full pr-10 p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50 shadow-sm"
-            placeholder="جستجو بر اساس نام یا شماره موبایل کاربر..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="md:w-auto w-full rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
-          onClick={() => setIsFilterOpen(!isFilterOpen)}
-        >
-          <SlidersHorizontal className="w-4 h-4 ml-1" />
-          فیلترها
-        </Button>
-      </motion.div>
-
-      {/* Filter Panel */}
-      {isFilterOpen && (
-        <motion.div
-          className="mb-6"
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          exit={{ opacity: 0, height: 0 }}
-          variants={itemVariants}
-        >
-          <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-            <CardContent className="p-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <h3 className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-2">وضعیت سبد</h3>
-                  <select
-                    className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-lg w-full p-2 text-sm focus:outline-none"
-                    value={statusFilter}
-                    onChange={(e) => {
-                      setStatusFilter(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <option value="active">فعال</option>
-                    <option value="inactive">غیرفعال</option>
-                    <option value="all">همه</option>
-                  </select>
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-2">مرتب‌سازی</h3>
-                  <select
-                    className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-lg w-full p-2 text-sm focus:outline-none"
-                    value={sortBy}
-                    onChange={(e) => {
-                      setSortBy(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <option value="newest">جدیدترین فعالیت</option>
-                    <option value="oldest">قدیمی‌ترین فعالیت</option>
-                    <option value="created_desc">تاریخ ایجاد (جدید به قدیم)</option>
-                    <option value="created_asc">تاریخ ایجاد (قدیم به جدید)</option>
-                  </select>
-                </div>
-
-                <div className="flex items-end">
-                  <label className="flex items-center gap-2 text-sm text-voxcina-blue dark:text-voxcina-cream cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 rounded border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue focus:ring-voxcina-blue/40"
-                      checked={onlyWithItems}
-                      onChange={(e) => {
-                        setOnlyWithItems(e.target.checked);
-                        setCurrentPage(1);
-                      }}
-                    />
-                    فقط سبدهای دارای کالا
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex justify-end mt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-xl border-red-200 dark:border-red-900/30 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10"
-                  onClick={clearFilters}
-                >
-                  <X className="w-4 h-4 ml-1" />
-                  پاک کردن فیلترها
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
+      </AdminToolbar>
 
       {cartError && (
-        <div className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800/40 dark:bg-red-900/10 dark:text-red-300">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 flex-shrink-0" />
-            <span>{cartError}</span>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fetchAdminCarts(currentPage, 10, buildFilters() as unknown as Record<string, any>)}
-            className="rounded-lg border-red-300 text-red-700 dark:border-red-700 dark:text-red-300"
-          >
-            تلاش مجدد
-          </Button>
-        </div>
+        <AdminError
+          message={cartError}
+          onRetry={() => fetchAdminCarts(currentPage, 10, buildFilters() as unknown as Record<string, any>)}
+        />
       )}
 
       {/* Carts List */}
-      <motion.div variants={containerVariants} initial="hidden" animate="visible">
+      <div>
         {cartError ? null : carts.length > 0 ? (
           <div className="space-y-4">
             {carts.map((cart) => (
-              <motion.div key={cart.id} variants={itemVariants} className="transition-all duration-300">
+              <div key={cart.id} className="transition-all duration-300">
                 <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
                   <CardContent className="p-0">
                     <div className="flex flex-col">
@@ -420,15 +313,9 @@ export default function AdminCartsPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span
-                            className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                              cart.is_active
-                                ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800/30"
-                                : "bg-gray-100 text-gray-600 dark:bg-gray-900/20 dark:text-gray-400 border border-gray-200 dark:border-gray-800/30"
-                            }`}
-                          >
+                          <AdminBadge tone={cart.is_active ? "success" : "neutral"}>
                             {cart.is_active ? "فعال" : "غیرفعال"}
-                          </span>
+                          </AdminBadge>
                           {cart.is_active && cart.item_count > 0 && (
                             <Button
                               variant="ghost"
@@ -538,21 +425,15 @@ export default function AdminCartsPage() {
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </div>
             ))}
           </div>
         ) : (
-          <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-md rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-            <CardContent className="p-8 text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-voxcina-cream dark:bg-voxcina-blue/20 mb-4">
-                <ShoppingBasket className="h-8 w-8 text-voxcina-blue/50 dark:text-voxcina-cream/50" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2 text-voxcina-blue dark:text-voxcina-cream">
-                سبد خریدی یافت نشد
-              </h3>
-              <p className="text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-6">
-                هیچ سبد خریدی با فیلترهای انتخاب شده یافت نشد
-              </p>
+          <AdminEmpty
+            icon={ShoppingBasket}
+            title="سبد خریدی یافت نشد"
+            description="هیچ سبد خریدی با فیلترهای انتخاب شده یافت نشد"
+            action={
               <Button
                 variant="outline"
                 size="sm"
@@ -561,66 +442,23 @@ export default function AdminCartsPage() {
               >
                 پاک کردن فیلترها
               </Button>
-            </CardContent>
-          </Card>
+            }
+          />
         )}
 
         {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
-          <div className="flex justify-center mt-8">
-            <div className="flex items-center space-x-1 space-x-reverse bg-white dark:bg-voxcina-blue/30 rounded-xl p-1 shadow-sm">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`rounded-lg ${
-                  currentPage === 1
-                    ? "text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed"
-                    : "text-voxcina-blue dark:text-voxcina-cream"
-                }`}
-                onClick={() => paginate(currentPage - 1)}
-                disabled={currentPage === 1}
-              >
-                <ChevronRight className="h-5 w-5" />
-              </Button>
+        <AdminPagination
+          page={currentPage}
+          totalPages={pagination?.totalPages ?? 1}
+          onChange={setCurrentPage}
+        />
+      </div>
 
-              {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((number) => (
-                <Button
-                  key={number}
-                  variant={currentPage === number ? "primary" : "ghost"}
-                  size="sm"
-                  className={`rounded-lg ${
-                    currentPage === number
-                      ? "bg-voxcina-blue text-white dark:bg-voxcina-cream dark:text-voxcina-blue"
-                      : "text-voxcina-blue dark:text-voxcina-cream"
-                  }`}
-                  onClick={() => paginate(number)}
-                >
-                  {number}
-                </Button>
-              ))}
-
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`rounded-lg ${
-                  currentPage === pagination.totalPages
-                    ? "text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed"
-                    : "text-voxcina-blue dark:text-voxcina-cream"
-                }`}
-                onClick={() => paginate(currentPage + 1)}
-                disabled={currentPage === pagination.totalPages}
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-        )}
-      </motion.div>
-
-      <Modal
+      <AdminModal
         isOpen={isRecoveryModalOpen}
         onClose={() => setIsRecoveryModalOpen(false)}
         title="ارسال پیامک بازگشت به سبد خرید"
+        size="lg"
       >
         {recoveryTargetUser ? (
           <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4 leading-relaxed">
@@ -657,19 +495,15 @@ export default function AdminCartsPage() {
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1.5">
-              درصد تخفیف
-            </label>
-            <Input
+          <AdminField label="درصد تخفیف" required>
+            <AdminInput
               type="number"
               min={1}
               max={100}
               value={recoveryDiscount}
               onChange={(e) => setRecoveryDiscount(e.target.value)}
-              className="rounded-xl"
             />
-          </div>
+          </AdminField>
 
           <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-sm text-amber-900 dark:border-amber-800/40 dark:bg-amber-900/10 dark:text-amber-200">
             <input
@@ -685,40 +519,33 @@ export default function AdminCartsPage() {
               </span>
             </span>
           </label>
-          <div>
-            <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1.5">
-              مدت اعتبار (روز)
-            </label>
-            <Input
+          <AdminField label="مدت اعتبار (روز)" required>
+            <AdminInput
               type="number"
               min={1}
               value={recoveryDays}
               onChange={(e) => setRecoveryDays(e.target.value)}
-              className="rounded-xl"
             />
-          </div>
+          </AdminField>
 
           {!recoveryTargetUser && (
-            <div>
-              <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1.5">
-                بازه زمانی ایجاد سبد (اختیاری)
-              </label>
+            <AdminField label="بازه زمانی ایجاد سبد (اختیاری)">
               <div className="flex items-center gap-2">
-                <input
+                <AdminInput
                   type="date"
                   value={recoveryCreatedFrom}
                   onChange={(e) => setRecoveryCreatedFrom(e.target.value)}
-                  className="flex-1 bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl p-2.5 text-sm focus:outline-none"
+                  className="flex-1"
                 />
                 <span className="text-voxcina-blue/50 dark:text-voxcina-cream/50 text-sm">تا</span>
-                <input
+                <AdminInput
                   type="date"
                   value={recoveryCreatedTo}
                   onChange={(e) => setRecoveryCreatedTo(e.target.value)}
-                  className="flex-1 bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl p-2.5 text-sm focus:outline-none"
+                  className="flex-1"
                 />
               </div>
-            </div>
+            </AdminField>
           )}
 
           {recoveryResult && (
@@ -778,7 +605,30 @@ export default function AdminCartsPage() {
             )}
           </Button>
         </div>
-      </Modal>
+      </AdminModal>
+
+      {/* Deactivate Cart Confirmation Modal (replaces window.confirm) */}
+      <AdminModal
+        isOpen={!!cartToDeactivate}
+        onClose={() => setCartToDeactivate(null)}
+        title="غیرفعال کردن سبد خرید"
+        size="sm"
+      >
+        <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 leading-relaxed flex items-start gap-2">
+          <AlertTriangle className="text-red-500 h-5 w-5 shrink-0 mt-0.5" />
+          آیا از غیرفعال کردن این سبد خرید اطمینان دارید؟
+        </p>
+        <AdminModalActions onCancel={() => setCartToDeactivate(null)}>
+          <Button
+            variant="danger"
+            size="sm"
+            className="rounded-xl min-w-[80px]"
+            onClick={handleConfirmDeactivate}
+          >
+            بله، غیرفعال کن
+          </Button>
+        </AdminModalActions>
+      </AdminModal>
     </div>
   );
 }

@@ -6,8 +6,19 @@ import { useHeroImageStore } from "@/store/hero-image-store";
 import { HeroImage, DEFAULT_GRADIENT, normalizeHeroContent } from "@/types/hero-image";
 import { buildGradient } from "@/components/home/hero-styles";
 import Button from "@/components/ui/Button";
-import { Plus, Edit, Trash2, Monitor, Smartphone, Filter, Type } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/Card";
+import { Plus, Edit, Trash2, Monitor, Smartphone, Image as ImageIcon, Type } from "lucide-react";
 import { motion } from "framer-motion";
+import {
+  AdminPageHeader,
+  AdminBadge,
+  AdminLoading,
+  AdminError,
+  AdminEmpty,
+  AdminModal,
+  AdminModalActions,
+  AdminSelect,
+} from "@/components/admin/ui";
 import HeroImageForm from "./HeroImageForm";
 
 type DeviceFilter = "all" | "desktop" | "mobile";
@@ -17,6 +28,8 @@ export default function HeroImagesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedHeroImage, setSelectedHeroImage] = useState<HeroImage | null>(null);
   const [deviceFilter, setDeviceFilter] = useState<DeviceFilter>("all");
+  const [deleteTarget, setDeleteTarget] = useState<HeroImage | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchHeroImages();
@@ -32,10 +45,12 @@ export default function HeroImagesPage() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm("آیا از حذف این تصویر هیرو مطمئن هستید؟")) {
-      await deleteHeroImage(id);
-    }
+  const handleDelete = async () => {
+    if (!deleteTarget?.id) return;
+    setIsDeleting(true);
+    await deleteHeroImage(deleteTarget.id);
+    setIsDeleting(false);
+    setDeleteTarget(null);
   };
 
   const handleModalClose = () => {
@@ -61,41 +76,43 @@ export default function HeroImagesPage() {
   };
 
   return (
-    <div className="p-4 md:p-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold">مدیریت تصاویر هیرو</h1>
-        <div className="flex items-center gap-3">
-          {/* Device Filter Dropdown */}
-          <div className="relative">
-            <select
+    <div>
+      <AdminPageHeader
+        title="مدیریت تصاویر هیرو"
+        actions={
+          <div className="flex items-center gap-3">
+            <AdminSelect
               value={deviceFilter}
               onChange={(e) => setDeviceFilter(e.target.value as DeviceFilter)}
-              className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+              className="w-auto cursor-pointer"
+              aria-label="فیلتر دستگاه"
             >
               <option value="all">همه دستگاه‌ها</option>
               <option value="desktop">دسکتاپ</option>
               <option value="mobile">موبایل</option>
-            </select>
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </AdminSelect>
+            <Button variant="primary" size="sm" onClick={handleCreate} className="rounded-xl">
+              <Plus className="ml-2 w-4 h-4" />
+              افزودن تصویر
+            </Button>
           </div>
-          <Button onClick={handleCreate}>
-            <Plus className="ml-2 w-4 h-4" />
-            افزودن تصویر
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
-      {isLoading && <p className="text-gray-500">در حال بارگذاری...</p>}
-      {error && <p className="text-red-500">{error}</p>}
+      {isLoading && <AdminLoading message="در حال بارگذاری تصاویر..." />}
+      {error && <AdminError message={error} onRetry={fetchHeroImages} />}
 
-      {!isLoading && filteredHeroImages.length === 0 && (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <p className="text-gray-500">هیچ تصویر هیرویی یافت نشد</p>
-          <Button onClick={handleCreate} className="mt-4">
-            <Plus className="ml-2 w-4 h-4" />
-            اولین تصویر را اضافه کنید
-          </Button>
-        </div>
+      {!isLoading && !error && filteredHeroImages.length === 0 && (
+        <AdminEmpty
+          icon={ImageIcon}
+          title="هیچ تصویر هیرویی یافت نشد"
+          action={
+            <Button variant="primary" size="sm" onClick={handleCreate} className="rounded-xl">
+              <Plus className="ml-2 w-4 h-4" />
+              اولین تصویر را اضافه کنید
+            </Button>
+          }
+        />
       )}
 
       <motion.div
@@ -112,16 +129,18 @@ export default function HeroImagesPage() {
           return (
           <motion.div
             key={heroImage.id}
-            className={`bg-white rounded-lg shadow-md overflow-hidden border-2 transition-all ${
-              heroImage.isActive
-                ? "border-green-400 ring-2 ring-green-100"
-                : "border-gray-200 opacity-70"
-            }`}
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
           >
+            <Card
+              className={`border-2 rounded-2xl overflow-hidden bg-white/90 dark:bg-voxcina-blue/10 transition-all h-full ${
+                heroImage.isActive
+                  ? "border-green-400 dark:border-green-800/50 ring-2 ring-green-100 dark:ring-green-900/20"
+                  : "border-voxcina-cream dark:border-voxcina-blue/20 opacity-70"
+              }`}
+            >
             {/* Image Preview */}
-            <div className={`relative ${heroImage.deviceType === "desktop" ? "aspect-video" : "aspect-[3/4]"} bg-gray-100`}>
+            <div className={`relative ${heroImage.deviceType === "desktop" ? "aspect-video" : "aspect-[3/4]"} bg-voxcina-cream/40 dark:bg-voxcina-blue/20`}>
               <Image
                 src={heroImage.image}
                 alt={`Hero ${heroImage.deviceType}`}
@@ -156,22 +175,22 @@ export default function HeroImagesPage() {
               )}
               {/* Content Badge */}
               {hasVisibleText && (
-                <div className="absolute bottom-2 left-2 bg-blue-600/90 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1 z-10">
+                <div className="absolute bottom-2 left-2 bg-voxcina-blue/90 text-white px-2 py-1 rounded-lg text-xs flex items-center gap-1 z-10">
                   <Type className="w-3 h-3" />
                   محتوای متنی
                 </div>
               )}
               {/* Device Badge */}
-              <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1 z-10">
+              <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded-lg text-xs flex items-center gap-1 z-10">
                 {getDeviceIcon(heroImage.deviceType)}
                 {getDeviceLabel(heroImage.deviceType)}
               </div>
               {/* Aspect Ratio Badge */}
-              <div className="absolute bottom-2 right-2 bg-white/90 text-gray-700 px-2 py-1 rounded-md text-xs z-10">
+              <div className="absolute bottom-2 right-2 bg-white/90 text-voxcina-blue px-2 py-1 rounded-lg text-xs z-10">
                 {heroImage.deviceType === "desktop" ? "۱۶:۹" : "۳:۴"}
               </div>
               {/* Display Order Badge */}
-              <div className="absolute top-2 left-2 bg-blue-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold z-10">
+              <div className="absolute top-2 left-2 bg-voxcina-blue text-white w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold z-10">
                 {heroImage.displayOrder}
               </div>
             </div>
@@ -180,17 +199,11 @@ export default function HeroImagesPage() {
             <div className="p-4">
               <div className="flex items-center justify-between mb-3">
                 {/* Status Badge */}
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    heroImage.isActive
-                      ? "bg-green-100 text-green-700"
-                      : "bg-gray-100 text-gray-600"
-                  }`}
-                >
+                <AdminBadge tone={heroImage.isActive ? "success" : "neutral"}>
                   {heroImage.isActive ? "فعال" : "غیرفعال"}
-                </span>
+                </AdminBadge>
                 {/* Gradient Status */}
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50">
                   {content
                     ? content.overlay.enabled
                       ? "با گرادیان"
@@ -207,18 +220,21 @@ export default function HeroImagesPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => handleEdit(heroImage)}
+                  className="rounded-xl"
                 >
                   <Edit size={16} />
                 </Button>
                 <Button
                   variant="danger"
                   size="sm"
-                  onClick={() => handleDelete(heroImage.id!)}
+                  onClick={() => setDeleteTarget(heroImage)}
+                  className="rounded-xl"
                 >
                   <Trash2 size={16} />
                 </Button>
               </div>
             </div>
+            </Card>
           </motion.div>
           );
         })}
@@ -230,6 +246,29 @@ export default function HeroImagesPage() {
           onClose={handleModalClose}
         />
       )}
+
+      <AdminModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="حذف تصویر هیرو"
+        size="sm"
+      >
+        <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 leading-relaxed">
+          آیا از حذف این تصویر هیرو مطمئن هستید؟ این عمل قابل بازگشت نیست.
+        </p>
+        <AdminModalActions onCancel={() => setDeleteTarget(null)}>
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={handleDelete}
+            disabled={isDeleting}
+            isLoading={isDeleting}
+            className="rounded-xl"
+          >
+            حذف تصویر
+          </Button>
+        </AdminModalActions>
+      </AdminModal>
     </div>
   );
 }

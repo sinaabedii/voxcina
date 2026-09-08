@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import Link from "next/link";
 import { useAuthStore } from "@/store/auth-store";
 import { useDashboardStore } from "@/store/dashboard-store";
 import { useOrderStore } from "@/store/order-store";
@@ -23,10 +23,24 @@ import {
   Search,
   Filter,
   FileText,
+  XCircle,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
-import { XCircle } from "lucide-react";
+import {
+  AdminPageHeader,
+  AdminTable,
+  AdminTh,
+  AdminTd,
+  AdminBadge,
+  AdminBadgeTone,
+  AdminLoading,
+  AdminError,
+  AdminEmpty,
+  AdminStatCard,
+  AdminInput,
+} from "@/components/admin/ui";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 
 export default function AdminDashboardPage() {
   const { user, adminToken } = useAuthStore();
@@ -100,56 +114,57 @@ export default function AdminDashboardPage() {
     },
   };
 
-  const getStatusStyle = (status: string) => {
+  const getStatusTone = (status: string): AdminBadgeTone => {
     switch (status) {
       case "delivered":
-        return "bg-green-100 text-voxcina-blue dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800/30";
+        return "success";
       case "shipping":
-        return "bg-voxcina-blue/10 text-voxcina-blue dark:bg-voxcina-blue/20 dark:text-voxcina-cream border border-voxcina-blue/20 dark:border-voxcina-blue/30";
+      case "shipped":
+        return "info";
       case "processing":
-        return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800/30";
+        return "success";
       case "pending":
-        return "bg-red-100 text-voxcina-blue dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800/30";
+        return "danger";
       default:
-        return "bg-voxcina-cream text-voxcina-blue dark:bg-voxcina-blue/10 dark:text-voxcina-lightCream border border-voxcina-cream/70 dark:border-voxcina-blue/20";
+        return "neutral";
     }
   };
 
   // Helper function to get tab label in Persian
-  const getTabLabel = (tab: string) => {
-    switch (tab) {
-      case "pending":
-        return "در انتظار";
-      case "processing":
-        return "در حال پردازش";
-      case "shipping":
-        return "در حال ارسال";
-      case "delivered":
-        return "تحویل شده";
-      default:
-        return "";
-    }
+  const TAB_LABELS: Record<string, string> = {
+    pending: "در انتظار",
+    processing: "در حال پردازش",
+    shipping: "در حال ارسال",
+    delivered: "تحویل شده",
   };
-
-  if (!dashboardStats) {
+  const getTabLabel = (tab: string) => TAB_LABELS[tab] ?? "";
+  const QuickLinkButton = ({
+    href,
+    icon,
+    children,
+  }: {
+    href: string;
+    icon: React.ReactNode;
+    children: React.ReactNode;
+  }) => (
+    <Link href={href}>
+      <Button variant="outline" className="w-full justify-start rounded-xl">
+        <span className="ml-2 inline-flex [&>svg]:w-4 [&>svg]:h-4">{icon}</span>
+        {children}
+      </Button>
+    </Link>
+  );  if (!dashboardStats) {
     return (
-      <div className="py-8 md:py-12 flex items-center justify-center min-h-[40vh]">
-        <div className="text-lg text-voxcina-blue dark:text-voxcina-cream">در حال بارگذاری آمار...</div>
+      <div>
+        <AdminPageHeader title="پنل مدیریت" />
+        <AdminLoading message="در حال بارگذاری آمار..." />
       </div>
     );
   }
 
   return (
-    <div className="py-8 md:py-12 transition-all duration-500 ease-in-out">
-      <motion.h1
-        className="text-2xl md:text-3xl font-bold mb-8 text-voxcina-blue dark:text-voxcina-cream relative inline-block"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <span className="relative z-10">پنل مدیریت</span>
-        <span className="absolute bottom-1 left-0 w-full h-3 bg-voxcina-cream dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
-      </motion.h1>
+    <div>
+      <AdminPageHeader title="پنل مدیریت" />
 
       {showWelcome && (
         <motion.section
@@ -245,20 +260,13 @@ export default function AdminDashboardPage() {
             whileHover={{ y: -5 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-voxcina-cream">
-                  <Package className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
-                  محصولات
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Link href="/admin/products">
-                  <div className="text-2xl font-bold">{dashboardStats.totalProducts}</div>
-                  <p className="text-xs text-muted-foreground">مدیریت محصولات</p>
-                </Link>
-              </CardContent>
-            </Card>
+            <AdminStatCard
+              icon={Package}
+              label="محصولات"
+              value={dashboardStats.totalProducts}
+              href="/admin/products"
+              hint="مدیریت محصولات"
+            />
           </motion.div>
 
           <motion.div 
@@ -266,20 +274,13 @@ export default function AdminDashboardPage() {
             whileHover={{ y: -5 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-voxcina-cream">
-                  <FileText className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
-                  اسلایدر
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Link href="/admin/sliders">
-                  <div className="text-2xl font-bold">{dashboardStats.totalProducts}</div>
-                  <p className="text-xs text-muted-foreground">مدیریت اسلایدر</p>
-                </Link>
-              </CardContent>
-            </Card>
+            <AdminStatCard
+              icon={FileText}
+              label="اسلایدر"
+              value={dashboardStats.totalProducts}
+              href="/admin/sliders"
+              hint="مدیریت اسلایدر"
+            />
           </motion.div>
 
           <motion.div 
@@ -287,28 +288,13 @@ export default function AdminDashboardPage() {
             whileHover={{ y: -5 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-voxcina-cream">
-                  <Users className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
-                  کاربران
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{dashboardStats.totalUsers}</div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
-                    کاربر ثبت شده
-                  </p>
-                  <Link href="/admin/users" aria-label="مدیریت کاربران">
-                    <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
-                      <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
-                      <span className="sr-only">مدیریت کاربران</span>
-                    </div>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+            <AdminStatCard
+              icon={Users}
+              label="کاربران"
+              value={dashboardStats.totalUsers}
+              href="/admin/users"
+              hint="کاربر ثبت شده"
+            />
           </motion.div>
 
           <motion.div 
@@ -316,28 +302,13 @@ export default function AdminDashboardPage() {
             whileHover={{ y: -5 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-voxcina-cream">
-                  <ShoppingCart className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
-                  سفارش‌ها
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{dashboardStats.totalOrders}</div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
-                    {dashboardStats.pendingOrders} سفارش در انتظار تایید
-                  </p>
-                  <Link href="/admin/orders" aria-label="مدیریت سفارش‌ها">
-                    <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
-                      <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
-                      <span className="sr-only">مدیریت سفارش‌ها</span>
-                    </div>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+            <AdminStatCard
+              icon={ShoppingCart}
+              label="سفارش‌ها"
+              value={dashboardStats.totalOrders}
+              href="/admin/orders"
+              hint={`${dashboardStats.pendingOrders} سفارش در انتظار تایید`}
+            />
           </motion.div>
 
           <motion.div 
@@ -345,30 +316,14 @@ export default function AdminDashboardPage() {
             whileHover={{ y: -5 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-voxcina-cream">
-                  <DollarSign className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
-                  فروش کل
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">
-                  {formatPrice(dashboardStats.totalSales)}
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
-                    ارزش فروش‌های موفق
-                  </p>
-                  <Link href="/admin/orders" aria-label="مدیریت سفارش‌ها">
-                    <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
-                      <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
-                      <span className="sr-only">مدیریت سفارش‌ها</span>
-                    </div>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+            <AdminStatCard
+              icon={DollarSign}
+              tone="green"
+              label="فروش کل"
+              value={formatPrice(dashboardStats.totalSales)}
+              href="/admin/orders"
+              hint="ارزش فروش‌های موفق"
+            />
           </motion.div>
 
           <motion.div 
@@ -376,30 +331,14 @@ export default function AdminDashboardPage() {
             whileHover={{ y: -5 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-voxcina-cream">
-                  <XCircle className="w-5 h-5 text-red-500 dark:text-red-400 ml-2" />
-                  فروش‌های ناموفق
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-red-500 dark:text-red-400">
-                  {formatPrice(dashboardStats.totalSalesFailed)}
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-red-500/70 dark:text-red-400/70 mt-1">
-                    ارزش فروش‌های در انتظار/ناموفق
-                  </p>
-                  <Link href="/admin/orders" aria-label="مدیریت سفارش‌ها">
-                    <div className="h-8 w-8 flex items-center justify-center rounded-full bg-red-50 dark:bg-red-900/20">
-                      <ChevronLeft className="h-5 w-5 text-red-500 dark:text-red-400" />
-                      <span className="sr-only">مدیریت سفارش‌ها</span>
-                    </div>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+            <AdminStatCard
+              icon={XCircle}
+              tone="red"
+              label="فروش‌های ناموفق"
+              value={formatPrice(dashboardStats.totalSalesFailed)}
+              href="/admin/orders"
+              hint="ارزش فروش‌های در انتظار/ناموفق"
+            />
           </motion.div>
 
           <motion.div 
@@ -407,28 +346,13 @@ export default function AdminDashboardPage() {
             whileHover={{ y: -5 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-voxcina-cream">
-                  <Tags className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
-                  دسته‌بندی‌ها
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{dashboardStats.totalCategories}</div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
-                    دسته‌بندی فعال
-                  </p>
-                  <Link href="/admin/categories" aria-label="مدیریت دسته‌بندی‌ها">
-                    <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
-                      <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
-                      <span className="sr-only">مدیریت دسته‌بندی‌ها</span>
-                    </div>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+            <AdminStatCard
+              icon={Tags}
+              label="دسته‌بندی‌ها"
+              value={dashboardStats.totalCategories}
+              href="/admin/categories"
+              hint="دسته‌بندی فعال"
+            />
           </motion.div>
 
           <motion.div 
@@ -436,28 +360,13 @@ export default function AdminDashboardPage() {
             whileHover={{ y: -5 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center text-voxcina-blue dark:text-voxcina-cream">
-                  <Star className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream/80 ml-2" />
-                  نظرات
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-voxcina-blue dark:text-voxcina-lightCream">{dashboardStats.pendingReviews}</div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-1">
-                    نظر در انتظار تایید
-                  </p>
-                  <Link href="/admin/reviews" aria-label="مدیریت نظرات">
-                    <div className="h-8 w-8 flex items-center justify-center rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
-                      <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-voxcina-cream/80" />
-                      <span className="sr-only">مدیریت نظرات</span>
-                    </div>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+            <AdminStatCard
+              icon={Star}
+              label="نظرات"
+              value={dashboardStats.pendingReviews}
+              href="/admin/reviews"
+              hint="نظر در انتظار تایید"
+            />
           </motion.div>
         </div>
       </motion.section>
@@ -549,192 +458,77 @@ export default function AdminDashboardPage() {
         </motion.div>
 
         {isLoading ? (
-          <motion.div 
-            variants={itemVariants}
-            className="flex flex-col items-center justify-center"
-          >
-            <Card className="border border-voxcina-cream/60 dark:border-voxcina-blue/30 shadow-lg rounded-3xl backdrop-blur-sm bg-gradient-to-br from-white/95 to-voxcina-cream/20 dark:from-voxcina-blue/15 dark:to-voxcina-blue/5 p-12 max-w-lg mx-auto relative overflow-hidden">
-              {/* Background decoration */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-voxcina-blue/5 dark:bg-voxcina-cream/5 rounded-full -translate-y-16 translate-x-16"></div>
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-voxcina-cream/30 dark:bg-voxcina-blue/10 rounded-full translate-y-12 -translate-x-12"></div>
-              
-              <div className="text-center relative z-10">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-voxcina-blue/10 dark:bg-voxcina-cream/10 mb-4 mx-auto">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-voxcina-blue/20 dark:border-voxcina-cream/20 border-t-voxcina-blue dark:border-t-voxcina-cream"></div>
-                </div>
-                <p className="text-lg text-voxcina-blue dark:text-voxcina-cream font-medium">در حال بارگذاری سفارش‌ها...</p>
-                <p className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60 mt-2">لطفا صبر کنید</p>
-              </div>
-            </Card>
-          </motion.div>
+          <AdminLoading message="در حال بارگذاری سفارش‌ها..." />
         ) : ordersError ? (
-          <motion.div 
-            variants={itemVariants}
-            className="flex flex-col items-center justify-center"
-          >
-            <Card className="border border-red-200/60 dark:border-red-800/40 shadow-lg rounded-3xl backdrop-blur-sm bg-gradient-to-br from-red-50/95 to-red-100/20 dark:from-red-900/15 dark:to-red-900/5 p-12 max-w-lg mx-auto relative overflow-hidden">
-              {/* Background decoration */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-red-100/30 dark:bg-red-900/10 rounded-full -translate-y-16 translate-x-16"></div>
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-red-200/40 dark:bg-red-800/10 rounded-full translate-y-12 -translate-x-12"></div>
-              
-              {/* Icon with enhanced styling */}
-              <div className="relative inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-red-100/50 to-red-200/50 dark:from-red-900/20 dark:to-red-800/20 mb-6 mx-auto shadow-inner">
-                <div className="w-20 h-20 rounded-full bg-white/80 dark:bg-red-900/20 flex items-center justify-center">
-                  <AlertCircle className="w-10 h-10 text-red-500 dark:text-red-400" />
-                </div>
-              </div>
-              
-              {/* Content with better typography */}
-              <div className="text-center relative z-10">
-                <h3 className="text-xl font-bold mb-3 text-red-700 dark:text-red-400">
-                  خطا در بارگذاری
-                </h3>
-                <p className="text-red-600/70 dark:text-red-400/70 mb-8 leading-relaxed">
-                  {ordersError}
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.location.reload()}
-                  className="rounded-xl border-red-300 text-red-600 dark:border-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 shadow-sm hover:shadow-md transition-all duration-300"
-                >
-                  <AlertCircle className="w-4 h-4 ml-2" />
-                  تلاش مجدد
-                </Button>
-              </div>
-            </Card>
-          </motion.div>
+          <AdminError message={ordersError} onRetry={() => window.location.reload()} />
         ) : filteredOrders.length === 0 ? (
-          <motion.div 
-            variants={itemVariants}
-            className="flex flex-col items-center justify-center"
-          >
-            <Card className="border border-voxcina-cream/60 dark:border-voxcina-blue/30 shadow-lg rounded-3xl backdrop-blur-sm bg-gradient-to-br from-white/95 to-voxcina-cream/20 dark:from-voxcina-blue/15 dark:to-voxcina-blue/5 p-12 max-w-lg mx-auto relative overflow-hidden">
-              {/* Background decoration */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-voxcina-blue/5 dark:bg-voxcina-cream/5 rounded-full -translate-y-16 translate-x-16"></div>
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-voxcina-cream/30 dark:bg-voxcina-blue/10 rounded-full translate-y-12 -translate-x-12"></div>
-              
-              {/* Icon with enhanced styling */}
-              <div className="relative inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-voxcina-blue/10 to-voxcina-blue/20 dark:from-voxcina-cream/10 dark:to-voxcina-cream/20 mb-6 mx-auto shadow-inner">
-                <div className="w-20 h-20 rounded-full bg-white/80 dark:bg-voxcina-blue/20 flex items-center justify-center">
-                  <ShoppingCart className="w-10 h-10 text-voxcina-blue/60 dark:text-voxcina-cream/60" />
-                </div>
-              </div>
-              
-              {/* Content with better typography */}
-              <div className="text-center relative z-10">
-                <h3 className="text-xl font-bold mb-3 text-voxcina-blue dark:text-voxcina-cream">
-                  {activeTab === "all" ? "هیچ سفارشی یافت نشد" : `هیچ سفارش ${getTabLabel(activeTab)}ی یافت نشد`}
-                </h3>
-                <p className="text-voxcina-blue/60 dark:text-voxcina-cream/60 mb-8 leading-relaxed">
-                  {activeTab === "all" 
-                    ? "هنوز هیچ سفارشی در سیستم ثبت نشده است. سفارش‌های جدید به محض دریافت در اینجا نمایش داده خواهند شد."
-                    : `در حال حاضر هیچ سفارشی با وضعیت ${getTabLabel(activeTab)} وجود ندارد.`
-                  }
-                </p>
-                
-                {/* Action buttons with improved styling */}
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  {activeTab !== "all" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setActiveTab("all")}
-                      className="rounded-xl border-voxcina-blue/30 text-voxcina-blue dark:border-voxcina-blue/40 dark:text-voxcina-cream hover:bg-voxcina-blue/10 dark:hover:bg-voxcina-blue/20 shadow-sm hover:shadow-md transition-all duration-300"
-                    >
-                      نمایش همه سفارش‌ها
-                    </Button>
-                  )}
-                  {activeTab === "all" && (
-                    <Link href="/admin/orders">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-md hover:shadow-lg transition-all duration-300"
-                      >
-                        <Plus className="w-4 h-4 ml-2" />
-                        مدیریت سفارش‌ها
-                      </Button>
-                    </Link>
-                  )}
-                </div>
-              </div>
-            </Card>
-          </motion.div>
+          <AdminEmpty
+            icon={ShoppingCart}
+            title={activeTab === "all" ? "هیچ سفارشی یافت نشد" : `هیچ سفارش ${getTabLabel(activeTab)}ی یافت نشد`}
+            description={
+              activeTab === "all"
+                ? "هنوز هیچ سفارشی در سیستم ثبت نشده است. سفارش‌های جدید به محض دریافت در اینجا نمایش داده خواهند شد."
+                : `در حال حاضر هیچ سفارشی با وضعیت ${getTabLabel(activeTab)} وجود ندارد.`
+            }
+            action={
+              activeTab !== "all" ? (
+                <Button variant="outline" size="sm" onClick={() => setActiveTab("all")} className="rounded-xl">
+                  نمایش همه سفارش‌ها
+                </Button>
+              ) : (
+                <Link href="/admin/orders">
+                  <Button variant="primary" size="sm" className="rounded-xl">
+                    <Plus className="w-4 h-4 ml-2" />
+                    مدیریت سفارش‌ها
+                  </Button>
+                </Link>
+              )
+            }
+          />
         ) : (
-          <motion.div variants={itemVariants}>
-            <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-md overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-              <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-voxcina-blue/20 scrollbar-track-voxcina-cream/50 dark:scrollbar-thumb-voxcina-cream/30 dark:scrollbar-track-voxcina-blue/20">
-                <table className="w-full">
-                  <thead className="bg-voxcina-cream/50 dark:bg-voxcina-blue/20">
-                    <tr>
-                      <th className="text-right p-4 text-voxcina-blue/80 dark:text-voxcina-cream/80 font-medium">
-                        شماره سفارش
-                      </th>
-                      <th className="text-right p-4 text-voxcina-blue/80 dark:text-voxcina-cream/80 font-medium">
-                        تاریخ
-                      </th>
-                      <th className="text-right p-4 text-voxcina-blue/80 dark:text-voxcina-cream/80 font-medium">
-                        مشتری
-                      </th>
-                      <th className="text-right p-4 text-voxcina-blue/80 dark:text-voxcina-cream/80 font-medium">
-                        وضعیت
-                      </th>
-                      <th className="text-right p-4 text-voxcina-blue/80 dark:text-voxcina-cream/80 font-medium">
-                        مبلغ
-                      </th>
-                      <th className="text-right p-4 text-voxcina-blue/80 dark:text-voxcina-cream/80 font-medium"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredOrders.map((order, index) => (
-                      <motion.tr
-                        key={order.id}
-                        className="border-b border-voxcina-cream/30 dark:border-voxcina-blue/10 hover:bg-voxcina-cream/20 dark:hover:bg-voxcina-blue/5 transition-colors"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        whileHover={{ backgroundColor: 'rgba(244, 241, 236, 0.3)' }}
-                      >
-                        <td className="p-4 font-medium text-voxcina-blue dark:text-voxcina-cream">
-                          {order.order_number || 'نامشخص'}
-                        </td>
-                        <td className="p-4 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          {order.jalali_created_at || 'نامشخص'}
-                        </td>
-                        <td className="p-4 text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                          {order.user_id || 'نامشخص'}
-                        </td>
-                        <td className="p-4">
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs ${getStatusStyle(order.status || 'pending')}`}
-                          >
-                            {order.status_text || 'نامشخص'}
-                          </span>
-                        </td>
-                        <td className="p-4 font-bold text-voxcina-blue dark:text-voxcina-cream">
-                          {formatPrice(order.total_amount || 0)} تومان
-                        </td>
-                        <td className="p-4 text-left">
-                          <motion.button 
-                            className="p-2 hover:bg-voxcina-cream/50 dark:hover:bg-voxcina-blue/30 rounded-full transition-colors text-voxcina-blue/60 dark:text-voxcina-cream/60"
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => {
-                              // Add navigation to order details
-                              console.log('Navigate to order:', order.id);
-                            }}
-                          >
-                            <ChevronLeft className="h-5 w-5" />
-                          </motion.button>
-                        </td>
-                      </motion.tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          </motion.div>
+          <AdminTable
+            head={
+              <>
+                <AdminTh>شماره سفارش</AdminTh>
+                <AdminTh>تاریخ</AdminTh>
+                <AdminTh>مشتری</AdminTh>
+                <AdminTh>وضعیت</AdminTh>
+                <AdminTh>مبلغ</AdminTh>
+                <AdminTh />
+              </>
+            }
+          >
+            {filteredOrders.map((order) => (
+              <tr key={order.id} className="hover:bg-voxcina-cream/20 dark:hover:bg-voxcina-blue/5 transition-colors">
+                <AdminTd className="font-medium">
+                  {order.order_number || "نامشخص"}
+                </AdminTd>
+                <AdminTd>
+                  {order.jalali_created_at || "نامشخص"}
+                </AdminTd>
+                <AdminTd>
+                  {order.user_id || "نامشخص"}
+                </AdminTd>
+                <AdminTd>
+                  <AdminBadge tone={getStatusTone(order.status || "pending")}>
+                    {order.status_text || "نامشخص"}
+                  </AdminBadge>
+                </AdminTd>
+                <AdminTd className="font-bold">
+                  {formatPrice(order.total_amount || 0)} تومان
+                </AdminTd>
+                <AdminTd className="text-left">
+                  <Link
+                    href={`/admin/orders/${order.id}`}
+                    aria-label="مشاهده جزئیات سفارش"
+                    className="inline-flex p-2 hover:bg-voxcina-cream/50 dark:hover:bg-voxcina-blue/30 rounded-full transition-colors text-voxcina-blue/60 dark:text-voxcina-cream/60"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </Link>
+                </AdminTd>
+              </tr>
+            ))}
+          </AdminTable>
         )}
       </motion.section>
 
@@ -757,53 +551,29 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-3">
-                <Link href="/admin/products/add">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
-                  >
-                    <Package className="w-4 h-4 ml-2" />
-                    افزودن محصول
-                  </Button>
-                </Link>
-                <Link href="/admin/categories/add">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
-                  >
-                    <Tags className="w-4 h-4 ml-2" />
-                    افزودن دسته‌بندی
-                  </Button>
-                </Link>
-                <Link href="/admin/discounts/add">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
-                  >
-                    <DollarSign className="w-4 h-4 ml-2" />
-                    ایجاد تخفیف
-                  </Button>
-                </Link>
-                <Link href="/admin/pages/add">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
-                  >
-                    <FileText className="w-4 h-4 ml-2" />
-                    ایجاد صفحه
-                  </Button>
-                </Link>
+                <QuickLinkButton href="/admin/products/add" icon={<Package />}>
+                  افزودن محصول
+                </QuickLinkButton>
+                <QuickLinkButton href="/admin/categories/add" icon={<Tags />}>
+                  افزودن دسته‌بندی
+                </QuickLinkButton>
+                <QuickLinkButton href="/admin/discounts/add" icon={<DollarSign />}>
+                  ایجاد تخفیف
+                </QuickLinkButton>
+                <QuickLinkButton href="/admin/pages/add" icon={<FileText />}>
+                  ایجاد صفحه
+                </QuickLinkButton>
               </div>
-              
+
               <div className="mt-6">
                 <h3 className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-3">جستجوی سریع</h3>
                 <div className="relative">
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                     <Search className="w-4 h-4 text-voxcina-blue/50 dark:text-voxcina-cream/50" />
                   </div>
-                  <input
+                  <AdminInput
                     type="text"
-                    className="bg-voxcina-cream/30 dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full pr-10 p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
+                    className="pr-10 p-2.5"
                     placeholder="جستجوی محصول، سفارش یا کاربر..."
                   />
                 </div>
@@ -862,18 +632,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-
-// Helper component for Link
-interface LinkProps {
-  href: string;
-  children: React.ReactNode;
-  className?: string;
-}
-
-const Link = ({ href, children, className = "" }: LinkProps) => {
-  return (
-    <a href={href} className={className}>
-      {children}
-    </a>
-  );
-};

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { CardContent } from "@/components/ui/Card";
 import {
   ArrowRight,
   CheckCircle,
@@ -12,7 +12,18 @@ import {
   XCircle,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
-import Modal from "@/components/ui/Modal";
+import {
+  AdminPageHeader,
+  AdminTableCard,
+  AdminBadge,
+  AdminBadgeTone,
+  AdminLoading,
+  AdminEmpty,
+  AdminPagination,
+  AdminModal,
+  AdminModalActions,
+  AdminTextarea,
+} from "@/components/admin/ui";
 import { useOrderStore } from "@/store/order-store";
 import { formatPrice, toPersianNumber } from "@/lib/utils";
 import { ReturnRequest, ReturnRequestStatus } from "@/types/order";
@@ -25,23 +36,11 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: "cancelled", label: "لغو شده" },
 ];
 
-const STATUS_BADGE: Record<ReturnRequestStatus, { label: string; className: string }> = {
-  pending: {
-    label: "در انتظار بررسی",
-    className: "bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400",
-  },
-  approved: {
-    label: "تایید شده",
-    className: "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400",
-  },
-  rejected: {
-    label: "رد شده",
-    className: "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400",
-  },
-  cancelled: {
-    label: "لغو شده",
-    className: "bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-400",
-  },
+const STATUS_BADGE: Record<ReturnRequestStatus, { label: string; tone: AdminBadgeTone }> = {
+  pending: { label: "در انتظار بررسی", tone: "warning" },
+  approved: { label: "تایید شده", tone: "success" },
+  rejected: { label: "رد شده", tone: "danger" },
+  cancelled: { label: "لغو شده", tone: "neutral" },
 };
 
 export default function AdminReturnRequestsPage() {
@@ -79,33 +78,30 @@ export default function AdminReturnRequestsPage() {
       : returnRequests.filter((r) => r.status === "pending").length;
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
-            <RotateCcw className="w-6 h-6" />
-            درخواست‌های مرجوعی
-            {statusFilter === "pending" && pendingCount > 0 && (
-              <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
-                {toPersianNumber(pendingCount)}
-              </span>
-            )}
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            بررسی و تصمیم‌گیری درباره مرجوعی سفارش‌های تحویل‌شده (مهلت ۷ روزه)
-          </p>
+    <div>
+      <AdminPageHeader
+        title="درخواست‌های مرجوعی"
+        subtitle="بررسی و تصمیم‌گیری درباره مرجوعی سفارش‌های تحویل‌شده (مهلت ۷ روزه)"
+        icon={<RotateCcw className="w-6 h-6" />}
+        actions={
+          <Link href="/admin/orders">
+            <Button variant="outline" size="sm" className="rounded-xl">
+              <ArrowRight className="w-4 h-4 ml-1" />
+              مدیریت سفارش‌ها
+            </Button>
+          </Link>
+        }
+      />
+      {statusFilter === "pending" && pendingCount > 0 && (
+        <div className="mb-4">
+          <AdminBadge tone="warning">
+            {toPersianNumber(pendingCount)} درخواست در انتظار بررسی
+          </AdminBadge>
         </div>
-        <Link href="/admin/orders">
-          <Button variant="outline" size="sm" className="flex items-center gap-1">
-            <ArrowRight className="w-4 h-4" />
-            مدیریت سفارش‌ها
-          </Button>
-        </Link>
-      </div>
+      )}
 
       {/* Status filter tabs */}
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-1.5 mb-4">
         {STATUS_FILTERS.map((filter) => (
           <button
             key={filter.value}
@@ -116,8 +112,8 @@ export default function AdminReturnRequestsPage() {
             }}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
               statusFilter === filter.value
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700"
+                ? "bg-voxcina-blue text-white dark:bg-voxcina-cream dark:text-voxcina-blue"
+                : "bg-voxcina-cream/50 text-voxcina-blue/70 hover:bg-voxcina-cream dark:bg-voxcina-blue/20 dark:text-voxcina-cream/70 dark:hover:bg-voxcina-blue/30"
             }`}
           >
             {filter.label}
@@ -126,35 +122,35 @@ export default function AdminReturnRequestsPage() {
       </div>
 
       {/* List */}
-      <Card>
+      <AdminTableCard>
         <CardContent className="p-0">
           {returnRequestsLoading && returnRequests.length === 0 ? (
-            <div className="flex justify-center items-center py-16">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+            <div className="p-4">
+              <AdminLoading message="در حال بارگذاری درخواست‌ها..." />
             </div>
           ) : returnRequests.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center px-4">
-              <CheckCircle className="w-10 h-10 text-green-500 mb-3" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">درخواست مرجوعی با این فیلتر یافت نشد</p>
+            <div className="p-4">
+              <AdminEmpty
+                icon={CheckCircle}
+                title="درخواست مرجوعی با این فیلتر یافت نشد"
+              />
             </div>
           ) : (
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-voxcina-cream/40 dark:divide-voxcina-blue/10">
               {returnRequests.map((request) => (
                 <div key={request.id} className="p-4 space-y-2.5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${STATUS_BADGE[request.status].className}`}
-                      >
+                      <AdminBadge tone={STATUS_BADGE[request.status].tone}>
                         {STATUS_BADGE[request.status].label}
-                      </span>
+                      </AdminBadge>
                       <Link
                         href={`/admin/orders/${request.order_id}`}
-                        className="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                        className="text-sm font-semibold text-voxcina-blue dark:text-voxcina-cream hover:underline"
                       >
                         سفارش #{request.order_number}
                       </Link>
-                      <span className="text-[11px] text-gray-400">
+                      <span className="text-[11px] text-voxcina-blue/40 dark:text-voxcina-cream/40">
                         {new Date(request.created_at).toLocaleDateString("fa-IR")}
                       </span>
                     </div>
@@ -167,9 +163,9 @@ export default function AdminReturnRequestsPage() {
                             setDecisionTarget({ request, action: "approve" });
                             setDecisionNote("");
                           }}
-                          className="flex items-center gap-1 !px-3"
+                          className="rounded-xl"
                         >
-                          <CheckCircle className="w-3.5 h-3.5" />
+                          <CheckCircle className="w-3.5 h-3.5 ml-1" />
                           تایید
                         </Button>
                         <Button
@@ -179,9 +175,9 @@ export default function AdminReturnRequestsPage() {
                             setDecisionTarget({ request, action: "reject" });
                             setDecisionNote("");
                           }}
-                          className="flex items-center gap-1 !px-3 !text-red-600 !border-red-200 hover:!bg-red-50"
+                          className="rounded-xl !text-red-600 !border-red-200 hover:!bg-red-50 dark:!text-red-400 dark:!border-red-800/40 dark:hover:!bg-red-900/20"
                         >
-                          <XCircle className="w-3.5 h-3.5" />
+                          <XCircle className="w-3.5 h-3.5 ml-1" />
                           رد
                         </Button>
                       </div>
@@ -191,36 +187,36 @@ export default function AdminReturnRequestsPage() {
                   <div className="grid sm:grid-cols-2 gap-2 text-xs">
                     <div className="space-y-1">
                       {request.items.map((item, idx) => (
-                        <p key={idx} className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300">
-                          <Package className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                        <p key={idx} className="flex items-center gap-1.5 text-voxcina-blue/80 dark:text-voxcina-cream/80">
+                          <Package className="w-3.5 h-3.5 text-voxcina-blue/40 dark:text-voxcina-cream/40 flex-shrink-0" />
                           {toPersianNumber(item.quantity)} × {item.product_name}
                           {(item.variant.size !== "N/A" || item.variant.colorName) && (
-                            <span className="text-gray-400">
+                            <span className="text-voxcina-blue/40 dark:text-voxcina-cream/40">
                               ({[item.variant.size !== "N/A" && item.variant.size, item.variant.colorName].filter(Boolean).join(" · ")})
                             </span>
                           )}
-                          <span className="text-gray-400">— {formatPrice(item.price_at_purchase * item.quantity)}</span>
+                          <span className="text-voxcina-blue/40 dark:text-voxcina-cream/40">— {formatPrice(item.price_at_purchase * item.quantity)}</span>
                         </p>
                       ))}
                     </div>
                     <div className="space-y-1">
                       {request.reason && (
-                        <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                        <p className="text-voxcina-blue/70 dark:text-voxcina-cream/70 leading-relaxed">
                           <span className="font-medium">دلیل مشتری:</span> {request.reason}
                         </p>
                       )}
                       {request.admin_name && (
-                        <p className="text-[11px] text-gray-400">
+                        <p className="text-[11px] text-voxcina-blue/40 dark:text-voxcina-cream/40">
                           بررسی توسط {request.admin_name}
                           {request.decided_at && ` — ${new Date(request.decided_at).toLocaleDateString("fa-IR")}`}
                         </p>
                       )}
                       {request.admin_note && (
-                        <p className="text-[11px] text-gray-500 dark:text-gray-500">
+                        <p className="text-[11px] text-voxcina-blue/50 dark:text-voxcina-cream/50">
                           یادداشت: {request.admin_note}
                         </p>
                       )}
-                      <p className="text-[11px] text-gray-400 flex items-center gap-1">
+                      <p className="text-[11px] text-voxcina-blue/40 dark:text-voxcina-cream/40 flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         تحویل: {new Date(request.delivered_at).toLocaleDateString("fa-IR")}
                         {" — پایان مهلت: "}
@@ -233,78 +229,60 @@ export default function AdminReturnRequestsPage() {
             </div>
           )}
         </CardContent>
-      </Card>
+      </AdminTableCard>
 
       {/* Pagination */}
-      {returnRequestsPagination && returnRequestsPagination.totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-            قبلی
-          </Button>
-          <span className="text-xs text-gray-500">
-            صفحه {toPersianNumber(returnRequestsPagination.currentPage)} از {toPersianNumber(returnRequestsPagination.totalPages)}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= returnRequestsPagination.totalPages}
-            onClick={() => setPage(page + 1)}
-          >
-            بعدی
-          </Button>
-        </div>
+      {returnRequestsPagination && (
+        <AdminPagination
+          page={page}
+          totalPages={returnRequestsPagination.totalPages}
+          onChange={setPage}
+        />
       )}
 
       {/* Decision confirmation modal */}
-      <Modal
+      <AdminModal
         isOpen={!!decisionTarget}
         onClose={() => setDecisionTarget(null)}
         title={decisionTarget?.action === "approve" ? "تایید درخواست مرجوعی" : "رد درخواست مرجوعی"}
-        contentClassName="max-w-sm"
+        size="sm"
       >
         {decisionTarget && (
           <>
-            <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+            <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 mb-3 leading-relaxed">
               {decisionTarget.action === "approve"
                 ? "با تایید، بازگشت وجه باید از طریق درگاه پرداخت یا کیف پول انجام شود. این اقدام به‌صورت خودکار انجام نمی‌شود."
                 : "با رد درخواست، مشتری می‌تواند تا پایان مهلت ۷ روزه درخواست جدیدی ثبت کند."}
             </p>
-            <div className="rounded-lg bg-secondary/30 p-2.5 text-xs mb-3 space-y-1">
-              <p className="font-semibold">سفارش #{decisionTarget.request.order_number}</p>
+            <div className="rounded-xl bg-voxcina-cream/40 dark:bg-voxcina-blue/20 p-2.5 text-xs mb-3 space-y-1">
+              <p className="font-semibold text-voxcina-blue dark:text-voxcina-cream">سفارش #{decisionTarget.request.order_number}</p>
               {decisionTarget.request.items.map((item, idx) => (
-                <p key={idx} className="text-muted-foreground">
+                <p key={idx} className="text-voxcina-blue/60 dark:text-voxcina-cream/60">
                   {toPersianNumber(item.quantity)} × {item.product_name}
                 </p>
               ))}
             </div>
-            <textarea
+            <AdminTextarea
               value={decisionNote}
               onChange={(e) => setDecisionNote(e.target.value.slice(0, 500))}
               placeholder="یادداشت برای مشتری (اختیاری)"
               rows={3}
-              className="w-full text-xs rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
             />
-            <div className="flex gap-2 mt-4">
-              <Button variant="outline" fullWidth onClick={() => setDecisionTarget(null)}>
-                انصراف
-              </Button>
+            <AdminModalActions onCancel={() => setDecisionTarget(null)}>
               <Button
-                variant="primary"
-                fullWidth
+                variant={decisionTarget.action === "reject" ? "danger" : "primary"}
+                size="sm"
                 onClick={handleDecision}
                 disabled={deciding}
-                className={
-                  decisionTarget.action === "reject"
-                    ? "!bg-red-600 hover:!bg-red-700"
-                    : ""
-                }
+                isLoading={deciding}
+                className="rounded-xl"
               >
-                {deciding ? "در حال ثبت..." : decisionTarget.action === "approve" ? "تایید نهایی" : "رد نهایی"}
+                {decisionTarget.action === "approve" ? "تایید نهایی" : "رد نهایی"}
               </Button>
-            </div>
+            </AdminModalActions>
           </>
         )}
-      </Modal>
+      </AdminModal>
     </div>
   );
 }

@@ -9,6 +9,20 @@ import { describeCartReconciliation } from "@/lib/cart-reconciliation";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
+import {
+  AdminError,
+  AdminField,
+  AdminFormGrid,
+  AdminInput,
+  AdminLoading,
+  AdminPageHeader,
+  AdminSelect,
+  AdminTable,
+  AdminTableCard,
+  AdminTd,
+  AdminTextarea,
+  AdminTh,
+} from "@/components/admin/ui";
 import toast from "react-hot-toast";
 import ImageUploader, { ImageItem, getNewImageFiles, getExistingImagePaths, getImageOrderInfo, createImageItemFromUrl, getImageSources } from "@/components/admin/ImageUploader";
 import PatternPicker from "@/components/ui/PatternPicker";
@@ -652,26 +666,39 @@ export default function EditProductPage() {
   };
 
   if (loadedProductId !== productId && isLoading) {
-    return <div className="text-center py-8">در حال بارگذاری...</div>;
+    return (
+      <div className="max-w-2xl mx-auto py-8">
+        <AdminLoading message="در حال بارگذاری محصول..." />
+      </div>
+    );
   }
 
   return (
     <div className="max-w-2xl mx-auto py-8">
-      <h1 className="text-2xl font-bold mb-6">ویرایش محصول</h1>
+      <AdminPageHeader
+        title="ویرایش محصول"
+        actions={
+          <Link
+            href="/admin/products"
+            className="inline-flex items-center justify-center rounded-xl border border-voxcina-cream dark:border-voxcina-blue/20 bg-white/80 dark:bg-voxcina-blue/20 px-3.5 h-9 text-xs font-medium text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/40 transition-colors"
+          >
+            بازگشت به محصولات
+          </Link>
+        }
+      />
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label className="block mb-1">نام محصول *</label>
-          <input className="input" value={name} onChange={e => setName(e.target.value)} required />
-        </div>
-        <div>
-          <label className="block mb-1">توضیحات</label>
-          <textarea className="input" value={description} onChange={e => setDescription(e.target.value)} />
-        </div>
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <label className="block mb-1">قیمت (تومان) *</label>
-            <input
-              className="input"
+        <AdminTableCard className="p-4 md:p-6 space-y-4">
+          <h2 className="font-semibold text-voxcina-blue dark:text-voxcina-cream">اطلاعات پایه</h2>
+          <AdminField label="نام محصول" htmlFor="product-name" required>
+            <AdminInput id="product-name" value={name} onChange={e => setName(e.target.value)} required />
+          </AdminField>
+          <AdminField label="توضیحات" htmlFor="product-description">
+            <AdminTextarea id="product-description" value={description} onChange={e => setDescription(e.target.value)} />
+          </AdminField>
+        <AdminFormGrid>
+          <AdminField label="قیمت (تومان)" htmlFor="product-price" required>
+            <AdminInput
+              id="product-price"
               type="text"
               inputMode="numeric"
               dir="ltr"
@@ -680,12 +707,11 @@ export default function EditProductPage() {
               onChange={e => setPrice(Number(toDigitsOnly(e.target.value)))}
               required
             />
-            {price > 0 && <p className="mt-1 text-xs text-gray-500">{formatPrice(price)}</p>}
-          </div>
-          <div className="flex-1">
-            <label className="block mb-1">قیمت اصلی (تومان)</label>
-            <input
-              className="input"
+            {price > 0 && <p className="mt-1 text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">{formatPrice(price)}</p>}
+          </AdminField>
+          <AdminField label="قیمت اصلی (تومان)" htmlFor="product-original-price">
+            <AdminInput
+              id="product-original-price"
               type="text"
               inputMode="numeric"
               dir="ltr"
@@ -693,13 +719,16 @@ export default function EditProductPage() {
               value={originalPrice ? String(originalPrice) : ""}
               onChange={e => setOriginalPrice(Number(toDigitsOnly(e.target.value)))}
             />
-            {originalPrice > 0 && <p className="mt-1 text-xs text-gray-500">{formatPrice(originalPrice)}</p>}
-          </div>
-        </div>
-        <div>
-          <label className="block mb-1">وزن محصول (گرم)</label>
-          <input
-            className="input"
+            {originalPrice > 0 && <p className="mt-1 text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">{formatPrice(originalPrice)}</p>}
+          </AdminField>
+        </AdminFormGrid>
+        <AdminField
+          label="وزن محصول (گرم)"
+          htmlFor="product-weight"
+          hint="وزن بسته‌بندی محصول به گرم؛ برای محاسبه هزینه ارسال استفاده می‌شود."
+        >
+          <AdminInput
+            id="product-weight"
             type="text"
             inputMode="numeric"
             dir="ltr"
@@ -707,33 +736,27 @@ export default function EditProductPage() {
             value={weight ? String(weight) : ""}
             onChange={e => setWeight(Number(toDigitsOnly(e.target.value)))}
           />
-          <p className="mt-1 text-xs text-gray-500">
-            وزن بسته‌بندی محصول به گرم؛ برای محاسبه هزینه ارسال استفاده می‌شود.
-          </p>
-        </div>
-        <div>
-          <label className="block mb-1">جنسیت *</label>
-          <select className="input" value={gender} onChange={e => setGender(e.target.value)}>
+        </AdminField>
+        <AdminField label="جنسیت" htmlFor="product-gender" required>
+          <AdminSelect id="product-gender" value={gender} onChange={e => setGender(e.target.value)}>
             <option value="مردانه">مردانه</option>
             <option value="زنانه">زنانه</option>
             <option value="یونیسکس">یونیسکس</option>
-          </select>
-        </div>
-        <div>
-          <label className="block mb-1">کلکسیون</label>
-          <select className="input" value={collection} onChange={e => setCollection(e.target.value)}>
+          </AdminSelect>
+        </AdminField>
+        <AdminField label="کلکسیون" htmlFor="product-collection">
+          <AdminSelect id="product-collection" value={collection} onChange={e => setCollection(e.target.value)}>
             <option value="">انتخاب کلکسیون</option>
             <option value="بهار">بهار</option>
             <option value="تابستان">تابستان</option>
             <option value="پاییز">پاییز</option>
             <option value="زمستان">زمستان</option>
-          </select>
-        </div>
-        <div>
-          <label className="block mb-1">دسته‌بندی *</label>
+          </AdminSelect>
+        </AdminField>
+        <AdminField label="دسته‌بندی" required>
           <div className="relative" ref={categoryDropdownRef}>
             <div
-              className="input flex flex-wrap gap-1 min-h-[40px] cursor-pointer bg-white border border-gray-300 rounded px-2 py-1"
+              className="flex flex-wrap gap-1 min-h-[40px] cursor-pointer rounded-xl border border-voxcina-cream/70 dark:border-voxcina-blue/40 bg-white/80 dark:bg-voxcina-blue/20 px-2 py-1"
               onClick={() => setCategoryDropdownOpen(v => !v)}
               tabIndex={0}
             >
@@ -757,7 +780,7 @@ export default function EditProductPage() {
                   value={categorySearch}
                   onChange={e => setCategorySearch(e.target.value)}
                 />
-                {filteredCategories.length === 0 && <div className="p-2 text-gray-400">دسته‌بندی یافت نشد</div>}
+                {filteredCategories.length === 0 && <div className="p-2 text-voxcina-blue/40 dark:text-voxcina-cream/40">دسته‌بندی یافت نشد</div>}
                 {filteredCategories.map(cat => (
                   cat.id ? (
                     <div
@@ -777,17 +800,17 @@ export default function EditProductPage() {
             )}
           </div>
           <Link href="/admin/categories/add" className="text-blue-600 text-sm">+ دسته‌بندی جدید</Link>
-        </div>
-        <div>
-          <label className="block mb-1">برند *</label>
-          <select className="input" value={brandId} onChange={e => setBrandId(e.target.value)} required>
+        </AdminField>
+        <AdminField label="برند" htmlFor="product-brand" required>
+          <AdminSelect id="product-brand" value={brandId} onChange={e => setBrandId(e.target.value)} required>
             <option value="">انتخاب برند</option>
             {brands.map(brand => <option key={brand.id} value={brand.id}>{brand.name}</option>)}
-          </select>
+          </AdminSelect>
           <Link href="/admin/brands/add" className="text-blue-600 text-sm">+ برند جدید</Link>
-        </div>
+        </AdminField>
+        </AdminTableCard>
         {/* Main Product Images */}
-        <div className="border rounded-lg p-4 bg-blue-50">
+        <AdminTableCard className="p-4 md:p-6">
           <ImageUploader
             images={mainImageItems}
             onChange={handleMainImagesChange}
@@ -795,34 +818,36 @@ export default function EditProductPage() {
             label="تصاویر اصلی محصول"
             description="این تصاویر برای همه رنگ‌ها نمایش داده می‌شوند. تصویر اول به عنوان تصویر اصلی استفاده می‌شود."
           />
-        </div>
+        </AdminTableCard>
 
         {/* Color Variants Section */}
-        <div className="border-t pt-4">
-          <label className="block mb-2 font-medium text-lg">تنوع رنگ‌ها</label>
-          <p className="text-xs text-gray-500 mb-4">هر رنگ می‌تواند تصاویر و سایزهای مختلف داشته باشد</p>
-          <div className="mb-4 bg-blue-50 rounded-lg p-3">
-            <label className="block text-sm font-medium mb-1">مدل هوش مصنوعی برای تولید اطلاعات رنگ‌ها (OpenRouter)</label>
-            <input
-              className="input"
-              dir="ltr"
-              placeholder="google/gemini-3.7-flash"
-              value={variantAiModel}
-              onChange={e => setVariantAiModel(e.target.value)}
-            />
-            <p className="text-xs text-gray-500 mt-1">نام مدل را به صورت owner/model وارد کنید، مثلاً z-ai/glm-5.3</p>
+        <AdminTableCard className="p-4 md:p-6 space-y-4">
+          <div>
+            <h2 className="font-semibold text-lg text-voxcina-blue dark:text-voxcina-cream">تنوع رنگ‌ها</h2>
+            <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 mt-1">هر رنگ می‌تواند تصاویر و سایزهای مختلف داشته باشد</p>
+          </div>
+          <div className="rounded-xl p-3 border border-voxcina-cream dark:border-voxcina-blue/20 bg-voxcina-cream/20 dark:bg-voxcina-blue/10">
+            <AdminField label="مدل هوش مصنوعی برای تولید اطلاعات رنگ‌ها (OpenRouter)" htmlFor="variant-ai-model" hint="نام مدل را به صورت owner/model وارد کنید، مثلاً z-ai/glm-5.3">
+              <AdminInput
+                id="variant-ai-model"
+                dir="ltr"
+                placeholder="google/gemini-3.7-flash"
+                value={variantAiModel}
+                onChange={e => setVariantAiModel(e.target.value)}
+              />
+            </AdminField>
           </div>
           
           {colorVariants.map((colorVariant, colorIdx) => (
-            <div key={colorIdx} className="border rounded-lg p-4 mb-4 bg-gray-50">
+            <AdminTableCard key={colorIdx} className="p-4">
               {/* Color Header */}
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                <h3 className="font-medium">رنگ {colorIdx + 1}</h3>
+                <h3 className="font-medium text-voxcina-blue dark:text-voxcina-cream">رنگ {colorIdx + 1}</h3>
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="flex items-center gap-1" title="تعداد رنگهای تکراری که با دکمه ساخته میشوند">
-                    <label className="text-xs text-gray-500">تعداد</label>
-                    <input
-                      className="input w-14 text-sm"
+                    <label className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">تعداد</label>
+                    <AdminInput
+                      className="w-14 text-sm"
                       type="number"
                       min="1"
                       max="20"
@@ -860,9 +885,9 @@ export default function EditProductPage() {
                 </div>
               </div>
               {/* Per-color AI metadata — all fields shown and editable */}
-              <div className="mb-4 bg-white rounded-lg p-4 border border-green-100">
-                <label className="block text-sm font-medium mb-1">فیلدهای هوش مصنوعی این رنگ</label>
-                <p className="text-xs text-gray-500 mb-3">
+              <div className="mb-4 bg-white dark:bg-voxcina-blue/10 rounded-lg p-4 border border-voxcina-cream dark:border-voxcina-blue/20">
+                <h4 className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">فیلدهای هوش مصنوعی این رنگ</h4>
+                <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 mb-3">
                   این فیلدها برای جستجوی هوشمند و چت‌بات استفاده می‌شوند؛ دستی پر کنید یا با دکمه «تولید AI این رنگ» بسازید و سپس ویرایش نمایید.
                 </p>
                 <VariantAIMetadataEditor
@@ -911,26 +936,26 @@ export default function EditProductPage() {
               </div>
 
               {/* Try-On Image */}
-              <div className="mb-4">
-                <label className="block text-sm mb-1">تصویر واقعیت افزوده (Try-On)</label>
-                <input
-                  className="input text-sm"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleColorTryOnChange(colorIdx, e.target.files?.[0] || null)}
-                />
-                <div className="mt-2">
-                  <label className="block text-xs mb-1">نوع لباس</label>
-                  <select
-                    className="input text-sm w-full"
+              <div className="mb-4 space-y-3">
+                <AdminField label="تصویر واقعیت افزوده (Try-On)">
+                  <AdminInput
+                    className="text-sm"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleColorTryOnChange(colorIdx, e.target.files?.[0] || null)}
+                  />
+                </AdminField>
+                <AdminField label="نوع لباس">
+                  <AdminSelect
+                    className="text-sm w-full"
                     value={colorVariant.tryOnGarmentType || "upper_body"}
                     onChange={(e) => handleColorVariantChange(colorIdx, "tryOnGarmentType", e.target.value)}
                   >
                     <option value="upper_body">بالاتنه</option>
                     <option value="lower_body">پایین تنه</option>
                     <option value="dresses">لباس</option>
-                  </select>
-                </div>
+                  </AdminSelect>
+                </AdminField>
                 {colorTryOnFiles[colorIdx] && (
                   <div className="w-12 h-12 border rounded overflow-hidden mt-2">
                     <img src={URL.createObjectURL(colorTryOnFiles[colorIdx])} alt={`New try-on`} className="w-full h-full object-cover" />
@@ -938,7 +963,7 @@ export default function EditProductPage() {
                 )}
                 {colorVariant.tryOnImage && !colorTryOnFiles[colorIdx] && (
                   <div className="mt-2">
-                    <span className="text-xs text-gray-500">تصویر فعلی:</span>
+                    <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">تصویر فعلی:</span>
                     <div className="w-12 h-12 border rounded overflow-hidden mt-1">
                       <img src={colorVariant.tryOnImage} alt={`Color ${colorIdx} try-on`} className="w-full h-full object-cover" />
                     </div>
@@ -947,41 +972,62 @@ export default function EditProductPage() {
               </div>
 
               {/* Sizes for this Color */}
-              <div className="border-t pt-4">
-                <label className="block text-sm font-medium mb-2">سایزها و موجودی</label>
-                {colorVariant.sizes.map((sizeVariant, sizeIdx) => (
-                  <div key={sizeIdx} className="flex gap-2 mb-2 items-center bg-white p-2 rounded">
-                    <input
-                      className="input w-20"
-                      placeholder="سایز"
-                      value={sizeVariant.size}
-                      onChange={e => handleSizeChange(colorIdx, sizeIdx, "size", e.target.value)}
-                    />
-                    <input
-                      className="input w-32"
-                      placeholder="SKU"
-                      value={sizeVariant.sku}
-                      onChange={e => handleSizeChange(colorIdx, sizeIdx, "sku", e.target.value)}
-                    />
-                    <input
-                      className="input w-24"
-                      type="number"
-                      placeholder="موجودی"
-                      min="0"
-                      value={sizeVariant.quantity}
-                      onChange={e => handleSizeChange(colorIdx, sizeIdx, "quantity", Number(e.target.value))}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-500"
-                      onClick={() => handleRemoveSize(colorIdx, sizeIdx)}
-                    >
-                      حذف
-                    </Button>
-                  </div>
-                ))}
+              <div className="border-t border-voxcina-cream dark:border-voxcina-blue/20 pt-4 space-y-3">
+                <h4 className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">سایزها و موجودی</h4>
+                {colorVariant.sizes.length > 0 && (
+                  <AdminTable
+                    head={
+                      <>
+                        <AdminTh>سایز</AdminTh>
+                        <AdminTh>SKU</AdminTh>
+                        <AdminTh>موجودی</AdminTh>
+                        <AdminTh>عملیات</AdminTh>
+                      </>
+                    }
+                  >
+                    {colorVariant.sizes.map((sizeVariant, sizeIdx) => (
+                      <tr key={sizeIdx}>
+                        <AdminTd>
+                          <AdminInput
+                            className="w-20"
+                            placeholder="سایز"
+                            value={sizeVariant.size}
+                            onChange={e => handleSizeChange(colorIdx, sizeIdx, "size", e.target.value)}
+                          />
+                        </AdminTd>
+                        <AdminTd>
+                          <AdminInput
+                            className="w-32"
+                            placeholder="SKU"
+                            value={sizeVariant.sku}
+                            onChange={e => handleSizeChange(colorIdx, sizeIdx, "sku", e.target.value)}
+                          />
+                        </AdminTd>
+                        <AdminTd>
+                          <AdminInput
+                            className="w-24"
+                            type="number"
+                            placeholder="موجودی"
+                            min="0"
+                            value={sizeVariant.quantity}
+                            onChange={e => handleSizeChange(colorIdx, sizeIdx, "quantity", Number(e.target.value))}
+                          />
+                        </AdminTd>
+                        <AdminTd>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500"
+                            onClick={() => handleRemoveSize(colorIdx, sizeIdx)}
+                          >
+                            حذف
+                          </Button>
+                        </AdminTd>
+                      </tr>
+                    ))}
+                  </AdminTable>
+                )}
                 <Button
                   type="button"
                   variant="outline"
@@ -991,7 +1037,7 @@ export default function EditProductPage() {
                   + افزودن سایز
                 </Button>
               </div>
-            </div>
+            </AdminTableCard>
           ))}
           
           <Button 
@@ -1015,24 +1061,24 @@ export default function EditProductPage() {
               تولید هوشمند همه رنگها (هر رنگ جداگانه)
             </Button>
           )}
-        </div>
-        <div>
-          <label className="block mb-1">ویژگی‌ها</label>
+        </AdminTableCard>
+        <AdminTableCard className="p-4 md:p-6 space-y-3">
+          <h2 className="font-semibold text-voxcina-blue dark:text-voxcina-cream">ویژگی‌ها</h2>
           {attributes.map((attr, idx) => (
             <div key={idx} className="flex gap-2 mb-2 items-center">
-              <input className="input w-32" placeholder="نام ویژگی" value={attr.name} onChange={e => handleAttributeChange(idx, "name", e.target.value)} />
-              <input className="input w-32" placeholder="مقدار" value={attr.value} onChange={e => handleAttributeChange(idx, "value", e.target.value)} />
+              <AdminInput className="w-32" placeholder="نام ویژگی" value={attr.name} onChange={e => handleAttributeChange(idx, "name", e.target.value)} />
+              <AdminInput className="w-32" placeholder="مقدار" value={attr.value} onChange={e => handleAttributeChange(idx, "value", e.target.value)} />
               <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveAttribute(idx)}>حذف</Button>
             </div>
           ))}
           <Button type="button" variant="outline" size="sm" onClick={handleAddAttribute}>+ ویژگی جدید</Button>
-        </div>
-        <div className="space-y-3 border-t pt-4">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="font-semibold">فیلدهای هوش مصنوعی برای جستجوی بهتر</h2>
+        </AdminTableCard>
+        <AdminTableCard className="p-4 md:p-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <h2 className="font-semibold text-voxcina-blue dark:text-voxcina-cream">فیلدهای هوش مصنوعی برای جستجوی بهتر</h2>
             <div className="flex items-center gap-2">
-              <input
-                className="input text-sm w-64"
+              <AdminInput
+                className="text-sm w-64"
                 dir="ltr"
                 placeholder="google/gemini-3.7-flash"
                 value={productAiModel}
@@ -1050,147 +1096,135 @@ export default function EditProductPage() {
               </Button>
             </div>
           </div>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
             پس از پر کردن نام، توضیحات، قیمت، دسته‌بندی و برند، می‌توانید با دکمه بالا فیلدهای کمکی برای چت‌بات و جستجوی هوشمند را به صورت خودکار تولید کنید و در صورت نیاز ویرایش نمایید.
           </p>
-          <div>
-            <label className="block mb-1">نام فارسی محصول</label>
-            <input
-              className="input"
+          <AdminField label="نام فارسی محصول" htmlFor="ai-name-fa">
+            <AdminInput
+              id="ai-name-fa"
               dir="rtl"
               value={aiMetadata.namePersian}
               onChange={e => setAiMetadata(prev => ({ ...prev, namePersian: e.target.value }))}
             />
-          </div>
-          <div>
-            <label className="block mb-1">توضیحات فارسی محصول</label>
-            <textarea
-              className="input"
+          </AdminField>
+          <AdminField label="توضیحات فارسی محصول" htmlFor="ai-desc-fa">
+            <AdminTextarea
+              id="ai-desc-fa"
               dir="rtl"
               value={aiMetadata.descriptionPersian}
               onChange={e => setAiMetadata(prev => ({ ...prev, descriptionPersian: e.target.value }))}
             />
-          </div>
-          <div>
-            <label className="block mb-1">کلمات کلیدی (با کاما جدا شوند)</label>
-            <input
-              className="input"
+          </AdminField>
+          <AdminField label="کلمات کلیدی (با کاما جدا شوند)" htmlFor="ai-keywords">
+            <AdminInput
+              id="ai-keywords"
               dir="rtl"
               value={keywordsInput}
               onChange={e => handleKeywordsChange(e.target.value)}
             />
-          </div>
-          <div>
-            <label className="block mb-1">برچسب‌ها (با کاما جدا شوند)</label>
-            <input
-              className="input"
+          </AdminField>
+          <AdminField label="برچسب‌ها (با کاما جدا شوند)" htmlFor="ai-tags">
+            <AdminInput
+              id="ai-tags"
               dir="rtl"
               value={tagsInput}
               onChange={e => handleTagsChange(e.target.value)}
             />
-          </div>
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="block mb-1">جنس (فارسی)</label>
-              <input
-                className="input"
+          </AdminField>
+          <AdminFormGrid>
+            <AdminField label="جنس (فارسی)" htmlFor="ai-material">
+              <AdminInput
+                id="ai-material"
                 dir="rtl"
                 value={aiMetadata.materialPersian}
                 onChange={e => setAiMetadata(prev => ({ ...prev, materialPersian: e.target.value }))}
               />
-            </div>
-            <div className="flex-1">
-              <label className="block mb-1">استایل (فارسی)</label>
-              <input
-                className="input"
+            </AdminField>
+            <AdminField label="استایل (فارسی)" htmlFor="ai-style">
+              <AdminInput
+                id="ai-style"
                 dir="rtl"
                 value={aiMetadata.stylePersian}
                 onChange={e => setAiMetadata(prev => ({ ...prev, stylePersian: e.target.value }))}
               />
-            </div>
-          </div>
-          <div>
-            <label className="block mb-1">موقعیت‌های استفاده (با کاما جدا شوند)</label>
-            <input
-              className="input"
+            </AdminField>
+          </AdminFormGrid>
+          <AdminField label="موقعیت‌های استفاده (با کاما جدا شوند)" htmlFor="ai-occasion">
+            <AdminInput
+              id="ai-occasion"
               dir="rtl"
               value={occasionInput}
               onChange={e => handleOccasionChange(e.target.value)}
             />
-          </div>
-          <div>
-            <label className="block mb-1">فصل‌های مناسب (با کاما جدا شوند)</label>
-            <input
-              className="input"
+          </AdminField>
+          <AdminField label="فصل‌های مناسب (با کاما جدا شوند)" htmlFor="ai-season">
+            <AdminInput
+              id="ai-season"
               dir="rtl"
               value={seasonInput}
               onChange={e => handleSeasonChange(e.target.value)}
             />
-          </div>
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="block mb-1">نوع برازش</label>
-              <select
-                className="input"
+          </AdminField>
+          <AdminFormGrid>
+            <AdminField label="نوع برازش" htmlFor="ai-fit-type">
+              <AdminSelect
+                id="ai-fit-type"
                 value={aiMetadata.fitType}
                 onChange={e => setAiMetadata(prev => ({ ...prev, fitType: e.target.value }))}
               >
                 <option value="معمولی">معمولی (Regular)</option>
                 <option value="تنگ">تنگ (Slim)</option>
                 <option value="گشاد">گشاد (Oversized)</option>
-              </select>
-            </div>
-            <div className="flex-1">
-              <label className="block mb-1">گروه سنی</label>
-              <select
-                className="input"
+              </AdminSelect>
+            </AdminField>
+            <AdminField label="گروه سنی" htmlFor="ai-age-group">
+              <AdminSelect
+                id="ai-age-group"
                 value={aiMetadata.ageGroup}
                 onChange={e => setAiMetadata(prev => ({ ...prev, ageGroup: e.target.value }))}
               >
                 <option value="بزرگسال">بزرگسال</option>
                 <option value="نوجوان">نوجوان</option>
                 <option value="کودک">کودک</option>
-              </select>
-            </div>
-          </div>
+              </AdminSelect>
+            </AdminField>
+          </AdminFormGrid>
           {/* Fed verbatim into the virtual try-on image prompt, which is
               written in English — hence the English placeholders. */}
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="block mb-1">قواره برای پرو مجازی (انگلیسی)</label>
-              <input
-                className="input"
+          <AdminFormGrid>
+            <AdminField label="قواره برای پرو مجازی (انگلیسی)" htmlFor="ai-fit-desc">
+              <AdminInput
+                id="ai-fit-desc"
                 dir="ltr"
                 placeholder="sits at the waist, relaxed through seat and thigh, straight to a wide leg opening"
                 value={aiMetadata.fitDescription}
                 onChange={e => setAiMetadata(prev => ({ ...prev, fitDescription: e.target.value }))}
               />
-            </div>
-            <div className="flex-1">
-              <label className="block mb-1">توضیح کوتاه لباس (انگلیسی)</label>
-              <input
-                className="input"
+            </AdminField>
+            <AdminField label="توضیح کوتاه لباس (انگلیسی)" htmlFor="ai-garment-phrase">
+              <AdminInput
+                id="ai-garment-phrase"
                 dir="ltr"
                 placeholder="short-sleeve checked cotton shirt"
                 value={aiMetadata.garmentPhrase}
                 onChange={e => setAiMetadata(prev => ({ ...prev, garmentPhrase: e.target.value }))}
               />
-            </div>
-          </div>
-          <p className="text-xs text-gray-500">
+            </AdminField>
+          </AdminFormGrid>
+          <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
             این دو فیلد مستقیماً در پرامپت پرو مجازی استفاده می‌شوند. با تولید خودکار پر می‌شوند و در صورت نیاز قابل ویرایش هستند.
           </p>
-        </div>
+        </AdminTableCard>
         <div className="flex gap-4">
-          <label className="flex items-center gap-2">
+          <label className="flex items-center gap-2 text-sm text-voxcina-blue dark:text-voxcina-cream">
             <input type="checkbox" checked={isFlashSale} onChange={e => setIsFlashSale(e.target.checked)} />
             فروش ویژه
           </label>
-          <label className="flex items-center gap-2">
+          <label className="flex items-center gap-2 text-sm text-voxcina-blue dark:text-voxcina-cream">
             <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
             فعال
           </label>
-          <label className="flex items-center gap-2">
+          <label className="flex items-center gap-2 text-sm text-voxcina-blue dark:text-voxcina-cream">
             <input type="checkbox" checked={inStock} onChange={e => setInStock(e.target.checked)} />
             موجود
           </label>
@@ -1201,7 +1235,7 @@ export default function EditProductPage() {
           </div>
         )}
         <Button type="submit" variant="primary" disabled={submitting || isLoading}>{submitting ? "در حال ثبت..." : "ثبت تغییرات"}</Button>
-        {error && <div className="text-red-500">{error}</div>}
+        {error && <AdminError message={error} />}
       </form>
     </div>
   );

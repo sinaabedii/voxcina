@@ -2,15 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/Card";
-import { motion } from "framer-motion";
 import {
   Percent,
   Plus,
-  Search,
   Edit,
   Trash2,
-  ChevronRight,
-  ChevronLeft,
   Calendar,
   Tag,
   Copy,
@@ -21,7 +17,6 @@ import {
   Target,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
-import { Badge } from "@/components/ui/badge";
 import UserTargetingPanel from "@/components/admin/UserTargetingPanel";
 import TargetingStatsPreview from "@/components/admin/TargetingStatsPreview";
 import UserSelectionModal from "@/components/admin/UserSelectionModal";
@@ -34,6 +29,20 @@ import { TargetingCriteria, UserTargetingStats } from "@/types/discount";
 import { User } from "@/types/user";
 import { useAuthStore } from "@/store/auth-store";
 import { localStorageManager } from "@/lib/local-storage-manager";
+import {
+  AdminPageHeader,
+  AdminToolbar,
+  AdminBadge,
+  AdminLoading,
+  AdminEmpty,
+  AdminPagination,
+  AdminModal,
+  AdminModalActions,
+  AdminField,
+  AdminInput,
+  AdminSelect,
+  AdminFormGrid,
+} from "@/components/admin/ui";
 
 interface DiscountData {
   id: string;
@@ -64,10 +73,11 @@ export default function AdminDiscountsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingDiscount, setEditingDiscount] = useState<DiscountData | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DiscountData | null>(null);
   const [copiedCode, setCopiedCode] = useState("");
   const [isUserSelectionOpen, setIsUserSelectionOpen] = useState(false);
   const [isEditUserSelectionOpen, setIsEditUserSelectionOpen] = useState(false);
-  
+
   // Targeting state
   const [targetingStats, setTargetingStats] = useState<UserTargetingStats | null>(null);
   const [filteredUserCount, setFilteredUserCount] = useState<number>(0);
@@ -281,12 +291,6 @@ export default function AdminDiscountsPage() {
   const indexOfFirstDiscount = indexOfLastDiscount - discountsPerPage;
   const currentDiscounts = filteredDiscounts.slice(indexOfFirstDiscount, indexOfLastDiscount);
 
-  const paginate = (pageNumber: number) => {
-    if (pageNumber > 0 && pageNumber <= totalPages) {
-      setCurrentPage(pageNumber);
-    }
-  };
-
   // Add new discount via API
   const handleAddDiscount = async () => {
     try {
@@ -358,24 +362,24 @@ export default function AdminDiscountsPage() {
     }
   };
 
-  // Delete discount via API
-  const handleDeleteDiscount = async (id: string) => {
-    if (window.confirm("آیا از حذف این کد تخفیف اطمینان دارید؟")) {
-      try {
-        const token = adminToken || localStorageManager.getAccessToken();
-        const response = await fetch(`/api/admin/discounts/${id}`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (response.ok) {
-          fetchDiscounts();
-        } else {
-          alert("خطا در حذف کد تخفیف");
-        }
-      } catch (error) {
-        console.error("Error deleting discount:", error);
+  // Delete discount via API (confirmation handled by AdminModal)
+  const handleDeleteDiscount = async () => {
+    if (!deleteTarget) return;
+    try {
+      const token = adminToken || localStorageManager.getAccessToken();
+      const response = await fetch(`/api/admin/discounts/${deleteTarget.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        setDeleteTarget(null);
+        fetchDiscounts();
+      } else {
         alert("خطا در حذف کد تخفیف");
       }
+    } catch (error) {
+      console.error("Error deleting discount:", error);
+      alert("خطا در حذف کد تخفیف");
     }
   };
 
@@ -432,82 +436,38 @@ export default function AdminDiscountsPage() {
     setIsEditUserSelectionOpen(true);
   };
 
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.05,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { type: "spring" as const, stiffness: 300, damping: 30 },
-    },
-  };
-
   return (
     <div className="py-8 md:py-12 transition-all duration-500 ease-in-out">
-      <motion.div
-        className="flex flex-col md:flex-row md:items-center justify-between mb-8"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <h1 className="text-2xl md:text-3xl font-bold text-voxcina-blue dark:text-voxcina-cream mb-4 md:mb-0 relative inline-block">
-          <span className="relative z-10">مدیریت کدهای تخفیف</span>
-          <span className="absolute bottom-1 left-0 w-full h-3 bg-voxcina-cream dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
-        </h1>
+      <AdminPageHeader
+        title="مدیریت کدهای تخفیف"
+        actions={
+          <Button
+            variant="primary"
+            size="sm"
+            className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-sm hover:shadow-md transition-all duration-300"
+            onClick={() => setIsAddModalOpen(true)}
+          >
+            <Plus className="w-4 h-4 ml-1" />
+            افزودن کد تخفیف
+          </Button>
+        }
+      />
 
-        <Button
-          variant="primary"
-          size="sm"
-          className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-sm hover:shadow-md transition-all duration-300"
-          onClick={() => setIsAddModalOpen(true)}
-        >
-          <Plus className="w-4 h-4 ml-1" />
-          افزودن کد تخفیف
-        </Button>
-      </motion.div>
-
-      <motion.div
-        className="mb-6"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <div className="relative flex-grow">
-          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-            <Search className="w-5 h-5 text-voxcina-blue/50 dark:text-voxcina-cream/50" />
-          </div>
-          <input
-            type="text"
-            className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full pr-10 p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50 shadow-sm"
-            placeholder="جستجوی کد تخفیف..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </motion.div>
+      <AdminToolbar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="جستجوی کد تخفیف..."
+      />
 
       {/* Discounts List */}
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        {currentDiscounts.length > 0 ? (
+      <div>
+        {isLoadingDiscounts && discounts.length === 0 ? (
+          <AdminLoading message="در حال بارگذاری کدهای تخفیف..." />
+        ) : currentDiscounts.length > 0 ? (
           <div className="space-y-4">
             {currentDiscounts.map((discount) => (
-              <motion.div
+              <div
                 key={discount.id}
-                variants={itemVariants}
                 className="transition-all duration-300"
               >
                 <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
@@ -530,43 +490,31 @@ export default function AdminDiscountsPage() {
                             </button>
                             {/* Promotion Type Badge - Task 10.3 */}
                             {discount.isPublic ? (
-                              <Badge
-                                variant="secondary"
-                                className="bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 flex items-center gap-1"
-                              >
+                              <AdminBadge tone="info">
                                 <Globe className="w-3 h-3" />
                                 عمومی
-                              </Badge>
+                              </AdminBadge>
                             ) : (
-                              <Badge
-                                variant="secondary"
-                                className="bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400 flex items-center gap-1"
-                              >
+                              <AdminBadge tone="violet">
                                 <Target className="w-3 h-3" />
                                 هدفمند
                                 {discount.assignedUsers.length > 0 && (
                                   <span className="mr-1">({discount.assignedUsers.length} کاربر)</span>
                                 )}
-                              </Badge>
+                              </AdminBadge>
                             )}
                           </div>
                           <div className="flex items-center space-x-1 space-x-reverse">
-                            <span
-                              className={`text-xs px-2 py-0.5 rounded-full ${
-                                discount.isActive
-                                  ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
-                                  : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
-                              }`}
-                            >
+                            <AdminBadge tone={discount.isActive ? "success" : "danger"}>
                               {discount.isActive ? "فعال" : "غیرفعال"}
-                            </span>
+                            </AdminBadge>
                           </div>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-sm">
                           <div className="flex items-center">
                             <Tag className="w-4 h-4 text-voxcina-blue/60 dark:text-voxcina-cream/60 ml-1" />
                             <span className="text-voxcina-blue/70 dark:text-voxcina-cream/70">
-                              {discount.type === "percentage" 
+                              {discount.type === "percentage"
                                 ? `${discount.value}٪ تخفیف`
                                 : `${discount.value.toLocaleString()} تومان تخفیف`}
                             </span>
@@ -619,7 +567,7 @@ export default function AdminDiscountsPage() {
                           variant="ghost"
                           size="sm"
                           className="text-red-500/70 hover:text-red-500 dark:text-red-400/70 dark:hover:text-red-400 rounded-lg"
-                          onClick={() => handleDeleteDiscount(discount.id)}
+                          onClick={() => setDeleteTarget(discount)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -627,21 +575,15 @@ export default function AdminDiscountsPage() {
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </div>
             ))}
           </div>
         ) : (
-          <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-md rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-            <CardContent className="p-8 text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-voxcina-cream dark:bg-voxcina-blue/20 mb-4">
-                <Percent className="h-8 w-8 text-voxcina-blue/50 dark:text-voxcina-cream/50" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2 text-voxcina-blue dark:text-voxcina-cream">
-                کد تخفیفی یافت نشد
-              </h3>
-              <p className="text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-6">
-                هیچ کد تخفیفی با جستجوی مورد نظر یافت نشد
-              </p>
+          <AdminEmpty
+            icon={Percent}
+            title="کد تخفیفی یافت نشد"
+            description="هیچ کد تخفیفی با جستجوی مورد نظر یافت نشد"
+            action={
               <Button
                 variant="outline"
                 size="sm"
@@ -650,409 +592,276 @@ export default function AdminDiscountsPage() {
               >
                 پاک کردن جستجو
               </Button>
-            </CardContent>
-          </Card>
+            }
+          />
         )}
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex justify-center mt-8">
-            <div className="flex items-center space-x-1 space-x-reverse bg-white dark:bg-voxcina-blue/30 rounded-xl p-1 shadow-sm">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`rounded-lg ${
-                  currentPage === 1
-                    ? "text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed"
-                    : "text-voxcina-blue dark:text-voxcina-cream"
-                }`}
-                onClick={() => paginate(currentPage - 1)}
-                disabled={currentPage === 1}
-              >
-                <ChevronRight className="h-5 w-5" />
-              </Button>
-
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                (number) => (
-                  <Button
-                    key={number}
-                    variant={currentPage === number ? "primary" : "ghost"}
-                    size="sm"
-                    className={`rounded-lg ${
-                      currentPage === number
-                        ? "bg-voxcina-blue text-white dark:bg-voxcina-cream dark:text-voxcina-blue"
-                        : "text-voxcina-blue dark:text-voxcina-cream"
-                    }`}
-                    onClick={() => paginate(number)}
-                  >
-                    {number}
-                  </Button>
-                )
-              )}
-
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`rounded-lg ${
-                  currentPage === totalPages
-                    ? "text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed"
-                    : "text-voxcina-blue dark:text-voxcina-cream"
-                }`}
-                onClick={() => paginate(currentPage + 1)}
-                disabled={currentPage === totalPages}
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-        )}
-      </motion.div>
+        <AdminPagination
+          page={currentPage}
+          totalPages={totalPages}
+          onChange={(p) => {
+            if (p > 0 && p <= totalPages) {
+              setCurrentPage(p);
+            }
+          }}
+        />
+      </div>
 
 
       {/* Add Discount Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-voxcina-blue/40 backdrop-blur-sm dark:bg-black/60">
-          <motion.div
-            className="bg-white dark:bg-voxcina-blue/90 rounded-2xl shadow-lg w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col"
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-          >
-            <div className="flex justify-between items-center p-4 border-b border-voxcina-cream/30 dark:border-voxcina-blue/30">
-              <h3 className="font-bold text-lg text-voxcina-blue dark:text-voxcina-cream">
-                افزودن کد تخفیف جدید
-              </h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:text-voxcina-blue dark:hover:text-voxcina-cream rounded-lg"
-                onClick={() => setIsAddModalOpen(false)}
-              >
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
-            <div className="p-4 space-y-4 overflow-y-auto flex-1">
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  کد تخفیف
-                </label>
+      <AdminModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        title="افزودن کد تخفیف جدید"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <AdminField label="کد تخفیف">
+            <AdminInput
+              type="text"
+              value={newDiscount.code}
+              onChange={(e) => setNewDiscount({ ...newDiscount, code: e.target.value.toUpperCase() })}
+            />
+          </AdminField>
+
+          <AdminField label="نوع تخفیف">
+            <AdminSelect
+              value={newDiscount.type}
+              onChange={(e) => setNewDiscount({ ...newDiscount, type: e.target.value })}
+            >
+              <option value="percentage">درصدی</option>
+              <option value="fixed">مبلغ ثابت</option>
+            </AdminSelect>
+          </AdminField>
+
+          <AdminField label={newDiscount.type === "percentage" ? "درصد تخفیف" : "مبلغ تخفیف (تومان)"}>
+            <AdminInput
+              type="number"
+              value={newDiscount.value}
+              onChange={(e) => setNewDiscount({ ...newDiscount, value: e.target.value })}
+              min={0}
+              max={newDiscount.type === "percentage" ? 100 : undefined}
+            />
+          </AdminField>
+
+          <AdminField label="حداقل مبلغ سفارش (تومان)">
+            <AdminInput
+              type="number"
+              value={newDiscount.minOrder}
+              onChange={(e) => setNewDiscount({ ...newDiscount, minOrder: e.target.value })}
+              min={0}
+            />
+          </AdminField>
+
+          <AdminField label="حداکثر تعداد استفاده">
+            <AdminInput
+              type="number"
+              value={newDiscount.maxUses}
+              onChange={(e) => setNewDiscount({ ...newDiscount, maxUses: e.target.value })}
+              min={0}
+            />
+          </AdminField>
+
+          <AdminFormGrid>
+            <JalaliDatePicker
+              value={newDiscount.startDate}
+              onChange={(value) => setNewDiscount({ ...newDiscount, startDate: value })}
+              label="تاریخ شروع"
+              id="new-discount-start-date"
+              helperText="در صورت خالی بودن، تاریخ دیروز ثبت می‌شود"
+              allowFutureDates
+            />
+            <JalaliDatePicker
+              value={newDiscount.endDate}
+              onChange={(value) => setNewDiscount({ ...newDiscount, endDate: value })}
+              label="تاریخ پایان"
+              id="new-discount-end-date"
+              allowFutureDates
+              required
+            />
+          </AdminFormGrid>
+
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="isActive"
+              className="rounded text-voxcina-blue focus:ring-voxcina-blue mr-2"
+              checked={newDiscount.isActive}
+              onChange={(e) => setNewDiscount({ ...newDiscount, isActive: e.target.checked })}
+            />
+            <label
+              htmlFor="isActive"
+              className="text-sm text-voxcina-blue/80 dark:text-voxcina-cream/80"
+            >
+              کد تخفیف فعال است
+            </label>
+          </div>
+
+          {/* Promotion Type Selector - Task 10.1 */}
+          <div className="border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 pt-4 mt-4">
+            <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-3">
+              نوع تخفیف
+            </label>
+            <div className="flex gap-4">
+              <label className={`flex items-center gap-2 cursor-pointer p-3 rounded-xl border transition-all ${newDiscount.isPublic ? 'border-voxcina-blue bg-voxcina-blue/5 dark:border-voxcina-cream dark:bg-voxcina-cream/5' : 'border-voxcina-cream/50 dark:border-voxcina-blue/30'}`}>
                 <input
-                  type="text"
-                  className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
-                  value={newDiscount.code}
-                  onChange={(e) => setNewDiscount({ ...newDiscount, code: e.target.value.toUpperCase() })}
+                  type="radio"
+                  name="promotionType"
+                  checked={newDiscount.isPublic}
+                  onChange={() => setNewDiscount({ ...newDiscount, isPublic: true, assignedUsers: [], targetingCriteria: {} })}
+                  className="text-voxcina-blue focus:ring-voxcina-blue"
                 />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  نوع تخفیف
-                </label>
-                <select
-                  className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
-                  value={newDiscount.type}
-                  onChange={(e) => setNewDiscount({ ...newDiscount, type: e.target.value })}
-                >
-                  <option value="percentage">درصدی</option>
-                  <option value="fixed">مبلغ ثابت</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  {newDiscount.type === "percentage" ? "درصد تخفیف" : "مبلغ تخفیف (تومان)"}
-                </label>
-                <input
-                  type="number"
-                  className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
-                  value={newDiscount.value}
-                  onChange={(e) => setNewDiscount({ ...newDiscount, value: e.target.value })}
-                  min={0}
-                  max={newDiscount.type === "percentage" ? 100 : undefined}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  حداقل مبلغ سفارش (تومان)
-                </label>
-                <input
-                  type="number"
-                  className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
-                  value={newDiscount.minOrder}
-                  onChange={(e) => setNewDiscount({ ...newDiscount, minOrder: e.target.value })}
-                  min={0}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  حداکثر تعداد استفاده
-                </label>
-                <input
-                  type="number"
-                  className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
-                  value={newDiscount.maxUses}
-                  onChange={(e) => setNewDiscount({ ...newDiscount, maxUses: e.target.value })}
-                  min={0}
-                />
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Globe className="w-5 h-5 text-blue-500" />
                 <div>
-                   <JalaliDatePicker
-                     value={newDiscount.startDate}
-                     onChange={(value) => setNewDiscount({ ...newDiscount, startDate: value })}
-                     label="تاریخ شروع"
-                     id="new-discount-start-date"
-                     helperText="در صورت خالی بودن، تاریخ دیروز ثبت می‌شود"
-                     allowFutureDates
-                   />
+                  <div className="font-medium text-voxcina-blue dark:text-voxcina-cream">عمومی</div>
+                  <div className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">همه کاربران</div>
                 </div>
-                <div>
-                   <JalaliDatePicker
-                     value={newDiscount.endDate}
-                     onChange={(value) => setNewDiscount({ ...newDiscount, endDate: value })}
-                     label="تاریخ پایان"
-                     id="new-discount-end-date"
-                     allowFutureDates
-                     required
-                   />
-                </div>
-              </div>
-              
-              <div className="flex items-center">
+              </label>
+              <label className={`flex items-center gap-2 cursor-pointer p-3 rounded-xl border transition-all ${!newDiscount.isPublic ? 'border-voxcina-blue bg-voxcina-blue/5 dark:border-voxcina-cream dark:bg-voxcina-cream/5' : 'border-voxcina-cream/50 dark:border-voxcina-blue/30'}`}>
                 <input
-                  type="checkbox"
-                  id="isActive"
-                  className="rounded text-voxcina-blue focus:ring-voxcina-blue mr-2"
-                  checked={newDiscount.isActive}
-                  onChange={(e) => setNewDiscount({ ...newDiscount, isActive: e.target.checked })}
+                  type="radio"
+                  name="promotionType"
+                  checked={!newDiscount.isPublic}
+                  onChange={() => setNewDiscount({ ...newDiscount, isPublic: false })}
+                  className="text-voxcina-blue focus:ring-voxcina-blue"
                 />
-                <label
-                  htmlFor="isActive"
-                  className="text-sm text-voxcina-blue/80 dark:text-voxcina-cream/80"
-                >
-                  کد تخفیف فعال است
-                </label>
-              </div>
-
-              {/* Promotion Type Selector - Task 10.1 */}
-              <div className="border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 pt-4 mt-4">
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-3">
-                  نوع تخفیف
-                </label>
-                <div className="flex gap-4">
-                  <label className={`flex items-center gap-2 cursor-pointer p-3 rounded-xl border transition-all ${newDiscount.isPublic ? 'border-voxcina-blue bg-voxcina-blue/5 dark:border-voxcina-cream dark:bg-voxcina-cream/5' : 'border-voxcina-cream/50 dark:border-voxcina-blue/30'}`}>
-                    <input
-                      type="radio"
-                      name="promotionType"
-                      checked={newDiscount.isPublic}
-                      onChange={() => setNewDiscount({ ...newDiscount, isPublic: true, assignedUsers: [], targetingCriteria: {} })}
-                      className="text-voxcina-blue focus:ring-voxcina-blue"
-                    />
-                    <Globe className="w-5 h-5 text-blue-500" />
-                    <div>
-                      <div className="font-medium text-voxcina-blue dark:text-voxcina-cream">عمومی</div>
-                      <div className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">همه کاربران</div>
-                    </div>
-                  </label>
-                  <label className={`flex items-center gap-2 cursor-pointer p-3 rounded-xl border transition-all ${!newDiscount.isPublic ? 'border-voxcina-blue bg-voxcina-blue/5 dark:border-voxcina-cream dark:bg-voxcina-cream/5' : 'border-voxcina-cream/50 dark:border-voxcina-blue/30'}`}>
-                    <input
-                      type="radio"
-                      name="promotionType"
-                      checked={!newDiscount.isPublic}
-                      onChange={() => setNewDiscount({ ...newDiscount, isPublic: false })}
-                      className="text-voxcina-blue focus:ring-voxcina-blue"
-                    />
-                    <Target className="w-5 h-5 text-purple-500" />
-                    <div>
-                      <div className="font-medium text-voxcina-blue dark:text-voxcina-cream">هدفمند</div>
-                      <div className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">کاربران خاص</div>
-                    </div>
-                  </label>
+                <Target className="w-5 h-5 text-purple-500" />
+                <div>
+                  <div className="font-medium text-voxcina-blue dark:text-voxcina-cream">هدفمند</div>
+                  <div className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">کاربران خاص</div>
                 </div>
-              </div>
+              </label>
+            </div>
+          </div>
 
-              {/* User Targeting Panel - Task 10.2 */}
-              {!newDiscount.isPublic && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="space-y-4"
+          {/* User Targeting Panel - Task 10.2 */}
+          {!newDiscount.isPublic && (
+            <div className="space-y-4">
+              <UserTargetingPanel
+                criteria={newDiscount.targetingCriteria}
+                onChange={handleTargetingCriteriaChange}
+                stats={targetingStats}
+                isLoadingStats={isLoadingStats}
+                onFetchStats={fetchTargetingStats}
+              />
+
+              <TargetingStatsPreview
+                stats={targetingStats}
+                filteredCount={filteredUserCount}
+                isLoading={isLoadingStats}
+                showFilteredCount={Object.keys(newDiscount.targetingCriteria).length > 0}
+              />
+
+              {/* Manual User Selection */}
+              <div className="flex items-center justify-between p-3 rounded-xl border border-voxcina-cream/50 dark:border-voxcina-blue/30 bg-voxcina-cream/10 dark:bg-voxcina-blue/20">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream" />
+                  <span className="text-sm text-voxcina-blue dark:text-voxcina-cream">
+                    کاربران انتخاب شده: {newDiscount.assignedUsers.length}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleOpenUserSelection}
+                  className="rounded-lg"
                 >
-                  <UserTargetingPanel
-                    criteria={newDiscount.targetingCriteria}
-                    onChange={handleTargetingCriteriaChange}
-                    stats={targetingStats}
-                    isLoadingStats={isLoadingStats}
-                    onFetchStats={fetchTargetingStats}
-                  />
-
-                  <TargetingStatsPreview
-                    stats={targetingStats}
-                    filteredCount={filteredUserCount}
-                    isLoading={isLoadingStats}
-                    showFilteredCount={Object.keys(newDiscount.targetingCriteria).length > 0}
-                  />
-
-                  {/* Manual User Selection */}
-                  <div className="flex items-center justify-between p-3 rounded-xl border border-voxcina-cream/50 dark:border-voxcina-blue/30 bg-voxcina-cream/10 dark:bg-voxcina-blue/20">
-                    <div className="flex items-center gap-2">
-                      <Users className="w-5 h-5 text-voxcina-blue dark:text-voxcina-cream" />
-                      <span className="text-sm text-voxcina-blue dark:text-voxcina-cream">
-                        کاربران انتخاب شده: {newDiscount.assignedUsers.length}
-                      </span>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleOpenUserSelection}
-                      className="rounded-lg"
-                    >
-                      انتخاب کاربران
-                    </Button>
-                  </div>
-                </motion.div>
-              )}
+                  انتخاب کاربران
+                </Button>
+              </div>
             </div>
-            <div className="p-4 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 flex justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
-                onClick={() => setIsAddModalOpen(false)}
-              >
-                انصراف
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-sm hover:shadow-md transition-all duration-300"
-                onClick={handleAddDiscount}
-                 disabled={!newDiscount.code || !newDiscount.value || !newDiscount.endDate}
-              >
-                افزودن کد تخفیف
-              </Button>
-            </div>
-          </motion.div>
+          )}
         </div>
-      )}
+        <AdminModalActions onCancel={() => setIsAddModalOpen(false)}>
+          <Button
+            variant="primary"
+            size="sm"
+            className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-sm hover:shadow-md transition-all duration-300"
+            onClick={handleAddDiscount}
+             disabled={!newDiscount.code || !newDiscount.value || !newDiscount.endDate}
+          >
+            افزودن کد تخفیف
+          </Button>
+        </AdminModalActions>
+      </AdminModal>
 
 
       {/* Edit Discount Modal - Task 10.4 */}
-      {editingDiscount && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-voxcina-blue/40 backdrop-blur-sm dark:bg-black/60">
-          <motion.div
-            className="bg-white dark:bg-voxcina-blue/90 rounded-2xl shadow-lg w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col"
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-          >
-            <div className="flex justify-between items-center p-4 border-b border-voxcina-cream/30 dark:border-voxcina-blue/30">
-              <h3 className="font-bold text-lg text-voxcina-blue dark:text-voxcina-cream">
-                ویرایش کد تخفیف
-              </h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:text-voxcina-blue dark:hover:text-voxcina-cream rounded-lg"
-                onClick={() => setEditingDiscount(null)}
-              >
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
-            <div className="p-4 space-y-4 overflow-y-auto flex-1">
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  کد تخفیف
-                </label>
-                <input
+      <AdminModal
+        isOpen={!!editingDiscount}
+        onClose={() => setEditingDiscount(null)}
+        title="ویرایش کد تخفیف"
+        size="lg"
+      >
+        {editingDiscount && (
+          <>
+            <div className="space-y-4">
+              <AdminField label="کد تخفیف">
+                <AdminInput
                   type="text"
-                  className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
                   value={editingDiscount.code}
                   onChange={(e) => setEditingDiscount({ ...editingDiscount, code: e.target.value.toUpperCase() })}
                 />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  نوع تخفیف
-                </label>
-                <select
-                  className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
+              </AdminField>
+
+              <AdminField label="نوع تخفیف">
+                <AdminSelect
                   value={editingDiscount.type}
                   onChange={(e) => setEditingDiscount({ ...editingDiscount, type: e.target.value })}
                 >
                   <option value="percentage">درصدی</option>
                   <option value="fixed">مبلغ ثابت</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  {editingDiscount.type === "percentage" ? "درصد تخفیف" : "مبلغ تخفیف (تومان)"}
-                </label>
-                <input
+                </AdminSelect>
+              </AdminField>
+
+              <AdminField label={editingDiscount.type === "percentage" ? "درصد تخفیف" : "مبلغ تخفیف (تومان)"}>
+                <AdminInput
                   type="number"
-                  className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
                   value={editingDiscount.value}
                   onChange={(e) => setEditingDiscount({ ...editingDiscount, value: parseFloat(e.target.value) || 0 })}
                   min={0}
                   max={editingDiscount.type === "percentage" ? 100 : undefined}
                 />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  حداقل مبلغ سفارش (تومان)
-                </label>
-                <input
+              </AdminField>
+
+              <AdminField label="حداقل مبلغ سفارش (تومان)">
+                <AdminInput
                   type="number"
-                  className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
                   value={editingDiscount.minOrder}
                   onChange={(e) => setEditingDiscount({ ...editingDiscount, minOrder: parseFloat(e.target.value) || 0 })}
                   min={0}
                 />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  حداکثر تعداد استفاده
-                </label>
-                <input
+              </AdminField>
+
+              <AdminField label="حداکثر تعداد استفاده">
+                <AdminInput
                   type="number"
-                  className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
                   value={editingDiscount.maxUses}
                   onChange={(e) => setEditingDiscount({ ...editingDiscount, maxUses: parseInt(e.target.value) || 0 })}
                   min={0}
                 />
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                   <JalaliDatePicker
-                     value={editingDiscount.startDate}
-                     onChange={(value) => setEditingDiscount({ ...editingDiscount, startDate: value })}
-                     label="تاریخ شروع"
-                     id="edit-discount-start-date"
-                     helperText="در صورت خالی بودن، تاریخ قبلی حفظ می‌شود"
-                     allowFutureDates
-                   />
-                </div>
-                <div>
-                   <JalaliDatePicker
-                     value={editingDiscount.endDate}
-                     onChange={(value) => setEditingDiscount({ ...editingDiscount, endDate: value })}
-                     label="تاریخ پایان"
-                     id="edit-discount-end-date"
-                     allowFutureDates
-                     required
-                   />
-                </div>
-              </div>
-              
+              </AdminField>
+
+              <AdminFormGrid>
+                <JalaliDatePicker
+                  value={editingDiscount.startDate}
+                  onChange={(value) => setEditingDiscount({ ...editingDiscount, startDate: value })}
+                  label="تاریخ شروع"
+                  id="edit-discount-start-date"
+                  helperText="در صورت خالی بودن، تاریخ قبلی حفظ می‌شود"
+                  allowFutureDates
+                />
+                <JalaliDatePicker
+                  value={editingDiscount.endDate}
+                  onChange={(value) => setEditingDiscount({ ...editingDiscount, endDate: value })}
+                  label="تاریخ پایان"
+                  id="edit-discount-end-date"
+                  allowFutureDates
+                  required
+                />
+              </AdminFormGrid>
+
               <div className="flex items-center">
                 <input
                   type="checkbox"
@@ -1108,12 +917,7 @@ export default function AdminDiscountsPage() {
 
               {/* User Targeting Panel for Edit - Task 10.4 */}
               {!editingDiscount.isPublic && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="space-y-4"
-                >
+                <div className="space-y-4">
                   <UserTargetingPanel
                     criteria={editingDiscount.targetingCriteria || {}}
                     onChange={handleEditTargetingCriteriaChange}
@@ -1146,24 +950,16 @@ export default function AdminDiscountsPage() {
                       انتخاب کاربران
                     </Button>
                   </div>
-                </motion.div>
+                </div>
               )}
-              
+
               <div>
                 <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">
                   تعداد استفاده شده: {editingDiscount.usedCount}
                 </p>
               </div>
             </div>
-            <div className="p-4 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 flex justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
-                onClick={() => setEditingDiscount(null)}
-              >
-                انصراف
-              </Button>
+            <AdminModalActions onCancel={() => setEditingDiscount(null)}>
               <Button
                 variant="primary"
                 size="sm"
@@ -1173,10 +969,32 @@ export default function AdminDiscountsPage() {
               >
                 به‌روزرسانی
               </Button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+            </AdminModalActions>
+          </>
+        )}
+      </AdminModal>
+
+      {/* Delete Discount Confirmation Modal */}
+      <AdminModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="حذف کد تخفیف"
+        size="sm"
+      >
+        <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 leading-relaxed">
+          آیا از حذف کد تخفیف «{deleteTarget?.code}» اطمینان دارید؟ این عمل قابل بازگشت نیست.
+        </p>
+        <AdminModalActions onCancel={() => setDeleteTarget(null)}>
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={handleDeleteDiscount}
+            className="rounded-xl"
+          >
+            حذف کد تخفیف
+          </Button>
+        </AdminModalActions>
+      </AdminModal>
 
       {/* User Selection Modal for Add */}
       <UserSelectionModal

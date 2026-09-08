@@ -2,12 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
-import { Plus, FileText, Search, Filter } from "lucide-react";
+import { Plus, FileText, Trash2, Eye } from "lucide-react";
 import { useBlogAdminStore } from "@/store/blog-admin-store";
 import { BlogPipelineRun } from "@/types/blog";
 import { toast } from "react-hot-toast";
+import {
+  AdminPageHeader,
+  AdminTable,
+  AdminTh,
+  AdminTd,
+  AdminToolbar,
+  AdminBadge,
+  AdminBadgeTone,
+  AdminEmpty,
+  AdminLoading,
+  AdminPagination,
+  AdminModal,
+  AdminModalActions,
+  AdminSelect,
+} from "@/components/admin/ui";
 
 export default function AdminBlogsPage() {
   const router = useRouter();
@@ -16,6 +30,8 @@ export default function AdminBlogsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState<BlogPipelineRun | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchRuns();
@@ -68,156 +84,187 @@ export default function AdminBlogsPage() {
     return labels[status] || status;
   };
 
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      brief: "bg-gray-100 text-gray-800",
-      researching: "bg-blue-100 text-blue-800",
-      research_approved: "bg-green-100 text-green-800",
-      writing: "bg-yellow-100 text-yellow-800",
-      content_approved: "bg-green-100 text-green-800",
-      prompts: "bg-purple-100 text-purple-800",
-      prompts_approved: "bg-green-100 text-green-800",
-      media_pending: "bg-orange-100 text-orange-800",
-      ready: "bg-green-100 text-green-800",
-      published: "bg-emerald-100 text-emerald-800",
-      archived: "bg-gray-100 text-gray-600",
-    };
-    return colors[status] || "bg-gray-100 text-gray-800";
+  const getStatusTone = (status: string): AdminBadgeTone => {
+    if (["research_approved", "content_approved", "prompts_approved", "ready", "published"].includes(status)) return "success";
+    if (["researching", "writing", "prompts"].includes(status)) return "info";
+    if (status === "media_pending") return "warning";
+    if (status === "archived") return "neutral";
+    return "neutral";
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      const token = localStorage.getItem("authToken");
+      const res = await fetch(`/api/admin/blog-runs/${deleteTarget.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        toast.success("کارگاه حذف شد");
+        setDeleteTarget(null);
+        fetchRuns();
+      } else {
+        toast.error("خطا در حذف");
+      }
+    } catch {
+      toast.error("خطا در حذف");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
-    <div className="py-8 px-2 md:px-4">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <FileText className="w-6 h-6" />
-          مدیریت مقالات هوش مصنوعی
-        </h1>
-        <Button onClick={() => router.push("/admin/blogs/new")} className="flex gap-1">
-          <Plus className="w-4 h-4" />
-          مقاله جدید
-        </Button>
-      </div>
+    <div>
+      <AdminPageHeader
+        title="مدیریت مقالات هوش مصنوعی"
+        icon={<FileText className="w-6 h-6" />}
+        actions={
+          <Button variant="primary" size="sm" onClick={() => router.push("/admin/blogs/new")} className="rounded-xl">
+            <Plus className="w-4 h-4 ml-1" />
+            مقاله جدید
+          </Button>
+        }
+      />
 
-      <div className="mb-4 flex items-center gap-2">
-        <Search className="w-4 h-4 text-gray-500" />
-        <input
-          className="input flex-1"
-          placeholder="جستجو..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <Filter className="w-4 h-4 text-gray-500" />
-        <select
-          className="input"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="all">همه وضعیتها</option>
-          <option value="brief">ایجاد خلاصه</option>
-          <option value="researching">در حال تحقیق</option>
-          <option value="research_approved">تحقیق تایید شد</option>
-          <option value="writing">در حال نگارش</option>
-          <option value="content_approved">محتوا تایید شد</option>
-          <option value="prompts">در حال تولید پرامپت</option>
-          <option value="prompts_approved">پرامپت تایید شد</option>
-          <option value="media_pending">در انتظار رسانه</option>
-          <option value="ready">آماده انتشار</option>
-          <option value="published">منتشر شده</option>
-          <option value="archived">بایگانی شده</option>
-        </select>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>لیست کارگاههای تولید</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="px-3 py-2 text-right">موضوع</th>
-                  <th className="px-3 py-2 text-right">دسته</th>
-                  <th className="px-3 py-2 text-right">وضعیت</th>
-                  <th className="px-3 py-2 text-right">تاریخ ایجاد</th>
-                  <th className="px-3 py-2 text-right">عملیات</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedRuns.map((run) => (
-                  <tr key={run.id} className="border-b">
-                    <td className="px-3 py-2 whitespace-nowrap max-w-[220px] truncate">
-                      {run.topic}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">{run.category}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(run.status)}`}>
-                        {getStatusLabel(run.status)}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      {new Date(run.createdAt).toLocaleDateString("fa-IR")}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <div className="flex gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => router.push(`/admin/blogs/${run.id}`)}
-                        >
-                          مشاهده
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 border-red-300 hover:bg-red-50"
-                          onClick={async () => {
-                            if (!confirm("آیا از حذف این کارگاه اطمینان دارید؟")) return;
-                            const token = localStorage.getItem("authToken");
-                            const res = await fetch(`/api/admin/blog-runs/${run.id}`, {
-                              method: "DELETE",
-                              headers: { Authorization: `Bearer ${token}` },
-                            });
-                            if (res.ok) {
-                              toast.success("کارگاه حذف شد");
-                              fetchRuns();
-                            } else {
-                              toast.error("خطا در حذف");
-                            }
-                          }}
-                        >
-                          حذف
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {paginatedRuns.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="text-center py-4">
-                      {isLoading ? "در حال بارگذاری..." : "کارگاهی یافت نشد"}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+      <AdminToolbar
+        searchValue={searchTerm}
+        onSearchChange={(v) => {
+          setSearchTerm(v);
+          setCurrentPage(1);
+        }}
+        searchPlaceholder="جستجوی موضوع..."
+        filtersAlwaysOpen
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1.5">
+              وضعیت
+            </label>
+            <AdminSelect
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="all">همه وضعیت‌ها</option>
+              <option value="brief">ایجاد خلاصه</option>
+              <option value="researching">در حال تحقیق</option>
+              <option value="research_approved">تحقیق تایید شد</option>
+              <option value="writing">در حال نگارش</option>
+              <option value="content_approved">محتوا تایید شد</option>
+              <option value="prompts">در حال تولید پرامپت</option>
+              <option value="prompts_approved">پرامپت تایید شد</option>
+              <option value="media_pending">در انتظار رسانه</option>
+              <option value="ready">آماده انتشار</option>
+              <option value="published">منتشر شده</option>
+              <option value="archived">بایگانی شده</option>
+            </AdminSelect>
           </div>
+        </div>
+      </AdminToolbar>
 
-          {totalPages > 1 && (
-            <div className="flex justify-center mt-4 gap-2">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
-                <button
-                  key={num}
-                  className={`px-3 py-1 rounded ${num === currentPage ? "bg-voxcina-blue text-white" : "bg-gray-200"}`}
-                  onClick={() => setCurrentPage(num)}
-                >
-                  {num}
-                </button>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {isLoading && paginatedRuns.length === 0 ? (
+        <AdminLoading message="در حال بارگذاری کارگاه‌ها..." />
+      ) : paginatedRuns.length === 0 ? (
+        <AdminEmpty
+          icon={FileText}
+          title="کارگاهی یافت نشد"
+          description="هنوز کارگاه تولید مقاله‌ای با این فیلتر ثبت نشده است."
+          action={
+            <Button variant="primary" size="sm" onClick={() => router.push("/admin/blogs/new")} className="rounded-xl">
+              <Plus className="w-4 h-4 ml-1" />
+              مقاله جدید
+            </Button>
+          }
+        />
+      ) : (
+        <AdminTable
+          head={
+            <>
+              <AdminTh>موضوع</AdminTh>
+              <AdminTh>دسته</AdminTh>
+              <AdminTh>وضعیت</AdminTh>
+              <AdminTh>تاریخ ایجاد</AdminTh>
+              <AdminTh>عملیات</AdminTh>
+            </>
+          }
+        >
+          {paginatedRuns.map((run) => (
+            <tr
+              key={run.id}
+              className="border-b border-voxcina-cream/30 dark:border-voxcina-blue/10 hover:bg-voxcina-cream/20 dark:hover:bg-voxcina-blue/5 transition-colors"
+            >
+              <AdminTd className="whitespace-nowrap max-w-[220px] truncate font-medium">
+                {run.topic}
+              </AdminTd>
+              <AdminTd className="whitespace-nowrap">{run.category}</AdminTd>
+              <AdminTd className="whitespace-nowrap">
+                <AdminBadge tone={getStatusTone(run.status)}>
+                  {getStatusLabel(run.status)}
+                </AdminBadge>
+              </AdminTd>
+              <AdminTd className="whitespace-nowrap">
+                {new Date(run.createdAt).toLocaleDateString("fa-IR")}
+              </AdminTd>
+              <AdminTd className="whitespace-nowrap">
+                <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push(`/admin/blogs/${run.id}`)}
+                    className="rounded-xl"
+                  >
+                    <Eye className="w-3.5 h-3.5 ml-1" />
+                    مشاهده
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl !text-red-600 !border-red-300 hover:!bg-red-50 dark:!text-red-400 dark:!border-red-800/40 dark:hover:!bg-red-900/20"
+                    onClick={() => setDeleteTarget(run)}
+                  >
+                    <Trash2 className="w-3.5 h-3.5 ml-1" />
+                    حذف
+                  </Button>
+                </div>
+              </AdminTd>
+            </tr>
+          ))}
+        </AdminTable>
+      )}
+
+      <AdminPagination
+        page={currentPage}
+        totalPages={totalPages}
+        onChange={setCurrentPage}
+      />
+
+      <AdminModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="حذف کارگاه تولید"
+        size="sm"
+      >
+        <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 leading-relaxed">
+          آیا از حذف کارگاه «{deleteTarget?.topic}» اطمئنان دارید؟ این عمل قابل
+          بازگشت نیست.
+        </p>
+        <AdminModalActions onCancel={() => setDeleteTarget(null)}>
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={handleDelete}
+            disabled={isDeleting}
+            isLoading={isDeleting}
+            className="rounded-xl"
+          >
+            حذف کارگاه
+          </Button>
+        </AdminModalActions>
+      </AdminModal>
     </div>
   );
 }

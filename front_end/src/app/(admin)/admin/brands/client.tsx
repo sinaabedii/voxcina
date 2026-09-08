@@ -2,23 +2,32 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/Card";
-import { motion, Variants } from "framer-motion";
 import {
   BadgePercent,
   Plus,
-  Search,
   Edit,
   Trash2,
-  ChevronRight,
-  ChevronLeft,
   PackageOpen,
-  X,
   Building,
+  AlertTriangle,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import toast from "react-hot-toast";
 import AddBrandModal from "@/components/admin/AddBrandModal";
 import { useBrandStore } from "@/store/brand-store";
+import {
+  AdminPageHeader,
+  AdminToolbar,
+  AdminBadge,
+  AdminLoading,
+  AdminEmpty,
+  AdminPagination,
+  AdminModal,
+  AdminModalActions,
+  AdminField,
+  AdminInput,
+  AdminTextarea,
+} from "@/components/admin/ui";
 
 // Define the Brand interface to match what we get from the API
 interface Brand {
@@ -50,6 +59,7 @@ export default function ClientBrandsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
+  const [brandToDelete, setBrandToDelete] = useState<Brand | null>(null);
 
   // On mount, fetch brands
   useEffect(() => {
@@ -69,12 +79,6 @@ export default function ClientBrandsPage() {
   const indexOfLastBrand = currentPage * brandsPerPage;
   const indexOfFirstBrand = indexOfLastBrand - brandsPerPage;
   const currentBrands = filteredBrands.slice(indexOfFirstBrand, indexOfLastBrand);
-
-  const paginate = (pageNumber: number) => {
-    if (pageNumber > 0 && pageNumber <= totalPages) {
-      setCurrentPage(pageNumber);
-    }
-  };
 
   // Update brand
   const handleUpdateBrand = async () => {
@@ -105,15 +109,15 @@ export default function ClientBrandsPage() {
     }
   };
 
-  // Delete brand
-  const handleDeleteBrand = async (id: string) => {
-    if (window.confirm("آیا از حذف این برند اطمینان دارید؟")) {
-      try {
-        await deleteBrand(id);
-        fetchBrands();
-      } catch (error) {
-        // Error handled by store
-      }
+  // Delete brand (confirmed via modal)
+  const handleConfirmDeleteBrand = async () => {
+    if (!brandToDelete) return;
+    try {
+      await deleteBrand(brandToDelete.id!);
+      setBrandToDelete(null);
+      fetchBrands();
+    } catch (error) {
+      // Error handled by store
     }
   };
 
@@ -124,26 +128,6 @@ export default function ClientBrandsPage() {
     if (editingBrand) {
       setEditingBrand({ ...editingBrand, logo: file });
     }
-  };
-
-  // Animation variants
-  const containerVariants: Variants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.05,
-      },
-    },
-  };
-
-  const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { type: "spring" as const, stiffness: 300, damping: 30 },
-    },
   };
 
   // Handle status change
@@ -161,72 +145,40 @@ export default function ClientBrandsPage() {
 
   return (
     <div className="py-8 md:py-12 transition-all duration-500 ease-in-out">
-      <motion.div
-        className="flex flex-col md:flex-row md:items-center justify-between mb-8"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <h1 className="text-2xl md:text-3xl font-bold text-voxcina-blue dark:text-voxcina-cream mb-4 md:mb-0 relative inline-block">
-          <span className="relative z-10">مدیریت برندها</span>
-          <span className="absolute bottom-1 left-0 w-full h-3 bg-voxcina-cream dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40"></span>
-        </h1>
+      <AdminPageHeader
+        title="مدیریت برندها"
+        actions={
+          <Button
+            variant="primary"
+            size="sm"
+            className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-sm hover:shadow-md transition-all duration-300"
+            onClick={() => setIsAddModalOpen(true)}
+          >
+            <Plus className="w-4 h-4 ml-1" />
+            افزودن برند
+          </Button>
+        }
+      />
 
-        <Button
-          variant="primary"
-          size="sm"
-          className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-sm hover:shadow-md transition-all duration-300"
-          onClick={() => setIsAddModalOpen(true)}
-        >
-          <Plus className="w-4 h-4 ml-1" />
-          افزودن برند
-        </Button>
-      </motion.div>
-
-      <motion.div
-        className="mb-6"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <div className="relative flex-grow">
-          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-            <Search className="w-5 h-5 text-voxcina-blue/50 dark:text-voxcina-cream/50" />
-          </div>
-          <input
-            type="text"
-            className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full pr-10 p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50 shadow-sm"
-            placeholder="جستجوی برند..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </motion.div>
+      <AdminToolbar
+        searchValue={searchTerm}
+        onSearchChange={(v) => {
+          setSearchTerm(v);
+          setCurrentPage(1);
+        }}
+        searchPlaceholder="جستجوی برند..."
+      />
 
       {/* Brands List */}
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
+      <div>
         {isLoading ? (
           // Loading state
-          <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-md rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-            <CardContent className="p-8 text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-voxcina-cream dark:bg-voxcina-blue/20 mb-4">
-                <div className="animate-spin w-8 h-8 border-3 border-voxcina-blue/30 dark:border-voxcina-cream/30 border-t-voxcina-blue dark:border-t-voxcina-cream rounded-full"></div>
-              </div>
-              <h3 className="text-lg font-semibold mb-2 text-voxcina-blue dark:text-voxcina-cream">
-                در حال بارگذاری...
-              </h3>
-            </CardContent>
-          </Card>
+          <AdminLoading message="در حال بارگذاری برندها..." />
         ) : currentBrands.length > 0 ? (
           <div className="space-y-4">
             {currentBrands.map((brand, index) => (
-              <motion.div
+              <div
                 key={brand.id || brand.id}
-                variants={itemVariants}
                 className="transition-all duration-300"
               >
                 <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-sm hover:shadow-md transition-all overflow-hidden rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
@@ -254,14 +206,9 @@ export default function ClientBrandsPage() {
                             </p>
                           </div>
                           <div className="flex items-center space-x-1 space-x-reverse">
-                            <span
-                              className={`text-xs px-2 py-0.5 rounded-full ${brand.isActive
-                                ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
-                                : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
-                                }`}
-                            >
+                            <AdminBadge tone={brand.isActive ? "success" : "danger"}>
                               {brand.isActive ? "فعال" : "غیرفعال"}
-                            </span>
+                            </AdminBadge>
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center mt-2 text-sm">
@@ -294,7 +241,7 @@ export default function ClientBrandsPage() {
                           variant="ghost"
                           size="sm"
                           className="text-red-500/70 hover:text-red-500 dark:text-red-400/70 dark:hover:text-red-400 rounded-lg"
-                          onClick={() => handleDeleteBrand(brand.id!)}
+                          onClick={() => setBrandToDelete(brand)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -302,21 +249,15 @@ export default function ClientBrandsPage() {
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </div>
             ))}
           </div>
         ) : (
-          <Card className="border border-voxcina-cream dark:border-voxcina-blue/20 shadow-md rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-            <CardContent className="p-8 text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-voxcina-cream dark:bg-voxcina-blue/20 mb-4">
-                <Building className="h-8 w-8 text-voxcina-blue/50 dark:text-voxcina-cream/50" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2 text-voxcina-blue dark:text-voxcina-cream">
-                برندی یافت نشد
-              </h3>
-              <p className="text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-6">
-                هیچ برندی با جستجوی مورد نظر یافت نشد
-              </p>
+          <AdminEmpty
+            icon={Building}
+            title="برندی یافت نشد"
+            description="هیچ برندی با جستجوی مورد نظر یافت نشد"
+            action={
               <Button
                 variant="outline"
                 size="sm"
@@ -325,60 +266,17 @@ export default function ClientBrandsPage() {
               >
                 پاک کردن جستجو
               </Button>
-            </CardContent>
-          </Card>
+            }
+          />
         )}
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex justify-center mt-8">
-            <div className="flex items-center space-x-1 space-x-reverse bg-white dark:bg-voxcina-blue/30 rounded-xl p-1 shadow-sm">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`rounded-lg ${currentPage === 1
-                  ? "text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed"
-                  : "text-voxcina-blue dark:text-voxcina-cream"
-                  }`}
-                onClick={() => paginate(currentPage - 1)}
-                disabled={currentPage === 1}
-              >
-                <ChevronRight className="h-5 w-5" />
-              </Button>
-
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                (number) => (
-                  <Button
-                    key={number}
-                    variant={currentPage === number ? "primary" : "ghost"}
-                    size="sm"
-                    className={`rounded-lg ${currentPage === number
-                      ? "bg-voxcina-blue text-white dark:bg-voxcina-cream dark:text-voxcina-blue"
-                      : "text-voxcina-blue dark:text-voxcina-cream"
-                      }`}
-                    onClick={() => paginate(number)}
-                  >
-                    {number}
-                  </Button>
-                )
-              )}
-
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`rounded-lg ${currentPage === totalPages
-                  ? "text-voxcina-blue/40 dark:text-voxcina-cream/40 cursor-not-allowed"
-                  : "text-voxcina-blue dark:text-voxcina-cream"
-                  }`}
-                onClick={() => paginate(currentPage + 1)}
-                disabled={currentPage === totalPages}
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-        )}
-      </motion.div>
+        <AdminPagination
+          page={currentPage}
+          totalPages={totalPages}
+          onChange={setCurrentPage}
+        />
+      </div>
 
       {/* Add Brand Modal */}
       <AddBrandModal
@@ -388,77 +286,45 @@ export default function ClientBrandsPage() {
       />
 
       {/* Edit Brand Modal */}
-      {editingBrand && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-voxcina-blue/40 backdrop-blur-sm dark:bg-black/60">
-          <motion.div
-            className="bg-white dark:bg-voxcina-blue/90 rounded-2xl shadow-lg w-full max-w-md mx-4"
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-          >
-            <div className="flex justify-between items-center p-4 border-b border-voxcina-cream/30 dark:border-voxcina-blue/30">
-              <h3 className="font-bold text-lg text-voxcina-blue dark:text-voxcina-cream">
-                ویرایش برند
-              </h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:text-voxcina-blue dark:hover:text-voxcina-cream rounded-lg"
-                onClick={() => setEditingBrand(null)}
-              >
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
-            <div className="p-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  نام برند
-                </label>
-                <input
+      <AdminModal
+        isOpen={!!editingBrand}
+        onClose={() => setEditingBrand(null)}
+        title="ویرایش برند"
+        size="md"
+      >
+        {editingBrand && (
+          <>
+            <div className="space-y-4">
+              <AdminField label="نام برند" required>
+                <AdminInput
                   type="text"
-                  className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
                   value={editingBrand.name}
                   onChange={(e) => setEditingBrand({ ...editingBrand, name: e.target.value })}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  نامک (Slug)
-                </label>
-                <input
+              </AdminField>
+              <AdminField label="نامک (Slug)" required>
+                <AdminInput
                   type="text"
-                  className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
                   value={editingBrand.slug}
                   onChange={(e) => setEditingBrand({ ...editingBrand, slug: e.target.value })}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  توضیحات
-                </label>
-                <textarea
-                  className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
+              </AdminField>
+              <AdminField label="توضیحات">
+                <AdminTextarea
                   rows={3}
                   value={editingBrand.description}
                   onChange={(e) => setEditingBrand({ ...editingBrand, description: e.target.value })}
-                ></textarea>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  وب‌سایت
-                </label>
-                <input
+                />
+              </AdminField>
+              <AdminField label="وب‌سایت">
+                <AdminInput
                   type="url"
-                  className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
                   placeholder="https://example.com"
                   value={editingBrand.website}
                   onChange={(e) => setEditingBrand({ ...editingBrand, website: e.target.value })}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-voxcina-blue dark:text-voxcina-cream mb-1">
-                  لوگو
-                </label>
+              </AdminField>
+              <AdminField label="لوگو">
                 {typeof editingBrand.logo === 'string' && editingBrand.logo && (
                   <div className="mb-2">
                     <img
@@ -468,13 +334,12 @@ export default function ClientBrandsPage() {
                     />
                   </div>
                 )}
-                <input
+                <AdminInput
                   type="file"
                   accept="image/*"
-                  className="bg-white dark:bg-voxcina-blue/30 border border-voxcina-cream/50 dark:border-voxcina-blue/50 text-voxcina-blue dark:text-voxcina-cream rounded-xl block w-full p-2.5 placeholder-voxcina-blue/50 dark:placeholder-voxcina-cream/50 focus:outline-none focus:border-voxcina-blue/50 dark:focus:border-voxcina-cream/50"
                   onChange={handleLogoChange}
                 />
-              </div>
+              </AdminField>
               <div className="flex items-center">
                 <input
                   type="checkbox"
@@ -491,15 +356,7 @@ export default function ClientBrandsPage() {
                 </label>
               </div>
             </div>
-            <div className="p-4 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 flex justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream hover:bg-voxcina-blue/5 dark:hover:bg-voxcina-blue/20"
-                onClick={() => setEditingBrand(null)}
-              >
-                انصراف
-              </Button>
+            <AdminModalActions onCancel={() => setEditingBrand(null)}>
               <Button
                 variant="primary"
                 size="sm"
@@ -509,10 +366,33 @@ export default function ClientBrandsPage() {
               >
                 به‌روزرسانی
               </Button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+            </AdminModalActions>
+          </>
+        )}
+      </AdminModal>
+
+      {/* Delete Brand Confirmation Modal */}
+      <AdminModal
+        isOpen={!!brandToDelete}
+        onClose={() => setBrandToDelete(null)}
+        title="تایید حذف برند"
+        size="sm"
+      >
+        <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 leading-relaxed flex items-start gap-2">
+          <AlertTriangle className="text-red-500 h-5 w-5 shrink-0 mt-0.5" />
+          آیا از حذف برند «{brandToDelete?.name}» مطمئن هستید؟ این عمل قابل بازگشت نیست.
+        </p>
+        <AdminModalActions onCancel={() => setBrandToDelete(null)}>
+          <Button
+            variant="danger"
+            size="sm"
+            className="rounded-xl min-w-[80px]"
+            onClick={handleConfirmDeleteBrand}
+          >
+            بله، حذف کن
+          </Button>
+        </AdminModalActions>
+      </AdminModal>
     </div>
   );
-} 
+}
