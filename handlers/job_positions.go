@@ -199,6 +199,7 @@ func AdminUpdateJobPosition(w http.ResponseWriter, r *http.Request) {
 		"description":     position.Description,
 		"requirements":    position.Requirements,
 		"is_active":       position.IsActive,
+		"is_urgent":       position.IsUrgent,
 		"display_order":   position.DisplayOrder,
 		"updated_at":      position.UpdatedAt,
 	}
@@ -262,6 +263,7 @@ type jobPositionPayload struct {
 	Description    *string   `json:"description"`
 	Requirements   *[]string `json:"requirements"`
 	IsActive       *bool     `json:"is_active"`
+	IsUrgent       *bool     `json:"is_urgent"`
 	DisplayOrder   *int      `json:"display_order"`
 }
 
@@ -328,6 +330,10 @@ func (p jobPositionPayload) apply(position *models.JobPosition) string {
 
 	if p.IsActive != nil {
 		position.IsActive = *p.IsActive
+	}
+
+	if p.IsUrgent != nil {
+		position.IsUrgent = *p.IsUrgent
 	}
 
 	if p.DisplayOrder != nil {

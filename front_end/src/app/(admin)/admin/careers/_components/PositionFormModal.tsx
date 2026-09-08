@@ -27,6 +27,7 @@ interface FormState {
   description: string;
   requirements: string[];
   is_active: boolean;
+  is_urgent: boolean;
   display_order: string;
 }
 
@@ -39,6 +40,7 @@ const emptyState: FormState = {
   description: "",
   requirements: [],
   is_active: true,
+  is_urgent: false,
   display_order: "",
 };
 
@@ -123,6 +125,7 @@ export default function PositionFormModal({
             description: position.description || "",
             requirements: position.requirements || [],
             is_active: position.is_active,
+            is_urgent: position.is_urgent,
             display_order: String(position.display_order),
           }
         : emptyState
@@ -161,6 +164,7 @@ export default function PositionFormModal({
         .map((item) => item.trim())
         .filter(Boolean),
       is_active: values.is_active,
+      is_urgent: values.is_urgent,
     };
     // Left blank on a new posting, the backend appends it to the end of the
     // list; sending 0 would instead pin it to the top.
@@ -375,20 +379,37 @@ export default function PositionFormModal({
           )}
         </div>
 
-        <label className="flex cursor-pointer items-center gap-2 rounded-lg bg-secondary/30 p-3 text-xs">
-          <input
-            type="checkbox"
-            checked={values.is_active}
-            onChange={(e) => setValue("is_active", e.target.checked)}
-            className="h-4 w-4 rounded border-border"
-          />
-          <span>
-            انتشار در صفحه «همکاری با ما»
-            <span className="mr-1 text-gray-500 dark:text-gray-400">
-              — موقعیت غیرفعال نه نمایش داده می‌شود و نه قابل درخواست است.
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg bg-secondary/30 p-3 text-xs">
+            <input
+              type="checkbox"
+              checked={values.is_active}
+              onChange={(e) => setValue("is_active", e.target.checked)}
+              className="h-4 w-4 rounded border-border"
+            />
+            <span>
+              انتشار در صفحه «همکاری با ما»
+              <span className="mr-1 text-gray-500 dark:text-gray-400">
+                — موقعیت غیرفعال نه نمایش داده می‌شود و نه قابل درخواست است.
+              </span>
             </span>
-          </span>
-        </label>
+          </label>
+
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg bg-secondary/30 p-3 text-xs">
+            <input
+              type="checkbox"
+              checked={values.is_urgent}
+              onChange={(e) => setValue("is_urgent", e.target.checked)}
+              className="h-4 w-4 rounded border-border"
+            />
+            <span>
+              این موقعیت فوری است
+              <span className="mr-1 text-gray-500 dark:text-gray-400">
+                — موقعیت‌های فوری در فهرست برجسته می‌شوند.
+              </span>
+            </span>
+          </label>
+        </div>
 
         <div className="flex gap-2 pt-1">
           <Button type="button" variant="outline" fullWidth onClick={onClose}>

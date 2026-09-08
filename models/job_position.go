@@ -74,8 +74,14 @@ type JobPosition struct {
 
 	// IsActive is the publish toggle: an inactive posting disappears from
 	// /careers and can no longer be applied to, but keeps its applications.
-	IsActive     bool `bson:"is_active"     json:"is_active"`
-	DisplayOrder int  `bson:"display_order" json:"display_order"`
+	IsActive bool `bson:"is_active" json:"is_active"`
+
+	// IsUrgent highlights a posting the company needs filled soon. It is purely
+	// presentational — an urgent posting is listed and applied to like any
+	// other. Postings written before this field existed decode to false.
+	IsUrgent bool `bson:"is_urgent" json:"is_urgent"`
+
+	DisplayOrder int `bson:"display_order" json:"display_order"`
 
 	CreatedBy *primitive.ObjectID `bson:"created_by,omitempty" json:"-"`
 	CreatedAt time.Time           `bson:"created_at"           json:"created_at"`

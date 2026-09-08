@@ -14,6 +14,7 @@ import {
   MapPin,
   TrendingUp,
   Users,
+  Zap,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -266,9 +267,17 @@ export default function CareersClient({ initialPositions }: CareersClientProps) 
                       }}
                       className="group flex flex-col rounded-2xl border border-voxcina-blue/10 bg-white p-5 shadow-soft transition-all hover:border-voxcina-blue/30 hover:shadow-medium dark:border-secondary-200/10 dark:bg-voxcina-darkBlue/40"
                     >
-                      <h3 className="mb-2 text-base font-bold text-voxcina-darkBlue sm:text-lg dark:text-white">
-                        {role.title}
-                      </h3>
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <h3 className="text-base font-bold text-voxcina-darkBlue sm:text-lg dark:text-white">
+                          {role.title}
+                        </h3>
+                        {role.is_urgent && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                            <Zap className="h-3 w-3" aria-hidden="true" />
+                            فوری
+                          </span>
+                        )}
+                      </div>
 
                       <ul className="mb-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-voxcina-blue/70 dark:text-secondary-300">
                         <li className="flex items-center gap-1">

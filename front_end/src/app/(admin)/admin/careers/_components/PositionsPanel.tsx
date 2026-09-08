@@ -14,6 +14,7 @@ import {
   Search,
   Trash2,
   Users,
+  Zap,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -208,6 +209,12 @@ export default function PositionsPanel() {
                         >
                           {position.is_active ? "منتشرشده" : "غیرفعال"}
                         </span>
+                        {position.is_urgent && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+                            <Zap className="h-3 w-3" />
+                            فوری
+                          </span>
+                        )}
                         <span className="text-[11px] text-gray-400">
                           ترتیب: {toPersianNumber(position.display_order)}
                         </span>

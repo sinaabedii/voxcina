@@ -107,6 +107,9 @@ export interface JobPosition {
   description?: string;
   requirements?: string[];
   is_active: boolean;
+  /** Marks a posting the company needs filled soon — presentational only, an
+   *  urgent posting behaves like any other. */
+  is_urgent: boolean;
   display_order: number;
   /** Applications received for this posting. Admin listing only — computed per
    *  request, never stored, so it cannot drift out of sync. */
@@ -127,6 +130,7 @@ export interface JobPositionInput {
   description?: string;
   requirements?: string[];
   is_active?: boolean;
+  is_urgent?: boolean;
   display_order?: number;
 }
 
