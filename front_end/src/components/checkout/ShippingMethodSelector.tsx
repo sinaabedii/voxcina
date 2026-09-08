@@ -15,6 +15,8 @@ interface ShippingMethodSelectorProps {
   selectedAddressCityCode: number | null;
   cartItemCount: number;
   cartTotal: number;
+  /** Total cart weight in grams (Σ item weight × quantity) */
+  cartWeightGrams?: number;
   onSelectMethod: (method: ShippingMethod) => void;
   selectedMethodId?: string;
 }
@@ -23,13 +25,14 @@ interface ShippingMethodSelectorProps {
  * ShippingMethodSelector Component
  * Displays available shipping methods fetched from Postex API
  * and allows users to select their preferred shipping option.
- * 
+ *
  * Requirements: 1.1, 1.2, 5.1, 5.2, 5.3, 7.1, 7.2, 7.3
  */
 export default function ShippingMethodSelector({
   selectedAddressCityCode,
   cartItemCount,
   cartTotal,
+  cartWeightGrams,
   onSelectMethod,
   selectedMethodId,
 }: ShippingMethodSelectorProps) {
@@ -48,11 +51,12 @@ export default function ShippingMethodSelector({
         toCityCode: selectedAddressCityCode,
         itemCount: cartItemCount,
         totalValue: cartTotal,
+        totalWeight: cartWeightGrams,
       });
     } else {
       clearMethods();
     }
-  }, [selectedAddressCityCode, cartItemCount, cartTotal, fetchShippingQuotes, clearMethods]);
+  }, [selectedAddressCityCode, cartItemCount, cartTotal, cartWeightGrams, fetchShippingQuotes, clearMethods]);
 
   // Auto-select first method when methods are loaded
   useEffect(() => {
@@ -67,6 +71,7 @@ export default function ShippingMethodSelector({
         toCityCode: selectedAddressCityCode,
         itemCount: cartItemCount,
         totalValue: cartTotal,
+        totalWeight: cartWeightGrams,
       });
     }
   };

@@ -4,7 +4,7 @@
  * Requirements: 1.2, 1.3, 3.3, 6.1, 6.2
  */
 
-import { ShippingMethod, ShippingProvider, ShippingQuoteParams, getBoxTypeForItemCount } from './types';
+import { ShippingMethod, ShippingProvider, ShippingQuoteParams, getBoxTypeForItemCount, DEFAULT_ITEM_WEIGHT_GRAMS } from './types';
 
 /**
  * Postex API service price structure
@@ -36,6 +36,10 @@ export interface PostexShippingPrice {
  */
 export interface PostexResponse {
   shipping_prices: PostexShippingPrice[];
+  /** Separate additive pickup/collection charge in Rials (verified against the
+   * live API: per-service totalPrice is identical across collection types and
+   * excludes this). Must be added to the displayed shipping cost. */
+  pickup_price?: number;
 }
 
 /**
@@ -49,7 +53,7 @@ export interface PostexParcelProperties {
   is_fragile: boolean;
   is_liquid: boolean;
   total_value: number;
-  pre_paid_amount: null;
+  pre_paid_amount: number;
   total_value_currency: 'IRR';
   box_type_id: number;
 }
@@ -108,6 +112,9 @@ export function transformPostexResponse(response: PostexResponse): ShippingMetho
   }
 
   const servicePrices = response.shipping_prices[0]?.service_price || [];
+  // Single-parcel quotes only; pickup_price is a separate additive charge on
+  // top of each service's totalPrice, so it is folded into the method price.
+  const pickupPrice = response.pickup_price || 0;
 
   return servicePrices.map((sp, index) => ({
     id: `postex-${sp.courierCode}-${sp.serviceType}-${index}`,
@@ -117,8 +124,8 @@ export function transformPostexResponse(response: PostexResponse): ShippingMetho
     courierLogo: sp.courierLogo,
     serviceType: sp.serviceType,
     serviceName: sp.serviceName,
-    price: convertRialToToman(sp.totalPrice),
-    priceRial: sp.totalPrice,
+    price: convertRialToToman(sp.totalPrice + pickupPrice),
+    priceRial: sp.totalPrice + pickupPrice,
     slaDays: sp.slaDays,
     slaHours: sp.slaHours,
   }));
@@ -151,11 +158,15 @@ export function createPostexQuoteRequest(params: ShippingQuoteParams): PostexQuo
           length: boxType.length,
           width: boxType.width,
           height: boxType.height,
-          total_weight: 1000, // Default 1kg
+          // Real cart weight in grams; a zero weight is rejected by most
+          // Postex services, so fall back to the default garment weight.
+          total_weight: params.totalWeight && params.totalWeight > 0
+            ? Math.round(params.totalWeight)
+            : params.itemCount * DEFAULT_ITEM_WEIGHT_GRAMS,
           is_fragile: false,
           is_liquid: false,
           total_value: params.totalValue * 10, // Convert Toman to Rial
-          pre_paid_amount: null,
+          pre_paid_amount: 0,
           total_value_currency: 'IRR',
           box_type_id: boxType.id,
         },

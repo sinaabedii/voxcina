@@ -30,7 +30,7 @@ import { useDashboardStore } from "@/store/dashboard-store";
 import { useAuthStore } from "@/store/auth-store";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import { Address } from "@/types/user";
-import { ShippingMethod } from "@/services/shipping/types";
+import { ShippingMethod, getCartWeightGrams } from "@/services/shipping/types";
 import { formatPrice, generateId } from "@/lib/utils";
 import { activityTracker } from "@/lib/activity-tracker";
 import { toast } from "react-hot-toast";
@@ -88,6 +88,10 @@ export default function CheckoutPage() {
 
   const shippingCost = selectedShippingMethod?.price ?? summary.shipping ?? 0;
   const checkoutTotal = Math.max(0, summary.subtotal + shippingCost - summary.discount);
+  // Postex quotes by total quantity (Σ quantity), not cart-line count, and
+  // by real cart weight so the box type and courier pricing are accurate.
+  const cartItemCount = cart.items.reduce((acc, item) => acc + item.quantity, 0);
+  const cartWeightGrams = getCartWeightGrams(cart.items);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -811,8 +815,9 @@ export default function CheckoutPage() {
 
                 <ShippingMethodSelector
                   selectedAddressCityCode={selectedAddress?.cityCode || null}
-                  cartItemCount={cart.items.length}
+                  cartItemCount={cartItemCount}
                   cartTotal={summary.subtotal}
+                  cartWeightGrams={cartWeightGrams}
                   onSelectMethod={setSelectedShippingMethod}
                   selectedMethodId={selectedShippingMethod?.id}
                 />

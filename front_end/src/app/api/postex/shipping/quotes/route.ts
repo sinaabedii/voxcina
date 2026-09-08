@@ -7,7 +7,7 @@ import {
 import { ShippingQuoteParams, ShippingMethod } from "@/services/shipping/types";
 
 // Base URL for the Postex API (override via POSTEX_URL)
-const POSTEX_BASE_URL = process.env.POSTEX_URL || "https://api.postex.ir";
+const POSTEX_BASE_URL = process.env.POSTEX_BASE_URL || process.env.POSTEX_URL || "https://api.postex.ir";
 // API key for Postex, provided via Docker / .env as POSTEX_API_KEY
 const API_KEY = process.env.POSTEX_API_KEY || "";
 
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   try {
     // Parse request body
     const body = await request.json();
-    const { toCityCode, itemCount, totalValue } = body as ShippingQuoteParams;
+    const { toCityCode, itemCount, totalValue, totalWeight } = body as ShippingQuoteParams;
 
     // Validate required parameters
     if (!toCityCode || typeof toCityCode !== "number") {
@@ -47,11 +47,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (totalWeight !== undefined && (typeof totalWeight !== "number" || totalWeight < 0)) {
+      return NextResponse.json(
+        { error: "وزن کل نامعتبر است", code: "INVALID_TOTAL_WEIGHT" },
+        { status: 400 }
+      );
+    }
+
     // Create Postex request payload
     const postexRequest = createPostexQuoteRequest({
       toCityCode,
       itemCount,
       totalValue,
+      totalWeight,
     });
 
     // Proxy request to Postex API

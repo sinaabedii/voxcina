@@ -34,6 +34,9 @@ type ProductResponse struct {
 	Brand         string                `json:"brand,omitempty"`
 	BrandID       primitive.ObjectID    `json:"brand_id,omitempty"`
 	InStock       bool                  `json:"inStock"`
+	// Product-level shipping weight in grams; 0 when unset. Used by the
+	// checkout to compute the Postex parcel weight.
+	Weight float64 `json:"weight"`
 	// Legacy field for backward compatibility
 	Image string `json:"image,omitempty"`
 }
@@ -282,6 +285,7 @@ func prepareCartResponse(ctx context.Context, cart models.Cart) (CartResponse, e
 				Brand:         product.Brand,
 				BrandID:       product.BrandID,
 				InStock:       product.InStock,
+				Weight:        product.Weight,
 				Image:         productImage, // Legacy field
 			},
 			Variant:  item.Variant,
