@@ -118,7 +118,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
         rel="nofollow"
         data-activity-tracked="true"
         onClick={handleProductClick}
-        className={`product-card group relative block rounded-2xl overflow-hidden transition-all duration-300 backdrop-blur-md border ${glassEffect
+        className={`group relative flex h-full flex-col overflow-hidden rounded-2xl border backdrop-blur-md transition-all duration-300 ${glassEffect
             ? "bg-white/55 dark:bg-primary-900/30 border-white/50 dark:border-white/10 shadow-[0_10px_36px_-8px_rgba(26,60,105,0.22)]"
             : "bg-white/80 dark:bg-primary-900/40 border-white/70 dark:border-white/10 shadow-[0_4px_24px_-6px_rgba(26,60,105,0.15)]"
           } hover:shadow-[0_14px_40px_-8px_rgba(26,60,105,0.28)] hover:-translate-y-0.5`}
@@ -126,7 +126,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
         {/* Glass sheen highlight along the top edge */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
 
-        <div className="product-card-image relative aspect-[4/5] overflow-hidden bg-secondary/30">
+        <div className="relative aspect-[4/5] shrink-0 overflow-hidden bg-secondary/30">
           {item.rank && (
             <div className="absolute top-2.5 right-2.5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-black text-primary-foreground shadow-medium">
               #{item.rank}
@@ -142,7 +142,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
               loading={priority ? undefined : "lazy"}
               priority={priority}
               quality={70}
-              sizes="(max-width: 640px) 160px, (max-width: 768px) 200px, (max-width: 1024px) 220px, 250px"
+              sizes="(max-width: 640px) 45vw, (max-width: 768px) 200px, (max-width: 1024px) 220px, 250px"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-secondary">
@@ -152,7 +152,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
           {/* Out of stock badge - RIGHT side */}
           {!inStock && (
-            <div className="absolute top-2.5 right-2.5">
+            <div className={`absolute top-2.5 ${item.rank ? "right-14" : "right-2.5"}`}>
               <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[8px] sm:text-[10px] font-medium rounded-full bg-foreground/80 text-background backdrop-blur-sm shadow-soft">
                 ناموجود
               </span>
@@ -217,7 +217,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
           </button>
         </div>
 
-        <div className="product-card-content p-3 sm:p-4">
+        <div className="flex flex-1 flex-col p-3 sm:p-4">
           {/* Rating chip - floats over the image/content seam */}
           {rating !== undefined && rating > 0 && (
             <div className="relative z-10 -mt-7 sm:-mt-8 mb-2 w-fit">
@@ -232,7 +232,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           )}
 
-          <p className="product-card-title text-[11px] sm:text-sm font-bold text-foreground group-hover:text-primary transition-colors duration-300 line-clamp-1">
+          <p className="line-clamp-2 text-[11px] font-bold text-foreground transition-colors duration-300 group-hover:text-primary sm:text-sm">
             {name}
           </p>
           <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{colorName} · {brand}</p>
@@ -243,28 +243,28 @@ const ProductCard: React.FC<ProductCardProps> = ({
           )}
 
           {(ribbonLabel || isNew) && (
-            <span className="badge badge-primary mt-2 text-[9px] sm:text-xs">
+            <span className="badge badge-primary mt-2 self-start text-[9px] sm:text-xs">
               {ribbonLabel || "جدید"}
             </span>
           )}
 
           {description && (
-            <>
-              <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-2 mt-2 leading-relaxed">
+            <div className="hidden sm:block">
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground line-clamp-2">
                 {description}
               </p>
               {description.length > 60 && (
-                <span className="text-[9px] sm:text-[11px] text-primary font-medium underline underline-offset-2">
+                <span className="text-[11px] font-medium text-primary underline underline-offset-2">
                   بیشتر بخوانید
                 </span>
               )}
-            </>
+            </div>
           )}
 
-          <div className="mt-3 flex items-end justify-between gap-2">
+          <div className="mt-auto flex items-end justify-between gap-2 pt-3">
             <div className="flex min-w-0 flex-col">
               <span
-                className={`product-card-price whitespace-nowrap text-[11px] sm:text-base md:text-lg font-bold ${discount > 0 ? "text-primary" : "text-foreground"
+                className={`whitespace-nowrap text-[11px] font-bold sm:text-base md:text-lg ${discount > 0 ? "text-primary" : "text-foreground"
                   }`}
               >
                 {formatPrice(price)}

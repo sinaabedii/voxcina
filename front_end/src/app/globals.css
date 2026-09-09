@@ -499,34 +499,6 @@
     @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200;
   }
 
-  .product-card {
-    @apply relative bg-card rounded-lg border border-border/10 overflow-hidden transition-all duration-300 hover:shadow-medium;
-  }
-
-  .product-card-image {
-    @apply aspect-square relative overflow-hidden bg-secondary/30;
-  }
-
-  .product-card-content {
-    @apply p-4;
-  }
-
-  .product-card-title {
-    @apply font-medium line-clamp-2 h-12 mb-1 group-hover:text-primary transition-colors duration-300;
-  }
-
-  .product-card-price {
-    @apply text-lg font-bold mt-2 text-primary;
-  }
-
-  .product-card-discount {
-    @apply text-sm text-muted-foreground line-through ml-2;
-  }
-
-  .product-card-badge {
-    @apply absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded-full bg-primary text-primary-foreground shadow-soft;
-  }
-
   .badge {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-all duration-200;
   }

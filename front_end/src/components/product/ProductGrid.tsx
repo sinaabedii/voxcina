@@ -21,15 +21,17 @@ export default function ProductGrid({
   priorityFirst = false,
 }: ProductGridProps) {
   // تنظیم تعداد ستون‌ها
+  // Phones always get two cards per row: a single full-width card blows the
+  // image up to ~4/5 of the viewport while the text stays at its small size.
   const gridCols = {
-    2: "grid-cols-1 sm:grid-cols-2",
-    3: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
-    4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
-    5: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
+    2: "grid-cols-2",
+    3: "grid-cols-2 lg:grid-cols-3",
+    4: "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+    5: "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
   };
 
   return (
-    <div className={`grid ${gridCols[columns]} gap-4 md:gap-6`}>
+    <div className={`grid ${gridCols[columns]} gap-3 sm:gap-4 md:gap-6`}>
       {items.map((item, index) => (
         <ProductCard
           key={`${item.productId}-${item.colorVariant.variantId || getCanonicalColor(item.colorVariant) || item.colorVariant.colorName}`}
