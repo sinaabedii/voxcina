@@ -22,9 +22,9 @@ export default function AIAssistantPromo() {
         <div className="absolute inset-0 bg-gradient-to-br from-[#0b1020] via-[#0f172a] to-[#1e293b]" />
         
         {/* Animated gradient orbs - CSS only */}
-        <div className="absolute -top-20 -right-20 w-72 h-72 bg-gradient-to-br from-cyan-500/30 to-voxcina-blue/20 rounded-full blur-2xl animate-pulse-glow" style={{ animationDelay: "0s" }} />
-        <div className="absolute -bottom-32 -left-20 w-96 h-96 bg-gradient-to-tr from-voxcina-blue/25 to-purple-500/15 rounded-full blur-2xl animate-pulse-glow" style={{ animationDelay: "1.5s" }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-cyan-400/10 rounded-full blur-2xl animate-pulse-glow" style={{ animationDelay: "0.75s" }} />
+        <div className="absolute -top-20 -right-20 w-72 h-72 bg-gradient-to-br from-cyan-500/30 to-voxcina-blue/20 rounded-full blur-2xl md:motion-safe:animate-pulse-glow" style={{ animationDelay: "0s" }} />
+        <div className="absolute -bottom-32 -left-20 w-96 h-96 bg-gradient-to-tr from-voxcina-blue/25 to-purple-500/15 rounded-full blur-2xl md:motion-safe:animate-pulse-glow" style={{ animationDelay: "1.5s" }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-cyan-400/10 rounded-full blur-2xl md:motion-safe:animate-pulse-glow" style={{ animationDelay: "0.75s" }} />
 
         {/* Grid pattern overlay */}
         <div 
@@ -43,7 +43,7 @@ export default function AIAssistantPromo() {
             {/* Left: Text content */}
             <div className="space-y-6 md:space-y-8">
               <div>
-                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/20 to-voxcina-blue/20 border border-cyan-400/30 backdrop-blur-md">
+                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/20 to-voxcina-blue/20 border border-cyan-400/30 md:backdrop-blur-md">
                   <Sparkles className="w-4 h-4 text-yellow-300" />
                   <span className="text-xs sm:text-sm font-medium text-cyan-100">
                     اتاق پرو مجازی با هوش مصنوعی
@@ -68,7 +68,7 @@ export default function AIAssistantPromo() {
                 {FEATURE_PILLS.map((feature) => (
                   <div
                     key={feature.text}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 md:backdrop-blur-sm"
                   >
                     <feature.icon className="w-3.5 h-3.5 text-cyan-300" />
                     <span className="text-xs text-slate-200">{feature.text}</span>
@@ -104,13 +104,13 @@ export default function AIAssistantPromo() {
             {/* Right: Visual element */}
             <div className="relative flex items-center justify-center">
               {/* Decorative rings */}
-              <div className="absolute w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 rounded-full border border-cyan-500/20 animate-[spin_30s_linear_infinite]" />
-              <div className="absolute w-52 h-52 sm:w-64 sm:h-64 md:w-80 md:h-80 rounded-full border border-voxcina-blue/30 animate-[spin_25s_linear_infinite_reverse]" />
-              <div className="absolute w-40 h-40 sm:w-48 sm:h-48 md:w-64 md:h-64 rounded-full border border-purple-500/20 animate-[spin_35s_linear_infinite]" />
+              <div className="absolute w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 rounded-full border border-cyan-500/20 md:motion-safe:animate-[spin_30s_linear_infinite]" />
+              <div className="absolute w-52 h-52 sm:w-64 sm:h-64 md:w-80 md:h-80 rounded-full border border-voxcina-blue/30 md:motion-safe:animate-[spin_25s_linear_infinite_reverse]" />
+              <div className="absolute w-40 h-40 sm:w-48 sm:h-48 md:w-64 md:h-64 rounded-full border border-purple-500/20 md:motion-safe:animate-[spin_35s_linear_infinite]" />
 
               {/* Main chat mockup */}
-              <div className="relative z-10 w-full max-w-xs sm:max-w-sm animate-float">
-                <div className="rounded-3xl bg-slate-900/80 border border-white/10 backdrop-blur-xl shadow-2xl shadow-black/40 overflow-hidden">
+              <div className="relative z-10 w-full max-w-xs sm:max-w-sm md:motion-safe:animate-float">
+                <div className="rounded-3xl bg-slate-900/80 border border-white/10 md:backdrop-blur-xl shadow-2xl shadow-black/40 overflow-hidden">
                   {/* Chat header */}
                   <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-gradient-to-r from-slate-900/90 to-slate-800/50">
                     <div className="relative">
@@ -176,11 +176,11 @@ export default function AIAssistantPromo() {
                 </div>
 
                 {/* Floating decorative elements */}
-                <div className="absolute -top-4 -right-4 w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-400/80 to-orange-500/80 flex items-center justify-center shadow-lg animate-badge-float">
+                <div className="absolute -top-4 -right-4 w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-400/80 to-orange-500/80 flex items-center justify-center shadow-lg md:motion-safe:animate-badge-float">
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
 
-                <div className="absolute -bottom-3 -left-3 w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/80 to-pink-500/80 flex items-center justify-center shadow-lg animate-badge-float" style={{ animationDelay: "0.5s" }}>
+                <div className="absolute -bottom-3 -left-3 w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/80 to-pink-500/80 flex items-center justify-center shadow-lg md:motion-safe:animate-badge-float" style={{ animationDelay: "0.5s" }}>
                   <Zap className="w-4 h-4 text-white" />
                 </div>
               </div>

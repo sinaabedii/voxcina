@@ -26,8 +26,17 @@ export function detectRtlScrollModel(): "negative" | "positive" {
   return cachedRtlScrollModel;
 }
 
+// `getComputedStyle` forces a style recalc, and this runs on every drag move
+// and every auto-scroll frame. A scroller's writing direction is fixed by the
+// document (`<html dir="rtl">`), so resolve it once per element.
+const directionCache = new WeakMap<HTMLElement, boolean>();
+
 export function isRtl(el: HTMLElement): boolean {
-  return getComputedStyle(el).direction === "rtl";
+  const cached = directionCache.get(el);
+  if (cached !== undefined) return cached;
+  const rtl = getComputedStyle(el).direction === "rtl";
+  directionCache.set(el, rtl);
+  return rtl;
 }
 
 /** Raw `scrollLeft` value that produces the given logical offset (0..max). */

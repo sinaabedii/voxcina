@@ -212,7 +212,7 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
         <div className="absolute bottom-4 left-4 flex gap-2">
           <button
             onClick={handlePrev}
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-colors hover:bg-white/30"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white md:backdrop-blur-sm transition-colors hover:bg-white/30"
             aria-label="قبلی"
           >
             <svg
@@ -232,7 +232,7 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
           </button>
           <button
             onClick={handleNext}
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-colors hover:bg-white/30"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white md:backdrop-blur-sm transition-colors hover:bg-white/30"
             aria-label="بعدی"
           >
             <svg

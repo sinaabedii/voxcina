@@ -65,7 +65,7 @@ const HeaderClient: React.FC<HeaderClientProps> = ({ navItems }) => {
           className={cn(
             "w-full max-w-7xl mx-auto rounded-xl sm:rounded-2xl md:rounded-3xl transition-all duration-500 ease-in-out",
             isScrolled
-              ? "bg-white/90 dark:bg-voxcina-blue/90 backdrop-blur-sm border border-voxcina-cream/30 dark:border-voxcina-blue/30 shadow-lg"
+              ? "bg-white/95 dark:bg-voxcina-blue/95 md:backdrop-blur-sm border border-voxcina-cream/30 dark:border-voxcina-blue/30 shadow-lg"
               : "bg-white dark:bg-voxcina-blue/95 border border-voxcina-cream/20 dark:border-voxcina-blue/20 shadow-md"
           )}
         >

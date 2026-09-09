@@ -48,7 +48,7 @@ export default function CarouselShell({
             variant="ghost"
             size="sm"
             onClick={onScrollNext}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 dark:bg-voxcina-blue/90 shadow-lg rounded-full p-2 sm:p-3 opacity-0 group-hover/slider:opacity-100 transition-opacity duration-300 hover:bg-white dark:hover:bg-voxcina-blue -translate-x-1/2"
+            className="hidden md:inline-flex absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 dark:bg-voxcina-blue/90 shadow-lg rounded-full p-2 sm:p-3 opacity-0 group-hover/slider:opacity-100 transition-opacity duration-300 hover:bg-white dark:hover:bg-voxcina-blue -translate-x-1/2"
             aria-label="بعدی"
           >
             <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-voxcina-blue dark:text-white" />
@@ -58,7 +58,7 @@ export default function CarouselShell({
             variant="ghost"
             size="sm"
             onClick={onScrollPrev}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 dark:bg-voxcina-blue/90 shadow-lg rounded-full p-2 sm:p-3 opacity-0 group-hover/slider:opacity-100 transition-opacity duration-300 hover:bg-white dark:hover:bg-voxcina-blue translate-x-1/2"
+            className="hidden md:inline-flex absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 dark:bg-voxcina-blue/90 shadow-lg rounded-full p-2 sm:p-3 opacity-0 group-hover/slider:opacity-100 transition-opacity duration-300 hover:bg-white dark:hover:bg-voxcina-blue translate-x-1/2"
             aria-label="قبلی"
           >
             <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-voxcina-blue dark:text-white" />
@@ -77,7 +77,11 @@ export default function CarouselShell({
           scrollbarWidth: "none",
           msOverflowStyle: "none",
           cursor: isDragging ? "grabbing" : "grab",
-          touchAction: "pan-x",
+          // `pan-x` alone told the browser this element only pans horizontally,
+          // so a vertical swipe that started on a card scrolled nothing at all
+          // and the page felt frozen. Both axes stay native; the pointer
+          // handlers still take over once a horizontal drag passes threshold.
+          touchAction: "pan-x pan-y",
         }}
         {...scrollerProps}
       >

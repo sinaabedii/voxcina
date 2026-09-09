@@ -34,7 +34,7 @@ const AnimatedBackground = () => {
       {colorfulCircles.map((circle) => (
         <div
           key={circle.id}
-          className={`absolute rounded-full bg-gradient-to-br ${circle.color} blur-xl animate-rotate-slow`}
+          className={`absolute rounded-full bg-gradient-to-br ${circle.color} blur-xl md:motion-safe:animate-rotate-slow`}
           style={{
             width: circle.size,
             height: circle.size,

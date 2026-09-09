@@ -8,8 +8,7 @@ import { SectionTitle } from "@/components/ui";
 import Section from "@/components/ui/Section";
 import CarouselShell from "@/components/ui/CarouselShell";
 import { getCanonicalColor } from "@/lib/product-variants";
-import { gsap } from "@/lib/gsap";
-import { getScrollOffset, offsetToRaw, setScrollOffset } from "@/lib/carousel/rtl";
+import { getScrollOffset, isRtl, offsetToRaw, setScrollOffset } from "@/lib/carousel/rtl";
 import { useAutoScrollCarousel } from "@/hooks/useAutoScrollCarousel";
 
 interface Props {
@@ -26,6 +25,12 @@ export default function ProductCarouselSectionClient({ title, viewAllHref, produ
   // drag state
   const pointerStartXRef = useRef(0);
   const pointerStartScrollRef = useRef(0);
+  // Raw `scrollLeft` at drag start plus the direction the raw value moves in,
+  // both resolved once on pointerdown. Every pointermove then only writes —
+  // the previous code re-read `getComputedStyle` + `scrollWidth` per move,
+  // forcing a synchronous layout on each of a touch stream's ~120 events/s.
+  const pointerStartRawScrollRef = useRef(0);
+  const rawDirectionRef = useRef(-1);
   const activePointerIdRef = useRef<number | null>(null);
   const hasDraggedRef = useRef(false);
   const DRAG_THRESHOLD = 8;
@@ -64,6 +69,8 @@ export default function ProductCarouselSectionClient({ title, viewAllHref, produ
       activePointerIdRef.current = e.pointerId;
       pointerStartXRef.current = e.clientX;
       pointerStartScrollRef.current = getScrollOffset(sliderRef.current);
+      pointerStartRawScrollRef.current = sliderRef.current.scrollLeft;
+      rawDirectionRef.current = isRtl(sliderRef.current) ? 1 : -1;
       hasDraggedRef.current = false;
       pauseAutoScroll(0);
     },
@@ -85,7 +92,8 @@ export default function ProductCarouselSectionClient({ title, viewAllHref, produ
         // ignore
       }
     }
-    setScrollOffset(sliderRef.current, pointerStartScrollRef.current - dx * 1.5);
+    sliderRef.current.scrollLeft =
+      pointerStartRawScrollRef.current + rawDirectionRef.current * dx * 1.5;
   }, []);
 
   const endDrag = useCallback(
@@ -167,20 +175,16 @@ export default function ProductCarouselSectionClient({ title, viewAllHref, produ
     const currentOffset = getScrollOffset(el);
     const nextOffset = direction === "right" ? currentOffset + scrollAmount : currentOffset - scrollAmount;
     const clamped = Math.min(Math.max(0, nextOffset), Math.max(0, max));
-    el.classList.remove("snap-x", "snap-mandatory");
-    el.classList.add("snap-none");
-    el.style.scrollBehavior = "auto";
-    gsap.to(el, {
-      scrollLeft: offsetToRaw(el, clamped),
-      duration: 0.55,
-      ease: "power2.out",
-      overwrite: "auto",
-      onComplete: () => {
-        el.classList.add("snap-x", "snap-mandatory");
-        el.classList.remove("snap-none");
-        el.style.scrollBehavior = "";
-      },
-    });
+    // The auto-scroll tween turns snapping off while it runs; restore it so an
+    // arrow click lands on a card edge.
+    el.classList.add("snap-x", "snap-mandatory");
+    el.classList.remove("snap-none");
+    el.style.scrollBehavior = "";
+    // Native smooth scrolling runs off the main thread and keeps scroll-snap
+    // intact, so the arrows no longer need a JS tween (and the homepage no
+    // longer needs GSAP). `behavior` is passed explicitly so it wins over any
+    // inline `scroll-behavior` the tween may have left behind.
+    el.scrollTo({ left: offsetToRaw(el, clamped), behavior: "smooth" });
     scheduleResume();
   };
 

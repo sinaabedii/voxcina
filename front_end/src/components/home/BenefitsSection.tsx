@@ -32,7 +32,7 @@ export default function BenefitsSection() {
           {BENEFITS.map((benefit, index) => (
             <div key={index} className="text-center relative">
               <div className="flex justify-center mb-3 md:mb-4">
-                <div className="bg-gradient-to-br from-white/20 to-white/5 text-white p-3 md:p-4 rounded-2xl backdrop-blur-sm border border-white/10 shadow-soft">
+                <div className="bg-gradient-to-br from-white/20 to-white/5 text-white p-3 md:p-4 rounded-2xl md:backdrop-blur-sm border border-white/10 shadow-soft">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12"

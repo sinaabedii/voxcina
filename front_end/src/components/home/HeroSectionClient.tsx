@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getImageProps } from "next/image";
 import { Pause, Play } from "lucide-react";
 import {
@@ -27,6 +27,9 @@ interface HeroSlide {
 
 const ROTATION_INTERVAL_MS = 6000;
 const persianNumberFormatter = new Intl.NumberFormat("fa-IR");
+/** 1×1 transparent GIF – resolves a <picture> candidate without a network request. */
+const BLANK_PIXEL =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 function getDesktopContent(slide: HeroSlide): HeroContent {
   return normalizeHeroContent(slide.desktopImage?.content || slide.mobileImage?.content || null);
@@ -118,14 +121,17 @@ interface HeroSlideViewProps {
   slide: HeroSlide;
   active: boolean;
   first: boolean;
+  /** Render this slide's artwork. False keeps it out of the initial fetch queue. */
+  loadImage: boolean;
   desktopPrimaryHeading: ReturnType<typeof getPrimaryHeading>;
   mobilePrimaryHeading: ReturnType<typeof getPrimaryHeading>;
 }
 
-function HeroSlideView({
+function HeroSlideViewImpl({
   slide,
   active,
   first,
+  loadImage,
   desktopPrimaryHeading,
   mobilePrimaryHeading,
 }: HeroSlideViewProps) {
@@ -265,13 +271,22 @@ function HeroSlideView({
         <div className="hidden md:block absolute inset-0" style={desktopBackground}>
           {(desktopBranchImageProps) && (
             <div className="absolute inset-0 md:bg-fixed">
-              <img
-                {...desktopBranchImageProps!}
-                alt=""
-                aria-hidden="true"
-                className="absolute inset-0 h-full w-full object-cover"
-                style={{ opacity: desktopContent.imageOpacity / 100 }}
-              />
+              {loadImage && (
+                <picture>
+                  {/* `display: none` does not stop an <img> from being fetched,
+                      so a phone used to download the desktop artwork as well as
+                      its own. Below md the candidate resolves to a transparent
+                      pixel and nothing goes over the network. */}
+                  <source media="(max-width: 767px)" srcSet={BLANK_PIXEL} />
+                  <img
+                    {...desktopBranchImageProps!}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 h-full w-full object-cover"
+                    style={{ opacity: desktopContent.imageOpacity / 100 }}
+                  />
+                </picture>
+              )}
               {desktopContent.overlay.enabled && (
                 <div
                   className="absolute inset-0 z-10"
@@ -303,13 +318,18 @@ function HeroSlideView({
         <div className="md:hidden absolute inset-0" style={mobileBackground}>
           {(mobileBranchImageProps) && (
             <div className="absolute inset-0">
-              <img
-                {...mobileBranchImageProps!}
-                alt=""
-                aria-hidden="true"
-                className="absolute inset-0 h-full w-full object-cover"
-                style={{ opacity: mobileContent.imageOpacity / 100 }}
-              />
+              {loadImage && (
+                <picture>
+                  <source media="(min-width: 768px)" srcSet={BLANK_PIXEL} />
+                  <img
+                    {...mobileBranchImageProps!}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 h-full w-full object-cover"
+                    style={{ opacity: mobileContent.imageOpacity / 100 }}
+                  />
+                </picture>
+              )}
               {mobileContent.overlay.enabled && (
                 <div
                   className="absolute inset-0 z-10"
@@ -376,24 +396,26 @@ function HeroSlideView({
         )}
         {(desktopImageProps || mobileImageProps) && (
           <div className="absolute inset-0 md:bg-fixed">
-            <picture>
-              {mobileImageProps && (
-                <source
-                  media="(max-width: 767px)"
-                  srcSet={mobileImageProps.srcSet}
-                  sizes="100vw"
+            {loadImage && (
+              <picture>
+                {mobileImageProps && (
+                  <source
+                    media="(max-width: 767px)"
+                    srcSet={mobileImageProps.srcSet}
+                    sizes="100vw"
+                  />
+                )}
+                <img
+                  {...(desktopImageProps || mobileImageProps)!}
+                  alt=""
+                  aria-hidden="true"
+                  className={`absolute inset-0 h-full w-full object-cover ${
+                    isLegacyStyling ? legacyImageOpacityClass : ""
+                  }`}
+                  style={isLegacyStyling ? undefined : { opacity: singleContent.imageOpacity / 100 }}
                 />
-              )}
-              <img
-                {...(desktopImageProps || mobileImageProps)!}
-                alt=""
-                aria-hidden="true"
-                className={`absolute inset-0 h-full w-full object-cover ${
-                  isLegacyStyling ? legacyImageOpacityClass : ""
-                }`}
-                style={isLegacyStyling ? undefined : { opacity: singleContent.imageOpacity / 100 }}
-              />
-            </picture>
+              </picture>
+            )}
 
             {isLegacyStyling ? (
               <>
@@ -438,13 +460,26 @@ function HeroSlideView({
   );
 }
 
+// The rotation countdown commits once a second, and each of those renders used
+// to rebuild + re-reconcile every slide (including two JSON.stringify content
+// comparisons per slide). Memoising the slide keeps that to the one slide whose
+// `active` flag actually flipped.
+const HeroSlideView = React.memo(HeroSlideViewImpl);
+
 const HeroSectionClient: React.FC<HeroSectionClientProps> = ({ heroImages }) => {
-  const slides = buildHeroSlides(heroImages);
-  const desktopPrimaryHeading = getPrimaryHeading(slides, getDesktopContent);
-  const mobilePrimaryHeading = getPrimaryHeading(slides, getMobileContent);
+  const slides = useMemo(() => buildHeroSlides(heroImages), [heroImages]);
+  const desktopPrimaryHeading = useMemo(
+    () => getPrimaryHeading(slides, getDesktopContent),
+    [slides]
+  );
+  const mobilePrimaryHeading = useMemo(
+    () => getPrimaryHeading(slides, getMobileContent),
+    [slides]
+  );
   // Keep single heading fallback for sr-only: prefer desktop, fallback to mobile
   const primaryHeading = desktopPrimaryHeading || mobilePrimaryHeading;
   const [activeIndex, setActiveIndex] = useState(0);
+  const [deferredMediaReady, setDeferredMediaReady] = useState(false);
   const [isUserPaused, setIsUserPaused] = useState(false);
   const [isPointerOver, setIsPointerOver] = useState(false);
   const [isFocusWithin, setIsFocusWithin] = useState(false);
@@ -469,6 +504,31 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({ heroImages }) => 
     mediaQuery.addEventListener("change", updatePreference);
     return () => mediaQuery.removeEventListener("change", updatePreference);
   }, []);
+
+  // Slides 2..n sit in the viewport at opacity 0, so `loading="lazy"` does not
+  // hold them back — the browser fetched every banner during the initial load
+  // and they competed with the LCP image on a phone. Hand them to the network
+  // once the main thread goes idle instead; the second slide is not shown for
+  // another 6s.
+  useEffect(() => {
+    if (slides.length < 2) return;
+
+    type IdleWindow = Window & {
+      requestIdleCallback?: (cb: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    const idleWindow = window as IdleWindow;
+
+    if (idleWindow.requestIdleCallback) {
+      const handle = idleWindow.requestIdleCallback(() => setDeferredMediaReady(true), {
+        timeout: 3000,
+      });
+      return () => idleWindow.cancelIdleCallback?.(handle);
+    }
+
+    const timeout = window.setTimeout(() => setDeferredMediaReady(true), 1500);
+    return () => window.clearTimeout(timeout);
+  }, [slides.length]);
 
   useEffect(() => {
     const updateVisibility = () => setIsDocumentHidden(document.hidden);
@@ -517,7 +577,9 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({ heroImages }) => 
       );
     };
     updateRemaining();
-    const countdownInterval = window.setInterval(updateRemaining, 100);
+    // 250ms is still four samples per displayed second; the previous 10Hz poll
+    // woke the main thread six times as often for the same aria-label.
+    const countdownInterval = window.setInterval(updateRemaining, 250);
     const timeout = window.setTimeout(() => {
       if (timer.startedAt !== startedAt) return;
 
@@ -573,6 +635,7 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({ heroImages }) => 
           slide={slide}
           active={index === activeIndex}
           first={index === 0}
+          loadImage={index === 0 || index === activeIndex || deferredMediaReady}
           desktopPrimaryHeading={desktopPrimaryHeading}
           mobilePrimaryHeading={mobilePrimaryHeading}
         />
@@ -583,7 +646,7 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({ heroImages }) => 
       )}
 
       {slides.length > 1 && (
-        <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full bg-black/30 px-2 py-1.5 backdrop-blur-md sm:bottom-4 sm:gap-2 sm:px-3 sm:py-2">
+        <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full bg-black/30 px-2 py-1.5 md:backdrop-blur-md sm:bottom-4 sm:gap-2 sm:px-3 sm:py-2">
           {!prefersReducedMotion && (
             <button
               type="button"

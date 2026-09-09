@@ -1,13 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { gsap } from "@/lib/gsap";
 import { getScrollOffset, offsetToRaw, setScrollOffset } from "@/lib/carousel/rtl";
 
 /**
  * Auto-scroll behaviour for product carousels.
  * Encapsulates the IntersectionObserver + reduced-motion + hover/pointer pauses
  * that were previously inline inside ProductCarouselSectionClient.
+ *
+ * Two deliberate constraints, both for low-end phones:
+ *  - Touch devices never auto-scroll. The tween wrote `scrollLeft` on every
+ *    frame for 18s straight per carousel (two of them on the homepage), which
+ *    kept the main thread busy while the user was trying to scroll the page,
+ *    and it fought the user's own swipe. Touch users pan the strip themselves.
+ *  - The tween is a plain rAF interpolation instead of a GSAP tween, so the
+ *    homepage no longer ships GSAP (~69 KB) just to move a scroll offset. Both
+ *    endpoints are resolved to raw `scrollLeft` values up front, so each frame
+ *    is a pure write with no layout read.
  */
 export function useAutoScrollCarousel(
   sliderRef: React.RefObject<HTMLDivElement | null>,
@@ -18,26 +27,27 @@ export function useAutoScrollCarousel(
     productsLength: number;
   },
 ) {
-  const autoScrollTweenRef = useRef<gsap.core.Tween | null>(null);
+  const rafRef = useRef<number | null>(null);
   const resumeAtRef = useRef(0);
   const isInViewRef = useRef(true);
   const prefersReducedMotionRef = useRef(false);
+  const isCoarsePointerRef = useRef(false);
   const startAutoScrollRef = useRef<() => void>(() => {});
 
-  const AUTO_SCROLL_DURATION = 18;
+  const AUTO_SCROLL_DURATION_MS = 18_000;
   const AUTO_RESUME_DELAY = 2200;
 
   const killAutoScroll = useCallback(() => {
-    if (autoScrollTweenRef.current) {
-      autoScrollTweenRef.current.kill();
-      autoScrollTweenRef.current = null;
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     }
   }, []);
 
   const startAutoScroll = useCallback(() => {
     const el = sliderRef.current;
     if (!el) return;
-    if (prefersReducedMotionRef.current) return;
+    if (prefersReducedMotionRef.current || isCoarsePointerRef.current) return;
     if (!isInViewRef.current) return;
     if (deps.isHoveredRef.current || deps.isDragging || deps.isCardFocusedRef.current) return;
     if (Date.now() < resumeAtRef.current) return;
@@ -53,29 +63,44 @@ export function useAutoScrollCarousel(
     el.classList.add("snap-none");
     el.style.scrollBehavior = "auto";
 
-    const remaining = maxScroll - getScrollOffset(el);
-    const duration = (remaining / maxScroll) * AUTO_SCROLL_DURATION;
+    const startOffset = getScrollOffset(el);
+    const remaining = maxScroll - startOffset;
+    const duration = (remaining / maxScroll) * AUTO_SCROLL_DURATION_MS;
+    if (duration <= 0) return;
 
-    autoScrollTweenRef.current = gsap.to(el, {
-      scrollLeft: offsetToRaw(el, maxScroll),
-      duration,
-      ease: "none",
-      overwrite: "auto",
-      onComplete: () => {
-        autoScrollTweenRef.current = null;
-        if (sliderRef.current) setScrollOffset(sliderRef.current, 0);
-        if (
-          !deps.isHoveredRef.current &&
-          !deps.isDragging &&
-          !deps.isCardFocusedRef.current &&
-          isInViewRef.current &&
-          !prefersReducedMotionRef.current &&
-          Date.now() >= resumeAtRef.current
-        ) {
-          startAutoScrollRef.current();
-        }
-      },
-    });
+    const from = offsetToRaw(el, startOffset);
+    const to = offsetToRaw(el, maxScroll);
+    const startedAt = performance.now();
+
+    const step = (now: number) => {
+      if (sliderRef.current !== el) {
+        rafRef.current = null;
+        return;
+      }
+
+      const progress = Math.min(1, (now - startedAt) / duration);
+      el.scrollLeft = from + (to - from) * progress;
+
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(step);
+        return;
+      }
+
+      rafRef.current = null;
+      setScrollOffset(el, 0);
+      if (
+        !deps.isHoveredRef.current &&
+        !deps.isDragging &&
+        !deps.isCardFocusedRef.current &&
+        isInViewRef.current &&
+        !prefersReducedMotionRef.current &&
+        Date.now() >= resumeAtRef.current
+      ) {
+        startAutoScrollRef.current();
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(step);
   }, [deps.isDragging, deps.isHoveredRef, deps.isCardFocusedRef, sliderRef]);
 
   startAutoScrollRef.current = startAutoScroll;
@@ -103,20 +128,27 @@ export function useAutoScrollCarousel(
     }, AUTO_RESUME_DELAY);
   }, [deps.isDragging, deps.isHoveredRef, deps.isCardFocusedRef, startAutoScroll]);
 
-  // reduced-motion
+  // reduced-motion + touch: either one keeps the tween off entirely
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
-    const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const coarsePointer = window.matchMedia("(pointer: coarse)");
     const update = () => {
-      prefersReducedMotionRef.current = mql.matches;
-      if (mql.matches) killAutoScroll();
+      prefersReducedMotionRef.current = reducedMotion.matches;
+      isCoarsePointerRef.current = coarsePointer.matches;
+      if (reducedMotion.matches || coarsePointer.matches) killAutoScroll();
     };
     update();
-    if (mql.addEventListener) mql.addEventListener("change", update);
-    else mql.addListener(update);
+    const queries = [reducedMotion, coarsePointer];
+    queries.forEach((mql) => {
+      if (mql.addEventListener) mql.addEventListener("change", update);
+      else mql.addListener(update);
+    });
     return () => {
-      if (mql.removeEventListener) mql.removeEventListener("change", update);
-      else mql.removeListener(update);
+      queries.forEach((mql) => {
+        if (mql.removeEventListener) mql.removeEventListener("change", update);
+        else mql.removeListener(update);
+      });
     };
   }, [killAutoScroll]);
 

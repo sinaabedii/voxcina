@@ -30,8 +30,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
 
-  const { isFavorite, addToFavorites, removeFromFavorites } = useDashboardStore();
-  const isProductFavorite = isFavorite(item.productId || '');
+  // Subscribe by selector: destructuring the whole store made every card on the
+  // page re-render on any dashboard write (orders, tickets, addresses, …), and
+  // the homepage renders 20 of them.
+  const isProductFavorite = useDashboardStore((state) => state.isFavorite(item.productId || ''));
+  const addToFavorites = useDashboardStore((state) => state.addToFavorites);
+  const removeFromFavorites = useDashboardStore((state) => state.removeFromFavorites);
   const addItem = useCartStore((state) => state.addItem);
 
   // Extract data from the color variant list item
@@ -118,7 +122,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
         rel="nofollow"
         data-activity-tracked="true"
         onClick={handleProductClick}
-        className={`group relative flex h-full flex-col overflow-hidden rounded-2xl border backdrop-blur-md transition-all duration-300 ${glassEffect
+        className={`group relative flex h-full flex-col overflow-hidden rounded-2xl border md:backdrop-blur-md transition-all duration-300 ${glassEffect
             ? "bg-white/55 dark:bg-primary-900/30 border-white/50 dark:border-white/10 shadow-[0_10px_36px_-8px_rgba(26,60,105,0.22)]"
             : "bg-white/80 dark:bg-primary-900/40 border-white/70 dark:border-white/10 shadow-[0_4px_24px_-6px_rgba(26,60,105,0.15)]"
           } hover:shadow-[0_14px_40px_-8px_rgba(26,60,105,0.28)] hover:-translate-y-0.5`}
@@ -153,7 +157,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
           {/* Out of stock badge - RIGHT side */}
           {!inStock && (
             <div className={`absolute top-2.5 ${item.rank ? "right-14" : "right-2.5"}`}>
-              <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[8px] sm:text-[10px] font-medium rounded-full bg-foreground/80 text-background backdrop-blur-sm shadow-soft">
+              <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[8px] sm:text-[10px] font-medium rounded-full bg-foreground/80 text-background md:backdrop-blur-sm shadow-soft">
                 ناموجود
               </span>
             </div>
@@ -192,7 +196,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
           {/* Favorite button - LEFT side */}
           <button
-            className={`absolute ${discount > 0 ? 'top-9 sm:top-12' : 'top-2.5'} left-2.5 p-1.5 sm:p-2 rounded-full backdrop-blur-md transition-all duration-300 shadow-soft ${isProductFavorite
+            className={`absolute ${discount > 0 ? 'top-9 sm:top-12' : 'top-2.5'} left-2.5 p-1.5 sm:p-2 rounded-full md:backdrop-blur-md transition-all duration-300 shadow-soft ${isProductFavorite
                 ? "bg-destructive/10 text-destructive"
                 : "bg-white/80 dark:bg-black/40 text-foreground hover:bg-white dark:hover:bg-black/60"
               }`}
