@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
@@ -42,7 +42,7 @@ import { useBrandStore } from "@/store/brand-store";
 import { useProductStore } from "@/store/product-store";
 import { activityTracker } from "@/lib/activity-tracker";
 import BackendImage from "@/components/BackendImage";
-import { ImageSkeleton } from "@/components/ui/Loading";
+import Loading from "@/components/ui/Loading";
 import { findVariantByIdOrLegacyValue, getVariantId } from "@/lib/product-variants";
 
 // None of these three is on the critical path — the reviews list sits below the
@@ -80,14 +80,20 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
   const [isStockNotifyEnabled, setIsStockNotifyEnabled] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showTryOnModal, setShowTryOnModal] = useState(false);
-  const [imagesLoading, setImagesLoading] = useState(false);
-  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
+  // displayedImage is the index actually painted in the main view. selectedImage
+  // moves instantly on click (thumbnail ring + counter give immediate feedback);
+  // displayedImage only advances once the target image has loaded. The gap
+  // between them drives the loader overlay. Nothing is preloaded up front —
+  // the target image is fetched exactly once, on demand.
+  const [displayedImage, setDisplayedImage] = useState(0);
 
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const imageViewStartRef = useRef<number>(0); // 0 = sentinel for the first image view
   const lastImageSourceRef = useRef<string>('initial');
   const productViewStartRef = useRef<number>(Date.now());
   const productViewReportedRef = useRef<boolean>(false);
+  // Mirrors selectedImage for the overlay onLoad guard below.
+  const selectedImageRef = useRef<number>(0);
 
   const { addItem } = useCartStore();
   const { submitReview } = useReviewStore();
@@ -114,11 +120,13 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     variant.variantId || variant.colorName;
 
 
-  // Helper function to get product images based on selected color
-  const getProductImages = () => {
+  // Gallery list for the active color. Memoized so effects keyed on it
+  // (keyboard nav, analytics) don't re-fire on every render with a fresh
+  // array identity.
+  const productImages = useMemo(() => {
     if (!product) return [];
     if (selectedColor) {
-      const colorVariant = findSelectedVariant();
+      const colorVariant = findVariantByIdOrLegacyValue(product.colorVariants, selectedColor);
       if (colorVariant?.images?.length) {
         return [...colorVariant.images, ...(product.mainImages || [])];
       }
@@ -126,7 +134,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     const mainImages = product.mainImages || [];
     const firstColorImages = product.colorVariants?.[0]?.images || [];
     return [...firstColorImages, ...mainImages];
-  };
+  }, [product, selectedColor]);
 
   // Helper function to get try-on image based on selected color
   const getTryOnImage = () => {
@@ -137,15 +145,13 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     }
     return null;
   };
+  const tryOnImage = getTryOnImage();
 
   // Check if any color variant has a try-on image available
   const hasTryOnAvailable = () => {
     if (!product?.colorVariants) return false;
     return product.colorVariants.some(cv => cv.tryOnImage);
   };
-
-  const productImages = getProductImages();
-  const tryOnImage = getTryOnImage();
 
   // Extract available sizes and colors from colorVariants
   // Normalize Persian/Arabic digits to Latin to prevent duplicate size buttons
@@ -313,6 +319,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
       if (matchingVariant) {
         setSelectedColor(variantSelectionKey(matchingVariant));
         setSelectedImage(0);
+        setDisplayedImage(0);
       }
     }
   }, [product, urlVariant, urlColor, selectedColor]);
@@ -324,15 +331,18 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
 
    // Reset image selection when color changes — variant-specific images
   // come first, so resetting to 0 shows the first image for the new color.
+  // Both indices reset: the new color's first image paints immediately if
+  // cached, otherwise the loader overlay covers the switch.
    useEffect(() => {
-     const newImages = getProductImages();
-     const allLoaded = newImages.every(img => loadedImages.has(img));
-     if (!allLoaded) {
-       setImagesLoading(true);
-     }
      lastImageSourceRef.current = 'color_change';
      setSelectedImage(0);
+     setDisplayedImage(0);
    }, [selectedColor]);
+
+  // Keeps the overlay onLoad guard honest during rapid navigation.
+  useEffect(() => {
+    selectedImageRef.current = selectedImage;
+  }, [selectedImage]);
 
   // Track image gallery interaction: when selectedImage changes, report the
   // time the user spent on the previous image. Source is captured by the
@@ -356,18 +366,22 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
     lastImageSourceRef.current = 'navigation';
   }, [selectedImage, productImages, product]);
 
-  // Handle image load completion
-  const handleImageLoad = (imageSrc: string) => {
-    setLoadedImages(prev => new Set(prev).add(imageSrc));
-    const currentImages = getProductImages();
-    const newLoaded = new Set(loadedImages).add(imageSrc);
-    if (currentImages.every(img => newLoaded.has(img))) {
-      setImagesLoading(false);
+  // The main view paints displayedSrc. When the user picks another image,
+  // selectedSrc diverges and the overlay layer below fetches it on demand
+  // (same `sizes` as the main image, so it resolves to the same optimized
+  // variant the main view will use — no extra bandwidth versus today).
+  const selectedSrc = productImages[selectedImage];
+  const safeDisplayedIndex = Math.min(displayedImage, Math.max(productImages.length - 1, 0));
+  const displayedSrc = productImages[safeDisplayedIndex];
+  const isSwitching = selectedSrc !== undefined && displayedSrc !== undefined && selectedSrc !== displayedSrc;
+
+  // Commits the pending image once decoded. Guarded against rapid
+  // navigation: a stale overlay finishing late must not overwrite a newer pick.
+  const handlePendingImageLoad = (loadedIndex: number) => {
+    if (selectedImageRef.current === loadedIndex) {
+      setDisplayedImage(loadedIndex);
     }
   };
-
-  // Check if current main image is loaded
-  const isMainImageLoaded = productImages[selectedImage] ? loadedImages.has(productImages[selectedImage]) : false;
 
   const handleImageMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isZoomed || !imageContainerRef.current) return;
@@ -550,23 +564,39 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
           {productImages && productImages.length > 0 ? (
             <>
               <div className="relative w-full h-full" onClick={handleZoomToggle}>
-                {(imagesLoading && !isMainImageLoaded) && (
-                  <ImageSkeleton className="absolute inset-0 z-10 rounded-2xl" />
-                )}
                 <Image
-                  src={productImages?.[selectedImage] || ''}
+                  src={displayedSrc ?? ''}
                   alt={`${product?.name || ''} - ${product?.brand || ''}`}
                   fill
                   sizes="(max-width: 768px) 100vw, 50vw"
                   className={cn(
                     "object-contain transition-all duration-300",
-                    isZoomed && "scale-150",
-                    (imagesLoading && !isMainImageLoaded) && "opacity-0"
+                    isZoomed && "scale-150"
                   )}
                   style={isZoomed ? { transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%` } : undefined}
                   priority
-                  onLoad={() => handleImageLoad(productImages[selectedImage])}
                 />
+                {isSwitching && selectedSrc && (
+                  <Image
+                    key={selectedSrc}
+                    src={selectedSrc}
+                    alt={`${product?.name || ''} - ${product?.brand || ''}`}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    className={cn(
+                      "object-contain",
+                      isZoomed && "scale-150"
+                    )}
+                    style={isZoomed ? { transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%` } : undefined}
+                    loading="eager"
+                    onLoad={() => handlePendingImageLoad(selectedImage)}
+                  />
+                )}
+                {isSwitching && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 dark:bg-zinc-900/70 backdrop-blur-[1px] rounded-2xl">
+                    <Loading size="md" />
+                  </div>
+                )}
               </div>
               <button
                 className="absolute bottom-4 right-4 bg-voxcina-blue/70 dark:bg-voxcina-cream/20 text-white dark:text-voxcina-cream rounded-full p-2 backdrop-blur-sm z-20 hover:bg-voxcina-blue dark:hover:bg-voxcina-cream/40 transition-colors"
@@ -613,16 +643,12 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
                 }}
               >
                 <div className="relative w-full h-full">
-                  {(imagesLoading && !loadedImages.has(image)) && (
-                    <div className="absolute inset-0 bg-muted animate-pulse rounded-lg" />
-                  )}
                   <Image
                     src={image}
                     alt={`${product?.name || ''} - تصویر ${index + 1}`}
                     fill
                     sizes="80px"
-                    className={cn("object-contain", (imagesLoading && !loadedImages.has(image)) && "opacity-0")}
-                    onLoad={() => handleImageLoad(image)}
+                    className="object-contain"
                   />
                 </div>
               </button>
