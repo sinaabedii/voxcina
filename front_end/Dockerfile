@@ -51,6 +51,28 @@ COPY --from=builder /app/tsconfig.json       ./
 COPY --from=builder /app/tailwind.config.js  ./
 COPY --from=builder /app/postcss.config.js   ./
 
+# Drop the homepage's build-time prerender.
+#
+# The builder stage sets GO_BACKEND_URL="" on purpose, so lib/server-api.ts
+# returns null and `next build` bakes a homepage with no products, sliders or
+# hero images into .next/server/app. Shipping that file means the first runtime
+# requests serve an empty page for the whole ISR window (revalidate = 600) --
+# long enough for the CDN to cache it and keep serving it after the origin had
+# already healed itself. That was the 2026-09-10 outage.
+#
+# Removing the artifacts makes Next render the route on demand instead, with the
+# real backend in reach, so an empty homepage can never be served or cached.
+# Verified locally against the production API: with these files absent the very
+# first request returned a full page (20 product links, 6 hero images) instead
+# of the 107 KB empty shell.
+#
+# Only "/" is affected -- it is the sole route that prerenders backend data at
+# build time. If another route starts doing so, drop its artifacts here too.
+RUN rm -f ./.next/server/app/index.html \
+          ./.next/server/app/index.meta \
+          ./.next/server/app/index.rsc && \
+    rm -f ./.next/server/app/index.segments/*.rsc || true
+
 # Create uploads directory structure inside public
 RUN mkdir -p ./public/uploads/products/main ./public/uploads/categories
 
