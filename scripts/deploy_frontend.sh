@@ -59,20 +59,34 @@ for i in $(seq 1 30); do
   sleep 2
 done
 
+warm_origin() {
+  local tries="$1"
+  local i count
+  for i in $(seq 1 "${tries}"); do
+    count=$(ssh -o ConnectTimeout=10 "${VPS}" "curl -sS --compressed http://localhost:3000/ | grep -o 'href=\"/products/' | wc -l" || echo 0)
+    if [ "${count}" -gt 0 ]; then
+      echo "    healthy on attempt ${i} (${count} product links)"
+      return 0
+    fi
+    sleep "${WARM_SLEEP}"
+  done
+  return 1
+}
+
 echo "==> Warming the homepage (origin-direct) until it renders products"
-WARMED=0
-for i in $(seq 1 "${WARM_MAX_TRIES}"); do
-  COUNT=$(ssh -o ConnectTimeout=10 "${VPS}" "curl -sS --compressed http://localhost:3000/ | grep -o 'href=\"/products/' | wc -l" || echo 0)
-  if [ "${COUNT}" -gt 0 ]; then
-    echo "    healthy on attempt ${i} (${COUNT} product links)"
-    WARMED=1
-    break
+# A fresh container serves its build-time prerender (no backend data) and its
+# in-memory ISR cache can hold a poisoned empty entry from the first seconds —
+# disk flushes and tag revalidation do NOT evict it. Warm first; if the origin
+# keeps serving an empty page, flush the disk caches and restart the process
+# (restart = clean regen; verified to converge), then warm again.
+if ! warm_origin "${WARM_MAX_TRIES}"; then
+  echo "    origin still empty — flushing disk caches and restarting (clean regen)"
+  ssh -o ConnectTimeout=10 "${VPS}" "docker exec ${CONTAINER} sh -c 'rm -rf /app/.next/cache/fetch-cache; rm -f /app/.next/server/app/index.html /app/.next/server/app/index.meta /app/.next/server/app/index.rsc; rm -f /app/.next/server/app/index.segments/*.rsc 2>/dev/null; true' && docker restart ${CONTAINER}" >/dev/null
+  sleep 8
+  if ! warm_origin "${WARM_MAX_TRIES}"; then
+    echo "FATAL: origin never rendered a healthy homepage — NOT purging the CDN (an empty page would be cached for visitors)." >&2
+    exit 1
   fi
-  sleep "${WARM_SLEEP}"
-done
-if [ "${WARMED}" -ne 1 ]; then
-  echo "FATAL: origin never rendered a healthy homepage after ${WARM_MAX_TRIES} attempts — NOT purging the CDN (an empty page would be cached for visitors)." >&2
-  exit 1
 fi
 
 echo "==> Revalidating ISR tags (origin-direct)"
