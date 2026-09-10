@@ -19,6 +19,12 @@ import { getBackendUrl } from '@/lib/server-api';
 
 const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://voxcina.com').replace(/\/+$/, '');
 
+// Route-level ISR: Next 16 does not infer it from fetch-level revalidate, and
+// the Docker build prerenders /sitemap.xml with no backend reachable — without
+// this the build-time static-only list would be cached forever. The first
+// runtime request refills it from the live backend, then it revalidates hourly.
+export const revalidate = 3600;
+
 // Types for API responses
 interface Product {
   productId?: string;
