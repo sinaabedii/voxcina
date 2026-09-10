@@ -90,8 +90,9 @@ const nextConfig = {
       // All other /api/* routes (auth, products, orders, etc.) → Go backend
       // This includes OTP endpoints: /api/auth/signup/send-otp, /api/auth/check-otp, etc.
       // Note: /api/tryon/negotiate and /api/tryon/negotiate-stream are handled by Next.js API routes (need longer timeout / streaming)
+      // /api/revalidate is Next's own cache-purge endpoint (secret/admin gated) — never proxy it to Go.
       {
-        source: '/api/:path((?!postex|tryon/negotiate|tryon/negotiate-stream).*)',
+        source: '/api/:path((?!postex|revalidate|tryon/negotiate|tryon/negotiate-stream).*)',
         destination: `${backendUrl}/api/:path*`,
       }
     ];

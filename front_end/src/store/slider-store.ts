@@ -13,9 +13,13 @@ import { toast } from "react-toastify";
  * surface as an error. Mirrors `revalidateHeroCache` in hero-image-store.
  */
 function revalidateSliderCache() {
+  const { adminToken } = useAuthStore.getState();
   fetch("/api/revalidate", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+    },
     body: JSON.stringify({ tags: ["sliders", "home"] }),
   }).catch(() => {});
 }

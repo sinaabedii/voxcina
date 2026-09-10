@@ -13,9 +13,13 @@ import { toast } from "react-toastify";
  * itself already succeeded, so a failure here shouldn't surface as an error.
  */
 function revalidateHeroCache() {
+  const { adminToken } = useAuthStore.getState();
   fetch("/api/revalidate", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+    },
     body: JSON.stringify({ tags: ["hero-images", "home"] }),
   }).catch(() => {});
 }
