@@ -1081,7 +1081,7 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 						"reviewCount":   "$review_count",
 						"createdAt":     "$created_at",
 					}}},
-					{{Key: "$project", Value: bson.M{"colorVariant.aiMetadata": 0}}},
+					{{Key: "$project", Value: bson.M{"colorVariant.ai_metadata": 0}}},
 				},
 			}}},
 		}
