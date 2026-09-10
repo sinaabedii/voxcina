@@ -64,12 +64,16 @@ export default function AboutClient() {
           <div className="relative z-10 container mx-auto px-4 py-16 sm:py-20 md:py-24 lg:py-32 max-w-7xl">
             <div className="max-w-5xl mx-auto">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-16 items-center">
+                {/* Above the fold: this heading and its lead paragraph are the
+                    LCP candidates for /about, so they are plain elements with a
+                    CSS transform entrance rather than framer-motion opacity
+                    fades. A `motion.p` starting at `opacity: 0` cannot become
+                    the LCP until the JS bundle has downloaded, hydrated and run
+                    its 0.6s delay plus 0.8s fade — measured at LCP 4.1s against
+                    an FCP of 0.9s. Decorative flourishes below stay on
+                    framer-motion; only the text that paints first was changed. */}
                 <div className="lg:col-span-7 order-2 lg:order-1">
-                  <motion.div
-                    initial={{ opacity: 0, x: -50 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.8 }}
-                  >
+                  <div className="animate-hero-rise">
                     <span className="inline-block text-xs sm:text-sm text-voxcina-blue/70 dark:text-secondary-200/70 font-medium tracking-[0.2em] sm:tracking-[0.3em] uppercase mb-4 sm:mb-6 relative">
                       <span className="relative z-10">وکسینا (ووکسینا | Voxcina)</span>
                       <motion.div
@@ -79,13 +83,11 @@ export default function AboutClient() {
                         className="absolute bottom-0 left-0 h-px bg-voxcina-blue/50"
                       />
                     </span>
-                  </motion.div>
+                  </div>
 
-                  <motion.h1
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 0.2 }}
-                    className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl xl:text-8xl font-bold text-voxcina-darkBlue dark:text-white mb-4 sm:mb-6 md:mb-8 leading-none"
+                  <h1
+                    className="animate-hero-rise text-3xl sm:text-4xl md:text-5xl lg:text-7xl xl:text-8xl font-bold text-voxcina-darkBlue dark:text-white mb-4 sm:mb-6 md:mb-8 leading-none"
+                    style={{ animationDelay: "0.08s" }}
                   >
                     <span className="block">درباره</span>
                     <span className="block text-voxcina-blue relative">
@@ -97,13 +99,11 @@ export default function AboutClient() {
                         className="absolute -bottom-1 sm:-bottom-2 left-0 w-full h-1 sm:h-2 bg-voxcina-blue/20 origin-left"
                       />
                     </span>
-                  </motion.h1>
+                  </h1>
 
-                  <motion.p
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 0.6 }}
-                    className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 dark:text-secondary-200/80 leading-relaxed max-w-2xl"
+                  <p
+                    className="animate-hero-rise text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 dark:text-secondary-200/80 leading-relaxed max-w-2xl"
+                    style={{ animationDelay: "0.16s" }}
                   >
                     جایی که
                     <span className="text-voxcina-blue font-semibold">
@@ -116,7 +116,7 @@ export default function AboutClient() {
                       واقعیت{" "}
                     </span>
                     تبدیل می‌شوند
-                  </motion.p>
+                  </p>
                 </div>
 
                 <div className="lg:col-span-5 order-1 lg:order-2">

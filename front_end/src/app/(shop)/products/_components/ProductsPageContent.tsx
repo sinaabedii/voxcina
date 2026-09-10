@@ -173,18 +173,22 @@ export default function ProductsPageContent({
     };
   }, [isFilterDrawerOpen]);
 
+  // Neither variant animates opacity. The product grid these wrap contains the
+  // `priorityFirst` card, whose image is this page's LCP element, and Chrome
+  // will not accept an element painted at `opacity: 0` as an LCP candidate —
+  // so the fade made LCP wait for framer-motion to download, hydrate and work
+  // through a 0.1s-per-child stagger. Animating `y` alone keeps the same
+  // entrance while letting the server-rendered first frame count.
   const containerVariants = {
-    hidden: { opacity: 0 },
+    hidden: {},
     visible: {
-      opacity: 1,
       transition: { staggerChildren: 0.1 },
     },
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { y: 20 },
     visible: {
-      opacity: 1,
       y: 0,
       transition: { type: "spring" as const, stiffness: 300, damping: 30 },
     },
@@ -192,10 +196,15 @@ export default function ProductsPageContent({
 
   return (
     <div className="container py-8 md:py-12">
+      {/* Above-the-fold blocks on this page animate transform only. They used
+          to fade in from `opacity: 0`, which meant the heading, the search field
+          and the filter chips were all invisible in the server-rendered frame
+          and stayed invisible for as long as the framer-motion bundle took to
+          arrive — with a slow or failed hydration they never appeared at all. */}
       <motion.h1
         className="text-2xl md:text-3xl font-bold mb-6 text-voxcina-blue dark:text-voxcina-cream relative hidden md:block"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ y: -20 }}
+        animate={{ y: 0 }}
         transition={{ duration: 0.5 }}
       >
         <span className="relative z-10">محصولات</span>
@@ -205,8 +214,8 @@ export default function ProductsPageContent({
       {/* Search and Filter Controls */}
       <motion.div
         className="flex flex-col md:flex-row gap-4 md:gap-6 mb-8"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ y: 10 }}
+        animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
       >
         <div className="w-full">
@@ -282,8 +291,8 @@ export default function ProductsPageContent({
           the sidebar is hidden) reach the same filters without a drawer. */}
       <motion.div
         className="mb-8 flex items-center gap-2 overflow-x-auto scrollbar-hide py-1"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ y: 10 }}
+        animate={{ y: 0 }}
         transition={{ duration: 0.3, delay: 0.05 }}
       >
         <FilterChip

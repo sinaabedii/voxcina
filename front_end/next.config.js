@@ -6,7 +6,16 @@ const nextConfig = {
   // Experimental optimizations
   experimental: {
     optimizePackageImports: ['lucide-react'], // Tree-shake icons (96 files use this)
-    inlineCss: true, // Inline critical CSS (fixes render-blocking CSS on first visit)
+    // `inlineCss: true` was removed here on purpose — do not put it back.
+    // It is a win only when the stylesheet is small enough to be "critical CSS".
+    // Ours is 199 KB, and React embeds it once as <style> plus twice more inside
+    // the RSC flight payload, so every document carried ~597 KB of CSS: /about
+    // was 657 KB of which 90% was the same stylesheet three times over.
+    // Worse for LCP, the <style> block sat *ahead* of the hero <link rel=preload>
+    // in a 204 KB <head>, so the preload scanner could not discover the LCP
+    // image until ~205 KB of HTML had arrived. As an external stylesheet the
+    // <link> is discovered in the first KB, is fetched in parallel, and is then
+    // cached across every route instead of being re-sent per navigation.
   },
 
   // Drop Next's hard-coded legacy polyfill module (vercel/next.js#86785): every
@@ -48,7 +57,13 @@ const nextConfig = {
       }
     ],
     formats: ['image/avif', 'image/webp'],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    // Every (src, width, quality) pair is a separate sharp encode, and an AVIF
+    // encode of a full-resolution upload measures 2-3s. Fewer buckets means a
+    // far higher cache hit rate on the LCP image. 750 sat 10% from 828 and 1200
+    // sat 7% from 1280, so both were dropped; 1280 was added because the widest
+    // slot on the site is the hero at max-w-7xl (1280px) and, with no matching
+    // bucket, a 1280px slot and any DPR-3 phone were both rounding up to 1920.
+    deviceSizes: [640, 828, 1080, 1280, 1920],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     qualities: [75, 85],
     minimumCacheTTL: 604800, // Cache for 1 week

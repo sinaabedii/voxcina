@@ -89,12 +89,14 @@ export default function CategoryPageClient({
 
   return (
     <div className="container py-8 md:py-12">
-      {/* Category Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
-      >
+      {/* Category Header — above the fold, and it holds both the <h1> and the
+          `priority` banner image, so it is the LCP element for this route.
+          It used to be a `motion.div` starting at `opacity: 0`: the banner was
+          preloaded and arrived early, then sat invisible until framer-motion
+          had downloaded and hydrated, because Chrome does not accept anything
+          painted at zero opacity as an LCP candidate. The CSS entrance below
+          animates transform only, so the first server-rendered frame counts. */}
+      <div className="animate-hero-rise mb-8">
         {category.image && (
           <div className="relative h-48 md:h-64 rounded-xl overflow-hidden mb-6">
             <Image
@@ -144,7 +146,7 @@ export default function CategoryPageClient({
             ))}
           </div>
         )}
-      </motion.div>
+      </div>
 
       {/* Filters Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b">
@@ -201,23 +203,26 @@ export default function CategoryPageClient({
       {/* Products Grid */}
       {products.length > 0 ? (
         <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6"
-          >
+          {/* On a category with no banner, the first card's image is the LCP
+              element. The grid and every card used to be `motion.div`s starting
+              at `opacity: 0`, so that image finished downloading at ~150ms and
+              then waited for framer-motion to hydrate and work through a 0.2s
+              delay plus a per-card stagger before it counted — Chrome ignores
+              anything painted at zero opacity. The stagger is now a CSS
+              transform, which LCP is happy to accept on the first frame. */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
             {products.map((product, index) => (
-              <motion.div
+              <div
                 key={product.productId || index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.03 }}
+                className="animate-hero-rise"
+                // Capped so cards further down the grid do not sit visibly
+                // offset while they wait their turn.
+                style={{ animationDelay: `${Math.min(index * 0.03, 0.3)}s` }}
               >
                 <ProductCard item={product} priority={index === 0} />
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
+          </div>
 
           {/* Pagination */}
           {totalPages > 1 && (

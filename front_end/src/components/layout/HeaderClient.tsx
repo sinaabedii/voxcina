@@ -83,7 +83,21 @@ const HeaderClient: React.FC<HeaderClientProps> = ({ navItems }) => {
                 <div className="relative flex h-8 w-20 items-center transition-all duration-300 sm:h-10 sm:w-24 md:h-12 md:w-28 lg:w-32">
                   <Image
                     alt={APP_NAME}
-                    priority
+                    // This ~8rem logo is never the LCP element, but it used to
+                    // be preloaded ahead of the one that is. Dropping `priority`
+                    // is not enough on its own: React's SSR renderer auto-emits
+                    // a <link rel="preload"> for any <img> that is not
+                    // `loading="lazy"` and not `fetchPriority="low"`, and
+                    // promotes it into the set it flushes at the very top of
+                    // <head>. `fetchPriority="low"` is the documented opt-out —
+                    // it keeps the logo loading eagerly with the first paint
+                    // while leaving the preload queue, and the image optimizer's
+                    // encode queue, to the hero image the LCP actually waits on.
+                    // (The hero <img>s escape the same auto-preload by sitting
+                    // inside <picture>, which is why HeroSectionClient declares
+                    // its own media-scoped preload by hand.)
+                    loading="eager"
+                    fetchPriority="low"
                     quality={85}
                     src={"/images/Logo/BlueXTransparent.png"}
                     width={1335}

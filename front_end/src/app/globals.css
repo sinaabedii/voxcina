@@ -289,14 +289,33 @@
   }
 }
 
+/* Deliberately does NOT animate opacity. Chrome excludes anything painted at
+   `opacity: 0` from being a Largest Contentful Paint candidate, so fading the
+   hero in made the LCP wait for the fade instead of for the first paint —
+   and with `animation-fill-mode: both` the hero held opacity 0 for as long as
+   a busy main thread delayed the animation's first frame. Transform-only
+   entrances are free: LCP records the element's first painted rect and does
+   not care that a transform is still settling. Same rule applies to
+   `.animate-hero-rise` below and to any future above-the-fold entrance. */
 @keyframes heroReveal {
   from {
-    opacity: 0;
     transform: translateY(8px) scale(1.01);
   }
   to {
-    opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* Entrance for above-the-fold copy (page headings and their lead paragraph).
+   These are the usual LCP elements, so they must be painted at full opacity by
+   the server-rendered first frame — never behind a JS-driven fade that cannot
+   start until the bundle has downloaded and hydrated. */
+@keyframes heroRise {
+  from {
+    transform: translateY(1.25rem);
+  }
+  to {
+    transform: none;
   }
 }
 
@@ -310,6 +329,7 @@
   }
 
   .animate-heroReveal,
+  .animate-hero-rise,
   .hero-slide .animate-pulse {
     animation: none;
   }
@@ -346,6 +366,10 @@
 
   .animate-heroReveal {
     animation: heroReveal 1.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .animate-hero-rise {
+    animation: heroRise 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
   .animate-pulse-once {

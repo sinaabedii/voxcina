@@ -13,6 +13,17 @@ import { ColorVariantListItem } from "@/types/product";
 // Re-export metadata generation
 export { generateMetadata } from "./metadata";
 
+// Keep this route dynamic. Adding `revalidate`/`generateStaticParams` to cache
+// the HTML looks tempting — Next answers dynamic routes with
+// `Cache-Control: private, no-cache, no-store` and re-renders per request — but
+// it backfires here: `ProductActions` calls `useSearchParams()` (for the
+// ?variant / ?color deep links), and in a statically rendered route that opts
+// the whole subtree out of SSR. Measured: the product image disappeared from
+// the HTML entirely, leaving a spinner until hydration, and LCP got worse even
+// though TTFB improved. Server-rendering the LCP element wins. To make this
+// route cacheable, first move variant/color resolution to the server so no
+// client component reads useSearchParams during the initial render.
+
 interface ProductDetailPageProps {
   params: Promise<{
     productId: string;

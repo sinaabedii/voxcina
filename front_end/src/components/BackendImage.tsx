@@ -66,7 +66,11 @@ export default function BackendImage({
       loading={priority ? undefined : (loading || 'lazy')}
       sizes={sizes}
       onError={() => setError(true)}
-      unoptimized={src.startsWith('/uploads/')}  // Don't optimize backend images
+      // No `unoptimized` opt-out for /uploads/. The optimizer resolves those
+      // paths fine — ProductCard has always routed the very same files through
+      // it — and skipping it meant shipping the full-resolution upload with no
+      // srcset at all: the main image on a product page measured 69.5 KB at
+      // 1200x1600 raw against 6.5 KB for the 640w AVIF a phone actually needs.
     />
   );
 } 

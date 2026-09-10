@@ -39,9 +39,11 @@ export default function TrendingPageClient({ items }: TrendingPageClientProps) {
 
   return (
     <div className="container py-8 md:py-14">
+      {/* Above-the-fold header containing the <h1>: transform-only entrance so
+          it is an eligible LCP candidate from the first painted frame. */}
       <motion.header
-        initial={{ opacity: 0, y: -18 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ y: -18 }}
+        animate={{ y: 0 }}
         className="relative mb-10 overflow-hidden rounded-[2rem] bg-gradient-to-br from-primary via-primary/95 to-slate-950 px-6 py-10 text-primary-foreground shadow-strong md:px-12 md:py-14"
       >
         <div className="pointer-events-none absolute -left-12 -top-16 h-48 w-48 rounded-full bg-cyan-300/20 blur-3xl" />
@@ -59,9 +61,12 @@ export default function TrendingPageClient({ items }: TrendingPageClientProps) {
       </motion.header>
 
       <div className="mb-8 grid gap-6 lg:grid-cols-[1.15fr_1fr] lg:items-stretch">
+        {/* Wraps the `priority` featured card — the LCP element here — so it
+            animates x only; an opacity fade would disqualify it until
+            framer-motion had hydrated. */}
         <motion.div
-          initial={{ opacity: 0, x: 18 }}
-          animate={{ opacity: 1, x: 0 }}
+          initial={{ x: 18 }}
+          animate={{ x: 0 }}
           className="relative rounded-[2rem] border border-primary/10 bg-gradient-to-br from-primary/10 via-card to-card p-4 shadow-medium md:p-6"
         >
           <div className="mb-4 flex items-center justify-between">
@@ -78,8 +83,8 @@ export default function TrendingPageClient({ items }: TrendingPageClientProps) {
           {remaining.slice(0, 3).map((item, index) => (
             <motion.div
               key={`${item.productId}-${item.colorVariant.variantId || index}`}
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ y: 18 }}
+              animate={{ y: 0 }}
               transition={{ delay: 0.08 + index * 0.06 }}
               className={index === 2 ? "col-span-2 sm:col-span-1" : ""}
             >
@@ -99,8 +104,8 @@ export default function TrendingPageClient({ items }: TrendingPageClientProps) {
             {remaining.slice(3).map((item, index) => (
               <motion.div
                 key={`${item.productId}-${item.colorVariant.variantId || index + 3}`}
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ y: 18 }}
+                animate={{ y: 0 }}
                 transition={{ delay: Math.min(index * 0.04, 0.3) }}
               >
                 <ProductCard item={item} />

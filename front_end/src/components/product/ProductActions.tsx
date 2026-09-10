@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -32,10 +33,8 @@ import SizeSelector from "@/components/ui/SizeSelector";
 import PriceDisplay from "@/components/ui/PriceDisplay";
 import StockStatus from "@/components/ui/StockStatus";
 import { FeatureGrid } from "@/components/ui/FeatureCard";
-import ProductReviews from "@/components/product/ProductReviews";
-import SizeGuideTable from "@/components/product/SizeGuideTable";
 import ProductAttributes from "@/components/product/ProductAttributes";
-import SocialShare from "@/components/product/SocialShare";
+import LazyMount from "@/components/ui/LazyMount";
 import { Product, Review, ColorVariantListItem } from "@/types/product";
 import { useTryOnStore } from "@/store/tryon-store";
 import { useAuthStore } from "@/store/auth-store";
@@ -45,6 +44,16 @@ import { activityTracker } from "@/lib/activity-tracker";
 import BackendImage from "@/components/BackendImage";
 import { ImageSkeleton } from "@/components/ui/Loading";
 import { findVariantByIdOrLegacyValue, getVariantId } from "@/lib/product-variants";
+
+// None of these three is on the critical path — the reviews list sits below the
+// fold, the size guide only renders behind a tab, and the share sheet only
+// inside a modal — but importing them eagerly put all of their code in the
+// chunk the browser has to parse before it can paint the product image, which
+// is this page's LCP element. Splitting them out leaves the LCP paint waiting
+// on markedly less JavaScript.
+const ProductReviews = dynamic(() => import("@/components/product/ProductReviews"));
+const SizeGuideTable = dynamic(() => import("@/components/product/SizeGuideTable"));
+const SocialShare = dynamic(() => import("@/components/product/SocialShare"));
 
 interface ProductActionsProps {
   product: Product;
@@ -520,12 +529,14 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
-      {/* Image Gallery Section */}
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+      {/* Image Gallery Section — holds the main product image, which is the LCP
+          element of this route. It used to be a `motion.div` starting at
+          `opacity: 0`, so the image could be preloaded and fully decoded and
+          still not count: Chrome does not accept anything painted at zero
+          opacity as an LCP candidate, and the fade could not even begin until
+          framer-motion had downloaded and hydrated. The CSS entrance animates
+          transform only, so the first server-rendered frame counts. */}
+      <div className="animate-hero-rise">
         <div
           ref={imageContainerRef}
           className={cn(
@@ -554,7 +565,6 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
                   )}
                   style={isZoomed ? { transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%` } : undefined}
                   priority
-                  unoptimized={productImages?.[selectedImage]?.startsWith('/uploads/')}
                   onLoad={() => handleImageLoad(productImages[selectedImage])}
                 />
               </div>
@@ -612,7 +622,6 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
                     fill
                     sizes="80px"
                     className={cn("object-contain", (imagesLoading && !loadedImages.has(image)) && "opacity-0")}
-                    unoptimized={image?.startsWith('/uploads/')}
                     onLoad={() => handleImageLoad(image)}
                   />
                 </div>
@@ -621,7 +630,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
            </div>
          )}
 
-          </motion.div>
+          </div>
 
 
       {/* Product Details Section */}
@@ -640,7 +649,10 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
                 <Link href={`/brands/${activeBrand.slug || activeBrand.id}`} className="flex items-center gap-2 group">
                   {activeBrand.logo && (
                     <div className="w-6 h-6 relative rounded-full overflow-hidden border border-voxcina-cream/50">
-                      <BackendImage src={activeBrand.logo} alt={activeBrand.name} className="object-cover w-full h-full" />
+                      {/* 24px slot — without `sizes` this fell back to
+                          BackendImage's 400px default and pulled the 828w
+                          variant (11.1 KB, larger than the product photo). */}
+                      <BackendImage src={activeBrand.logo} alt={activeBrand.name} className="object-cover w-full h-full" sizes="24px" />
                     </div>
                   )}
                   <span className="text-sm font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 group-hover:text-voxcina-blue dark:group-hover:text-voxcina-cream transition-colors">
@@ -929,9 +941,9 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
 
       {/* Reviews Section */}
       <div className="col-span-1 md:col-span-2 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30 pt-12 mb-16">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+        <LazyMount fallback={<div className="min-h-[24rem]" />}>
           <ProductReviews productId={product.id} reviews={reviews} avgRating={avgRating} onAddReview={handleAddReview} />
-        </motion.div>
+        </LazyMount>
       </div>
 
       {/* Modals */}
@@ -997,7 +1009,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
                   className={cn("w-16 h-16 rounded-lg overflow-hidden border-2 transition-all relative shrink-0", selectedImage === idx ? "border-white scale-110" : "border-white/30 opacity-60 hover:opacity-100")}
                   onClick={(e) => { e.stopPropagation(); setSelectedImage(idx); }}
                 >
-                  <BackendImage src={img} alt="" className="object-cover w-full h-full" />
+                  <BackendImage src={img} alt="" className="object-cover w-full h-full" sizes="64px" />
                 </button>
               ))}
             </div>

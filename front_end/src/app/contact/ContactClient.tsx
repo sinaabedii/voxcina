@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import {
   Mail,
@@ -11,19 +10,10 @@ import {
   MessageSquare,
   Clock,
   CheckCircle,
-  Loader2,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-
-const NeshanStaticMap = dynamic(() => import("@/components/ui/NeshanStaticMap"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full flex items-center justify-center bg-voxcina-cream/30 dark:bg-voxcina-blue/20" style={{ minHeight: "384px" }}>
-      <Loader2 className="h-5 w-5 text-voxcina-blue/50 dark:text-voxcina-cream/50 animate-spin" />
-    </div>
-  ),
-});
+import LazyNeshanStaticMap from "@/components/ui/LazyNeshanStaticMap";
 
 export default function ContactClient() {
   const [formData, setFormData] = useState({
@@ -143,11 +133,11 @@ export default function ContactClient() {
             <div className="max-w-5xl mx-auto">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-16 items-center">
                 <div className="lg:col-span-7 order-2 lg:order-1">
-                  <motion.div
-                    initial={{ opacity: 0, x: -50 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.8 }}
-                  >
+                  {/* Above the fold: painted at full opacity on the first frame
+                      so it can be the LCP candidate. See AboutClient for the
+                      measurement behind this — an opacity fade here cannot
+                      resolve until the bundle has hydrated. */}
+                  <div className="animate-hero-rise">
                     <span className="inline-block text-xs sm:text-sm text-voxcina-blue/70 dark:text-secondary-200/70 font-medium tracking-[0.2em] sm:tracking-[0.3em] uppercase mb-4 sm:mb-6 relative">
                       <span className="relative z-10">Voxcina</span>
                       <motion.div
@@ -157,13 +147,11 @@ export default function ContactClient() {
                         className="absolute bottom-0 left-0 h-px bg-voxcina-blue/50"
                       />
                     </span>
-                  </motion.div>
+                  </div>
 
-                  <motion.h1
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 0.2 }}
-                    className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl xl:text-8xl font-bold text-voxcina-darkBlue dark:text-white mb-4 sm:mb-6 md:mb-8 leading-none"
+                  <h1
+                    className="animate-hero-rise text-3xl sm:text-4xl md:text-5xl lg:text-7xl xl:text-8xl font-bold text-voxcina-darkBlue dark:text-white mb-4 sm:mb-6 md:mb-8 leading-none"
+                    style={{ animationDelay: "0.08s" }}
                   >
                     <span className="block">تماس</span>
                     <span className="block text-voxcina-blue relative">
@@ -175,20 +163,18 @@ export default function ContactClient() {
                         className="absolute -bottom-1 sm:-bottom-2 left-0 w-full h-1 sm:h-2 bg-voxcina-blue/20 origin-left"
                       />
                     </span>
-                  </motion.h1>
+                  </h1>
 
-                  <motion.p
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 0.6 }}
-                    className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 dark:text-secondary-200/80 leading-relaxed max-w-2xl"
+                  <p
+                    className="animate-hero-rise text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 dark:text-secondary-200/80 leading-relaxed max-w-2xl"
+                    style={{ animationDelay: "0.16s" }}
                   >
                     جایی که
                     <span className="text-voxcina-blue font-semibold"> ارتباط </span>
                     به
                     <span className="text-voxcina-blue font-semibold"> همکاری </span>
                     تبدیل می‌شود
-                  </motion.p>
+                  </p>
                 </div>
 
                 <div className="lg:col-span-5 order-1 lg:order-2">
@@ -438,7 +424,7 @@ export default function ContactClient() {
                 transition={{ duration: 0.5 }}
                 viewport={{ once: true, margin: "-100px" }}
               >
-                <NeshanStaticMap
+                <LazyNeshanStaticMap
                   lat={35.762843063507674}
                   lng={51.46413943689942}
                   title="دفتر مرکزی Voxcina"

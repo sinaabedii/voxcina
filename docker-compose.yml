@@ -123,6 +123,15 @@ services:
       - NEXT_PUBLIC_NESHAN_API_KEY=${NEXT_PUBLIC_NESHAN_API_KEY}
     volumes:
       - ./uploads:/app/public/uploads
+      # Next's image optimizer writes every resized/re-encoded variant here.
+      # An AVIF encode of a full-resolution upload measures 2-3s of CPU, and
+      # without this volume the directory lived only inside the container, so
+      # every redeploy threw the whole cache away and the site re-encoded
+      # everything under live traffic — the hero image (the LCP element) was
+      # answering with `x-nextjs-cache: MISS` on every request and taking
+      # 2.4s+ TTFB. Only `cache/images` is mounted, not all of `.next/cache`,
+      # so the ISR and build caches still reset with each new build.
+      - nextjs-image-cache:/app/.next/cache/images
     depends_on:
       - server
     networks:
@@ -130,6 +139,7 @@ services:
 
 volumes:
   mongodb-data:
+  nextjs-image-cache:
 
 networks:
   backend-network:

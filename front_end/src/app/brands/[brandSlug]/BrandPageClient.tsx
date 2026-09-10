@@ -61,8 +61,11 @@ export default function BrandPageClient({ brand, products }: BrandPageClientProp
           {products.map((product, index) => (
             <motion.div
               key={product.productId || index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+              // No opacity fade: this grid holds the `priority` card whose
+              // image is the LCP element, and Chrome ignores anything painted
+              // at zero opacity. `y` alone keeps the entrance.
+              initial={{ y: 20 }}
+              animate={{ y: 0 }}
               transition={{ delay: index * 0.05 }}
             >
               <ProductCard item={product} priority={index === 0} />
