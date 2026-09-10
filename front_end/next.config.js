@@ -180,4 +180,13 @@ const nextConfig = {
   }
 };
 
-module.exports = nextConfig;
+// Bundle analyzer: off unless ANALYZE=true, so normal builds are unaffected.
+// Run `npm run analyze` to get treemaps of what actually ships per route in
+// .next/analyze/. Note the current desktop Lighthouse gap was never bundle
+// size -- it was infinite CSS animations (see AnimatedBackground.tsx) -- so
+// measure before cutting anything here.
+const withBundleAnalyzer = require("@next/bundle-analyzer")({
+  enabled: process.env.ANALYZE === "true",
+});
+
+module.exports = withBundleAnalyzer(nextConfig);

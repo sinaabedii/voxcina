@@ -104,9 +104,9 @@ export default function AIAssistantPromo() {
             {/* Right: Visual element */}
             <div className="relative flex items-center justify-center">
               {/* Decorative rings */}
-              <div className="absolute w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 rounded-full border border-cyan-500/20 md:motion-safe:animate-[spin_30s_linear_infinite]" />
-              <div className="absolute w-52 h-52 sm:w-64 sm:h-64 md:w-80 md:h-80 rounded-full border border-voxcina-blue/30 md:motion-safe:animate-[spin_25s_linear_infinite_reverse]" />
-              <div className="absolute w-40 h-40 sm:w-48 sm:h-48 md:w-64 md:h-64 rounded-full border border-purple-500/20 md:motion-safe:animate-[spin_35s_linear_infinite]" />
+              <div className="absolute w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 rounded-full border border-cyan-500/20" />
+              <div className="absolute w-52 h-52 sm:w-64 sm:h-64 md:w-80 md:h-80 rounded-full border border-voxcina-blue/30" />
+              <div className="absolute w-40 h-40 sm:w-48 sm:h-48 md:w-64 md:h-64 rounded-full border border-purple-500/20" />
 
               {/* Main chat mockup */}
               <div className="relative z-10 w-full max-w-xs sm:max-w-sm md:motion-safe:animate-float">
