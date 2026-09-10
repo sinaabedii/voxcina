@@ -394,20 +394,21 @@ Standard Caching → Aggressive Caching
 ```
 
 #### 3.5 Purge Cache Strategy
-After deployment:
-```bash
-# Purge specific paths
-curl -X DELETE "https://napi.arvancloud.ir/cdn/4.0/domains/voxcina.com/caching" \
-  -H "Authorization: Apikey YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "purge": "file",
-    "urls": [
-      "https://voxcina.com/_next/static/*",
-      "https://voxcina.com/uploads/*"
-    ]
-  }'
-```
+
+**There is no API purge.** ArvanCloud's purge API is not available on this
+plan, so purging cannot be scripted -- it is a manual action in the ArvanCloud
+dashboard.
+
+Deploys do not need it. `front_end/Dockerfile` drops the homepage's empty
+build-time prerender, so the origin never serves an empty page and the CDN can
+never cache one; `scripts/deploy_frontend.sh` also refuses to finish if the
+origin fails to warm. Purge by hand only to make a change visible before the
+edge TTL lapses -- for example after editing a non-hashed asset under
+`/images/`, which `next.config.js` caps at `max-age=86400`.
+
+Static assets never need purging: `/_next/static/*` filenames are
+content-hashed and `/uploads/*` filenames embed a nanosecond timestamp, so a
+changed file is always a new URL.
 
 ---
 

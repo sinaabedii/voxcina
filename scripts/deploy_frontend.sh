@@ -10,8 +10,14 @@
 #      product links — a fresh container starts from the build-time prerender,
 #      which has no backend data, and an empty render must never reach the CDN
 #   5. call /api/revalidate (origin-direct, REVALIDATE_SECRET) to drop stale tags
-#   6. purge the ArvanCloud CDN (ARVAN_API_KEY); without a key, print a reminder
-#   7. verify the public homepage
+#   6. verify the public homepage
+#
+# There is no CDN purge step: ArvanCloud's purge API is not available on this
+# plan, so it cannot be scripted. It is also no longer needed for correctness --
+# front_end/Dockerfile drops the homepage's empty build-time prerender, so the
+# origin never serves an empty page and the CDN can never cache one. Purging is
+# now only a way to make an edit visible before the edge TTL lapses, and that is
+# a manual action in the ArvanCloud dashboard.
 #
 # Usage: scripts/deploy_frontend.sh [branch]
 
@@ -93,16 +99,13 @@ echo "==> Revalidating ISR tags (origin-direct)"
 ssh -o ConnectTimeout=10 "${VPS}" "cd ${VPS_DIR} && SECRET=\$(grep '^REVALIDATE_SECRET=' .env | cut -d= -f2-); curl -sS -X POST http://localhost:3000/api/revalidate -H 'Content-Type: application/json' -H \"x-revalidate-secret: \${SECRET}\" -d '{\"tags\":[\"home\",\"featured-products\",\"new-products\",\"hero-images\",\"sliders\",\"categories\"]}'"
 echo
 
-echo "==> Purging the ArvanCloud CDN"
-ssh -o ConnectTimeout=10 "${VPS}" "cd ${VPS_DIR} && KEY=\$(grep '^ARVAN_API_KEY=' .env | cut -d= -f2-); if [ -n \"\${KEY}\" ]; then curl -sS -X POST 'https://napi.arvancloud.ir/cdn/4.0/domains/voxcina.com/caching/purge' -H \"Authorization: Apikey \${KEY}\" -H 'Content-Type: application/json' -d '{\"purge\":\"all\"}' | head -c 200; echo; else echo 'ARVAN_API_KEY not set in .env — purge the CDN manually from the ArvanCloud dashboard now.'; fi"
-
 echo "==> Verifying the public homepage"
 sleep 5
 PUBLIC_COUNT=$(curl -sS --compressed "${PUBLIC_URL}/" | grep -o 'href="/products/' | wc -l || echo 0)
 if [ "${PUBLIC_COUNT}" -gt 0 ]; then
   echo "OK: public homepage renders ${PUBLIC_COUNT} product links."
 else
-  echo "WARNING: public homepage still renders no products — if ARVAN_API_KEY was missing, purge the CDN manually and re-check with:"
+  echo "WARNING: public homepage renders no products, but the origin warmed fine — the CDN is serving an older cached copy. Purge it in the ArvanCloud dashboard, then re-check with:"
   echo "  curl -sSI --compressed ${PUBLIC_URL}/ | grep -iE 'x-cache|server-timing'"
   exit 1
 fi
