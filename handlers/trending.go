@@ -56,7 +56,7 @@ func GetTrendingProductVariants(w http.ResponseWriter, r *http.Request) {
 	productCursor, err := db.Database.Collection("products").Find(ctx, bson.M{
 		"_id":       bson.M{"$in": productIDs},
 		"is_active": true,
-	})
+	}, options.Find().SetProjection(productPublicProjection))
 	if err != nil {
 		utils.JSONResponse(w, http.StatusOK, map[string]interface{}{"data": []models.ColorVariantListItem{}})
 		return

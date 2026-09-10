@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"backEnd/db"
 	"backEnd/models"
@@ -79,7 +80,10 @@ func GetCategoryProducts(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	collection := db.Database.Collection("products")
-	cursor, err := collection.Find(ctx, filter)
+	cursor, err := collection.Find(ctx, filter, options.Find().SetProjection(bson.M{
+		"color_variants.ai_metadata": 0,
+		"search_metadata":            0,
+	}))
 	if err != nil {
 		utils.ErrorResponse(
 			w,
@@ -266,15 +270,15 @@ func CreateCategory(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now()
 	category := models.Category{
-		ID:          primitive.NewObjectID(),
-		Name:        name,
-		Slug:        slug,
-		Description: description,
-		Image:       imagePath,
-		Avatar:      avatar,
-		CreatedAt:   now,
-		UpdatedAt:   now,
-		IsActive:    true,
+		ID:           primitive.NewObjectID(),
+		Name:         name,
+		Slug:         slug,
+		Description:  description,
+		Image:        imagePath,
+		Avatar:       avatar,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+		IsActive:     true,
 		ShowInHeader: showInHeader,
 	}
 	if !parentID.IsZero() {

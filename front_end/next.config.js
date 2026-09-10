@@ -159,6 +159,23 @@ const nextConfig = {
           },
         ],
       },
+      {
+        // The home page is ISR'd (revalidate = 600) and renders no per-user
+        // state server-side (cart/account UI is client-side), so its HTML can
+        // be cached at the CDN edge. Next stamps `cache-control: max-age=0`
+        // on ISR HTML by default, which made the CDN re-fetch it from the
+        // origin on every visitor request. A short s-maxage plus
+        // stale-while-revalidate keeps repeats at the edge while staying
+        // fresh, and the browser itself still revalidates (max-age=0 is what
+        // s-maxage+SWR leaves for it).
+        source: '/',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'max-age=0, s-maxage=120, stale-while-revalidate=540',
+          },
+        ],
+      },
     ];
   }
 };

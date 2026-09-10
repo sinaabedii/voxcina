@@ -888,6 +888,17 @@ func sortProductsByPopularity(ctx context.Context, products []models.Product) {
 	})
 }
 
+// productPublicProjection strips fields that no storefront consumer needs:
+// per-variant AI metadata (which carries a 1536-dim embedding vector) and the
+// product-level search metadata (which carries another one). Shipping them in
+// list/detail responses inflated every page's payload by hundreds of KB and
+// dominated the RSC flight data embedded in the HTML. The admin endpoints
+// intentionally keep the full documents.
+var productPublicProjection = bson.M{
+	"color_variants.ai_metadata": 0,
+	"search_metadata":            0,
+}
+
 // ListProducts handles GET /api/products
 // Returns paginated color variants as separate items (not full products)
 func ListProducts(w http.ResponseWriter, r *http.Request) {
@@ -966,121 +977,195 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Build find options with sorting
-	findOptions := options.Find()
-
-	// Handle sort parameter
+	// Handle sort parameter. All sort keys are product-level, so sorting can
+	// happen in the database before variants are unwound into rows.
 	sortParam := r.URL.Query().Get("sort")
+	var sortDoc bson.D
 	switch sortParam {
 	case "newest":
-		findOptions.SetSort(bson.D{{Key: "created_at", Value: -1}})
+		sortDoc = bson.D{{Key: "created_at", Value: -1}}
 	case "price-asc":
-		findOptions.SetSort(bson.D{{Key: "price", Value: 1}})
+		sortDoc = bson.D{{Key: "price", Value: 1}}
 	case "price-desc":
-		findOptions.SetSort(bson.D{{Key: "price", Value: -1}})
+		sortDoc = bson.D{{Key: "price", Value: -1}}
 	case "popular":
 		// Real popularity is ranked in memory below (view counters + reviews);
 		// newest-first here makes that stable sort degrade to newest when no
 		// popularity signals have been recorded yet.
-		findOptions.SetSort(bson.D{{Key: "created_at", Value: -1}})
+		sortDoc = bson.D{{Key: "created_at", Value: -1}}
 	case "discount":
 		// Sort by discount percentage (original_price - price) / original_price
 		// Since MongoDB doesn't easily compute this, sort by original_price desc as proxy
-		findOptions.SetSort(bson.D{{Key: "original_price", Value: -1}})
+		sortDoc = bson.D{{Key: "original_price", Value: -1}}
 	default:
 		// Default order (and the legacy is_new=true path) is newest first.
-		findOptions.SetSort(bson.D{{Key: "created_at", Value: -1}})
+		sortDoc = bson.D{{Key: "created_at", Value: -1}}
 	}
 
-	// Fetch all active products matching filters
-	cursor, err := collection.Find(ctx, filter, findOptions)
-	if err != nil {
-		response := map[string]interface{}{
-			"data":       []models.ColorVariantListItem{},
-			"pagination": map[string]interface{}{},
-		}
-		utils.JSONResponse(w, http.StatusOK, response)
-		return
-	}
-
-	var products []models.Product
-	if err := cursor.All(ctx, &products); err != nil {
-		response := map[string]interface{}{
-			"data":       []models.ColorVariantListItem{},
-			"pagination": map[string]interface{}{},
-		}
-		utils.JSONResponse(w, http.StatusOK, response)
-		return
-	}
+	var colorVariantItems []models.ColorVariantListItem
+	totalItems := 0
 
 	if sortParam == "popular" {
+		findOptions := options.Find().
+			SetSort(sortDoc).
+			SetProjection(productPublicProjection)
+
+		// The in-memory popularity rank needs every candidate in memory, but
+		// only their slim documents (AI metadata is projected out above).
+		cursor, err := collection.Find(ctx, filter, findOptions)
+		if err != nil {
+			response := map[string]interface{}{
+				"data":       []models.ColorVariantListItem{},
+				"pagination": map[string]interface{}{},
+			}
+			utils.JSONResponse(w, http.StatusOK, response)
+			return
+		}
+
+		var products []models.Product
+		if err := cursor.All(ctx, &products); err != nil {
+			response := map[string]interface{}{
+				"data":       []models.ColorVariantListItem{},
+				"pagination": map[string]interface{}{},
+			}
+			utils.JSONResponse(w, http.StatusOK, response)
+			return
+		}
+
 		sortProductsByPopularity(ctx, products)
-	}
 
-	// Expand every matching product into one row per color variant. Each
-	// color variant is treated as its own independent "product card" for
-	// pagination purposes, matching the product grid where every card is a
-	// single color variant - so a page boundary can legitimately land in
-	// the middle of one product's variants, same as it can between any two
-	// unrelated cards.
-	var colorVariantItems []models.ColorVariantListItem
-	for _, product := range products {
-		for _, colorVariant := range product.ColorVariants {
-			// Normalize Persian/Arabic digits in size strings
-			for j := range colorVariant.Sizes {
-				colorVariant.Sizes[j].Size = utils.NormalizePersianDigits(colorVariant.Sizes[j].Size)
+		// Expand every matching product into one row per color variant. Each
+		// color variant is treated as its own independent "product card" for
+		// pagination purposes, matching the product grid where every card is a
+		// single color variant - so a page boundary can legitimately land in
+		// the middle of one product's variants, same as it can between any two
+		// unrelated cards.
+		for _, product := range products {
+			for _, colorVariant := range product.ColorVariants {
+				colorVariantItems = append(colorVariantItems, newColorVariantListItem(&product, &colorVariant))
 			}
-			// Calculate total inventory for this color
-			totalInventory := 0
-			for _, size := range colorVariant.Sizes {
-				totalInventory += size.Quantity
-			}
+		}
+		totalItems = len(colorVariantItems)
+		colorVariantItems = paginateVariantRows(colorVariantItems, page, limit)
+	} else {
+		// Every other sort can paginate inside MongoDB: sort the products,
+		// unwind them into one document per color variant, then skip/limit the
+		// rows, with the grand total computed in the same round trip ($facet).
+		// The previous implementation fetched and decoded the whole catalog on
+		// every request and paginated in memory.
+		skip := (page - 1) * limit
+		pipeline := mongo.Pipeline{
+			{{Key: "$match", Value: filter}},
+			{{Key: "$sort", Value: sortDoc}},
+			{{Key: "$facet", Value: bson.M{
+				"count": mongo.Pipeline{
+					{{Key: "$unwind", Value: "$color_variants"}},
+					{{Key: "$count", Value: "total"}},
+				},
+				"rows": mongo.Pipeline{
+					{{Key: "$unwind", Value: "$color_variants"}},
+					{{Key: "$skip", Value: skip}},
+					{{Key: "$limit", Value: limit}},
+					{{Key: "$project", Value: bson.M{
+						"colorVariant":  "$color_variants",
+						"name":          1,
+						"description":   1,
+						"price":         1,
+						"originalPrice": 1,
+						"brand":         1,
+						"brandId":       "$brand_id",
+						"categoryIds":   "$category_ids",
+						"collection":    1,
+						"isFlashSale":   "$is_flash_sale",
+						"averageRating": "$average_rating",
+						"reviewCount":   "$review_count",
+						"createdAt":     "$created_at",
+					}}},
+					{{Key: "$project", Value: bson.M{"colorVariant.aiMetadata": 0}}},
+				},
+			}}},
+		}
 
-			// Convert ObjectIDs to strings
-			categoryIDStrs := make([]string, len(product.CategoryIDs))
-			for i, id := range product.CategoryIDs {
-				categoryIDStrs[i] = id.Hex()
+		cursor, err := collection.Aggregate(ctx, pipeline)
+		if err != nil {
+			response := map[string]interface{}{
+				"data":       []models.ColorVariantListItem{},
+				"pagination": map[string]interface{}{},
 			}
+			utils.JSONResponse(w, http.StatusOK, response)
+			return
+		}
 
-			// Create list item for this color variant
-			item := models.ColorVariantListItem{
-				ProductID:      product.ID.Hex(),
-				ColorVariant:   colorVariant,
-				Name:           product.Name,
-				Description:    product.Description,
-				Price:          product.Price,
-				OriginalPrice:  product.OriginalPrice,
-				Brand:          product.Brand,
-				BrandID:        product.BrandID.Hex(),
-				CategoryIDs:    categoryIDStrs,
-				Collection:     product.Collection,
-				IsFlashSale:    product.IsFlashSale,
-				AverageRating:  product.AverageRating,
-				ReviewCount:    product.ReviewCount,
-				CreatedAt:      product.CreatedAt,
-				TotalInventory: totalInventory,
-				InStock:        totalInventory > 0,
+		var facets []struct {
+			Count []struct {
+				Total int `bson:"total"`
+			} `bson:"count"`
+			Rows []struct {
+				ProductID     primitive.ObjectID   `bson:"_id"`
+				ColorVariant  models.ColorVariant  `bson:"colorVariant"`
+				Name          string               `bson:"name"`
+				Description   string               `bson:"description"`
+				Price         float64              `bson:"price"`
+				OriginalPrice float64              `bson:"originalPrice"`
+				Brand         string               `bson:"brand"`
+				BrandID       primitive.ObjectID   `bson:"brandId"`
+				CategoryIDs   []primitive.ObjectID `bson:"categoryIds"`
+				Collection    string               `bson:"collection"`
+				IsFlashSale   bool                 `bson:"isFlashSale"`
+				AverageRating float64              `bson:"averageRating"`
+				ReviewCount   int                  `bson:"reviewCount"`
+				CreatedAt     time.Time            `bson:"createdAt"`
+			} `bson:"rows"`
+		}
+		if err := cursor.All(ctx, &facets); err != nil {
+			response := map[string]interface{}{
+				"data":       []models.ColorVariantListItem{},
+				"pagination": map[string]interface{}{},
 			}
-			colorVariantItems = append(colorVariantItems, item)
+			utils.JSONResponse(w, http.StatusOK, response)
+			return
+		}
+
+		colorVariantItems = make([]models.ColorVariantListItem, 0)
+		if len(facets) > 0 {
+			colorVariantItems = make([]models.ColorVariantListItem, 0, len(facets[0].Rows))
+			for _, row := range facets[0].Rows {
+				variant := row.ColorVariant
+				totalInventory := 0
+				for j := range variant.Sizes {
+					variant.Sizes[j].Size = utils.NormalizePersianDigits(variant.Sizes[j].Size)
+					totalInventory += variant.Sizes[j].Quantity
+				}
+				categoryIDStrs := make([]string, len(row.CategoryIDs))
+				for i, id := range row.CategoryIDs {
+					categoryIDStrs[i] = id.Hex()
+				}
+				colorVariantItems = append(colorVariantItems, models.ColorVariantListItem{
+					ProductID:      row.ProductID.Hex(),
+					ColorVariant:   variant,
+					Name:           row.Name,
+					Description:    row.Description,
+					Price:          row.Price,
+					OriginalPrice:  row.OriginalPrice,
+					Brand:          row.Brand,
+					BrandID:        row.BrandID.Hex(),
+					CategoryIDs:    categoryIDStrs,
+					Collection:     row.Collection,
+					IsFlashSale:    row.IsFlashSale,
+					AverageRating:  row.AverageRating,
+					ReviewCount:    row.ReviewCount,
+					CreatedAt:      row.CreatedAt,
+					TotalInventory: totalInventory,
+					InStock:        totalInventory > 0,
+				})
+			}
+			if len(facets[0].Count) > 0 {
+				totalItems = facets[0].Count[0].Total
+			}
 		}
 	}
 
-	// Paginate the flattened variant rows so each page holds exactly
-	// `limit` cards.
-	totalItems := len(colorVariantItems)
 	totalPages := int(math.Ceil(float64(totalItems) / float64(limit)))
-
-	skip := (page - 1) * limit
-	start := skip
-	end := skip + limit
-	if start > totalItems {
-		start = totalItems
-	}
-	if end > totalItems {
-		end = totalItems
-	}
-	paginatedItems := colorVariantItems[start:end]
-
 	// Determine next/prev pages
 	var nextPage *int
 	if page < totalPages {
@@ -1108,7 +1193,7 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := colorVariantsResponse{
-		Data: paginatedItems,
+		Data: colorVariantItems,
 		Pagination: paginationInfo{
 			TotalPages:         totalPages,
 			CurrentPage:        page,
@@ -1120,6 +1205,55 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSONResponse(w, http.StatusOK, resp)
+}
+
+// newColorVariantListItem builds one list-row card from a product and one of
+// its color variants, including the per-card inventory math.
+func newColorVariantListItem(product *models.Product, colorVariant *models.ColorVariant) models.ColorVariantListItem {
+	for j := range colorVariant.Sizes {
+		colorVariant.Sizes[j].Size = utils.NormalizePersianDigits(colorVariant.Sizes[j].Size)
+	}
+	totalInventory := 0
+	for _, size := range colorVariant.Sizes {
+		totalInventory += size.Quantity
+	}
+	categoryIDStrs := make([]string, len(product.CategoryIDs))
+	for i, id := range product.CategoryIDs {
+		categoryIDStrs[i] = id.Hex()
+	}
+	return models.ColorVariantListItem{
+		ProductID:      product.ID.Hex(),
+		ColorVariant:   *colorVariant,
+		Name:           product.Name,
+		Description:    product.Description,
+		Price:          product.Price,
+		OriginalPrice:  product.OriginalPrice,
+		Brand:          product.Brand,
+		BrandID:        product.BrandID.Hex(),
+		CategoryIDs:    categoryIDStrs,
+		Collection:     product.Collection,
+		IsFlashSale:    product.IsFlashSale,
+		AverageRating:  product.AverageRating,
+		ReviewCount:    product.ReviewCount,
+		CreatedAt:      product.CreatedAt,
+		TotalInventory: totalInventory,
+		InStock:        totalInventory > 0,
+	}
+}
+
+// paginateVariantRows slices the flattened variant rows so each page holds
+// exactly `limit` cards.
+func paginateVariantRows(rows []models.ColorVariantListItem, page, limit int) []models.ColorVariantListItem {
+	skip := (page - 1) * limit
+	start := skip
+	end := skip + limit
+	if start > len(rows) {
+		start = len(rows)
+	}
+	if end > len(rows) {
+		end = len(rows)
+	}
+	return rows[start:end]
 }
 
 // AdminListProducts handles GET /api/admin/products
@@ -1246,8 +1380,8 @@ func GetProduct(w http.ResponseWriter, r *http.Request) {
 	collection := db.Database.Collection("products")
 
 	var product models.Product
-	err = collection.FindOne(ctx, bson.M{"_id": objID, "is_active": true}).
-		Decode(&product)
+	err = collection.FindOne(ctx, bson.M{"_id": objID, "is_active": true},
+		options.FindOne().SetProjection(productPublicProjection)).Decode(&product)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusNotFound, "Product not found")
 		return
@@ -1280,7 +1414,9 @@ func SearchProducts(w http.ResponseWriter, r *http.Request) {
 		"name":      bson.M{"$regex": query, "$options": "i"},
 		"is_active": true,
 	}
-	cursor, err := collection.Find(ctx, filter)
+	cursor, err := collection.Find(ctx, filter, options.Find().
+		SetProjection(productPublicProjection).
+		SetLimit(100))
 	if err != nil {
 		// Return empty array instead of error for database connection issues
 		utils.JSONResponse(w, http.StatusOK, []models.Product{})
@@ -1294,14 +1430,6 @@ func SearchProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If no products found, return empty array
-	if len(products) == 0 {
-		utils.JSONResponse(w, http.StatusOK, []models.Product{})
-		return
-	}
-
-	// Try-on images are now in ColorVariants, no need to hide them here
-
 	utils.JSONResponse(w, http.StatusOK, products)
 }
 
@@ -1312,7 +1440,10 @@ func ProductRecommendations(w http.ResponseWriter, r *http.Request) {
 
 	collection := db.Database.Collection("products")
 	filter := bson.M{"is_active": true}
-	opts := options.Find().SetSort(bson.M{"price": 1}).SetLimit(5)
+	opts := options.Find().
+		SetSort(bson.M{"price": 1}).
+		SetLimit(5).
+		SetProjection(productPublicProjection)
 	cursor, err := collection.Find(ctx, filter, opts)
 	if err != nil {
 		// Return empty array instead of error for database connection issues
@@ -2389,7 +2520,8 @@ func GetProductsByCollection(w http.ResponseWriter, r *http.Request) {
 	// Prepare find options (pagination & sorting)
 	opts := options.Find().
 		SetSkip(int64(skip)).
-		SetLimit(int64(limit))
+		SetLimit(int64(limit)).
+		SetProjection(productPublicProjection)
 
 	// Handle sort parameter (mirrors ListProducts sorting logic)
 	sortParam := r.URL.Query().Get("sort")
