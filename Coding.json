@@ -72,7 +72,7 @@
     "0": "Reserved for in-house/default brand",
     "1": "Free-Man",
     "2": "ALA-Land",
-    "3": "Brand 3",
+    "3": "Three mode",
     "4": "Brand 4",
     "5": "Brand 5",
     "6": "Brand 6",
@@ -204,11 +204,6 @@
           "size_type": "clothing"
         },
         {
-          "name": "بارانی/بادگیر (Raincoat/Windbreaker)",
-          "category_code": "33",
-          "size_type": "clothing"
-        },
-        {
           "name": "کت جین (Denim Jacket)",
           "category_code": "34",
           "size_type": "clothing"
@@ -323,6 +318,11 @@
         {
           "name": "جلیقه و وست زنانه (Women's Vest & Waistcoat)",
           "category_code": "59",
+          "size_type": "clothing"
+        },
+        {
+          "name": "کت و بارانی زنانه",
+          "category_code": "33",
           "size_type": "clothing"
         }
       ]
