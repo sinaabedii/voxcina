@@ -60,6 +60,15 @@ services:
       - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1,mongo,docker.arvancloud.ir,gateway.zibal.ir,api.mydigipay.com,fms-gateway-staging.apps.public.okd4.teh-1.snappcloud.io,::1}
       - TRYON_DEV_MODE=${TRYON_DEV_MODE:-false}
       - NESHAN_SERVICE_API_KEY=${NESHAN_SERVICE_API_KEY}
+      # Careers auto-reply email (services/email_service.go). Empty SMTP_PROXY
+      # falls back to HTTPS_PROXY above; unset credentials make the send a no-op.
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - MAIL_FROM=${MAIL_FROM:-info@voxcina.com}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-وکسینا}
+      - SMTP_PROXY=${SMTP_PROXY:-}
     volumes:
       - ./uploads:/app/uploads
     extra_hosts:

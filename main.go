@@ -28,7 +28,17 @@ func main() {
 	migrateAddressDigits := flag.Bool("migrate-address-digits", false, "Rewrite Persian/Arabic-Indic digits to ASCII in stored addresses")
 	migrateProductWeight := flag.Bool("migrate-product-weight", false, "Ensure every product has a weight field, defaulting existing products to 0")
 	dryRun := flag.Bool("dry-run", false, "With a migration flag: report what would change without writing")
+	testEmail := flag.String("test-email", "", "Send a test email to the given address using the SMTP environment configuration, then exit")
 	flag.Parse()
+
+	// Mail checks only need the environment, not MongoDB.
+	if *testEmail != "" {
+		if err := services.NewEmailService().SendTestEmail(*testEmail); err != nil {
+			log.Fatalf("Test email failed: %v", err)
+		}
+		log.Printf("Test email sent to %s", *testEmail)
+		return
+	}
 
 	// Load configuration
 	cfg := config.LoadConfig()

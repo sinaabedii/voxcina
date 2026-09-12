@@ -22,6 +22,7 @@ import (
 
 	"backEnd/db"
 	"backEnd/models"
+	"backEnd/services"
 	"backEnd/utils"
 )
 
@@ -155,10 +156,42 @@ func SubmitCareerApplication(w http.ResponseWriter, r *http.Request) {
 	utils.LogAction("CAREER_SUBMISSION_CREATED",
 		fmt.Sprintf("%s %s from %s", submission.Type, submission.ReferenceCode, clientIP))
 
+	// The applicant receipt is best-effort and asynchronous: the submission is
+	// already stored, so SMTP latency or failure must never delay or fail the
+	// request. The public rate limit also bounds reply abuse.
+	notifyCareerApplicant(*submission)
+
 	utils.JSONResponse(w, http.StatusCreated, map[string]interface{}{
 		"message":        "درخواست شما با موفقیت ثبت شد",
 		"reference_code": submission.ReferenceCode,
 	})
+}
+
+// notifyCareerApplicant emails the confirmation receipt from a goroutine. A
+// mail failure is logged by reference code only (never the address) and is
+// otherwise ignored; the submission remains valid either way.
+func notifyCareerApplicant(submission models.CareerSubmission) {
+	service := services.NewEmailService()
+	if !service.IsConfigured() {
+		return
+	}
+
+	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				utils.LogAction("CAREER_AUTO_REPLY_FAILED",
+					fmt.Sprintf("%s %s panic: %v", submission.Type, submission.ReferenceCode, recovered))
+			}
+		}()
+
+		if err := service.SendCareerConfirmation(submission); err != nil {
+			utils.LogAction("CAREER_AUTO_REPLY_FAILED",
+				fmt.Sprintf("%s %s: %v", submission.Type, submission.ReferenceCode, err))
+			return
+		}
+		utils.LogAction("CAREER_AUTO_REPLY_SENT",
+			fmt.Sprintf("%s %s", submission.Type, submission.ReferenceCode))
+	}()
 }
 
 // buildCareerSubmission validates the text fields of the form and returns a
