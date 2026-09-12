@@ -19,7 +19,6 @@ export interface VariantAIMetadata {
   keywords?: string[];
   tags?: string[];
   occasionTags?: string[];
-  embeddingVector?: number[];
   embeddingModel?: string;
   confidence?: number;
   updatedAt?: string;
@@ -53,12 +52,10 @@ export interface ColorVariantListItem {
   collection?: string;
   is_flash_sale: boolean;
   average_rating?: number;
-  review_count?: number;
   created_at: string;
 
   // Calculated fields
-  totalInventory: number; // Sum of all sizes for this color
-  inStock: boolean;        // True if totalInventory > 0
+  inStock: boolean;        // True if this color has any size in stock
   viewCount?: number;
   rank?: number;
 }
@@ -75,14 +72,10 @@ export interface ProductSearchMetadata {
   keywords: string[];
   tags: string[];
   materialPersian: string;
-  materialEnglish: string;
-  materialTags: string[];
   stylePersian: string;
-  styleEnglish: string;
   occasionTags: string[]
   ;
   season: string[];
-  sizeSystem: string;
   fitType: string;
   /**
    * Free-text English phrases written by the AI metadata generator and fed

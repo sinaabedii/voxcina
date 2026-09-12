@@ -1078,7 +1078,6 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 						"collection":    1,
 						"isFlashSale":   "$is_flash_sale",
 						"averageRating": "$average_rating",
-						"reviewCount":   "$review_count",
 						"createdAt":     "$created_at",
 					}}},
 					{{Key: "$project", Value: bson.M{"colorVariant.ai_metadata": 0}}},
@@ -1113,7 +1112,6 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 				Collection    string               `bson:"collection"`
 				IsFlashSale   bool                 `bson:"isFlashSale"`
 				AverageRating float64              `bson:"averageRating"`
-				ReviewCount   int                  `bson:"reviewCount"`
 				CreatedAt     time.Time            `bson:"createdAt"`
 			} `bson:"rows"`
 		}
@@ -1141,22 +1139,20 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 					categoryIDStrs[i] = id.Hex()
 				}
 				colorVariantItems = append(colorVariantItems, models.ColorVariantListItem{
-					ProductID:      row.ProductID.Hex(),
-					ColorVariant:   variant,
-					Name:           row.Name,
-					Description:    row.Description,
-					Price:          row.Price,
-					OriginalPrice:  row.OriginalPrice,
-					Brand:          row.Brand,
-					BrandID:        row.BrandID.Hex(),
-					CategoryIDs:    categoryIDStrs,
-					Collection:     row.Collection,
-					IsFlashSale:    row.IsFlashSale,
-					AverageRating:  row.AverageRating,
-					ReviewCount:    row.ReviewCount,
-					CreatedAt:      row.CreatedAt,
-					TotalInventory: totalInventory,
-					InStock:        totalInventory > 0,
+					ProductID:     row.ProductID.Hex(),
+					ColorVariant:  variant,
+					Name:          row.Name,
+					Description:   row.Description,
+					Price:         row.Price,
+					OriginalPrice: row.OriginalPrice,
+					Brand:         row.Brand,
+					BrandID:       row.BrandID.Hex(),
+					CategoryIDs:   categoryIDStrs,
+					Collection:    row.Collection,
+					IsFlashSale:   row.IsFlashSale,
+					AverageRating: row.AverageRating,
+					CreatedAt:     row.CreatedAt,
+					InStock:       totalInventory > 0,
 				})
 			}
 			if len(facets[0].Count) > 0 {
@@ -1222,22 +1218,20 @@ func newColorVariantListItem(product *models.Product, colorVariant *models.Color
 		categoryIDStrs[i] = id.Hex()
 	}
 	return models.ColorVariantListItem{
-		ProductID:      product.ID.Hex(),
-		ColorVariant:   *colorVariant,
-		Name:           product.Name,
-		Description:    product.Description,
-		Price:          product.Price,
-		OriginalPrice:  product.OriginalPrice,
-		Brand:          product.Brand,
-		BrandID:        product.BrandID.Hex(),
-		CategoryIDs:    categoryIDStrs,
-		Collection:     product.Collection,
-		IsFlashSale:    product.IsFlashSale,
-		AverageRating:  product.AverageRating,
-		ReviewCount:    product.ReviewCount,
-		CreatedAt:      product.CreatedAt,
-		TotalInventory: totalInventory,
-		InStock:        totalInventory > 0,
+		ProductID:     product.ID.Hex(),
+		ColorVariant:  *colorVariant,
+		Name:          product.Name,
+		Description:   product.Description,
+		Price:         product.Price,
+		OriginalPrice: product.OriginalPrice,
+		Brand:         product.Brand,
+		BrandID:       product.BrandID.Hex(),
+		CategoryIDs:   categoryIDStrs,
+		Collection:    product.Collection,
+		IsFlashSale:   product.IsFlashSale,
+		AverageRating: product.AverageRating,
+		CreatedAt:     product.CreatedAt,
+		InStock:       totalInventory > 0,
 	}
 }
 
@@ -2575,22 +2569,20 @@ func GetProductsByCollection(w http.ResponseWriter, r *http.Request) {
 
 			// Create list item for this color variant
 			item := models.ColorVariantListItem{
-				ProductID:      product.ID.Hex(),
-				ColorVariant:   colorVariant,
-				Name:           product.Name,
-				Description:    product.Description,
-				Price:          product.Price,
-				OriginalPrice:  product.OriginalPrice,
-				Brand:          product.Brand,
-				BrandID:        product.BrandID.Hex(),
-				CategoryIDs:    categoryIDStrs,
-				Collection:     product.Collection,
-				IsFlashSale:    product.IsFlashSale,
-				AverageRating:  product.AverageRating,
-				ReviewCount:    product.ReviewCount,
-				CreatedAt:      product.CreatedAt,
-				TotalInventory: totalInventory,
-				InStock:        totalInventory > 0,
+				ProductID:     product.ID.Hex(),
+				ColorVariant:  colorVariant,
+				Name:          product.Name,
+				Description:   product.Description,
+				Price:         product.Price,
+				OriginalPrice: product.OriginalPrice,
+				Brand:         product.Brand,
+				BrandID:       product.BrandID.Hex(),
+				CategoryIDs:   categoryIDStrs,
+				Collection:    product.Collection,
+				IsFlashSale:   product.IsFlashSale,
+				AverageRating: product.AverageRating,
+				CreatedAt:     product.CreatedAt,
+				InStock:       totalInventory > 0,
 			}
 			colorVariantItems = append(colorVariantItems, item)
 		}

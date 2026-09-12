@@ -31,7 +31,7 @@ type VariantAIMetadata struct {
 	Keywords            []string  `bson:"keywords,omitempty"              json:"keywords,omitempty"`
 	Tags                []string  `bson:"tags,omitempty"                  json:"tags,omitempty"`
 	OccasionTags        []string  `bson:"occasion_tags,omitempty"         json:"occasionTags,omitempty"`
-	EmbeddingVector     []float32 `bson:"embedding_vector,omitempty"      json:"embeddingVector,omitempty"`
+	EmbeddingVector     []float32 `bson:"embedding_vector,omitempty"      json:"-"`
 	EmbeddingModel      string    `bson:"embedding_model,omitempty"       json:"embeddingModel,omitempty"`
 	Confidence          float64   `bson:"confidence,omitempty"            json:"confidence,omitempty"`
 	UpdatedAt           time.Time `bson:"updated_at,omitempty"            json:"updatedAt,omitempty"`
@@ -90,7 +90,6 @@ type Product struct {
 	UpdatedAt     time.Time            `bson:"updated_at"               json:"updated_at"`
 	AverageRating float64              `bson:"average_rating,omitempty" json:"average_rating,omitempty"` // Average rating calculated from reviews
 	ReviewCount   int                  `bson:"review_count,omitempty"   json:"review_count,omitempty"`   // Total number of reviews
-	Reviews       []Review             `bson:"-"                        json:"reviews,omitempty"`        // Populated programmatically, not stored in MongoDB
 
 	// AI Agent Search Optimization (embedded for fast retrieval)
 	SearchMetadata *ProductSearchMetadata `bson:"search_metadata,omitempty" json:"searchMetadata,omitempty"` // AI-optimized search fields
@@ -112,12 +111,10 @@ type ColorVariantListItem struct {
 	Collection    string    `json:"collection,omitempty"`
 	IsFlashSale   bool      `json:"is_flash_sale"`
 	AverageRating float64   `json:"average_rating,omitempty"`
-	ReviewCount   int       `json:"review_count,omitempty"`
 	CreatedAt     time.Time `json:"created_at"`
 
 	// Calculated fields
-	TotalInventory int   `json:"totalInventory"` // Sum of all sizes for this color
-	InStock        bool  `json:"inStock"`        // True if totalInventory > 0
-	ViewCount      int64 `json:"viewCount,omitempty"`
-	Rank           int   `json:"rank,omitempty"`
+	InStock   bool  `json:"inStock"` // True if this color has any size in stock
+	ViewCount int64 `json:"viewCount,omitempty"`
+	Rank      int   `json:"rank,omitempty"`
 }

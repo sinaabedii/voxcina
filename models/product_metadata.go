@@ -16,22 +16,22 @@ type ProductSearchMetadata struct {
 	
 	// Material & Fabric (Persian + English)
 	MaterialPersian string   `bson:"material_persian"      json:"materialPersian"`      // e.g., "پنبه"
-	MaterialEnglish string   `bson:"material_english"      json:"materialEnglish"`      // e.g., "Cotton"
-	MaterialTags    []string `bson:"material_tags"         json:"materialTags"`         // e.g., ["پنبه", "نخی", "cotton"]
+	MaterialEnglish string   `bson:"material_english"      json:"-"`      // e.g., "Cotton"
+	MaterialTags    []string `bson:"material_tags"         json:"-"`         // e.g., ["پنبه", "نخی", "cotton"]
 	
 	// Style & Occasion
 	StylePersian   string   `bson:"style_persian"         json:"stylePersian"`         // e.g., "اسپرت", "رسمی", "کژوال"
-	StyleEnglish   string   `bson:"style_english"         json:"styleEnglish"`         // e.g., "Casual", "Formal", "Sport"
+	StyleEnglish   string   `bson:"style_english"         json:"-"`         // e.g., "Casual", "Formal", "Sport"
 	OccasionTags   []string `bson:"occasion_tags"         json:"occasionTags"`         // e.g., ["روزمره", "مهمانی", "اداری"]
 	
 	// Season & Weather
 	Season         []string `bson:"season"                json:"season"`               // e.g., ["بهار", "تابستان", "spring", "summer"]
 	
 	// Color Information (Persian)
-	ColorsPersian  []ColorMetadata `bson:"colors_persian"    json:"colorsPersian"`        // All available colors with Persian names
+	ColorsPersian  []ColorMetadata `bson:"colors_persian"    json:"-"`        // All available colors with Persian names
 	
 	// Size & Fit
-	SizeSystem     string   `bson:"size_system"           json:"sizeSystem"`           // e.g., "EU", "US", "Asia"
+	SizeSystem     string   `bson:"size_system"           json:"-"`           // e.g., "EU", "US", "Asia"
 	FitType        string   `bson:"fit_type"              json:"fitType"`              // e.g., "Regular", "Slim", "Oversized" / "معمولی", "تنگ", "گشاد"
 
 	// Free-text garment description, written by the AI metadata generator in
@@ -49,15 +49,15 @@ type ProductSearchMetadata struct {
 	AgeGroup       string   `bson:"age_group"             json:"ageGroup"`             // e.g., "بزرگسال", "نوجوان", "کودک"
 	
 	// Semantic Search Support
-	EmbeddingVector []float32 `bson:"embedding_vector,omitempty" json:"embeddingVector,omitempty"` // Vector embedding for semantic search (768 dims for multilingual models)
-	EmbeddingModel  string    `bson:"embedding_model,omitempty"  json:"embeddingModel,omitempty"`  // Model used for embedding (e.g., "paraphrase-multilingual-mpnet-base-v2")
+	EmbeddingVector []float32 `bson:"embedding_vector,omitempty" json:"-"` // Vector embedding for semantic search (768 dims for multilingual models)
+	EmbeddingModel  string    `bson:"embedding_model,omitempty"  json:"-"`  // Model used for embedding (e.g., "paraphrase-multilingual-mpnet-base-v2")
 	
 	// Search Optimization
-	SearchScore    float64   `bson:"search_score,omitempty"    json:"searchScore,omitempty"`    // Computed relevance score
-	PopularityScore float64  `bson:"popularity_score"          json:"popularityScore"`          // Based on views, sales, reviews
+	SearchScore    float64   `bson:"search_score,omitempty"    json:"-"`    // Computed relevance score
+	PopularityScore float64  `bson:"popularity_score"          json:"-"`          // Based on views, sales, reviews
 	
 	// Timestamps
-	UpdatedAt time.Time `bson:"updated_at" json:"updatedAt"`
+	UpdatedAt time.Time `bson:"updated_at" json:"-"`
 }
 
 // ColorMetadata represents color information in both Persian and technical formats

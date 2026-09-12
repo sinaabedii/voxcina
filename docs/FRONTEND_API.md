@@ -84,8 +84,7 @@ Returns paginated color variants as separate items.
       "price": 450000,
       "originalPrice": 550000,
       "brand": "Nike",
-      "inStock": true,
-      "totalInventory": 15
+      "inStock": true
     }
   ],
   "pagination": {

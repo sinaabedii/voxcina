@@ -140,9 +140,7 @@ Customer-facing endpoints for retrieving product information with color variants
       "collection": "تابستان",
       "is_flash_sale": false,
       "average_rating": 4.5,
-      "review_count": 12,
       "created_at": "2024-12-10T10:00:00Z",
-      "totalInventory": 5,
       "inStock": true
     }
   ],
@@ -162,8 +160,7 @@ Customer-facing endpoints for retrieving product information with color variants
 - Each color variant is a separate list item
 - Shows first image from `colorVariant.images`
 - Displays `colorName` as color label
-- Shows `totalInventory` (sum of all sizes)
-- `inStock` = true if totalInventory > 0
+- `inStock` = true if the color has any size with stock
 
 **Product Card:**
 - Click navigates to product detail page with color pre-selected
@@ -391,7 +388,6 @@ Customer-facing endpoints for retrieving product information with color variants
       "colorVariant": {...},
       "name": "تی شرت کلاسیک",
       "collection": "تابستان",
-      "totalInventory": 5,
       "inStock": true
     }
   ],

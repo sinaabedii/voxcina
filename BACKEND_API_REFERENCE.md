@@ -71,7 +71,7 @@ A `Product` holds `color_variants[]`. Each `ColorVariant` has its own images, tr
 }
 ```
 
-`aiMetadata` (`VariantAIMetadata`) is written only by the AI metadata generator, never by hand: `productTypePersian`, `productTypeStandard`, `materialPersian`, `stylePersian`, `patternPersian`, `fitType`, `colorFamily`, `season[]`, `gender`, `keywords[]`, `tags[]`, `occasionTags[]`, `embeddingVector[]`, `embeddingModel`, `confidence`, `updatedAt`.
+`aiMetadata` (`VariantAIMetadata`) is written only by the AI metadata generator, never by hand: `productTypePersian`, `productTypeStandard`, `materialPersian`, `stylePersian`, `patternPersian`, `fitType`, `colorFamily`, `season[]`, `gender`, `keywords[]`, `tags[]`, `occasionTags[]`, `embeddingModel`, `confidence`, `updatedAt`. The `embeddingVector` is stored but never serialized to JSON.
 
 ---
 
@@ -136,9 +136,7 @@ Paginated **color-variant** listing.
       "collection": "تابستان",
       "is_flash_sale": false,
       "average_rating": 4.5,
-      "review_count": 12,
       "created_at": "2026-05-01T10:00:00Z",
-      "totalInventory": 14,          // sum of this color's sizes
       "inStock": true
     }
   ],
@@ -183,8 +181,7 @@ DB/decode failures degrade to `200` with `{"data": [], "pagination": {}}` rather
   "created_at": "...",
   "updated_at": "...",
   "average_rating": 4.5,
-  "review_count": 12,
-  "searchMetadata": { /* ProductSearchMetadata incl. embeddingVector */ }
+  "review_count": 12
 }
 ```
 `404 { "error": "Product not found" }` when missing or `is_active: false`.
@@ -206,7 +203,6 @@ Top 10 most-viewed **variants**, hydrated against the live catalog so deleted pr
       "productId": "664a...",
       "colorVariant": { ... },
       "name": "...", "price": 890000, /* …same shape as /api/products rows… */
-      "totalInventory": 14,
       "inStock": true,
       "viewCount": 4210,
       "rank": 1
