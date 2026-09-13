@@ -295,6 +295,25 @@ func extractUserIDFromToken(r *http.Request) (primitive.ObjectID, bool) {
 // - is_public: can be changed from public to targeted or vice versa
 // - assigned_users: can be modified to add/remove users from targeted promotions
 // - targeting_criteria: can be updated to change auto-selection criteria
+// loadSellerVoucherGuard reports whether the discount with this id belongs to a
+// seller, so the generic admin discount CRUD can refuse to rewrite history.
+//
+// A seller code's split is the contract behind every commission figure ever
+// derived from it, and those figures are computed on demand from this document
+// rather than snapshotted per order. Editing value or seller_share_percent
+// would therefore silently restate what the partner earned on orders that
+// closed months ago; deleting the code would erase the attribution entirely,
+// because orders reference it by code. Both are refused: retire a code by
+// setting valid_to instead.
+func loadSellerVoucherGuard(ctx context.Context, id primitive.ObjectID) (*models.Discount, error) {
+	var existing models.Discount
+	err := db.Database.Collection("discounts").FindOne(ctx, bson.M{"_id": id}).Decode(&existing)
+	if err != nil {
+		return nil, err
+	}
+	return &existing, nil
+}
+
 func UpdateDiscount(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr, ok := vars["id"]
@@ -317,6 +336,30 @@ func UpdateDiscount(w http.ResponseWriter, r *http.Request) {
 			"Invalid request payload: "+err.Error(),
 		)
 		return
+	}
+
+	guardCtx, guardCancel := context.WithTimeout(r.Context(), 10*time.Second)
+	existing, guardErr := loadSellerVoucherGuard(guardCtx, objID)
+	guardCancel()
+	if guardErr != nil {
+		if guardErr == mongo.ErrNoDocuments {
+			utils.ErrorResponse(w, http.StatusNotFound, "Discount not found")
+		} else {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "Error loading discount")
+		}
+		return
+	}
+	if existing.IsSellerVoucher() {
+		for _, frozen := range []string{"code", "type", "value", "seller_id", "seller_share_percent"} {
+			if _, present := rawUpdates[frozen]; present {
+				utils.ErrorResponse(
+					w,
+					http.StatusConflict,
+					"کد فروشنده قابل ویرایش نیست؛ برای غیرفعال کردن، تاریخ انقضا را تغییر دهید",
+				)
+				return
+			}
+		}
 	}
 
 	// Construct update document carefully, only setting fields that are present in the request.
@@ -496,6 +539,15 @@ func DeleteDiscount(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	if existing, guardErr := loadSellerVoucherGuard(ctx, objID); guardErr == nil && existing.IsSellerVoucher() {
+		utils.ErrorResponse(
+			w,
+			http.StatusConflict,
+			"کد فروشنده حذف نمی‌شود؛ سوابق سفارش‌ها به آن وابسته است. برای غیرفعال کردن، تاریخ انقضا را تغییر دهید",
+		)
+		return
+	}
 
 	collection := db.Database.Collection("discounts")
 	result, err := collection.DeleteOne(ctx, bson.M{"_id": objID})

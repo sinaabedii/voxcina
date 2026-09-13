@@ -17,13 +17,13 @@ import (
 )
 
 // adminVoucherItem is the unified shape every voucher/coupon source (admin
-// discount codes — public or user-targeted — and auto-issued negotiated_coupons
-// — try-on "negotiated" or SMS "cart_recovery") is normalized into for the
-// admin vouchers list.
+// discount codes — public, user-targeted, or seller-owned — and auto-issued
+// negotiated_coupons — try-on "negotiated" or SMS "cart_recovery") is
+// normalized into for the admin vouchers list.
 type adminVoucherItem struct {
 	ID                string           `json:"id"`
 	Code              string           `json:"code"`
-	Type              string           `json:"type"` // "public" | "targeted" | "negotiated" | "cart_recovery"
+	Type              string           `json:"type"` // "public" | "targeted" | "seller" | "negotiated" | "cart_recovery"
 	DiscountType      string           `json:"discount_type"`
 	Value             float64          `json:"value"`
 	Status            string           `json:"status"` // "active" | "scheduled" | "expired" | "used" | "depleted"
@@ -104,8 +104,14 @@ func GetAdminVouchers(w http.ResponseWriter, r *http.Request) {
 	includeTargeted := typeFilter == "" || typeFilter == "targeted"
 	includeNegotiated := typeFilter == "" || typeFilter == "negotiated"
 	includeCartRecovery := typeFilter == "" || typeFilter == "cart_recovery"
+	// Seller codes live in the same collection and are public, but they are
+	// their own category here: a partner owns them, and their value is half of
+	// a fixed budget rather than a number an admin chose. Full statistics live
+	// under /api/admin/sellers; this table just stops them masquerading as
+	// ordinary public codes.
+	includeSeller := typeFilter == "" || typeFilter == "seller"
 
-	if includePublic || includeTargeted {
+	if includePublic || includeTargeted || includeSeller {
 		discountsColl := db.Database.Collection("discounts")
 		cursor, err := discountsColl.Find(ctx, bson.M{})
 		if err == nil {
@@ -116,10 +122,16 @@ func GetAdminVouchers(w http.ResponseWriter, r *http.Request) {
 					if d.IsPublic {
 						voucherType = "public"
 					}
+					if d.IsSellerVoucher() {
+						voucherType = "seller"
+					}
 					if voucherType == "public" && !includePublic {
 						continue
 					}
 					if voucherType == "targeted" && !includeTargeted {
+						continue
+					}
+					if voucherType == "seller" && !includeSeller {
 						continue
 					}
 

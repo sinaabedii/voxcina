@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Search, User, Menu, ShoppingBag, Shield, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { isBackOfficeRole } from "@/lib/admin-access";
+import { hasPanel, panelHomeFor } from "@/lib/admin-access";
 import { APP_NAME } from "@/lib/constants";
 import { useCartStore } from "@/store/cart-store";
 import MobileNav from "./MobileNav";
@@ -173,15 +173,15 @@ const HeaderClient: React.FC<HeaderClientProps> = ({ navItems }) => {
               </Link>
               
               <div className="relative flex items-center gap-1">
-                {isAuthenticated && isBackOfficeRole(user?.role) && (
+                {isAuthenticated && hasPanel(user?.role) && (
                   <Link
-                    href="/admin"
+                    href={panelHomeFor(user?.role) ?? "/admin"}
                      className="relative flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 text-yellow-600 transition-all duration-300 hover:bg-yellow-100 hover:text-yellow-700 dark:text-yellow-400 dark:hover:bg-yellow-900 dark:hover:text-yellow-300 group"
-                    aria-label="پنل ادمین"
-                    title="پنل ادمین"
+                    aria-label={user?.role === "seller" ? "پنل فروشنده" : "پنل ادمین"}
+                    title={user?.role === "seller" ? "پنل فروشنده" : "پنل ادمین"}
                   >
                     <Shield className="h-4 w-4 sm:h-[18px] sm:w-[18px] md:h-5 md:w-5" />
-                    <span className="sr-only">پنل ادمین</span>
+                    <span className="sr-only">{user?.role === "seller" ? "پنل فروشنده" : "پنل ادمین"}</span>
                   </Link>
                 )}
                 {isAuthenticated ? (

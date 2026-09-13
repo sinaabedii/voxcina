@@ -41,13 +41,15 @@ import type { AdminStatTone } from "@/components/admin/ui";
 const TYPE_LABELS: Record<AdminVoucherType, string> = {
   public: "عمومی",
   targeted: "هدفمند",
+  seller: "فروشنده",
   negotiated: "مذاکره‌ای (اتاق پرو)",
   cart_recovery: "بازگشت به سبد خرید",
 };
 
-const TYPE_TONES: Record<AdminVoucherType, "info" | "violet" | "warning"> = {
+const TYPE_TONES: Record<AdminVoucherType, "info" | "violet" | "warning" | "success"> = {
   public: "info",
   targeted: "violet",
+  seller: "success",
   negotiated: "violet",
   cart_recovery: "warning",
 };
@@ -293,6 +295,7 @@ export default function AdminVouchersPage() {
               <option value="all">همه</option>
               <option value="public">عمومی</option>
               <option value="targeted">هدفمند</option>
+              <option value="seller">فروشنده</option>
               <option value="negotiated">مذاکره‌ای (اتاق پرو)</option>
               <option value="cart_recovery">بازگشت به سبد خرید</option>
             </AdminSelect>

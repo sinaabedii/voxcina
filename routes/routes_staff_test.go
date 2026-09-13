@@ -82,6 +82,8 @@ var staffReachableWhenAIEnabled = []string{
 // them makes the failure message say what actually leaked.
 var sectionsClosedToStaff = []string{
 	"/api/admin/users",
+	"/api/admin/sellers",
+	"/api/admin/seller-vouchers",
 	"/api/admin/orders",
 	"/api/admin/return-requests",
 	"/api/admin/carts",

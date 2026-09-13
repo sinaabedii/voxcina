@@ -1,6 +1,11 @@
 // Unified admin voucher/coupon listing types (discounts + negotiated_coupons)
 
-export type AdminVoucherType = "public" | "targeted" | "negotiated" | "cart_recovery";
+export type AdminVoucherType =
+  | "public"
+  | "targeted"
+  | "seller"
+  | "negotiated"
+  | "cart_recovery";
 export type AdminVoucherStatus = "active" | "scheduled" | "expired" | "used" | "depleted";
 
 export interface AdminVoucherProduct {

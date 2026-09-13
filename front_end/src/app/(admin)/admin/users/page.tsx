@@ -282,6 +282,7 @@ export default function AdminUsersPage() {
               <option value="all">همه نقش‌ها</option>
               <option value="admin">مدیر</option>
               <option value="staff">کارمند</option>
+              <option value="seller">فروشنده</option>
               <option value="customer">مشتری</option>
             </AdminSelect>
           </AdminField>
@@ -579,6 +580,7 @@ export default function AdminUsersPage() {
           >
             <option value="">انتخاب نقش جدید</option>
             <option value="customer">مشتری</option>
+            <option value="seller">فروشنده</option>
             <option value="staff">کارمند</option>
             <option value="admin">مدیر</option>
           </AdminSelect>

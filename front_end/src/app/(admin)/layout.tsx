@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/store/auth-store";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
-import { canAccessAdminSection, STAFF_HOME } from "@/lib/admin-access";
+import { canAccessAdminSection, panelHomeFor, STAFF_HOME } from "@/lib/admin-access";
 import { APP_NAME } from "@/lib/constants";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -35,6 +35,7 @@ import {
   Briefcase,
   Layers,
   ShieldAlert,
+  Store,
 } from "lucide-react";
 
 /**
@@ -114,6 +115,17 @@ export default function AdminLayout({
       router.replace(STAFF_HOME);
     }
   }, [isAuthorized, staffRedirectPending, router]);
+
+  // Sellers are not back office and the gate above will reject them. Send them
+  // to their own panel rather than to the shopper dashboard, so the header icon
+  // works no matter which URL it was pointed at.
+  useEffect(() => {
+    if (isLoading || isAuthorized) return;
+    const home = panelHomeFor(user?.role);
+    if (home && !home.startsWith("/admin")) {
+      router.replace(home);
+    }
+  }, [isLoading, isAuthorized, user?.role, router]);
   
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -198,6 +210,11 @@ export default function AdminLayout({
       name: "کاربران",
       href: "/admin/users",
       icon: <Users className="w-5 h-5 ml-3" />,
+    },
+    {
+      name: "فروشندگان",
+      href: "/admin/sellers",
+      icon: <Store className="w-5 h-5 ml-3" />,
     },
     {
       name: "فعالیت کاربران",

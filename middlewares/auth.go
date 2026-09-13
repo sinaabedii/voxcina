@@ -190,3 +190,13 @@ func AdminAuthMiddleware(next http.Handler) http.Handler {
 func StaffAuthMiddleware(next http.Handler) http.Handler {
 	return requireRoles("Staff or admin access required", handlers.RoleAdmin, handlers.RoleStaff)(next)
 }
+
+// SellerAuthMiddleware guards the seller panel at /api/seller.
+//
+// Sellers only — deliberately NOT admins. Every endpoint behind it is scoped to
+// the caller's own id, so admitting an admin would just show them their own
+// empty partner panel; admins read a seller's figures through
+// /api/admin/sellers/{id}, which is built from the same code path.
+func SellerAuthMiddleware(next http.Handler) http.Handler {
+	return requireRoles("Seller access required", handlers.RoleSeller)(next)
+}

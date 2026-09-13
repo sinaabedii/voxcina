@@ -1225,11 +1225,11 @@ func UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 
 	// --- Validate Role ---
 	newRole := strings.ToLower(payload.Role)
-	if newRole != RoleCustomer && newRole != RoleStaff && newRole != RoleAdmin {
+	if newRole != RoleCustomer && newRole != RoleSeller && newRole != RoleStaff && newRole != RoleAdmin {
 		utils.ErrorResponse(
 			w,
 			http.StatusBadRequest,
-			"Invalid role specified. Must be 'customer', 'staff' or 'admin'.",
+			"Invalid role specified. Must be 'customer', 'seller', 'staff' or 'admin'.",
 		)
 		return
 	}

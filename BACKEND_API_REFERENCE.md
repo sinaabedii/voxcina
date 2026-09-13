@@ -56,11 +56,70 @@ A `staff` caller hitting an admin-only route gets:
 with `403`. Tickets are the one shared surface: `staff` reads and answers every
 ticket exactly as an admin does (`isSupportAgent` in `handlers/tickets.go`).
 
-`PUT /api/admin/users/{userId}/role` accepts `"customer"`, `"staff"` and
-`"admin"`. Any move **away** from `admin` — including a demotion to `staff` —
-is refused when it would remove the last admin, because `staff` cannot reach
-user management and would leave nobody able to undo it. A role change bumps
+`PUT /api/admin/users/{userId}/role` accepts `"customer"`, `"seller"`,
+`"staff"` and `"admin"`. Any move **away** from `admin` is refused when it
+would remove the last admin, because none of the other roles can reach user
+management and nobody would be able to undo it. A role change bumps
 `token_version`, so the affected session is revoked immediately.
+
+### Sellers (affiliate partners)
+
+`seller` is **not** a back-office role: no route under `/api/admin` admits it.
+Sellers get their own prefix, gated by `middlewares.SellerAuthMiddleware`
+(sellers only — not admins, since every endpoint is scoped to the caller's own
+id):
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/seller/overview` | The whole panel: profile, roll-up, per-code statistics, and the orders behind them |
+| POST | `/api/seller/vouchers` | Mint a code from a split |
+
+Admins read the same figures, built by the same Go function, through:
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/admin/sellers` | Every seller with their codes and statistics, one pass over `orders` |
+| GET | `/api/admin/sellers/{sellerId}` | One seller's full panel |
+| GET | `/api/admin/seller-vouchers` | Flat list of every seller code with its owner |
+
+**The voucher budget.** Every seller code splits one fixed pool,
+`models.SellerVoucherBudgetPercent` = **36%**, between the customer's discount
+(`value`) and the seller's commission (`seller_share_percent`). The split moves
+in whole percentage points and the two halves must sum to exactly 36; both are
+sent on create and validated server-side by `ValidateSellerVoucherSplit`, so a
+client that derives the remainder differently is rejected rather than trusted.
+
+**Codes** are minted server-side as `SLR-` + 8 random hex characters,
+following the `TRYN-`/`CART-` convention of the other machine-issued coupons.
+The suffix is random rather than derived from the partner's name: a code is
+public and should not leak who owns it. Uniqueness is checked against both
+`discounts` and `negotiated_coupons`, because checkout resolves a promo code by
+looking in `negotiated_coupons` first.
+
+**Storage.** Seller codes are ordinary documents in `discounts` with
+`seller_id` and `seller_share_percent` set, so the cart, checkout and
+redemption paths need no special case. In exchange they are frozen: the generic
+`PUT`/`DELETE /api/admin/discounts/{id}` refuse to change `code`, `type`,
+`value` or the seller fields, and refuse to delete the document outright —
+commission is derived from this document long after the order closed, and
+orders reference the code by name. Retire a code by moving `valid_to`.
+
+**Commission.**
+
+```
+subtotal        = Σ (price_at_purchase × quantity)      // merchandise only
+net             = subtotal − discount_amount
+kept_ratio      = (subtotal − approved_return_value) / subtotal
+commission_base = net × kept_ratio                      // 0 unless countable
+commission      = commission_base × seller_share_percent / 100
+```
+
+An order is **countable** when `payment_status == "paid"` and
+`status != "cancelled"` (and not soft-deleted). Unpaid and cancelled orders are
+still reported in the `orders_*` counters so the funnel stays visible, but they
+contribute nothing payable. A partial approved return removes a proportional
+slice of the net, not its full list value, because the discount was spread
+across the whole order.
 
 ### Response envelope
 There is no global envelope. Handlers write the payload directly (`utils.JSONResponse`).

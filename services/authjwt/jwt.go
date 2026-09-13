@@ -35,8 +35,12 @@ import (
 // but only the catalog/content sections (products, categories, brands, blogs,
 // tickets). Everything else under /api/admin stays admin-only — see
 // middlewares.StaffAuthMiddleware and the staff subrouter in routes.
+// RoleSeller is an affiliate/partner role. A seller never reaches /api/admin at
+// all — they get their own panel at /api/seller, where they mint voucher codes
+// and read the statistics for the codes they own.
 const (
 	RoleCustomer = "customer"
+	RoleSeller   = "seller"
 	RoleStaff    = "staff"
 	RoleAdmin    = "admin"
 )

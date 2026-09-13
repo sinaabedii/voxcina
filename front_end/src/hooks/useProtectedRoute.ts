@@ -26,13 +26,17 @@ export interface UseProtectedRouteOptions {
   /**
    * Required role for access ('customer' | 'staff' | 'admin')
    *
-   * Each value names the LOWEST role that passes, not an exact match:
+   * Each value names who passes, not an exact match:
    * 'customer' admits everyone signed in, 'staff' admits staff and admins
    * (the whole back office), 'admin' admits admins only.
    *
+   * 'seller' is the exception and admits ONLY sellers — it is a separate
+   * panel, not a rung on the same ladder, and an admin there would read their
+   * own empty partner figures. Mirrors middlewares.SellerAuthMiddleware.
+   *
    * If not specified, any authenticated user can access.
    */
-  requiredRole?: 'customer' | 'staff' | 'admin';
+  requiredRole?: 'customer' | 'seller' | 'staff' | 'admin';
   
   /**
    * Custom redirect URL for unauthenticated users (default: '/sign-in')
@@ -143,6 +147,11 @@ export function useProtectedRoute(options: UseProtectedRouteOptions = {}): UsePr
     if (requiredRole === 'staff') {
       return isBackOfficeRole(user.role);
     }
+
+    // Sellers only — see the note on requiredRole above.
+    if (requiredRole === 'seller') {
+      return user.role === 'seller';
+    }
     
     // Customer role - any authenticated user except admin-only routes.
     // Back-office roles are included because they still have a shopper account:
@@ -151,6 +160,7 @@ export function useProtectedRoute(options: UseProtectedRouteOptions = {}): UsePr
       return (
         user.role === 'customer' ||
         user.role === 'user' ||
+        user.role === 'seller' ||
         isBackOfficeRole(user.role)
       );
     }
@@ -189,7 +199,7 @@ export function useProtectedRoute(options: UseProtectedRouteOptions = {}): UsePr
    */
   const handleUnauthorizedRedirect = useCallback(() => {
     // Shoppers who wander into a back-office route go to their own dashboard
-    if (requiredRole === 'admin' || requiredRole === 'staff') {
+    if (requiredRole === 'admin' || requiredRole === 'staff' || requiredRole === 'seller') {
       router.push(nonAdminRedirectUrl);
     } else {
       // For other role mismatches, redirect to sign-in

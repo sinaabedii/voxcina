@@ -180,6 +180,17 @@ func NewRouter() *mux.Router {
 	// gorilla/mux keeps walking when a subrouter matches the prefix but none of
 	// its routes match, which is what makes the fallthrough work; the same
 	// pattern already backs the two /orders subrouters below.
+	// Seller (affiliate partner) panel.
+	//
+	// A separate prefix rather than a third /api/admin subrouter, because a
+	// seller is not back office: every endpoint here is scoped to the caller's
+	// own id, and nothing under /api/admin admits the role. Admins read the
+	// same figures through /api/admin/sellers/{sellerId}.
+	sellerRouter := api.PathPrefix("/seller").Subrouter()
+	sellerRouter.Use(middlewares.SellerAuthMiddleware)
+	sellerRouter.HandleFunc("/overview", handlers.GetSellerPanel).Methods(http.MethodGet)
+	sellerRouter.HandleFunc("/vouchers", handlers.CreateSellerVoucher).Methods(http.MethodPost)
+
 	// The two prefix routes are named so routes_staff_test.go can tell, for any
 	// registered admin endpoint, which of the two gates it sits behind.
 	staffRouter := api.PathPrefix("/admin").Name(StaffPrefixRouteName).Subrouter()
@@ -224,6 +235,14 @@ func NewRouter() *mux.Router {
 	staffRouter.HandleFunc("/products/{id}/cart-usage", handlers.GetProductCartUsage).Methods("GET")
 	staffRouter.HandleFunc("/products/{id}", handlers.UpdateProduct).Methods("PUT")
 	staffRouter.HandleFunc("/products/{id}", handlers.DeleteProduct).Methods("DELETE")
+
+	// Seller (affiliate) reporting — sellers, their codes, and the statistics
+	// for both. Admin only: the staff role has no business with commission.
+	// "seller-vouchers" is a literal path and is registered before any
+	// /sellers/{id} wildcard for the reason routes_shadow_test.go asserts.
+	adminRouter.HandleFunc("/sellers", handlers.AdminListSellers).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/seller-vouchers", handlers.AdminListSellerVouchers).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/sellers/{sellerId}", handlers.AdminGetSeller).Methods(http.MethodGet)
 
 	// Admin User Management
 	adminRouter.HandleFunc("/users", handlers.ListUsers).Methods("GET")

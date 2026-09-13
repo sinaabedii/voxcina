@@ -123,3 +123,42 @@ func TestBackOfficeRoleSet(t *testing.T) {
 		}
 	}
 }
+
+func sellerGate(next http.Handler) http.Handler {
+	return roleGate(next, "Seller access required", handlers.RoleSeller)
+}
+
+// TestSellerGateIsSellerOnly pins that the seller panel is not a back door into
+// anything else, and that back-office roles do NOT fall through into it: every
+// seller endpoint is scoped to the caller's own id, so an admin there would
+// read their own empty partner panel instead of the seller's.
+func TestSellerGateIsSellerOnly(t *testing.T) {
+	status, reached := serveWithRole(t, handlers.RoleSeller, sellerGate)
+	if status != http.StatusOK || !reached {
+		t.Errorf("seller on the seller panel: status = %d reached = %v, want 200/true", status, reached)
+	}
+
+	for _, role := range []string{handlers.RoleAdmin, handlers.RoleStaff, handlers.RoleCustomer} {
+		status, reached := serveWithRole(t, role, sellerGate)
+		if status != http.StatusForbidden {
+			t.Errorf("%s on the seller panel: status = %d, want %d", role, status, http.StatusForbidden)
+		}
+		if reached {
+			t.Errorf("%s reached a seller-gated handler", role)
+		}
+	}
+}
+
+// TestSellerIsNotBackOffice keeps the seller role out of the admin dashboard
+// entirely. The frontend mirrors this to route the header icon.
+func TestSellerIsNotBackOffice(t *testing.T) {
+	if handlers.IsBackOfficeRole(handlers.RoleSeller) {
+		t.Error("IsBackOfficeRole(seller) = true; sellers have their own panel and no admin route admits them")
+	}
+	for _, gate := range []func(http.Handler) http.Handler{adminGate, staffGate} {
+		status, reached := serveWithRole(t, handlers.RoleSeller, gate)
+		if status != http.StatusForbidden || reached {
+			t.Errorf("seller against a back-office gate: status = %d reached = %v, want 403/false", status, reached)
+		}
+	}
+}

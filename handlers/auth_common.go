@@ -15,6 +15,7 @@ import (
 // can keep referencing handlers.RoleAdmin etc.
 const (
 	RoleCustomer = authjwt.RoleCustomer
+	RoleSeller   = authjwt.RoleSeller
 	RoleStaff    = authjwt.RoleStaff
 	RoleAdmin    = authjwt.RoleAdmin
 )
@@ -22,6 +23,9 @@ const (
 // IsBackOfficeRole reports whether a role may open the admin dashboard at all.
 // It is deliberately NOT a permission check: staff reaches only the catalog and
 // content sections, which the staff subrouter enforces per route.
+//
+// Sellers are NOT back office. They have their own panel (/api/seller) and no
+// route under /api/admin admits them.
 func IsBackOfficeRole(role string) bool {
 	return role == RoleAdmin || role == RoleStaff
 }

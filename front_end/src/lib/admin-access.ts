@@ -29,12 +29,44 @@ export const STAFF_SECTIONS = [
   "/admin/tickets",
 ] as const;
 
+// Note: /admin/sellers is deliberately absent. Commission is an admin matter.
+
 /**
  * Where a staff member lands instead of the dashboard home. The overview page
  * runs on /api/admin/dashboard-stats, which is admin-only, so sending staff
  * there would just render an error.
  */
 export const STAFF_HOME = "/admin/products";
+
+/** The seller (affiliate partner) panel. Not part of the admin dashboard. */
+export const SELLER_HOME = "/seller";
+
+/**
+ * Where the header's panel icon sends someone, by role.
+ *
+ * One affordance, three destinations: an admin gets the overview, a staff
+ * member their first permitted section, a seller their own panel. Returning
+ * null means the icon is not shown at all.
+ *
+ * /admin and /seller each redirect a caller who does not belong there, so a
+ * typed URL or a stale bookmark lands in the right place too.
+ */
+export function panelHomeFor(role: string | undefined | null): string | null {
+  if (role === "admin") return "/admin";
+  if (role === "staff") return STAFF_HOME;
+  if (role === "seller") return SELLER_HOME;
+  return null;
+}
+
+/** Whether `role` has a panel behind the header icon at all. */
+export function hasPanel(role: string | undefined | null): boolean {
+  return panelHomeFor(role) !== null;
+}
+
+/** Whether `role` is an affiliate partner rather than shop personnel. */
+export function isSellerRole(role: string | undefined | null): boolean {
+  return role === "seller";
+}
 
 export function isBackOfficeRole(role: string | undefined | null): role is BackOfficeRole {
   return role === "admin" || role === "staff";
@@ -64,9 +96,9 @@ export function canAccessAdminSection(
 export const ROLE_LABELS: Record<string, string> = {
   admin: "مدیر",
   staff: "کارمند",
+  seller: "فروشنده",
   customer: "مشتری",
   user: "مشتری",
-  seller: "فروشنده",
 };
 
 export function roleLabel(role: string | undefined | null): string {
@@ -78,8 +110,11 @@ export function roleLabel(role: string | undefined | null): string {
  * Badge tone for a role, ordered by how much the role can do: admin is the
  * loudest, staff sits between it and an ordinary shopper.
  */
-export function roleTone(role: string | undefined | null): "danger" | "warning" | "info" {
+export function roleTone(
+  role: string | undefined | null,
+): "danger" | "warning" | "violet" | "info" {
   if (role === "admin") return "danger";
   if (role === "staff") return "warning";
+  if (role === "seller") return "violet";
   return "info";
 }

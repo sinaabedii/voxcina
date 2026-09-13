@@ -14,12 +14,12 @@ type DiscountApplicability struct {
 
 // TargetingCriteria defines criteria for automatically targeting users for promotions
 type TargetingCriteria struct {
-	HasMobileApp     *bool      `bson:"has_mobile_app,omitempty"     json:"has_mobile_app,omitempty"`     // Filter by mobile app installation
-	MinOrders        *int       `bson:"min_orders,omitempty"         json:"min_orders,omitempty"`         // Minimum number of orders
-	MaxOrders        *int       `bson:"max_orders,omitempty"         json:"max_orders,omitempty"`         // Maximum number of orders
-	InactiveDays     *int       `bson:"inactive_days,omitempty"      json:"inactive_days,omitempty"`      // Users inactive for X days
-	RegisteredAfter  *time.Time `bson:"registered_after,omitempty"   json:"registered_after,omitempty"`   // Registered after date
-	RegisteredBefore *time.Time `bson:"registered_before,omitempty"  json:"registered_before,omitempty"`  // Registered before date
+	HasMobileApp     *bool      `bson:"has_mobile_app,omitempty"     json:"has_mobile_app,omitempty"`    // Filter by mobile app installation
+	MinOrders        *int       `bson:"min_orders,omitempty"         json:"min_orders,omitempty"`        // Minimum number of orders
+	MaxOrders        *int       `bson:"max_orders,omitempty"         json:"max_orders,omitempty"`        // Maximum number of orders
+	InactiveDays     *int       `bson:"inactive_days,omitempty"      json:"inactive_days,omitempty"`     // Users inactive for X days
+	RegisteredAfter  *time.Time `bson:"registered_after,omitempty"   json:"registered_after,omitempty"`  // Registered after date
+	RegisteredBefore *time.Time `bson:"registered_before,omitempty"  json:"registered_before,omitempty"` // Registered before date
 }
 
 // Discount represents a promotional code or discount
@@ -38,9 +38,29 @@ type Discount struct {
 	UpdatedAt      time.Time             `bson:"updated_at,omitempty"    json:"updated_at,omitempty"`
 
 	// Targeting fields for public/targeted promotions
-	IsPublic          bool                 `bson:"is_public"                    json:"is_public"`                              // true = available to all, false = targeted
-	AssignedUsers     []primitive.ObjectID `bson:"assigned_users,omitempty"     json:"assigned_users,omitempty"`               // User IDs who can use targeted promotion
-	TargetingCriteria *TargetingCriteria   `bson:"targeting_criteria,omitempty" json:"targeting_criteria,omitempty"`           // Criteria used to auto-select users
+	IsPublic          bool                 `bson:"is_public"                    json:"is_public"`                    // true = available to all, false = targeted
+	AssignedUsers     []primitive.ObjectID `bson:"assigned_users,omitempty"     json:"assigned_users,omitempty"`     // User IDs who can use targeted promotion
+	TargetingCriteria *TargetingCriteria   `bson:"targeting_criteria,omitempty" json:"targeting_criteria,omitempty"` // Criteria used to auto-select users
+
+	// --- Seller (affiliate) codes -------------------------------------------
+	//
+	// Set only on codes minted by a seller from their own panel. Seller codes
+	// deliberately live in this collection rather than one of their own: they
+	// are ordinary percentage discounts as far as the cart, checkout and
+	// redemption paths are concerned, and duplicating that machinery for a
+	// second code type is how the two drift apart.
+	//
+	// SellerID is the owning user. SellerSharePercent is that seller's
+	// commission, and Value is the customer's discount; the two always add up
+	// to SellerVoucherBudgetPercent. Both are frozen after creation — see
+	// ValidateSellerVoucherSplit and the guard in UpdateDiscount.
+	SellerID           *primitive.ObjectID `bson:"seller_id,omitempty"            json:"seller_id,omitempty"`
+	SellerSharePercent int                 `bson:"seller_share_percent,omitempty" json:"seller_share_percent,omitempty"`
+}
+
+// IsSellerVoucher reports whether this code belongs to a seller.
+func (d *Discount) IsSellerVoucher() bool {
+	return d.SellerID != nil && !d.SellerID.IsZero()
 }
 
 // Note: This model requires the following indexes:
