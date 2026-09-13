@@ -19,6 +19,12 @@ interface ProductCardProps {
   ribbonLabel?: string;
   /** Mark this card's image as the page LCP (eager + preload + fetchPriority=high). */
   priority?: boolean;
+  /**
+   * Override the image `sizes` hint. The default assumes the narrow column this
+   * card is normally rendered in; a page that gives it a wide slot has to say
+   * so, or the browser picks a candidate sized for the narrow one and upscales.
+   */
+  imageSizes?: string;
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({
@@ -26,6 +32,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   glassEffect = false,
   ribbonLabel,
   priority = false,
+  imageSizes = "(max-width: 640px) 45vw, (max-width: 768px) 200px, (max-width: 1024px) 220px, 250px",
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
@@ -146,7 +153,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
               loading={priority ? undefined : "lazy"}
               priority={priority}
               quality={70}
-              sizes="(max-width: 640px) 45vw, (max-width: 768px) 200px, (max-width: 1024px) 220px, 250px"
+              sizes={imageSizes}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-secondary">
@@ -157,7 +164,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
           {/* Out of stock badge - RIGHT side */}
           {!inStock && (
             <div className={`absolute top-2.5 ${item.rank ? "right-14" : "right-2.5"}`}>
-              <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[8px] sm:text-[10px] font-medium rounded-full bg-foreground/80 text-background md:backdrop-blur-sm shadow-soft">
+              <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] font-medium rounded-full bg-foreground/80 text-background md:backdrop-blur-sm shadow-soft">
                 ناموجود
               </span>
             </div>
@@ -166,7 +173,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
           {/* Discount badge - LEFT side */}
           {discount > 0 && (
             <div className="absolute top-2.5 left-2.5">
-              <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[8px] sm:text-xs font-bold rounded-full bg-destructive text-destructive-foreground shadow-soft">
+              <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-xs font-bold rounded-full bg-destructive text-destructive-foreground shadow-soft">
                 {discount}٪ تخفیف
               </span>
             </div>
@@ -228,7 +235,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
               <div className="flex items-center gap-1 bg-card border border-border/10 shadow-medium rounded-full pl-1.5 pr-2 py-0.5 sm:pl-2 sm:pr-2.5 sm:py-1">
                 <Star className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-warning fill-warning" />
                 <span className="text-[10px] sm:text-xs font-bold text-foreground">{rating.toFixed(1)}</span>
-                <span className="flex items-center gap-0.5 text-[8px] sm:text-[10px] text-muted-foreground border-r border-border/30 pr-1.5 mr-0.5">
+                <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground border-r border-border/30 pr-1.5 mr-0.5">
                   نظرات
                   <ChevronLeft className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                 </span>
@@ -236,18 +243,18 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           )}
 
-          <p className="line-clamp-2 text-[11px] font-bold text-foreground transition-colors duration-300 group-hover:text-primary sm:text-sm">
+          <p className="line-clamp-2 text-xs font-bold text-foreground transition-colors duration-300 group-hover:text-primary sm:text-sm">
             {name}
           </p>
-          <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{colorName} · {brand}</p>
+          <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">{colorName} · {brand}</p>
           {item.viewCount !== undefined && (
-            <p className="mt-1 text-[10px] font-medium text-primary/70">
+            <p className="mt-1 text-[11px] font-medium text-primary/70">
               {new Intl.NumberFormat("fa-IR").format(item.viewCount)} بازدید
             </p>
           )}
 
           {(ribbonLabel || isNew) && (
-            <span className="badge badge-primary mt-2 self-start text-[9px] sm:text-xs">
+            <span className="badge badge-primary mt-2 self-start text-[10px] sm:text-xs">
               {ribbonLabel || "جدید"}
             </span>
           )}
@@ -268,14 +275,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
           <div className="mt-auto flex items-end justify-between gap-2 pt-3">
             <div className="flex min-w-0 flex-col">
               <span
-                className={`whitespace-nowrap text-[11px] font-bold sm:text-base md:text-lg ${discount > 0 ? "text-primary" : "text-foreground"
+                className={`whitespace-nowrap text-xs font-bold sm:text-base md:text-lg ${discount > 0 ? "text-primary" : "text-foreground"
                   }`}
               >
                 {formatPrice(price)}
               </span>
 
               {discount > 0 && (
-                <span className="whitespace-nowrap text-[9px] sm:text-xs text-muted-foreground line-through">
+                <span className="whitespace-nowrap text-[10px] sm:text-xs text-muted-foreground line-through">
                   {formatPrice(originalPrice)}
                 </span>
               )}
@@ -290,7 +297,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
             ) : (
-              <span className="text-[9px] sm:text-xs text-muted-foreground">
+              <span className="text-[10px] sm:text-xs text-muted-foreground">
                 {hasConcreteColorVariant ? "ناموجود" : "رنگ مشخص ندارد"}
               </span>
             )}

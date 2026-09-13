@@ -60,33 +60,46 @@ export default function TrendingPageClient({ items }: TrendingPageClientProps) {
         </div>
       </motion.header>
 
-      <div className="mb-8 grid gap-6 lg:grid-cols-[1.15fr_1fr] lg:items-stretch">
+      <div className="mb-8 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-[1.15fr_1fr] lg:items-stretch">
         {/* Wraps the `priority` featured card — the LCP element here — so it
             animates x only; an opacity fade would disqualify it until
-            framer-motion had hydrated. */}
+            framer-motion had hydrated.
+
+            The framing is a desktop treatment: below lg the featured card is an
+            ordinary cell of the grid, and the frame's padding would only make it
+            narrower than the card beside it. A ring carries the same "رتبه اول"
+            emphasis there without adding height that would break row alignment. */}
         <motion.div
           initial={{ x: 18 }}
           animate={{ x: 0 }}
-          className="relative rounded-[2rem] border border-primary/10 bg-gradient-to-br from-primary/10 via-card to-card p-4 shadow-medium md:p-6"
+          className="relative rounded-2xl ring-1 ring-yellow-400/70 lg:rounded-[2rem] lg:border lg:border-primary/10 lg:bg-gradient-to-br lg:from-primary/10 lg:via-card lg:to-card lg:p-6 lg:shadow-medium lg:ring-0"
         >
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 hidden items-center justify-between lg:flex">
             <span className="rounded-full bg-yellow-400 px-4 py-1.5 text-sm font-black text-yellow-950">رتبه اول</span>
             <span className="flex items-center gap-1.5 text-sm font-bold text-muted-foreground">
               <Eye className="h-4 w-4 text-primary" />
               {new Intl.NumberFormat("fa-IR").format(featured.viewCount || 0)} بازدید
             </span>
           </div>
-          <ProductCard item={featured} glassEffect priority />
+          <ProductCard
+            item={featured}
+            glassEffect
+            priority
+            imageSizes="(max-width: 640px) 45vw, (max-width: 1024px) 46vw, 620px"
+          />
         </motion.div>
 
-        <div className="grid grid-cols-2 gap-4 sm:gap-6">
+        {/* `contents` dissolves this wrapper below lg so the three runners-up
+            become cells of the grid above, giving two clean rows of two. As its
+            own grid it produced a 2 + 1 split, and the odd one out had to span
+            the full width — a lone stretched card with phone-sized type in it. */}
+        <div className="contents lg:grid lg:grid-cols-2 lg:gap-6">
           {remaining.slice(0, 3).map((item, index) => (
             <motion.div
               key={`${item.productId}-${item.colorVariant.variantId || index}`}
               initial={{ y: 18 }}
               animate={{ y: 0 }}
               transition={{ delay: 0.08 + index * 0.06 }}
-              className={index === 2 ? "col-span-2 sm:col-span-1" : ""}
             >
               <ProductCard item={item} glassEffect />
             </motion.div>
@@ -100,7 +113,7 @@ export default function TrendingPageClient({ items }: TrendingPageClientProps) {
             <h2 className="text-xl font-black text-foreground md:text-2xl">ادامه فهرست محبوب‌ها</h2>
             <span className="text-sm text-muted-foreground">{items.length} طرح منتخب</span>
           </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:gap-6 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-5">
             {remaining.slice(3).map((item, index) => (
               <motion.div
                 key={`${item.productId}-${item.colorVariant.variantId || index + 3}`}

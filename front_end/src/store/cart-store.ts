@@ -181,6 +181,13 @@ interface CartStore {
   // Cart operations
   fetchCart: () => Promise<void>;           // Fetch backend cart (no merge)
   syncCartWithBackend: () => Promise<void>; // Merge local cart with backend
+  /**
+   * Adds one product+variant+size. Resolves to whether the piece is actually
+   * in a cart: true for a backend-confirmed add (or a guest's local add /
+   * network-offline fallback), false when the server answered and refused —
+   * in which case the server's message is toasted and nothing is fabricated.
+   * A dropped duplicate call (guard busy) also reports false.
+   */
   addItem: (
     product: Product,
     quantity: number,
@@ -188,7 +195,7 @@ interface CartStore {
     color?: string,
     colorName?: string,
     variantId?: string
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   updateItemQuantity: (
     productId: string, 
     quantity: number,
@@ -554,10 +561,10 @@ export const useCartStore = create<CartStore>()(
           const error = "رنگ مشخص و سایز محصول برای افزودن به سبد الزامی است";
           set({ error, isLoading: false });
           toast.error(error);
-          return;
+          return false;
         }
         // Task 9.4: Use unified operation guard
-        await withOperationGuard('addItem', async () => {
+        const outcome = await withOperationGuard('addItem', async (): Promise<boolean> => {
           const { cart: currentLocalCart } = get();
           const updateCartFromBackend = createUpdateCartFromBackendResponse(set);
           set({ isLoading: true, error: null });
@@ -575,11 +582,19 @@ export const useCartStore = create<CartStore>()(
               );
               
               if (!result.ok) {
-                throw new Error(result.error || 'Failed to add item to backend cart');
+                // The server answered and refused — that is the authoritative
+                // answer. Surface its message and add nothing: a fabricated
+                // local entry would vanish on the next server fetch and the
+                // caller would go on believing the piece is in the cart.
+                const message = result.error || 'Failed to add item to backend cart';
+                set({ isLoading: false, error: message });
+                toast.error(message);
+                return false;
               }
               
               // Task 9.3: Use helper for cart state update
               updateCartFromBackend(result.data);
+              return true;
             } else {
               // Local add logic (remains the same)
               const existingItemIndex = currentLocalCart.items.findIndex(
@@ -611,10 +626,13 @@ export const useCartStore = create<CartStore>()(
                 isLoading: false,
               });
               get().calculateSummary(); // Calculate summary for local changes
+              return true;
             }
           } catch (error) { 
             console.error('Error adding item:', error);
-            // Add to local cart as fallback so item isn't silently lost
+            // Network-level failure only (a server rejection returns above,
+            // it never throws): the request never reached the cart backend,
+            // so the offline fallback keeps the item from being silently lost.
             const currentLocalCart = get().cart;
             const existingItemIndex = currentLocalCart.items.findIndex(
               item => cartSelectionMatches(item, product.id, size, resolvedColor, resolvedColorName, resolvedVariantId)
@@ -645,8 +663,12 @@ export const useCartStore = create<CartStore>()(
               isLoading: false,
             });
             get().calculateSummary(); // Calculate summary for local changes
+            return true;
           }
         });
+        // A duplicate dropped by the guard was never attempted — report it as
+        // not added rather than claiming an outcome nobody made.
+        return outcome ?? false;
       },
 
       updateItemQuantity: async (productId, quantity, size, color, colorName, variantId) => {

@@ -66,13 +66,19 @@ export default function CollectionBundle({ collection, items }: CollectionBundle
     if (chosen.length === 0 || isAdding) return;
     setIsAdding(true);
 
+    let added = 0;
     try {
       // Sequential on purpose: the cart store guards each operation name and
       // silently drops a second addItem while one is still in flight.
+      // addItem resolves to whether the piece really landed in a cart; a
+      // server refusal has already toasted the server's own message, so it
+      // only needs to stay out of the count here.
       for (const item of chosen) {
         const size = picked[item.key];
         if (!size) continue;
-        await addItem(item.product, 1, size, item.color, item.colorName, item.variantId);
+        const ok = await addItem(item.product, 1, size, item.color, item.colorName, item.variantId);
+        if (!ok) continue;
+        added += 1;
         activityTracker.trackAddToCart(item.productId, item.name, {
           source: "collection_bundle",
           collectionId: collection.id,
@@ -83,8 +89,15 @@ export default function CollectionBundle({ collection, items }: CollectionBundle
         });
       }
 
-      setAddedCount(chosen.length);
-      toast.success(`${faNumber(chosen.length)} قطعه از این ست به سبد خرید اضافه شد`);
+      setAddedCount(added);
+      const refused = chosen.length - added;
+      if (refused === 0) {
+        toast.success(`${faNumber(added)} قطعه از این ست به سبد خرید اضافه شد`);
+      } else if (added > 0) {
+        toast.info(`${faNumber(added)} قطعه اضافه شد، ${faNumber(refused)} قطعه به دلیل موجودی به سبد اضافه نشد`);
+      } else {
+        toast.error("هیچ قطعه‌ای به سبد خرید اضافه نشد");
+      }
     } finally {
       setIsAdding(false);
     }
