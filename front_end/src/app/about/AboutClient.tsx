@@ -1,13 +1,16 @@
 "use client";
 
 import React from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { MapPin, Mail, Phone } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 
 export default function AboutClient() {
+  const reduceMotion = useReducedMotion();
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -148,19 +151,41 @@ export default function AboutClient() {
                       />
 
                       <div className="absolute inset-8 sm:inset-10 md:inset-12 lg:inset-14 xl:inset-16 bg-gradient-to-br from-voxcina-blue to-voxcina-darkBlue rounded-full flex items-center justify-center shadow-2xl">
+                        {/* Float. */}
                         <motion.div
-                          animate={{
-                            scale: [1, 1.1, 1],
-                            rotate: [0, 180, 360],
-                          }}
+                          animate={
+                            reduceMotion ? undefined : { y: [-6, 6, -6] }
+                          }
                           transition={{
-                            duration: 8,
+                            duration: 4,
                             repeat: Infinity,
                             ease: "easeInOut",
                           }}
-                          className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white"
+                          className="w-[68%]"
                         >
-                          V
+                          {/* Spin. Linear and continuous, so it turns at a
+                              steady rate instead of easing to a stop twice a
+                              cycle. 68% of the circle keeps the mark clear of
+                              the rim: it is about 3:1, so its diagonal is only
+                              a few percent wider than itself, and anything
+                              near 100% would clip on the way round. */}
+                          <motion.div
+                            animate={reduceMotion ? undefined : { rotate: 360 }}
+                            transition={{
+                              duration: 18,
+                              repeat: Infinity,
+                              ease: "linear",
+                            }}
+                          >
+                            <Image
+                              src="/images/Logo/icon-white.webp"
+                              alt="لوگوی وکسینا"
+                              width={540}
+                              height={177}
+                              priority
+                              className="w-full h-auto drop-shadow-lg"
+                            />
+                          </motion.div>
                         </motion.div>
                       </div>
 
