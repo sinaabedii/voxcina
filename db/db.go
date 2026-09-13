@@ -39,12 +39,18 @@ func Connect(cfg *config.Config) *mongo.Database {
 	// treated a missing phone as null and collided on the second such user, so
 	// it is dropped first. Never write an empty-string phone: the partial
 	// filter excludes "" and a user with phone="" would be unindexed.
+	// The filter uses only operators allowed in a partialFilterExpression
+	// ($and/$type/$gt): $ne is rejected by the server with
+	// "Expression not supported in partial index".
 	usersCollection := Database.Collection("users")
 	_, _ = usersCollection.Indexes().DropOne(context.Background(), "phone_1")
 	phoneIndexModel := mongo.IndexModel{
 		Keys: bson.D{{Key: "phone", Value: 1}},
 		Options: options.Index().SetUnique(true).SetName("phone_1_partial").
-			SetPartialFilterExpression(bson.M{"phone": bson.M{"$type": "string", "$ne": ""}}),
+			SetPartialFilterExpression(bson.M{"$and": []bson.M{
+				{"phone": bson.M{"$type": "string"}},
+				{"phone": bson.M{"$gt": ""}},
+			}}),
 	}
 	_, err = usersCollection.Indexes().CreateOne(context.Background(), phoneIndexModel)
 	if err != nil {
