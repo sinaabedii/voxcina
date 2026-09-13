@@ -27,6 +27,7 @@ func main() {
 	migrateAvatars := flag.Bool("migrate-avatars", false, "Backfill the avatar field for existing categories")
 	migrateAddressDigits := flag.Bool("migrate-address-digits", false, "Rewrite Persian/Arabic-Indic digits to ASCII in stored addresses")
 	migrateProductWeight := flag.Bool("migrate-product-weight", false, "Ensure every product has a weight field, defaulting existing products to 0")
+	migrateAccountTypes := flag.Bool("migrate-account-types", false, "Backfill users.account_type for the external-service integration (reports phone-less documents)")
 	dryRun := flag.Bool("dry-run", false, "With a migration flag: report what would change without writing")
 	testEmail := flag.String("test-email", "", "Send a test email to the given address using the SMTP environment configuration, then exit")
 	flag.Parse()
@@ -148,6 +149,12 @@ func main() {
 		os.Exit(productWeightMigrationEntryPoint(database, *dryRun))
 	}
 
+	// Backfill users.account_type for the external-service integration if requested
+	if *migrateAccountTypes {
+		log.Println("Running account-type migration...")
+		os.Exit(accountTypesMigrationEntryPoint(database, *dryRun))
+	}
+
 	// Configure JWT before registering the HTTP router. Authentication must
 	// fail closed when JWT_SECRET is missing or weak rather than silently using
 	// a hardcoded development key.
@@ -155,6 +162,12 @@ func main() {
 		log.Fatal(err)
 	}
 	handlers.InitRefreshTokenService(database)
+
+	// Outbound webhook dispatcher: delivers the external-service outbox
+	// (payment.paid, order.status_changed, ...) with retries and
+	// auto-disables webhooks that keep failing.
+	stopOutboundDispatcher := services.StartOutboundEventDispatcher(database)
+	defer stopOutboundDispatcher()
 
 	// Setup API router
 	apiRouter := routes.NewRouter()

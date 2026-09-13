@@ -124,6 +124,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		Addresses:    []models.Address{}, // Initialize with empty slice
 		Role:         RoleCustomer,       // Default role
 		IsActive:     true,               // Default to active
+		AccountType:  models.AccountTypeRegistered,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -284,6 +285,9 @@ func GetProfile(w http.ResponseWriter, r *http.Request) {
 	// New response structure
 	response := make(map[string]interface{})
 	response["user_data"] = user // Keep all other user data
+	// External (bot-channel) accounts start without a password; the profile
+	// page shows a "set password" form when this is false.
+	response["has_password"] = user.HasPassword()
 
 	if len(user.Addresses) == 0 {
 		response["has_addresses"] = false
@@ -510,11 +514,11 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if payload.CurrentPassword == "" || payload.NewPassword == "" {
+	if payload.NewPassword == "" {
 		utils.ErrorResponse(
 			w,
 			http.StatusBadRequest,
-			"Current password and new password are required",
+			"New password is required",
 		)
 		return
 	}
@@ -538,9 +542,20 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(payload.CurrentPassword)); err != nil {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "Current password is incorrect")
-		return
+	// An external (bot-channel) account starts with NO password at all: its
+	// first password is a SET, not a change, so the current-password check is
+	// skipped (the bearer token already authenticates the caller). Accounts
+	// that have a password keep the full verification path.
+	hasExistingPassword := user.HasPassword()
+	if hasExistingPassword {
+		if payload.CurrentPassword == "" {
+			utils.ErrorResponse(w, http.StatusBadRequest, "Current password is required")
+			return
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(payload.CurrentPassword)); err != nil {
+			utils.ErrorResponse(w, http.StatusUnauthorized, "Current password is incorrect")
+			return
+		}
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(payload.NewPassword), bcrypt.DefaultCost)
@@ -553,9 +568,13 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updateDoc := bson.M{
-		"$set": bson.M{"password_hash": string(hashedPassword), "updated_at": time.Now()},
-		"$inc": bson.M{"token_version": 1},
+	updateSet := bson.M{"password_hash": string(hashedPassword), "updated_at": time.Now()}
+	updateDoc := bson.M{"$set": updateSet}
+	// Changing an EXISTING password revokes every session (token_version bump
+	// + refresh revocation). The FIRST password set must not: it would kill
+	// the bot/external sessions that are the account's only live logins.
+	if hasExistingPassword {
+		updateDoc["$inc"] = bson.M{"token_version": 1}
 	}
 	result, err := userCollection.UpdateOne(ctx, bson.M{"_id": userID}, updateDoc)
 	if err != nil {
@@ -572,14 +591,21 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Password changes invalidate all existing sessions. The token_version
-	// increment above rejects access tokens; revoke the persisted refresh-token
-	// records so they cannot be used to create another session.
-	if err := GetRefreshTokenService().RevokeAllForUser(ctx, userID, false); err != nil {
-		log.Printf("Warning: password changed but refresh-token revocation failed for %v: %v", userID, err)
+	// A password CHANGE invalidates all existing sessions: the token_version
+	// increment above rejects access tokens, and the persisted refresh-token
+	// records are revoked so they cannot start a new session. A first-time
+	// password SET deliberately skips both — the bearer token is already the
+	// proof of identity, and revoking would kill the bot/external sessions
+	// that are the account's only live logins.
+	if hasExistingPassword {
+		if err := GetRefreshTokenService().RevokeAllForUser(ctx, userID, false); err != nil {
+			log.Printf("Warning: password changed but refresh-token revocation failed for %v: %v", userID, err)
+		}
+		utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Password changed successfully"})
+		return
 	}
 
-	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Password changed successfully"})
+	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "Password set successfully"})
 }
 
 // (Logout moved to auth_refresh_logout.go — server-side refresh-token revocation

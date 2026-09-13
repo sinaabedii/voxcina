@@ -44,6 +44,23 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/auth/send-otp", handlers.SendLoginOTP).Methods(http.MethodPost)
 	api.HandleFunc("/auth/check-otp", handlers.VerifyLoginOTP).Methods(http.MethodPost)
 
+	// External service API (server-to-server).
+	//
+	// Authenticated by the X-API-Key header (middlewares.ServiceAuthMiddleware),
+	// NOT by a user JWT: the bot backend is a confidential client that speaks
+	// for its own platform users. Every route validates the request body's
+	// provider against the authenticated service's provider.
+	api.Handle("/auth/external/token", middlewares.ServiceAuthMiddleware("identity:exchange")(http.HandlerFunc(handlers.ExternalTokenExchange))).
+		Methods(http.MethodPost)
+	api.Handle("/auth/external/phone/contact", middlewares.ServiceAuthMiddleware("identity:bind_phone")(http.HandlerFunc(handlers.ExternalPhoneContact))).
+		Methods(http.MethodPost)
+	api.Handle("/auth/external/phone/send-otp", middlewares.ServiceAuthMiddleware("identity:bind_phone")(http.HandlerFunc(handlers.ExternalPhoneSendOTP))).
+		Methods(http.MethodPost)
+	api.Handle("/auth/external/phone/verify-otp", middlewares.ServiceAuthMiddleware("identity:bind_phone")(http.HandlerFunc(handlers.ExternalPhoneVerifyOTP))).
+		Methods(http.MethodPost)
+	api.Handle("/auth/external/link", middlewares.ServiceAuthMiddleware("identity:exchange")(http.HandlerFunc(handlers.ExternalLinkAccount))).
+		Methods(http.MethodPost)
+
 	// Authenticated User routes
 	userAuthRouter := api.PathPrefix("/users").Subrouter()
 	userAuthRouter.Use(middlewares.AuthMiddleware)
@@ -58,6 +75,14 @@ func NewRouter() *mux.Router {
 	userAuthRouter.HandleFunc("/vouchers", handlers.GetUserVouchers).Methods(http.MethodGet)
 	// User's own return requests across all orders
 	userAuthRouter.HandleFunc("/return-requests", handlers.ListUserReturnRequests).Methods(http.MethodGet)
+	// Connected external accounts (bot/channel identities) + the single-use
+	// code that lets a bot claim this account.
+	userAuthRouter.HandleFunc("/link-code", handlers.CreateUserLinkCode).
+		Methods(http.MethodPost)
+	userAuthRouter.HandleFunc("/linked-accounts", handlers.ListLinkedAccounts).
+		Methods(http.MethodGet)
+	userAuthRouter.HandleFunc("/linked-accounts/{id}", handlers.UnlinkExternalIdentity).
+		Methods(http.MethodDelete)
 	// Address Management for authenticated user
 	userAuthRouter.HandleFunc("/addresses", handlers.GetUserAddresses).
 		Methods(http.MethodGet)
@@ -216,6 +241,19 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/shop-collections/{id}", handlers.AdminGetShopCollection).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/shop-collections/{id}", handlers.AdminUpdateShopCollection).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/shop-collections/{id}", handlers.AdminDeleteShopCollection).Methods(http.MethodDelete)
+
+	// External service management (bot/channel integrations): CRUD, key
+	// rotation with a grace window, webhook test delivery, linked identities
+	// and the config audit trail.
+	adminRouter.HandleFunc("/external-services", handlers.AdminListExternalServices).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/external-services", handlers.AdminCreateExternalService).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/external-services/{id}", handlers.AdminGetExternalService).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/external-services/{id}", handlers.AdminUpdateExternalService).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/external-services/{id}", handlers.AdminDeleteExternalService).Methods(http.MethodDelete)
+	adminRouter.HandleFunc("/external-services/{id}/rotate-key", handlers.AdminRotateExternalServiceKey).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/external-services/{id}/webhooks/test", handlers.AdminTestExternalServiceWebhook).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/external-services/{id}/identities", handlers.AdminListExternalServiceIdentities).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/external-services/{id}/audit", handlers.AdminGetExternalServiceAudit).Methods(http.MethodGet)
 
 	// Public reads of the same curated collections (active only).
 	api.HandleFunc("/shop-collections", handlers.ListShopCollections).Methods(http.MethodGet)

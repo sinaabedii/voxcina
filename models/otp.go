@@ -14,8 +14,12 @@ type OTP struct {
 	FirstName string             `bson:"first_name"    json:"first_name"` // User's first name (Persian)
 	LastName  string             `bson:"last_name"     json:"last_name"`  // User's last name (Persian)
 	Birthday  *time.Time         `bson:"birthday,omitempty" json:"-"`     // User's birthday (optional, not exposed in JSON)
-	Purpose   string             `bson:"purpose"       json:"purpose"`    // "signup", "login", "reset_password"
-	Verified  bool               `bson:"verified"      json:"verified"`   // Whether OTP has been verified
+	Purpose   string             `bson:"purpose"       json:"purpose"`    // "signup", "login", "reset_password", "bind_phone"
+	// UserID pins a bind_phone OTP to the user it was requested for, so a
+	// verified code can only promote that identity — not whichever account
+	// queries the record first.
+	UserID   primitive.ObjectID `bson:"user_id,omitempty" json:"-"`
+	Verified bool               `bson:"verified"      json:"verified"` // Whether OTP has been verified
 	// VerificationToken is a short-lived, one-time grant created after a
 	// successful login OTP check. It is never exposed in normal OTP responses.
 	VerificationToken string    `bson:"verification_token,omitempty" json:"-"`
@@ -29,6 +33,9 @@ const (
 	OTPPurposeSignup        = "signup"
 	OTPPurposeLogin         = "login"
 	OTPPurposeResetPassword = "reset_password"
+	// OTPPurposeBindPhone verifies control of a phone for an external
+	// (bot-channel) identity. It is independent of the signup/login purposes.
+	OTPPurposeBindPhone = "bind_phone"
 )
 
 // MaxOTPAttempts is the maximum number of verification attempts allowed

@@ -109,8 +109,13 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		// Token is valid. Set user ID and the current role from MongoDB.
+		// channel carries the optional sales-channel attribution claim
+		// ("telegram", ...) stamped by the external-service exchange; it is
+		// empty for every ordinary session. Checkout stamps it into
+		// order.placed_via.
 		reqCtx := context.WithValue(r.Context(), "userID", claims.UserID)
 		reqCtx = context.WithValue(reqCtx, "role", user.Role)
+		reqCtx = context.WithValue(reqCtx, "channel", claims.Channel)
 
 		next.ServeHTTP(w, r.WithContext(reqCtx))
 	})

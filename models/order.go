@@ -56,6 +56,7 @@ type Order struct {
 	TaxAmount                   float64              `bson:"tax_amount"                 json:"tax_amount"`                               // Tax included in the order total
 	DiscountAmount              float64              `bson:"discount_amount"            json:"discount_amount"`                          // Discount amount applied
 	DiscountCode                string               `bson:"discount_code,omitempty"    json:"discount_code,omitempty"`                  // Discount code used
+	PlacedVia                   string               `bson:"placed_via,omitempty"       json:"placed_via,omitempty"`                     // Sales channel attribution: "web" | "telegram" | "bale" | ... (from the JWT channel claim)
 	ShippingAddress             Address              `bson:"shipping_address"           json:"shipping_address"`                         // Delivery address, uses Address struct from user.go
 	Status                      string               `bson:"status"                     json:"status"`                                   // Values: "pending", "shipped", "delivered", "cancelled", etc.
 	StatusText                  string               `bson:"status_text"                json:"status_text"`                              // Localized status description (e.g., Persian)

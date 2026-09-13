@@ -73,12 +73,15 @@ func normalizeClient(client string) string {
 // user is active and pass their current token_version. `client` is the
 // X-Client-Platform value captured at login; it fixes the pair's lifetime and
 // rotation policy ("android" = permanent, non-rotating; anything else = web).
+// The optional variadic channel stamps the access token's JWT `channel` claim
+// (sales-channel attribution); existing callers omit it.
 func (s *RefreshTokenService) IssueNewPair(
 	ctx context.Context,
 	userID primitive.ObjectID,
 	email, role string,
 	tokenVersion int64,
 	client string,
+	channel ...string,
 ) (TokenPair, error) {
 	jti, err := authjwt.NewJTI()
 	if err != nil {
@@ -88,7 +91,11 @@ func (s *RefreshTokenService) IssueNewPair(
 	if err != nil {
 		return TokenPair{}, fmt.Errorf("family gen: %w", err)
 	}
-	return s.persistPair(ctx, userID, email, role, tokenVersion, family, jti, client)
+	channelValue := ""
+	if len(channel) > 0 {
+		channelValue = channel[0]
+	}
+	return s.persistPair(ctx, userID, email, role, tokenVersion, family, jti, client, channelValue)
 }
 
 // Rotate exchanges a presented refresh token for a new access+refresh pair.
@@ -273,6 +280,8 @@ func (s *RefreshTokenService) Rotate(
 // persistPair signs the JWTs and persists the refresh-token record for a new
 // login family. `client` fixes the pair's lifetime and rotation policy; it is
 // stored so later rotations carry it forward independent of any header.
+// `channel` is stamped into the access token's JWT `channel` claim when
+// non-empty (external-service attribution).
 func (s *RefreshTokenService) persistPair(
 	ctx context.Context,
 	userID primitive.ObjectID,
@@ -280,11 +289,12 @@ func (s *RefreshTokenService) persistPair(
 	tokenVersion int64,
 	family, jti string,
 	client string,
+	channel string,
 ) (TokenPair, error) {
 	now := time.Now()
 	client = normalizeClient(client)
 	expiresAt := authjwt.RefreshExpiryFor(now, client)
-	accessToken, err := authjwt.SignAccessToken(userID, email, role, tokenVersion)
+	accessToken, err := authjwt.SignAccessTokenWithChannel(userID, email, role, tokenVersion, channel)
 	if err != nil {
 		return TokenPair{}, err
 	}

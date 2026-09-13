@@ -641,6 +641,9 @@ func ConfirmPayment(w http.ResponseWriter, r *http.Request) {
 
 	go sendOrderConfirmationSMS(order.UserID, order.ID, order.OrderNumber, order.ShippingAddress.PhoneNumber)
 
+	// payment.paid to subscribed external services. Best-effort, async.
+	go emitPaymentPaid(order.UserID, &order, order.GatewayName)
+
 	// Fetch updated order for response
 	var updatedOrder models.Order
 	if err := ordersCollection.FindOne(ctx, bson.M{"_id": orderID}).Decode(&updatedOrder); err != nil {
@@ -906,6 +909,11 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		IsActive:        true,
 		CreatedAt:       now,
 		UpdatedAt:       now,
+	}
+	// Sales-channel attribution from the JWT channel claim (present only on
+	// external-service sessions; empty for the web storefront).
+	if channel, ok := r.Context().Value("channel").(string); ok {
+		order.PlacedVia = channel
 	}
 
 	collection := db.Database.Collection("orders")
@@ -1804,6 +1812,8 @@ func UpdateOrderStatusAdmin(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
+	// order.status_changed to subscribed external services. Best-effort, async.
+	go emitOrderStatusChanged(&updatedOrder, currentOrder.Status, payload.Status)
 	resp, err := newAdminOrderAPIResponse(ctx, updatedOrder)
 	if err != nil {
 		utils.ErrorResponse(

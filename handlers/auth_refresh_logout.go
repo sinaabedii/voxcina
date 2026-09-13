@@ -69,14 +69,16 @@ func clientPlatformFromRequest(r *http.Request) string {
 // effect on the next refresh, and persists a hashed refresh-token record (so the
 // refresh handler can later rotate/revoke it). `client` (from
 // clientPlatformFromRequest) is stored on the record and fixes the session's
-// lifetime + rotation policy for its whole life. Returns an error if the user
+// lifetime + rotation policy for its whole life. The optional variadic channel
+// stamps the JWT `channel` claim (sales-channel attribution, e.g. "telegram");
+// every existing caller omits it. Returns an error if the user
 // is inactive or the JWT signing key has not been configured.
-func issueTokenPairForUser(ctx context.Context, user *models.User, client string) (*TokenPairResult, error) {
+func issueTokenPairForUser(ctx context.Context, user *models.User, client string, channel ...string) (*TokenPairResult, error) {
 	if !user.IsActive {
 		return nil, services.ErrUserInactive
 	}
 	pair, err := GetRefreshTokenService().IssueNewPair(
-		ctx, user.ID, user.Email, user.Role, user.TokenVersion, client,
+		ctx, user.ID, user.Email, user.Role, user.TokenVersion, client, channel...,
 	)
 	if err != nil {
 		return nil, err

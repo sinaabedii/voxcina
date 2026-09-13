@@ -399,6 +399,9 @@ func FinalizeVerifiedPayment(attemptID primitive.ObjectID, verifiedAmount int64,
 	// the payment flow — delivery failure must never roll back a verified payment.
 	go sendOrderConfirmationSMS(attempt.UserID, attempt.OrderID, order.OrderNumber, order.ShippingAddress.PhoneNumber)
 
+	// payment.paid to subscribed external services. Best-effort, async.
+	go emitPaymentPaid(attempt.UserID, &order, attempt.Gateway)
+
 	return nil
 }
 
@@ -640,6 +643,8 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 		})
 		if updateResult != nil && updateResult.ModifiedCount > 0 {
 			go sendOrderConfirmationSMS(order.UserID, order.ID, order.OrderNumber, order.ShippingAddress.PhoneNumber)
+			// payment.paid to subscribed external services. Best-effort, async.
+			go emitPaymentPaid(order.UserID, &order, "zibal")
 		}
 	} else if err == nil && !verifyResp.Success {
 		paymentStatus = "abandoned"
@@ -655,6 +660,7 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 				"updated_at":     now,
 			},
 		})
+		go emitPaymentFailed(order.UserID, &order, "zibal", paymentStatus, "abandoned at gateway")
 	} else {
 		paymentStatus = "failed"
 		orderStatus = "pending"
@@ -669,6 +675,7 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 				"updated_at":     now,
 			},
 		})
+		go emitPaymentFailed(order.UserID, &order, "zibal", paymentStatus, "verification failed")
 	}
 
 	redirectURL := fmt.Sprintf("%s/checkout/callback?success=%s&trackId=%s&transactionId=%s&orderId=%s&status=%s&gateway=zibal",
@@ -799,6 +806,8 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request) {
 		}
 		if updateResult != nil && updateResult.ModifiedCount > 0 {
 			go sendOrderConfirmationSMS(order.UserID, order.ID, order.OrderNumber, order.ShippingAddress.PhoneNumber)
+			// payment.paid to subscribed external services. Best-effort, async.
+			go emitPaymentPaid(order.UserID, &order, payload.Gateway)
 		}
 	} else if !verifyResp.Success {
 		paymentStatus = "abandoned"

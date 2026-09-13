@@ -343,6 +343,7 @@ func VerifySignupOTP(w http.ResponseWriter, r *http.Request) {
 		Addresses:    []models.Address{},
 		Role:         RoleCustomer,
 		IsActive:     true,
+		AccountType:  models.AccountTypeRegistered,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 		LastLogin:    &now,

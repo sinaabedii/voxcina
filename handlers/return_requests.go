@@ -551,6 +551,8 @@ func AdminDecideReturnRequest(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching updated return request: "+err.Error())
 		return
 	}
+	// return_request.decided to subscribed external services. Best-effort, async.
+	go emitReturnRequestDecided(&updated, newStatus)
 	utils.JSONResponse(w, http.StatusOK, updated)
 }
 

@@ -149,13 +149,17 @@ const (
 // Claims is the JWT payload shared by both token kinds. The TokenType field
 // distinguishes access vs refresh tokens, and TokenVersion mirrors the user's
 // current token_version so revocation takes effect as soon as the middleware
-// next reads the user document.
+// next reads the user document. Channel is an optional sales-channel
+// attribution claim ("telegram", "bale", ...) stamped only by the external
+// service exchange; every other issuance path leaves it empty, so it is fully
+// backward compatible.
 type Claims struct {
 	UserID       primitive.ObjectID `json:"user_id"`
 	Email        string             `json:"email"`
 	Role         string             `json:"role"`
 	TokenType    string             `json:"token_type"`
 	TokenVersion int64              `json:"token_version"`
+	Channel      string             `json:"channel,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -182,6 +186,12 @@ func RefreshExpiryFor(now time.Time, client string) time.Time {
 // SignAccessToken constructs and signs a short-lived access token for the given
 // user, role and token version. Must be called after InitJWT.
 func SignAccessToken(userID primitive.ObjectID, email, role string, version int64) (string, error) {
+	return SignAccessTokenWithChannel(userID, email, role, version, "")
+}
+
+// SignAccessTokenWithChannel is SignAccessToken plus the optional channel
+// attribution claim. An empty channel omits the claim entirely.
+func SignAccessTokenWithChannel(userID primitive.ObjectID, email, role string, version int64, channel string) (string, error) {
 	key, err := Key()
 	if err != nil {
 		return "", err
@@ -193,6 +203,7 @@ func SignAccessToken(userID primitive.ObjectID, email, role string, version int6
 		Role:         role,
 		TokenType:    TokenTypeAccess,
 		TokenVersion: version,
+		Channel:      channel,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(AccessTokenTTL)),
 			IssuedAt:  jwt.NewNumericDate(now),
