@@ -30,9 +30,37 @@ The middleware parses the JWT, then re-reads the user document on **every reques
 
 It injects into the request context:
 - `userID` → `primitive.ObjectID`
-- `role` → `string` (`"customer"` | `"admin"`, read live from Mongo, not from the token)
+- `role` → `string` (`"customer"` | `"staff"` | `"admin"`, read live from Mongo, not from the token)
 
 `AdminAuthMiddleware` wraps it and additionally requires `role == "admin"`.
+
+### Back-office roles
+
+`/api/admin` is served by **two** subrouters that share the prefix:
+
+| Subrouter | Gate | Covers |
+|---|---|---|
+| `staffRouter` | `middlewares.StaffAuthMiddleware` — `admin` **or** `staff` | products, categories, brands, blogs (posts, categories, pipeline runs), tickets, the product-editor AI helpers, `GET /api/admin/avatars` |
+| `adminRouter` | `middlewares.AdminAuthMiddleware` — `admin` only | everything else: users, orders, returns, carts, discounts, vouchers, reviews, external services, dashboard stats, activity, chat exports, AI settings, careers, job positions, collections, sliders, hero images, FAQs |
+
+`staffRouter` is registered first, so its routes win the match and anything it
+does not carry falls through to `adminRouter`. A **new admin route is admin-only
+by default**; it reaches staff only by being registered on `staffRouter` on
+purpose. `routes/routes_staff_test.go` pins the staff-reachable set in both
+directions, so widening it is always a reviewed change.
+
+A `staff` caller hitting an admin-only route gets:
+```json
+{ "error": "Admin access required", "code": "INSUFFICIENT_ROLE" }
+```
+with `403`. Tickets are the one shared surface: `staff` reads and answers every
+ticket exactly as an admin does (`isSupportAgent` in `handlers/tickets.go`).
+
+`PUT /api/admin/users/{userId}/role` accepts `"customer"`, `"staff"` and
+`"admin"`. Any move **away** from `admin` — including a demotion to `staff` —
+is refused when it would remove the last admin, because `staff` cannot reach
+user management and would leave nobody able to undo it. A role change bumps
+`token_version`, so the affected session is revoked immediately.
 
 ### Response envelope
 There is no global envelope. Handlers write the payload directly (`utils.JSONResponse`).

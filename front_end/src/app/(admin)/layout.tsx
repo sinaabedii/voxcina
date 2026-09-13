@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/store/auth-store";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
+import { canAccessAdminSection, STAFF_HOME } from "@/lib/admin-access";
 import { APP_NAME } from "@/lib/constants";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -33,6 +34,7 @@ import {
   RotateCcw,
   Briefcase,
   Layers,
+  ShieldAlert,
 } from "lucide-react";
 
 /**
@@ -46,6 +48,41 @@ function isSectionActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/**
+ * Shown in place of a section a staff member may not open.
+ *
+ * The sidebar already hides these links, so reaching this means a typed URL, a
+ * bookmark from an admin session, or a role that changed underneath an open
+ * tab. The API refuses the same requests with 403 regardless — this only turns
+ * a page full of failed fetches into one clear message.
+ */
+function SectionAccessDenied() {
+  return (
+    <div
+      role="alert"
+      className="mx-auto flex max-w-xl flex-col items-center rounded-2xl border border-voxcina-cream/60 dark:border-voxcina-blue/50 bg-white/80 dark:bg-voxcina-blue/60 px-6 py-12 text-center shadow-sm backdrop-blur-sm"
+    >
+      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400">
+        <ShieldAlert className="h-7 w-7" />
+      </div>
+      <h1 className="mb-2 text-xl font-bold text-voxcina-blue dark:text-voxcina-cream">
+        دسترسی به این بخش ندارید
+      </h1>
+      <p className="mb-6 text-sm leading-7 text-voxcina-blue/70 dark:text-voxcina-cream/70">
+        حساب شما با نقش «کارمند» ثبت شده و تنها به بخش‌های محصولات،
+        دسته‌بندی‌ها، برندها، بلاگ‌ها و تیکت‌ها دسترسی دارد. اگر فکر می‌کنید
+        این یک اشتباه است، با مدیر فروشگاه تماس بگیرید.
+      </p>
+      <Link
+        href={STAFF_HOME}
+        className="rounded-xl bg-voxcina-blue px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-voxcina-darkBlue dark:bg-voxcina-cream dark:text-voxcina-blue"
+      >
+        رفتن به بخش محصولات
+      </Link>
+    </div>
+  );
+}
+
 export default function AdminLayout({
   children,
 }: {
@@ -55,12 +92,28 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   
-  // Use the new protected route hook with admin role requirement (Requirement 3.4)
+  // Gate the whole area on the back office (admin + the restricted staff role).
+  // WHICH sections a staff member may open is decided per route below —
+  // requiredRole only answers "may this person open the dashboard at all".
+  // (Requirement 3.4)
   const { isLoading, isAuthorized } = useProtectedRoute({
     requiredAuth: true,
-    requiredRole: 'admin',
-    nonAdminRedirectUrl: '/dashboard', // Redirect non-admin users to dashboard
+    requiredRole: 'staff',
+    nonAdminRedirectUrl: '/dashboard', // Redirect shoppers to their own dashboard
   });
+
+  const canOpenSection = canAccessAdminSection(user?.role, pathname);
+
+  // The overview page reads admin-only stats, so staff opening /admin would get
+  // an error panel where a landing page belongs. Send them to their own home,
+  // and render nothing while that replace is in flight so the denial panel does
+  // not flash on the way past.
+  const staffRedirectPending = user?.role === "staff" && pathname === "/admin";
+  useEffect(() => {
+    if (isAuthorized && staffRedirectPending) {
+      router.replace(STAFF_HOME);
+    }
+  }, [isAuthorized, staffRedirectPending, router]);
   
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -88,6 +141,8 @@ export default function AdminLayout({
   }, [pathname]);
 
   // Sidebar items for admin
+  // A staff member is shown only what they can actually open; the same
+  // predicate then guards the page body, so a hand-typed URL is refused too.
   const sidebarItems = [
     {
       name: "داشبورد",
@@ -189,7 +244,7 @@ export default function AdminLayout({
       href: "/admin/settings",
       icon: <Settings className="w-5 h-5 ml-3" />,
     },
-  ];
+  ].filter((item) => canAccessAdminSection(user?.role, item.href));
 
   const handleLogout = () => {
     logout && logout();
@@ -318,7 +373,7 @@ export default function AdminLayout({
                       </p>
                     </div>
                     <Link
-                      href="/admin"
+                      href={user?.role === "staff" ? STAFF_HOME : "/admin"}
                       className="block px-4 py-2 text-sm text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
                     >
                       پنل مدیریت
@@ -329,12 +384,14 @@ export default function AdminLayout({
                     >
                       مشاهده فروشگاه
                     </Link>
-                    <Link
-                      href="/admin/settings"
-                      className="block px-4 py-2 text-sm text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
-                    >
-                      تنظیمات
-                    </Link>
+                    {canAccessAdminSection(user?.role, "/admin/settings") && (
+                      <Link
+                        href="/admin/settings"
+                        className="block px-4 py-2 text-sm text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
+                      >
+                        تنظیمات
+                      </Link>
+                    )}
                     <button
                       className="w-full text-right px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-voxcina-cream/30 dark:hover:bg-voxcina-blue/30 transition-colors"
                       onClick={handleLogout}
@@ -521,7 +578,9 @@ export default function AdminLayout({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <div className="container mx-auto">{children}</div>
+          <div className="container mx-auto">
+            {staffRedirectPending ? null : canOpenSection ? children : <SectionAccessDenied />}
+          </div>
         </motion.main>
       </div>
     </div>

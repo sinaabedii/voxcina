@@ -1225,11 +1225,11 @@ func UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 
 	// --- Validate Role ---
 	newRole := strings.ToLower(payload.Role)
-	if newRole != RoleCustomer && newRole != RoleAdmin {
+	if newRole != RoleCustomer && newRole != RoleStaff && newRole != RoleAdmin {
 		utils.ErrorResponse(
 			w,
 			http.StatusBadRequest,
-			"Invalid role specified. Must be 'customer' or 'admin'.",
+			"Invalid role specified. Must be 'customer', 'staff' or 'admin'.",
 		)
 		return
 	}
@@ -1250,9 +1250,11 @@ func UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Prevent admin from accidentally demoting the last admin or self-demotion if it's the only admin
-	// This logic might need to be more sophisticated based on requirements.
-	if existingUser.Role == RoleAdmin && newRole == RoleCustomer {
+	// Prevent admin from accidentally demoting the last admin or self-demotion if it's the only admin.
+	// Any move away from admin counts, including a demotion to "staff" — staff
+	// cannot reach user management, so that would lock the dashboard just as
+	// thoroughly as a demotion to customer.
+	if existingUser.Role == RoleAdmin && newRole != RoleAdmin {
 		// Check if this is the only admin user
 		adminCount, countErr := userCollection.CountDocuments(
 			ctx,

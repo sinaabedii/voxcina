@@ -12,6 +12,7 @@ import { useAuthStore } from '@/store/auth-store';
 import { localStorageManager } from '@/lib/local-storage-manager';
 import { validateReturnUrl } from '@/lib/url-security';
 import { User } from '@/types/user';
+import { isBackOfficeRole } from '@/lib/admin-access';
 
 /**
  * Options for the useProtectedRoute hook
@@ -23,10 +24,15 @@ export interface UseProtectedRouteOptions {
   requiredAuth?: boolean;
   
   /**
-   * Required role for access ('customer' | 'admin')
-   * If not specified, any authenticated user can access
+   * Required role for access ('customer' | 'staff' | 'admin')
+   *
+   * Each value names the LOWEST role that passes, not an exact match:
+   * 'customer' admits everyone signed in, 'staff' admits staff and admins
+   * (the whole back office), 'admin' admits admins only.
+   *
+   * If not specified, any authenticated user can access.
    */
-  requiredRole?: 'customer' | 'admin';
+  requiredRole?: 'customer' | 'staff' | 'admin';
   
   /**
    * Custom redirect URL for unauthenticated users (default: '/sign-in')
@@ -130,10 +136,23 @@ export function useProtectedRoute(options: UseProtectedRouteOptions = {}): UsePr
     if (requiredRole === 'admin') {
       return user.role === 'admin';
     }
+
+    // Back office: the restricted 'staff' role plus admins. Which SECTIONS a
+    // staff member may open is a separate question, answered by
+    // canAccessAdminSection in @/lib/admin-access.
+    if (requiredRole === 'staff') {
+      return isBackOfficeRole(user.role);
+    }
     
-    // Customer role - any authenticated user except admin-only routes
+    // Customer role - any authenticated user except admin-only routes.
+    // Back-office roles are included because they still have a shopper account:
+    // /dashboard is where they read their own orders and addresses.
     if (requiredRole === 'customer') {
-      return user.role === 'customer' || user.role === 'user' || user.role === 'admin';
+      return (
+        user.role === 'customer' ||
+        user.role === 'user' ||
+        isBackOfficeRole(user.role)
+      );
     }
     
     return false;
@@ -169,8 +188,8 @@ export function useProtectedRoute(options: UseProtectedRouteOptions = {}): UsePr
    * Implements Requirement 3.4
    */
   const handleUnauthorizedRedirect = useCallback(() => {
-    // Non-admin users trying to access admin routes go to dashboard
-    if (requiredRole === 'admin') {
+    // Shoppers who wander into a back-office route go to their own dashboard
+    if (requiredRole === 'admin' || requiredRole === 'staff') {
       router.push(nonAdminRedirectUrl);
     } else {
       // For other role mismatches, redirect to sign-in

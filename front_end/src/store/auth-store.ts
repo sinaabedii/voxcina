@@ -10,6 +10,7 @@ import {
 import { tokenValidator } from "@/lib/token-validator";
 import { localStorageManager, AUTH_STORAGE_KEYS } from "@/lib/local-storage-manager";
 import { sessionManager } from "@/lib/session-manager";
+import { isBackOfficeRole } from "@/lib/admin-access";
 
 export interface AuthStore extends AuthState {
   login: (credentials: LoginCredentials) => Promise<User>;
@@ -250,14 +251,17 @@ export const useAuthStore = create<AuthStore>()(
               last_name: data.last_name,
               email: data.email,
               phone: data.phone,
-              role: data.role as "user" | "admin" | "seller" | "customer",
+              role: data.role as User["role"],
               createdAt: data.createdAt || data.created_at,
               updatedAt: data.updatedAt || data.updated_at,
               birthday: data.birthday,
             };
             
+            // Every back-office role needs this token: the admin stores read it
+            // for their Authorization header, and the staff sections (products,
+            // categories, brands, blogs, tickets) go through the same stores.
             let adminToken: string | null = null;
-            if (user.role === "admin") {
+            if (isBackOfficeRole(user.role)) {
               adminToken = data.token;
             }
       
@@ -376,7 +380,7 @@ export const useAuthStore = create<AuthStore>()(
                 last_name: userData.last_name,
                 email: userData.email,
                 phone: userData.phone,
-                role: userData.role as "user" | "admin" | "seller" | "customer",
+                role: userData.role as User["role"],
                 createdAt: userData.createdAt || userData.created_at,
                 updatedAt: userData.updatedAt || userData.updated_at,
                 birthday: userData.birthday,

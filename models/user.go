@@ -104,7 +104,7 @@ type User struct {
 	// shadow coexist with the partial unique index (missing field ≠ empty).
 	Phone     string    `bson:"phone,omitempty" json:"phone,omitempty"` // IR phone number (09xxxxxxxxx), unique among non-empty
 	Addresses []Address `bson:"addresses,omitempty" json:"addresses,omitempty"`
-	Role      string    `bson:"role"                json:"role"`      // Values: "customer", "admin"
+	Role      string    `bson:"role"                json:"role"`      // Values: "customer", "staff" (restricted back office), "admin"
 	IsActive  bool      `bson:"is_active"           json:"is_active"` // Soft delete flag
 	CreatedAt time.Time `bson:"created_at"          json:"created_at"`
 	UpdatedAt time.Time `bson:"updated_at"          json:"updated_at"`

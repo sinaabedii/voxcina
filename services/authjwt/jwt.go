@@ -31,8 +31,13 @@ import (
 
 // --- User roles (shared with handlers) ------------------------------------
 
+// RoleStaff is a restricted back-office role: it reaches the admin dashboard
+// but only the catalog/content sections (products, categories, brands, blogs,
+// tickets). Everything else under /api/admin stays admin-only — see
+// middlewares.StaffAuthMiddleware and the staff subrouter in routes.
 const (
 	RoleCustomer = "customer"
+	RoleStaff    = "staff"
 	RoleAdmin    = "admin"
 )
 

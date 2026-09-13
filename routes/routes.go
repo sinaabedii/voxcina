@@ -10,6 +10,13 @@ import (
 	"backEnd/middlewares"
 )
 
+// Names of the two /api/admin prefix routes. They identify which gate an admin
+// endpoint sits behind — see TestStaffReachableAdminRoutes.
+const (
+	StaffPrefixRouteName = "adminPrefixStaff"
+	AdminPrefixRouteName = "adminPrefixAdminOnly"
+)
+
 func NewRouter() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 
@@ -155,20 +162,42 @@ func NewRouter() *mux.Router {
 	ticketRouter.HandleFunc("/{ticketId}", handlers.GetTicketByID).Methods(http.MethodGet)
 	ticketRouter.HandleFunc("/{ticketId}/messages", handlers.AddTicketMessage).Methods(http.MethodPost)
 
-	// **Admin Product Management**
-	adminRouter := api.PathPrefix("/admin").Subrouter()
-	adminRouter.Use(middlewares.AdminAuthMiddleware) // Assuming an admin auth middleware
+	// **Admin back-office API**
+	//
+	// Two subrouters share the /api/admin prefix, and the split IS the
+	// permission model:
+	//
+	//   staffRouter — reachable by the restricted "staff" role AND by admins.
+	//                 Catalog and content only: products, categories, brands,
+	//                 blogs, tickets.
+	//   adminRouter — everything else. Admin only.
+	//
+	// staffRouter is registered first so its routes win the match; anything it
+	// does not carry falls through to adminRouter, where a staff member is
+	// rejected with 403. A new admin route is therefore admin-only by default —
+	// it reaches staff only if someone moves it up here deliberately.
+	//
+	// gorilla/mux keeps walking when a subrouter matches the prefix but none of
+	// its routes match, which is what makes the fallthrough work; the same
+	// pattern already backs the two /orders subrouters below.
+	// The two prefix routes are named so routes_staff_test.go can tell, for any
+	// registered admin endpoint, which of the two gates it sits behind.
+	staffRouter := api.PathPrefix("/admin").Name(StaffPrefixRouteName).Subrouter()
+	staffRouter.Use(middlewares.StaffAuthMiddleware)
 
-	// AI Metadata Generation Routes (Admin)
+	adminRouter := api.PathPrefix("/admin").Name(AdminPrefixRouteName).Subrouter()
+	adminRouter.Use(middlewares.AdminAuthMiddleware)
+
+	// AI Metadata Generation Routes (admin + staff: part of the product editor)
 	aiMetadataHandler, err := handlers.NewAIMetadataHandler()
 	if err != nil {
 		// Log error but don't fail - AI features are optional
 		log.Printf("Warning: AI metadata handler initialization failed: %v", err)
 	} else {
-		adminRouter.HandleFunc("/ai/generate-metadata", aiMetadataHandler.GenerateProductMetadata).Methods("POST")
-		adminRouter.HandleFunc("/ai/generate-variant-metadata", aiMetadataHandler.GenerateVariantMetadata).Methods("POST")
-		adminRouter.HandleFunc("/ai/models", aiMetadataHandler.GetAvailableModels).Methods("GET")
-		adminRouter.HandleFunc("/ai/field-descriptions", aiMetadataHandler.GetFieldDescriptions).Methods("GET")
+		staffRouter.HandleFunc("/ai/generate-metadata", aiMetadataHandler.GenerateProductMetadata).Methods("POST")
+		staffRouter.HandleFunc("/ai/generate-variant-metadata", aiMetadataHandler.GenerateVariantMetadata).Methods("POST")
+		staffRouter.HandleFunc("/ai/models", aiMetadataHandler.GetAvailableModels).Methods("GET")
+		staffRouter.HandleFunc("/ai/field-descriptions", aiMetadataHandler.GetFieldDescriptions).Methods("GET")
 	}
 
 	// AI model settings shared by the chatbots and the try-on image generator (Admin)
@@ -189,12 +218,12 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/discounts/{id}", handlers.UpdateDiscount).Methods("PUT")
 	adminRouter.HandleFunc("/discounts/{id}", handlers.DeleteDiscount).Methods("DELETE")
 
-	// Product Management Routes (Admin)
-	adminRouter.HandleFunc("/products", handlers.AdminListProducts).Methods("GET")
-	adminRouter.HandleFunc("/products", handlers.AddProduct).Methods("POST")
-	adminRouter.HandleFunc("/products/{id}/cart-usage", handlers.GetProductCartUsage).Methods("GET")
-	adminRouter.HandleFunc("/products/{id}", handlers.UpdateProduct).Methods("PUT")
-	adminRouter.HandleFunc("/products/{id}", handlers.DeleteProduct).Methods("DELETE")
+	// Product Management Routes (admin + staff)
+	staffRouter.HandleFunc("/products", handlers.AdminListProducts).Methods("GET")
+	staffRouter.HandleFunc("/products", handlers.AddProduct).Methods("POST")
+	staffRouter.HandleFunc("/products/{id}/cart-usage", handlers.GetProductCartUsage).Methods("GET")
+	staffRouter.HandleFunc("/products/{id}", handlers.UpdateProduct).Methods("PUT")
+	staffRouter.HandleFunc("/products/{id}", handlers.DeleteProduct).Methods("DELETE")
 
 	// Admin User Management
 	adminRouter.HandleFunc("/users", handlers.ListUsers).Methods("GET")
@@ -259,9 +288,9 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/shop-collections", handlers.ListShopCollections).Methods(http.MethodGet)
 	api.HandleFunc("/shop-collections/{id}", handlers.GetShopCollection).Methods(http.MethodGet)
 
-	// Admin Ticket Management
-	adminRouter.HandleFunc("/tickets", handlers.AdminListTickets).Methods(http.MethodGet)
-	adminRouter.HandleFunc("/tickets/{ticketId}/status", handlers.AdminUpdateTicketStatus).Methods(http.MethodPut)
+	// Ticket Management (admin + staff)
+	staffRouter.HandleFunc("/tickets", handlers.AdminListTickets).Methods(http.MethodGet)
+	staffRouter.HandleFunc("/tickets/{ticketId}/status", handlers.AdminUpdateTicketStatus).Methods(http.MethodPut)
 
 	// Admin Cart Management
 	adminRouter.HandleFunc("/carts", handlers.AdminListCarts).Methods(http.MethodGet)
@@ -270,13 +299,12 @@ func NewRouter() *mux.Router {
 		// Soft delete
 	adminRouter.HandleFunc("/carts/send-recovery-sms", handlers.SendCartRecoverySMS).Methods(http.MethodPost)
 
-	// Categories Management (Admin)
-	adminRouter.HandleFunc("/categories", handlers.CreateCategory).
+	// Categories Management (Admin + staff)
+	staffRouter.HandleFunc("/categories", handlers.CreateCategory).
 		Methods(http.MethodPost)
-		// Moved to admin router
 
-	// Available category avatars (Admin) — dynamic list of files in uploads/avatars/categories/
-	adminRouter.HandleFunc("/avatars", handlers.ListAvatars).Methods(http.MethodGet)
+	// Available category avatars (admin + staff) — dynamic list of files in uploads/avatars/categories/
+	staffRouter.HandleFunc("/avatars", handlers.ListAvatars).Methods(http.MethodGet)
 
 	// Vocabulary Mappings (Public for frontend dropdowns)
 	api.HandleFunc("/vocabulary-mappings", handlers.GetVocabularyMappings).Methods(http.MethodGet)
@@ -293,15 +321,15 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/brands", handlers.GetBrands).Methods(http.MethodGet)
 	api.HandleFunc("/brands/{id}", handlers.GetBrandByID).Methods(http.MethodGet)
 
-	// Category & brand mutations are admin-only. They previously sat on the
-	// public router with no middleware, so anyone could rewrite or delete the
-	// catalog taxonomy; the admin dashboard already sent a bearer token to
-	// them, so it only needed to be pointed at the /admin prefix.
-	adminRouter.HandleFunc("/categories/{id}", handlers.UpdateCategory).Methods(http.MethodPut)
-	adminRouter.HandleFunc("/categories/{id}", handlers.DeleteCategory).Methods(http.MethodDelete)
-	adminRouter.HandleFunc("/brands", handlers.CreateBrand).Methods(http.MethodPost)
-	adminRouter.HandleFunc("/brands/{id}", handlers.UpdateBrand).Methods(http.MethodPut)
-	adminRouter.HandleFunc("/brands/{id}", handlers.DeleteBrand).Methods(http.MethodDelete)
+	// Category & brand mutations are back-office only (admin + staff). They
+	// previously sat on the public router with no middleware, so anyone could
+	// rewrite or delete the catalog taxonomy; the admin dashboard already sent a
+	// bearer token to them, so it only needed to be pointed at the /admin prefix.
+	staffRouter.HandleFunc("/categories/{id}", handlers.UpdateCategory).Methods(http.MethodPut)
+	staffRouter.HandleFunc("/categories/{id}", handlers.DeleteCategory).Methods(http.MethodDelete)
+	staffRouter.HandleFunc("/brands", handlers.CreateBrand).Methods(http.MethodPost)
+	staffRouter.HandleFunc("/brands/{id}", handlers.UpdateBrand).Methods(http.MethodPut)
+	staffRouter.HandleFunc("/brands/{id}", handlers.DeleteBrand).Methods(http.MethodDelete)
 
 	// Promotions & Banners
 	api.HandleFunc("/promotions/home", handlers.GetHomePromotions).Methods(http.MethodGet)
@@ -491,37 +519,37 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/blog/categories/legacy", handlers.GetBlogCategories).Methods(http.MethodGet)
 	api.HandleFunc("/blog/tags", handlers.GetBlogTags).Methods(http.MethodGet)
 
-	// Admin blog post management routes
-	adminRouter.HandleFunc("/blog-posts", handlers.GetAdminBlogPosts).Methods(http.MethodGet)
+	// Blog post management routes (admin + staff)
+	staffRouter.HandleFunc("/blog-posts", handlers.GetAdminBlogPosts).Methods(http.MethodGet)
 
-	// Admin blog category management routes
-	adminRouter.HandleFunc("/blog-categories", handlers.GetAdminBlogCategories).Methods(http.MethodGet)
-	adminRouter.HandleFunc("/blog-categories", handlers.CreateBlogCategory).Methods(http.MethodPost)
-	adminRouter.HandleFunc("/blog-categories/{id}", handlers.UpdateBlogCategory).Methods(http.MethodPut)
-	adminRouter.HandleFunc("/blog-categories/{id}", handlers.DeleteBlogCategory).Methods(http.MethodDelete)
-	adminRouter.HandleFunc("/blog-categories/{id}/hard", handlers.HardDeleteBlogCategory).Methods(http.MethodDelete)
-	adminRouter.HandleFunc("/blog-categories/{id}/restore", handlers.RestoreBlogCategory).Methods(http.MethodPost)
-	adminRouter.HandleFunc("/blog-categories/recount", handlers.RecountBlogCategories).Methods(http.MethodPost)
-	adminRouter.HandleFunc("/blog-posts/{id}/blocks", handlers.UpdateBlogPostBlocks).Methods(http.MethodPatch)
-	adminRouter.HandleFunc("/blog-posts/{id}/product-blocks/search", handlers.SearchProductsForBlock).Methods(http.MethodGet)
-	adminRouter.HandleFunc("/blog-posts/{id}/product-blocks/{order}/auto-match", handlers.AutoMatchProductBlock).Methods(http.MethodPost)
-	adminRouter.HandleFunc("/blog-posts/{id}/product-blocks/{order}", handlers.SelectProductForBlock).Methods(http.MethodPatch)
-	adminRouter.HandleFunc("/blog-posts/{id}/publish", handlers.PublishBlogPost).Methods(http.MethodPost)
-	adminRouter.HandleFunc("/blog-posts/{id}/unpublish", handlers.UnpublishBlogPost).Methods(http.MethodPost)
-	adminRouter.HandleFunc("/blog-posts/{id}/archive", handlers.ArchiveBlogPost).Methods(http.MethodPost)
-	adminRouter.HandleFunc("/blog-posts/{id}/restore", handlers.RestoreBlogPost).Methods(http.MethodPost)
-	adminRouter.HandleFunc("/blog-posts/{id}/media", handlers.UploadBlogMedia).Methods(http.MethodPost)
-	adminRouter.HandleFunc("/blog-posts/{id}/media/{mediaId}", handlers.DeleteBlogMedia).Methods(http.MethodDelete)
+	// Blog category management routes (admin + staff)
+	staffRouter.HandleFunc("/blog-categories", handlers.GetAdminBlogCategories).Methods(http.MethodGet)
+	staffRouter.HandleFunc("/blog-categories", handlers.CreateBlogCategory).Methods(http.MethodPost)
+	staffRouter.HandleFunc("/blog-categories/{id}", handlers.UpdateBlogCategory).Methods(http.MethodPut)
+	staffRouter.HandleFunc("/blog-categories/{id}", handlers.DeleteBlogCategory).Methods(http.MethodDelete)
+	staffRouter.HandleFunc("/blog-categories/{id}/hard", handlers.HardDeleteBlogCategory).Methods(http.MethodDelete)
+	staffRouter.HandleFunc("/blog-categories/{id}/restore", handlers.RestoreBlogCategory).Methods(http.MethodPost)
+	staffRouter.HandleFunc("/blog-categories/recount", handlers.RecountBlogCategories).Methods(http.MethodPost)
+	staffRouter.HandleFunc("/blog-posts/{id}/blocks", handlers.UpdateBlogPostBlocks).Methods(http.MethodPatch)
+	staffRouter.HandleFunc("/blog-posts/{id}/product-blocks/search", handlers.SearchProductsForBlock).Methods(http.MethodGet)
+	staffRouter.HandleFunc("/blog-posts/{id}/product-blocks/{order}/auto-match", handlers.AutoMatchProductBlock).Methods(http.MethodPost)
+	staffRouter.HandleFunc("/blog-posts/{id}/product-blocks/{order}", handlers.SelectProductForBlock).Methods(http.MethodPatch)
+	staffRouter.HandleFunc("/blog-posts/{id}/publish", handlers.PublishBlogPost).Methods(http.MethodPost)
+	staffRouter.HandleFunc("/blog-posts/{id}/unpublish", handlers.UnpublishBlogPost).Methods(http.MethodPost)
+	staffRouter.HandleFunc("/blog-posts/{id}/archive", handlers.ArchiveBlogPost).Methods(http.MethodPost)
+	staffRouter.HandleFunc("/blog-posts/{id}/restore", handlers.RestoreBlogPost).Methods(http.MethodPost)
+	staffRouter.HandleFunc("/blog-posts/{id}/media", handlers.UploadBlogMedia).Methods(http.MethodPost)
+	staffRouter.HandleFunc("/blog-posts/{id}/media/{mediaId}", handlers.DeleteBlogMedia).Methods(http.MethodDelete)
 
-	// Admin pipeline run routes
-	adminRouter.HandleFunc("/blog-runs", handlers.CreatePipelineRun).Methods(http.MethodPost)
-	adminRouter.HandleFunc("/blog-runs", handlers.GetPipelineRuns).Methods(http.MethodGet)
-	adminRouter.HandleFunc("/blog-runs/{id}", handlers.GetPipelineRunByID).Methods(http.MethodGet)
-	adminRouter.HandleFunc("/blog-runs/{id}", handlers.DeletePipelineRun).Methods(http.MethodDelete)
-	adminRouter.HandleFunc("/blog-runs/{id}/approve", handlers.ApprovePipelineRun).Methods(http.MethodPost)
-	adminRouter.HandleFunc("/blog-runs/{id}/research", handlers.TriggerResearch).Methods(http.MethodPost)
-	adminRouter.HandleFunc("/blog-runs/{id}/write", handlers.TriggerWriting).Methods(http.MethodPost)
-	adminRouter.HandleFunc("/blog-runs/{id}/prompts", handlers.TriggerPromptGeneration).Methods(http.MethodPost)
+	// Blog pipeline run routes (admin + staff)
+	staffRouter.HandleFunc("/blog-runs", handlers.CreatePipelineRun).Methods(http.MethodPost)
+	staffRouter.HandleFunc("/blog-runs", handlers.GetPipelineRuns).Methods(http.MethodGet)
+	staffRouter.HandleFunc("/blog-runs/{id}", handlers.GetPipelineRunByID).Methods(http.MethodGet)
+	staffRouter.HandleFunc("/blog-runs/{id}", handlers.DeletePipelineRun).Methods(http.MethodDelete)
+	staffRouter.HandleFunc("/blog-runs/{id}/approve", handlers.ApprovePipelineRun).Methods(http.MethodPost)
+	staffRouter.HandleFunc("/blog-runs/{id}/research", handlers.TriggerResearch).Methods(http.MethodPost)
+	staffRouter.HandleFunc("/blog-runs/{id}/write", handlers.TriggerWriting).Methods(http.MethodPost)
+	staffRouter.HandleFunc("/blog-runs/{id}/prompts", handlers.TriggerPromptGeneration).Methods(http.MethodPost)
 
 	// Fetch reviews written by a user (public)
 	api.HandleFunc("/users/{userId}/reviews", handlers.GetUserReviews).Methods(http.MethodGet)

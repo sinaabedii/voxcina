@@ -9,14 +9,22 @@ import (
 	"backEnd/services/authjwt"
 )
 
-// RoleAdmin / RoleCustomer are role-string constants shared across the
-// codebase. Defined here (and re-exported from authjwt for the middleware that
-// already imported them via the handlers package) so existing handler code can
-// keep referencing handlers.RoleAdmin etc.
+// RoleAdmin / RoleStaff / RoleCustomer are role-string constants shared across
+// the codebase. Defined here (and re-exported from authjwt for the middleware
+// that already imported them via the handlers package) so existing handler code
+// can keep referencing handlers.RoleAdmin etc.
 const (
 	RoleCustomer = authjwt.RoleCustomer
+	RoleStaff    = authjwt.RoleStaff
 	RoleAdmin    = authjwt.RoleAdmin
 )
+
+// IsBackOfficeRole reports whether a role may open the admin dashboard at all.
+// It is deliberately NOT a permission check: staff reaches only the catalog and
+// content sections, which the staff subrouter enforces per route.
+func IsBackOfficeRole(role string) bool {
+	return role == RoleAdmin || role == RoleStaff
+}
 
 // Email validation regex (optional)
 var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)

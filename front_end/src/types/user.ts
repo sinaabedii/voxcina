@@ -8,7 +8,8 @@ export interface User {
   email?: string; // Optional
   avatar?: string;
   phone: string; // Required - IR phone number (09xxxxxxxxx)
-  role: "user" | "admin" | "seller" | "customer";
+  /** "staff" is the restricted back office role — see @/lib/admin-access. */
+  role: "user" | "admin" | "seller" | "customer" | "staff";
   addresses?: Address[];
   createdAt: string;
   updatedAt: string;

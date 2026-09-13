@@ -18,6 +18,7 @@ import {
 import Button from "@/components/ui/Button";
 import { useAdminUsersStore } from "@/store/auth-store";
 import { User } from "@/types/user";
+import { roleLabel, roleTone } from "@/lib/admin-access";
 import { toast } from "react-toastify";
 import {
   AdminPageHeader,
@@ -280,6 +281,7 @@ export default function AdminUsersPage() {
             <AdminSelect value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
               <option value="all">همه نقش‌ها</option>
               <option value="admin">مدیر</option>
+              <option value="staff">کارمند</option>
               <option value="customer">مشتری</option>
             </AdminSelect>
           </AdminField>
@@ -343,8 +345,8 @@ export default function AdminUsersPage() {
                     </div>
                   </AdminTd>
                   <AdminTd className="whitespace-nowrap">
-                    <AdminBadge tone={user.role === "admin" ? "danger" : "info"}>
-                      {user.role === "admin" ? "مدیر" : user.role === "customer" ? "مشتری" : user.role}
+                    <AdminBadge tone={roleTone(user.role)}>
+                      {roleLabel(user.role)}
                     </AdminBadge>
                   </AdminTd>
                   <AdminTd className="whitespace-nowrap text-center">
@@ -461,8 +463,8 @@ export default function AdminUsersPage() {
                       <div className="flex flex-col space-y-3">
                         <div className="flex items-center justify-between">
                           <div className="flex gap-2 flex-wrap">
-                            <AdminBadge tone={user.role === "admin" ? "danger" : "info"}>
-                              {user.role === "admin" ? "مدیر" : "مشتری"}
+                            <AdminBadge tone={roleTone(user.role)}>
+                              {roleLabel(user.role)}
                             </AdminBadge>
                             <AdminBadge tone={user.isActive === true ? "success" : "danger"}>
                               {user.isActive === true ? "فعال" : "غیرفعال"}
@@ -577,6 +579,7 @@ export default function AdminUsersPage() {
           >
             <option value="">انتخاب نقش جدید</option>
             <option value="customer">مشتری</option>
+            <option value="staff">کارمند</option>
             <option value="admin">مدیر</option>
           </AdminSelect>
         </AdminField>

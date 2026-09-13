@@ -180,18 +180,25 @@ func GetUserTickets(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"tickets": tickets,
 		"pagination": map[string]interface{}{
-			"currentPage": page,
-			"totalPages":  (totalCount + int64(limit) - 1) / int64(limit),
+			"currentPage":  page,
+			"totalPages":   (totalCount + int64(limit) - 1) / int64(limit),
 			"totalTickets": totalCount,
-			"pageSize":    limit,
+			"pageSize":     limit,
 		},
 	}
 
 	utils.JSONResponse(w, http.StatusOK, response)
 }
 
+// isSupportAgent reports whether a role answers tickets rather than files them.
+// Support is one of the sections the restricted "staff" role owns, so staff
+// reads and replies to every ticket exactly as an admin does.
+func isSupportAgent(role string) bool {
+	return role == RoleAdmin || role == RoleStaff
+}
+
 // GetTicketByID handles GET /api/tickets/{ticketId}
-// Returns a single ticket if the user owns it or is admin
+// Returns a single ticket if the user owns it or works support (admin/staff)
 func GetTicketByID(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.ErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
@@ -233,7 +240,7 @@ func GetTicketByID(w http.ResponseWriter, r *http.Request) {
 	collection := db.Database.Collection("tickets")
 
 	filter := bson.M{"_id": ticketID}
-	if role != "admin" {
+	if !isSupportAgent(role) {
 		filter["user_id"] = userID
 	}
 
@@ -302,7 +309,7 @@ func AddTicketMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sender := "user"
-	if role == "admin" {
+	if isSupportAgent(role) {
 		sender = "support"
 	}
 
@@ -312,7 +319,7 @@ func AddTicketMessage(w http.ResponseWriter, r *http.Request) {
 	collection := db.Database.Collection("tickets")
 
 	filter := bson.M{"_id": ticketID}
-	if role != "admin" {
+	if !isSupportAgent(role) {
 		filter["user_id"] = userID
 	}
 
@@ -362,8 +369,8 @@ func AdminListTickets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	roleCtx := r.Context().Value("role")
-	if roleCtx == nil || roleCtx.(string) != "admin" {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "Admin access required")
+	if role, _ := roleCtx.(string); !isSupportAgent(role) {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "Support access required")
 		return
 	}
 
@@ -428,10 +435,10 @@ func AdminListTickets(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"tickets": tickets,
 		"pagination": map[string]interface{}{
-			"currentPage": page,
-			"totalPages":  (totalCount + int64(limit) - 1) / int64(limit),
+			"currentPage":  page,
+			"totalPages":   (totalCount + int64(limit) - 1) / int64(limit),
 			"totalTickets": totalCount,
-			"pageSize":    limit,
+			"pageSize":     limit,
 		},
 	}
 
@@ -447,8 +454,8 @@ func AdminUpdateTicketStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	roleCtx := r.Context().Value("role")
-	if roleCtx == nil || roleCtx.(string) != "admin" {
-		utils.ErrorResponse(w, http.StatusUnauthorized, "Admin access required")
+	if role, _ := roleCtx.(string); !isSupportAgent(role) {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "Support access required")
 		return
 	}
 

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Search, User, Menu, ShoppingBag, Shield, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isBackOfficeRole } from "@/lib/admin-access";
 import { APP_NAME } from "@/lib/constants";
 import { useCartStore } from "@/store/cart-store";
 import MobileNav from "./MobileNav";
@@ -172,7 +173,7 @@ const HeaderClient: React.FC<HeaderClientProps> = ({ navItems }) => {
               </Link>
               
               <div className="relative flex items-center gap-1">
-                {isAuthenticated && user?.role === "admin" && (
+                {isAuthenticated && isBackOfficeRole(user?.role) && (
                   <Link
                     href="/admin"
                      className="relative flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 text-yellow-600 transition-all duration-300 hover:bg-yellow-100 hover:text-yellow-700 dark:text-yellow-400 dark:hover:bg-yellow-900 dark:hover:text-yellow-300 group"

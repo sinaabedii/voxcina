@@ -121,10 +121,14 @@ func AuthMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// AdminAuthMiddleware checks for admin role (wraps AuthMiddleware)
-func AdminAuthMiddleware(next http.Handler) http.Handler {
-	return AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// AuthMiddleware should have already run and set the context values if token was valid.
+// roleGate admits only the listed roles, answering 403 with `message` for
+// anyone else. It reads the role from the context value AuthMiddleware set from
+// the LIVE user document, so a demotion takes effect on the next request rather
+// than when the token expires.
+//
+// It assumes AuthMiddleware already ran; requireRoles is what guarantees that.
+func roleGate(next http.Handler, message string, allowed ...string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		roleCtx := r.Context().Value("role")
 		if roleCtx == nil {
 			utils.AuthErrorResponse(
@@ -147,16 +151,42 @@ func AdminAuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		if role != handlers.RoleAdmin {
-			utils.AuthErrorResponse(
-				w,
-				http.StatusForbidden,
-				utils.ErrCodeInsufficientRole,
-				"Admin access required",
-			)
-			return
+		for _, want := range allowed {
+			if role == want {
+				next.ServeHTTP(w, r)
+				return
+			}
 		}
 
-		next.ServeHTTP(w, r)
-	}))
+		utils.AuthErrorResponse(
+			w,
+			http.StatusForbidden,
+			utils.ErrCodeInsufficientRole,
+			message,
+		)
+	})
+}
+
+// requireRoles authenticates the request and then applies roleGate.
+func requireRoles(message string, allowed ...string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return AuthMiddleware(roleGate(next, message, allowed...))
+	}
+}
+
+// AdminAuthMiddleware checks for admin role (wraps AuthMiddleware)
+func AdminAuthMiddleware(next http.Handler) http.Handler {
+	return requireRoles("Admin access required", handlers.RoleAdmin)(next)
+}
+
+// StaffAuthMiddleware guards the subset of /api/admin that the restricted
+// "staff" back-office role may use: the catalog and content sections
+// (products, categories, brands, blogs, tickets). Admins are admitted too —
+// staff is a strict subset of what an admin can do, never a separate silo.
+//
+// It is deliberately opt-in: a route reaches staff only by being registered on
+// the staff subrouter, so every admin route added later stays admin-only until
+// someone moves it on purpose.
+func StaffAuthMiddleware(next http.Handler) http.Handler {
+	return requireRoles("Staff or admin access required", handlers.RoleAdmin, handlers.RoleStaff)(next)
 }
