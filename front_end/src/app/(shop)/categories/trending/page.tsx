@@ -58,7 +58,7 @@ export default async function TrendingPage() {
           items={schemaItems}
         />
       )}
-      <div className="container pt-6">
+      <div className="container py-4">
         <Breadcrumbs items={[{ title: "خانه", href: "/" }, { title: "پربازدیدترین‌ها", href: "/categories/trending" }]} />
       </div>
       <TrendingPageClient items={items} />

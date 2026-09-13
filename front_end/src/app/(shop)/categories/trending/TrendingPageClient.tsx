@@ -1,132 +1,172 @@
 "use client";
 
+import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { Eye, Package, Sparkles } from "lucide-react";
-import ProductCard from "@/components/product/ProductCard";
-import { ColorVariantListItem } from "@/types/product";
+import { ArrowLeft } from "lucide-react";
+import { useGSAP } from "@gsap/react";
+import { gsap } from "@/lib/gsap-plugins";
+import type { ColorVariantListItem } from "@/types/product";
+import IndexRow from "./_components/IndexRow";
+import PodiumCard from "./_components/PodiumCard";
+import QuickAddSheet from "./_components/QuickAddSheet";
+import TrendingEmpty from "./_components/TrendingEmpty";
+import TrendingMasthead from "./_components/TrendingMasthead";
+import { faNumber } from "./_components/trending-utils";
 
 interface TrendingPageClientProps {
   items: ColorVariantListItem[];
 }
 
+/** How many entries are shown as objects before the list takes over. */
+const PODIUM_SIZE = 3;
+
+/**
+ * The ranking, in two movements.
+ *
+ * The top three are shown as objects — photographed, priced, sized to be looked
+ * at. Everything below is an index: one row per entry, read top to bottom. Two
+ * shapes rather than ten identical cards, because a leaderboard is not a
+ * catalogue, and because a row is the layout that survives a phone screen
+ * without either shrinking its type or stretching a card across the viewport.
+ */
 export default function TrendingPageClient({ items }: TrendingPageClientProps) {
+  const [quickAddItem, setQuickAddItem] = useState<ColorVariantListItem | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  const podium = items.slice(0, PODIUM_SIZE);
+  const rest = items.slice(PODIUM_SIZE);
+  const leaderViews = items[0]?.viewCount ?? 0;
+
+  const stats = useMemo(
+    () => ({
+      designCount: items.length,
+      totalViews: items.reduce((sum, item) => sum + (item.viewCount ?? 0), 0),
+      brandCount: new Set(items.map((item) => item.brand).filter(Boolean)).size,
+    }),
+    [items]
+  );
+
+  const closeQuickAdd = useCallback(() => setQuickAddItem(null), []);
+
+  useGSAP(
+    () => {
+      const root = rootRef.current;
+      if (!root || items.length === 0) return;
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+      // Transform only, never opacity: the rank-one photograph is this page's
+      // LCP candidate, and an element faded up from zero does not qualify until
+      // the tween has run. The podium rises into place already painted.
+      gsap.from(root.querySelectorAll<HTMLElement>(".trending-podium-item"), {
+        y: 26,
+        duration: 0.85,
+        ease: "power3.out",
+        stagger: 0.1,
+        clearProps: "transform",
+      });
+
+      const list = root.querySelector<HTMLElement>(".trending-index");
+      if (!list) return;
+
+      // Below the fold, so a fade is free here — nothing in the index competes
+      // to be the largest painted element.
+      gsap.from(list.querySelectorAll<HTMLElement>(".trending-row"), {
+        y: 20,
+        opacity: 0,
+        duration: 0.7,
+        ease: "power2.out",
+        stagger: 0.07,
+        clearProps: "transform,opacity",
+        scrollTrigger: { trigger: list, start: "top 85%" },
+      });
+
+      // The view bars draw themselves out from the right, so the ranking's
+      // shape is something the visitor watches resolve rather than arrives at.
+      gsap.from(list.querySelectorAll<HTMLElement>(".trending-bar"), {
+        scaleX: 0,
+        duration: 1.1,
+        ease: "power2.out",
+        stagger: 0.06,
+        scrollTrigger: { trigger: list, start: "top 85%" },
+      });
+    },
+    { scope: rootRef, dependencies: [items.length] }
+  );
+
   if (items.length === 0) {
-    return (
-      <div className="container py-20 min-h-[60vh] flex items-center justify-center">
-        <div className="max-w-md text-center">
-          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-3xl bg-primary/10 text-primary">
-            <Eye className="h-10 w-10" />
-          </div>
-          <h2 className="text-2xl font-black text-foreground">محبوب‌ترین‌ها در راه‌اند</h2>
-          <p className="mt-3 leading-8 text-muted-foreground">
-            هنوز بازدید کافی برای رتبه‌بندی محصولات ثبت نشده است. کمی بعد دوباره سر بزنید.
-          </p>
+    return <TrendingEmpty />;
+  }
+
+  return (
+    <div ref={rootRef}>
+      <TrendingMasthead {...stats} />
+
+      <div className="container pb-20 pt-12 sm:pt-16">
+        {/* The podium. On a wide screen rank one runs at 1.35 to its
+            neighbours' 1 — dominant without towering over them, which a 2:1
+            split did, leaving a tall void beside the shorter pair. On a phone
+            it takes the full width and the other two share a row. Both are
+            stepped down the page so the block descends the way the ranking
+            does rather than sitting as a flat row. */}
+        <section aria-label="سه طرح برتر" className="grid grid-cols-2 gap-x-5 gap-y-10 sm:gap-x-8 lg:grid-cols-[1.35fr_1fr_1fr] lg:items-start lg:gap-x-10">
+          {podium.map((item, index) => {
+            const hero = index === 0;
+            return (
+              <div
+                key={`${item.productId}-${item.colorVariant.variantId || index}`}
+                className={`trending-podium-item ${
+                  hero ? "col-span-2 lg:col-span-1" : "col-span-1"
+                } ${index === 1 ? "lg:pt-14" : ""} ${index === 2 ? "lg:pt-24" : ""}`}
+              >
+                <PodiumCard
+                  item={item}
+                  rank={index + 1}
+                  variant={hero ? "hero" : "standard"}
+                  listPosition={index}
+                  onQuickAdd={setQuickAddItem}
+                />
+              </div>
+            );
+          })}
+        </section>
+
+        {rest.length > 0 && (
+          <section className="mt-20 sm:mt-28">
+            <header className="mb-2 flex items-baseline justify-between gap-4 border-b border-voxcina-blue/15 pb-4">
+              <h2 className="text-lg font-bold text-voxcina-blue sm:text-2xl">ادامهٔ فهرست</h2>
+              <span className="shrink-0 text-xs tabular-nums text-voxcina-blue/45 sm:text-sm">
+                رتبهٔ {faNumber(PODIUM_SIZE + 1)} تا {faNumber(items.length)}
+              </span>
+            </header>
+
+            <ol className="trending-index">
+              {rest.map((item, index) => (
+                <IndexRow
+                  key={`${item.productId}-${item.colorVariant.variantId || index + PODIUM_SIZE}`}
+                  item={item}
+                  rank={index + PODIUM_SIZE + 1}
+                  listPosition={index + PODIUM_SIZE}
+                  leaderViews={leaderViews}
+                  onQuickAdd={setQuickAddItem}
+                />
+              ))}
+            </ol>
+          </section>
+        )}
+
+        {/* No dead end: the ranking is ten entries deep, the catalogue is not. */}
+        <div className="mt-16 flex justify-center border-t border-voxcina-blue/10 pt-12">
           <Link
             href="/products"
-            className="mt-7 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 font-bold text-primary-foreground transition hover:-translate-y-0.5 hover:shadow-medium"
+            className="group inline-flex items-center gap-2 text-sm font-bold text-voxcina-blue transition-colors hover:text-secondary-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-voxcina-blue/50 focus-visible:ring-offset-4 sm:text-base"
           >
-            <Package className="h-4 w-4" />
-            مشاهده همه محصولات
+            مشاهده همهٔ محصولات
+            <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" />
           </Link>
         </div>
       </div>
-    );
-  }
 
-  const featured = items[0];
-  const remaining = items.slice(1);
-
-  return (
-    <div className="container py-8 md:py-14">
-      {/* Above-the-fold header containing the <h1>: transform-only entrance so
-          it is an eligible LCP candidate from the first painted frame. */}
-      <motion.header
-        initial={{ y: -18 }}
-        animate={{ y: 0 }}
-        className="relative mb-10 overflow-hidden rounded-[2rem] bg-gradient-to-br from-primary via-primary/95 to-slate-950 px-6 py-10 text-primary-foreground shadow-strong md:px-12 md:py-14"
-      >
-        <div className="pointer-events-none absolute -left-12 -top-16 h-48 w-48 rounded-full bg-cyan-300/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 right-10 h-56 w-56 rounded-full bg-fuchsia-400/20 blur-3xl" />
-        <div className="relative max-w-2xl">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold backdrop-blur">
-            <Sparkles className="h-4 w-4 text-yellow-300" />
-            انتخاب کاربران وکسینا
-          </div>
-          <h1 className="text-3xl font-black tracking-tight md:text-5xl">پربازدیدترین‌ها</h1>
-          <p className="mt-4 max-w-xl text-sm leading-8 text-white/75 md:text-base">
-            رنگ‌ها و طرح‌هایی که بیشتر از همه توجه کاربران را جلب کرده‌اند.
-          </p>
-        </div>
-      </motion.header>
-
-      <div className="mb-8 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-[1.15fr_1fr] lg:items-stretch">
-        {/* Wraps the `priority` featured card — the LCP element here — so it
-            animates x only; an opacity fade would disqualify it until
-            framer-motion had hydrated.
-
-            The framing is a desktop treatment: below lg the featured card is an
-            ordinary cell of the grid, and the frame's padding would only make it
-            narrower than the card beside it. A ring carries the same "رتبه اول"
-            emphasis there without adding height that would break row alignment. */}
-        <motion.div
-          initial={{ x: 18 }}
-          animate={{ x: 0 }}
-          className="relative rounded-2xl ring-1 ring-yellow-400/70 lg:rounded-[2rem] lg:border lg:border-primary/10 lg:bg-gradient-to-br lg:from-primary/10 lg:via-card lg:to-card lg:p-6 lg:shadow-medium lg:ring-0"
-        >
-          <div className="mb-4 hidden items-center justify-between lg:flex">
-            <span className="rounded-full bg-yellow-400 px-4 py-1.5 text-sm font-black text-yellow-950">رتبه اول</span>
-            <span className="flex items-center gap-1.5 text-sm font-bold text-muted-foreground">
-              <Eye className="h-4 w-4 text-primary" />
-              {new Intl.NumberFormat("fa-IR").format(featured.viewCount || 0)} بازدید
-            </span>
-          </div>
-          <ProductCard
-            item={featured}
-            glassEffect
-            priority
-            imageSizes="(max-width: 640px) 45vw, (max-width: 1024px) 46vw, 620px"
-          />
-        </motion.div>
-
-        {/* `contents` dissolves this wrapper below lg so the three runners-up
-            become cells of the grid above, giving two clean rows of two. As its
-            own grid it produced a 2 + 1 split, and the odd one out had to span
-            the full width — a lone stretched card with phone-sized type in it. */}
-        <div className="contents lg:grid lg:grid-cols-2 lg:gap-6">
-          {remaining.slice(0, 3).map((item, index) => (
-            <motion.div
-              key={`${item.productId}-${item.colorVariant.variantId || index}`}
-              initial={{ y: 18 }}
-              animate={{ y: 0 }}
-              transition={{ delay: 0.08 + index * 0.06 }}
-            >
-              <ProductCard item={item} glassEffect />
-            </motion.div>
-          ))}
-        </div>
-      </div>
-
-      {remaining.length > 3 && (
-        <section>
-          <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-xl font-black text-foreground md:text-2xl">ادامه فهرست محبوب‌ها</h2>
-            <span className="text-sm text-muted-foreground">{items.length} طرح منتخب</span>
-          </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-5">
-            {remaining.slice(3).map((item, index) => (
-              <motion.div
-                key={`${item.productId}-${item.colorVariant.variantId || index + 3}`}
-                initial={{ y: 18 }}
-                animate={{ y: 0 }}
-                transition={{ delay: Math.min(index * 0.04, 0.3) }}
-              >
-                <ProductCard item={item} />
-              </motion.div>
-            ))}
-          </div>
-        </section>
-      )}
+      <QuickAddSheet item={quickAddItem} onClose={closeQuickAdd} />
     </div>
   );
 }
