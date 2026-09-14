@@ -239,12 +239,6 @@ func fcmErrorReason(body []byte, httpStatus int) string {
 	return "UNKNOWN"
 }
 
-// fcmOAuthClaims is the JWT-bearer assertion for the token exchange.
-type fcmOAuthClaims struct {
-	jwt.RegisteredClaims
-	Scope string `json:"scope,omitempty"`
-}
-
 // accessToken returns the cached or freshly exchanged OAuth2 access token.
 func (f *FCMService) accessToken(ctx context.Context) (string, error) {
 	f.tokenMu.Lock()
@@ -259,18 +253,19 @@ func (f *FCMService) accessToken(ctx context.Context) (string, error) {
 }
 
 // refreshAccessToken signs the JWT-bearer assertion and exchanges it at
-// oauth2.googleapis.com. golang-jwt v5 signs RS256 with the parsed service
-// account key — the same library this repo already uses for its own tokens.
+// oauth2.googleapis.com. The claims are built as jwt.MapClaims, NOT
+// jwt.RegisteredClaims: golang-jwt v5 marshals ClaimStrings as a JSON ARRAY
+// (["https://oauth2.googleapis.com/token"]), and Google's token endpoint
+// rejects the JWT-bearer grant with "Failed audience check" when aud is an
+// array — it requires the plain string.
 func (f *FCMService) refreshAccessToken(ctx context.Context) error {
 	now := time.Now()
-	assertion, err := jwt.NewWithClaims(jwt.SigningMethodRS256, fcmOAuthClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    f.clientEmail,
-			Audience:  jwt.ClaimStrings{fcmTokenURL},
-			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(time.Hour)),
-		},
-		Scope: fcmScope,
+	assertion, err := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
+		"iss":   f.clientEmail,
+		"aud":   fcmTokenURL,
+		"iat":   now.Unix(),
+		"exp":   now.Add(time.Hour).Unix(),
+		"scope": fcmScope,
 	}).SignedString(f.privateKey)
 	if err != nil {
 		return fmt.Errorf("fcm: signing oauth assertion: %w", err)
@@ -289,9 +284,15 @@ func (f *FCMService) refreshAccessToken(ctx context.Context) error {
 		return fmt.Errorf("fcm: oauth exchange: %w", err)
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<10))
 	if resp.StatusCode != http.StatusOK {
-		return &FCMSendError{HTTPStatus: resp.StatusCode, Reason: "OAUTH_TOKEN"}
+		// The token endpoint's error text (invalid_grant, clock skew, a
+		// disabled service account) is the ONLY way to debug this from prod
+		// logs — carry a snippet in the error instead of a bare status.
+		return &FCMSendError{
+			HTTPStatus: resp.StatusCode,
+			Reason:     fmt.Sprintf("OAUTH_TOKEN: %.200s", strings.TrimSpace(string(body))),
+		}
 	}
 	var token struct {
 		AccessToken string `json:"access_token"`
