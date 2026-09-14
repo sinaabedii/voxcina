@@ -177,8 +177,6 @@ export default async function RootLayout({
     <html lang="fa" dir="rtl" className="scroll-smooth">
       <head>
         <meta name="theme-color" content="#1A3C69" />
-        <link rel="icon" href="/images/Logo/WXTransparent-org.png" sizes="any" />
-        <link rel="apple-touch-icon" href="/images/Logo/apple-touch-icon.png" />
         
         {/* Preload critical fonts for better CLS and LCP */}
         <link
