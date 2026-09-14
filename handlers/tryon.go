@@ -624,6 +624,59 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 		personDataURL := fmt.Sprintf("data:image/jpeg;base64,%s", personBase64)
 		garmentDataURL := fmt.Sprintf("data:image/jpeg;base64,%s", garmentBase64)
 
+		apiKey := os.Getenv("OPENROUTER_API_KEY")
+		if apiKey == "" {
+			fmt.Printf("[tryon-%s] OPENROUTER_API_KEY not set\n", taskID)
+			task.Status = "error"
+			task.Error = "سرویس پرو مجازی در حال حاضر در دسترس نیست"
+			publishTryOnTask(taskID, task)
+			return
+		}
+		appURL := os.Getenv("APP_URL")
+
+		// Where this model can actually be drawn: chat/completions for the
+		// Gemini-style models that output images there, the Image API for the
+		// ones (sunburst and friends) that reject the chat path with a
+		// modality 404. Unknown names stay on the legacy chat flow so a
+		// misconfigured id still surfaces OpenRouter's own error.
+		imageRoute := tryOnImageRoute(context.Background(), imageModel)
+		fmt.Printf("[tryon-%s] image route=%d model=%s\n", taskID, imageRoute, imageModel)
+
+		if imageRoute == imageRouteImagesAPI {
+			rawImage, genErr := generateTryOnImageViaImagesAPI(taskID, apiKey, appURL, imageModel, prompt, personDataURL, garmentDataURL)
+			if genErr != nil {
+				task.Status = "error"
+				task.Error = genErr.Error()
+				publishTryOnTask(taskID, task)
+				if virtualTryonService != nil {
+					_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
+				}
+				return
+			}
+
+			savedPath, err := saveTryOnImageBytes(rawImage)
+			if err != nil {
+				fmt.Printf("[tryon-%s] save error (images-api): %v\n", taskID, err)
+				task.Status = "error"
+				task.Error = "خطا در ذخیره تصویر"
+				publishTryOnTask(taskID, task)
+				if virtualTryonService != nil {
+					_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
+				}
+				return
+			}
+
+			fmt.Printf("[tryon-%s] saved to: %s\n", taskID, savedPath)
+			task.Status = "done"
+			task.Image = savedPath
+			publishTryOnTask(taskID, task)
+			if virtualTryonService != nil {
+				_ = virtualTryonService.Complete(context.Background(), tryonID, savedPath, imageModel, prompt, time.Since(startTime).Milliseconds())
+			}
+			fmt.Printf("[tryon-%s] task completed\n", taskID)
+			return
+		}
+
 		requestBody := map[string]interface{}{
 			"model": imageModel,
 			"messages": []map[string]interface{}{
@@ -661,17 +714,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		apiKey := os.Getenv("OPENROUTER_API_KEY")
-		if apiKey == "" {
-			fmt.Printf("[tryon-%s] OPENROUTER_API_KEY not set\n", taskID)
-			task.Status = "error"
-			task.Error = "سرویس پرو مجازی در حال حاضر در دسترس نیست"
-			publishTryOnTask(taskID, task)
-			return
-		}
-		appURL := os.Getenv("APP_URL")
-
-		httpReq, err := http.NewRequest("POST", "https://openrouter.ai/api/v1/chat/completions", bytes.NewBuffer(jsonData))
+		httpReq, err := http.NewRequest("POST", openRouterChatCompletionsURL, bytes.NewBuffer(jsonData))
 		if err != nil {
 			fmt.Printf("[tryon-%s] http.NewRequest error: %v\n", taskID, err)
 			task.Status = "error"
@@ -1062,22 +1105,7 @@ func saveTryOnImage(dataURL string) (string, error) {
 		return "", fmt.Errorf("base64 decode error: %v", err)
 	}
 
-	croppedData, _, err := cropToAspectRatio(rawData, 3, 4)
-	if err != nil {
-		return "", fmt.Errorf("crop error: %v", err)
-	}
-
-	uploadDir := "uploads/products/tryon"
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		return "", fmt.Errorf("mkdir error: %v", err)
-	}
-
-	filename := fmt.Sprintf("%s/%d.jpg", uploadDir, time.Now().UnixNano())
-	if err := os.WriteFile(filename, croppedData, 0644); err != nil {
-		return "", fmt.Errorf("write error: %v", err)
-	}
-
-	return "/" + filename, nil
+	return saveTryOnImageBytes(rawData)
 }
 
 func isTryOnDevMode() bool {
