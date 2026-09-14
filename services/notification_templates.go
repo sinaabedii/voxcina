@@ -156,6 +156,31 @@ func dbNotificationOverride(ctx context.Context, database *mongo.Database, notif
 	return tpl
 }
 
+// RawNotificationCopy returns a type's template text UNRENDERED, plus which
+// layer supplied it ("db" | "file" | "builtin").
+//
+// The admin template editor must load this, never ResolveNotificationCopy:
+// rendering with no data replaces every {{placeholder}} with an empty string,
+// so an admin who opened the editor and pressed save would persist copy with
+// the placeholders permanently stripped out ("سفارش  ثبت شد" for every order,
+// forever after).
+func RawNotificationCopy(
+	ctx context.Context,
+	database *mongo.Database,
+	notificationType string,
+) (copy NotificationCopy, enabled bool, source string) {
+	if override := dbNotificationOverride(ctx, database, notificationType); override != nil {
+		return NotificationCopy{Title: override.Title, Body: override.Body}, override.Enabled, "db"
+	}
+	if file := fileNotificationTemplates(); file != nil {
+		if tpl, ok := file[notificationType]; ok {
+			return NotificationCopy{Title: tpl.Title, Body: tpl.Body}, tpl.Enabled, "file"
+		}
+	}
+	builtin := builtinNotificationCopy[notificationType]
+	return NotificationCopy{Title: builtin.Title, Body: builtin.Body}, builtin.Enabled, "builtin"
+}
+
 // ResolveNotificationCopy decides the copy for a notification type and whether
 // it is enabled at all. A disabled template mutes the event entirely — neither
 // an inbox row nor a push is produced.

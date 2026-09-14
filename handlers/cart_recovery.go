@@ -235,7 +235,7 @@ func SendCartRecoverySMS(w http.ResponseWriter, r *http.Request) {
 
 		// coupon_offer inbox row + push: target `cart` with the code, which
 		// the app auto-applies on tap. Best-effort, async.
-		notifyCouponOffer(cart.UserID, code)
+		notifyCouponOffer(cart.UserID, code, coupon.ValidUntil)
 
 		result.Sent++
 	}

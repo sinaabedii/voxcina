@@ -301,12 +301,16 @@ func AdminDeleteNotificationCampaign(w http.ResponseWriter, r *http.Request) {
 func AdminListNotificationTemplates(w http.ResponseWriter, r *http.Request) {
 	rows := make([]map[string]interface{}, 0, 16)
 	for _, notificationType := range notificationTypeOrder {
-		copied, enabled := services.ResolveNotificationCopy(r.Context(), db.Database, notificationType, nil)
+		// RAW, not rendered: this feeds an editor, and rendering with no data
+		// would hand the admin copy with every {{placeholder}} already blanked
+		// out — which saving would then make permanent.
+		copied, enabled, source := services.RawNotificationCopy(r.Context(), db.Database, notificationType)
 		rows = append(rows, map[string]interface{}{
 			"type":    notificationType,
 			"enabled": enabled,
 			"title":   copied.Title,
 			"body":    copied.Body,
+			"source":  source,
 		})
 	}
 	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{"templates": rows})

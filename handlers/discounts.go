@@ -94,7 +94,7 @@ func CreateDiscount(w http.ResponseWriter, r *http.Request) {
 	// voucher_granted inbox row + push for every explicitly targeted user.
 	// Best-effort, async; a public discount notifies no one individually.
 	for _, assignedUserID := range discount.AssignedUsers {
-		notifyVoucherGranted(assignedUserID, discount.Code)
+		notifyVoucherGranted(assignedUserID, discount.Code, discount.ValidTo)
 	}
 
 	utils.JSONResponse(w, http.StatusCreated, discount)

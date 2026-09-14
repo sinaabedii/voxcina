@@ -122,17 +122,25 @@ func notifyVouchersExpiring(ctx context.Context, database *mongo.Database) {
 }
 
 // notifyAbandonedCarts reminds users whose active cart has been untouched for
-// the idle window. The marker rides on the cart document, so editing the cart
-// (which bumps updated_at and cannot clear the marker once written) restarts
-// the idle clock before any second reminder.
+// the idle window.
+//
+// The marker rides on the cart document and re-arms when the cart moves: a cart
+// qualifies if it was never reminded, OR if it has been edited since the last
+// reminder (updated_at > reminder_sent_at). Matching on "reminder_sent_at does
+// not exist" alone would give each cart exactly one reminder for its entire
+// lifetime — a user who abandons a cart, buys, and abandons a new one months
+// later would never be nudged again.
 func notifyAbandonedCarts(ctx context.Context, database *mongo.Database) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 	filter := bson.M{
-		"is_active":        true,
-		"items.0":          bson.M{"$exists": true},
-		"updated_at":       bson.M{"$lt": time.Now().Add(-CartReminderIdleWindow)},
-		"reminder_sent_at": bson.M{"$exists": false},
+		"is_active":  true,
+		"items.0":    bson.M{"$exists": true},
+		"updated_at": bson.M{"$lt": time.Now().Add(-CartReminderIdleWindow)},
+		"$or": []bson.M{
+			{"reminder_sent_at": bson.M{"$exists": false}},
+			{"$expr": bson.M{"$lt": bson.A{"$reminder_sent_at", "$updated_at"}}},
+		},
 	}
 	cursor, err := database.Collection("carts").Find(ctx, filter,
 		// Bounded: a reminder sweep over a huge stale backlog must not run for
@@ -161,8 +169,10 @@ func notifyAbandonedCarts(ctx context.Context, database *mongo.Database) {
 		if id == nil {
 			continue
 		}
+		// Unconditional: the re-arm above is driven by updated_at, so the marker
+		// is refreshed rather than written once.
 		_, _ = database.Collection("carts").UpdateOne(ctx,
-			bson.M{"_id": cart.ID, "reminder_sent_at": bson.M{"$exists": false}},
+			bson.M{"_id": cart.ID},
 			bson.M{"$set": bson.M{"reminder_sent_at": time.Now()}})
 	}
 }

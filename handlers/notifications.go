@@ -337,9 +337,12 @@ func GetNotificationPreferences(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error loading notification preferences")
 		return
 	}
-	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
-		"preferences": prefs,
-	})
+	// FLAT, not wrapped: the app parses the body straight into
+	// NotificationPreferencesDto (data/remote/dto/NotificationDtos.kt), whose
+	// five keys are top-level. A {"preferences": {...}} envelope decodes to
+	// five nulls, which toDomain() reads as ALL_ENABLED — the user's mutes
+	// would silently never load.
+	utils.JSONResponse(w, http.StatusOK, prefs)
 }
 
 // UpdateNotificationPreferences stores the PUT body and returns the saved
@@ -360,7 +363,8 @@ func UpdateNotificationPreferences(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Error saving notification preferences")
 		return
 	}
-	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
-		"preferences": prefs,
-	})
+	// Flat, for the same reason as the GET: the app takes the PUT response as
+	// authoritative over what it sent ("the server's copy wins"), so an
+	// envelope here makes every switch the user turns off flip back on.
+	utils.JSONResponse(w, http.StatusOK, prefs)
 }

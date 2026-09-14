@@ -360,9 +360,9 @@ func AddTicketMessage(w http.ResponseWriter, r *http.Request) {
 	if sender == "support" {
 		var ticket models.Ticket
 		if err := collection.FindOne(ctx, bson.M{"_id": ticketID},
-			options.FindOne().SetProjection(bson.M{"user_id": 1}),
+			options.FindOne().SetProjection(bson.M{"user_id": 1, "ticket_number": 1}),
 		).Decode(&ticket); err == nil && ticket.UserID != primitive.NilObjectID {
-			notifyTicketReplied(ticket.UserID)
+			notifyTicketReplied(&ticket)
 		}
 	}
 

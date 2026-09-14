@@ -71,17 +71,25 @@ func escapeRegexp(s string) string {
 }
 
 // activeUserFilter is the common tail of every segment: soft-deleted users are
-// never notified.
-var activeUserFilter = bson.M{"is_active": bson.M{"$ne": false}}
+// never notified. It returns a FRESH map on every call — a shared package-level
+// bson.M would be mutated in place by the `$and` assignment below, leaking one
+// campaign's rules into the next audience and racing (concurrent map write, a
+// hard runtime crash) between the admin preview and the fan-out worker.
+func activeUserFilter() bson.M {
+	return bson.M{"is_active": bson.M{"$ne": false}}
+}
 
-// distinctUserIDs collects distinct user ids from one collection query.
-func distinctUserIDs(ctx context.Context, database *mongo.Database, collection string, filter bson.M) []primitive.ObjectID {
+// distinctUserIDs collects distinct user ids from one collection query. The
+// error is RETURNED, never swallowed: an exclusion rule ($nin) built from a
+// silently-empty list matches every user, so a timeout here would blast a
+// "never bought" campaign at the entire database.
+func distinctUserIDs(ctx context.Context, database *mongo.Database, collection string, filter bson.M) ([]primitive.ObjectID, error) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	raw, err := database.Collection(collection).Distinct(ctx, "_id", filter)
 	if err != nil {
 		log.Printf("segment: distinct on %s failed: %v", collection, err)
-		return nil
+		return nil, fmt.Errorf("segment: resolving %s failed: %w", collection, err)
 	}
 	ids := make([]primitive.ObjectID, 0, len(raw))
 	for _, id := range raw {
@@ -89,7 +97,7 @@ func distinctUserIDs(ctx context.Context, database *mongo.Database, collection s
 			ids = append(ids, oid)
 		}
 	}
-	return ids
+	return ids, nil
 }
 
 // ResolveSegment returns the user ids matching one audience rule.
@@ -101,8 +109,7 @@ func ResolveSegment(ctx context.Context, database *mongo.Database, segment map[s
 	if err != nil {
 		return nil, err
 	}
-	ids := distinctUserIDs(ctx, database, "users", filter)
-	return ids, nil
+	return distinctUserIDs(ctx, database, "users", filter)
 }
 
 // CountSegment resolves a rule and returns how many users it matches — the
@@ -128,23 +135,42 @@ func BuildSegmentFilter(ctx context.Context, database *mongo.Database, segment m
 		switch field {
 		case models.SegmentFieldBoughtWithinDays:
 			since := time.Now().AddDate(0, 0, -segmentDays(value))
-			ands = append(ands, bson.M{"_id": bson.M{"$in": distinctUserIDs(ctx, database, "orders",
-				bson.M{"created_at": bson.M{"$gte": since}, "user_id": bson.M{"$ne": primitive.NilObjectID}})}})
+			buyers, err := distinctUserIDs(ctx, database, "orders",
+				bson.M{"created_at": bson.M{"$gte": since}, "user_id": bson.M{"$ne": primitive.NilObjectID}})
+			if err != nil {
+				return nil, err
+			}
+			ands = append(ands, bson.M{"_id": bson.M{"$in": buyers}})
 		case models.SegmentFieldNeverBought:
-			ands = append(ands, bson.M{"_id": bson.M{"$nin": distinctUserIDs(ctx, database, "orders",
-				bson.M{"user_id": bson.M{"$ne": primitive.NilObjectID}})}})
+			buyers, err := distinctUserIDs(ctx, database, "orders",
+				bson.M{"user_id": bson.M{"$ne": primitive.NilObjectID}})
+			if err != nil {
+				return nil, err
+			}
+			ands = append(ands, bson.M{"_id": bson.M{"$nin": buyers}})
 		case models.SegmentFieldHasAbandonedCart:
-			ands = append(ands, bson.M{"_id": bson.M{"$in": distinctUserIDs(ctx, database, "carts",
-				bson.M{"is_active": true, "items.0": bson.M{"$exists": true}})}})
+			abandoners, err := distinctUserIDs(ctx, database, "carts",
+				bson.M{"is_active": true, "items.0": bson.M{"$exists": true}})
+			if err != nil {
+				return nil, err
+			}
+			ands = append(ands, bson.M{"_id": bson.M{"$in": abandoners}})
 		case models.SegmentFieldOwnsUnusedVoucher:
-			ands = append(ands, bson.M{"_id": bson.M{"$in": distinctUserIDs(ctx, database, "negotiated_coupons",
-				bson.M{"used": false, "valid_until": bson.M{"$gt": time.Now()}})}})
+			holders, err := distinctUserIDs(ctx, database, "negotiated_coupons",
+				bson.M{"used": false, "valid_until": bson.M{"$gt": time.Now()}})
+			if err != nil {
+				return nil, err
+			}
+			ands = append(ands, bson.M{"_id": bson.M{"$in": holders}})
 		case models.SegmentFieldFavouritedProduct:
 			oid, ok := segmentObjectID(value)
 			if !ok {
 				return nil, fmt.Errorf("segment: %s needs a product id hex", field)
 			}
-			wishlistUsers := distinctUserIDs(ctx, database, "wishlist", bson.M{"product_id": oid})
+			wishlistUsers, err := distinctUserIDs(ctx, database, "wishlist", bson.M{"product_id": oid})
+			if err != nil {
+				return nil, err
+			}
 			ands = append(ands, bson.M{"_id": bson.M{"$in": wishlistUsers}})
 		case models.SegmentFieldCity:
 			city := segmentString(value)
@@ -165,7 +191,7 @@ func BuildSegmentFilter(ctx context.Context, database *mongo.Database, segment m
 			return nil, fmt.Errorf("segment: unsupported field %q", field)
 		}
 	}
-	filter := activeUserFilter
+	filter := activeUserFilter()
 	if len(ands) > 0 {
 		filter["$and"] = ands
 	}

@@ -29,12 +29,44 @@ const (
 )
 
 // NotificationAudienceKinds — how a notification's recipients were chosen.
+// These are the values the ADMIN dashboard composes on (audience_kind); they
+// are not all wire-legal on the app side. See NotificationAudienceForApp.
 const (
 	NotificationAudienceUser     = "user"     // one specific user
 	NotificationAudienceSegment  = "segment"  // resolved from an audience rule
 	NotificationAudienceAll      = "all"      // broadcast to every active user
 	NotificationAudienceWishlist = "wishlist" // product-side trigger, §4
 )
+
+// The app's NotificationAudience enum is CLOSED to three wire values
+// (domain/model/NotificationModels.kt): broadcast, segment, user. Anything
+// else it reads as USER.
+const (
+	NotificationAudienceWireBroadcast = "broadcast"
+	NotificationAudienceWireSegment   = "segment"
+	NotificationAudienceWireUser      = "user"
+)
+
+// NotificationAudienceForApp maps an internal audience kind onto the app's
+// three-value vocabulary, which is what an inbox row's `audience` field must
+// carry.
+//
+// "all" is the one that matters: the app has no such value, so it falls back to
+// USER, and every shop-wide campaign renders as if it were a personal message
+// about the reader's own order (NotificationCard.kt branches on exactly this).
+// "wishlist" is a rule-resolved slice of users, which is what SEGMENT means.
+func NotificationAudienceForApp(kind string) string {
+	switch kind {
+	case NotificationAudienceAll:
+		return NotificationAudienceWireBroadcast
+	case NotificationAudienceSegment, NotificationAudienceWishlist:
+		return NotificationAudienceWireSegment
+	case NotificationAudienceWireBroadcast:
+		return NotificationAudienceWireBroadcast
+	default:
+		return NotificationAudienceWireUser
+	}
+}
 
 // The §5 deep-link vocabulary. The wire carries target_type + target_id +
 // target_extra — never a route or a URL. The app resolves the name through a

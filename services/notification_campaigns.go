@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -94,6 +95,25 @@ func processDueCampaigns(ctx context.Context, database *mongo.Database) {
 	}, bson.M{"$set": bson.M{"status": models.NotificationCampaignStatusQueued}})
 
 	if err := fanOutCampaign(ctx, database, &campaign); err != nil {
+		// A deadline is NOT a failure — it is a broadcast that did not finish
+		// inside one 5-minute pass. Fanning out is two round-trips per user
+		// (the dedupe probe and the preference read), so a large audience runs
+		// out of time routinely. Marking it "failed" would strand the campaign
+		// half-delivered forever: some users notified, no way to resume.
+		//
+		// Put it back to queued instead and let the next pass continue. The
+		// per-user dedupe below makes the replay write only the rows that are
+		// still missing, so resuming is exactly as safe as the crash-recovery
+		// path this reuses.
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			_, _ = coll.UpdateOne(context.Background(), bson.M{"_id": campaign.ID}, bson.M{"$set": bson.M{
+				"status":     models.NotificationCampaignStatusQueued,
+				"error":      "fan-out paused at the pass deadline; resuming",
+				"updated_at": time.Now(),
+			}})
+			log.Printf("campaigns: fan-out for %s hit the pass deadline; requeued to resume", campaign.ID.Hex())
+			return
+		}
 		_, _ = coll.UpdateOne(ctx, bson.M{"_id": campaign.ID}, bson.M{"$set": bson.M{
 			"status":     models.NotificationCampaignStatusFailed,
 			"error":      err.Error(),
@@ -162,6 +182,13 @@ func fanOutCampaign(ctx context.Context, database *mongo.Database, campaign *mod
 		count, err := database.Collection("notifications").CountDocuments(ctx,
 			bson.M{"campaign_id": campaign.ID, "user_id": userID}, options.Count().SetLimit(1))
 		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+				// Out of time, not a bad row: flush what is batched and hand the
+				// deadline up so the campaign requeues rather than reporting a
+				// truncated fan-out as a completed one.
+				_ = flush()
+				return err
+			}
 			log.Printf("campaigns: dedupe check failed for %s: %v", userID.Hex(), err)
 			continue
 		}
@@ -183,7 +210,7 @@ func fanOutCampaign(ctx context.Context, database *mongo.Database, campaign *mod
 			ID:          primitive.NewObjectID(),
 			UserID:      userID,
 			Type:        campaign.Type,
-			Audience:    campaign.AudienceKind,
+			Audience:    models.NotificationAudienceForApp(campaign.AudienceKind),
 			Title:       campaign.Title,
 			Body:        campaign.Body,
 			Image:       campaign.Image,

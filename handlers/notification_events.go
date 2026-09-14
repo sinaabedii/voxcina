@@ -10,6 +10,7 @@ import (
 	"backEnd/db"
 	"backEnd/models"
 	"backEnd/services"
+	"backEnd/utils"
 )
 
 // Notification emission for the Go-side business flows — the twin of
@@ -41,16 +42,24 @@ func notifyOrderPlaced(order *models.Order) {
 		Type:       models.NotificationTypeOrderPlaced,
 		TargetType: models.NotificationTargetOrderDetail,
 		TargetID:   order.ID.Hex(),
+		Data:       map[string]string{"order_number": order.OrderNumber},
 	})
 }
 
 // notifyOrderStatusChanged emits order_status_changed for admin status edits.
+// newStatus is rendered through getStatusText, the same Persian label the
+// orders API already returns — the raw wire value ("shipped") must never reach
+// the copy.
 func notifyOrderStatusChanged(order *models.Order, newStatus string) {
 	emitNotification(services.NotifyInput{
 		UserID:     order.UserID,
 		Type:       models.NotificationTypeOrderStatus,
 		TargetType: models.NotificationTargetOrderDetail,
 		TargetID:   order.ID.Hex(),
+		Data: map[string]string{
+			"order_number": order.OrderNumber,
+			"status":       getStatusText(newStatus),
+		},
 	})
 }
 
@@ -63,6 +72,7 @@ func notifyPaymentSucceeded(userID primitive.ObjectID, order *models.Order) {
 		Type:       models.NotificationTypePaymentSucceeded,
 		TargetType: models.NotificationTargetOrderDetail,
 		TargetID:   order.ID.Hex(),
+		Data:       map[string]string{"order_number": order.OrderNumber},
 	})
 }
 
@@ -73,6 +83,7 @@ func notifyPaymentFailed(userID primitive.ObjectID, order *models.Order) {
 		Type:       models.NotificationTypePaymentFailed,
 		TargetType: models.NotificationTargetOrderDetail,
 		TargetID:   order.ID.Hex(),
+		Data:       map[string]string{"order_number": order.OrderNumber},
 	})
 }
 
@@ -84,15 +95,38 @@ func notifyReturnDecided(request *models.ReturnRequest, newStatus string) {
 		Type:       models.NotificationTypeReturnDecided,
 		TargetType: models.NotificationTargetOrderDetail,
 		TargetID:   request.OrderID.Hex(),
+		Data: map[string]string{
+			"order_number": request.OrderNumber,
+			"decision":     returnDecisionText(newStatus),
+		},
 	})
 }
 
-// notifyTicketReplied emits ticket_replied when a support agent answers.
-func notifyTicketReplied(userID primitive.ObjectID) {
+// returnDecisionText renders an approve/reject outcome as the word the
+// return_decided copy reads with ("... مرجوعی سفارش X {{decision}} شد").
+func returnDecisionText(status string) string {
+	switch status {
+	case models.ReturnStatusApproved:
+		return "تایید"
+	case models.ReturnStatusRejected:
+		return "رد"
+	case models.ReturnStatusCancelled:
+		return "لغو"
+	default:
+		return "بررسی"
+	}
+}
+
+// notifyTicketReplied emits ticket_replied when a support agent answers. The
+// target is ticket_detail with the ticket's own id (§5), so the tap lands on
+// the reply rather than on the ticket list.
+func notifyTicketReplied(ticket *models.Ticket) {
 	emitNotification(services.NotifyInput{
-		UserID:     userID,
+		UserID:     ticket.UserID,
 		Type:       models.NotificationTypeTicketReplied,
-		TargetType: models.NotificationTargetTickets,
+		TargetType: models.NotificationTargetTicketDetail,
+		TargetID:   ticket.ID.Hex(),
+		Data:       map[string]string{"ticket_number": ticket.TicketNumber},
 	})
 }
 
@@ -110,21 +144,29 @@ func notifyTryonReply(userID primitive.ObjectID) {
 // notifyCouponOffer emits coupon_offer for a negotiated or cart-recovery
 // coupon: target `cart` with the code in target_id, which the app auto-applies
 // on tap.
-func notifyCouponOffer(userID primitive.ObjectID, code string) {
+func notifyCouponOffer(userID primitive.ObjectID, code string, validUntil time.Time) {
 	emitNotification(services.NotifyInput{
 		UserID:     userID,
 		Type:       models.NotificationTypeCouponOffer,
 		TargetType: models.NotificationTargetCart,
 		TargetID:   code,
+		Data: map[string]string{
+			"code":        code,
+			"valid_until": utils.ToJalaliDateString(validUntil),
+		},
 	})
 }
 
 // notifyVoucherGranted emits voucher_granted for a targeted discount assigned
 // to specific users. The app lands on the vouchers screen.
-func notifyVoucherGranted(userID primitive.ObjectID, code string) {
+func notifyVoucherGranted(userID primitive.ObjectID, code string, validUntil time.Time) {
 	emitNotification(services.NotifyInput{
 		UserID:     userID,
 		Type:       models.NotificationTypeVoucherGranted,
 		TargetType: models.NotificationTargetVouchers,
+		Data: map[string]string{
+			"code":        code,
+			"valid_until": utils.ToJalaliDateString(validUntil),
+		},
 	})
 }

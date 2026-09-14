@@ -90,7 +90,7 @@ func NegotiateCheckoutCouponStream(w http.ResponseWriter, r *http.Request) {
 			} else {
 				// coupon_offer inbox row + push: target `cart` with the code,
 				// which the app auto-applies on tap. Best-effort, async.
-				notifyCouponOffer(userID, nc.Code)
+				notifyCouponOffer(userID, nc.Code, nc.ValidUntil)
 			}
 		}
 	}

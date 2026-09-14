@@ -171,7 +171,7 @@ func Notify(
 		ID:          primitive.NewObjectID(),
 		UserID:      input.UserID,
 		Type:        input.Type,
-		Audience:    input.Audience,
+		Audience:    models.NotificationAudienceForApp(input.Audience),
 		Title:       title,
 		Body:        body,
 		Image:       input.Image,

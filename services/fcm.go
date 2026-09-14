@@ -187,13 +187,56 @@ type FCMSendError struct {
 
 func (e *FCMSendError) Error() string { return fmt.Sprintf("fcm: HTTP %d %s", e.HTTPStatus, e.Reason) }
 
-// IsPermanent reports errors that will not improve on retry.
+// IsPermanent reports errors that will not improve on retry. A true here is
+// what deletes the device row, so it must be driven by the FCM error code —
+// see fcmErrorReason for why the generic gRPC status is not enough.
 func (e *FCMSendError) IsPermanent() bool {
 	switch e.Reason {
 	case "UNREGISTERED", "INVALID_ARGUMENT", "SENDER_ID_MISMATCH", "THIRD_PARTY_AUTH_ERROR":
 		return true
 	}
 	return false
+}
+
+// fcmErrorReason pulls the most specific error code out of an FCM v1 error
+// body.
+//
+// The precise code lives in details[].errorCode, NOT in error.status. An
+// uninstalled app — by far the most common permanent failure — answers:
+//
+//	{"error":{"code":404,"status":"NOT_FOUND","details":[
+//	  {"@type":"...FcmError","errorCode":"UNREGISTERED"}]}}
+//
+// Reading error.status alone yields "NOT_FOUND", which IsPermanent does not
+// recognise, so the dead token would never be deleted and every push to it
+// would burn the full retry budget forever. SENDER_ID_MISMATCH hides behind
+// PERMISSION_DENIED and THIRD_PARTY_AUTH_ERROR behind UNAUTHENTICATED the
+// same way. details wins; status is the fallback.
+func fcmErrorReason(body []byte, httpStatus int) string {
+	var errBody struct {
+		Error struct {
+			Status  string `json:"status"`
+			Message string `json:"message"`
+			Details []struct {
+				Type      string `json:"@type"`
+				ErrorCode string `json:"errorCode"`
+			} `json:"details"`
+		} `json:"error"`
+	}
+	if json.Unmarshal(body, &errBody) == nil {
+		for _, detail := range errBody.Error.Details {
+			if detail.ErrorCode != "" {
+				return detail.ErrorCode
+			}
+		}
+		if errBody.Error.Status != "" {
+			return errBody.Error.Status
+		}
+	}
+	if len(body) > 0 {
+		return fmt.Sprintf("HTTP %d: %.120s", httpStatus, string(body))
+	}
+	return "UNKNOWN"
 }
 
 // fcmOAuthClaims is the JWT-bearer assertion for the token exchange.
@@ -310,17 +353,5 @@ func (f *FCMService) Send(ctx context.Context, msg FCMPushMessage) error {
 		return nil
 	}
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 16<<10))
-	reason := "UNKNOWN"
-	var errBody struct {
-		Error struct {
-			Status  string `json:"status"`
-			Message string `json:"message"`
-		} `json:"error"`
-	}
-	if json.Unmarshal(body, &errBody) == nil && errBody.Error.Status != "" {
-		reason = errBody.Error.Status
-	} else if len(body) > 0 {
-		reason = fmt.Sprintf("HTTP %d: %.120s", resp.StatusCode, string(body))
-	}
-	return &FCMSendError{HTTPStatus: resp.StatusCode, Reason: reason}
+	return &FCMSendError{HTTPStatus: resp.StatusCode, Reason: fcmErrorReason(body, resp.StatusCode)}
 }
