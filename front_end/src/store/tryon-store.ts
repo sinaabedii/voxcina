@@ -1,4 +1,6 @@
 import { create } from "zustand";
+
+import { PER_USER_STORAGE_KEYS } from "@/lib/local-storage-manager";
 import {
   VirtualTryon,
   TryonChat,
@@ -81,7 +83,7 @@ interface TryOnState {
   startNewRoom: () => void;
 }
 
-const CHAT_ID_LS_KEY = "voxcina_tryon_chat_id";
+const CHAT_ID_LS_KEY = PER_USER_STORAGE_KEYS.TRYON_CHAT_ID;
 
 function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -195,7 +197,13 @@ export const useTryOnStore = create<TryOnState>()(
       set({ __tryOnAbortController: abortController });
 
       try {
-        set({ isProcessing: true, error: null });
+        // resultImage is cleared here, not just on success. It holds the
+        // previous room's image (restored from the session on load, or left by
+        // the last generation), and every reader downstream treats whatever is
+        // in it once startTryOn returns as *this* try-on's result — so a
+        // generation that fails to produce one used to publish the previous
+        // image under the new garment's name, and persist it to the transcript.
+        set({ isProcessing: true, error: null, resultImage: null, currentTryonId: null });
 
         const formData = new FormData();
         formData.append("person_image", uploadedFile);
@@ -237,9 +245,17 @@ export const useTryOnStore = create<TryOnState>()(
         const data = await res.json();
         const taskId = data?.task_id as string | undefined;
         const tryonId = data?.tryon_id as string | undefined;
+        const serverChatId = data?.chat_id as string | undefined;
         if (!taskId) throw new Error("شناسه تسک در پاسخ وجود ندارد");
         if (tryonId) {
           set({ currentTryonId: tryonId });
+        }
+        // The room id we sent is only a request. The backend starts a fresh
+        // room when the one in localStorage belongs to another account — which
+        // is what a logout on a shared browser leaves behind — and names it in
+        // the response.
+        if (serverChatId && serverChatId !== chatId) {
+          get().setChatId(serverChatId);
         }
 
         await waitForTryOnTask(taskId, token, abortController.signal, (image) => {
@@ -414,111 +430,152 @@ function toPersianDigits(n: number): string {
   return n.toLocaleString("fa-IR", { useGrouping: false });
 }
 
+const TASK_DEADLINE_MS = 5 * 60 * 1000; // the server gives up on a task at the same mark
+const TASK_POLL_INTERVAL_MS = 2000;
+
+/** A verdict from the server: the generation itself failed. Not retryable. */
+class TryOnTaskError extends Error {}
+
+function abortError(): Error {
+  const err = new Error("AbortError");
+  err.name = "AbortError";
+  return err;
+}
+
+function isAbortError(err: unknown): boolean {
+  return (err as { name?: string } | null)?.name === "AbortError";
+}
+
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    function onAbort() {
+      clearTimeout(timer);
+      reject(abortError());
+    }
+    if (signal.aborted) {
+      onAbort();
+      return;
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+/**
+ * Waits for a try-on task, over the event stream first and by polling if that
+ * stream does not deliver a verdict.
+ *
+ * The task lives in the backend, not in the connection: a stream that ends
+ * early says nothing about whether the image was drawn. It used to be read as
+ * success — the promise resolved with no image, `isProcessing` stayed true, and
+ * the room sat on its spinner with no error and no result. Every generation
+ * slower than the shortest idle timeout in front of the API landed there.
+ */
 async function waitForTryOnTask(
   taskId: string,
   token: string,
   signal: AbortSignal,
   onDone: (image: string) => void
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
-    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
-    let settled = false;
+  const deadline = Date.now() + TASK_DEADLINE_MS;
 
-    const cleanup = () => {
-      if (reader) {
-        reader.cancel().catch(() => {});
-        reader = null;
-      }
-      signal.removeEventListener("abort", onAbort);
-    };
-
-    const onAbort = () => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      reject(new Error("AbortError"));
-    };
-
-    if (signal.aborted) {
-      onAbort();
+  try {
+    const image = await streamTryOnResult(taskId, token, signal);
+    if (image) {
+      onDone(image);
       return;
     }
+  } catch (err) {
+    // An abort is the caller's decision and a task error is the server's
+    // verdict; both are final. Anything else means the connection broke while
+    // the generation was still running, so fall through and ask for it.
+    if (isAbortError(err) || err instanceof TryOnTaskError) throw err;
+  }
 
-    signal.addEventListener("abort", onAbort);
+  onDone(await pollTryOnResult(taskId, token, signal, deadline));
+}
 
-    const url = `/api/tryon/status-stream?task_id=${encodeURIComponent(taskId)}`;
-    fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-      signal,
-    })
-      .then((res) => {
-        if (!res.ok || !res.body) {
-          throw new Error("خطا در دریافت وضعیت");
+/** Resolves with the image, or with null if the stream ended without a verdict. */
+async function streamTryOnResult(
+  taskId: string,
+  token: string,
+  signal: AbortSignal
+): Promise<string | null> {
+  const url = `/api/tryon/status-stream?task_id=${encodeURIComponent(taskId)}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, signal });
+  if (!res.ok || !res.body) {
+    throw new Error("خطا در دریافت وضعیت");
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (value) buffer += decoder.decode(value, { stream: true });
+      if (done) buffer += decoder.decode();
+
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        // Heartbeat comments (": keep-alive") land here too and are skipped —
+        // they exist to keep proxies from closing an idle connection.
+        if (!trimmed.startsWith("data: ")) continue;
+        let payload: { status?: string; image?: string; error?: string };
+        try {
+          payload = JSON.parse(trimmed.slice(6));
+        } catch {
+          continue;
         }
-
-        const decoder = new TextDecoder();
-        let buffer = "";
-        reader = res.body.getReader();
-
-        const pump = (): Promise<void> => {
-          return reader!.read().then(({ done, value }) => {
-            if (settled) return;
-
-            if (value) {
-              buffer += decoder.decode(value, { stream: true });
-            }
-            if (done) {
-              buffer += decoder.decode();
-            }
-
-            const lines = buffer.split("\n");
-            buffer = lines.pop() || "";
-
-            for (const line of lines) {
-              const trimmed = line.trim();
-              if (!trimmed.startsWith("data: ")) continue;
-              try {
-                const payload = JSON.parse(trimmed.slice(6));
-                if (payload.status === "done" && payload.image) {
-                  settled = true;
-                  onDone(payload.image);
-                  cleanup();
-                  resolve();
-                  return;
-                }
-                if (payload.status === "error") {
-                  throw new Error(payload.error || "خطا در پردازش پرو مجازی");
-                }
-              } catch (parseErr: any) {
-                if (parseErr instanceof SyntaxError) continue;
-                throw parseErr;
-              }
-            }
-
-            if (done) {
-              return;
-            }
-
-            return pump();
-          });
-        };
-
-        return pump().then(() => {
-          if (settled) return;
-          settled = true;
-          cleanup();
-          resolve();
-        });
-      })
-      .catch((err) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        if (err?.name === "AbortError") {
-          reject(new Error("AbortError"));
-        } else {
-          reject(err);
+        if (payload.status === "done" && payload.image) return payload.image;
+        if (payload.status === "error") {
+          throw new TryOnTaskError(payload.error || "خطا در پردازش پرو مجازی");
         }
-      });
-  });
+      }
+
+      if (done) return null;
+    }
+  } finally {
+    reader.cancel().catch(() => {});
+  }
+}
+
+/** Asks the backend for the task directly until it has a verdict. */
+async function pollTryOnResult(
+  taskId: string,
+  token: string,
+  signal: AbortSignal,
+  deadline: number
+): Promise<string> {
+  const url = `/api/tryon/status?task_id=${encodeURIComponent(taskId)}`;
+
+  for (;;) {
+    if (signal.aborted) throw abortError();
+
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, signal });
+    if (res.status === 404) {
+      throw new TryOnTaskError("نتیجه پرو مجازی در دسترس نیست. دوباره تلاش کنید.");
+    }
+    if (res.ok) {
+      const data: { status?: string; image?: string; error?: string } = await res
+        .json()
+        .catch(() => ({}));
+      if (data.status === "done" && data.image) return data.image;
+      if (data.status === "error") {
+        throw new TryOnTaskError(data.error || "خطا در پردازش پرو مجازی");
+      }
+    }
+
+    if (Date.now() >= deadline) {
+      throw new TryOnTaskError("زمان انتظار به پایان رسید. دوباره تلاش کنید.");
+    }
+    await sleep(TASK_POLL_INTERVAL_MS, signal);
+  }
 }

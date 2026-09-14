@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import { appendCheckoutChatMessages, getCheckoutChatSession, makeCheckoutMessageId } from "@/lib/checkout-chat-api";
+import { PER_USER_STORAGE_KEYS } from "@/lib/local-storage-manager";
 import { CheckoutChatMessage } from "@/types/checkout-chat";
 import { CheckoutUIMessage } from "@/types/checkout-chat";
 
@@ -24,7 +25,7 @@ interface CheckoutChatState {
   reset: () => void;
 }
 
-const CHAT_ID_LS_KEY = "voxcina_checkout_chat_id";
+const CHAT_ID_LS_KEY = PER_USER_STORAGE_KEYS.CHECKOUT_CHAT_ID;
 
 function generateChatId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {

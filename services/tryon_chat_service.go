@@ -84,9 +84,29 @@ func (s *TryonChatService) GetByChatID(ctx context.Context, chatID string) (*mod
 	return &c, nil
 }
 
+// ErrChatNotOwned reports a chat_id that exists under another user. The caller
+// decides what to do with it — the fitting room mints a fresh room, the
+// transcript endpoint refuses the write.
+var ErrChatNotOwned = errors.New("tryon chat belongs to another user")
+
+// AppendMessages adds to the caller's OWN room only.
+//
+// user_id is part of the filter, not just of $setOnInsert. Matching on chat_id
+// alone let one account write into another's room: a fitting-room id lives in
+// localStorage, which outlives a logout, so the next account on a shared
+// browser posted the previous account's chat_id — and chat_id is unique, so
+// the update landed on the document that account owns. Its try-on cards, which
+// carry the person photo and the generated image, then showed up in a
+// stranger's fitting room on their next reload. The read side has always
+// checked ownership (loadTryOnChatHistory, GetTryonSession); only the write
+// side did not.
+//
+// With user_id in the filter a foreign chat_id no longer matches, and the
+// upsert then trips the chat_id unique index rather than silently starting a
+// duplicate room — which is what ErrChatNotOwned reports.
 func (s *TryonChatService) AppendMessages(ctx context.Context, chatID string, messages []models.TryonChatMessage, userID primitive.ObjectID) error {
 	now := time.Now()
-	filter := bson.M{"chat_id": chatID}
+	filter := bson.M{"chat_id": chatID, "user_id": userID}
 	update := bson.M{
 		"$push": bson.M{"messages": bson.M{"$each": messages}},
 		"$set": bson.M{
@@ -97,9 +117,10 @@ func (s *TryonChatService) AppendMessages(ctx context.Context, chatID string, me
 		},
 		"$setOnInsert": bson.M{
 			"created_at": now,
-			"user_id":    userID,
-			"status":     models.TryonChatStatusActive,
-			"tryon_ids":  []string{},
+			// No user_id here: an upsert seeds the new document from the
+			// equality clauses of its filter, which now names the owner.
+			"status":    models.TryonChatStatusActive,
+			"tryon_ids": []string{},
 		},
 	}
 
@@ -120,6 +141,9 @@ func (s *TryonChatService) AppendMessages(ctx context.Context, chatID string, me
 	}
 
 	_, err := s.collection.UpdateOne(ctx, filter, update, options.Update().SetUpsert(true))
+	if mongo.IsDuplicateKeyError(err) {
+		return ErrChatNotOwned
+	}
 	return err
 }
 
@@ -136,6 +160,9 @@ func (s *TryonChatService) LinkTryon(ctx context.Context, chatID string, userID 
 		},
 	}
 	_, err := s.collection.UpdateOne(ctx, filter, update, options.Update().SetUpsert(true))
+	if mongo.IsDuplicateKeyError(err) {
+		return ErrChatNotOwned
+	}
 	return err
 }
 

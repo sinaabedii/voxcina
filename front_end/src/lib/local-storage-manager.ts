@@ -19,6 +19,19 @@ export const AUTH_STORAGE_KEYS = {
 } as const;
 
 /**
+ * Keys that name something the SIGNED-IN person owns, rather than the browser.
+ *
+ * They are cleared with the tokens. A fitting-room id used to outlive a
+ * logout, so the next account to sign in on the same device carried the
+ * previous account's room id into every try-on request it made — and the
+ * backend files a room by its id.
+ */
+export const PER_USER_STORAGE_KEYS = {
+  TRYON_CHAT_ID: 'voxcina_tryon_chat_id',
+  CHECKOUT_CHAT_ID: 'voxcina_checkout_chat_id',
+} as const;
+
+/**
  * Type for storage key values
  */
 export type AuthStorageKey = typeof AUTH_STORAGE_KEYS[keyof typeof AUTH_STORAGE_KEYS];
@@ -114,6 +127,9 @@ export class LocalStorageManager {
     localStorage.removeItem(AUTH_STORAGE_KEYS.ACCESS_TOKEN);
     localStorage.removeItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
     localStorage.removeItem(AUTH_STORAGE_KEYS.AUTH_STORAGE);
+    for (const key of Object.values(PER_USER_STORAGE_KEYS)) {
+      localStorage.removeItem(key);
+    }
   }
 
   /**

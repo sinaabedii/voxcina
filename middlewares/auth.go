@@ -19,6 +19,10 @@ import (
 // AuthMiddleware checks for a valid JWT and sets user info in context
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Before anything else, so the rejections below carry it too: every
+		// response behind this middleware is addressed to one user.
+		markPrivate(w)
+
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			utils.AuthErrorResponse(

@@ -12,6 +12,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -32,8 +33,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"golang.org/x/image/webp"
 	xdraw "golang.org/x/image/draw"
+	"golang.org/x/image/webp"
 )
 
 // defaultTryOnModel draws the virtual try-on images when the admin has not
@@ -496,6 +497,17 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 	chatID := chatIDParam
 	if chatID == "" {
 		chatID = generateChatUUID()
+	} else if tryonChatService != nil {
+		// The room id comes from the browser's localStorage, which survives a
+		// logout — the next account to sign in on the same device sends the
+		// previous account's chat_id. Rooms are keyed by chat_id alone, so
+		// reusing it would file this try-on (person photo and result) inside a
+		// stranger's fitting room. Anything that is not this user's own room
+		// becomes a fresh one, which the response below hands back.
+		if existing, err := tryonChatService.GetByChatID(r.Context(), chatID); err == nil && existing != nil && existing.UserID != userID {
+			fmt.Printf("[tryon] chat %s belongs to another user — starting a fresh room\n", chatID)
+			chatID = generateChatUUID()
+		}
 	}
 	fmt.Printf("[tryon] tryon_id=%s chat_id=%s\n", tryonID, chatID)
 
@@ -512,19 +524,19 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("[tryon] garment details name=%q type=%q fit=%q\n", garmentInfo.Name, garmentInfo.Type, garmentInfo.Fit)
 
 	tryonDoc := &models.VirtualTryon{
-		TryonID:           tryonID,
-		UserID:            userID,
-		TaskID:            taskID,
-		Status:            models.TryonStatusProcessing,
-		PersonImageURL:    personImageURL,
-		PersonImageHash:   personImageHash,
-		GarmentImageURL:   garmentURL,
-		GarmentProductID:  garmentProductObjID,
+		TryonID:            tryonID,
+		UserID:             userID,
+		TaskID:             taskID,
+		Status:             models.TryonStatusProcessing,
+		PersonImageURL:     personImageURL,
+		PersonImageHash:    personImageHash,
+		GarmentImageURL:    garmentURL,
+		GarmentProductID:   garmentProductObjID,
 		GarmentProductName: garmentProductName,
-		GarmentColor:      garmentColor,
-		GarmentSize:       garmentSize,
-		GarmentType:       garmentType,
-		CreatedAt:         time.Now(),
+		GarmentColor:       garmentColor,
+		GarmentSize:        garmentSize,
+		GarmentType:        garmentType,
+		CreatedAt:          time.Now(),
 	}
 	if virtualTryonService != nil {
 		if err := virtualTryonService.Create(r.Context(), tryonDoc); err != nil {
@@ -542,7 +554,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 		Status:    "processing",
 		CreatedAt: time.Now(),
 	}
-	tryOnTasks.Store(taskID, task)
+	publishTryOnTask(taskID, task)
 	fmt.Printf("[tryon] task %s created, starting goroutine\n", taskID)
 
 	go func() {
@@ -552,7 +564,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 				fmt.Printf("[tryon-%s] PANIC: %v\n%s\n", taskID, rec, string(debug.Stack()))
 				task.Status = "error"
 				task.Error = "خطای داخلی سرور"
-				tryOnTasks.Store(taskID, task)
+				publishTryOnTask(taskID, task)
 				if virtualTryonService != nil {
 					_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
 				}
@@ -563,7 +575,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("[tryon-%s] DEV MODE: returning placeholder image\n", taskID)
 			task.Status = "done"
 			task.Image = getDevPlaceholderPath()
-			tryOnTasks.Store(taskID, task)
+			publishTryOnTask(taskID, task)
 			if virtualTryonService != nil {
 				_ = virtualTryonService.Complete(context.Background(), tryonID, task.Image, "dev-placeholder", "", time.Since(startTime).Milliseconds())
 			}
@@ -576,7 +588,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("[tryon-%s] resize person error: %v\n", taskID, err)
 			task.Status = "error"
 			task.Error = "خطا در پردازش تصویر شخص"
-			tryOnTasks.Store(taskID, task)
+			publishTryOnTask(taskID, task)
 			if virtualTryonService != nil {
 				_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
 			}
@@ -587,7 +599,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("[tryon-%s] resize garment error: %v\n", taskID, err)
 			task.Status = "error"
 			task.Error = "خطا در پردازش تصویر لباس"
-			tryOnTasks.Store(taskID, task)
+			publishTryOnTask(taskID, task)
 			if virtualTryonService != nil {
 				_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
 			}
@@ -645,7 +657,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("[tryon-%s] json marshal error: %v\n", taskID, err)
 			task.Status = "error"
 			task.Error = "خطای داخلی"
-			tryOnTasks.Store(taskID, task)
+			publishTryOnTask(taskID, task)
 			return
 		}
 
@@ -654,7 +666,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("[tryon-%s] OPENROUTER_API_KEY not set\n", taskID)
 			task.Status = "error"
 			task.Error = "سرویس پرو مجازی در حال حاضر در دسترس نیست"
-			tryOnTasks.Store(taskID, task)
+			publishTryOnTask(taskID, task)
 			return
 		}
 		appURL := os.Getenv("APP_URL")
@@ -664,7 +676,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("[tryon-%s] http.NewRequest error: %v\n", taskID, err)
 			task.Status = "error"
 			task.Error = "خطای داخلی"
-			tryOnTasks.Store(taskID, task)
+			publishTryOnTask(taskID, task)
 			return
 		}
 
@@ -680,7 +692,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("[tryon-%s] OpenRouter request error: %v\n", taskID, err)
 			task.Status = "error"
 			task.Error = "خطا در ارتباط با سرویس پرو مجازی"
-			tryOnTasks.Store(taskID, task)
+			publishTryOnTask(taskID, task)
 			return
 		}
 		defer resp.Body.Close()
@@ -690,7 +702,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("[tryon-%s] read response body error: %v\n", taskID, err)
 			task.Status = "error"
 			task.Error = "خطا در دریافت پاسخ"
-			tryOnTasks.Store(taskID, task)
+			publishTryOnTask(taskID, task)
 			return
 		}
 
@@ -703,7 +715,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			}
 			task.Status = "error"
 			task.Error = errMsg
-			tryOnTasks.Store(taskID, task)
+			publishTryOnTask(taskID, task)
 			if virtualTryonService != nil {
 				_ = virtualTryonService.Fail(context.Background(), tryonID, errMsg, time.Since(startTime).Milliseconds())
 			}
@@ -715,7 +727,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("[tryon-%s] json unmarshal error: %v\n", taskID, err)
 			task.Status = "error"
 			task.Error = "خطا در پردازش پاسخ"
-			tryOnTasks.Store(taskID, task)
+			publishTryOnTask(taskID, task)
 			if virtualTryonService != nil {
 				_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
 			}
@@ -726,7 +738,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("[tryon-%s] OpenRouter API error: %s\n", taskID, orResp.Error.Message)
 			task.Status = "error"
 			task.Error = "سرویس پرو مجازی با خطا مواجه شد"
-			tryOnTasks.Store(taskID, task)
+			publishTryOnTask(taskID, task)
 			if virtualTryonService != nil {
 				_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
 			}
@@ -737,7 +749,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("[tryon-%s] no choices in response\n", taskID)
 			task.Status = "error"
 			task.Error = "پاسخی از سرویس دریافت نشد"
-			tryOnTasks.Store(taskID, task)
+			publishTryOnTask(taskID, task)
 			if virtualTryonService != nil {
 				_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
 			}
@@ -756,7 +768,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 					fmt.Printf("[tryon-%s] save error (from images field): %v\n", taskID, err)
 					task.Status = "error"
 					task.Error = "خطا در ذخیره تصویر"
-					tryOnTasks.Store(taskID, task)
+					publishTryOnTask(taskID, task)
 					if virtualTryonService != nil {
 						_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
 					}
@@ -771,7 +783,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 				fmt.Printf("[tryon-%s] no image in response\n", taskID)
 				task.Status = "error"
 				task.Error = "تصویری توسط سرویس تولید نشد"
-				tryOnTasks.Store(taskID, task)
+				publishTryOnTask(taskID, task)
 				if virtualTryonService != nil {
 					_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
 				}
@@ -782,7 +794,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 				fmt.Printf("[tryon-%s] save error (from content): %v\n", taskID, err)
 				task.Status = "error"
 				task.Error = "خطا در ذخیره تصویر"
-				tryOnTasks.Store(taskID, task)
+				publishTryOnTask(taskID, task)
 				if virtualTryonService != nil {
 					_ = virtualTryonService.Fail(context.Background(), tryonID, task.Error, time.Since(startTime).Milliseconds())
 				}
@@ -793,7 +805,7 @@ func VirtualTryOn(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("[tryon-%s] saved to: %s\n", taskID, savedPath)
 		task.Status = "done"
 		task.Image = savedPath
-		tryOnTasks.Store(taskID, task)
+		publishTryOnTask(taskID, task)
 		if virtualTryonService != nil {
 			_ = virtualTryonService.Complete(context.Background(), tryonID, savedPath, imageModel, prompt, time.Since(startTime).Milliseconds())
 		}
@@ -848,8 +860,14 @@ func VirtualTryOnStatusStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
+	// no-store, not no-cache: `no-cache` still permits a proxy to STORE the
+	// stream and replay it after a revalidation it cannot perform on a body
+	// with no validator.
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
 	w.Header().Set("Connection", "keep-alive")
+	// nginx buffers a proxied response by default, which would hold every
+	// event back until the handler returned and defeat the stream entirely.
+	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 
 	sendTaskEvent := func(t *tryOnTask) {
@@ -862,6 +880,18 @@ func VirtualTryOnStatusStream(w http.ResponseWriter, r *http.Request) {
 		flusher.Flush()
 	}
 
+	// An SSE comment. It carries no event, so the browser ignores it, but it
+	// is a byte on the wire — which is the whole point.
+	sendHeartbeat := func() {
+		fmt.Fprint(w, ": keep-alive\n\n")
+		flusher.Flush()
+	}
+
+	// First byte immediately, before any waiting: it commits the response
+	// through every proxy in front of this handler instead of leaving them
+	// holding an empty body.
+	sendHeartbeat()
+
 	if task.Status != "processing" {
 		sendTaskEvent(task)
 		return
@@ -869,6 +899,16 @@ func VirtualTryOnStatusStream(w http.ResponseWriter, r *http.Request) {
 
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
+	// The image model regularly takes longer to draw a try-on than the idle
+	// timeout of the hops in front of this handler (nginx proxy_read_timeout
+	// is 60s, the CDN edge has its own). This handler used to send nothing at
+	// all until the task finished, so any generation slower than the shortest
+	// of those timeouts had its connection torn down — and because the tear
+	// down looks like a clean end of body, the browser saw a 200 with no
+	// event and waited on the spinner forever. A byte every 15 seconds means
+	// the connection is never idle and nobody in the chain gets to close it.
+	heartbeat := time.NewTicker(15 * time.Second)
+	defer heartbeat.Stop()
 	timeout := time.After(5 * time.Minute)
 
 	for {
@@ -878,6 +918,8 @@ func VirtualTryOnStatusStream(w http.ResponseWriter, r *http.Request) {
 		case <-timeout:
 			sendTaskEvent(&tryOnTask{Status: "error", Error: "زمان انتظار به پایان رسید"})
 			return
+		case <-heartbeat.C:
+			sendHeartbeat()
 		case <-ticker.C:
 			t, ok := loadTryOnTask(taskID)
 			if !ok {
@@ -892,6 +934,22 @@ func VirtualTryOnStatusStream(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// publishTryOnTask makes a task's current state visible to the status
+// endpoints, as a snapshot.
+//
+// The generation goroutine writes the fields one at a time and every reader
+// used to hold that same pointer, so a reader could pick up "done" before the
+// image path next to it had been written — the stream then reported a finished
+// try-on with an empty image and closed, leaving the room with nothing to
+// show. Copying at the moment of publication means a reader either sees the
+// previous state or the whole new one, never half of each.
+func publishTryOnTask(taskID string, task *tryOnTask) {
+	snapshot := *task
+	tryOnTasks.Store(taskID, &snapshot)
+}
+
+// loadTryOnTask returns the last published snapshot. Treat it as read-only:
+// mutating it would write into a value other readers are holding.
 func loadTryOnTask(taskID string) (*tryOnTask, bool) {
 	val, ok := tryOnTasks.Load(taskID)
 	if !ok {
@@ -1419,7 +1477,7 @@ func AppendTryonMessages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		ChatID  string                   `json:"chat_id"`
+		ChatID   string                    `json:"chat_id"`
 		Messages []models.TryonChatMessage `json:"messages"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1446,6 +1504,15 @@ func AppendTryonMessages(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	if err := tryonChatService.AppendMessages(ctx, req.ChatID, req.Messages, userID); err != nil {
+		if errors.Is(err, services.ErrChatNotOwned) {
+			// A stale fitting-room id from another account on this browser.
+			// Refusing is what keeps this caller's try-on card out of that
+			// account's room; the client mints a fresh room on the next
+			// generate, which /api/tryon/generate hands back.
+			fmt.Printf("[tryon-messages] chat %s does not belong to user %s — refusing append\n", req.ChatID, userID.Hex())
+			utils.ErrorResponse(w, http.StatusForbidden, "این اتاق پرو متعلق به حساب دیگری است")
+			return
+		}
 		fmt.Printf("[tryon-messages] append error: %v\n", err)
 		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در ذخیره پیام‌ها")
 		return

@@ -260,6 +260,10 @@ export default function TryOnRoomPage() {
     const store = useTryOnStore.getState();
     if (!store.resultImage) {
       dropProcessingCard();
+      // startTryOn reports failures through the store rather than throwing, so
+      // the reason has to be read back here. Without this the processing card
+      // just vanished, which reads as the app losing the try-on.
+      toast.error(store.error || "پرو مجازی ناتمام ماند. دوباره تلاش کنید.");
       return;
     }
 
