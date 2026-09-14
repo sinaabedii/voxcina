@@ -321,6 +321,10 @@ func persistTryOnChatTurn(ctx context.Context, userID primitive.ObjectID, input 
 		return
 	}
 
+	// tryon_reply inbox row + push: the agent answered in the fitting room.
+	// Best-effort, async.
+	notifyTryonReply(userID)
+
 	if turn.RecommendedProduct != nil {
 		_ = tryonChatService.AddRecommendedProduct(ctx, chatID, turn.RecommendedProduct.ProductID)
 	}

@@ -11,3 +11,5 @@ main
 .windsurf/rules/**
 .claude/
 0rdinary.Docs.Updated-2026-1-19/
+*firebase*adminsdk*.json
+*service-account*.json

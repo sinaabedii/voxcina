@@ -923,6 +923,9 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// order_placed inbox row + push. Best-effort, async.
+	notifyOrderPlaced(&order)
+
 	// Return order with Jalali dates and populated items
 	response, err := newOrderAPIResponse(ctx, order)
 	if err != nil {
@@ -1814,6 +1817,8 @@ func UpdateOrderStatusAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 	// order.status_changed to subscribed external services. Best-effort, async.
 	go emitOrderStatusChanged(&updatedOrder, currentOrder.Status, payload.Status)
+	// order_status_changed inbox row + push. Best-effort, async.
+	notifyOrderStatusChanged(&updatedOrder, payload.Status)
 	resp, err := newAdminOrderAPIResponse(ctx, updatedOrder)
 	if err != nil {
 		utils.ErrorResponse(

@@ -75,6 +75,27 @@ func NewRouter() *mux.Router {
 	userAuthRouter.HandleFunc("/profile", handlers.GetProfile).Methods(http.MethodGet)
 	userAuthRouter.HandleFunc("/profile", handlers.UpdateProfile).Methods(http.MethodPut)
 	userAuthRouter.HandleFunc("/password", handlers.ChangePassword).Methods(http.MethodPut)
+	// Notifications (the app's inbox + push registrations). Registered before
+	// any wildcard route below; unread-count and read-all are literal paths
+	// that must precede /notifications/{id}.
+	userAuthRouter.HandleFunc("/notifications", handlers.ListNotifications).
+		Methods(http.MethodGet)
+	userAuthRouter.HandleFunc("/notifications/unread-count", handlers.NotificationUnreadCount).
+		Methods(http.MethodGet)
+	userAuthRouter.HandleFunc("/notifications/read-all", handlers.MarkAllNotificationsRead).
+		Methods(http.MethodPost)
+	userAuthRouter.HandleFunc("/notifications/{id}/read", handlers.MarkNotificationRead).
+		Methods(http.MethodPost)
+	userAuthRouter.HandleFunc("/notifications/{id}", handlers.DeleteNotification).
+		Methods(http.MethodDelete)
+	userAuthRouter.HandleFunc("/devices", handlers.RegisterDevice).
+		Methods(http.MethodPost)
+	userAuthRouter.HandleFunc("/devices/{installId}", handlers.DeleteDevice).
+		Methods(http.MethodDelete)
+	userAuthRouter.HandleFunc("/notification-preferences", handlers.GetNotificationPreferences).
+		Methods(http.MethodGet)
+	userAuthRouter.HandleFunc("/notification-preferences", handlers.UpdateNotificationPreferences).
+		Methods(http.MethodPut)
 	// Mobile app activity tracking
 	userAuthRouter.HandleFunc("/app-activity", handlers.RecordAppActivity).Methods(http.MethodPost)
 	// User promotions
@@ -255,6 +276,19 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/users/{userId}", handlers.DeleteUser).
 		Methods("DELETE")
 		// Soft delete
+
+	// Notifications: compose/preview/history/templates + the per-user view
+	// for support. "preview" and the per-user path are literals registered
+	// before any {id} wildcard.
+	adminRouter.HandleFunc("/notifications/campaigns/preview", handlers.AdminPreviewNotificationAudience).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/notifications/campaigns", handlers.AdminListNotificationCampaigns).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/notifications/campaigns", handlers.AdminCreateNotificationCampaign).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/notifications/campaigns/{id}", handlers.AdminGetNotificationCampaign).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/notifications/campaigns/{id}", handlers.AdminDeleteNotificationCampaign).Methods(http.MethodDelete)
+	adminRouter.HandleFunc("/notifications/templates", handlers.AdminListNotificationTemplates).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/notifications/templates", handlers.AdminUpdateNotificationTemplate).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/notifications/templates/{type}", handlers.AdminDeleteNotificationTemplate).Methods(http.MethodDelete)
+	adminRouter.HandleFunc("/users/{userId}/notifications", handlers.AdminListUserNotifications).Methods(http.MethodGet)
 
 	// Admin review moderation
 	adminRouter.HandleFunc("/reviews/{reviewId}/status", handlers.UpdateReviewStatusAdmin).Methods(http.MethodPut)

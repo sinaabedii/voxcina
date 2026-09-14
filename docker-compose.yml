@@ -69,8 +69,15 @@ services:
       - MAIL_FROM=${MAIL_FROM:-info@voxcina.com}
       - MAIL_FROM_NAME=${MAIL_FROM_NAME:-وکسینا}
       - SMTP_PROXY=${SMTP_PROXY:-}
+      # Push notifications (services/fcm.go). The service-account JSON lives
+      # OUTSIDE the repository tree on the host; the mount is optional — an
+      # absent file disables pushes and the inbox keeps working inbox-only.
+      - FCM_CREDENTIALS_FILE=${FCM_CREDENTIALS_FILE:-}
     volumes:
       - ./uploads:/app/uploads
+      # Mounted only when FCM_CREDENTIALS_FILE is configured; the variable and
+      # the host path are set together in .env (see .env.example).
+      - ${FCM_CREDENTIALS_HOST_MOUNT:-/voxcina-fcm-not-configured:/dev/null-host-mount-placeholder}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

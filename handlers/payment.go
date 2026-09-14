@@ -401,6 +401,8 @@ func FinalizeVerifiedPayment(attemptID primitive.ObjectID, verifiedAmount int64,
 
 	// payment.paid to subscribed external services. Best-effort, async.
 	go emitPaymentPaid(attempt.UserID, &order, attempt.Gateway)
+	// payment_succeeded inbox row + push. Best-effort, async.
+	notifyPaymentSucceeded(attempt.UserID, &order)
 
 	return nil
 }
@@ -661,6 +663,7 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 			},
 		})
 		go emitPaymentFailed(order.UserID, &order, "zibal", paymentStatus, "abandoned at gateway")
+		notifyPaymentFailed(order.UserID, &order)
 	} else {
 		paymentStatus = "failed"
 		orderStatus = "pending"
@@ -676,6 +679,7 @@ func PaymentCallback(w http.ResponseWriter, r *http.Request) {
 			},
 		})
 		go emitPaymentFailed(order.UserID, &order, "zibal", paymentStatus, "verification failed")
+		notifyPaymentFailed(order.UserID, &order)
 	}
 
 	redirectURL := fmt.Sprintf("%s/checkout/callback?success=%s&trackId=%s&transactionId=%s&orderId=%s&status=%s&gateway=zibal",
@@ -808,11 +812,15 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request) {
 			go sendOrderConfirmationSMS(order.UserID, order.ID, order.OrderNumber, order.ShippingAddress.PhoneNumber)
 			// payment.paid to subscribed external services. Best-effort, async.
 			go emitPaymentPaid(order.UserID, &order, payload.Gateway)
+			// payment_succeeded inbox row + push. Best-effort, async.
+			notifyPaymentSucceeded(order.UserID, &order)
 		}
 	} else if !verifyResp.Success {
 		paymentStatus = "abandoned"
 		statusText = "پرداخت ناتمام - میتوانید دوباره تلاش کنید"
 		canRetry = true
+		// payment_failed inbox row + push. Best-effort, async.
+		notifyPaymentFailed(order.UserID, &order)
 	} else {
 		canRetry = true
 	}

@@ -169,6 +169,24 @@ func main() {
 	stopOutboundDispatcher := services.StartOutboundEventDispatcher(database)
 	defer stopOutboundDispatcher()
 
+	// Notifications: inbox rows are written in the request; pushes go through
+	// the push outbox + FCM dispatcher (data-only messages, retries through
+	// the outbound proxy). Campaign fan-out and the scheduled crons
+	// (voucher_expiring, cart_reminder) run on their own workers. Without a
+	// readable FCM service account the system degrades to inbox-only by
+	// design — it must not take the API down.
+	fcmService, err := services.LoadFCMService()
+	if err != nil {
+		log.Printf("WARNING: FCM service unavailable (%v); pushes disabled, inbox-only mode", err)
+		fcmService = nil
+	}
+	stopPushDispatcher := services.StartPushDispatcher(database, fcmService)
+	defer stopPushDispatcher()
+	stopCampaignWorker := services.StartNotificationCampaignWorker(database)
+	defer stopCampaignWorker()
+	stopNotificationScheduler := services.StartNotificationScheduler(database)
+	defer stopNotificationScheduler()
+
 	// Setup API router
 	apiRouter := routes.NewRouter()
 

@@ -1,0 +1,79 @@
+{
+  "notification_templates": {
+    "order_placed": {
+      "enabled": true,
+      "title": "سفارش شما ثبت شد",
+      "body": "سفارش {{order_number}} با موفقیت ثبت شد. پس از پرداخت، آماده‌سازی آن آغاز می‌شود."
+    },
+    "order_status_changed": {
+      "enabled": true,
+      "title": "وضعیت سفارش تغییر کرد",
+      "body": "سفارش {{order_number}} اکنون در وضعیت {{status}} است."
+    },
+    "payment_succeeded": {
+      "enabled": true,
+      "title": "پرداخت موفق",
+      "body": "پرداخت سفارش {{order_number}} با موفقیت انجام شد. هم‌اکنون می‌توانید آن را پیگیری کنید."
+    },
+    "payment_failed": {
+      "enabled": true,
+      "title": "پرداخت ناموفق",
+      "body": "پرداخت سفارش {{order_number}} ناتمام ماند. در صورت کسر وجه، مبلغ تا ۷۲ ساعت آینده بازمی‌گردد."
+    },
+    "return_decided": {
+      "enabled": true,
+      "title": "نتیجه درخواست مرجوعی",
+      "body": "درخواست مرجوعی سفارش {{order_number}} {{decision}} شد."
+    },
+    "ticket_replied": {
+      "enabled": true,
+      "title": "پاسخ پشتیبانی",
+      "body": "پشتیبانی به تیکت {{ticket_number}} پاسخ داد."
+    },
+    "tryon_reply": {
+      "enabled": true,
+      "title": "پاسخ ووکسا در اتاق پرو",
+      "body": "ووکسا پاسخ جدیدی برای شما در اتاق پرو نوشت."
+    },
+    "voucher_granted": {
+      "enabled": true,
+      "title": "کد تخفیف برای شما",
+      "body": "کد تخفیف {{code}} برای شما فعال شد؛ تا {{valid_until}} اعتبار دارد."
+    },
+    "voucher_expiring": {
+      "enabled": true,
+      "title": "کد تخفیف شما به‌زودی منقضی می‌شود",
+      "body": "کد تخفیف {{code}} تا پایان {{valid_until}} اعتبار دارد. از آن استفاده کنید."
+    },
+    "coupon_offer": {
+      "enabled": true,
+      "title": "پیشنهاد ویژه برای سبد خرید شما",
+      "body": "کد تخفیف {{code}} برای سبد خرید شما فعال شد؛ تا {{valid_until}} اعتبار دارد."
+    },
+    "cart_reminder": {
+      "enabled": true,
+      "title": "سبد خرید شما منتظر است",
+      "body": "سبد خرید شما هنوز کامل نشده است. هر وقت آماده بودید، ادامه بدهید."
+    },
+    "price_drop": {
+      "enabled": true,
+      "title": "کاهش قیمت",
+      "body": "قیمت {{product_name}} کاهش یافت."
+    },
+    "back_in_stock": {
+      "enabled": true,
+      "title": "موجود شد",
+      "body": "{{product_name}} دوباره موجود شد."
+    },
+    "promotion": {
+      "enabled": true,
+      "title": "",
+      "body": ""
+    },
+    "announcement": {
+      "enabled": true,
+      "title": "",
+      "body": ""
+    }
+  }
+}

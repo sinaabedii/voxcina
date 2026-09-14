@@ -354,6 +354,18 @@ func AddTicketMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A support reply notifies the ticket's owner. The owner id is not in the
+	// filter on this path, so it is read off the ticket here (best-effort,
+	// async — the reply is already stored).
+	if sender == "support" {
+		var ticket models.Ticket
+		if err := collection.FindOne(ctx, bson.M{"_id": ticketID},
+			options.FindOne().SetProjection(bson.M{"user_id": 1}),
+		).Decode(&ticket); err == nil && ticket.UserID != primitive.NilObjectID {
+			notifyTicketReplied(ticket.UserID)
+		}
+	}
+
 	utils.JSONResponse(w, http.StatusOK, map[string]interface{}{
 		"success": true,
 		"message": "Message added to ticket",

@@ -202,6 +202,11 @@ export default function AdminLayout({
       icon: <Headphones className="w-5 h-5 ml-3" />,
     },
     {
+      name: "اعلان‌ها",
+      href: "/admin/notifications",
+      icon: <Bell className="w-5 h-5 ml-3" />,
+    },
+    {
       name: "همکاری و استخدام",
       href: "/admin/careers",
       icon: <Briefcase className="w-5 h-5 ml-3" />,

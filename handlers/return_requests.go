@@ -553,6 +553,8 @@ func AdminDecideReturnRequest(w http.ResponseWriter, r *http.Request) {
 	}
 	// return_request.decided to subscribed external services. Best-effort, async.
 	go emitReturnRequestDecided(&updated, newStatus)
+	// return_decided inbox row + push. Best-effort, async.
+	notifyReturnDecided(&updated, newStatus)
 	utils.JSONResponse(w, http.StatusOK, updated)
 }
 

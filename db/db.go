@@ -162,6 +162,13 @@ func Connect(cfg *config.Config) *mongo.Database {
 		// Non-critical, continue anyway
 	}
 
+	// Notification system: inbox rows (with the retention TTL), device
+	// registrations, preference documents, campaigns and the push outbox.
+	if err := CreateNotificationIndexes(); err != nil {
+		log.Printf("Warning: Could not ensure notification indexes: %v", err)
+		// Non-critical, continue anyway
+	}
+
 	// Payment attempts are the idempotency and callback lookup record for all
 	// gateways. Partial unique indexes ignore legacy attempts created before a
 	// provider reference was assigned.

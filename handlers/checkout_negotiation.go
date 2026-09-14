@@ -87,6 +87,10 @@ func NegotiateCheckoutCouponStream(w http.ResponseWriter, r *http.Request) {
 			nc.Source = "checkout_negotiation"
 			if err := saveNegotiatedCoupon(persistCtx, nc); err != nil {
 				fmt.Printf("[checkout-negotiate] coupon save error: %v\n", err)
+			} else {
+				// coupon_offer inbox row + push: target `cart` with the code,
+				// which the app auto-applies on tap. Best-effort, async.
+				notifyCouponOffer(userID, nc.Code)
 			}
 		}
 	}

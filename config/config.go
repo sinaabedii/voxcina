@@ -14,6 +14,10 @@ type Config struct {
 	BraveSearchBaseURL    string
 	BlogWorkerConcurrency int
 	BlogMaxRetries        int
+	// FCMCredentialsFile points at the Firebase service-account JSON. The file
+	// lives OUTSIDE the repository tree (mounted read-only into the
+	// container); empty disables pushes — the inbox keeps working inbox-only.
+	FCMCredentialsFile string
 }
 
 func LoadConfig() *Config {
@@ -32,6 +36,7 @@ func LoadConfig() *Config {
 		BraveSearchBaseURL:    getEnv("BRAVE_SEARCH_BASE_URL", "https://api.search.brave.com"),
 		BlogWorkerConcurrency: getEnvInt("BLOG_WORKER_CONCURRENCY", 3),
 		BlogMaxRetries:        getEnvInt("BLOG_MAX_RETRIES", 3),
+		FCMCredentialsFile:    getEnv("FCM_CREDENTIALS_FILE", ""),
 	}
 }
 
