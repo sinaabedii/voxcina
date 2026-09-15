@@ -174,13 +174,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           )}
 
-          {/* Discount percentage chip - top-left, the heart sits below it */}
+          {/* Discount tag — the trending page's squared-off corner tag (a price
+              mark, not a notification), pinned top-left in the site blue. */}
           {discount > 0 && (
-            <div className="absolute top-2.5 left-2.5">
-              <span className="px-2 py-1 text-[10px] sm:text-[11px] font-bold rounded-full bg-white/85 dark:bg-black/45 text-destructive md:backdrop-blur-md shadow-soft">
-                ٪{toPersianNumber(discount)}
-              </span>
-            </div>
+            <span className="absolute top-0 left-0 rounded-br-xl bg-voxcina-blue px-2 py-1 text-[10px] sm:text-[11px] font-bold tabular-nums text-voxcina-cream">
+              ٪{toPersianNumber(discount)} تخفیف
+            </span>
           )}
 
           {/* Color indicator swatch */}
@@ -205,9 +204,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           </div>
 
-          {/* Favorite button - LEFT side, under the percentage chip */}
+          {/* Favorite button - LEFT side, under the corner tag */}
           <button
-            className={`absolute ${discount > 0 ? "top-9 sm:top-12" : "top-2.5"} left-2.5 p-1.5 sm:p-2 rounded-full md:backdrop-blur-md transition-all duration-300 shadow-soft ${isProductFavorite
+            className={`absolute ${discount > 0 ? "top-8 sm:top-10" : "top-2.5"} left-2.5 p-1.5 sm:p-2 rounded-full md:backdrop-blur-md transition-all duration-300 shadow-soft ${isProductFavorite
                 ? "bg-destructive/10 text-destructive"
                 : "bg-white/80 dark:bg-black/40 text-foreground hover:bg-white dark:hover:bg-black/60"
               }`}
