@@ -174,6 +174,15 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           )}
 
+          {/* Discount percentage chip - top-left, the heart sits below it */}
+          {discount > 0 && (
+            <div className="absolute top-2.5 left-2.5">
+              <span className="px-2 py-1 text-[10px] sm:text-[11px] font-bold rounded-full bg-white/85 dark:bg-black/45 text-destructive md:backdrop-blur-md shadow-soft">
+                ٪{toPersianNumber(discount)}
+              </span>
+            </div>
+          )}
+
           {/* Color indicator swatch */}
           <div className="absolute bottom-3 right-3 flex gap-1">
             <div
@@ -196,9 +205,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           </div>
 
-          {/* Favorite button - LEFT side */}
+          {/* Favorite button - LEFT side, under the percentage chip */}
           <button
-            className={`absolute top-2.5 left-2.5 p-1.5 sm:p-2 rounded-full md:backdrop-blur-md transition-all duration-300 shadow-soft ${isProductFavorite
+            className={`absolute ${discount > 0 ? "top-9 sm:top-12" : "top-2.5"} left-2.5 p-1.5 sm:p-2 rounded-full md:backdrop-blur-md transition-all duration-300 shadow-soft ${isProductFavorite
                 ? "bg-destructive/10 text-destructive"
                 : "bg-white/80 dark:bg-black/40 text-foreground hover:bg-white dark:hover:bg-black/60"
               }`}
@@ -269,18 +278,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
           <div className="mt-auto flex items-end justify-between gap-2 pt-3">
             <div className="flex min-w-0 flex-col">
-              <span className="flex min-w-0 items-center gap-1.5">
-                <span
-                  className={`whitespace-nowrap text-xs font-bold sm:text-base md:text-lg ${discount > 0 ? "text-primary" : "text-foreground"
-                    }`}
-                >
-                  {formatPrice(price)}
-                </span>
-                {discount > 0 && (
-                  <span className="shrink-0 rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-destructive sm:text-[11px]">
-                    ٪{toPersianNumber(discount)}
-                  </span>
-                )}
+              <span
+                className={`whitespace-nowrap text-xs font-bold sm:text-base md:text-lg ${discount > 0 ? "text-primary" : "text-foreground"
+                  }`}
+              >
+                {formatPrice(price)}
               </span>
 
               {discount > 0 && (
