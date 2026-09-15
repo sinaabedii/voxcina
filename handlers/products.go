@@ -1067,11 +1067,14 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 					{{Key: "$skip", Value: skip}},
 					{{Key: "$limit", Value: limit}},
 					{{Key: "$project", Value: bson.M{
-						"colorVariant":  "$color_variants",
-						"name":          1,
-						"description":   1,
-						"price":         1,
-						"originalPrice": 1,
+						"colorVariant": "$color_variants",
+						"name":         1,
+						"description":  1,
+						"price":        1,
+						// Products store this field snake_case in BSON; a bare
+						// "originalPrice": 1 projects a missing field and every
+						// row decoded with a zeroed original price.
+						"originalPrice": "$original_price",
 						"brand":         1,
 						"brandId":       "$brand_id",
 						"categoryIds":   "$category_ids",
