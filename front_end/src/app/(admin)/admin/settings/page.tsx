@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Bot, Sparkles, Wand2 } from "lucide-react";
+import { Bot, Cable, ChevronLeft, Sparkles, Wand2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -162,6 +163,30 @@ export default function AdminSettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Entry point to the external-services manager (its own page — the
+          dialog set is too large to nest under the AI settings card). */}
+      <Link
+        href="/admin/external-services"
+        className="block rounded-2xl border border-voxcina-cream dark:border-voxcina-blue/20 bg-white/90 dark:bg-voxcina-blue/10 p-4 shadow-sm hover:shadow-md transition-shadow"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-voxcina-blue/10 dark:bg-voxcina-cream/10 text-voxcina-blue dark:text-voxcina-cream">
+              <Cable className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-voxcina-blue dark:text-voxcina-cream">
+                سرویس‌های خارجی و کلیدهای API
+              </p>
+              <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 mt-1">
+                ساخت و حذف اتصال ربات‌ها (تلگرام، بله، اینستاگرام)، چرخش کلید و پیکربندی وب‌هوک.
+              </p>
+            </div>
+          </div>
+          <ChevronLeft className="w-5 h-5 text-voxcina-blue/40 dark:text-voxcina-cream/40 shrink-0" />
+        </div>
+      </Link>
 
       <div className="flex items-center gap-3">
         <Button variant="primary" size="sm" onClick={handleSave} disabled={saving} isLoading={saving} className="rounded-xl">

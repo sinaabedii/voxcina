@@ -28,6 +28,7 @@ import {
   Headphones,
   HelpCircle,
   Image,
+  Cable,
   Activity,
   ShoppingBasket,
   Ticket,
@@ -265,6 +266,11 @@ export default function AdminLayout({
       name: "تنظیمات",
       href: "/admin/settings",
       icon: <Settings className="w-5 h-5 ml-3" />,
+    },
+    {
+      name: "سرویس‌های خارجی",
+      href: "/admin/external-services",
+      icon: <Cable className="w-5 h-5 ml-3" />,
     },
   ].filter((item) => canAccessAdminSection(user?.role, item.href));
 

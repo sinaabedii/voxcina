@@ -7,9 +7,11 @@ users, binding a phone, linking an existing site account, and webhooks.
 The design and backend changes this guide depends on are described in
 [EXTERNAL_SERVICES_PLAN.md](EXTERNAL_SERVICES_PLAN.md).
 
-Note: the admin dashboard page for external services is not built yet — manage
-services through the admin REST API (admin JWT in `Authorization: Bearer`)
-shown below.
+Note: the admin dashboard page for external services is available at
+`/admin/external-services` (also linked from `/admin/settings`) and covers
+create, remove, edit, key rotation, webhook configuration/test, linked
+identities and the audit log — the same operations as the admin REST API shown
+below, which remains useful for automation.
 
 ---
 
