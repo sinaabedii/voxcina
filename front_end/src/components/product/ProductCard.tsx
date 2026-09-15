@@ -177,7 +177,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
           {/* Discount tag — the trending page's squared-off corner tag (a price
               mark, not a notification), pinned top-left in the site blue. */}
           {discount > 0 && (
-            <span className="absolute top-0 left-0 rounded-br-xl bg-voxcina-blue px-2 py-1 text-[10px] sm:text-[11px] font-bold tabular-nums text-voxcina-cream">
+            <span className="absolute top-0 left-0 rounded-br-xl bg-voxcina-blue px-2.5 py-1.5 text-[11px] sm:text-xs font-bold tabular-nums text-voxcina-cream">
               ٪{toPersianNumber(discount)} تخفیف
             </span>
           )}
