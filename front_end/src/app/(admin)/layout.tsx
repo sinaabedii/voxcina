@@ -29,6 +29,7 @@ import {
   HelpCircle,
   Image,
   Cable,
+  BookOpen,
   Activity,
   ShoppingBasket,
   Ticket,
@@ -271,6 +272,11 @@ export default function AdminLayout({
       name: "سرویس‌های خارجی",
       href: "/admin/external-services",
       icon: <Cable className="w-5 h-5 ml-3" />,
+    },
+    {
+      name: "مستندات API",
+      href: "/swagger",
+      icon: <BookOpen className="w-5 h-5 ml-3" />,
     },
   ].filter((item) => canAccessAdminSection(user?.role, item.href));
 

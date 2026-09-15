@@ -220,6 +220,9 @@ func NewRouter() *mux.Router {
 	adminRouter := api.PathPrefix("/admin").Name(AdminPrefixRouteName).Subrouter()
 	adminRouter.Use(middlewares.AdminAuthMiddleware)
 
+	// OpenAPI spec for the admin-only Swagger UI (https://voxcina.com/swagger).
+	adminRouter.HandleFunc("/docs/openapi.json", handlers.GetOpenAPISpec).Methods(http.MethodGet)
+
 	// AI Metadata Generation Routes (admin + staff: part of the product editor)
 	aiMetadataHandler, err := handlers.NewAIMetadataHandler()
 	if err != nil {
