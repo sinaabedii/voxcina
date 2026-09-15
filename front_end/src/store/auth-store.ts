@@ -68,6 +68,15 @@ export const useAuthStore = create<AuthStore>()(
         // Initialize activity tracking for proactive token refresh (Requirement 6.4)
         sessionManager.initActivityTracking();
 
+        // adminToken is a snapshot of the access token taken at login; it is
+        // only minted on the password path today. Follow every rotation so it
+        // never lags the live session behind an expired snapshot.
+        sessionManager.onTokensRotated = (rotatedAccessToken) => {
+          if (isBackOfficeRole(get().user?.role)) {
+            set({ adminToken: rotatedAccessToken });
+          }
+        };
+
         const accessToken = localStorageManager.getAccessToken();
         
         // No token stored - set as unauthenticated
@@ -95,12 +104,42 @@ export const useAuthStore = create<AuthStore>()(
 
         // Token is valid - try to restore user state from persisted storage
         const persistedState = localStorageManager.getPersistedAuthState();
-        if (persistedState?.state?.user && persistedState.state.isAuthenticated) {
+        const accessPayload = tokenValidator.decodeToken(accessToken);
+        const persistedUser = (persistedState?.state?.user ?? null) as User | null;
+        const accessUserId = accessPayload?.user_id ?? null;
+        const persistedUserId = persistedUser?.id ?? null;
+
+        // The persisted profile must belong to the same account as the stored
+        // token. When the two drift apart, the stale profile decides the role
+        // guard while the fresh token decides the API calls — restore the
+        // profile from the server instead.
+        const persistedUserMatchesToken =
+          persistedUserId !== null &&
+          accessUserId !== null &&
+          String(persistedUserId) === accessUserId;
+
+        if (persistedUserMatchesToken && persistedState?.state.isAuthenticated) {
+          // A persisted adminToken must still be valid AND belong to this
+          // account. Otherwise fall back to the just-validated access token —
+          // SMS logins and rotations previously left it null or stale, which
+          // blanked the admin section entirely.
+          const persistedAdminToken = persistedState.state.adminToken ?? null;
+          const persistedAdminPayload = persistedAdminToken
+            ? tokenValidator.decodeToken(persistedAdminToken)
+            : null;
+          const adminTokenUsable =
+            persistedAdminToken !== null &&
+            tokenValidator.isTokenValid(persistedAdminToken) &&
+            persistedAdminPayload?.user_id === accessUserId;
           set({
             isInitialized: true,
-            user: persistedState.state.user as User,
+            user: persistedUser as User,
             isAuthenticated: true,
-            adminToken: persistedState.state.adminToken,
+            adminToken: adminTokenUsable
+              ? persistedAdminToken
+              : isBackOfficeRole(persistedUser?.role)
+                ? accessToken
+                : null,
           });
         } else {
           // Token exists but no persisted user state - fetch profile using SessionManager (Requirement 1.1, 1.2)
@@ -113,6 +152,9 @@ export const useAuthStore = create<AuthStore>()(
                 isInitialized: true,
                 user: userData,
                 isAuthenticated: true,
+                adminToken: isBackOfficeRole(userData?.role)
+                  ? localStorageManager.getAccessToken() || accessToken
+                  : null,
               });
             } else {
               // Profile fetch failed - clear auth data using LocalStorageManager
@@ -544,10 +586,21 @@ export const useAuthStore = create<AuthStore>()(
 
           // Handle the backend response structure for profile
           const userData = data.user_data || data;
+          let adminToken = get().adminToken;
+          if (isBackOfficeRole(userData?.role)) {
+            const accessTokenNow = localStorageManager.getAccessToken();
+            if (
+              (!adminToken || !tokenValidator.isTokenValid(adminToken)) &&
+              accessTokenNow
+            ) {
+              adminToken = accessTokenNow;
+            }
+          }
           set({
             user: userData,
             isAuthenticated: true,
             isLoading: false,
+            adminToken,
           });
 
           return userData;
@@ -795,7 +848,17 @@ export const useAuthStore = create<AuthStore>()(
               createdAt: data.createdAt || data.created_at,
               updatedAt: data.updatedAt || data.updated_at,
             };
-            set({ user, isAuthenticated: true, isLoading: false, error: null });
+            // Same handoff as the password path: without it an admin signing
+            // in with an OTP code gets a panel with no data and a swagger
+            // page that 401s.
+            const adminToken = isBackOfficeRole(user.role) ? data.token : null;
+            set({
+              user,
+              isAuthenticated: true,
+              isLoading: false,
+              error: null,
+              adminToken,
+            });
             toast.success(`خوش آمدید، ${user.name}!`);
             return user;
           } else {

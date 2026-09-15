@@ -101,6 +101,14 @@ export class SessionManager {
   private lastActivityTimestamp: number = Date.now();
   private activityListenersAttached: boolean = false;
   private activityCheckInterval: NodeJS.Timeout | null = null;
+
+  /**
+   * Notified after every successful refresh with the rotated pair, so the auth
+   * store can keep its adminToken (a snapshot of the access token) on the live
+   * session instead of an expired one.
+   */
+  onTokensRotated: ((accessToken: string, refreshToken?: string) => void) | null =
+    null;
   private readonly refreshLockOwner =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
@@ -417,8 +425,19 @@ export class SessionManager {
       // Store the new access token
       localStorageManager.setAccessToken(newAccessToken);
 
+      // The web refresh policy rotates refresh tokens; keeping the rotated one
+      // is mandatory — resending the burned token trips reuse detection and
+      // wipes the whole session family on the next refresh.
+      if (data.refreshToken) {
+        localStorageManager.setRefreshToken(data.refreshToken);
+      }
+
       // Resolve all pending requests with the new token
       this.resolvePendingRequests(newAccessToken);
+
+      if (this.onTokensRotated) {
+        this.onTokensRotated(newAccessToken, data.refreshToken);
+      }
 
       return newAccessToken;
     } catch (error) {
