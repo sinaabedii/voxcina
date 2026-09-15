@@ -5,7 +5,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { Heart, Star, ShoppingCart, ChevronLeft } from "lucide-react";
 import { ColorVariantListItem } from "@/types/product";
-import { formatPrice, getDiscountPercentage } from "@/lib/utils";
+import {
+  formatPrice,
+  getDiscountPercentage,
+  toPersianNumber,
+} from "@/lib/utils";
 import { useCartStore } from "@/store/cart-store";
 import Button from "@/components/ui/Button";
 import { toast } from "react-toastify";
@@ -170,15 +174,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           )}
 
-          {/* Discount badge - LEFT side */}
-          {discount > 0 && (
-            <div className="absolute top-2.5 left-2.5">
-              <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-xs font-bold rounded-full bg-destructive text-destructive-foreground shadow-soft">
-                {discount}٪ تخفیف
-              </span>
-            </div>
-          )}
-
           {/* Color indicator swatch */}
           <div className="absolute bottom-3 right-3 flex gap-1">
             <div
@@ -203,7 +198,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
           {/* Favorite button - LEFT side */}
           <button
-            className={`absolute ${discount > 0 ? 'top-9 sm:top-12' : 'top-2.5'} left-2.5 p-1.5 sm:p-2 rounded-full md:backdrop-blur-md transition-all duration-300 shadow-soft ${isProductFavorite
+            className={`absolute top-2.5 left-2.5 p-1.5 sm:p-2 rounded-full md:backdrop-blur-md transition-all duration-300 shadow-soft ${isProductFavorite
                 ? "bg-destructive/10 text-destructive"
                 : "bg-white/80 dark:bg-black/40 text-foreground hover:bg-white dark:hover:bg-black/60"
               }`}
@@ -274,11 +269,18 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
           <div className="mt-auto flex items-end justify-between gap-2 pt-3">
             <div className="flex min-w-0 flex-col">
-              <span
-                className={`whitespace-nowrap text-xs font-bold sm:text-base md:text-lg ${discount > 0 ? "text-primary" : "text-foreground"
-                  }`}
-              >
-                {formatPrice(price)}
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span
+                  className={`whitespace-nowrap text-xs font-bold sm:text-base md:text-lg ${discount > 0 ? "text-primary" : "text-foreground"
+                    }`}
+                >
+                  {formatPrice(price)}
+                </span>
+                {discount > 0 && (
+                  <span className="shrink-0 rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-destructive sm:text-[11px]">
+                    ٪{toPersianNumber(discount)}
+                  </span>
+                )}
               </span>
 
               {discount > 0 && (
