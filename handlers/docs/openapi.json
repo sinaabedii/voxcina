@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Voxcina Backend API",
-    "description": "REST API of the Voxcina online store (Go backend).\n\nThe storefront (`voxcina.com`) proxies every `/api/*` request to this service, so **Try it out** on this page runs against the same origin — no CORS setup needed.\n\n## Authentication\n\nTwo security schemes are used:\n\n- **`bearerAuth`** — the JWT access token issued by `POST /api/users/login` (or the OTP flows). Ordinary user endpoints accept any valid token; endpoints marked *Admin* additionally require `role == \"admin\"` and *Staff* endpoints accept `admin` or `staff` (enforced server-side on every request against the live user record).\n- **`serviceApiKey`** — the `X-API-Key` header for server-to-server bot/channel integrations under `/api/auth/external/*` (created by admins in the external-services panel).\n\nTokens are stateless but every request is re-checked against the database: logout, deactivation, role changes and password changes take effect immediately.\n\n## Response envelope\n\nSuccessful responses are bare JSON objects (or arrays) whose shape mirrors the Go models. Auth/permission failures return `{\"error\": \"...\", \"code\": \"...\"}`.\n\n> This document describes the core surfaces of the API. Field-level fidelity is best-effort; the Go models under `models/` are the source of truth.",
+    "description": "REST API of the Voxcina online store (Go backend).\n\nThe storefront (`voxcina.com`) proxies every `/api/*` request to this service, so **Try it out** on this page runs against the same origin — no CORS setup needed.\n\n## Authentication\n\nTwo security schemes are used:\n\n- **`bearerAuth`** — the JWT access token issued by `POST /api/users/login` (or the OTP flows). Ordinary user endpoints accept any valid token; endpoints marked *Admin* additionally require `role == \"admin\"` and *Staff* endpoints accept `admin` or `staff` (enforced server-side on every request against the live user record).\n- **`serviceApiKey`** — the `X-API-Key` header for server-to-server bot/channel integrations under `/api/auth/external/*` (created by admins in the external-services panel).\n\nTokens are stateless but every request is re-checked against the database: logout, deactivation, role changes and password changes take effect immediately.\n\n## Response envelope\n\nSuccessful responses are bare JSON objects (or arrays) whose shape mirrors the Go models. Auth/permission failures return `{\"error\": \"...\", \"code\": \"...\"}`.\n\n> This document describes the core surfaces of the API. Field-level fidelity is best-effort; the Go models under `models/` are the source of truth.\n\n## Telegram bot integration guide (end-to-end)\n\nYou need TWO credentials:\n1. **X-API-Key** — ask the shop admin to create a service in the admin panel `/admin/external-services`\n   with provider `telegram` and scopes `identity:exchange` + `identity:bind_phone`.\n   The key (`vxk_...`) is shown once; all `/api/auth/external/*` calls use it.\n2. Per-user JWT — minted by your bot via `POST /api/auth/external/token` (steps below).\n\nTypical flow for each Telegram user:\n\n1. **Register the user**: `POST /api/auth/external/token` with\n   `{\"provider\":\"telegram\",\"external_id\":\"<telegram user id>\",\"profile\":{\"first_name\":...,\"username\":...},\"bot_id\":\"<bot username>\"}`\n   → `{token, refreshToken, is_new, has_phone, user}`. A brand-new user is a phone-less\n   shadow account (`account_type:\"external\"`). Store `token` + `refreshToken` SERVER-SIDE.\n2. **Keep the session alive**: `POST /api/users/refresh` `{\"refreshToken\":\"...\"}` —\n   rotating policy: save the NEW refreshToken from every response; presenting an\n   already-rotated token revokes the whole family.\n3. **Bind a phone (required for delivery + DigiPay)**: `POST /api/auth/external/phone/send-otp`\n   → user replies with the code → `POST /api/auth/external/phone/verify-otp`\n   (`{\"...\",\"code\":\"12345\",\"merge\":false}`). If you get `409 phone_taken` with `can_merge:true`,\n   the number belongs to a registered web account — confirm with the user, then retry with\n   `\"merge\":true` to keep one account. Alternative: the contact-share route\n   `/api/auth/external/phone/contact`. Old customers can link by code instead:\n   they run `POST /api/users/link-code` on the site and give the bot the code\n   → `POST /api/auth/external/link`.\n4. **Show products**: `GET /api/products?page=&limit=&sort=newest&search=...`\n   (public; one row per color variant; `colorVariant.sizes[]` carries stock per size)\n   and `GET /api/products/{id}` for detail.\n5. **Cart**: `POST /api/cart/item` `{\"productId\":\"...\",\"variant\":{\"variantId\":\"...\",\"size\":\"M\",\"color\":\"...\",\"colorName\":\"...\",\"sku\":\"...\"},\"quantity\":1}`\n   → returns the whole cart (`GET /api/cart` anytime; `PUT /api/cart/item` changes quantity;\n   `DELETE /api/cart/item?productId=...&variantSize=M&variantId=...` removes).\n6. **Address**: `POST /api/users/addresses` `{\"city\":\"...\",\"postal_code\":\"...\",\"address\":\"...\",\"latitude\":35.7,\"longitude\":51.4,\"phone_number\":\"09...\"}` —\n   `GET /api/neshan/reverse?lat=..&lng=..` fills city/province from coordinates.\n7. **Order**: `POST /api/checkout` with `items` (each `{\"product_id\",\"variant\":{\"variantId\",\"size\",\"color\",...},\"quantity\"}`),\n   `shippingAddress`, and informational totals → returns the order (`status:\"pending\"`).\n8. **Payment**: `POST /api/payment/request` `{\"orderId\":\"...\",\"gateway\":\"zibal\"}` → `{payUrl}` —\n   send it as a Telegram inline button. When the user pays, the gateway calls this API back;\n   the order becomes `payment_status:\"paid\"`. Poll `GET /api/orders/{orderId}` (or\n   `POST /api/payment/inquiry` `{\"trackId\":<int>}`) to detect completion. Failed/expired\n   payments: `POST /api/payment/retry` `{\"orderId\":\"...\"}` mints a NEW attempt + payUrl.\n9. **Order history**: `GET /api/orders?page=1&limit=10` (optionally `status=`, `search=`).\n\nBot-side rate limit: 300 requests/minute per X-API-Key (HTTP 429 `RATE_LIMITED`).\nError bodies always carry a machine-readable `code` (see the `ErrorBody` schema) —\nbranch on it, do not parse messages.",
     "version": "1.0.0",
     "contact": {
       "name": "Voxcina",
@@ -285,26 +285,26 @@
         "summary": "Rotate the refresh token",
         "operationId": "refreshToken",
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
                 "required": [
-                  "refresh_token"
+                  "refreshToken"
                 ],
                 "properties": {
-                  "refresh_token": {
+                  "refreshToken": {
                     "type": "string"
                   }
                 }
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
-            "description": "New token pair (web rotates and burns the family on reuse; android re-signs the access token only)",
+            "description": "New token pair. External-service tokens always follow the web policy: each refresh returns a NEW refreshToken (rotating); presenting a rotated-out token burns the whole session family (401, all sessions die). Send the newest refreshToken only.",
             "content": {
               "application/json": {
                 "schema": {
@@ -854,18 +854,17 @@
     "/api/auth/external/token": {
       "post": {
         "tags": [
-          "External Services"
+          "External identity (bots)"
         ],
-        "summary": "Exchange a bot identity for a user JWT",
-        "operationId": "externalTokenExchange",
+        "summary": "Exchange a bot identity for a user token pair (find-or-create)",
         "security": [
           {
             "serviceApiKey": []
           }
         ],
-        "description": "Server-to-server. The bot asserts one of its platform users; the API returns (or creates and returns) the bound shop account's token pair.",
+        "operationId": "externalTokenExchange",
+        "description": "Server-to-server. Resolves (provider, external_id) — creating a phone-less, password-less shadow user (account_type 'external') on first contact — and returns a normal token pair for it. The JWT carries the provider as the channel claim, so orders placed with it are stamped order.placed_via (attribution). provider MUST equal the authenticated service's provider. Rate limit: 300 req/min per API key.",
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -885,22 +884,41 @@
                   },
                   "external_id": {
                     "type": "string",
+                    "maxLength": 128,
+                    "example": "123456789",
                     "description": "Platform user id as seen by the bot"
                   },
-                  "name": {
-                    "type": "string"
+                  "profile": {
+                    "type": "object",
+                    "description": "Display snapshot stored on the identity; keys first_name/last_name/username feed the generated user name",
+                    "properties": {
+                      "username": {
+                        "type": "string"
+                      },
+                      "first_name": {
+                        "type": "string"
+                      },
+                      "last_name": {
+                        "type": "string"
+                      },
+                      "language_code": {
+                        "type": "string"
+                      }
+                    }
                   },
-                  "username": {
-                    "type": "string"
+                  "bot_id": {
+                    "type": "string",
+                    "description": "Bot username — recorded on the identity's bot_ids"
                   }
                 }
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
-            "description": "Token pair for the bound user",
+            "description": "Token pair; is_new=true when the shadow user was just created",
             "content": {
               "application/json": {
                 "schema": {
@@ -912,19 +930,39 @@
                     "refreshToken": {
                       "type": "string"
                     },
+                    "is_new": {
+                      "type": "boolean"
+                    },
+                    "has_phone": {
+                      "type": "boolean",
+                      "description": "false for new bot users — bind a phone before checkout/delivery"
+                    },
                     "user": {
-                      "$ref": "#/components/schemas/User"
+                      "$ref": "#/components/schemas/ExternalUserSummary"
                     }
                   }
                 }
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "description": "EXCHANGE_FAILED | TOKEN_ISSUE_FAILED | SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         }
       }
@@ -932,17 +970,100 @@
     "/api/auth/external/phone/contact": {
       "post": {
         "tags": [
-          "External Services"
+          "External identity (bots)"
         ],
         "summary": "Bind a phone via a shared Telegram/Bale contact",
-        "operationId": "externalPhoneContact",
         "security": [
           {
             "serviceApiKey": []
           }
         ],
+        "operationId": "externalPhoneContact",
+        "description": "Requires scope identity:bind_phone AND the service's allowed_phone_methods to include 'contact'. Accepts a contact the user shared about THEMSELVES — contact_user_id must equal external_id (a forwarded contact is refused, code CONTACT_MISMATCH). Binds without OTP; merging is never attempted from this path.",
         "requestBody": {
-          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "provider",
+                  "external_id",
+                  "phone",
+                  "contact_user_id"
+                ],
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "telegram",
+                      "bale"
+                    ]
+                  },
+                  "external_id": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "phone": {
+                    "type": "string",
+                    "example": "09123456789"
+                  },
+                  "contact_user_id": {
+                    "type": "string",
+                    "description": "Platform user id carried by the shared contact — MUST equal external_id"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Phone bound (shape identical to verify-otp: message/phone/verified_method/merged/already_bound/user/token/refreshToken)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalAuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "phone_already_set | phone_taken | phone_owner_conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/external/phone/send-otp": {
+      "post": {
+        "tags": [
+          "External identity (bots)"
+        ],
+        "summary": "Send an SMS OTP to bind a phone to the bot identity",
+        "security": [
+          {
+            "serviceApiKey": []
+          }
+        ],
+        "operationId": "externalPhoneSendOTP",
+        "description": "Requires scope identity:bind_phone. Normalizes Iranian numbers (09xxxxxxxxx). Deliberately silent about ownership: whether the number is free is revealed only at verify-otp. A different already-bound phone gets 409 phone_already_set and no SMS; the same phone returns idempotent {already_bound:true}.",
+        "requestBody": {
           "content": {
             "application/json": {
               "schema": {
@@ -957,66 +1078,64 @@
                     "type": "string",
                     "enum": [
                       "telegram",
-                      "bale"
+                      "bale",
+                      "instagram"
                     ]
                   },
                   "external_id": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 128
                   },
                   "phone": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "09123456789"
                   }
                 }
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
-            "description": "Phone bound or pending verification",
+            "description": "SMS sent, or idempotent already-bound",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "already_bound": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             }
           },
           "400": {
-            "description": "Phone binding error (see error code for the reason, e.g. phone owned by another account)",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "phone_already_set — this identity already has a different phone",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/ErrorBody"
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/auth/external/phone/send-otp": {
-      "post": {
-        "tags": [
-          "External Services"
-        ],
-        "summary": "Send an OTP to bind a phone",
-        "operationId": "externalPhoneSendOtp",
-        "security": [
-          {
-            "serviceApiKey": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OTP dispatched",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         }
       }
@@ -1024,50 +1143,25 @@
     "/api/auth/external/phone/verify-otp": {
       "post": {
         "tags": [
-          "External Services"
+          "External identity (bots)"
         ],
-        "summary": "Verify the OTP and bind the phone",
-        "operationId": "externalPhoneVerifyOtp",
+        "summary": "Verify the OTP and bind the phone (optionally merge accounts)",
         "security": [
           {
             "serviceApiKey": []
           }
         ],
-        "responses": {
-          "200": {
-            "description": "Phone bound",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/auth/external/link": {
-      "post": {
-        "tags": [
-          "External Services"
-        ],
-        "summary": "Claim a single-use link code",
-        "operationId": "externalLinkAccount",
-        "security": [
-          {
-            "serviceApiKey": []
-          }
-        ],
-        "description": "Consumes the code produced by `POST /api/users/link-code` and binds the external identity to that shop account.",
+        "operationId": "externalPhoneVerifyOTP",
+        "description": "Requires scope identity:bind_phone. If the number belongs to a REGISTERED account, the response is 409 phone_taken with can_merge:true — retry with merge:true to merge the shadow's data into the registered account; a successful merge then issues tokens for the registered account. Phone binding is write-once: a bound identity cannot change numbers. Phone is write-once; the response carries a fresh token pair for the final account.",
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
                 "required": [
                   "provider",
+                  "external_id",
+                  "phone",
                   "code"
                 ],
                 "properties": {
@@ -1079,30 +1173,185 @@
                       "instagram"
                     ]
                   },
-                  "code": {
-                    "type": "string"
-                  },
                   "external_id": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "phone": {
+                    "type": "string",
+                    "example": "09123456789"
+                  },
+                  "code": {
+                    "type": "string",
+                    "description": "SMS code; Persian digits accepted"
+                  },
+                  "merge": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Confirm merging when the server answered 409 phone_taken with can_merge"
                   }
                 }
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
-            "description": "Identity linked",
+            "description": "Phone bound (or merged, or already bound)",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "phone": {
+                      "type": "string"
+                    },
+                    "verified_method": {
+                      "type": "string",
+                      "enum": [
+                        "sms_otp",
+                        "contact"
+                      ]
+                    },
+                    "merged": {
+                      "type": "boolean"
+                    },
+                    "already_bound": {
+                      "type": "boolean"
+                    },
+                    "user": {
+                      "$ref": "#/components/schemas/ExternalUserSummary"
+                    },
+                    "token": {
+                      "type": "string"
+                    },
+                    "refreshToken": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             }
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "phone_already_set | phone_taken (can_merge:true → retry with merge) | phone_owner_conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/auth/external/link": {
+      "post": {
+        "tags": [
+          "External identity (bots)"
+        ],
+        "summary": "Claim a single-use link code (connect bot identity to a registered site account)",
+        "security": [
+          {
+            "serviceApiKey": []
+          }
+        ],
+        "operationId": "externalLinkAccount",
+        "description": "Requires scope identity:exchange. The user generates a code on the website (POST /api/users/link-code with a normal session) and sends it to the bot. If the bot identity has orders/a cart, the server demands an explicit merge confirmation: 409 MERGE_REQUIRED + can_merge:true — retry with merge:true. Stable codes: 400 LINK_CODE_INVALID, 409 IDENTITY_LINKED_ELSEWHERE / ACCOUNT_UNAVAILABLE, 503 MERGE_INCOMPLETE (retry same code).",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "provider",
+                  "external_id",
+                  "code"
+                ],
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "telegram",
+                      "bale",
+                      "instagram"
+                    ]
+                  },
+                  "external_id": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "code": {
+                    "type": "string",
+                    "description": "Single-use code from POST /api/users/link-code"
+                  },
+                  "merge": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Confirm merging the shadow user's data into the registered account"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Identity linked — token pair for the registered account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalAuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "MERGE_REQUIRED (can_merge:true) | IDENTITY_LINKED_ELSEWHERE | ACCOUNT_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "MERGE_INCOMPLETE — retry with the same code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         }
       }
@@ -1247,18 +1496,18 @@
     "/api/users/addresses": {
       "get": {
         "tags": [
-          "Addresses"
+          "Users"
         ],
-        "summary": "List the user's addresses",
-        "operationId": "getUserAddresses",
+        "summary": "List the user's addresses (bare array)",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "operationId": "getUserAddresses",
         "responses": {
           "200": {
-            "description": "Address list",
+            "description": "The full updated address list",
             "content": {
               "application/json": {
                 "schema": {
@@ -1277,28 +1526,29 @@
       },
       "post": {
         "tags": [
-          "Addresses"
+          "Users"
         ],
         "summary": "Add an address",
-        "operationId": "addUserAddress",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "operationId": "addUserAddress",
+        "description": "Validation: city, postal_code, and either street or address are required; latitude/longitude must not both be 0 (use GET /api/neshan/reverse to fill them). Persian digits are normalized. The first address is forced default; is_default=true unsets the previous default. Returns the full updated list.",
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AddressInput"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
-            "description": "Updated address list",
+            "description": "The full updated address list",
             "content": {
               "application/json": {
                 "schema": {
@@ -1312,6 +1562,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
           }
         }
       }
@@ -1319,38 +1572,40 @@
     "/api/users/addresses/{addressIndex}": {
       "put": {
         "tags": [
-          "Addresses"
+          "Users"
         ],
-        "summary": "Update an address",
-        "operationId": "updateUserAddress",
+        "summary": "Update an address by index",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "operationId": "updateUserAddress",
         "parameters": [
           {
             "name": "addressIndex",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
-            }
+              "type": "integer",
+              "minimum": 0
+            },
+            "description": "0-based index into GET /api/users/addresses"
           }
         ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AddressInput"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
-            "description": "Updated address list",
+            "description": "The full updated address list",
             "content": {
               "application/json": {
                 "schema": {
@@ -1362,35 +1617,43 @@
               }
             }
           },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           }
         }
       },
       "delete": {
         "tags": [
-          "Addresses"
+          "Users"
         ],
-        "summary": "Delete an address",
-        "operationId": "deleteUserAddress",
+        "summary": "Delete an address by index",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "operationId": "deleteUserAddress",
         "parameters": [
           {
             "name": "addressIndex",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
-            }
+              "type": "integer",
+              "minimum": 0
+            },
+            "description": "0-based index into GET /api/users/addresses"
           }
         ],
         "responses": {
           "200": {
-            "description": "Updated address list",
+            "description": "The full updated address list",
             "content": {
               "application/json": {
                 "schema": {
@@ -1402,8 +1665,14 @@
               }
             }
           },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           }
         }
       }
@@ -1892,20 +2161,20 @@
         "tags": [
           "Cart"
         ],
-        "summary": "Current active cart (hidden/disabled lines pruned)",
-        "operationId": "getCart",
+        "summary": "Current active cart",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "operationId": "getCart",
         "responses": {
           "200": {
-            "description": "Cart document",
+            "description": "Cart with per-item product cards and totals",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Cart"
+                  "$ref": "#/components/schemas/CartResponse"
                 }
               }
             }
@@ -1919,20 +2188,21 @@
         "tags": [
           "Cart"
         ],
-        "summary": "Replace the cart (login sync)",
-        "operationId": "createOrReplaceCart",
-        "description": "Creates a new cart and deactivates previous ones; used by the frontend to sync the local cart on login.",
+        "summary": "Replace the cart (bulk set; merges with the existing active cart)",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "operationId": "createOrReplaceCart",
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
+                "required": [
+                  "items"
+                ],
                 "properties": {
                   "items": {
                     "type": "array",
@@ -1943,21 +2213,25 @@
                 }
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
-          "201": {
-            "description": "New cart",
+          "200": {
+            "description": "Cart",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Cart"
+                  "$ref": "#/components/schemas/CartResponse"
                 }
               }
             }
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
           }
         }
       },
@@ -1966,15 +2240,15 @@
           "Cart"
         ],
         "summary": "Clear the user's entire cart",
-        "operationId": "clearUserCart",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "operationId": "clearCart",
         "responses": {
           "200": {
-            "description": "Cart cleared",
+            "description": "Cleared",
             "content": {
               "application/json": {
                 "schema": {
@@ -1982,6 +2256,9 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           }
         }
       }
@@ -1991,22 +2268,22 @@
         "tags": [
           "Cart"
         ],
-        "summary": "Add/update one item in the existing cart",
-        "operationId": "addItemToExistingCart",
+        "summary": "Add one item to the existing cart (validates color+size stock)",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "operationId": "addCartItem",
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CartItemInput"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -2014,20 +2291,16 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Cart"
+                  "$ref": "#/components/schemas/CartResponse"
                 }
               }
             }
           },
-          "400": {
-            "description": "Rejected (out of stock, off sale, deleted product, ...)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       },
@@ -2035,22 +2308,22 @@
         "tags": [
           "Cart"
         ],
-        "summary": "Update an item's quantity/size",
-        "operationId": "updateCartItem",
+        "summary": "Set an item's quantity (or switch size/color)",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "operationId": "updateCartItem",
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CartItemInput"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -2058,10 +2331,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Cart"
+                  "$ref": "#/components/schemas/CartResponse"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           }
         }
       },
@@ -2069,116 +2345,58 @@
         "tags": [
           "Cart"
         ],
-        "summary": "Remove one item from the cart",
-        "operationId": "removeFromCart",
+        "summary": "Remove one item from the cart (query params, no body)",
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "product_id",
-                  "variant_id"
-                ],
-                "properties": {
-                  "product_id": {
-                    "type": "string"
-                  },
-                  "variant_id": {
-                    "type": "string"
-                  },
-                  "size": {
-                    "type": "string"
-                  }
-                }
-              }
+        "operationId": "removeCartItem",
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "variantSize",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "variantId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "variantColor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "variantColorName",
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           }
-        },
+        ],
         "responses": {
           "200": {
             "description": "Updated cart",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Cart"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/checkout": {
-      "post": {
-        "tags": [
-          "Checkout & Orders"
-        ],
-        "summary": "Place an order (creates the order and starts payment)",
-        "operationId": "checkout",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "shipping_address": {
-                    "$ref": "#/components/schemas/AddressInput"
-                  },
-                  "payment_method": {
-                    "type": "string",
-                    "enum": [
-                      "online",
-                      "cod"
-                    ],
-                    "default": "online"
-                  },
-                  "discount_code": {
-                    "type": "string"
-                  },
-                  "gateway": {
-                    "type": "string",
-                    "enum": [
-                      "zibal",
-                      "digipay",
-                      "snappay"
-                    ],
-                    "description": "Optional gateway selection"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Order + payment redirect data (gateway-specific)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Inventory validation refused the checkout",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/CartResponse"
                 }
               }
             }
@@ -2189,18 +2407,64 @@
         }
       }
     },
-    "/api/orders": {
-      "get": {
+    "/api/checkout": {
+      "post": {
         "tags": [
-          "Checkout & Orders"
+          "Orders"
         ],
-        "summary": "The current user's orders",
-        "operationId": "getUserOrders",
+        "summary": "Place an order (creates it pending; payment is a separate call)",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "operationId": "checkout",
+        "description": "Validates inventory, recomputes totals (client amounts are informational), snapshots prices into the order, stamps order.placed_via from the session channel, and returns the created order. Then start payment with POST /api/payment/request {orderId, gateway}.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Created order (id, order_number, status=pending, payment_status=pending, ...)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/api/orders": {
+      "get": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "The current user's orders (paginated, filterable)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "getUserOrders",
         "parameters": [
           {
             "name": "page",
@@ -2217,26 +2481,39 @@
               "type": "integer",
               "default": 10
             }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "pending",
+                "processing",
+                "shipped",
+                "delivered",
+                "cancelled"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Partial, case-insensitive match on order_number / merchant_transaction_id / gateway_transaction_id / gateway_reference"
           }
         ],
         "responses": {
           "200": {
-            "description": "Orders",
+            "description": "Orders + pagination (has_orders=false with an empty-state message when none)",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Order"
-                      }
-                    },
-                    "pagination": {
-                      "$ref": "#/components/schemas/Pagination"
-                    }
-                  }
+                  "$ref": "#/components/schemas/OrdersListResponse"
                 }
               }
             }
@@ -2250,15 +2527,15 @@
     "/api/orders/{orderId}": {
       "get": {
         "tags": [
-          "Checkout & Orders"
+          "Orders"
         ],
-        "summary": "One order (owner or admin)",
-        "operationId": "getOrder",
+        "summary": "One order (owner or admin) — poll this after sending a payUrl",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "operationId": "getOrderById",
         "parameters": [
           {
             "name": "orderId",
@@ -2271,7 +2548,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Order document",
+            "description": "Order — check payment_status == paid and status",
             "content": {
               "application/json": {
                 "schema": {
@@ -2280,8 +2557,14 @@
               }
             }
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       }
@@ -2289,15 +2572,16 @@
     "/api/orders/{orderId}/confirm-payment": {
       "post": {
         "tags": [
-          "Checkout & Orders"
+          "Orders"
         ],
-        "summary": "Confirm a paid order after the gateway callback",
-        "operationId": "confirmPayment",
+        "summary": "Confirm a paid order (manual confirmation path)",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "operationId": "confirmPayment",
+        "description": "Body is optional; validates inventory and reduces stock, marks the order paid/processing. The gateway callbacks do this automatically for online payments.",
         "parameters": [
           {
             "name": "orderId",
@@ -2308,9 +2592,28 @@
             }
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "transactionId": {
+                    "type": "string"
+                  },
+                  "paymentMethod": {
+                    "type": "string",
+                    "example": "online"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "Order confirmed",
+            "description": "Order",
             "content": {
               "application/json": {
                 "schema": {
@@ -2318,6 +2621,18 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       }
@@ -2507,27 +2822,242 @@
     "/api/payment/request": {
       "post": {
         "tags": [
-          "Payments"
+          "Payment"
         ],
         "summary": "Start a gateway payment for an order",
-        "operationId": "requestPayment",
-        "description": "Every attempt creates a new `PaymentAttempt` and provider id — a previous attempt is never overwritten. Zibal/DigiPay treat order totals as Rials (×10 of Tomans).",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "operationId": "requestPayment",
+        "description": "Creates a NEW PaymentAttempt (never overwrites previous attempts), records it on the order and returns the gateway payment page URL — give payUrl to the user. Amount is derived from the order server-side (never trusted from the client); Rials = totalAmount × 10 (SnappPay uses its own conversion). Gateways: zibal (default), digipay (requires the user's phone — falls back to the bound phone), snappay (BNPL; eligibility is checked and can be probed via GET /api/payment/snappay/eligibility). The gateway confirms via its callback; afterwards the bot polls GET /api/orders/{orderId}.",
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
                 "required": [
-                  "order_id"
+                  "orderId"
                 ],
                 "properties": {
-                  "order_id": {
+                  "orderId": {
+                    "type": "string",
+                    "description": "Order id from POST /api/checkout"
+                  },
+                  "gateway": {
+                    "type": "string",
+                    "enum": [
+                      "zibal",
+                      "digipay",
+                      "snappay"
+                    ],
+                    "default": "zibal"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "mobile": {
+                    "type": "string",
+                    "description": "Optional; needed by DigiPay when the user has no bound phone"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment request created — send payUrl to the user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentRequestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "502": {
+            "description": "Gateway rejected the request (e.g. SnappPay eligibility)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payment/verify": {
+      "post": {
+        "tags": [
+          "Payment"
+        ],
+        "summary": "Verify a payment attempt by gateway track id",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "verifyPayment",
+        "description": "Looks the order up by zibal_track_id owned by the caller. Verification must match PaymentAttempt.ExpectedAmount — mismatch marks the attempt failed.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "trackId"
+                ],
+                "properties": {
+                  "trackId": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "Gateway track id returned on the payment redirect"
+                  },
+                  "gateway": {
+                    "type": "string",
+                    "enum": [
+                      "zibal",
+                      "digipay",
+                      "snappay"
+                    ],
+                    "default": "zibal"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Verification result (paymentStatus paid|pending|failed, canRetry, ...)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentVerifyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/payment/inquiry": {
+      "post": {
+        "tags": [
+          "Payment"
+        ],
+        "summary": "Inquire a pending payment by gateway track id",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "inquiryPayment",
+        "description": "Non-mutating status check against the gateway (use while waiting for the callback).",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "trackId"
+                ],
+                "properties": {
+                  "trackId": {
+                    "type": "integer",
+                    "format": "int64"
+                  },
+                  "gateway": {
+                    "type": "string",
+                    "enum": [
+                      "zibal",
+                      "digipay",
+                      "snappay"
+                    ],
+                    "default": "zibal"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Inquiry result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentInquiryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/api/payment/retry": {
+      "post": {
+        "tags": [
+          "Payment"
+        ],
+        "summary": "Retry payment for a payable order (pending/failed/abandoned/cancelled)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "retryPayment",
+        "description": "Every retry creates a NEW PaymentAttempt and provider id — previous attempts are never overwritten. Gateway defaults to the order's last gateway, then zibal.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "orderId"
+                ],
+                "properties": {
+                  "orderId": {
                     "type": "string"
                   },
                   "gateway": {
@@ -2541,114 +3071,35 @@
                 }
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
-            "description": "Gateway redirect payload (payment URL / token / track id)",
+            "description": "New payment attempt created — fresh payUrl",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/PaymentRequestResponse"
                 }
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/api/payment/verify": {
-      "post": {
-        "tags": [
-          "Payments"
-        ],
-        "summary": "Verify a payment attempt",
-        "operationId": "verifyPayment",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "order_id"
-                ],
-                "properties": {
-                  "order_id": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Verification result; must match PaymentAttempt.ExpectedAmount",
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "سفارش قابل پرداخت یافت نشد (not payable)",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/payment/inquiry": {
-      "post": {
-        "tags": [
-          "Payments"
-        ],
-        "summary": "Inquire a pending payment",
-        "operationId": "inquiryPayment",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Attempt status",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/payment/retry": {
-      "post": {
-        "tags": [
-          "Payments"
-        ],
-        "summary": "Retry payment for an order",
-        "operationId": "retryPayment",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "New attempt started",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/ErrorBody"
                 }
               }
             }
@@ -10442,6 +10893,16 @@
             }
           }
         }
+      },
+      "TooManyRequests": {
+        "description": "Rate limited (RATE_LIMITED / OTP_ATTEMPTS_EXHAUSTED)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorBody"
+            }
+          }
+        }
       }
     },
     "schemas": {
@@ -10459,13 +10920,24 @@
       },
       "Pagination": {
         "type": "object",
-        "description": "Response envelope of list endpoints: data + pagination",
         "properties": {
-          "totalItems": {
-            "type": "integer"
-          },
           "totalPages": {
             "type": "integer"
+          },
+          "currentPage": {
+            "type": "integer"
+          },
+          "nextPage": {
+            "type": "integer",
+            "nullable": true
+          },
+          "prevPage": {
+            "type": "integer",
+            "nullable": true
+          },
+          "totalItems": {
+            "type": "integer",
+            "description": "Total color-variant cards (product lists)"
           }
         }
       },
@@ -10515,11 +10987,12 @@
       },
       "AddressInput": {
         "type": "object",
+        "description": "models.Address JSON. Persian/Arabic digits in postal_code/phone_number/address/street are normalized server-side.",
         "required": [
-          "address",
           "city",
-          "phone_number",
-          "postal_code"
+          "postal_code",
+          "latitude",
+          "longitude"
         ],
         "properties": {
           "title": {
@@ -10532,7 +11005,8 @@
             "type": "string"
           },
           "phone_number": {
-            "type": "string"
+            "type": "string",
+            "description": "Delivery phone for the shipping label"
           },
           "province": {
             "type": "string"
@@ -10541,16 +11015,12 @@
             "type": "integer"
           },
           "address": {
-            "type": "string"
+            "type": "string",
+            "description": "Full address text — required when street is empty"
           },
-          "postal_code": {
-            "type": "string"
-          },
-          "latitude": {
-            "type": "number"
-          },
-          "longitude": {
-            "type": "number"
+          "street": {
+            "type": "string",
+            "description": "Required when address is empty (one of the two)"
           },
           "city": {
             "type": "string"
@@ -10558,8 +11028,26 @@
           "city_code": {
             "type": "integer"
           },
+          "state": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "postal_code": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number",
+            "description": "Required — 0/0 pair is rejected"
+          },
+          "longitude": {
+            "type": "number",
+            "description": "Required — 0/0 pair is rejected"
+          },
           "is_default": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Sets this address as the default (unsets the previous default); the first address is forced default"
           }
         }
       },
@@ -10623,52 +11111,114 @@
       },
       "ProductListItem": {
         "type": "object",
-        "description": "Slim per-color-variant row used by list endpoints (ai_metadata embeddings and search_metadata are never shipped)",
+        "description": "One storefront card = ONE COLOR VARIANT of a product. ai_metadata embeddings and search_metadata are never shipped.",
         "properties": {
-          "product_id": {
-            "type": "string"
+          "productId": {
+            "type": "string",
+            "description": "Product _id — use for cart/checkout/product detail"
+          },
+          "colorVariant": {
+            "type": "object",
+            "properties": {
+              "variantId": {
+                "type": "string",
+                "description": "Stable color-variant id — cart items key on this"
+              },
+              "color": {
+                "type": "string",
+                "description": "Hex or code"
+              },
+              "colorName": {
+                "type": "string"
+              },
+              "swatchImage": {
+                "type": "string"
+              },
+              "images": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "tryOnImage": {
+                "type": "string"
+              },
+              "tryOnGarmentType": {
+                "type": "string",
+                "enum": [
+                  "upper_body",
+                  "lower_body",
+                  "dresses"
+                ]
+              },
+              "sizes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "size": {
+                      "type": "string",
+                      "example": "M"
+                    },
+                    "sku": {
+                      "type": "string"
+                    },
+                    "quantity": {
+                      "type": "integer",
+                      "description": "Stock of this size; 0 = sold out"
+                    }
+                  }
+                }
+              }
+            }
           },
           "name": {
             "type": "string"
           },
-          "slug": {
-            "type": "string"
-          },
-          "brand": {
-            "type": "string"
-          },
-          "category_id": {
+          "description": {
             "type": "string"
           },
           "price": {
             "type": "number"
           },
-          "discounted_price": {
-            "type": "number"
+          "originalPrice": {
+            "type": "number",
+            "nullable": true
           },
-          "is_active": {
-            "type": "boolean"
-          },
-          "in_stock": {
-            "type": "boolean"
-          },
-          "image": {
+          "brand": {
             "type": "string"
           },
-          "color": {
+          "brand_id": {
             "type": "string"
           },
-          "color_name": {
-            "type": "string"
-          },
-          "sizes": {
+          "category_ids": {
             "type": "array",
             "items": {
-              "type": "object"
+              "type": "string"
             }
+          },
+          "collection": {
+            "type": "string"
           },
           "is_flash_sale": {
             "type": "boolean"
+          },
+          "average_rating": {
+            "type": "number"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "inStock": {
+            "type": "boolean",
+            "description": "Any size of this color in stock"
+          },
+          "viewCount": {
+            "type": "integer"
+          },
+          "rank": {
+            "type": "integer"
           }
         }
       },
@@ -10821,55 +11371,65 @@
           "id": {
             "type": "string"
           },
-          "user_id": {
+          "userId": {
             "type": "string"
-          },
-          "is_active": {
-            "type": "boolean"
           },
           "items": {
             "type": "array",
             "items": {
-              "type": "object"
+              "type": "object",
+              "properties": {
+                "product": {
+                  "type": "object",
+                  "description": "Product card (id, name, price, originalPrice, mainImages, colorVariants, inStock, weight, image)"
+                },
+                "variant": {
+                  "$ref": "#/components/schemas/CartVariantInput"
+                },
+                "quantity": {
+                  "type": "integer"
+                }
+              }
             }
           },
-          "discount_code": {
-            "type": "string"
+          "summary": {
+            "$ref": "#/components/schemas/CartSummary"
           },
-          "created_at": {
+          "createdAt": {
             "type": "string",
             "format": "date-time"
           },
-          "updated_at": {
+          "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Stock/availability problems found while preparing the cart"
           }
         }
       },
       "CartItemInput": {
         "type": "object",
         "required": [
-          "product_id",
-          "variant_id",
+          "productId",
+          "variant",
           "quantity"
         ],
         "properties": {
-          "product_id": {
-            "type": "string"
+          "productId": {
+            "type": "string",
+            "description": "Product _id (list rows carry it as productId)"
           },
-          "variant_id": {
-            "type": "string"
-          },
-          "size": {
-            "type": "string"
+          "variant": {
+            "$ref": "#/components/schemas/CartVariantInput"
           },
           "quantity": {
             "type": "integer",
             "minimum": 1
-          },
-          "weight": {
-            "type": "number",
-            "description": "Per-product weight in grams; drives Postex quotes"
           }
         }
       },
@@ -10909,7 +11469,7 @@
           },
           "placed_via": {
             "type": "string",
-            "description": "web | telegram | bale | ..."
+            "description": "Sales channel: web | telegram | ... — stamped from the JWT channel claim of external-service sessions"
           },
           "shipping_address": {
             "$ref": "#/components/schemas/Address"
@@ -10947,11 +11507,7 @@
           },
           "gateway_name": {
             "type": "string",
-            "enum": [
-              "zibal",
-              "digipay",
-              "snappay"
-            ]
+            "description": "zibal | digipay | snappay"
           },
           "merchant_transaction_id": {
             "type": "string"
@@ -10968,6 +11524,45 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          },
+          "tracking_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "zibal_track_id": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "zibal_ref_number": {
+            "type": "string",
+            "nullable": true
+          },
+          "gateway_transaction_id": {
+            "type": "string"
+          },
+          "timeline": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "Status history entries"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "jalali_created_at": {
+            "type": "string"
+          },
+          "jalali_updated_at": {
+            "type": "string"
+          },
+          "product_count": {
+            "type": "integer",
+            "description": "Sum of item quantities"
           }
         }
       },
@@ -11503,6 +12098,429 @@
           },
           "is_active": {
             "type": "boolean"
+          }
+        }
+      },
+      "ExternalUserSummary": {
+        "type": "object",
+        "description": "Safe user shape returned to external services — no addresses, no hashes.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "account_type": {
+            "type": "string",
+            "enum": [
+              "external",
+              "registered"
+            ],
+            "description": "\"external\" = freshly created shadow user; \"registered\" = existing site account (after phone bind or link code)"
+          },
+          "has_phone": {
+            "type": "boolean"
+          },
+          "has_password": {
+            "type": "boolean"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Present only when a phone is bound"
+          },
+          "phone_verified_method": {
+            "type": "string",
+            "enum": [
+              "sms_otp",
+              "contact"
+            ]
+          },
+          "signup_channel": {
+            "type": "string",
+            "example": "telegram"
+          }
+        }
+      },
+      "ExternalAuthResponse": {
+        "type": "object",
+        "description": "Token pair + user summary. The pair follows the web policy: 30-day rotating refresh tokens — store both server-side and refresh via POST /api/users/refresh.",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Access token — send as Authorization: Bearer <token>"
+          },
+          "refreshToken": {
+            "type": "string",
+            "description": "Rotating refresh token; reuse of a rotated token burns the whole session family"
+          },
+          "user": {
+            "$ref": "#/components/schemas/ExternalUserSummary"
+          }
+        }
+      },
+      "CartVariantInput": {
+        "type": "object",
+        "required": [
+          "size",
+          "color"
+        ],
+        "description": "Which color+size to add. Get variantId/color/colorName/sku from the product's colorVariant.sizes[] rows.",
+        "properties": {
+          "variantId": {
+            "type": "string",
+            "description": "colorVariant.variantId — stable identity of the color variant"
+          },
+          "size": {
+            "type": "string",
+            "example": "M",
+            "description": "sizes[].size value"
+          },
+          "color": {
+            "type": "string",
+            "description": "colorVariant.color (hex or code)"
+          },
+          "colorName": {
+            "type": "string",
+            "description": "colorVariant.colorName"
+          },
+          "sku": {
+            "type": "string",
+            "description": "sizes[].sku of the chosen size"
+          }
+        }
+      },
+      "CartSummary": {
+        "type": "object",
+        "properties": {
+          "subtotal": {
+            "type": "number"
+          },
+          "shipping": {
+            "type": "number"
+          },
+          "tax": {
+            "type": "number"
+          },
+          "discount": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        }
+      },
+      "CartResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "product": {
+                  "type": "object",
+                  "description": "Product card (id, name, price, originalPrice, mainImages, colorVariants, inStock, weight, image)"
+                },
+                "variant": {
+                  "$ref": "#/components/schemas/CartVariantInput"
+                },
+                "quantity": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "summary": {
+            "$ref": "#/components/schemas/CartSummary"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Stock/availability problems found while preparing the cart"
+          }
+        }
+      },
+      "CheckoutItem": {
+        "type": "object",
+        "required": [
+          "product_id",
+          "variant",
+          "quantity"
+        ],
+        "properties": {
+          "product_id": {
+            "type": "string"
+          },
+          "product_name": {
+            "type": "string",
+            "description": "Snapshot; may be completed server-side"
+          },
+          "product_image": {
+            "type": "string"
+          },
+          "variant": {
+            "type": "object",
+            "properties": {
+              "variantId": {
+                "type": "string"
+              },
+              "size": {
+                "type": "string"
+              },
+              "color": {
+                "type": "string"
+              },
+              "colorName": {
+                "type": "string"
+              },
+              "sku": {
+                "type": "string"
+              }
+            }
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "price_at_purchase": {
+            "type": "number",
+            "description": "Informational — the server recomputes the payable total"
+          }
+        }
+      },
+      "CheckoutRequest": {
+        "type": "object",
+        "required": [
+          "items",
+          "shippingAddress"
+        ],
+        "description": "Creates a pending order. It does NOT start payment — afterwards call POST /api/payment/request with the returned order id. Amounts are recomputed and verified server-side.",
+        "properties": {
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/CheckoutItem"
+            }
+          },
+          "totalAmount": {
+            "type": "number",
+            "description": "Client-declared total; the payable amount is recomputed server-side"
+          },
+          "shippingCost": {
+            "type": "number"
+          },
+          "taxAmount": {
+            "type": "number"
+          },
+          "discountAmount": {
+            "type": "number"
+          },
+          "shippingAddress": {
+            "$ref": "#/components/schemas/AddressInput"
+          },
+          "promoCode": {
+            "type": "string",
+            "description": "Promo or negotiated coupon code (TRYN-... / cart-recovery)"
+          }
+        }
+      },
+      "OrdersListResponse": {
+        "type": "object",
+        "properties": {
+          "has_orders": {
+            "type": "boolean"
+          },
+          "orders_data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Order"
+            }
+          },
+          "pagination": {
+            "type": "object",
+            "properties": {
+              "currentPage": {
+                "type": "integer"
+              },
+              "totalPages": {
+                "type": "integer"
+              },
+              "totalOrders": {
+                "type": "integer"
+              },
+              "pageSize": {
+                "type": "integer"
+              }
+            }
+          },
+          "message": {
+            "type": "string",
+            "description": "Empty-state message (only when has_orders=false)"
+          },
+          "link_text": {
+            "type": "string"
+          },
+          "link_url": {
+            "type": "string"
+          }
+        }
+      },
+      "PaymentRequestResponse": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "integer",
+            "example": 100,
+            "description": "100 = request created"
+          },
+          "message": {
+            "type": "string"
+          },
+          "payUrl": {
+            "type": "string",
+            "description": "Gateway payment page URL — give it to the user; after payment the gateway calls back this API and the order becomes paid"
+          },
+          "gateway": {
+            "type": "string",
+            "enum": [
+              "zibal",
+              "digipay",
+              "snappay"
+            ]
+          }
+        }
+      },
+      "PaymentVerifyResponse": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Rials"
+          },
+          "refNumber": {
+            "type": "string"
+          },
+          "cardNumber": {
+            "type": "string"
+          },
+          "paidAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "orderId": {
+            "type": "string"
+          },
+          "paymentStatus": {
+            "type": "string"
+          },
+          "statusText": {
+            "type": "string"
+          },
+          "canRetry": {
+            "type": "boolean"
+          },
+          "orderNumber": {
+            "type": "string"
+          }
+        }
+      },
+      "PaymentInquiryResponse": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Rials"
+          },
+          "refNumber": {
+            "type": "string"
+          },
+          "cardNumber": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "paidAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "verifiedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "orderId": {
+            "type": "string"
+          },
+          "paymentStatus": {
+            "type": "string"
+          },
+          "statusText": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "Standard error body — branch on code, never on the message",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "can_merge": {
+            "type": "boolean",
+            "description": "Only on MERGE_REQUIRED / phone_taken"
           }
         }
       }
