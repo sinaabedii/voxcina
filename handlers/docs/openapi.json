@@ -2710,8 +2710,20 @@
         "tags": [
           "Payments"
         ],
-        "summary": "DigiPay gateway callback (public)",
+        "summary": "DigiPay gateway callback (public, GET and POST)",
         "operationId": "digipayCallback",
+        "responses": {
+          "307": {
+            "description": "Redirects to the storefront checkout result page"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "DigiPay gateway callback (POST variant, public)",
+        "operationId": "digipayCallbackPost",
         "responses": {
           "307": {
             "description": "Redirects to the storefront checkout result page"
@@ -9265,21 +9277,22 @@
         }
       }
     },
-    "/api/admin/ai-chats": {
-      "get": {
+    "/api/admin/blog-categories/recount": {
+      "post": {
         "tags": [
-          "Admin"
+          "Admin",
+          "Blog"
         ],
-        "summary": "Admin AI chat inspection list",
-        "operationId": "listAdminAiChats",
+        "summary": "Recount blog category post counts (staff or admin)",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "operationId": "recountBlogCategories",
         "responses": {
           "200": {
-            "description": "Chats",
+            "description": "Counts updated",
             "content": {
               "application/json": {
                 "schema": {
@@ -9287,6 +9300,1070 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/admin/blog-categories/{id}/hard": {
+      "delete": {
+        "tags": [
+          "Admin",
+          "Blog"
+        ],
+        "summary": "Hard-delete a blog category (staff or admin)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "hardDeleteBlogCategory",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted permanently",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/admin/blog-categories/{id}/restore": {
+      "post": {
+        "tags": [
+          "Admin",
+          "Blog"
+        ],
+        "summary": "Restore a soft-deleted blog category (staff or admin)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "restoreBlogCategory",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Restored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/admin/blog-posts/{id}/archive": {
+      "post": {
+        "tags": [
+          "Admin",
+          "Blog"
+        ],
+        "summary": "Archive a blog post (staff or admin)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "archiveBlogPost",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archived",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/admin/blog-posts/{id}/restore": {
+      "post": {
+        "tags": [
+          "Admin",
+          "Blog"
+        ],
+        "summary": "Restore an archived blog post (staff or admin)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "restoreBlogPost",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Restored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/admin/blog-posts/{id}/media/{mediaId}": {
+      "delete": {
+        "tags": [
+          "Admin",
+          "Blog"
+        ],
+        "summary": "Delete a blog media item (staff or admin)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "deleteBlogMedia",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/admin/blog-posts/{id}/product-blocks/{order}": {
+      "patch": {
+        "tags": [
+          "Admin",
+          "Blog"
+        ],
+        "summary": "Select the product for a blog product block (staff or admin)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "selectProductForBlock",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "product_id": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Block updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/admin/blog-posts/{id}/product-blocks/{order}/auto-match": {
+      "post": {
+        "tags": [
+          "Admin",
+          "Blog"
+        ],
+        "summary": "Auto-match a blog product block from the post content (staff or admin)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "autoMatchProductBlock",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Auto-matched",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/admin/blog-runs/{id}": {
+      "get": {
+        "tags": [
+          "Admin",
+          "Blog"
+        ],
+        "summary": "One blog pipeline run",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "getPipelineRunById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Run",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Admin",
+          "Blog"
+        ],
+        "summary": "Delete a blog pipeline run",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "deletePipelineRun",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/coupons/sessions/messages": {
+      "post": {
+        "tags": [
+          "Discounts & Coupons"
+        ],
+        "summary": "Append messages to a checkout negotiation chat session",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "appendCheckoutChatMessages",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "chat_id": {
+                    "type": "string"
+                  },
+                  "messages": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Appended",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/coupons/sessions/{chatId}": {
+      "get": {
+        "tags": [
+          "Discounts & Coupons"
+        ],
+        "summary": "One checkout negotiation chat session",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "getCheckoutChatSession",
+        "parameters": [
+          {
+            "name": "chatId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/users/app-activity": {
+      "post": {
+        "tags": [
+          "Activity"
+        ],
+        "summary": "Record a mobile-app activity event",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "recordAppActivity",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/users/promotions": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Promotions available to the current user",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "getUserPromotions",
+        "responses": {
+          "200": {
+            "description": "Promotions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/users/vouchers": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Vouchers owned by the current user",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "getUserVouchers",
+        "responses": {
+          "200": {
+            "description": "Vouchers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/blog/categories/legacy": {
+      "get": {
+        "tags": [
+          "Blog"
+        ],
+        "summary": "Legacy blog category listing (kept for older clients)",
+        "operationId": "getBlogCategories",
+        "responses": {
+          "200": {
+            "description": "Categories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/chat/link-to-user": {
+      "post": {
+        "tags": [
+          "Chat"
+        ],
+        "summary": "Attach an anonymous chat session to a user account",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "linkChatToUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "chat_id": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Linked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/neshan/reverse": {
+      "get": {
+        "tags": [
+          "Content"
+        ],
+        "summary": "Reverse geocode coordinates via the Neshan proxy",
+        "operationId": "neshanReverseGeocode",
+        "description": "Public proxy — the Neshan service key stays server-side.",
+        "parameters": [
+          {
+            "name": "lat",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Neshan result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/neshan/search": {
+      "get": {
+        "tags": [
+          "Content"
+        ],
+        "summary": "Search addresses via the Neshan proxy",
+        "operationId": "neshanSearchAddress",
+        "description": "Public proxy — the Neshan service key stays server-side.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Neshan result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/neshan/geocode": {
+      "get": {
+        "tags": [
+          "Content"
+        ],
+        "summary": "Forward geocode an address via the Neshan proxy",
+        "operationId": "neshanGeocode",
+        "description": "Public proxy — the Neshan service key stays server-side.",
+        "parameters": [
+          {
+            "name": "address",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Neshan result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sliders/{id}": {
+      "get": {
+        "tags": [
+          "Content"
+        ],
+        "summary": "One active slider by id (public)",
+        "operationId": "getSliderById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Slider",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/users/link-code": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Create a single-use code that lets a bot claim this account",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "createUserLinkCode",
+        "responses": {
+          "200": {
+            "description": "Code created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/users/linked-accounts": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "External identities connected to this account",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "listLinkedAccounts",
+        "responses": {
+          "200": {
+            "description": "Linked accounts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/users/linked-accounts/{id}": {
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Unlink an external identity",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "unlinkExternalIdentity",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unlinked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       }
