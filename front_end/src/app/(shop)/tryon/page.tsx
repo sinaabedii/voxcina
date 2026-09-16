@@ -122,7 +122,7 @@ export default function TryOnRoomPage() {
       setChatMessages(restoreChatMessages(persistedMessages, persistedTryons));
     } else if (eligibleItems.length > 0 && chatMessages.length === 0) {
       // First visit — no persisted messages, cart has eligible items: show welcome
-      const welcomeText = welcomeReply(user?.name?.split(" ")[0] || "رفیق");
+      const welcomeText = welcomeReply(user?.name?.split(" ")[0]);
       setChatMessages([{ role: "agent", content: welcomeText }]);
       persistMessage({
         id: makeDbMessageId(),

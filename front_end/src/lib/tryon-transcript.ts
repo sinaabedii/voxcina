@@ -16,18 +16,20 @@ import {
  * services/coupon_negotiation_service.go buildTools/configForMode.
  */
 
-const CATALOG_REPLY = "رفیق چند تا گزینه خوشگل برات پیدا کردم، همین پایین گذاشتم — ببین کدومش بیشتر به دلت میشینه!";
-const DEFAULT_REPLY = "دمت گرم رفیق! بگو چی تو ذهنته تا یه پیشنهاد درجهیک برات جور کنم.";
+const CATALOG_REPLY = "چند تا گزینه پیدا کردم و همین پایین گذاشتم. اگه هیچ‌کدوم جا نمید، تقصیر الگوریتمه، نه سلیقه‌ت.";
+const DEFAULT_REPLY = "بگو چی تو ذهنته تا برات جور کنم؛ حدس زدن سلیقه‌ی آدم‌ها هنوز جایی تو تخصص من نیست.";
 
-export const AGENT_ERROR_REPLY = "وای رفیق ببخشید، الان یه لحظه سرم شلوغ شد و صدات به من نرسید! یه بار دیگه بگو چی می‌خواستی.";
+export const AGENT_ERROR_REPLY = "پیامت یه لحظه گم شد — تقصیر منه، نه تو. یه بار دیگه بگو چی می‌خواستی تا جبران کنم.";
 
-export const welcomeReply = (firstName: string) =>
-  `سلام ${firstName} جان، ووکسا هستم! لباستو پرو کن خریدت رو نهایی کنیم.`;
+export const welcomeReply = (firstName?: string) =>
+  firstName
+    ? `سلام ${firstName}، ووکسا هستم. لباس رو روی عکست پرو کن؛ اینجا آینه تعارف نداره و همون‌جور بهتره.`
+    : "سلام، ووکسا هستم. لباس رو روی عکست پرو کن؛ اینجا آینه تعارف نداره و همون‌جور بهتره.";
 
 const recommendationReply = (productName?: string) =>
   productName
-    ? `رفیق این ${productName} حسابی به تیپت میاد، حیفه از دستش بدی! بگو تا برات نگهش دارم.`
-    : "رفیق یه پیشنهاد خوشگل برات دارم — همین پایین گذاشتم!";
+    ? `این ${productName} جوری کنار انتخابت میشینه که انگار از اول قرارش گذاشته بودیم — بگو تا برات نگهش دارم.`
+    : "یه پیشنهاد دارم که ارزش دو دقیقه نگاه کردن رو داره، همین پایینه. اگه نچسبید، قفسه‌ی من پر از گزینه‌ی بعدیه.";
 
 /**
  * What the agent says for a turn that spoke only through its tools. The backend
