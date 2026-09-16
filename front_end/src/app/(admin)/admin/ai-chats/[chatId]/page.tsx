@@ -1,31 +1,43 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   Bot,
+  CalendarClock,
+  ChevronDown,
   Clock3,
   Cpu,
   Image as ImageIcon,
+  Maximize2,
   MessageCircle,
+  Monitor,
   Shirt,
   User,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import BackendImage from "@/components/BackendImage";
+import CompareModal, { ComparePair } from "@/components/tryon/CompareModal";
 import { useAuthStore } from "@/store/auth-store";
 import {
   AdminAIUser,
   getAdminAIChat,
 } from "@/lib/admin-tryon-chat-api";
-import type {
-  TryonChat,
-  TryonChatMessage,
-  VirtualTryon,
-} from "@/lib/tryon-api";
+import { TryonChat, VirtualTryon } from "@/lib/tryon-api";
+import { restoreChatMessages } from "@/lib/tryon-transcript";
+import AiChatTranscript from "@/components/admin/AiChatTranscript";
+import {
+  AdminPageHeader,
+  AdminStatCard,
+  AdminBadge,
+  AdminBadgeTone,
+  AdminLoading,
+  AdminError,
+  AdminEmpty,
+} from "@/components/admin/ui";
 
 const formatDate = (value?: string) => {
   if (!value) return "بدون تاریخ";
@@ -40,12 +52,16 @@ const formatDate = (value?: string) => {
   });
 };
 
-const messageRoleLabels: Record<string, string> = {
-  user: "کاربر",
-  agent: "دستیار هوش مصنوعی",
-  tool: "ابزار هوش مصنوعی",
-  tryon: "نتیجه پرو مجازی",
-  system: "سیستم",
+const chatStatusLabels: Record<string, string> = {
+  active: "فعال",
+  archived: "بایگانی‌شده",
+  deleted: "حذف‌شده",
+};
+
+const chatStatusTones: Record<string, AdminBadgeTone> = {
+  active: "success",
+  archived: "warning",
+  deleted: "danger",
 };
 
 const tryonStatusLabels: Record<string, string> = {
@@ -54,34 +70,52 @@ const tryonStatusLabels: Record<string, string> = {
   error: "ناموفق",
 };
 
-const tryonStatusClasses: Record<string, string> = {
-  processing: "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400",
-  done: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400",
-  error: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400",
+const tryonStatusTones: Record<string, AdminBadgeTone> = {
+  processing: "warning",
+  done: "success",
+  error: "danger",
 };
+
+const garmentTypeLabels: Record<string, string> = {
+  upper_body: "بالاتنه",
+  lower_body: "پایین تنه",
+  dresses: "لباس",
+};
+
+function Row({
+  label,
+  children,
+  truncate = true,
+}: {
+  label: string;
+  children: React.ReactNode;
+  truncate?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="shrink-0">{label}:</span>
+      <span className={`font-medium min-w-0 text-left ${truncate ? "truncate" : ""}`}>{children}</span>
+    </div>
+  );
+}
 
 function UserCard({ user }: { user?: AdminAIUser }) {
   return (
     <Card className="rounded-2xl border border-voxcina-cream bg-white/90 shadow-sm dark:border-voxcina-blue/30 dark:bg-voxcina-blue/10">
-      <CardHeader>
+      <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base text-voxcina-blue dark:text-voxcina-cream">
           <User className="h-5 w-5" />
           اطلاعات کاربر
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm text-voxcina-blue/80 dark:text-voxcina-cream/80">
-        <div className="flex items-center justify-between gap-3">
-          <span>نام:</span>
-          <span className="font-medium">{user?.name || "کاربر حذف‌شده"}</span>
+        <div className="flex items-center gap-2 flex-wrap">
+          {user && <AdminBadge tone={user.is_active ? "success" : "danger"}>{user.is_active ? "فعال" : "غیرفعال"}</AdminBadge>}
+          {user?.role && <AdminBadge tone="info">{user.role === "admin" ? "مدیر" : "مشتری"}</AdminBadge>}
         </div>
-        <div className="flex items-center justify-between gap-3">
-          <span>تلفن:</span>
-          <span className="dir-ltr text-left">{user?.phone || "ثبت نشده"}</span>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span>ایمیل:</span>
-          <span className="max-w-[65%] truncate dir-ltr text-left">{user?.email || "ثبت نشده"}</span>
-        </div>
+        <Row label="نام">{user?.name || "کاربر حذف‌شده"}</Row>
+        <Row label="تلفن"><span className="dir-ltr">{user?.phone || "ثبت نشده"}</span></Row>
+        <Row label="ایمیل"><span className="max-w-[65%] truncate dir-ltr">{user?.email || "ثبت نشده"}</span></Row>
         <div className="flex items-center justify-between gap-3 border-t border-dashed border-voxcina-cream/60 pt-3 text-xs dark:border-voxcina-blue/40">
           <span>شناسه:</span>
           <span className="font-mono">{user?.id || "نامشخص"}</span>
@@ -91,121 +125,213 @@ function UserCard({ user }: { user?: AdminAIUser }) {
   );
 }
 
-function TryonResultCard({ tryon }: { tryon: VirtualTryon }) {
-  const statusLabel = tryonStatusLabels[tryon.status] || tryon.status || "نامشخص";
-  const statusClass = tryonStatusClasses[tryon.status] || "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
+function SessionCard({ chat, tryonCount }: { chat: TryonChat; tryonCount: number }) {
+  const metadata = chat.metadata;
+  const recommended = metadata?.products_recommended || [];
+  const coupons = metadata?.coupons_offered || [];
 
   return (
-    <Card className="overflow-hidden rounded-2xl border border-voxcina-cream bg-white/90 shadow-sm dark:border-voxcina-blue/30 dark:bg-voxcina-blue/10">
+    <Card className="rounded-2xl border border-voxcina-cream bg-white/90 shadow-sm dark:border-voxcina-blue/30 dark:bg-voxcina-blue/10">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-base text-voxcina-blue dark:text-voxcina-cream">
-              <Shirt className="h-5 w-5" />
-              {tryon.garment_product_name || "لباس انتخاب‌شده"}
-            </CardTitle>
-            <p className="mt-1 font-mono text-[11px] text-voxcina-blue/55 dark:text-voxcina-cream/55">{tryon.tryon_id}</p>
-          </div>
-          <span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs ${statusClass}`}>{statusLabel}</span>
-        </div>
+        <CardTitle className="flex items-center gap-2 text-base text-voxcina-blue dark:text-voxcina-cream">
+          <Cpu className="h-5 w-5" />
+          اطلاعات جلسه
+        </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          {tryon.person_image_url && (
-            <div>
-              <p className="mb-2 text-xs text-voxcina-blue/65 dark:text-voxcina-cream/65">تصویر اولیه</p>
-              <BackendImage
-                src={tryon.person_image_url}
-                alt="تصویر اولیه پرو"
-                width={320}
-                height={420}
-                className="h-56 w-full rounded-xl border border-voxcina-cream/60 object-cover dark:border-voxcina-blue/30"
-                sizes="(max-width: 768px) 50vw, 240px"
-              />
+      <CardContent className="space-y-3 text-sm text-voxcina-blue/80 dark:text-voxcina-cream/80">
+        <Row label="وضعیت" truncate={false}>
+          <AdminBadge tone={chatStatusTones[chat.status] || "neutral"}>
+            {chatStatusLabels[chat.status] || chat.status || "نامشخص"}
+          </AdminBadge>
+        </Row>
+        <Row label="دستگاه"><span className="inline-flex items-center gap-1"><Monitor className="h-3.5 w-3.5 opacity-60" />{metadata?.device_type || "ثبت نشده"}</span></Row>
+        <Row label="مرورگر">{metadata?.browser || "ثبت نشده"}</Row>
+        <Row label="سیستم‌عامل">{metadata?.os || "ثبت نشده"}</Row>
+        <Row label="مدت جلسه">{metadata?.duration_seconds ? `${metadata.duration_seconds.toLocaleString("fa-IR")} ثانیه` : "ثبت نشده"}</Row>
+        <Row label="پیام‌های ابزار">{(metadata?.tool_messages ?? 0).toLocaleString("fa-IR")}</Row>
+        {recommended.length > 0 && (
+          <div className="space-y-1.5 border-t border-dashed border-voxcina-cream/60 pt-3 text-xs dark:border-voxcina-blue/40">
+            <span className="text-voxcina-blue/70 dark:text-voxcina-cream/70">محصولات پیشنهادی ({recommended.length.toLocaleString("fa-IR")}):</span>
+            <div className="flex flex-wrap gap-1">
+              {recommended.map((name, idx) => (
+                <span key={`${name}-${idx}`} className="rounded-md bg-voxcina-cream/60 px-1.5 py-0.5 text-[10px] text-voxcina-blue dark:bg-voxcina-blue/25 dark:text-voxcina-cream/90">
+                  {name}
+                </span>
+              ))}
             </div>
-          )}
-          {tryon.result_image_url ? (
-            <div>
-              <p className="mb-2 text-xs text-voxcina-blue/65 dark:text-voxcina-cream/65">نتیجه هوش مصنوعی</p>
-              <BackendImage
-                src={tryon.result_image_url}
-                alt="نتیجه پرو مجازی"
-                width={320}
-                height={420}
-                className="h-56 w-full rounded-xl border border-voxcina-cream/60 object-cover dark:border-voxcina-blue/30"
-                sizes="(max-width: 768px) 50vw, 240px"
-              />
+          </div>
+        )}
+        {coupons.length > 0 && (
+          <div className="space-y-1.5 border-t border-dashed border-voxcina-cream/60 pt-3 text-xs dark:border-voxcina-blue/40">
+            <span className="text-voxcina-blue/70 dark:text-voxcina-cream/70">کدهای تخفیف ارائه‌شده:</span>
+            <div className="flex flex-wrap gap-1">
+              {coupons.map((code, idx) => (
+                <span key={`${code}-${idx}`} className="rounded-md bg-purple-100 px-1.5 py-0.5 font-mono text-[10px] text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
+                  {code}
+                </span>
+              ))}
             </div>
-          ) : (
-            <div className="flex h-56 flex-col items-center justify-center rounded-xl border border-dashed border-voxcina-cream/70 text-center text-xs text-voxcina-blue/55 dark:border-voxcina-blue/40 dark:text-voxcina-cream/55">
-              <ImageIcon className="mb-2 h-7 w-7" />
-              نتیجه تصویر هنوز آماده نیست
-            </div>
-          )}
+          </div>
+        )}
+        <div className="space-y-2 border-t border-dashed border-voxcina-cream/60 pt-3 text-xs dark:border-voxcina-blue/40">
+          <div className="flex justify-between gap-3"><span>ایجاد:</span><span>{formatDate(chat.created_at)}</span></div>
+          <div className="flex justify-between gap-3"><span>آخرین بروزرسانی:</span><span>{formatDate(chat.updated_at)}</span></div>
+          <div className="flex justify-between gap-3">
+            <span>اولین پیام:</span>
+            <span>{formatDate(metadata?.first_message_at || chat.created_at)}</span>
+          </div>
+          <div className="flex justify-between gap-3">
+            <span>آخرین پیام:</span>
+            <span>{formatDate(metadata?.last_message_at || chat.updated_at)}</span>
+          </div>
+          <div className="flex justify-between gap-3"><span>پروهای جلسه:</span><span>{tryonCount.toLocaleString("fa-IR")}</span></div>
         </div>
-
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-dashed border-voxcina-cream/60 pt-3 text-xs text-voxcina-blue/75 dark:border-voxcina-blue/40 dark:text-voxcina-cream/75">
-          <span>رنگ: {tryon.garment_color || "ثبت نشده"}</span>
-          <span>سایز: {tryon.garment_size || "ثبت نشده"}</span>
-          <span>نوع لباس: {tryon.garment_type || "ثبت نشده"}</span>
-          <span>مدل: {tryon.model_used || "ثبت نشده"}</span>
-          <span>زمان اجرا: {tryon.duration_ms ? `${tryon.duration_ms.toLocaleString("fa-IR")} میلی‌ثانیه` : "ثبت نشده"}</span>
-          <span>تاریخ: {formatDate(tryon.created_at)}</span>
-        </div>
-        {tryon.error && <p className="rounded-xl bg-red-50 p-3 text-xs text-red-700 dark:bg-red-900/20 dark:text-red-300">{tryon.error}</p>}
       </CardContent>
     </Card>
   );
 }
 
-function ChatMessage({ message }: { message: TryonChatMessage }) {
-  const isUser = message.role === "user";
-  const isTryon = message.role === "tryon";
-  return (
-    <div className={`flex ${isUser ? "justify-start" : "justify-end"}`}>
-      <div
-        className={`max-w-[92%] rounded-2xl border px-4 py-3 shadow-sm ${
-          isUser
-            ? "border-voxcina-blue/50 bg-voxcina-blue text-white"
-            : isTryon
-              ? "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-100"
-              : "border-voxcina-cream/70 bg-white/90 text-voxcina-blue dark:border-voxcina-blue/40 dark:bg-voxcina-blue/25 dark:text-voxcina-cream"
-        }`}
-      >
-        <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px] opacity-75">
-          {isUser ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
-          <span>{messageRoleLabels[message.role] || message.role}</span>
-          <span className="flex items-center gap-1">
-            <Clock3 className="h-3 w-3" />
-            {formatDate(message.timestamp)}
-          </span>
-          {message.response_time_ms ? <span>{message.response_time_ms.toLocaleString("fa-IR")} ms</span> : null}
-        </div>
-        {message.content && <p className="whitespace-pre-wrap text-sm leading-7">{message.content}</p>}
-        {message.model_used && <p className="mt-2 text-[11px] opacity-70">مدل: {message.model_used}</p>}
-        {message.tool_call && (
-          <div className="mt-3 space-y-2 rounded-xl border border-current/10 bg-black/5 p-3 text-xs dark:bg-white/5">
-            <p className="font-semibold">فراخوانی ابزار: {message.tool_call.name}</p>
-            <pre className="overflow-x-auto whitespace-pre-wrap dir-ltr text-left opacity-80">
-              {JSON.stringify(message.tool_call.result || message.tool_call.arguments || {}, null, 2)}
-            </pre>
-          </div>
-        )}
-        {message.tryon_data && (
-          <div className="mt-3 rounded-xl border border-current/10 bg-black/5 p-3 text-xs dark:bg-white/5">
-            <p className="font-semibold">{message.tryon_data.product_name || "نتیجه پرو"}</p>
-            <p className="mt-1 opacity-75">
-              رنگ: {message.tryon_data.color || "ثبت نشده"}، سایز: {message.tryon_data.size || "ثبت نشده"}
-            </p>
-          </div>
-        )}
-      </div>
+function TryonThumb({
+  src,
+  label,
+  alt,
+  onOpen,
+}: {
+  src?: string;
+  label: string;
+  alt: string;
+  onOpen?: () => void;
+}) {
+  const body = src ? (
+    <BackendImage
+      src={src}
+      alt={alt}
+      width={200}
+      height={260}
+      className="h-full w-full object-cover"
+      sizes="(max-width: 768px) 30vw, 150px"
+    />
+  ) : (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-voxcina-blue/30 dark:text-voxcina-cream/30">
+      <ImageIcon className="h-6 w-6" />
+      <span className="text-[10px]">{onOpen ? "نتیجه آماده نیست" : "بدون تصویر"}</span>
     </div>
+  );
+
+  const content = (
+    <>
+      {body}
+      <span className="absolute bottom-1.5 right-1.5 rounded-md bg-background/85 dark:bg-voxcina-blue/85 px-2 py-0.5 text-[10px] text-voxcina-blue dark:text-voxcina-cream backdrop-blur-sm">
+        {label}
+      </span>
+      {onOpen && src && (
+        <div className="absolute inset-0 flex items-center justify-center bg-voxcina-blue/20 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+          <Maximize2 className="h-5 w-5 text-voxcina-cream" />
+        </div>
+      )}
+    </>
+  );
+
+  if (onOpen && src) {
+    return (
+      <button
+        type="button"
+        onClick={onOpen}
+        title="مقایسه اصلی و نتیجه"
+        className="group relative aspect-[3/4] overflow-hidden rounded-xl border border-voxcina-cream/60 dark:border-voxcina-blue/30"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className="relative aspect-[3/4] overflow-hidden rounded-xl border border-voxcina-cream/60 dark:border-voxcina-blue/30">
+      {content}
+    </div>
+  );
+}
+
+function TryonRecordCard({
+  tryon,
+  onCompare,
+}: {
+  tryon: VirtualTryon;
+  onCompare: (beforeImage: string, afterImage: string) => void;
+}) {
+  const [promptOpen, setPromptOpen] = useState(false);
+  const statusLabel = tryonStatusLabels[tryon.status] || tryon.status || "نامشخص";
+  const statusTone = tryonStatusTones[tryon.status] || "neutral";
+
+  return (
+    <Card className="overflow-hidden rounded-2xl border border-voxcina-cream bg-white/90 shadow-sm dark:border-voxcina-blue/30 dark:bg-voxcina-blue/10">
+      <CardHeader className="pb-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <CardTitle className="flex items-center gap-2 text-base text-voxcina-blue dark:text-voxcina-cream">
+              <Shirt className="h-5 w-5 shrink-0" />
+              {tryon.garment_product_name || "لباس انتخاب‌شده"}
+            </CardTitle>
+            <p className="mt-1 font-mono text-[11px] text-voxcina-blue/55 dark:text-voxcina-cream/55">{tryon.tryon_id}</p>
+          </div>
+          <AdminBadge tone={statusTone}>{statusLabel}</AdminBadge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-3 gap-2">
+          <TryonThumb src={tryon.person_image_url} label="اصلی" alt="تصویر اولیه پرو" />
+          <TryonThumb src={tryon.garment_image_url} label="لباس" alt="تصویر لباس" />
+          <TryonThumb
+            src={tryon.result_image_url}
+            label="نتیجه"
+            alt="نتیجه پرو مجازی"
+            onOpen={tryon.result_image_url ? () => onCompare(tryon.person_image_url, tryon.result_image_url || "") : undefined}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-dashed border-voxcina-cream/60 pt-3 text-xs text-voxcina-blue/75 dark:border-voxcina-blue/40 dark:text-voxcina-cream/75">
+          <span>رنگ: {tryon.garment_color || "ثبت نشده"}</span>
+          <span>سایز: {tryon.garment_size || "ثبت نشده"}</span>
+          <span>نوع لباس: {garmentTypeLabels[tryon.garment_type] || tryon.garment_type || "ثبت نشده"}</span>
+          <span>مدل: {tryon.model_used || "ثبت نشده"}</span>
+          <span>زمان اجرا: {tryon.duration_ms ? `${tryon.duration_ms.toLocaleString("fa-IR")} میلی‌ثانیه` : "ثبت نشده"}</span>
+          <span className="inline-flex items-center gap-1">
+            <CalendarClock className="h-3.5 w-3.5 opacity-60" />
+            {formatDate(tryon.created_at)}
+          </span>
+          {tryon.completed_at && <span>تکمیل: {formatDate(tryon.completed_at)}</span>}
+        </div>
+
+        {tryon.prompt_text && (
+          <div className="text-xs">
+            <button
+              type="button"
+              onClick={() => setPromptOpen((prev) => !prev)}
+              className="inline-flex items-center gap-1 text-[11px] text-voxcina-blue/55 dark:text-voxcina-cream/55 hover:text-voxcina-blue dark:hover:text-voxcina-cream transition-colors"
+            >
+              پرامپت تولید تصویر
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${promptOpen ? "rotate-180" : ""}`} />
+            </button>
+            {promptOpen && (
+              <p className="mt-2 break-words dir-ltr rounded-xl bg-voxcina-blue/[0.04] dark:bg-voxcina-cream/[0.04] p-2.5 text-left leading-5 text-voxcina-blue/75 dark:text-voxcina-cream/75">
+                {tryon.prompt_text}
+              </p>
+            )}
+          </div>
+        )}
+        {tryon.error && (
+          <p className="rounded-xl bg-red-50 p-3 text-xs text-red-700 dark:bg-red-900/20 dark:text-red-300">
+            {tryon.error}
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
 export default function AdminAIChatDetailPage() {
   const { adminToken } = useAuthStore();
+  const router = useRouter();
   const params = useParams<{ chatId: string }>();
   const chatId = params?.chatId;
   const [chat, setChat] = useState<TryonChat | null>(null);
@@ -213,6 +339,8 @@ export default function AdminAIChatDetailPage() {
   const [tryons, setTryons] = useState<VirtualTryon[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [comparePair, setComparePair] = useState<ComparePair | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     if (!adminToken || !chatId) return;
@@ -239,17 +367,24 @@ export default function AdminAIChatDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [adminToken, chatId]);
+  }, [adminToken, chatId, reloadToken]);
+
+  // The stored room read back exactly the way the fitting room does it, so the
+  // admin sees the same bubbles, try-on cards and product cards the user saw.
+  const restoredMessages = useMemo(
+    () => (chat ? restoreChatMessages(chat.messages || [], tryons) : []),
+    [chat, tryons]
+  );
 
   if (isLoading) {
-    return <div className="py-12 text-center text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">در حال بارگذاری جزئیات گفتگو...</div>;
+    return <AdminLoading message="در حال بارگذاری جزئیات گفتگو..." />;
   }
 
   if (error || !chat) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-sm text-red-600 dark:text-red-400">{error || "گفتگو پیدا نشد"}</p>
-        <Link href="/admin/ai-chats" className="mt-4 inline-block text-sm text-voxcina-blue hover:underline dark:text-voxcina-cream">
+      <div className="py-8">
+        <AdminError message={error || "گفتگو پیدا نشد"} onRetry={error ? () => setReloadToken((t) => t + 1) : undefined} />
+        <Link href="/admin/ai-chats" className="text-sm text-voxcina-blue hover:underline dark:text-voxcina-cream">
           بازگشت به فهرست گفتگوها
         </Link>
       </div>
@@ -257,84 +392,60 @@ export default function AdminAIChatDetailPage() {
   }
 
   const metadata = chat.metadata;
-  const messages = chat.messages || [];
+  const storedMessages = chat.messages || [];
 
   return (
     <div className="py-8 md:py-12">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <Link href="/admin/ai-chats" className="mb-3 inline-flex items-center gap-1 text-sm text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream">
+      <AdminPageHeader
+        title={chat.title || "اتاق پرو مجازی"}
+        subtitle={`شناسه گفتگو: ${chat.chat_id}`}
+        icon={<MessageCircle className="h-7 w-7" />}
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream"
+            onClick={() => router.push("/admin/ai-chats")}
+          >
             <ArrowRight className="h-4 w-4" />
-            بازگشت به گفتگوهای هوش مصنوعی
-          </Link>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-voxcina-blue dark:text-voxcina-cream">
-            <MessageCircle className="h-6 w-6" />
-            {chat.title || "اتاق پرو مجازی"}
-          </h1>
-          <p className="mt-1 font-mono text-xs text-voxcina-blue/55 dark:text-voxcina-cream/55">{chat.chat_id}</p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="rounded-xl border-voxcina-blue/20 text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream"
-          onClick={() => window.history.back()}
-        >
-          بازگشت
-        </Button>
-      </div>
+            بازگشت به فهرست
+          </Button>
+        }
+      />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-        {[
-          { label: "کل پیام‌ها", value: metadata?.total_messages ?? messages.length, icon: MessageCircle },
-          { label: "پیام‌های کاربر", value: metadata?.user_messages ?? 0, icon: User },
-          { label: "پاسخ‌های هوش مصنوعی", value: metadata?.agent_messages ?? 0, icon: Bot },
-          { label: "نتایج پرو", value: tryons.length, icon: Shirt },
-        ].map(({ label, value, icon: Icon }) => (
-          <Card key={label} className="rounded-2xl border border-voxcina-cream bg-white/90 dark:border-voxcina-blue/30 dark:bg-voxcina-blue/10">
-            <CardContent className="p-4">
-              <Icon className="mb-2 h-5 w-5 text-voxcina-blue/70 dark:text-voxcina-cream/70" />
-              <p className="text-2xl font-bold text-voxcina-blue dark:text-voxcina-cream">{value.toLocaleString("fa-IR")}</p>
-              <p className="mt-1 text-xs text-voxcina-blue/65 dark:text-voxcina-cream/65">{label}</p>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <AdminStatCard icon={MessageCircle} label="کل پیام‌ها" value={(metadata?.total_messages ?? storedMessages.length).toLocaleString("fa-IR")} />
+        <AdminStatCard icon={User} label="پیام‌های کاربر" value={(metadata?.user_messages ?? 0).toLocaleString("fa-IR")} />
+        <AdminStatCard icon={Bot} label="پاسخ‌های هوش مصنوعی" value={(metadata?.agent_messages ?? 0).toLocaleString("fa-IR")} />
+        <AdminStatCard icon={Shirt} label="نتایج پرو" value={tryons.length.toLocaleString("fa-IR")} tone="green" />
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <Card className="order-2 rounded-2xl border border-voxcina-cream bg-white/90 shadow-sm dark:border-voxcina-blue/30 dark:bg-voxcina-blue/10 xl:order-1 xl:col-span-2">
-          <CardHeader className="border-b border-voxcina-cream/60 dark:border-voxcina-blue/40">
-            <CardTitle className="flex items-center gap-2 text-base text-voxcina-blue dark:text-voxcina-cream">
-              <MessageCircle className="h-5 w-5" />
-              متن کامل گفتگو
-            </CardTitle>
+        <Card className="order-2 flex flex-col overflow-hidden rounded-2xl border border-voxcina-cream bg-white/90 shadow-sm dark:border-voxcina-blue/30 dark:bg-voxcina-blue/10 xl:order-1 xl:col-span-2">
+          <CardHeader className="border-b border-voxcina-cream/60 pb-3 dark:border-voxcina-blue/40">
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2 text-base text-voxcina-blue dark:text-voxcina-cream">
+                <MessageCircle className="h-5 w-5" />
+                متن کامل گفتگو
+              </CardTitle>
+              <span className="flex items-center gap-1 text-xs text-voxcina-blue/55 dark:text-voxcina-cream/55">
+                <Clock3 className="h-3.5 w-3.5" />
+                {storedMessages.length.toLocaleString("fa-IR")} پیام
+              </span>
+            </div>
           </CardHeader>
-          <CardContent className="max-h-[720px] space-y-4 overflow-y-auto p-4">
-            {messages.length === 0 ? (
-              <p className="py-8 text-center text-sm text-voxcina-blue/65 dark:text-voxcina-cream/65">پیامی در این گفتگو ثبت نشده است.</p>
-            ) : (
-              messages.map((message, index) => <ChatMessage key={message.id || `${message.timestamp}-${index}`} message={message} />)
-            )}
+          <CardContent className="max-h-[720px] flex-1 overflow-y-auto p-3">
+            <AiChatTranscript
+              messages={restoredMessages}
+              storedMessages={storedMessages}
+              onCompare={(beforeImage, afterImage) => setComparePair({ beforeImage, afterImage })}
+            />
           </CardContent>
         </Card>
 
         <div className="order-1 space-y-6 xl:order-2">
           <UserCard user={user} />
-          <Card className="rounded-2xl border border-voxcina-cream bg-white/90 shadow-sm dark:border-voxcina-blue/30 dark:bg-voxcina-blue/10">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base text-voxcina-blue dark:text-voxcina-cream">
-                <Cpu className="h-5 w-5" />
-                اطلاعات جلسه
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-voxcina-blue/80 dark:text-voxcina-cream/80">
-              <div className="flex justify-between gap-3"><span>وضعیت:</span><span className="font-medium">{chat.status}</span></div>
-              <div className="flex justify-between gap-3"><span>دستگاه:</span><span>{metadata?.device_type || "ثبت نشده"}</span></div>
-              <div className="flex justify-between gap-3"><span>مرورگر:</span><span>{metadata?.browser || "ثبت نشده"}</span></div>
-              <div className="flex justify-between gap-3"><span>مدت جلسه:</span><span>{metadata?.duration_seconds ? `${metadata.duration_seconds.toLocaleString("fa-IR")} ثانیه` : "ثبت نشده"}</span></div>
-              <div className="flex justify-between gap-3 border-t border-dashed border-voxcina-cream/60 pt-3 dark:border-voxcina-blue/40"><span>ایجاد:</span><span>{formatDate(chat.created_at)}</span></div>
-              <div className="flex justify-between gap-3"><span>آخرین بروزرسانی:</span><span>{formatDate(chat.updated_at)}</span></div>
-            </CardContent>
-          </Card>
+          <SessionCard chat={chat} tryonCount={tryons.length} />
         </div>
       </div>
 
@@ -344,15 +455,25 @@ export default function AdminAIChatDetailPage() {
           <h2 className="text-xl font-semibold text-voxcina-blue dark:text-voxcina-cream">نتایج پرو مجازی</h2>
         </div>
         {tryons.length === 0 ? (
-          <Card className="rounded-2xl border border-dashed border-voxcina-cream bg-white/70 dark:border-voxcina-blue/30 dark:bg-voxcina-blue/10">
-            <CardContent className="p-8 text-center text-sm text-voxcina-blue/65 dark:text-voxcina-cream/65">نتیجه‌ای برای این گفتگو ثبت نشده است.</CardContent>
-          </Card>
+          <AdminEmpty
+            icon={Shirt}
+            title="نتیجه‌ای ثبت نشده است"
+            description="هیچ پرو مجازی به این گفتگو متصل نیست."
+          />
         ) : (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            {tryons.map((tryon) => <TryonResultCard key={tryon.tryon_id} tryon={tryon} />)}
+            {tryons.map((tryon) => (
+              <TryonRecordCard
+                key={tryon.tryon_id}
+                tryon={tryon}
+                onCompare={(beforeImage, afterImage) => setComparePair({ beforeImage, afterImage })}
+              />
+            ))}
           </div>
         )}
       </section>
+
+      <CompareModal pair={comparePair} onClose={() => setComparePair(null)} />
     </div>
   );
 }
