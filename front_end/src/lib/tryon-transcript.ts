@@ -23,8 +23,8 @@ export const AGENT_ERROR_REPLY = "پیامت یه لحظه گم شد — تقص�
 
 export const welcomeReply = (firstName?: string) =>
   firstName
-    ? `سلام ${firstName}، ووکسا هستم. لباس رو روی عکست پرو کن؛ اینجا آینه تعارف نداره و همون‌جور بهتره.`
-    : "سلام، ووکسا هستم. لباس رو روی عکست پرو کن؛ اینجا آینه تعارف نداره و همون‌جور بهتره.";
+    ? `سلام ${firstName} جان، ووکسا هستم! لباستو پرو کن خریدت رو نهایی کنیم.`
+    : "سلام، ووکسا هستم! لباستو پرو کن خریدت رو نهایی کنیم.";
 
 const recommendationReply = (productName?: string) =>
   productName
