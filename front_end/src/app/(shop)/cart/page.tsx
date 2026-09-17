@@ -13,6 +13,7 @@ import { activityTracker } from "@/lib/activity-tracker";
 import { CartItem } from '@/types/cart';
 import { getCartItemColorKey, getCartItemImage, getCartItemVariant } from "@/lib/product-variants";
 import ConfirmRemoveModal from "@/components/ui/ConfirmRemoveModal";
+import DiscountNegotiationCard from "@/components/cart/DiscountNegotiationCard";
 
 export default function CartPage() {
   const {
@@ -459,7 +460,7 @@ export default function CartPage() {
           animate="visible"
           transition={{ delay: 0.3 }}
         >
-          <div className="bg-white/90 dark:bg-voxcina-blue/10 rounded-2xl border border-voxcina-cream/30 dark:border-voxcina-blue/30 shadow-sm overflow-hidden backdrop-blur-sm sticky top-20">
+          <div className="bg-white/90 dark:bg-voxcina-blue/10 rounded-2xl border border-voxcina-cream/30 dark:border-voxcina-blue/30 shadow-sm overflow-hidden backdrop-blur-sm sticky top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
             <div className="p-6">
               <h2 className="text-xl font-semibold mb-6 text-voxcina-blue dark:text-voxcina-cream">
                 خلاصه سفارش
@@ -495,7 +496,9 @@ export default function CartPage() {
                   </div>
                 </div>
 
-                <div className="mt-6">
+                <div className="mt-6 space-y-4">
+                  <DiscountNegotiationCard />
+
                   {promoCode && promoCode.isValid ? (
                     <div className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 p-4 rounded-xl border border-green-100 dark:border-green-800/30 shadow-sm">
                       <div className="flex justify-between items-center">
@@ -521,7 +524,14 @@ export default function CartPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
+                      <div className="flex items-center gap-3">
+                        <span className="h-px flex-1 bg-voxcina-cream dark:bg-voxcina-blue/30" />
+                        <span className="text-[11px] font-medium text-voxcina-blue/50 dark:text-voxcina-cream/50">
+                          یا کد تخفیف داری؟
+                        </span>
+                        <span className="h-px flex-1 bg-voxcina-cream dark:bg-voxcina-blue/30" />
+                      </div>
                       <div className="flex">
                         <Input
                           type="text"

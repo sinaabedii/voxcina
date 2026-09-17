@@ -19,7 +19,6 @@ const MapPicker = dynamic(() => import("@/components/ui/MapPicker"), {
     </div>
   ),
 });
-import DiscountChatWidget from "@/components/checkout/DiscountChatWidget";
 import PaymentMethods from "@/components/checkout/PaymentMethods";
 import ShippingMethodSelector from "@/components/checkout/ShippingMethodSelector";
 import CartSummary from "@/components/cart/CartSummary";
@@ -837,14 +836,6 @@ export default function CheckoutPage() {
               snappPayEligibility={snappPayEligibility}
               snappPayEligibilityLoading={snappPayEligibilityLoading}
             />
-          </motion.div>
-
-          <motion.div
-            variants={itemVariants}
-            whileHover={{ y: -3 }}
-            transition={{ duration: 0.2 }}
-          >
-            <DiscountChatWidget />
           </motion.div>
 
           {!selectedAddress && (

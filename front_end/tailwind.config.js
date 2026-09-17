@@ -162,6 +162,15 @@ module.exports = {
           "0%, 100%": { transform: "rotate(0deg) scale(1)" },
           "50%": { transform: "rotate(5deg) scale(1.05)" },
         },
+        // Attention sweep across a contained banner (e.g. the cart's
+        // discount-negotiation card). Transform-only so it rides the
+        // compositor; the band starts and parks off the overflow-hidden
+        // edge, which is what creates the pause between passes.
+        "sweep": {
+          "0%": { transform: "translateX(-40%) skewX(-12deg)" },
+          "30%": { transform: "translateX(520%) skewX(-12deg)" },
+          "100%": { transform: "translateX(520%) skewX(-12deg)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -180,6 +189,7 @@ module.exports = {
         "pulse-glow": "pulse-glow 3s ease-in-out infinite",
         "float": "float 4s ease-in-out infinite",
         "badge-float": "badge-float 4s ease-in-out infinite",
+        "sweep": "sweep 4.2s ease-in-out infinite",
       },
       transitionProperty: {
         'height': 'height',
