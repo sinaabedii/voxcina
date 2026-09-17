@@ -144,7 +144,24 @@ type User struct {
 	// Defaults to 0 (omitted from JSON) so existing documents without the
 	// field behave as the zero value.
 	TokenVersion int64 `bson:"token_version,omitempty" json:"-"` // not exposed to clients
+
+	// Gender is the customer's sex as "male" or "female" (see the Gender*
+	// constants below). It is resolved once from the first name — dictionary
+	// first, a cheap LLM classification as fallback — and persisted here so
+	// the conversational agents can address the customer correctly without
+	// re-classifying every turn. Empty means unknown: pre-existing documents
+	// and names no source could resolve. omitempty keeps legacy documents
+	// behaving exactly as before.
+	Gender string `bson:"gender,omitempty" json:"gender,omitempty"`
 }
+
+// Resolved customer genders stored on User.Gender. Anything else (including
+// "") means unknown — the agent must then use neutral address terms.
+const (
+	GenderMale    = "male"
+	GenderFemale  = "female"
+	GenderUnknown = "unknown"
+)
 
 // EffectiveAccountType returns the account's lifecycle state, treating the
 // absent field of every pre-existing document as "registered".

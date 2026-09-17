@@ -125,6 +125,7 @@ func buildTryOnChatInput(ctx context.Context, userID primitive.ObjectID, req ser
 	input.CartItems = buildServerCartContext(ctx, userID)
 	input.ChatHistory, input.SuggestedProducts = loadTryOnChatHistory(ctx, userID, req.ChatID)
 	input.ComplementaryProducts = loadComplementaryProducts(input.Request.TryonProductID, input.Request.TryonColor)
+	input.CustomerGender = resolveTryOnCustomerGender(ctx, userID)
 
 	return input, nil
 }

@@ -69,6 +69,7 @@ func TestShippedTryonPromptTemplateCarriesEveryPlaceholder(t *testing.T) {
 	for _, placeholder := range []string{
 		"{{TRYON_CONTEXT}}",
 		"{{TRYON_STATUS}}",
+		"{{CUSTOMER_GENDER}}",
 		"{{SUGGESTED}}",
 		"{{CART}}",
 		"{{COMPLEMENTARY}}",
