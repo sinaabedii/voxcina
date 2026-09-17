@@ -204,7 +204,7 @@ func defaultSellerAgentConfig() SellerAgentConfig {
 	return SellerAgentConfig{
 		Model:               "x-ai/grok-4.5",
 		FallbackModel:       "qwen/qwen3.5-flash-02-23",
-		MaxDiscountPercent:  25,
+		MaxDiscountPercent:  10,
 		BaseDiscountPercent: 5,
 		CouponTTLMinutes:    60,
 		MaxHistoryMessages:  40,

@@ -171,12 +171,12 @@ export default function DiscountNegotiationCard() {
   };
 
   const ctaLabel = guest
-    ? "ورود و شروع چانه‌زنی"
+    ? "ورود و شروع چونه زنی"
     : applied
     ? "مشاهده گفتگو"
     : hasLiveOffer
     ? "دیدن و اعمال پیشنهاد"
-    : "شروع چانه‌زنی";
+    : "شروع چونه زنی";
 
   return (
     <div
@@ -216,8 +216,8 @@ export default function DiscountNegotiationCard() {
                 <Sparkles className="relative h-4 w-4 text-voxcina-darkBlue" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-voxcina-cream">ووکسا</p>
-                <p className="flex items-center gap-1.5 text-[10px] text-voxcina-cream/70">
+                <p className="text-base font-bold text-voxcina-cream">ووکسا</p>
+                <p className="flex items-center gap-1.5 text-[11px] text-voxcina-cream/70">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   مذاکره‌کننده تخفیف · آنلاین
                 </p>
@@ -240,7 +240,7 @@ export default function DiscountNegotiationCard() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-sm font-bold text-voxcina-cream">
+                    <h3 className="text-base font-bold text-voxcina-cream">
                       {applied
                         ? "کد تخفیف فعال شد"
                         : hasLiveOffer
@@ -248,13 +248,13 @@ export default function DiscountNegotiationCard() {
                         : "قیمت بهتری می‌خوای؟"}
                     </h3>
                     {hasLiveOffer && (
-                      <span className="flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-medium text-amber-200 ring-1 ring-amber-300/30">
+                      <span className="flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-medium text-amber-200 ring-1 ring-amber-300/30">
                         <span className="h-1.5 w-1.5 rounded-full bg-amber-300 animate-pulse" />
                         پیشنهاد ویژه
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-[11px] leading-relaxed text-voxcina-cream/70">
+                  <p className="mt-1 text-xs leading-relaxed text-voxcina-cream/70">
                     {applied ? (
                       <>
                         کد{" "}
@@ -264,9 +264,9 @@ export default function DiscountNegotiationCard() {
                     ) : hasLiveOffer ? (
                       "ووکسا یه کد اختصاصی برای همین سبد در آورده؛ ببین و با یک کلیک اعمالش کن."
                     ) : guest ? (
-                      "برای چانه‌زنی با ووکسا، اول وارد حساب کاربریت شو."
+                      "برای چونه زنی با ووکسا، اول وارد حساب کاربریت شو."
                     ) : (
-                      "با ووکسا چانه بزن تا یه کد تخفیف اختصاصی برای همین سبد در بیاره."
+                      "با ووکسا چونه بزن تا یه کد تخفیف اختصاصی برای همین سبد در بیاره."
                     )}
                   </p>
                 </div>
@@ -277,20 +277,20 @@ export default function DiscountNegotiationCard() {
                 aria-expanded={open}
                 aria-controls="discount-negotiation-body"
                 className={cn(
-                  "flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/70",
+                  "flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/70",
                   applied
                     ? "bg-white/10 text-voxcina-cream ring-1 ring-white/20 hover:bg-white/20"
                     : "bg-gradient-to-l from-amber-300 to-amber-400 text-voxcina-darkBlue shadow-soft hover:shadow-medium hover:brightness-105"
                 )}
               >
                 {guest ? (
-                  <Lock className="h-3.5 w-3.5" />
+                  <Lock className="h-4 w-4" />
                 ) : applied ? (
-                  <Check className="h-3.5 w-3.5" />
+                  <Check className="h-4 w-4" />
                 ) : hasLiveOffer ? (
-                  <Tag className="h-3.5 w-3.5" />
+                  <Tag className="h-4 w-4" />
                 ) : (
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <Sparkles className="h-4 w-4" />
                 )}
                 {ctaLabel}
               </button>
@@ -313,7 +313,7 @@ export default function DiscountNegotiationCard() {
             <div className="border-t border-voxcina-cream/40 bg-white/95 px-4 pb-4 pt-3 dark:border-voxcina-blue/30 dark:bg-voxcina-blue/10">
               <div ref={scrollRef} className="max-h-80 space-y-3 overflow-y-auto pl-1 scrollbar-thin">
                 {!hasLoadedOnce && (
-                  <p className="text-[11px] text-voxcina-blue/50 dark:text-voxcina-cream/50">
+                  <p className="text-xs text-voxcina-blue/50 dark:text-voxcina-cream/50">
                     در حال بارگذاری گفتگو...
                   </p>
                 )}
@@ -323,7 +323,7 @@ export default function DiscountNegotiationCard() {
                       <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-300 to-amber-500">
                         <Sparkles className="h-3 w-3 text-voxcina-darkBlue" />
                       </span>
-                      <div className="max-w-[85%] rounded-xl rounded-tl-sm border border-secondary-400 bg-background px-3 py-2 text-xs leading-relaxed text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream">
+                      <div className="max-w-[85%] rounded-xl rounded-tl-sm border border-secondary-400 bg-background px-3 py-2 text-sm leading-relaxed text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream">
                         سلام! ووکسا هستم؛ بگو چطور می‌تونم بهترین قیمت رو برات جور کنم.
                       </div>
                     </div>
@@ -333,7 +333,7 @@ export default function DiscountNegotiationCard() {
                           key={text}
                           type="button"
                           onClick={() => sendMessage(text)}
-                          className="rounded-full border border-voxcina-blue/15 bg-voxcina-blue/[0.04] px-3 py-1.5 text-[11px] text-voxcina-blue/70 transition-all hover:-translate-y-0.5 hover:border-amber-400/60 hover:text-voxcina-blue dark:border-voxcina-cream/15 dark:bg-voxcina-cream/[0.05] dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream"
+                          className="rounded-full border border-voxcina-blue/15 bg-voxcina-blue/[0.04] px-3 py-1.5 text-xs text-voxcina-blue/70 transition-all hover:-translate-y-0.5 hover:border-amber-400/60 hover:text-voxcina-blue dark:border-voxcina-cream/15 dark:bg-voxcina-cream/[0.05] dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream"
                         >
                           {text}
                         </button>
@@ -365,7 +365,7 @@ export default function DiscountNegotiationCard() {
                       </span>
                       <div
                         className={cn(
-                          "max-w-[82%] rounded-2xl px-3 py-2 text-xs leading-relaxed",
+                          "max-w-[82%] rounded-2xl px-3 py-2 text-sm leading-relaxed",
                           message.role === "user"
                             ? "rounded-tr-sm bg-voxcina-blue text-voxcina-cream"
                             : "rounded-tl-sm border border-secondary-400 bg-background text-voxcina-blue dark:border-voxcina-blue/30 dark:text-voxcina-cream"
@@ -422,15 +422,15 @@ export default function DiscountNegotiationCard() {
                   placeholder="پیام به ووکسا..."
                   disabled={loading}
                   aria-label="پیام به ووکسا"
-                  className="flex-1 rounded-xl border border-secondary-400 bg-white px-3 py-2.5 text-xs text-voxcina-blue transition-all placeholder:text-voxcina-blue/40 focus:border-voxcina-blue/60 focus:outline-none focus:ring-2 focus:ring-voxcina-blue/15 disabled:opacity-60 dark:border-voxcina-blue/40 dark:bg-voxcina-blue/30 dark:text-voxcina-cream dark:placeholder:text-voxcina-cream/40"
+                  className="flex-1 rounded-xl border border-secondary-400 bg-white px-3 py-2.5 text-sm text-voxcina-blue transition-all placeholder:text-voxcina-blue/40 focus:border-voxcina-blue/60 focus:outline-none focus:ring-2 focus:ring-voxcina-blue/15 disabled:opacity-60 dark:border-voxcina-blue/40 dark:bg-voxcina-blue/30 dark:text-voxcina-cream dark:placeholder:text-voxcina-cream/40"
                 />
                 <button
                   type="submit"
                   disabled={loading || !input.trim()}
                   aria-label="ارسال پیام"
-                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-voxcina-blue text-voxcina-cream transition-transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-voxcina-blue text-voxcina-cream transition-transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
                 >
-                  <Send className="h-3.5 w-3.5" />
+                  <Send className="h-4 w-4" />
                 </button>
               </form>
             </div>

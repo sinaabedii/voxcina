@@ -12,6 +12,16 @@ import (
 func TestResolveNegotiationStateLadder(t *testing.T) {
 	cfg := SellerConfig()
 
+	// A grant strictly inside the band. The fixtures must not hardcode one:
+	// with the current base/cap pair (5/10) the band is narrow, and a literal
+	// mid-band value that outlives a cap change turns the expectations
+	// contradictory (floor above the ceiling, which the resolver then holds).
+	midGrant := (cfg.BaseDiscountPercent + cfg.MaxDiscountPercent) / 2
+	midNextStep := midGrant + cfg.BaseDiscountPercent
+	if midNextStep > cfg.MaxDiscountPercent {
+		midNextStep = cfg.MaxDiscountPercent
+	}
+
 	tests := map[string]struct {
 		grantCount   int
 		prevMax      int
@@ -28,9 +38,9 @@ func TestResolveNegotiationStateLadder(t *testing.T) {
 		},
 		"floor holds what was already granted": {
 			grantCount:   2,
-			prevMax:      15,
-			wantFloor:    15,
-			wantNextStep: 15 + cfg.BaseDiscountPercent,
+			prevMax:      midGrant,
+			wantFloor:    midGrant,
+			wantNextStep: midNextStep,
 			wantCeiling:  cfg.MaxDiscountPercent,
 		},
 		"step is capped at the ceiling": {
@@ -71,7 +81,9 @@ func TestResolveNegotiationStateLadder(t *testing.T) {
 // The step the prompt names must be one the gate will actually let through —
 // otherwise the agent is told to grant a number that is silently reduced.
 func TestNextStepPassesReasonGateWithNewReason(t *testing.T) {
-	state := ResolveNegotiationState(1, 15, "customer is buying several items")
+	// Sit at the band's floor so the prompted next step is a real increase the
+	// gate has to approve — a previous grant at or above the cap leaves no room.
+	state := ResolveNegotiationState(1, SellerConfig().BaseDiscountPercent, "customer is buying several items")
 
 	got, granted := enforceReasonGate(state, state.NextStep, "customer named a wedding they are attending")
 	if !granted {
@@ -93,7 +105,7 @@ func TestNextStepPassesReasonGateWithNewReason(t *testing.T) {
 // The state block is the only place the model learns the numbers, so it has to
 // carry the step it is expected to move to.
 func TestFormatNegotiationStateNamesTheNextStep(t *testing.T) {
-	state := ResolveNegotiationState(1, 15, "customer is buying several items")
+	state := ResolveNegotiationState(1, SellerConfig().BaseDiscountPercent, "customer is buying several items")
 	block := formatNegotiationState(state)
 
 	for _, want := range []string{

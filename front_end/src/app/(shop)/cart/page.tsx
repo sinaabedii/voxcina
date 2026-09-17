@@ -527,7 +527,7 @@ export default function CartPage() {
                     <div className="space-y-2.5">
                       <div className="flex items-center gap-3">
                         <span className="h-px flex-1 bg-voxcina-cream dark:bg-voxcina-blue/30" />
-                        <span className="text-[11px] font-medium text-voxcina-blue/50 dark:text-voxcina-cream/50">
+                        <span className="text-xs font-medium text-voxcina-blue/50 dark:text-voxcina-cream/50">
                           یا کد تخفیف داری؟
                         </span>
                         <span className="h-px flex-1 bg-voxcina-cream dark:bg-voxcina-blue/30" />

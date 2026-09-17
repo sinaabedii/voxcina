@@ -218,7 +218,7 @@
   "checkout_negotiation_agent": {
     "model": "x-ai/grok-4.5",
     "fallback_model": "qwen/qwen3.5-flash-02-23",
-    "max_discount_percent": 25,
+    "max_discount_percent": 10,
     "base_discount_percent": 5,
     "coupon_ttl_minutes": 60,
     "max_history_messages": 40,
