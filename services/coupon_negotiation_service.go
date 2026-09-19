@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"regexp"
@@ -111,15 +112,19 @@ type CouponChatMessage struct {
 }
 
 type CouponCartItem struct {
-	ProductID     string  `json:"product_id"`
-	ProductName   string  `json:"product_name"`
-	Price         float64 `json:"price"`
-	Color         string  `json:"color,omitempty"`
-	ColorName     string  `json:"color_name,omitempty"`
-	Size          string  `json:"size,omitempty"`
-	Image         string  `json:"image,omitempty"`
-	SelectedColor string  `json:"selected_color,omitempty"`
-	Product       any     `json:"product,omitempty"`
+	ProductID   string  `json:"product_id"`
+	ProductName string  `json:"product_name"`
+	Price       float64 `json:"price"`
+	// Quantity is set for real cart lines only (complementary-product entries
+	// leave it zero). Without it the subtotal the agent quotes in Toman would
+	// undercount every line bought more than once.
+	Quantity      int    `json:"quantity,omitempty"`
+	Color         string `json:"color,omitempty"`
+	ColorName     string `json:"color_name,omitempty"`
+	Size          string `json:"size,omitempty"`
+	Image         string `json:"image,omitempty"`
+	SelectedColor string `json:"selected_color,omitempty"`
+	Product       any    `json:"product,omitempty"`
 }
 
 type NegotiateCouponOut struct {
@@ -225,8 +230,11 @@ func defaultSellerAgentConfig() SellerAgentConfig {
 			"concrete NEW reason, grant {{NEXT_STEP}}% and pass that reason in reason — asking repeatedly is not a " +
 			"reason. Tools are invoked through the tool-call channel, never written into your reply. Never type a " +
 			"tool name, its JSON arguments, or a ```json block as chat text — a call you only describe is a call " +
-			"you did not make. Never state the coupon percent or code in chat text; the system displays the coupon.\n",
-		OfferCouponDescription: "Call this tool whenever the customer asks for a discount, coupon or a cheaper price (تخفیف, کد تخفیف, کوپن, ارزونتر). Mandatory in those cases. Use the default percent from the NEGOTIATION STATE section; when the customer gave a concrete new reason, use the \"next step up\" percent named there and pass that reason in the reason argument. Repetition alone never raises the number. Always write the customer-facing announcement as your normal chat text — the `message` argument is an optional fallback only, used when your chat content comes out empty. Do not mention the percent or the code in your chat text; the system displays the coupon automatically.",
+			"you did not make. Never state the coupon percent or code in chat text; the system displays the coupon. " +
+			"The tool result carries what the granted discount is worth on this cart in Toman (amount_off_formatted) " +
+			"— quote that exact figure in your reply, e.g. «با این کد ۴۵۰٬۰۰۰ تومان کمتر پرداخت می‌کنی» — and never " +
+			"compute or round the amount yourself.\n",
+		OfferCouponDescription: "Call this tool whenever the customer asks for a discount, coupon or a cheaper price (تخفیف, کد تخفیف, کوپن, ارزونتر). Mandatory in those cases. Use the default percent from the NEGOTIATION STATE section; when the customer gave a concrete new reason, use the \"next step up\" percent named there and pass that reason in the reason argument. Repetition alone never raises the number. Always write the customer-facing announcement as your normal chat text — the `message` argument is an optional fallback only, used when your chat content comes out empty. Do not mention the percent or the code in your chat text; the system displays the coupon automatically. The tool result tells you the exact amount this takes off the cart in Toman (amount_off_formatted); quote that figure when you announce the discount, and never calculate it yourself.",
 	}
 }
 
@@ -875,6 +883,29 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 	computed := false
 
 	switch {
+	// Checkout's offer_coupon always gets a grounded second pass, whether or
+	// not the draft was usable: the coupon only exists after the reason gate
+	// runs, which is after the draft was already streamed, so the tool outcome
+	// is the single place carrying the granted percent and what it is worth in
+	// Toman on this cart. The draft stays buffered in firstStream and the
+	// model announces the resolved offer instead. search_catalog takes
+	// precedence in tryon mode; the two coupon/recommend tools never coexist.
+	case err == nil && result != nil && in.Mode == SellerModeCheckout && hasToolCall(result.toolCalls, "offer_coupon"):
+		coupon, recommended = interpretToolCalls(in, result)
+		computed = true
+		if coupon != nil {
+			if grounded := groundTextualReply(ctx, primaryModel, messages, result, coupon, recommended, in, w); grounded != nil {
+				result.content = grounded.content
+				result.tokensSent = result.tokensSent || grounded.tokensSent
+			} else {
+				_, _ = io.Copy(w, &firstStream)
+			}
+		} else {
+			// The call resolved to no coupon (no valid percent, or dropped by
+			// the mode gate) — there is no outcome to announce.
+			_, _ = io.Copy(w, &firstStream)
+		}
+
 	case toolName == "search_catalog" && err == nil && result != nil:
 		// Execute the catalog search synchronously so the model sees real data.
 		catalogHits = executeSearchCatalog(toolCtx, result.toolCalls)
@@ -930,7 +961,7 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 		// mode-gates it), and asking the model to "announce" a non-event would
 		// only teach it to talk about discounts it must never mention.
 		if coupon != nil || recommended != nil {
-			if grounded := groundTextualReply(ctx, primaryModel, messages, result, coupon, recommended, w, in.Mode); grounded != nil {
+			if grounded := groundTextualReply(ctx, primaryModel, messages, result, coupon, recommended, in, w); grounded != nil {
 				result.content = grounded.content
 				result.tokensSent = result.tokensSent || grounded.tokensSent
 			} else {
@@ -988,7 +1019,13 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 		if in.Mode == SellerModeCheckout {
 			switch {
 			case coupon != nil:
+				// Even this last-resort line carries the amount the coupon is
+				// worth: the card below shows it, so a bare "trust me" here
+				// would read as a promise the customer cannot size up.
 				reply = pickFallback(couponFallbackReplies)
+				if amount := discountAmountToman(cartSubtotalToman(in.CartItems), coupon.Value); amount > 0 {
+					reply += fmt.Sprintf(" با این کد %s تومان کمتر پرداخت می‌کنی.", formatTomanAmount(amount))
+				}
 			default:
 				reply = pickFallback(checkoutGenericFallbackReplies)
 			}
@@ -1036,33 +1073,47 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 }
 
 // needsTextGrounding reports whether the model's first pass decided something
-// (a coupon or a recommendation) but left the customer with nothing readable
-// to go with it — the case groundTextualReply exists to fix. search_catalog
-// is handled by its own always-ground branch above and never reaches here.
+// (a recommendation) but left the customer with nothing readable to go with it
+// — the case groundTextualReply exists to fix. Checkout's offer_coupon never
+// reaches here: it is always grounded, not only when the draft is unusable,
+// because its announcement must quote the resolved Toman amount. search_catalog
+// is handled by its own always-ground branch above.
 func needsTextGrounding(toolName string, result *streamResult) bool {
-	if toolName != "offer_coupon" && toolName != "recommend_product" {
+	if toolName != "recommend_product" {
 		return false
 	}
 	return !isUsableReply(sanitizeSellerReply(result.content))
 }
 
+// hasToolCall reports whether the model invoked the named tool in this turn's
+// accumulated calls.
+func hasToolCall(calls []accumulatedToolCall, name string) bool {
+	for _, call := range calls {
+		if call.name == name {
+			return true
+		}
+	}
+	return false
+}
+
 // groundTextualReply asks the model for one more, tool-free turn after a
-// coupon or recommendation call came back with an empty or unusable chat
-// channel. This is the fix for Voxa's replies collapsing onto the same fixed
-// sentence on voucher requests: many models simply do not emit chat content
-// on a turn where they also emit a tool call, so relying on that content was
-// never going to vary. Rather than fall straight to a canned line, this
-// replays the turn with the tool's outcome fed back as an established fact —
-// the coupon percent, its reason, whatever product it bundled — and asks the
-// model to announce it in its own words. tools is omitted so this pass can
-// only describe the decision already made, never revise or duplicate it.
+// coupon or recommendation call. This is the fix for Voxa's replies collapsing
+// onto the same fixed sentence on voucher requests: many models simply do not
+// emit chat content on a turn where they also emit a tool call, so relying on
+// that content was never going to vary. It is also the only pass that can
+// quote the Toman amount: the customer-facing text is generated before the
+// server resolves the coupon through the reason gate, so the amount is fed
+// back as the tool's outcome and the model announces THAT, in its own words.
+// tools is omitted so this pass can only describe the decision already made,
+// never revise or duplicate it.
 //
 // Returns nil (never partially written) when this pass itself fails or comes
 // back unusable, so the caller can fall through to its own fallback.
-func groundTextualReply(ctx context.Context, model string, messages []map[string]interface{}, result *streamResult, coupon *NegotiateCouponOut, recommended *CouponCartItem, w io.Writer, mode string) *streamResult {
+func groundTextualReply(ctx context.Context, model string, messages []map[string]interface{}, result *streamResult, coupon *NegotiateCouponOut, recommended *CouponCartItem, in SellerAgentInput, w io.Writer) *streamResult {
 	grounded := make([]map[string]interface{}, len(messages), len(messages)+len(result.toolCalls)+2)
 	copy(grounded, messages)
 
+	cartSubtotal := cartSubtotalToman(in.CartItems)
 	grounded = append(grounded, map[string]interface{}{
 		"role":       "assistant",
 		"content":    result.content,
@@ -1072,24 +1123,27 @@ func groundTextualReply(ctx context.Context, model string, messages []map[string
 		grounded = append(grounded, map[string]interface{}{
 			"role":         "tool",
 			"tool_call_id": fmt.Sprintf("call_%d", i),
-			"content":      toolOutcomeMessage(call.name, coupon, recommended),
+			"content":      toolOutcomeMessage(call.name, coupon, recommended, cartSubtotal),
 		})
 	}
 	// The voice reminder matches the mode's own prompt: checkout keeps the
 	// bazaari persona, the fitting room asks for calm lightly-humorous Persian.
 	voiceLine := "in your normal warm bazaari Persian voice"
-	if mode != SellerModeCheckout {
+	if in.Mode != SellerModeCheckout {
 		voiceLine = "in your normal calm, lightly humorous Persian voice"
 	}
 	grounded = append(grounded, map[string]interface{}{
 		"role": "system",
-		"content": "Your last turn produced no visible reply for the customer. Announce the outcome above now, " +
+		"content": "Your last turn's draft is not being shown to the customer. Announce the outcome above now, " +
 			"as Voxa, " + voiceLine + " — 2-4 short sentences, grounded in the actual " +
-			"conversation. Never mention a percent or a code; never invent a product beyond what is named above.",
+			"conversation. When the outcome names an amount off (amount_off_formatted), state that exact " +
+			"figure — for example «با این کد ۴۵۰٬۰۰۰ تومان کمتر پرداخت می‌کنی» — never a percent or a code, " +
+			"and never an amount you compute or guess yourself; if the outcome names no amount, do not " +
+			"mention one. Never invent a product beyond what is named above.",
 	})
 
 	var buf bytes.Buffer
-	_, r2, err := streamSellerAgentWithTools(ctx, model, grounded, nil, &buf, mode)
+	_, r2, err := streamSellerAgentWithTools(ctx, model, grounded, nil, &buf, in.Mode)
 	if err != nil || r2 == nil || !isUsableReply(sanitizeSellerReply(r2.content)) {
 		return nil
 	}
@@ -1097,12 +1151,59 @@ func groundTextualReply(ctx context.Context, model string, messages []map[string
 	return r2
 }
 
+// cartSubtotalToman totals the server-built cart the negotiation runs against,
+// with the same unit-price × quantity arithmetic the storefront's order summary
+// uses. A cart line with no quantity recorded (contexts built before quantity
+// existed) counts once rather than zero, matching a single-item line.
+func cartSubtotalToman(items []CouponCartItem) float64 {
+	total := 0.0
+	for _, item := range items {
+		quantity := item.Quantity
+		if quantity <= 0 {
+			quantity = 1
+		}
+		total += item.Price * float64(quantity)
+	}
+	return total
+}
+
+// discountAmountToman is what a percent off is worth in Toman on this cart.
+// Rounded to the nearest Toman, the same figure the storefront's coupon card
+// derives from the client cart and the apply flow will subtract at checkout.
+func discountAmountToman(subtotal float64, percent float64) int {
+	if subtotal <= 0 || percent <= 0 {
+		return 0
+	}
+	return int(math.Round(subtotal * percent / 100))
+}
+
+// formatTomanAmount renders an amount the way the storefront writes prices —
+// Persian digits, thousands separated with U+066C (۴۵۰٬۰۰۰) — so the agent can
+// quote a figure the customer reads in exactly the same shape as the UI.
+func formatTomanAmount(amount int) string {
+	digits := []rune("۰۱۲۳۴۵۶۷۸۹")
+	raw := strconv.Itoa(amount)
+	var b strings.Builder
+	for i, r := range raw {
+		if i > 0 && (len(raw)-i)%3 == 0 {
+			b.WriteRune('٬')
+		}
+		b.WriteRune(digits[r-'0'])
+	}
+	return b.String()
+}
+
 // toolOutcomeMessage reports, as data for the model, what a tool call this
 // turn actually resolved to — never the reverse. coupon and recommended are
 // the server's already-validated decision (interpretToolCalls has run by the
 // time this is called), so this cannot be used to smuggle a different number
 // or product past the reason gate; it only tells the model what to describe.
-func toolOutcomeMessage(callName string, coupon *NegotiateCouponOut, recommended *CouponCartItem) string {
+//
+// For offer_coupon it also carries what the granted percent is worth in Toman
+// on the cart at hand (computed here, never by the model): the amount off and
+// the payable remainder, both preformatted for quoting. cartSubtotal <= 0
+// (empty/unreadable cart) omits them so the model is never handed a ۰.
+func toolOutcomeMessage(callName string, coupon *NegotiateCouponOut, recommended *CouponCartItem, cartSubtotal float64) string {
 	switch callName {
 	case "offer_coupon":
 		if coupon == nil {
@@ -1114,6 +1215,17 @@ func toolOutcomeMessage(callName string, coupon *NegotiateCouponOut, recommended
 		}
 		if recommended != nil && coupon.CompProductID == recommended.ProductID {
 			payload["bundled_product"] = recommended.ProductName
+		}
+		if cartSubtotal > 0 {
+			subtotal := int(math.Round(cartSubtotal))
+			amountOff := discountAmountToman(cartSubtotal, coupon.Value)
+			payable := subtotal - amountOff
+			if payable < 0 {
+				payable = 0
+			}
+			payload["cart_subtotal_formatted"] = formatTomanAmount(subtotal) + " تومان"
+			payload["amount_off_formatted"] = formatTomanAmount(amountOff) + " تومان"
+			payload["payable_formatted"] = formatTomanAmount(payable) + " تومان"
 		}
 		b, _ := json.Marshal(payload)
 		return string(b)

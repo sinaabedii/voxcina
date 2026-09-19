@@ -42,6 +42,7 @@ func buildServerCartContext(ctx context.Context, userID primitive.ObjectID) []se
 			ProductID:   item.ProductID.Hex(),
 			ProductName: product.Name,
 			Price:       product.Price,
+			Quantity:    item.Quantity,
 			Color:       item.Variant.Color,
 			ColorName:   item.Variant.ColorName,
 			Size:        item.Variant.Size,
