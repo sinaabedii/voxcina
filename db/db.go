@@ -16,6 +16,9 @@ var Client *mongo.Client
 var Database *mongo.Database
 
 func Connect(cfg *config.Config) *mongo.Database {
+	if cfg.DBURI == "" {
+		log.Fatal("MONGODB_URI must be set to a MongoDB connection string")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

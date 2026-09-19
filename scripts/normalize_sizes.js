@@ -2,7 +2,13 @@
 // Run with: docker exec -i mongodb mongosh < scripts/normalize_sizes.js
 
 db = db.getSiblingDB("admin");
-db.auth("voxcina_b88dc8ce80ac", "u5EZGd2TzezJR6vFMYfJTuET8i2LB5xf");
+var mongoUser = process.env.MONGO_INITDB_ROOT_USERNAME;
+var mongoPassword = process.env.MONGO_INITDB_ROOT_PASSWORD;
+if (!mongoUser || !mongoPassword) {
+  print("MONGO_INITDB_ROOT_USERNAME and MONGO_INITDB_ROOT_PASSWORD must be set in the mongodb container environment");
+  quit(1);
+}
+db.auth(mongoUser, mongoPassword);
 db = db.getSiblingDB("ecommerce");
 
 // Persian digits: ۰۱۲۳۴۵۶۷۸۹ (U+06F0 - U+06F9)

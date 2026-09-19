@@ -22,11 +22,8 @@ type Config struct {
 
 func LoadConfig() *Config {
 	return &Config{
-		Port: getEnv("PORT", "8080"),
-		DBURI: getEnv(
-			"MONGODB_URI",
-			"mongodb://admin:password@mongo:27017/admin?authSource=admin",
-		),
+		Port:   getEnv("PORT", "8080"),
+		DBURI:  getEnv("MONGODB_URI", ""),
 		DBName: getEnv("DB_NAME", "ecommerce"),
 		// There is intentionally no fallback for JWT_SECRET. Starting with a
 		// guessable signing key would invalidate the purpose of access/refresh
