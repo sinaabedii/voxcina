@@ -1,6 +1,10 @@
 # SnappPay Search Product Feed — Implementation Plan
 
-Status: Proposed · Date: 2026-09-19 · Scope: backend (Go) + Next.js rewrite + ops
+Status: **Implemented** (backend + routing); onboarding pending · Date: 2026-09-19
+Scope: backend (Go) + edge routing + ops
+
+Code: [`snappayfeed/`](snappayfeed/) — see its [README](snappayfeed/README.md) for
+the file map, the env vars and the removal procedure.
 
 Goal owner: storefront/backend
 
@@ -224,19 +228,31 @@ is no separate single-product route.
 Searchwise crawler
       │  POST https://voxcina.com/wp-json/v1/product/feed   (x-api-key)
       ▼
-nginx        location /  →  localhost:3000            (Next)
+nginx   location = /wp-json/v1/product/feed   ← exact match, evaluated first
+      │     proxy_pass http://localhost:8080/api/snappay/feed
+      │                                         PRODUCTION FAST PATH: one hop,
+      │                                         edge → Go, Node uninvolved
+      │
+      └─ (block absent: local dev / not yet deployed)
+         nginx location /  →  Next :3000  →  rewrite  →  Go
       ▼
-Next.js      rewrite /wp-json/v1/product/feed  →  ${GO_BACKEND_URL}/api/snappay/feed
+Go      POST /api/snappay/feed          (routes.go, existing /api subrouter)
       ▼
-Go           POST /api/snappay/feed            (routes.go, existing /api subrouter)
-      ▼
-handlers/snappay_feed.go
-  ├─ request parsing (JSON body → form → query)
-  ├─ auth (static env key and/or Searchwise validate-token)
-  ├─ read-only Mongo aggregation: products (+ categories for breadcrumbs)
-  ├─ pure mapping helpers (product + color variant → feed row DTO)
-  └─ JSON response, Cache-Control: no-store
+snappayfeed/
+  ├─ request.go     parameter parsing (JSON body → form → query)
+  ├─ auth.go        static env key, then Searchwise validate-token
+  ├─ repository.go  read-only Mongo: products ($unwind per variant) + categories
+  ├─ mapping.go     pure helpers (product + color variant → values)
+  ├─ rows.go        feed rows, both granularities
+  └─ handler.go     JSON response, Cache-Control: no-store
 ```
+
+**Why two paths.** `location = …` is an exact match, which nginx evaluates before
+every prefix and regex location — so the feed adds zero matching cost to any other
+request and skips Node entirely. The Next.js rewrite is kept deliberately as the
+fallback: it makes `npm run dev` work with no nginx, and keeps the public URL alive
+on a host whose nginx config has not been updated yet. Both target the same Go
+route, so they coexist with no ambiguity.
 
 ### Why `/api/snappay/feed` and not a root route (correction)
 
@@ -291,16 +307,19 @@ strips the `x-api-key` request header (default nginx `proxy_pass` forwards it).
 
 ### Code placement
 
-- `handlers/snappay_feed.go` — handler, feed-only DTO structs, mapping helpers.
-- `handlers/snappay_feed_test.go` — pure unit tests, no Mongo/network (the repo's
-  rule: every committed Go test is dependency-free — `AGENTS.md`).
+- `snappayfeed/` — the whole feature in its own package (handler, DTOs, mapping
+  helpers, queries, auth), so removal is `rm -rf` plus three call sites.
+- `snappayfeed/*_test.go` — pure unit tests, no Mongo/network (the repo's rule:
+  every committed Go test is dependency-free — `AGENTS.md`).
 - `routes/routes.go` — one line: `api.HandleFunc("/snappay/feed", handlers.SnappPaySearchFeed).Methods(http.MethodPost)`.
   The path is free: the existing SnappPay **payment** routes sit under
   `/api/payment/snappay/*` (auth-gated `paymentRouter`) and `/api/admin/orders/…`,
   so nothing collides and the public feed stays outside every auth subrouter.
   Register it away from `/{id}`-style wildcards; `routes/routes_shadow_test.go`
   asserts no literal route is shadowed.
-- `front_end/next.config.js` — one rewrite entry.
+- `front_end/next.config.js` — one rewrite entry (fallback path).
+- `nginx-voxcina-optimized.conf`, `nginx-voxcina-optimized-v2.conf` — one
+  exact-match location block each (production fast path).
 
 Explicitly **not** touched: `models/*`, `db/*`, Mongo indexes, migrations, product
 documents, admin/product APIs, `/api/products*`, the storefront.
@@ -439,74 +458,77 @@ product-level rows, it is an env-var flip and a restart, not a rewrite.
 
 ### Phase 1 — Feed endpoint (Go)
 
-- [ ] `handlers/snappay_feed.go`: DTO structs (`snappPayFeedResponse`,
+- [x] `handlers/snappay_feed.go`: DTO structs (`snappPayFeedResponse`,
       `snappPayFeedRow`) with the exact snake_case JSON tags from §5, including the
       duplicate `cost_shipping` / `time_delivery` aliases. No `models/` change.
-- [ ] `SnappPaySearchFeed(w, r)`:
-  - [ ] parse params: JSON body → form → query (uniform precedence);
-  - [ ] `limit`/`page` defaults + clamps; `include_content` parser;
-  - [ ] all-rows path with variant-aware `count` / `max_pages`;
-  - [ ] `products=` / `slugs=` targeted path (skip unknowns, omit count keys);
-  - [ ] `Cache-Control: no-store`.
-- [ ] Pure mapping helpers (no Mongo, no network):
-  - [ ] `snappPayFeedPrice(toman float64) int64` (×10, rounding);
-  - [ ] `snappPayVariantKey(productID string, v models.ColorVariant) (key, linkParam)`;
-  - [ ] `snappPayVariantAvailability(p models.Product, v models.ColorVariant) string`;
-  - [ ] `snappPayVariantTitle(p models.Product, v models.ColorVariant) string`;
-  - [ ] `snappPayVariantImages(p models.Product, v models.ColorVariant, baseURL string) []string`;
-  - [ ] `snappPayVariantDescription(p models.Product, v models.ColorVariant) map[string]any`;
-  - [ ] `snappPayInStockSizes(v models.ColorVariant) []string`;
-  - [ ] `snappPayFeedCategoryPaths(ctx, ids) map[string]string` (breadcrumbs via
+- [x] `SnappPaySearchFeed(w, r)`:
+  - [x] parse params: JSON body → form → query (uniform precedence);
+  - [x] `limit`/`page` defaults + clamps; `include_content` parser;
+  - [x] all-rows path with variant-aware `count` / `max_pages`;
+  - [x] `products=` / `slugs=` targeted path (skip unknowns, omit count keys);
+  - [x] `Cache-Control: no-store`.
+- [x] Pure mapping helpers (no Mongo, no network):
+  - [x] `snappPayFeedPrice(toman float64) int64` (×10, rounding);
+  - [x] `snappPayVariantKey(productID string, v models.ColorVariant) (key, linkParam)`;
+  - [x] `snappPayVariantAvailability(p models.Product, v models.ColorVariant) string`;
+  - [x] `snappPayVariantTitle(p models.Product, v models.ColorVariant) string`;
+  - [x] `snappPayVariantImages(p models.Product, v models.ColorVariant, baseURL string) []string`;
+  - [x] `snappPayVariantDescription(p models.Product, v models.ColorVariant) map[string]any`;
+  - [x] `snappPayInStockSizes(v models.ColorVariant) []string`;
+  - [x] `snappPayFeedCategoryPaths(ctx, ids) map[string]string` (breadcrumbs via
         `parent_id`, resolved once per request, read-only);
-  - [ ] product-level variants of availability/images/description for §7.7.
-- [ ] Aggregation: `$match {is_active:true}` → `$sort {_id:-1}` → `$facet` with
+  - [x] product-level variants of availability/images/description for §7.7.
+- [x] Aggregation: `$match {is_active:true}` → `$sort {_id:-1}` → `$facet` with
       `$unwind: "$color_variants"` in both branches; exclude
       `color_variants.ai_metadata` and `search_metadata` by their **BSON** names.
-- [ ] Use `APP_URL` as the public origin (the pattern `handlers/payment.go` and
+- [x] Use `APP_URL` as the public origin (the pattern `handlers/payment.go` and
       `handlers/snappay.go` already follow); production must be `https://voxcina.com`.
 
 ### Phase 2 — Exposure
 
-- [ ] `routes/routes.go`: `api.HandleFunc("/snappay/feed", handlers.SnappPaySearchFeed).Methods(http.MethodPost)`.
-- [ ] `front_end/next.config.js`: add the `/wp-json/v1/product/feed` rewrite.
-- [ ] `go test ./routes -run TestNoShadowedRoutes -count=1` to confirm no shadowing.
-- [ ] Confirm the live nginx config forwards `/wp-json` to Next and preserves
-      `x-api-key`.
+- [x] `routes/routes.go`: one import + `snappayfeed.Register(api)`.
+- [x] `front_end/next.config.js`: add the `/wp-json/v1/product/feed` rewrite.
+- [x] `go test ./routes -run TestNoShadowedRoutes -count=1` to confirm no shadowing.
+- [x] Add the exact-match `location = /wp-json/v1/product/feed` block to both
+      committed nginx configs (production fast path, bypasses Node).
+- [ ] **Ops:** deploy the updated nginx config to the VPS, `nginx -t && nginx -s reload`,
+      and confirm `x-api-key` survives the hop. Until then the Next rewrite serves
+      the public URL, one hop slower.
 
 ### Phase 3 — Auth
 
-- [ ] Read `x-api-key` (Go canonicalizes the header, so the plugin's lowercase
+- [x] Read `x-api-key` (Go canonicalizes the header, so the plugin's lowercase
       spelling matches); missing → `401`.
-- [ ] Static mode: compare with `SNAPPAY_FEED_API_KEY` using `crypto/subtle`
+- [x] Static mode: compare with `SNAPPAY_FEED_API_KEY` using `crypto/subtle`
       (constant-time) — lets us test before Searchwise provisions a key.
-- [ ] Searchwise mode (exact plugin behavior): POST `merchant_domain`, `api_key`,
+- [x] Searchwise mode (exact plugin behavior): POST `merchant_domain`, `api_key`,
       `plugin_version=1.0.2` to `SNAPPAY_FEED_VALIDATE_URL` (default
       `https://merchants.searchwise.ir/api/v1/feed/validate-token`), 5s timeout;
       `{success:true}` → allow, explicit failure → `401`, network failure → `503`.
-- [ ] Precedence: a static-key match short-circuits; otherwise Searchwise validation.
-- [ ] Never log the presented key. Cache a successful validation briefly (≤60s) so a
+- [x] Precedence: a static-key match short-circuits; otherwise Searchwise validation.
+- [x] Never log the presented key. Cache a successful validation briefly (≤60s) so a
       paginated crawl does not fan out one validation call per page.
 
 ### Phase 4 — Tests (`handlers/snappay_feed_test.go`, no Mongo/network)
 
-- [ ] envelope: `plugin_version` / `wc_version` / `wp_version` always present;
+- [x] envelope: `plugin_version` / `wc_version` / `wp_version` always present;
       `count`/`max_pages` present for the all-rows path and absent for targeted;
-- [ ] a 3-color product expands to exactly 3 rows with 3 distinct `id`s and 3
+- [x] a 3-color product expands to exactly 3 rows with 3 distinct `id`s and 3
       distinct `link`s;
-- [ ] per-variant availability: color A in stock + color B at zero → `instock` /
+- [x] per-variant availability: color A in stock + color B at zero → `instock` /
       `outofstock` on the respective rows (the core variant guarantee);
-- [ ] `variant_id` missing → deterministic surrogate key + `?color=` link, and the
+- [x] `variant_id` missing → deterministic surrogate key + `?color=` link, and the
       same input twice yields the same `id`;
-- [ ] Toman→Rial conversion, including `OriginalPrice == 0`;
-- [ ] images: this color's images first, swatch/try-on excluded, deduped, absolute;
-- [ ] description object: attributes + رنگ/سایز, single-vs-array rule;
-- [ ] `size`/`color` top-level fields list only in-stock sizes;
-- [ ] category breadcrumbs from a fake category map;
-- [ ] param parsing: `limit`/`page` defaults, `include_content` forms, comma lists,
+- [x] Toman→Rial conversion, including `OriginalPrice == 0`;
+- [x] images: this color's images first, swatch/try-on excluded, deduped, absolute;
+- [x] description object: attributes + رنگ/سایز, single-vs-array rule;
+- [x] `size`/`color` top-level fields list only in-stock sizes;
+- [x] category breadcrumbs from a fake category map;
+- [x] param parsing: `limit`/`page` defaults, `include_content` forms, comma lists,
       composite `{productID}-{variantKey}` lookups;
-- [ ] auth: missing key → 401, static match → pass;
-- [ ] `SNAPPAY_FEED_GRANULARITY=product` → one aggregated row for the same fixture.
-- [ ] Run `go test ./handlers -run SnappPayFeed -count=1`, `go test ./routes -count=1`,
+- [x] auth: missing key → 401, static match → pass;
+- [x] `SNAPPAY_FEED_GRANULARITY=product` → one aggregated row for the same fixture.
+- [x] Run `go test ./handlers -run SnappPayFeed -count=1`, `go test ./routes -count=1`,
       `go vet ./...`.
 
 ### Phase 5 — Onboarding (ops, SnappPay/Searchwise side)
@@ -515,6 +537,11 @@ product-level rows, it is an env-var flip and a restart, not a rewrite.
       manager: custom non-WooCommerce store, feed at
       `https://voxcina.com/wp-json/v1/product/feed`, POST + `x-api-key`, request a
       key and Searchwise validation registration for `voxcina.com`.
+- [ ] Give them the **apex** URL, never `www.voxcina.com`: that vhost answers with
+      a `301` to the apex, and HTTP clients commonly downgrade a redirected `POST`
+      to `GET`, which the route rejects (405). Switching that redirect to `308`
+      would preserve the method, but it is a site-wide change and not required if
+      the registered URL is the apex.
 - [ ] Submit the CMS/technology-change form (source #7) so their records do not
       assume WooCommerce.
 - [ ] Ask the questions in §11 — above all, confirm that variant-level rows are what

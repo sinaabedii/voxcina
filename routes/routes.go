@@ -8,6 +8,7 @@ import (
 
 	"backEnd/handlers"
 	"backEnd/middlewares"
+	"backEnd/snappayfeed"
 )
 
 // Names of the two /api/admin prefix routes. They identify which gate an admin
@@ -25,6 +26,11 @@ func NewRouter() *mux.Router {
 
 	// Health check endpoint
 	api.HandleFunc("/health", handlers.HealthCheck).Methods(http.MethodGet)
+
+	// SnappPay / Searchwise product feed. Self-contained in snappayfeed/;
+	// this line and the import above are the only hooks into the app.
+	// Public URL is /wp-json/v1/product/feed (nginx, Next rewrite fallback).
+	snappayfeed.Register(api)
 
 	// Neshan Map API proxy (public, no auth — service key stays server-side)
 	api.HandleFunc("/neshan/reverse", handlers.NeshanReverseGeocode).Methods(http.MethodGet)

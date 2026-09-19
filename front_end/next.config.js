@@ -76,6 +76,15 @@ const nextConfig = {
     const backendUrl = process.env.GO_BACKEND_URL || (isProduction ? 'http://server:8080' : 'http://localhost:8080');
     
     return [
+      // SnappPay / Searchwise product feed (backend: snappayfeed/).
+      // In production nginx answers this path directly from Go (exact-match
+      // `location = /wp-json/v1/product/feed`), so this rewrite is the
+      // fallback: it covers local dev and any environment without that nginx
+      // block. Remove it together with snappayfeed/ — see its README.md.
+      {
+        source: '/wp-json/v1/product/feed',
+        destination: `${backendUrl}/api/snappay/feed`,
+      },
       // Static file uploads from Go backend
       {
         source: '/uploads/:path*',
