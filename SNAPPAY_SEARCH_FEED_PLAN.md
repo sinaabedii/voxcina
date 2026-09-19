@@ -537,11 +537,13 @@ product-level rows, it is an env-var flip and a restart, not a rewrite.
       manager: custom non-WooCommerce store, feed at
       `https://voxcina.com/wp-json/v1/product/feed`, POST + `x-api-key`, request a
       key and Searchwise validation registration for `voxcina.com`.
-- [ ] Give them the **apex** URL, never `www.voxcina.com`: that vhost answers with
-      a `301` to the apex, and HTTP clients commonly downgrade a redirected `POST`
-      to `GET`, which the route rejects (405). Switching that redirect to `308`
-      would preserve the method, but it is a site-wide change and not required if
-      the registered URL is the apex.
+- [ ] Give them the **apex** URL,
+      `https://voxcina.com/wp-json/v1/product/feed`, never `www.voxcina.com`.
+      The deployed origin answers the feed path on `www` with a
+      method-preserving `308` to the apex (HTTPS origin and port-80 redirect),
+      so a misconfigured `www` registration still works — but the apex stays
+      canonical. The public HTTP->HTTPS redirect is issued by ArvanCloud's edge
+      before the origin, so the registered URL must be HTTPS.
 - [ ] Submit the CMS/technology-change form (source #7) so their records do not
       assume WooCommerce.
 - [ ] Ask the questions in §11 — above all, confirm that variant-level rows are what

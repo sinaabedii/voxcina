@@ -65,13 +65,15 @@ Both point at the same Go route, so they can coexist indefinitely.
 `/api/snappay/feed` is also reachable directly — useful for curl and for
 bypassing the edge during debugging.
 
-**Register the apex URL with SnappPay, never `www`.** The `www.voxcina.com`
-vhost is a `301` redirect to the apex, and HTTP clients routinely downgrade a
-redirected `POST` to `GET` — which this route rejects with 405. The feed URL
-given to Searchwise must be `https://voxcina.com/wp-json/v1/product/feed`. (If
-a `www` feed URL ever becomes unavoidable, change that vhost's redirect to
-`308`, which preserves the method — a site-wide change, so decide it
-deliberately.)
+**Register the apex URL with SnappPay, never `www`.** The feed URL given to
+Searchwise must be `https://voxcina.com/wp-json/v1/product/feed`. The apex is
+canonical, but a misconfigured `www` URL no longer breaks the feed: nginx
+answers the feed path on `www` with a `308` to the apex — on the HTTPS origin
+and on the port-80 redirect — and `308` preserves the `POST` method, where a
+`301` would let clients downgrade it to `GET` (the route answers 405). Every
+other `www` path keeps its previous behavior (the HTTPS origin serves it, port
+80 still answers `301`). One caveat: the public HTTP->HTTPS redirect is issued
+by ArvanCloud's edge before the origin, so keep the registered URL HTTPS.
 
 ## Configuration
 
