@@ -712,11 +712,6 @@ key does not go here — it arrives in their `x-api-key` header and is validated
 against `SNAPPAY_FEED_VALIDATE_URL`, which already works. Rotate or blank it at
 any time without affecting them.
 
-During this verification the six variables were set as shown; the persistent
-`.env` currently carries all six **empty** (built-in defaults apply) until a key
-is provisioned, and the self-generated key can be re-added at any time. The
-Searchwise path does not depend on it.
-
 ### Residual risks
 
 1. ~~**The Docker image does not contain the feed.**~~ **Resolved 2026-09-20:**
