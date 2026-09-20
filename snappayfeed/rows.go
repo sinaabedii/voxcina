@@ -137,6 +137,11 @@ func productLink(p models.Product, cfg Config) string {
 // Source #3 rejects a flat "دیجیتال" and asks for "دیجیتال > موبایل و تبلت >
 // گوشی موبایل"; categoryPaths() builds those chains from the existing
 // parent_id links, with no schema change.
+//
+// A product tagged with both a category and its ancestor would otherwise emit
+// both "زنانه" and "زنانه > کت و بارونی زنانه"; the shorter path adds nothing,
+// because the longer one already contains it. Ancestor paths are dropped, so
+// only the deepest paths survive.
 func categoryPathsOf(p models.Product, opts buildOptions) []string {
 	paths := make([]string, 0, len(p.CategoryIDs))
 	seen := make(map[string]bool, len(p.CategoryIDs))
@@ -148,5 +153,29 @@ func categoryPathsOf(p models.Product, opts buildOptions) []string {
 		seen[path] = true
 		paths = append(paths, path)
 	}
-	return paths
+	return dropAncestorPaths(paths)
+}
+
+// dropAncestorPaths removes any path that is an ancestor of another path in
+// the list, preserving the order of what remains. The " > " boundary is part
+// of the prefix test, so "زنانه" is not treated as an ancestor of a
+// hypothetical "زنانهپوشاک".
+func dropAncestorPaths(paths []string) []string {
+	if len(paths) < 2 {
+		return paths
+	}
+	out := make([]string, 0, len(paths))
+	for i, path := range paths {
+		ancestor := false
+		for j, other := range paths {
+			if i != j && strings.HasPrefix(other, path+" > ") {
+				ancestor = true
+				break
+			}
+		}
+		if !ancestor {
+			out = append(out, path)
+		}
+	}
+	return out
 }

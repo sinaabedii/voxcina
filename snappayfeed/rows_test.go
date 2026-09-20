@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
 	"backEnd/models"
 )
 
@@ -237,5 +239,62 @@ func TestEmptyDescriptionIsObject(t *testing.T) {
 	}
 	if !strings.Contains(string(encoded), `"description":{}`) {
 		t.Fatalf("empty description did not serialise as an object: %s", encoded)
+	}
+}
+
+// A product tagged with both a category and its ancestor must not advertise
+// the ancestor: the longer breadcrumb already contains it, and source #3 only
+// asks for a precise path to be present.
+func TestCategoryPathsOfDropsAncestorPaths(t *testing.T) {
+	parent := objectID(t, testCategoryHex)
+	child := objectID(t, "7012ab34cd56ef7890123457")
+	other := objectID(t, "7012ab34cd56ef7890123458")
+
+	p := sampleProduct(t)
+	p.CategoryIDs = []primitive.ObjectID{parent, child, other}
+
+	opts := testOptions(t)
+	opts.categories = map[string]string{
+		parent.Hex(): "زنانه",
+		child.Hex():  "زنانه > کت و بارونی زنانه",
+		other.Hex():  "مردانه > پوشاک",
+	}
+
+	got := categoryPathsOf(p, opts)
+	want := []string{"زنانه > کت و بارونی زنانه", "مردانه > پوشاک"}
+	if len(got) != len(want) {
+		t.Fatalf("category paths = %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("category paths = %#v, want %#v", got, want)
+		}
+	}
+}
+
+func TestDropAncestorPaths(t *testing.T) {
+	tests := []struct {
+		name  string
+		paths []string
+		want  []string
+	}{
+		{name: "single path is untouched", paths: []string{"زنانه"}, want: []string{"زنانه"}},
+		{name: "parent and child keep only the child", paths: []string{"زنانه", "زنانه > کت و بارونی زنانه"}, want: []string{"زنانه > کت و بارونی زنانه"}},
+		{name: "a whole chain keeps only the deepest", paths: []string{"الف", "الف > ب", "الف > ب > ج"}, want: []string{"الف > ب > ج"}},
+		{name: "siblings both survive", paths: []string{"الف > ب", "الف > ج"}, want: []string{"الف > ب", "الف > ج"}},
+		{name: "prefix without the separator is not an ancestor", paths: []string{"زنانه", "زنانهپوشاک"}, want: []string{"زنانه", "زنانهپوشاک"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := dropAncestorPaths(tc.paths)
+			if len(got) != len(tc.want) {
+				t.Fatalf("got %#v, want %#v", got, tc.want)
+			}
+			for i := range tc.want {
+				if got[i] != tc.want[i] {
+					t.Fatalf("got %#v, want %#v", got, tc.want)
+				}
+			}
+		})
 	}
 }
