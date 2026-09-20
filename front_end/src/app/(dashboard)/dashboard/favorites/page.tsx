@@ -25,10 +25,40 @@ const SORT_OPTIONS: ReadonlyArray<{ value: SortOption; label: string }> = [
 ];
 
 // The list endpoint paginates color-variant rows and one product can own
-// several of them, so ask for more rows than there are favorite products.
-// Batching keeps the request URL well under common header-size limits.
+// several of them, so a batch is walked page by page until the endpoint
+// reports no more rows. Batching keeps the request URL well under common
+// header-size limits.
 const IDS_PER_REQUEST = 100;
-const ROWS_PER_REQUEST = 500;
+const ROWS_PER_PAGE = 500;
+
+interface ProductRowsPage {
+  rows: ColorVariantListItem[];
+  totalPages: number;
+}
+
+async function fetchProductRowsPage(ids: string, page: number): Promise<ProductRowsPage> {
+  const params = new URLSearchParams({
+    ids,
+    limit: String(ROWS_PER_PAGE),
+    page: String(page),
+  });
+  const response = await fetch(`/api/products?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch favorite products (${response.status})`);
+  }
+  const payload = await response.json();
+  if (Array.isArray(payload)) {
+    return { rows: payload as ColorVariantListItem[], totalPages: 1 };
+  }
+  // A successful list response always carries pagination. The backend answers
+  // 200 with an empty pagination object when it fails to build the page, so
+  // surface that as an error instead of pretending the favorites are gone.
+  const totalPages = payload?.pagination?.totalPages;
+  if (typeof totalPages !== "number") {
+    throw new Error("Malformed products response");
+  }
+  return { rows: (payload?.data ?? []) as ColorVariantListItem[], totalPages };
+}
 
 function fetchProductsByIds(ids: string[]): Promise<ColorVariantListItem[]> {
   const batches: string[][] = [];
@@ -38,16 +68,18 @@ function fetchProductsByIds(ids: string[]): Promise<ColorVariantListItem[]> {
 
   return Promise.all(
     batches.map(async (batch) => {
-      const params = new URLSearchParams({
-        ids: batch.join(","),
-        limit: String(ROWS_PER_REQUEST),
-      });
-      const response = await fetch(`/api/products?${params.toString()}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch favorite products (${response.status})`);
+      const idsParam = batch.join(",");
+      const firstPage = await fetchProductRowsPage(idsParam, 1);
+      const rows = [...firstPage.rows];
+      if (firstPage.totalPages > 1) {
+        const remainingPages = await Promise.all(
+          Array.from({ length: firstPage.totalPages - 1 }, (_, index) =>
+            fetchProductRowsPage(idsParam, index + 2),
+          ),
+        );
+        remainingPages.forEach((page) => rows.push(...page.rows));
       }
-      const payload = await response.json();
-      return (Array.isArray(payload) ? payload : payload?.data ?? []) as ColorVariantListItem[];
+      return rows;
     }),
   ).then((results) => results.flat());
 }
