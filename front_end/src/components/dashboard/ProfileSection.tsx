@@ -3,10 +3,13 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Mail, Save, Smartphone, UserRound } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/Card";
+import { toast } from "react-toastify";
+import { CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/input";
 import JalaliDatePicker, { gregorianToJalaliString } from "@/components/auth/JalaliDatePicker";
+import DashboardCard from "@/components/dashboard/ui/DashboardCard";
+import DashboardCardHeader from "@/components/dashboard/ui/DashboardCardHeader";
 import { useAuthStore } from "@/store/auth-store";
 import { User } from "@/types/user";
 
@@ -40,7 +43,6 @@ export default function ProfileSection() {
     birthday: "",
   });
   const [isSaving, setIsSaving] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -52,12 +54,15 @@ export default function ProfileSection() {
     });
   }, [user]);
 
+  const updateField = (field: keyof ProfileFormData, value: string) => {
+    setFormData((current) => ({ ...current, [field]: value }));
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setErrorMessage(null);
 
     if (!formData.firstName.trim() || !formData.lastName.trim()) {
-      setErrorMessage("نام و نام خانوادگی را وارد کنید");
+      toast.error("نام و نام خانوادگی را وارد کنید");
       return;
     }
 
@@ -69,43 +74,31 @@ export default function ProfileSection() {
         email: formData.email.trim(),
         ...(!user?.birthday && formData.birthday ? { birthday: formData.birthday } : {}),
       });
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "خطا در ذخیره اطلاعات");
+    } catch {
+      // Errors are surfaced by the auth store toast.
     } finally {
       setIsSaving(false);
     }
   };
 
-  const updateField = (field: keyof ProfileFormData, value: string) => {
-    setFormData((current) => ({ ...current, [field]: value }));
-  };
-
   if (!user) return null;
 
   return (
-    <Card className="overflow-hidden rounded-3xl border border-voxcina-cream shadow-sm dark:border-voxcina-blue/30 dark:bg-voxcina-blue/10">
-      <div className="border-b border-voxcina-cream/70 bg-gradient-to-l from-voxcina-cream/80 via-white to-white px-5 py-5 dark:border-voxcina-blue/30 dark:from-voxcina-blue/25 dark:via-voxcina-blue/10 dark:to-transparent md:px-7">
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-voxcina-blue text-white shadow-sm dark:bg-voxcina-cream dark:text-voxcina-blue">
-            {user.avatar ? (
-              <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
-            ) : (
-              <UserRound className="h-6 w-6" />
-            )}
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-voxcina-blue dark:text-voxcina-cream">
-              اطلاعات حساب کاربری
-            </h2>
-            <p className="mt-1 text-sm text-voxcina-blue/65 dark:text-voxcina-cream/65">
-              اطلاعات تماس و مشخصات شخصی خود را مدیریت کنید.
-            </p>
-          </div>
-        </div>
-      </div>
+    <DashboardCard hover={false}>
+      <DashboardCardHeader
+        icon={
+          user.avatar ? (
+            <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
+          ) : (
+            <UserRound className="h-6 w-6" />
+          )
+        }
+        title="اطلاعات حساب کاربری"
+        description="اطلاعات تماس و مشخصات شخصی خود را مدیریت کنید."
+      />
 
       <CardContent className="p-5 md:p-7">
-        <form onSubmit={handleSubmit} className="space-y-5" dir="rtl">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Input
               label="نام"
@@ -154,34 +147,19 @@ export default function ProfileSection() {
               value={formData.birthday}
               onChange={(value) => updateField("birthday", value)}
               disabled={Boolean(user.birthday)}
-              helperText={
-                user.birthday
-                  ? "تاریخ تولد پس از ثبت قابل تغییر نیست"
-                  : "ثبت تاریخ تولد اختیاری است"
-              }
+              helperText={user.birthday ? "تاریخ تولد پس از ثبت قابل تغییر نیست" : "ثبت تاریخ تولد اختیاری است"}
               label="تاریخ تولد"
               id="profile-birthday"
             />
           </div>
 
-          {errorMessage && (
-            <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
-              {errorMessage}
-            </p>
-          )}
-
           <div className="flex justify-end border-t border-voxcina-cream/60 pt-5 dark:border-voxcina-blue/30">
-            <Button
-              type="submit"
-              isLoading={isSaving}
-              className="rounded-xl bg-voxcina-blue text-white hover:bg-voxcina-darkBlue"
-              leftIcon={<Save className="h-4 w-4" />}
-            >
+            <Button type="submit" isLoading={isSaving} leftIcon={<Save className="h-4 w-4" />}>
               ذخیره اطلاعات
             </Button>
           </div>
         </form>
       </CardContent>
-    </Card>
+    </DashboardCard>
   );
 }

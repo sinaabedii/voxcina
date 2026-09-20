@@ -9,6 +9,7 @@ import RecentOrders from "@/components/dashboard/RecentOrders";
 import WelcomeBanner from "@/components/dashboard/WelcomeBanner";
 import StatsGrid from "@/components/dashboard/StatsGrid";
 import SectionHeader from "@/components/dashboard/ui/SectionHeader";
+import PageTitle from "@/components/dashboard/ui/PageTitle";
 import { staggerContainer, slideUpItem } from "@/lib/motion";
 
 export default function DashboardPage() {
@@ -54,15 +55,7 @@ export default function DashboardPage() {
 
   return (
     <div className="container py-8 md:py-12 mx-auto px-4 md:px-8 transition-all duration-500 ease-in-out">
-      <motion.h1
-        className="text-2xl md:text-3xl font-bold mb-8 text-voxcina-blue dark:text-voxcina-cream relative inline-block"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <span className="relative z-10">داشبورد شخصی</span>
-        <span className="absolute bottom-1 left-0 w-full h-3 bg-voxcina-cream dark:bg-voxcina-blue/20 rounded-full -z-0 opacity-40" />
-      </motion.h1>
+      <PageTitle title="داشبورد شخصی" className="mb-8" />
 
       {showWelcome && <WelcomeBanner userName={user?.name?.split(" ")[0]} onDismiss={() => setShowWelcome(false)} />}
 

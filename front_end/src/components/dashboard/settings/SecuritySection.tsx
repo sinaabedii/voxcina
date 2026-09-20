@@ -1,173 +1,180 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import type { ChangeEvent, FormEvent } from "react";
+import { Lock, LogOut, ShieldCheck } from "lucide-react";
+import { toast } from "react-toastify";
+import { CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
-import Input from "@/components/ui/input";
-import { Lock, Eye, EyeOff, ShieldCheck, LogOut } from "lucide-react";
-import { motion } from "framer-motion";
+import PasswordInput from "@/components/ui/PasswordInput";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import DashboardCard from "@/components/dashboard/ui/DashboardCard";
+import DashboardCardHeader from "@/components/dashboard/ui/DashboardCardHeader";
 import { useAuthStore } from "@/store/auth-store";
+import { sessionManager } from "@/lib/session-manager";
 import { usePasswordStrength } from "@/hooks/usePasswordStrength";
 
-export default function SecuritySection({
-  onSuccess,
-  onError,
-}: {
-  onSuccess: (msg: string) => void;
-  onError: (msg: string) => void;
-}) {
+interface PasswordFormData {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+const EMPTY_FORM: PasswordFormData = {
+  currentPassword: "",
+  newPassword: "",
+  confirmPassword: "",
+};
+
+export default function SecuritySection() {
   const { logout } = useAuthStore();
-  const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [formData, setFormData] = useState<PasswordFormData>(EMPTY_FORM);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLogoutOpen, setIsLogoutOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const passwordStrength = usePasswordStrength(formData.newPassword);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((p) => ({ ...p, [name]: value }));
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
+    setFormData((current) => ({ ...current, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    onSuccess("");
-    onError("");
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
     if (formData.newPassword.length < 8) {
-      onError("رمز عبور باید حداقل ۸ کاراکتر باشد");
+      toast.error("رمز عبور باید حداقل ۸ کاراکتر باشد");
       return;
     }
     if (formData.newPassword !== formData.confirmPassword) {
-      onError("رمز عبور و تکرار آن مطابقت ندارند");
+      toast.error("رمز عبور و تکرار آن مطابقت ندارند");
       return;
     }
 
+    setIsSaving(true);
     try {
-      const tokenRaw = localStorage.getItem("auth-storage");
-      const parsed = tokenRaw ? JSON.parse(tokenRaw) : null;
-      const accessToken = parsed?.state?.accessToken || localStorage.getItem("access_token");
-
-      const res = await fetch("/api/users/password", {
+      const response = await sessionManager.fetchWithAuth("/api/users/password", {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ current_password: formData.currentPassword, new_password: formData.newPassword }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          current_password: formData.currentPassword,
+          new_password: formData.newPassword,
+        }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "خطا در تغییر رمز عبور");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "خطا در تغییر رمز عبور");
 
-      onSuccess("رمز عبور با موفقیت تغییر یافت");
-      setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      setTimeout(() => onSuccess(""), 5000);
-    } catch (err) {
-      onError(err instanceof Error ? err.message : "خطا در تغییر رمز عبور. لطفا دوباره تلاش کنید.");
+      toast.success("رمز عبور با موفقیت تغییر یافت");
+      setFormData(EMPTY_FORM);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "خطا در تغییر رمز عبور. لطفا دوباره تلاش کنید.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const isDisabled = !formData.currentPassword || !formData.newPassword || !formData.confirmPassword;
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      setIsLoggingOut(false);
+      setIsLogoutOpen(false);
+    }
+  };
+
+  const canSubmit = Boolean(formData.currentPassword && formData.newPassword && formData.confirmPassword);
 
   return (
     <>
-      <Card className="border border-secondary-200 dark:border-voxcina-darkBlue/30 shadow-soft rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10 mb-6">
-        <CardHeader className="bg-gradient-to-r from-secondary-100 to-secondary-200/70 dark:from-voxcina-blue/15 dark:to-voxcina-blue/5 pb-4">
-          <CardTitle className="text-lg font-bold text-voxcina-blue dark:text-secondary-200 flex items-center">
-            <span className="relative">
-              <span className="absolute -right-2 -top-2 w-8 h-8 bg-secondary-200 dark:bg-voxcina-blue/20 rounded-full -z-10" />
-              <Lock className="w-5 h-5 ml-2" />
-            </span>
-            تغییر رمز عبور
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-5">
-              <Input
-                label="رمز عبور فعلی"
-                type={showPassword ? "text" : "password"}
-                name="currentPassword"
-                value={formData.currentPassword}
-                onChange={handleChange}
-                leftElement={<Lock className="h-4 w-4 text-voxcina-blue/60 dark:text-secondary-300" />}
-                rightElement={
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-voxcina-blue/60 hover:text-voxcina-blue dark:text-secondary-300 dark:hover:text-secondary-200">
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                }
-                className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
-              />
+      <DashboardCard hover={false} className="mb-6">
+        <DashboardCardHeader
+          icon={<Lock className="h-6 w-6" />}
+          title="تغییر رمز عبور"
+          description="برای حفظ امنیت حساب، رمز عبور خود را به‌صورت دوره‌ای تغییر دهید."
+        />
+        <CardContent className="p-5 md:p-7">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <PasswordInput
+              label="رمز عبور فعلی"
+              name="currentPassword"
+              value={formData.currentPassword}
+              onChange={handleChange}
+              autoComplete="current-password"
+            />
 
-              <div>
-                <Input
-                  label="رمز عبور جدید"
-                  type={showPassword ? "text" : "password"}
-                  name="newPassword"
-                  value={formData.newPassword}
-                  onChange={handleChange}
-                  leftElement={<Lock className="h-4 w-4 text-voxcina-blue/60 dark:text-secondary-300" />}
-                  className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
-                />
-                {formData.newPassword && (
-                  <div className="mt-2">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-voxcina-blue/70 dark:text-secondary-300">قدرت رمز عبور: </span>
-                      <span className={`text-xs font-medium ${passwordStrength.colorClass}`}>{passwordStrength.text}</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-secondary-200 dark:bg-voxcina-darkBlue/30 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full ${passwordStrength.color}`} style={{ width: `${passwordStrength.strength}%` }} />
-                    </div>
-                    <div className="mt-1 text-xs text-voxcina-blue/70 dark:text-secondary-300">رمز عبور باید حداقل ۸ کاراکتر شامل حروف بزرگ، کوچک، اعداد و علائم باشد</div>
+            <div>
+              <PasswordInput
+                label="رمز عبور جدید"
+                name="newPassword"
+                value={formData.newPassword}
+                onChange={handleChange}
+                autoComplete="new-password"
+              />
+              {formData.newPassword && (
+                <div className="mt-3">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="text-xs text-voxcina-blue/70 dark:text-voxcina-cream/70">قدرت رمز عبور:</span>
+                    <span className={`text-xs font-medium ${passwordStrength.colorClass}`}>{passwordStrength.text}</span>
                   </div>
-                )}
-              </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30">
+                    <div
+                      className={`h-full rounded-full ${passwordStrength.color}`}
+                      style={{ width: `${passwordStrength.strength}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                    رمز عبور باید حداقل ۸ کاراکتر شامل حروف بزرگ، کوچک، اعداد و علائم باشد
+                  </p>
+                </div>
+              )}
+            </div>
 
-              <Input
-                label="تکرار رمز عبور جدید"
-                type={showPassword ? "text" : "password"}
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                leftElement={<Lock className="h-4 w-4 text-voxcina-blue/60 dark:text-secondary-300" />}
-                className="rounded-xl border-secondary-200 focus:border-voxcina-blue focus:ring-voxcina-blue/20"
-              />
+            <PasswordInput
+              label="تکرار رمز عبور جدید"
+              name="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              autoComplete="new-password"
+            />
 
-              <div className="pt-4 flex justify-end">
-                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                  <Button type="submit" variant="primary" className="rounded-xl bg-voxcina-blue hover:bg-voxcina-darkBlue text-white shadow-soft hover:shadow-medium transition-all duration-300" disabled={isDisabled}>
-                    تغییر رمز عبور
-                  </Button>
-                </motion.div>
-              </div>
+            <div className="flex justify-end border-t border-voxcina-cream/60 pt-5 dark:border-voxcina-blue/30">
+              <Button type="submit" isLoading={isSaving} disabled={!canSubmit}>
+                تغییر رمز عبور
+              </Button>
             </div>
           </form>
         </CardContent>
-      </Card>
+      </DashboardCard>
 
-      <Card className="border border-secondary-200 dark:border-voxcina-darkBlue/30 shadow-soft rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-voxcina-blue/10">
-        <CardHeader className="bg-gradient-to-r from-secondary-100 to-secondary-200/70 dark:from-voxcina-blue/15 dark:to-voxcina-blue/5 pb-4">
-          <CardTitle className="text-lg font-bold text-voxcina-blue dark:text-secondary-200 flex items-center">
-            <span className="relative">
-              <span className="absolute -right-2 -top-2 w-8 h-8 bg-secondary-200 dark:bg-voxcina-blue/20 rounded-full -z-10" />
-              <ShieldCheck className="w-5 h-5 ml-2" />
-            </span>
-            امنیت حساب کاربری
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="border-t border-secondary-100 dark:border-voxcina-darkBlue/20 pt-5">
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <button
-                type="button"
-                className="w-full py-3 px-4 rounded-xl border border-red-200 dark:border-red-900/50 bg-white dark:bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm flex items-center justify-center group relative overflow-hidden"
-                onClick={() => {
-                  if (window.confirm("آیا مطمئن هستید که می‌خواهید از حساب کاربری خود خارج شوید؟")) logout?.();
-                }}
-              >
-                <span className="absolute inset-0 bg-red-100/50 dark:bg-red-800/10 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
-                <LogOut className="w-4 h-4 ml-2 text-red-500 dark:text-red-400 relative z-10" />
-                <span className="relative z-10 text-red-600 dark:text-red-400">خروج از حساب کاربری</span>
-              </button>
-            </motion.div>
-          </div>
+      <DashboardCard hover={false}>
+        <DashboardCardHeader
+          icon={<ShieldCheck className="h-6 w-6" />}
+          title="امنیت حساب کاربری"
+          description="اگر دستگاه خود را با دیگران به اشتراک می‌گذارید، از حساب کاربری خارج شوید."
+        />
+        <CardContent className="p-5 md:p-7">
+          <button
+            type="button"
+            onClick={() => setIsLogoutOpen(true)}
+            className="flex w-full items-center justify-center rounded-xl border border-red-200 px-4 py-3 text-sm text-red-600 transition-colors hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/20"
+          >
+            <LogOut className="ml-2 h-4 w-4" />
+            خروج از حساب کاربری
+          </button>
         </CardContent>
-      </Card>
+      </DashboardCard>
+
+      <ConfirmDialog
+        isOpen={isLogoutOpen}
+        title="خروج از حساب کاربری"
+        description="آیا مطمئن هستید که می‌خواهید از حساب کاربری خود خارج شوید؟"
+        confirmLabel="خروج از حساب"
+        isLoading={isLoggingOut}
+        onConfirm={handleLogout}
+        onClose={() => setIsLogoutOpen(false)}
+      />
     </>
   );
 }
