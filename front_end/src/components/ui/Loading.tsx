@@ -109,24 +109,39 @@ export function PageLoading({ text = "در حال بارگذاری..." }: { text
   );
 }
 
-// Card skeleton for product grids
+// Card skeleton for product grids. Mirrors ProductCard's proportions so the
+// real cards do not shift the layout when they replace the placeholders.
 export function CardSkeleton() {
   return (
-    <div className="bg-card rounded-xl overflow-hidden animate-pulse">
-      <div className="aspect-[3/4] bg-muted" />
-      <div className="p-4 space-y-3">
-        <div className="h-4 bg-muted rounded w-3/4" />
-        <div className="h-3 bg-muted rounded w-1/2" />
-        <div className="h-5 bg-muted rounded w-1/3" />
+    <div className="overflow-hidden rounded-2xl bg-card animate-pulse">
+      <div className="aspect-[4/5] bg-muted" />
+      <div className="space-y-3 p-3 sm:p-4">
+        <div className="h-4 w-3/4 rounded bg-muted" />
+        <div className="h-3 w-1/2 rounded bg-muted" />
+        <div className="h-5 w-1/3 rounded bg-muted" />
       </div>
     </div>
   );
 }
 
-// Grid skeleton for product lists
-export function ProductGridSkeleton({ count = 10 }: { count?: number }) {
+// Grid skeleton for product lists. Keep the column map in sync with
+// components/product/ProductGrid.tsx.
+export function ProductGridSkeleton({
+  count = 10,
+  columns = 5,
+}: {
+  count?: number;
+  columns?: 2 | 3 | 4 | 5;
+}) {
+  const gridCols = {
+    2: "grid-cols-2",
+    3: "grid-cols-2 lg:grid-cols-3",
+    4: "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+    5: "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5",
+  };
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+    <div className={`grid ${gridCols[columns]} gap-3 sm:gap-4 md:gap-6`}>
       {Array.from({ length: count }).map((_, i) => (
         <CardSkeleton key={i} />
       ))}

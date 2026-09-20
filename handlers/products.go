@@ -899,6 +899,25 @@ var productPublicProjection = bson.M{
 	"search_metadata":            0,
 }
 
+// parseProductIDs parses the comma-separated "ids" query parameter into
+// ObjectIDs. Blank segments are ignored, so a trailing comma is tolerated.
+// An empty input yields an empty list (which matches nothing downstream).
+func parseProductIDs(raw string) ([]primitive.ObjectID, error) {
+	ids := make([]primitive.ObjectID, 0)
+	for _, part := range strings.Split(raw, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		id, err := primitive.ObjectIDFromHex(part)
+		if err != nil {
+			return nil, fmt.Errorf("invalid product id %q", part)
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
 // ListProducts handles GET /api/products
 // Returns paginated color variants as separate items (not full products)
 func ListProducts(w http.ResponseWriter, r *http.Request) {
@@ -932,6 +951,19 @@ func ListProducts(w http.ResponseWriter, r *http.Request) {
 	// Filter by in_stock (only products with inventory > 0)
 	if r.URL.Query().Get("in_stock") == "true" {
 		filter["in_stock"] = true
+	}
+
+	// Restrict to an explicit id list (comma-separated). Used by the dashboard
+	// favorites page to fetch just the products it needs in one round trip.
+	// The key is set even for an empty list so it matches nothing instead of
+	// silently falling through to the whole catalog.
+	if idValues, ok := r.URL.Query()["ids"]; ok {
+		ids, err := parseProductIDs(idValues[0])
+		if err != nil {
+			utils.ErrorResponse(w, http.StatusBadRequest, "شناسه محصول نامعتبر است")
+			return
+		}
+		filter["_id"] = bson.M{"$in": ids}
 	}
 
 	// Filter by search term (basic text search on name and description)

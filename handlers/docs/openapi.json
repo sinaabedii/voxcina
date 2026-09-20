@@ -1702,6 +1702,14 @@
             }
           },
           {
+            "name": "ids",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comma-separated product ids. When present, only these products are returned; an empty value matches nothing."
+          },
+          {
             "name": "sort",
             "in": "query",
             "schema": {
