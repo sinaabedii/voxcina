@@ -26,6 +26,14 @@ var database = func() *mongo.Database { return db.Database }
 // Handler serves POST /api/snappay/feed — published to Searchwise as
 // /wp-json/v1/product/feed (see README.md for the routing).
 func Handler(w http.ResponseWriter, r *http.Request) {
+	// WordPress routes before it authenticates, and answers a method mismatch
+	// with rest_no_route — reproduced here so a browser check during
+	// onboarding sees a structured API response, not a bare 404.
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusNotFound, "rest_no_route", "No route was found matching the URL and request method.")
+		return
+	}
+
 	cfg := LoadConfig()
 
 	// Header lookup is case-insensitive in net/http, so the plugin's

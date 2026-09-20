@@ -1,8 +1,6 @@
 package snappayfeed
 
 import (
-	"net/http"
-
 	"github.com/gorilla/mux"
 )
 
@@ -17,5 +15,10 @@ import (
 // never be handed to this router at all. The WooCommerce-identical public URL
 // is produced by the edge instead (nginx, with the Next rewrite as fallback).
 func Register(api *mux.Router) {
-	api.HandleFunc(Path, Handler).Methods(http.MethodPost)
+	// Deliberately not .Methods(POST): gorilla would answer a GET with a bare
+	// "404 page not found" in text/plain. WordPress answers a method mismatch
+	// on a registered REST route with a JSON rest_no_route body, and someone
+	// checking the feed URL in a browser during onboarding should see that
+	// rather than what looks like a broken endpoint. Handler enforces POST.
+	api.HandleFunc(Path, Handler)
 }

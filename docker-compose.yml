@@ -53,6 +53,16 @@ services:
       - SNAPPAY_CALLBACK_URL=${SNAPPAY_CALLBACK_URL}
       - SNAPPAY_DEFAULT_CATEGORY=${SNAPPAY_DEFAULT_CATEGORY:-پوشاک}
       - SNAPPAY_COMMISSION_TYPE=${SNAPPAY_COMMISSION_TYPE:-100}
+      # SnappPay/Searchwise product feed (snappayfeed/). All optional: the
+      # feed runs on its defaults when they are unset. Listed here because
+      # this service enumerates its environment explicitly — a variable that
+      # is not named here can never reach the container.
+      - SNAPPAY_FEED_API_KEY=${SNAPPAY_FEED_API_KEY}
+      - SNAPPAY_FEED_VALIDATE_URL=${SNAPPAY_FEED_VALIDATE_URL}
+      - SNAPPAY_FEED_MERCHANT_DOMAIN=${SNAPPAY_FEED_MERCHANT_DOMAIN}
+      - SNAPPAY_FEED_GRANULARITY=${SNAPPAY_FEED_GRANULARITY}
+      - SNAPPAY_FEED_AVAILABILITY_STYLE=${SNAPPAY_FEED_AVAILABILITY_STYLE}
+      - SNAPPAY_FEED_SKIP_OUT_OF_STOCK=${SNAPPAY_FEED_SKIP_OUT_OF_STOCK}
       # Keep the shared proxy for non-payment backend traffic. Payment gateway
       # clients use an explicit direct transport in services/payment_http_client.go.
       - HTTP_PROXY=${HTTP_PROXY:-http://host.docker.internal:10809}

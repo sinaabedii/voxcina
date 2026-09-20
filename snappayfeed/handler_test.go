@@ -45,6 +45,32 @@ func TestHandlerRejectsMissingAPIKey(t *testing.T) {
 	}
 }
 
+// A GET on the feed URL — what a person checks first during onboarding — must
+// look like a REST API saying "wrong method", not like a dead URL.
+func TestHandlerRejectsNonPostWithWordPressShape(t *testing.T) {
+	withoutDatabase(t)
+
+	for _, method := range []string{http.MethodGet, http.MethodPut, http.MethodDelete} {
+		recorder := httptest.NewRecorder()
+		Handler(recorder, httptest.NewRequest(method, "/api/snappay/feed", nil))
+
+		if recorder.Code != http.StatusNotFound {
+			t.Fatalf("%s status = %d, want 404", method, recorder.Code)
+		}
+
+		var decoded wpError
+		if err := json.Unmarshal(recorder.Body.Bytes(), &decoded); err != nil {
+			t.Fatalf("%s body is not JSON: %v (%s)", method, err, recorder.Body)
+		}
+		if decoded.Code != "rest_no_route" {
+			t.Fatalf("%s error code = %q, want rest_no_route", method, decoded.Code)
+		}
+		if decoded.Data.Status != http.StatusNotFound {
+			t.Fatalf("%s error data.status = %d", method, decoded.Data.Status)
+		}
+	}
+}
+
 func TestHandlerAcceptsStaticKeyAndReportsCatalogOutage(t *testing.T) {
 	withoutDatabase(t)
 	t.Setenv("SNAPPAY_FEED_API_KEY", "local-test-key")
