@@ -157,3 +157,89 @@ export function ImageSkeleton({ className = "" }: { className?: string }) {
     </div>
   );
 }
+
+// Product detail skeleton.
+//
+// This is a *streaming* Suspense fallback: Next flushes it with the shell, the
+// browser paints it, and React then swaps the real markup in via $RC. Whatever
+// height difference exists between fallback and content is paid as a layout
+// shift. The generic PageLoading spinner reserved min-h-[60vh] and then
+// collapsed to nothing, which measured CLS 0.30 on this route (Lighthouse,
+// mobile) — poor, and almost all of the route's CLS.
+//
+// So the geometry below deliberately mirrors ProductActions: the 450px main
+// image, the 80px thumbnail rail, and an info column that adds up to roughly
+// the same height. Keep them in sync when that component's layout changes.
+export function ProductDetailSkeleton() {
+  return (
+    <div className="container py-8 md:py-16" aria-hidden="true">
+      <div className="mb-6 h-5 w-2/3 max-w-md rounded bg-muted animate-pulse" />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
+        {/* Gallery — matches the fixed 450px frame and the w-20 h-20 rail */}
+        <div>
+          <div className="mb-4 h-[450px] rounded-2xl bg-muted animate-pulse" />
+          <div className="flex space-x-2 space-x-reverse pb-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-20 w-20 min-w-[5rem] rounded-xl bg-muted animate-pulse" />
+            ))}
+          </div>
+        </div>
+
+        {/* Info column — title, price, the two selectors, cart row, badges */}
+        <div>
+          <div className="mb-3 h-8 w-4/5 rounded bg-muted animate-pulse" />
+          <div className="mb-6 h-5 w-1/3 rounded bg-muted animate-pulse" />
+          <div className="mb-6 h-8 w-1/2 rounded bg-muted animate-pulse" />
+
+          <div className="mb-6">
+            <div className="mb-2 h-4 w-16 rounded bg-muted animate-pulse" />
+            <div className="flex gap-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-10 w-10 rounded-full bg-muted animate-pulse" />
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <div className="mb-2 h-4 w-16 rounded bg-muted animate-pulse" />
+            <div className="flex gap-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-10 w-12 rounded-lg bg-muted animate-pulse" />
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-6 grid grid-cols-6 gap-2">
+            <div className="col-span-3 h-12 rounded-xl bg-muted animate-pulse" />
+            <div className="col-span-2 h-12 rounded-xl bg-muted animate-pulse" />
+            <div className="col-span-1 h-12 rounded-xl bg-muted animate-pulse" />
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Listing-page skeleton (products, categories, collections).
+//
+// Same reasoning as ProductDetailSkeleton: these are streamed Suspense
+// fallbacks, so a short spinner that collapses when the grid arrives is paid
+// as CLS. A grid of CardSkeletons is roughly the height of the real listing.
+export function ProductListSkeleton({ count = 10 }: { count?: number }) {
+  return (
+    <div className="container py-8" aria-hidden="true">
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="h-9 w-40 rounded-lg bg-muted animate-pulse" />
+        <div className="h-9 w-28 rounded-lg bg-muted animate-pulse" />
+      </div>
+      <ProductGridSkeleton count={count} />
+    </div>
+  );
+}

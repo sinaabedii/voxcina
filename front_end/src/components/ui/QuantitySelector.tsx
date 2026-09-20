@@ -72,6 +72,7 @@ const QuantitySelector: React.FC<QuantitySelectorProps> = ({
           (value <= min || disabled) && "opacity-40 cursor-not-allowed"
         )}
         onClick={handleDecrement}
+        aria-label="کاهش تعداد"
         disabled={value <= min || disabled}
         whileHover={{ scale: value > min && !disabled ? 1.1 : 1 }}
         whileTap={{ scale: value > min && !disabled ? 0.9 : 1 }}
@@ -96,6 +97,7 @@ const QuantitySelector: React.FC<QuantitySelectorProps> = ({
           (value >= max || disabled) && "opacity-40 cursor-not-allowed"
         )}
         onClick={handleIncrement}
+        aria-label="افزایش تعداد"
         disabled={value >= max || disabled}
         whileHover={{ scale: value < max && !disabled ? 1.1 : 1 }}
         whileTap={{ scale: value < max && !disabled ? 0.9 : 1 }}

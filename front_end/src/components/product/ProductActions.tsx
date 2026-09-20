@@ -599,18 +599,24 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
                 )}
               </div>
               <button
+                type="button"
+                aria-label="نمایش تصویر در اندازه بزرگ"
                 className="absolute bottom-4 right-4 bg-voxcina-blue/70 dark:bg-voxcina-cream/20 text-white dark:text-voxcina-cream rounded-full p-2 backdrop-blur-sm z-20 hover:bg-voxcina-blue dark:hover:bg-voxcina-cream/40 transition-colors"
                 onClick={(e) => { e.stopPropagation(); setShowLightbox(true); }}
               >
                 <Maximize2 className="h-5 w-5" />
               </button>
               <button
+                type="button"
+                aria-label="تصویر بعدی"
                 className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 dark:bg-voxcina-blue/50 rounded-full p-3 shadow-md hover:bg-white dark:hover:bg-voxcina-blue/70 transition-colors z-20 md:opacity-0 md:group-hover:opacity-100 duration-300"
                 onClick={(e) => { e.stopPropagation(); handleNextImage(); }}
               >
                 <ChevronLeft className="h-5 w-5 text-voxcina-blue dark:text-white" />
               </button>
               <button
+                type="button"
+                aria-label="تصویر قبلی"
                 className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 dark:bg-voxcina-blue/50 rounded-full p-3 shadow-md hover:bg-white dark:hover:bg-voxcina-blue/70 transition-colors z-20 md:opacity-0 md:group-hover:opacity-100 duration-300"
                 onClick={(e) => { e.stopPropagation(); handlePrevImage(); }}
               >
@@ -681,12 +687,12 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
                       <BackendImage src={activeBrand.logo} alt={activeBrand.name} className="object-cover w-full h-full" sizes="24px" />
                     </div>
                   )}
-                  <span className="text-sm font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 group-hover:text-voxcina-blue dark:group-hover:text-voxcina-cream transition-colors">
+                  <span className="text-sm font-medium text-voxcina-blue/80 dark:text-voxcina-cream/80 group-hover:text-voxcina-blue dark:group-hover:text-voxcina-cream transition-colors">
                     {activeBrand.name}
                   </span>
                 </Link>
               ) : product.brand ? (
-                <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                <p className="text-sm text-voxcina-blue/80 dark:text-voxcina-cream/80">
                   <span className="font-medium">{product.brand}</span>
                 </p>
               ) : null}
@@ -853,7 +859,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
                   "py-3 text-sm transition-colors",
                   activeTab === tab.key
                     ? "font-medium bg-voxcina-cream/30 dark:bg-voxcina-blue/30 text-voxcina-blue dark:text-voxcina-cream"
-                    : "text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:text-voxcina-blue dark:hover:text-voxcina-cream hover:bg-voxcina-cream/10 dark:hover:bg-voxcina-blue/20"
+                    : "text-voxcina-blue/80 dark:text-voxcina-cream/80 hover:text-voxcina-blue dark:hover:text-voxcina-cream hover:bg-voxcina-cream/10 dark:hover:bg-voxcina-blue/20"
                 )}
               >
                 {tab.label}
@@ -956,7 +962,7 @@ export default function ProductActions({ product, productUrl, reviews, categoryN
                 {!isTryOnLoading && !resultImage && (
                   <div className="flex flex-col items-center justify-center p-6 h-full min-h-[200px] border border-dashed border-voxcina-cream/50 dark:border-voxcina-blue/30 rounded-lg">
                     <Shirt className="h-10 w-10 text-voxcina-blue/30 dark:text-voxcina-cream/30 mb-2" />
-                    <p className="text-sm text-voxcina-blue/50 dark:text-voxcina-cream/50 text-center">با کلیک روی دکمه پرو مجازی، تصویر خود را آپلود کنید<br />و ببینید این لباس روی شما چطور به نظر می‌رسد</p>
+                    <p className="text-sm text-voxcina-blue/75 dark:text-voxcina-cream/75 text-center">با کلیک روی دکمه پرو مجازی، تصویر خود را آپلود کنید<br />و ببینید این لباس روی شما چطور به نظر می‌رسد</p>
                   </div>
                 )}
               </div>

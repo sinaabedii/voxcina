@@ -64,7 +64,7 @@ const PriceDisplay: React.FC<PriceDisplayProps> = ({
       {hasDiscount && showDiscount && (
         <span
           className={cn(
-            "bg-destructive/10 text-destructive rounded-lg font-medium",
+            "bg-destructive/10 text-red-700 dark:text-red-300 rounded-lg font-medium",
             classes.badge
           )}
         >

@@ -41,7 +41,7 @@ const SizeSelector: React.FC<SizeSelectorProps> = ({
     <div className={cn("mb-6", className)}>
       {showLabel && (
         <div className="flex justify-between items-center mb-2">
-          <h3 className="text-sm font-medium text-foreground">{label}</h3>
+          <h2 className="text-sm font-medium text-foreground">{label}</h2>
           <div className="flex items-center gap-4">
             {showSizeGuide && onSizeGuideClick && (
               <button

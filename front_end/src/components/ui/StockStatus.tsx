@@ -24,7 +24,7 @@ const StockStatus: React.FC<StockStatusProps> = ({
 }) => {
   if (inStock) {
     return (
-      <div className={cn("flex items-center text-green-600 dark:text-green-400", className)}>
+      <div className={cn("flex items-center text-green-700 dark:text-green-400", className)}>
         <CheckCircle className="h-5 w-5 ml-2" />
         <span className="font-medium">موجود در انبار</span>
         {deliveryTime && (

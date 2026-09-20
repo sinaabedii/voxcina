@@ -14,7 +14,7 @@ import {
 import { Brand } from "@/types/brand";
 import { Category } from "@/types/category";
 import ProductsPageContent from "@/app/(shop)/products/_components/ProductsPageContent";
-import { Loading } from "@/components/ui";
+import { ProductListSkeleton } from "@/components/ui";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
 
 /**
@@ -255,11 +255,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       </div>
 
       <Suspense
-        fallback={
-          <div className="container py-16 flex items-center justify-center min-h-[60vh]">
-            <Loading size="lg" text="در حال بارگذاری محصولات..." />
-          </div>
-        }
+        fallback={<ProductListSkeleton />}
       >
         <ProductsPageContent
           initialProducts={products}

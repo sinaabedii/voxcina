@@ -18,7 +18,7 @@ import BreadcrumbSchema, { BreadcrumbItem } from "@/components/SEO/BreadcrumbSch
 import ItemListSchema, { ItemListItem } from "@/components/SEO/ItemListSchema";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import CategoryPageClient from "@/app/(shop)/categories/[categorySlug]/CategoryPageClient";
-import { Loading } from "@/components/ui";
+import { ProductListSkeleton } from "@/components/ui";
 
 interface CategoryPageProps {
   params: Promise<{ categorySlug: string }>;
@@ -311,11 +311,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
       {/* Category Page Content - Client Component for interactivity */}
       <Suspense
-        fallback={
-          <div className="container py-16 flex items-center justify-center min-h-[60vh]">
-            <Loading size="lg" text="در حال بارگذاری محصولات..." />
-          </div>
-        }
+        fallback={<ProductListSkeleton />}
       >
         <CategoryPageClient
           category={category}

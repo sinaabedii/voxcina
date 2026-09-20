@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { APP_NAME } from "@/lib/constants";
 import BreadcrumbSchema, { BreadcrumbItem } from "@/components/SEO/BreadcrumbSchema";
 import ItemListSchema, { ItemListItem } from "@/components/SEO/ItemListSchema";
-import { Loading } from "@/components/ui";
+import { ProductListSkeleton } from "@/components/ui";
 import CollectionPageClient from "@/components/collection/CollectionPageClient";
 import { fetchShopCollections } from "@/lib/shop-collections";
 
@@ -80,11 +80,7 @@ export default async function CollectionsPage() {
       )}
 
       <Suspense
-        fallback={
-          <div className="container py-16 flex items-center justify-center min-h-[60vh]">
-            <Loading size="lg" text="در حال بارگذاری کالکشن‌ها..." />
-          </div>
-        }
+        fallback={<ProductListSkeleton />}
       >
         <CollectionPageClient
           title={PAGE_TITLE}

@@ -1,5 +1,7 @@
-import { PageLoading } from "@/components/ui";
+import { ProductListSkeleton } from "@/components/ui";
 
-export default function ProductsLoading() {
-  return <PageLoading text="در حال بارگذاری محصولات..." />;
+// A collapsing spinner used to live here; see ProductListSkeleton for why the
+// fallback has to approximate the real grid's height.
+export default function ListLoading() {
+  return <ProductListSkeleton />;
 }

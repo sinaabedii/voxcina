@@ -62,7 +62,7 @@ const ColorSelector: React.FC<ColorSelectorProps> = ({
     <div className={cn("mb-6", className)}>
       {showLabel && (
         <div className="flex justify-between items-center mb-2">
-          <h3 className="text-sm font-medium text-foreground">{label}</h3>
+          <h2 className="text-sm font-medium text-foreground">{label}</h2>
           <span className="text-xs text-muted-foreground">
             {selectedColorObj?.colorName || "لطفاً رنگ را انتخاب کنید"}
           </span>

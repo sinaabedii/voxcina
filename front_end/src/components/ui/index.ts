@@ -18,7 +18,7 @@ export { default as SectionFallback } from "./SectionFallback";
 export { default as CarouselShell } from "./CarouselShell";
 export { default as PriceDisplay } from "./PriceDisplay";
 export { default as StockStatus } from "./StockStatus";
-export { default as Loading, ButtonLoading, PageLoading, CardSkeleton, ProductGridSkeleton } from "./Loading";
+export { default as Loading, ButtonLoading, PageLoading, CardSkeleton, ProductGridSkeleton, ProductDetailSkeleton, ProductListSkeleton } from "./Loading";
 export { default as BeforeAfterSlider } from "./BeforeAfterSlider";
 export { default as CountdownTimer } from "./CountdownTimer";
 export { default as TexturedBackground } from "./TexturedBackground";
