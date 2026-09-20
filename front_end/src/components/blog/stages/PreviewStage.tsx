@@ -5,7 +5,7 @@ import Button from "@/components/ui/Button";
 import Image from "next/image";
 import { BlogPipelineRun, BlogPost, BlogBlock, BlogMedia, BlockType } from "@/types/blog";
 import { useBlogAdminStore } from "@/store/blog-admin-store";
-import { toast } from "react-hot-toast";
+import { toast } from "react-toastify";
 import BlogProductCard from "../BlogProductCard";
 
 const BLOCK_TYPE_LABELS: Record<string, string> = {

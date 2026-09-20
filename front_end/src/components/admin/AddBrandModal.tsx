@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Button from "@/components/ui/Button";
 import { useBrandStore } from "@/store/brand-store";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 import {
   AdminModal,
   AdminModalActions,

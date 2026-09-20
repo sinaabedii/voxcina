@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { useBlogAdminStore } from "@/store/blog-admin-store";
 import { BlogPipelineRun, BlogBlock, BlogResearchSource } from "@/types/blog";
-import { toast } from "react-hot-toast";
+import { toast } from "react-toastify";
 import BriefStage from "@/components/blog/stages/BriefStage";
 import ResearchStage from "@/components/blog/stages/ResearchStage";
 import ContentStage from "@/components/blog/stages/ContentStage";

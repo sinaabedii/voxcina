@@ -32,7 +32,7 @@ import { Address } from "@/types/user";
 import { ShippingMethod, getCartWeightGrams } from "@/services/shipping/types";
 import { formatPrice, generateId } from "@/lib/utils";
 import { activityTracker } from "@/lib/activity-tracker";
-import { toast } from "react-hot-toast";
+import { toast } from "react-toastify";
 
 export default function CheckoutPage() {
   const router = useRouter();

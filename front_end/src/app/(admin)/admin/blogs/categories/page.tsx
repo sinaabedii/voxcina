@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { BlogCategory } from "@/types/blog";
-import { toast } from "react-hot-toast";
+import { toast } from "react-toastify";
 
 export default function BlogCategoriesPage() {
   const [categories, setCategories] = useState<BlogCategory[]>([]);

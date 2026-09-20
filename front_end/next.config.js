@@ -186,6 +186,108 @@ const nextConfig = {
           },
         ],
       },
+      {
+        // Everything below here renders no per-user state on the server and
+        // sets no cookie, so one visitor's HTML is every visitor's HTML for
+        // the same URL — these pages are safe for a shared cache to hold.
+        // Next still sends `Cache-Control: private, no-cache, no-store` for
+        // any dynamically rendered route, which forbids that, so each origin
+        // round trip is paid again by every visitor. For a reader on a
+        // congested international path that round trip is the page load.
+        //
+        // The header is overridden rather than the route being switched to
+        // ISR *on purpose*. `export const revalidate` was tried first and is
+        // inert here: these routes have no `generateStaticParams`, so Next 16
+        // keeps rendering them on demand and the `no-store` stands (verified
+        // against `next start`, three consecutive requests). Forcing them
+        // static instead would opt their `useSearchParams()` children out of
+        // SSR — the trade that cost us the LCP image on the product page, see
+        // the note in (shop)/products/[productId]/page.tsx. Overriding only
+        // the response header leaves rendering byte-for-byte as it is.
+        //
+        // These pages put their filter/variant state in the query string, so
+        // the CDN must key on it. ArvanCloud's cache level is "With
+        // QueryString" and the `/*` page rule has "Apply QueryString" on.
+        // Do not turn either off.
+        source: '/products',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'max-age=0, s-maxage=60, stale-while-revalidate=300',
+          },
+        ],
+      },
+      {
+        // Product detail carries price and stock, so it gets the shortest
+        // window: s-maxage matches CACHE_TIMES.PRODUCT_DETAIL, which already
+        // bounds how stale the data behind it can be, and the stale window is
+        // kept tight rather than Next's default of a year.
+        //
+        // `?variant`/`?color` deep links do change this HTML — ProductActions
+        // reads them through useSearchParams and they are server-rendered
+        // while the route is dynamic — which is the second reason the query
+        // string has to stay in the cache key. A mismatch would be cosmetic
+        // and self-healing (hydration re-reads the real URL), but the bare
+        // canonical URL is the one that matters and it caches cleanly.
+        source: '/products/:productId',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'max-age=0, s-maxage=60, stale-while-revalidate=120',
+          },
+        ],
+      },
+      {
+        // `trending` is its own statically prerendered route and already
+        // carries the header Next generated for it; excluded so this rule
+        // does not shadow it.
+        source: '/categories/:categorySlug((?!trending$).*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'max-age=0, s-maxage=60, stale-while-revalidate=300',
+          },
+        ],
+      },
+      {
+        source: '/blog',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'max-age=0, s-maxage=300, stale-while-revalidate=3600',
+          },
+        ],
+      },
+      {
+        // A published post is immutable in practice; it gets the longest
+        // window of the set. Admin edits do not wait it out — /api/revalidate
+        // drops the blog tags on demand.
+        source: '/blog/:slug',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'max-age=0, s-maxage=3600, stale-while-revalidate=86400',
+          },
+        ],
+      },
+      {
+        source: '/brands/:brandSlug',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'max-age=0, s-maxage=600, stale-while-revalidate=3600',
+          },
+        ],
+      },
+      {
+        source: '/collection/:collectionValue',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'max-age=0, s-maxage=300, stale-while-revalidate=1800',
+          },
+        ],
+      },
     ];
   }
 };

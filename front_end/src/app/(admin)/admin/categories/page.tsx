@@ -14,7 +14,7 @@ import Button from "@/components/ui/Button";
 import { useCategoryStore } from "@/store/category-store";
 import { useAuthStore } from "@/store/auth-store";
 import { Category } from "@/types/category";
-import { toast } from "react-hot-toast";
+import { toast } from "react-toastify";
 import CategoryModal from "@/components/admin/CategoryModal";
 import {
   AdminPageHeader,

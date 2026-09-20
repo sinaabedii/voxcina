@@ -12,7 +12,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 import AddBrandModal from "@/components/admin/AddBrandModal";
 import { useBrandStore } from "@/store/brand-store";
 import {

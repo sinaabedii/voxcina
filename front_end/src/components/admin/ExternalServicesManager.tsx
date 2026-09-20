@@ -16,7 +16,7 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 
 import Button from "@/components/ui/Button";
 import {
@@ -463,7 +463,7 @@ function EditServiceDialog({
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || "خطا در ذخیره تغییرات");
       if (data?.webhook_secret) {
-        toast.success("تنظیمات ذخیره شد؛ رمز امضای وب‌هوک جدید در گفتگوی بعدی نمایش داده می‌شود", { duration: 5000 });
+        toast.success("تنظیمات ذخیره شد؛ رمز امضای وب‌هوک جدید در گفتگوی بعدی نمایش داده می‌شود", { autoClose: 5000 });
       } else {
         toast.success("تنظیمات ذخیره شد");
       }

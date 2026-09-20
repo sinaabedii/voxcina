@@ -21,7 +21,7 @@ import {
   AdminTextarea,
   AdminTh,
 } from "@/components/admin/ui";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 import CategoryModal from "@/components/admin/CategoryModal";
 import AddBrandModal from "@/components/admin/AddBrandModal";
 import ImageUploader, { ImageItem, getNewImageFiles, getImageSources } from "@/components/admin/ImageUploader";

@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { useBlogAdminStore } from "@/store/blog-admin-store";
 import { GenerationBrief, BlogCategory } from "@/types/blog";
-import { toast } from "react-hot-toast";
+import { toast } from "react-toastify";
 
 export default function NewBlogPage() {
   const router = useRouter();

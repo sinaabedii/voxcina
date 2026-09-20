@@ -22,7 +22,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { Product, ColorVariant } from "@/types/product";
 import { Category } from "@/types/category";
 import Link from "next/link";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 import { describeCartReconciliation } from "@/lib/cart-reconciliation";
 import {
   AdminPageHeader,
@@ -157,7 +157,7 @@ export default function AdminProductsPage() {
       setDeleteTarget(null);
       toast.success("محصول برای همیشه حذف شد.");
       if (result.cartReconciliation) {
-        toast(describeCartReconciliation(result.cartReconciliation), { icon: "🛒", duration: 6000 });
+        toast(describeCartReconciliation(result.cartReconciliation), { icon: () => "🛒", autoClose: 6000 });
       }
       fetchAdminProducts();
     } else {

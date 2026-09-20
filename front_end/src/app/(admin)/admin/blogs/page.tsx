@@ -6,7 +6,7 @@ import Button from "@/components/ui/Button";
 import { Plus, FileText, Trash2, Eye } from "lucide-react";
 import { useBlogAdminStore } from "@/store/blog-admin-store";
 import { BlogPipelineRun } from "@/types/blog";
-import { toast } from "react-hot-toast";
+import { toast } from "react-toastify";
 import {
   AdminPageHeader,
   AdminTable,

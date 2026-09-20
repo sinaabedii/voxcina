@@ -3,7 +3,7 @@ import { CreditCard, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { usePayment } from "@/hooks/usePayment";
-import { toast } from "react-hot-toast";
+import { toast } from "react-toastify";
 
 interface ZibalPaymentProps {
   orderId: string;

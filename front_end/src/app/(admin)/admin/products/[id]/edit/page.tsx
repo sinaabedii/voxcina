@@ -23,7 +23,7 @@ import {
   AdminTextarea,
   AdminTh,
 } from "@/components/admin/ui";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 import ImageUploader, { ImageItem, getNewImageFiles, getExistingImagePaths, getImageOrderInfo, createImageItemFromUrl, getImageSources } from "@/components/admin/ImageUploader";
 import PatternPicker from "@/components/ui/PatternPicker";
 import VariantAIMetadataEditor, {
@@ -653,7 +653,7 @@ export default function EditProductPage() {
       toast.success("محصول با موفقیت ویرایش شد");
       const cartChanges = result.cartReconciliation;
       if (cartChanges) {
-        toast(describeCartReconciliation(cartChanges), { icon: "🛒", duration: 6000 });
+        toast(describeCartReconciliation(cartChanges), { icon: () => "🛒", autoClose: 6000 });
       }
       router.push("/admin/products");
     } else {

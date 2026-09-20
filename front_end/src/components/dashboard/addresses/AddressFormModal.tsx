@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ChangeEvent, FormEvent, ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { toast } from "react-toastify";
@@ -156,34 +156,33 @@ export default function AddressFormModal({
   const [step, setStep] = useState<1 | 2>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const wasOpenRef = useRef(false);
-  const wasEditingRef = useRef(false);
+  const [wasOpen, setWasOpen] = useState(false);
+  const [lastMode, setLastMode] = useState<"add" | "edit" | null>(null);
 
   // Opening the modal either populates the edit target, resets after an edit,
-  // or keeps the unsaved draft of a previous add session.
-  useEffect(() => {
-    if (!isOpen || wasOpenRef.current) {
-      wasOpenRef.current = isOpen;
-      return;
+  // or keeps the unsaved draft of a previous add session. This is adjusted
+  // during render (React's "adjust state when props change" pattern) rather
+  // than in an effect: an effect runs after the first commit, which would let
+  // an edit render the map step for a frame — fetching the map chunk and
+  // flashing a map the user never asked for.
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
+    if (isOpen) {
+      if (editingAddress) {
+        setValues(valuesFromAddress(editingAddress));
+        setUnit(EMPTY_UNIT);
+        setStep(2);
+        setLastMode("edit");
+      } else {
+        if (lastMode === "edit" || !hasDraft(values, unit, step)) {
+          setValues(createEmptyValues(!hasAddresses));
+          setUnit(EMPTY_UNIT);
+          setStep(1);
+        }
+        setLastMode("add");
+      }
     }
-    wasOpenRef.current = true;
-
-    const wasEditing = wasEditingRef.current;
-    wasEditingRef.current = editingAddress !== null;
-
-    if (editingAddress) {
-      setValues(valuesFromAddress(editingAddress));
-      setUnit(EMPTY_UNIT);
-      setStep(2);
-      return;
-    }
-
-    if (wasEditing || !hasDraft(values, unit, step)) {
-      setValues(createEmptyValues(!hasAddresses));
-      setUnit(EMPTY_UNIT);
-      setStep(1);
-    }
-  }, [isOpen, editingAddress, hasAddresses, values, unit, step]);
+  }
 
   useEffect(() => {
     if (!values.province || provinces.length === 0) return;

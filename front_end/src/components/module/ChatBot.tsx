@@ -11,9 +11,9 @@ import {
   ChevronUp,
   Bot,
   Trash2,
+  HelpCircle,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
-import { LuCircleHelp } from "react-icons/lu";
 
 interface Message {
   id: number;
@@ -1149,7 +1149,7 @@ export default function ChatBot({ initialOpen = false }: ChatBotProps) {
                           className="mt-4 bg-[#1A3C69]/5 dark:bg-[#1A3C69]/10 p-2.5 md:p-3 rounded-lg border border-[#1A3C69]/10 dark:border-[#1A3C69]/20"
                         >
                           <div className="flex items-center mb-1.5 md:mb-2">
-                            <LuCircleHelp className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#1A3C69] ml-1 md:ml-2" />
+                            <HelpCircle className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#1A3C69] ml-1 md:ml-2" />
                             <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300">
                               ممکن است این سوالات نیز برای شما مفید باشد:
                             </p>

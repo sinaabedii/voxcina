@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, ChevronUp, Lock, Send, Sparkles, Tag, User } from "lucide-react";
-import { toast } from "react-hot-toast";
+import { toast } from "react-toastify";
 
 import CouponCard from "@/components/cart/CouponCard";
 import { streamCheckoutNegotiation } from "@/lib/checkout-chat-api";

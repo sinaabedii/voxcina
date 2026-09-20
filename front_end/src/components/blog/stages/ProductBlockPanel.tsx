@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { toast } from "react-hot-toast";
+import { toast } from "react-toastify";
 import Button from "@/components/ui/Button";
 import { BlogBlock } from "@/types/blog";
 import { useBlogAdminStore, MatchedProductCandidate } from "@/store/blog-admin-store";
