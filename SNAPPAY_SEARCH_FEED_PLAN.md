@@ -719,10 +719,10 @@ any time without affecting them.
    was recreated from it; `sha256sum /app/main` matches the image and
    `grep -ac snappay/feed /app/main` inside the image returns `1`, so a plain
    `docker compose up -d server` now keeps the feed.
-2. **Category arrays carry a redundant ancestor.** A product in both "زنانه" and
-   its child emits `["زنانه", "زنانه > کت و بارانی زنانه"]`. Source #3 only
-   requires that a precise path be present, and it is — but dropping any path that
-   is a prefix of another would be tidier. Cosmetic; not a blocker.
+2. ~~**Category arrays carry a redundant ancestor.**~~ **Resolved 2026-09-20:**
+   `categoryPathsOf` now drops any path that is a prefix of another on the
+   `" > "` boundary. Live re-audit: 315 → 136 category entries (243 → 0
+   redundant pairs) across the 128 rows, with siblings and deepest paths intact.
 3. **Brand is missing from product titles.** The feed appends the colour, but the
    stored names (e.g. «بامبر کتان زنانه - F3330») carry no brand, and source #2
    asks for type + brand + features. A content task, not a code one.
