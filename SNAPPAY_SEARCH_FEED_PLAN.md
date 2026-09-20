@@ -70,7 +70,7 @@ matches nothing.
 | 3 | Academy: common datafeed mistakes | https://academy.snapppay.ir/2026/06/29/datafeed-common-errors/ |
 | 4 | Academy: how the SnappPay search ranking algorithm works | https://academy.snapppay.ir/2026/06/03/snapppay-search-algorithm/ |
 | 5 | Official plugin zip — contract extracted from its PHP source | https://academy.snapppay.ir/wp-content/uploads/2026/03/searchwise-woocommerce-plugin-1.0.2_2.zip |
-| 6 | Request form: "درخواست نمایش روی سرچ اسنپ‌پی" | https://survey.porsline.ir/s/kcT4ksYZ |
+| 6 | Request form: "درخواست نمایش روی سرچ اسنپ‌پی" — **the URL SnappPay sent us on 2026-09-20**; the older `kcT4ksYZ` form is superseded | https://snapppay.porsline.ir/s/SpSFRxIG (302 → https://survey.porsline.ir/s/SpSFRxIG) |
 | 7 | Request form: CMS/technology change (non-WooCommerce notification) | https://survey.porsline.ir/s/sOILszFr |
 | 8 | Merchant activation terms for the app + search | https://academy.snapppay.ir/2026/04/22/ |
 | 9 | Support | merchant-support@snapppay.ir · 021-96862222 · support.snapppay.ir |
@@ -551,8 +551,13 @@ product-level rows, it is an env-var flip and a restart, not a rewrite.
 - [ ] Whitelist the four SnappPay IPs (`185.206.93.115`, `185.206.94.25`,
       `37.152.176.176`, `188.121.106.231`) in **ArvanCloud WAF/bot rules** (origin
       `ufw` already allows 80/443 broadly).
-- [ ] Confirm the catalog clears their 60-product minimum — count **variant rows**,
-      which is the larger number.
+- [x] ~~Confirm the catalog clears their 60-product minimum~~ — **no such rule
+      exists.** Re-reading the activation terms (source #8) on 2026-09-20, the
+      thresholds are commercial, not catalog-size: grade A/B, and **either 40 orders
+      per month or 100M Toman monthly turnover**. An earlier revision of this plan
+      asserted a 60-product minimum; it was unsourced and is withdrawn. Catalog size
+      is therefore not a gate — though it is worth knowing the feed offers **128
+      rows** (variant granularity) versus 23 product-level rows.
 - [ ] Content task (not code): apply the academy naming rules to weak product names
       (e.g. `بامبر کتان - F3330` lacks type/gender keywords). The feed appends the
       color automatically, but the base name still has to carry type + brand.
@@ -637,3 +642,92 @@ No new Mongo configuration, collections, or indexes.
 - Admin product forms, product APIs, or storefront rendering.
 - Search Ads (سرچ ادز) campaigns and ad panels.
 - Crawler-specific work beyond the already-satisfied sitemap/SSR/WAF items.
+
+---
+
+## 13. Live verification — 2026-09-20
+
+Run against production through the full public chain
+(ArvanCloud → nginx → Go), with a self-generated `SNAPPAY_FEED_API_KEY`.
+This is the section §12's "Known gaps" asked for: the success path had never
+been exercised on real documents before today.
+
+### Transport and auth
+
+| Check | Result |
+|---|---|
+| `POST /wp-json/v1/product/feed` + valid key | **200**, 0.21 s for the whole catalog (193 KB) |
+| `POST` without a key | 401, WordPress-shaped `rest_forbidden` body |
+| `POST` with a wrong key | 401 in 0.45 s — the extra latency over an authenticated call is the **live Searchwise round-trip**, so the path their real key will use is proven |
+| `GET` / `PUT` / `DELETE` | 404 JSON `rest_no_route` (WordPress's own shape) |
+| `POST` to `www.` | 308 → apex, method preserved |
+| Response headers | `cache-control: no-store` survives the CDN; `content-type: application/json; charset=utf-8` |
+| VPS → `merchants.searchwise.ir` | reachable, 165 ms; returns `{"success":false,...}` for an unknown key — exactly the shape `validateUpstream` decodes |
+| `merchant_domain` we send | `voxcina.com` — matches the plugin's `wp_parse_url(get_site_url())['host']` (bare host, no scheme, no `www`) |
+
+### Catalog, all 128 rows audited
+
+| Check | Result |
+|---|---|
+| Rows vs. Mongo | `count` = **128**, and 128 rows returned — the `$unwind` pagination decodes correctly into `models.Product` |
+| Unique `id` / `link` / `slug` | 128 / 128 / 128 — source #3's first rule holds |
+| Availability | 127 `instock`, 1 `outofstock` — matches the database exactly |
+| Missing image / category / brand | 0 / 0 / 0 |
+| Price anomalies (`sale > regular`, zero) | 0 / 0 |
+| Images not absolute `https://voxcina.com/` | 0 (a sampled URL serves 200 `image/webp`) |
+| Links without `?variant=` | 0 |
+| Titles missing their own colour | 0 |
+| Pagination | page 1 vs page 2 overlap = 0; last page (13 of `limit=10`) returns 8 rows |
+| Targeted `products=<id>` | 5 rows (every colour), `count`/`max_pages` correctly absent |
+| Targeted `slugs=<variantKey>` | 1 row, slug echoed back |
+| Unknown / malformed ids | 200 with 0 rows — skipped, not an error, as the plugin does |
+| `include_content=true` | content present, markup stripped |
+| Errors or panics in logs | none |
+
+### The variant guarantee, on live data
+
+«شلوار جین راسته - M41Z0» has six colours. سرمه‌ای is sold out and reports
+`outofstock` with no sizes; the other five report `instock` with sizes 32–38,
+each on its own `?variant=` URL. Under product-level granularity that sold-out
+colour would have been advertised as available — this is the concrete case the
+variant decision exists for.
+
+### Configuration in production
+
+All six variables are set explicitly rather than left to defaults, so the live
+behaviour is auditable from `.env`:
+
+```
+SNAPPAY_FEED_API_KEY=<64 hex chars, generated by us — NOT from SnappPay>
+SNAPPAY_FEED_VALIDATE_URL=https://merchants.searchwise.ir/api/v1/feed/validate-token
+SNAPPAY_FEED_MERCHANT_DOMAIN=voxcina.com
+SNAPPAY_FEED_GRANULARITY=variant
+SNAPPAY_FEED_AVAILABILITY_STYLE=plugin
+SNAPPAY_FEED_SKIP_OUT_OF_STOCK=false
+```
+
+`SNAPPAY_FEED_API_KEY` is **ours**, not SnappPay's: it is an additional accepted
+credential so we can verify and monitor the feed independently. Searchwise's own
+key does not go here — it arrives in their `x-api-key` header and is validated
+against `SNAPPAY_FEED_VALIDATE_URL`, which already works. Rotate or blank it at
+any time without affecting them.
+
+During this verification the six variables were set as shown; the persistent
+`.env` currently carries all six **empty** (built-in defaults apply) until a key
+is provisioned, and the self-generated key can be re-added at any time. The
+Searchwise path does not depend on it.
+
+### Residual risks
+
+1. ~~**The Docker image does not contain the feed.**~~ **Resolved 2026-09-20:**
+   `docker compose build server` rebuilt `voxcina-server:latest` and `api-server`
+   was recreated from it; `sha256sum /app/main` matches the image and
+   `grep -ac snappay/feed /app/main` inside the image returns `1`, so a plain
+   `docker compose up -d server` now keeps the feed.
+2. **Category arrays carry a redundant ancestor.** A product in both "زنانه" and
+   its child emits `["زنانه", "زنانه > کت و بارانی زنانه"]`. Source #3 only
+   requires that a precise path be present, and it is — but dropping any path that
+   is a prefix of another would be tidier. Cosmetic; not a blocker.
+3. **Brand is missing from product titles.** The feed appends the colour, but the
+   stored names (e.g. «بامبر کتان زنانه - F3330») carry no brand, and source #2
+   asks for type + brand + features. A content task, not a code one.
