@@ -1,6 +1,7 @@
 // UI Components Index
 export { default as Button } from "./Button";
 export { default as Input } from "./input";
+export { default as Select } from "./Select";
 export { default as PasswordInput } from "./PasswordInput";
 export { default as ConfirmDialog } from "./ConfirmDialog";
 export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "./Card";
