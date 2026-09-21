@@ -1,13 +1,20 @@
 "use client";
 
 import { useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import ProductAttributes from "@/components/product/ProductAttributes";
+import SizeGuideTable from "@/components/product/SizeGuideTable";
 import { cn } from "@/lib/utils";
 import { Product } from "@/types/product";
 
-// Only reachable behind the third tab, so it stays out of the first chunk.
-const SizeGuideTable = dynamic(() => import("@/components/product/SizeGuideTable"));
+// `SizeGuideTable` is imported directly, not through `next/dynamic`. Its whole
+// dependency set — react, framer-motion, `cn` — is a subset of what
+// `ProductAttributes` above already pulls into this chunk, so splitting it out
+// deferred about 2 KB of JSX and in exchange made opening the tab cost a 306 ms
+// chunk fetch. Worse, a `dynamic()` with no `loading` option is wrapped in a
+// Fragment rather than a Suspense boundary (`next/dist/shared/lib/lazy-dynamic/
+// loadable.js`), so its suspension escaped to the route's `loading.tsx` and
+// replaced the entire page with `ProductDetailSkeleton` until the chunk landed.
+// Anything genuinely worth deferring from here must pass a `loading` fallback.
 
 const TABS = [
   { key: "description", label: "توضیحات محصول" },
@@ -107,7 +114,7 @@ export default function ProductInfoTabs({ product, className }: ProductInfoTabsP
           id={`product-panel-${activeTab}`}
           aria-labelledby={`product-tab-${activeTab}`}
           tabIndex={0}
-          className="max-w-prose text-sm leading-relaxed text-foreground/80"
+          className="min-h-[15rem] max-w-prose text-sm leading-relaxed text-foreground/80"
         >
           {activeTab === "description" &&
             (product.description?.trim() ? (

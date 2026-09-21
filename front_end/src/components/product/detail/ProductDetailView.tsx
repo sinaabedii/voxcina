@@ -27,8 +27,17 @@ import { useVariantSelection } from "./useVariantSelection";
 
 // Both sit below the fold, so their code stays out of the chunk the browser
 // has to parse before it can paint the gallery — this route's LCP element.
-const ProductReviews = dynamic(() => import("@/components/product/ProductReviews"));
-const SocialShare = dynamic(() => import("@/components/product/SocialShare"));
+//
+// Each needs its own `loading`: that is what makes Next wrap the lazy component
+// in a Suspense boundary (`lazy-dynamic/loadable.js` uses a bare Fragment
+// otherwise), and without it their suspension escapes all the way to the
+// route's `loading.tsx` and flashes the whole page as a skeleton.
+const ProductReviews = dynamic(() => import("@/components/product/ProductReviews"), {
+  loading: () => <div className="min-h-[24rem]" aria-hidden="true" />,
+});
+const SocialShare = dynamic(() => import("@/components/product/SocialShare"), {
+  loading: () => <div className="h-40 animate-pulse rounded-xl bg-muted" aria-hidden="true" />,
+});
 
 interface ProductDetailViewProps {
   product: Product;

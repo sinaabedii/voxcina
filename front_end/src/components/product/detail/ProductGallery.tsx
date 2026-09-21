@@ -1,21 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Loading from "@/components/ui/Loading";
+import ProductLightbox from "./ProductLightbox";
 import {
   GALLERY_FRAME_HEIGHT,
   GALLERY_LAYOUT,
   GALLERY_RAIL,
   GALLERY_THUMB,
 } from "./gallery-metrics";
-
-// Only mounted once the visitor opens it, so it stays off the path to the
-// first paint of the image above.
-const ProductLightbox = dynamic(() => import("./ProductLightbox"));
 
 /** Hover-revealed on desktop, always visible where there is no hover. */
 const ARROW_BUTTON =
@@ -163,115 +159,117 @@ export default function ProductGallery({
   }
 
   return (
-    <div className={cn("animate-hero-rise", className)}>
-      <div className={GALLERY_LAYOUT}>
-        {hasMultiple && (
-          <div className={GALLERY_RAIL} aria-label="تصاویر محصول">
-            {images.map((image, index) => (
-              <button
-                key={`${image}-${index}`}
-                type="button"
-                aria-current={selected === index}
-                aria-label={`تصویر ${index + 1} از ${total}`}
-                className={cn(
-                  GALLERY_THUMB,
-                  "relative border transition-colors",
-                  selected === index
-                    ? "border-primary ring-2 ring-primary/30"
-                    : "border-border/20 bg-card hover:border-primary/50"
-                )}
-                onClick={() => select(index, "thumbnail")}
-              >
-                <Image src={image} alt="" fill sizes="80px" className="object-contain" />
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div
-          ref={frameRef}
-          className={cn(
-            "group relative w-full overflow-hidden rounded-2xl border border-border/15 bg-card shadow-soft lg:flex-1 lg:min-w-0",
-            GALLERY_FRAME_HEIGHT
-          )}
-          onPointerMove={trackPointer}
-          onPointerLeave={clearZoom}
-        >
-          <button
-            type="button"
-            className="absolute inset-0 cursor-zoom-in"
-            onClick={() => {
-              // Drop the hover magnifier before the overlay covers the frame,
-              // otherwise it is still scaled when the visitor closes again.
-              clearZoom();
-              setLightboxOpen(true);
-            }}
-            aria-label={`بزرگ‌نمایی تصویر ${selected + 1} از ${total}`}
-          >
-            <Image
-              src={displayedSrc}
-              alt={altText}
-              fill
-              sizes="(max-width: 1024px) 100vw, 46vw"
-              className={cn(
-                "object-contain transition-transform duration-300",
-                zoomOrigin && "scale-150"
-              )}
-              style={zoomOrigin ? { transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%` } : undefined}
-              priority
-            />
-            {isSwitching && (
-              <Image
-                key={selectedSrc}
-                src={selectedSrc}
-                alt=""
-                fill
-                sizes="(max-width: 1024px) 100vw, 46vw"
-                className="object-contain"
-                loading="eager"
-                onLoad={() => commitPendingImage(selected)}
-              />
-            )}
-          </button>
-
-          {isSwitching && (
-            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-card/70 backdrop-blur-[1px]">
-              <Loading size="md" />
+    <>
+      <div className={cn("animate-hero-rise", className)}>
+        <div className={GALLERY_LAYOUT}>
+          {hasMultiple && (
+            <div className={GALLERY_RAIL} aria-label="تصاویر محصول">
+              {images.map((image, index) => (
+                <button
+                  key={`${image}-${index}`}
+                  type="button"
+                  aria-current={selected === index}
+                  aria-label={`تصویر ${index + 1} از ${total}`}
+                  className={cn(
+                    GALLERY_THUMB,
+                    "relative border transition-colors",
+                    selected === index
+                      ? "border-primary ring-2 ring-primary/30"
+                      : "border-border/20 bg-card hover:border-primary/50"
+                  )}
+                  onClick={() => select(index, "thumbnail")}
+                >
+                  <Image src={image} alt="" fill sizes="80px" className="object-contain" />
+                </button>
+              ))}
             </div>
           )}
 
-          {hasMultiple && (
-            <>
-              {selected < total - 1 && (
-                <button
-                  type="button"
-                  aria-label="تصویر بعدی"
-                  className={cn(ARROW_BUTTON, "left-4")}
-                  onClick={() => select(selected + 1, "arrow")}
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
+          <div
+            ref={frameRef}
+            className={cn(
+              "group relative w-full overflow-hidden rounded-2xl border border-border/15 bg-card shadow-soft lg:flex-1 lg:min-w-0",
+              GALLERY_FRAME_HEIGHT
+            )}
+            onPointerMove={trackPointer}
+            onPointerLeave={clearZoom}
+          >
+            <button
+              type="button"
+              className="absolute inset-0 cursor-zoom-in"
+              onClick={() => {
+                // Drop the hover magnifier before the overlay covers the frame,
+                // otherwise it is still scaled when the visitor closes again.
+                clearZoom();
+                setLightboxOpen(true);
+              }}
+              aria-label={`بزرگ‌نمایی تصویر ${selected + 1} از ${total}`}
+            >
+              <Image
+                src={displayedSrc}
+                alt={altText}
+                fill
+                sizes="(max-width: 1024px) 100vw, 46vw"
+                className={cn(
+                  "object-contain transition-transform duration-300",
+                  zoomOrigin && "scale-150"
+                )}
+                style={zoomOrigin ? { transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%` } : undefined}
+                priority
+              />
+              {isSwitching && (
+                <Image
+                  key={selectedSrc}
+                  src={selectedSrc}
+                  alt=""
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 46vw"
+                  className="object-contain"
+                  loading="eager"
+                  onLoad={() => commitPendingImage(selected)}
+                />
               )}
-              {selected > 0 && (
-                <button
-                  type="button"
-                  aria-label="تصویر قبلی"
-                  className={cn(ARROW_BUTTON, "right-4")}
-                  onClick={() => select(selected - 1, "arrow")}
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-              )}
-              <span className="pointer-events-none absolute bottom-4 left-4 z-10 rounded-full bg-primary/70 px-3 py-1.5 text-xs text-white backdrop-blur-sm">
-                {selected + 1} / {total}
-              </span>
-            </>
-          )}
+            </button>
 
-          <span className="pointer-events-none absolute bottom-4 right-4 z-10 hidden items-center gap-1.5 rounded-full bg-primary/70 px-3 py-1.5 text-xs text-white backdrop-blur-sm transition-opacity duration-300 md:flex md:opacity-0 md:group-hover:opacity-100">
-            <ZoomIn className="h-3.5 w-3.5" />
-            برای نمای کامل کلیک کنید
-          </span>
+            {isSwitching && (
+              <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-card/70 backdrop-blur-[1px]">
+                <Loading size="md" />
+              </div>
+            )}
+
+            {hasMultiple && (
+              <>
+                {selected < total - 1 && (
+                  <button
+                    type="button"
+                    aria-label="تصویر بعدی"
+                    className={cn(ARROW_BUTTON, "left-4")}
+                    onClick={() => select(selected + 1, "arrow")}
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                )}
+                {selected > 0 && (
+                  <button
+                    type="button"
+                    aria-label="تصویر قبلی"
+                    className={cn(ARROW_BUTTON, "right-4")}
+                    onClick={() => select(selected - 1, "arrow")}
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                )}
+                <span className="pointer-events-none absolute bottom-4 left-4 z-10 rounded-full bg-primary/70 px-3 py-1.5 text-xs text-white backdrop-blur-sm">
+                  {selected + 1} / {total}
+                </span>
+              </>
+            )}
+
+            <span className="pointer-events-none absolute bottom-4 right-4 z-10 hidden items-center gap-1.5 rounded-full bg-primary/70 px-3 py-1.5 text-xs text-white backdrop-blur-sm transition-opacity duration-300 md:flex md:opacity-0 md:group-hover:opacity-100">
+              <ZoomIn className="h-3.5 w-3.5" />
+              برای نمای کامل کلیک کنید
+            </span>
+          </div>
         </div>
       </div>
 
@@ -284,6 +282,6 @@ export default function ProductGallery({
           onClose={() => setLightboxOpen(false)}
         />
       )}
-    </div>
+    </>
   );
 }
