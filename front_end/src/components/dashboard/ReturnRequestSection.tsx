@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
+import OrderSection from "@/components/dashboard/orders/OrderSection";
 import { useOrderStore } from "@/store/order-store";
 import { formatPrice, toPersianNumber } from "@/lib/utils";
 import { Order, ReturnRequestStatus } from "@/types/order";
@@ -130,12 +131,7 @@ export default function ReturnRequestSection({ order }: ReturnRequestSectionProp
   }
 
   return (
-    <section>
-      <h3 className="text-xs md:text-sm font-semibold mb-1.5 text-voxcina-blue dark:text-voxcina-cream flex items-center gap-1.5">
-        <RotateCcw className="w-3.5 h-3.5 text-voxcina-blue/60 dark:text-voxcina-cream/60" />
-        درخواست مرجوعی
-      </h3>
-
+    <OrderSection title="درخواست مرجوعی" icon={<RotateCcw className="w-3.5 h-3.5" />}>
       {/* Existing request card */}
       {request ? (
         <div className="bg-voxcina-cream/20 dark:bg-voxcina-blue/5 rounded-lg px-3 py-2 text-xs space-y-2">
@@ -300,6 +296,6 @@ export default function ReturnRequestSection({ order }: ReturnRequestSectionProp
           </Button>
         </div>
       </Modal>
-    </section>
+    </OrderSection>
   );
 }

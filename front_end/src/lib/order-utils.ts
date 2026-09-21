@@ -16,17 +16,29 @@ export interface OrderLike {
   createdAt?: string;
 }
 
-export const getStatusStyle = (status: string) => {
-  switch (status) {
-    case "delivered":
-      return "bg-green-100 text-voxcina-blue dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800/30";
-    case "shipping":
-      return "bg-voxcina-blue/10 text-voxcina-blue dark:bg-voxcina-blue/20 dark:text-voxcina-cream border border-voxcina-blue/20 dark:border-voxcina-blue/30";
-    case "processing":
-      return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800/30";
-    default:
-      return "bg-voxcina-cream text-voxcina-blue dark:bg-voxcina-blue/10 dark:text-voxcina-lightCream border border-voxcina-cream/70 dark:border-voxcina-blue/20";
-  }
+/**
+ * Customer-facing labels for the order statuses the backend can set.
+ * `handlers/orders.go` localizes the same set in `getStatusText`; the values
+ * here are only the fallback when the API response carries no `status_text`.
+ */
+export const ORDER_STATUS_LABELS: Record<string, string> = {
+  pending: "در انتظار پرداخت",
+  processing: "در حال پردازش",
+  shipped: "ارسال شده",
+  delivered: "تحویل شده",
+  cancelled: "لغو شده",
+  refunded: "مرجوع شده",
+};
+
+/** Customer-facing labels for `payment_status` values. */
+export const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  pending: "در انتظار پرداخت",
+  paid: "پرداخت شده",
+  failed: "پرداخت ناموفق",
+  abandoned: "رها شده",
+  expired: "منقضی شده",
+  cancelled: "لغو شده",
+  refunded: "بازگشت داده شده",
 };
 
 export const formatOrderDate = (order: OrderLike) => order.jalali_created_at || order.jalaliCreatedAt || order.date || order.created_at || order.createdAt || "";

@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/Card";
 import { motion } from "framer-motion";
 import { Clock, ChevronLeft } from "lucide-react";
-import { getStatusStyle, formatOrderDate, formatOrderAmount, formatOrderStatus, formatOrderId, type OrderLike } from "@/lib/order-utils";
+import { formatOrderDate, formatOrderAmount, formatOrderStatus, formatOrderId, type OrderLike } from "@/lib/order-utils";
+import { OrderStatusBadge } from "@/components/dashboard/orders/OrderStatusBadge";
 
 function EmptyState() {
   return (
@@ -19,10 +20,6 @@ function EmptyState() {
       </CardContent>
     </Card>
   );
-}
-
-function StatusBadge({ status, label }: { status: string; label: string }) {
-  return <span className={`px-2 py-1 rounded-full text-xs ${getStatusStyle(status)}`}>{label}</span>;
 }
 
 function DesktopTable({ orders, onOpen }: { orders: OrderLike[]; onOpen: (id: string) => void }) {
@@ -52,7 +49,7 @@ function DesktopTable({ orders, onOpen }: { orders: OrderLike[]; onOpen: (id: st
                 <td className="p-4 font-medium text-voxcina-blue dark:text-voxcina-cream">{formatOrderId(order)}</td>
                 <td className="p-4 text-voxcina-blue/70 dark:text-voxcina-cream/70">{formatOrderDate(order)}</td>
                 <td className="p-4">
-                  <StatusBadge status={order.status} label={formatOrderStatus(order)} />
+                  <OrderStatusBadge status={order.status} label={formatOrderStatus(order)} />
                 </td>
                 <td className="p-4 font-bold text-voxcina-blue dark:text-voxcina-cream">{formatOrderAmount(order)}</td>
                 <td className="p-4 text-left">
@@ -77,7 +74,7 @@ function MobileList({ orders }: { orders: OrderLike[] }) {
               <CardContent className="p-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">{formatOrderId(order)}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[11px] ${getStatusStyle(order.status)}`}>{formatOrderStatus(order)}</span>
+                  <OrderStatusBadge status={order.status} label={formatOrderStatus(order)} size="xs" />
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">{formatOrderDate(order)}</span>

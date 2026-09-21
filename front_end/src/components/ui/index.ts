@@ -22,3 +22,5 @@ export { default as Loading, ButtonLoading, PageLoading, CardSkeleton, ProductGr
 export { default as BeforeAfterSlider } from "./BeforeAfterSlider";
 export { default as CountdownTimer } from "./CountdownTimer";
 export { default as TexturedBackground } from "./TexturedBackground";
+export { default as Pagination } from "./Pagination";
+export { default as FilterTabs, type FilterTab } from "./FilterTabs";
