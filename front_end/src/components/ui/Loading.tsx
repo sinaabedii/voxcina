@@ -1,6 +1,13 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import {
+  GALLERY_FRAME_HEIGHT,
+  GALLERY_LAYOUT,
+  GALLERY_RAIL,
+  GALLERY_SKELETON_THUMBS,
+  GALLERY_THUMB,
+} from "@/components/product/detail/gallery-metrics";
 
 interface LoadingProps {
   size?: "sm" | "md" | "lg" | "xl";
@@ -157,39 +164,33 @@ export function ImageSkeleton({ className = "" }: { className?: string }) {
 // collapsed to nothing, which measured CLS 0.30 on this route (Lighthouse,
 // mobile) — poor, and almost all of the route's CLS.
 //
-// So the geometry below deliberately mirrors ProductActions: the 450px main
-// image, the 80px thumbnail rail, and an info column that adds up to roughly
-// the same height. Keep them in sync when that component's layout changes.
+// So the geometry below mirrors the real gallery. The frame height, the shell
+// and the rail come from `product/detail/gallery-metrics`, which both sides
+// import so they cannot drift; the info column is hand-matched to
+// `ProductPurchasePanel` and needs updating when that layout changes.
 export function ProductDetailSkeleton() {
   return (
     <div className="container py-8 md:py-16" aria-hidden="true">
       <div className="mb-6 h-5 w-2/3 max-w-md rounded bg-muted animate-pulse" />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
-        {/* Gallery — matches the fixed 450px frame and the w-20 h-20 rail */}
-        <div>
-          <div className="mb-4 h-[450px] rounded-2xl bg-muted animate-pulse" />
-          <div className="flex space-x-2 space-x-reverse pb-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-20 w-20 min-w-[5rem] rounded-xl bg-muted animate-pulse" />
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_26rem] xl:grid-cols-[minmax(0,1fr)_28rem] xl:gap-12">
+        {/* Gallery — same shell, rail and frame height as ProductGallery */}
+        <div className={GALLERY_LAYOUT}>
+          <div className={GALLERY_RAIL}>
+            {Array.from({ length: GALLERY_SKELETON_THUMBS }).map((_, i) => (
+              <div key={i} className={`${GALLERY_THUMB} bg-muted animate-pulse`} />
             ))}
           </div>
+          <div
+            className={`w-full rounded-2xl bg-muted animate-pulse lg:flex-1 ${GALLERY_FRAME_HEIGHT}`}
+          />
         </div>
 
-        {/* Info column — title, price, the two selectors, cart row, badges */}
+        {/* Purchase panel — title, brand row, price, selectors, actions, badges */}
         <div>
           <div className="mb-3 h-8 w-4/5 rounded bg-muted animate-pulse" />
-          <div className="mb-6 h-5 w-1/3 rounded bg-muted animate-pulse" />
-          <div className="mb-6 h-8 w-1/2 rounded bg-muted animate-pulse" />
-
-          <div className="mb-6">
-            <div className="mb-2 h-4 w-16 rounded bg-muted animate-pulse" />
-            <div className="flex gap-2">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-10 w-10 rounded-full bg-muted animate-pulse" />
-              ))}
-            </div>
-          </div>
+          <div className="mb-5 h-6 w-1/2 rounded bg-muted animate-pulse" />
+          <div className="mb-6 h-9 w-2/5 rounded bg-muted animate-pulse" />
 
           <div className="mb-6">
             <div className="mb-2 h-4 w-16 rounded bg-muted animate-pulse" />
@@ -200,19 +201,37 @@ export function ProductDetailSkeleton() {
             </div>
           </div>
 
-          <div className="mb-6 grid grid-cols-6 gap-2">
-            <div className="col-span-3 h-12 rounded-xl bg-muted animate-pulse" />
-            <div className="col-span-2 h-12 rounded-xl bg-muted animate-pulse" />
-            <div className="col-span-1 h-12 rounded-xl bg-muted animate-pulse" />
+          <div className="mb-6">
+            <div className="mb-2 h-4 w-16 rounded bg-muted animate-pulse" />
+            <div className="flex gap-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-10 w-10 rounded-full bg-muted animate-pulse" />
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-6 h-6 w-2/5 rounded bg-muted animate-pulse" />
+
+          <div className="mb-3 flex gap-3">
+            <div className="h-12 w-32 rounded-xl bg-muted animate-pulse" />
+            <div className="h-12 flex-1 rounded-xl bg-muted animate-pulse" />
+          </div>
+          <div className="mb-8 grid grid-cols-3 gap-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-11 rounded-xl bg-muted animate-pulse" />
+            ))}
           </div>
 
           <div className="grid grid-cols-3 gap-2">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />
+              <div key={i} className="h-20 rounded-lg bg-muted animate-pulse" />
             ))}
           </div>
         </div>
       </div>
+
+      {/* Info tabs */}
+      <div className="mt-12 h-64 rounded-2xl bg-muted animate-pulse" />
     </div>
   );
 }

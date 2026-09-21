@@ -3,7 +3,7 @@ import { serverFetch, serverFetchWithFallback, CACHE_TIMES } from "@/lib/server-
 import { Product, Review } from "@/types/product";
 import { Category } from "@/types/category";
 import ProductJsonLd from "@/components/product/ProductJsonLd";
-import ProductActions from "@/components/product/ProductActions";
+import ProductDetailView from "@/components/product/detail/ProductDetailView";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import BreadcrumbSchema from "@/components/SEO/BreadcrumbSchema";
 import SectionTitle from "@/components/ui/SectionTitle";
@@ -16,7 +16,7 @@ export { generateMetadata } from "./metadata";
 // Keep this route dynamic. Adding `revalidate`/`generateStaticParams` to cache
 // the HTML looks tempting — Next answers dynamic routes with
 // `Cache-Control: private, no-cache, no-store` and re-renders per request — but
-// it backfires here: `ProductActions` calls `useSearchParams()` (for the
+// it backfires here: `ProductDetailView` calls `useSearchParams()` (for the
 // ?variant / ?color deep links), and in a statically rendered route that opts
 // the whole subtree out of SSR. Measured: the product image disappeared from
 // the HTML entirely, leaving a spinner until hydration, and LCP got worse even
@@ -163,20 +163,15 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
           />
         </div>
 
-        {/* Product Actions - Client Component for interactivity */}
-        <ProductActions
-          product={product}
-          productUrl={productUrl}
-          reviews={reviews}
-          categoryName={categoryName}
-        />
+        {/* Gallery, purchase panel, tabs, try-on and reviews */}
+        <ProductDetailView product={product} productUrl={productUrl} reviews={reviews} />
 
         {/* Similar Products - Server rendered */}
         {similarProducts.length > 0 && (
-          <div className="items-center py-6">
+          <section className="mt-16">
             <SectionTitle title="محصولات مشابه" size="lg" />
             <ProductGrid items={similarProducts} />
-          </div>
+          </section>
         )}
       </div>
     </>
