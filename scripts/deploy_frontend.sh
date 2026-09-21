@@ -12,17 +12,18 @@
 #   5. call /api/revalidate (origin-direct, REVALIDATE_SECRET) to drop stale tags
 #   6. verify the public homepage
 #
-# There is no CDN purge step: ArvanCloud's purge API is not available on this
-# plan, so it cannot be scripted. It is also no longer needed for correctness --
-# front_end/Dockerfile drops the homepage's empty build-time prerender, so the
-# origin never serves an empty page and the CDN can never cache one. Purging is
-# now only a way to make an edit visible before the edge TTL lapses, and that is
-# a manual action in the ArvanCloud dashboard.
+# There is no automatic CDN purge step. The ArvanCloud purge API works and is
+# scripted in scripts/purge_arvan_cache.sh (key at ~/.config/voxcina/arvan_api_key,
+# mode 600 — never committed). Run it with PURGE_CDN=1 (homepage only) or
+# PURGE_CDN=all when an edit has to be visible before the edge TTL lapses.
 #
 # Usage: scripts/deploy_frontend.sh [branch]
+#        PURGE_CDN=1 scripts/deploy_frontend.sh     # + purge the homepage
+#        PURGE_CDN=all scripts/deploy_frontend.sh   # + purge the whole domain
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BRANCH="${1:-develop}"
 VPS="vps-ir"
 VPS_DIR="/root/voxcina"
@@ -105,7 +106,12 @@ PUBLIC_COUNT=$(curl -sS --compressed "${PUBLIC_URL}/" | grep -o 'href="/products
 if [ "${PUBLIC_COUNT}" -gt 0 ]; then
   echo "OK: public homepage renders ${PUBLIC_COUNT} product links."
 else
-  echo "WARNING: public homepage renders no products, but the origin warmed fine — the CDN is serving an older cached copy. Purge it in the ArvanCloud dashboard, then re-check with:"
-  echo "  curl -sSI --compressed ${PUBLIC_URL}/ | grep -iE 'x-cache|server-timing'"
+  echo "WARNING: public homepage renders no products, but the origin warmed fine — the CDN is serving an older cached copy. Purge it with scripts/purge_arvan_cache.sh, then re-check with:"
+  echo "  curl -sS --compressed -o /dev/null -D - ${PUBLIC_URL}/ | grep -i 'x-cache'"
   exit 1
 fi
+
+case "${PURGE_CDN:-0}" in
+  1) echo "==> Purging the homepage on the ArvanCloud edge (PURGE_CDN=1)"; "${SCRIPT_DIR}/purge_arvan_cache.sh" --urls "${PUBLIC_URL}/" ;;
+  all) echo "==> Purging the whole domain on the ArvanCloud edge (PURGE_CDN=all)"; "${SCRIPT_DIR}/purge_arvan_cache.sh" ;;
+esac
