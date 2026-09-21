@@ -218,7 +218,7 @@ export default function ProductCarouselSectionClient({ title, viewAllHref, produ
         className="mb-8 md:mb-12"
         titleClassName="text-2xl sm:text-3xl font-bold text-voxcina-blue"
         action={
-          <Link href={viewAllHref} rel="nofollow" className="text-voxcina-blue hover:text-voxcina-darkBlue flex items-center group transition-all duration-300">
+          <Link href={viewAllHref} prefetch={false} rel="nofollow" className="text-voxcina-blue hover:text-voxcina-darkBlue flex items-center group transition-all duration-300">
             <span>مشاهده همه</span>
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5 mr-1 transform transition-transform duration-300 group-hover:-translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />

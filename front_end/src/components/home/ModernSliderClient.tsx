@@ -160,6 +160,7 @@ export const ModernSliderSectionClient = ({ sliders }: ModernSliderSectionClient
                         under an unbounded set of crawlable URLs. */}
                     <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
                       <Link
+                        prefetch={false}
                         href={sliderData[currentSlide].buttonLink}
                         className="inline-flex items-center justify-center bg-white text-gray-900 px-4 py-2.5 md:px-8 md:py-4 rounded-full font-medium md:font-semibold overflow-hidden transition-all duration-300 text-sm md:text-base hover:bg-gray-100"
                       >

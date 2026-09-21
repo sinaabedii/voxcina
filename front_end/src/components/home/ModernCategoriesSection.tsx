@@ -37,7 +37,19 @@ function CategoryAvatarItem({
 }) {
   return (
     <div className={`relative min-w-0 flex-[0_0_calc((100%_-_2.5rem)/4)] md:flex-[0_0_calc((100%_-_8.375rem)/8)] ${isHovered ? "z-10" : ""}`}>
+      {/*
+        No viewport prefetch. Next's default prefetches every in-viewport Link
+        on hydration; on the homepage that fired 19 RSC requests and pulled 8
+        more client chunks (~200 KB) before the first paint, measuring 614 ms of
+        Total Blocking Time. Turning it off on the listing links alone took the
+        mobile score from 64 to 86 and TBT to 124 ms. In Next 16 a false
+        prefetch disables hover prefetch too, so these navigations rely on the
+        route's loading.tsx skeleton instead. Keep it off links that are
+        numerous and individually unlikely to be clicked; the header nav still
+        prefetches.
+      */}
       <Link
+        prefetch={false}
         href={`/products?category=${category.id ?? category.slug}`}
         onMouseEnter={() => onHover(category.id ?? null)}
         onMouseLeave={() => onHover(null)}

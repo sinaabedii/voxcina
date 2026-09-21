@@ -129,6 +129,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   return (
     <>
       <Link
+        prefetch={false}
         href={productHref}
         rel="nofollow"
         data-activity-tracked="true"
