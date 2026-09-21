@@ -543,6 +543,18 @@ const HeroSectionClient: React.FC<HeroSectionClientProps> = ({ heroImages }) => 
   }, [slides.length]);
 
   const isRotationPaused =
+    // There is nothing to rotate *to* until the deferred artwork is in flight:
+    // slides 2..n only render their <img> once `deferredMediaReady` flips (see
+    // the idle-callback effect above). Advancing before that swapped in a bare
+    // gradient panel and popped the image in whenever it finished downloading.
+    //
+    // Starting the countdown at mount was wrong for a second reason: on a
+    // throttled phone the hero is not on screen for the first ~2s, so the first
+    // banner silently lost a third of its six seconds to a screen nobody had
+    // been shown, and the swap landed inside the page-load window — worth about
+    // 2.3s of Speed Index in a Lighthouse mobile run. Tying the countdown to the
+    // same idle signal fixes both.
+    !deferredMediaReady ||
     isUserPaused ||
     isPointerOver ||
     isFocusWithin ||

@@ -319,6 +319,51 @@
   }
 }
 
+/* Loading indicator animations.
+   These are deliberately CSS, not framer-motion. They are infinite,
+   non-interactive loops, so they gain nothing from a JS animation library —
+   and `ui/Button` imports `ButtonLoading` from `ui/Loading`, so a
+   `framer-motion` import there put the whole 134 KB library on the critical
+   path of every page that renders a button. On the homepage that was the only
+   heavy third-party package loaded eagerly, and its first animation frame
+   forced a ~50 ms synchronous layout just before the first paint.
+   Keep this file free of JS-driven loops for the same reason. */
+@keyframes loadingRing {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes loadingRingReverse {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+/* `--loading-dot-min` is the trough opacity so the button dots can sit a shade
+   darker than the standalone spinner's, as they did before. */
+@keyframes loadingDot {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: var(--loading-dot-min, 0.5);
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+}
+
+@keyframes loadingTextPulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .hero-slide {
   transition: opacity 1.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -370,6 +415,26 @@
 
   .animate-hero-rise {
     animation: heroRise 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .animate-loading-ring {
+    animation: loadingRing 1.5s linear infinite;
+  }
+
+  .animate-loading-ring-reverse {
+    animation: loadingRingReverse 2s linear infinite;
+  }
+
+  .animate-loading-dot {
+    animation: loadingDot 0.8s ease-in-out infinite;
+  }
+
+  .animate-loading-dot-fast {
+    animation: loadingDot 0.6s ease-in-out infinite;
+  }
+
+  .animate-loading-text {
+    animation: loadingTextPulse 1.5s ease-in-out infinite;
   }
 
   .animate-pulse-once {
