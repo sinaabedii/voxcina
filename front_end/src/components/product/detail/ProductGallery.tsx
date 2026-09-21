@@ -200,7 +200,12 @@ export default function ProductGallery({
           <button
             type="button"
             className="absolute inset-0 cursor-zoom-in"
-            onClick={() => setLightboxOpen(true)}
+            onClick={() => {
+              // Drop the hover magnifier before the overlay covers the frame,
+              // otherwise it is still scaled when the visitor closes again.
+              clearZoom();
+              setLightboxOpen(true);
+            }}
             aria-label={`بزرگ‌نمایی تصویر ${selected + 1} از ${total}`}
           >
             <Image

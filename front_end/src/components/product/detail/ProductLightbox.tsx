@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
+import Image from "next/image";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import BackendImage from "@/components/BackendImage";
 import { cn } from "@/lib/utils";
 
 interface ProductLightboxProps {
@@ -20,6 +21,15 @@ interface ProductLightboxProps {
  * open, so neither its markup nor its handlers are on the path to the LCP
  * paint. It is deliberately not built on `ui/Modal`: that renders a bounded
  * card with a title bar, and this is a bleed-to-edge viewer.
+ *
+ * Rendered through a portal into `document.body`, which is load-bearing rather
+ * than stylistic. `position: fixed` resolves against the nearest ancestor that
+ * has a transform, and the gallery's `.animate-hero-rise` entrance is declared
+ * `animation-fill-mode: both` — so after it finishes the element keeps the last
+ * keyframe's `transform: none`, which computes to the *identity matrix*, not to
+ * `none`. That is enough to make it a containing block, and without the portal
+ * this overlay laid itself out inside the gallery column (752x676 instead of
+ * the full 1440x757 viewport) rather than over the page.
  */
 export default function ProductLightbox({
   images,
@@ -37,19 +47,33 @@ export default function ProductLightbox({
       if (event.key === "ArrowRight") onSelect(Math.max(index - 1, 0));
     };
     document.addEventListener("keydown", handleKeyDown);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
-    };
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [images.length, index, onSelect, onClose]);
 
-  return (
+  // Lock the page behind the overlay. Hiding the scrollbar widens the viewport,
+  // which visibly jolts every centred element on the page, so give the width
+  // back as padding for as long as the lock is in place.
+  useEffect(() => {
+    const { body, documentElement } = document;
+    const scrollbarWidth = window.innerWidth - documentElement.clientWidth;
+    const previousOverflow = body.style.overflow;
+    const previousPaddingRight = body.style.paddingRight;
+
+    body.style.overflow = "hidden";
+    if (scrollbarWidth > 0) body.style.paddingRight = `${scrollbarWidth}px`;
+
+    return () => {
+      body.style.overflow = previousOverflow;
+      body.style.paddingRight = previousPaddingRight;
+    };
+  }, []);
+
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-label={`گالری تصاویر ${productName}`}
-      className="animate-fadeIn fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/90 p-4 backdrop-blur-md"
+      className="animate-fadeIn fixed inset-0 z-[60] flex flex-col items-center justify-center gap-4 bg-black/90 p-4 pt-16 backdrop-blur-md"
       onClick={onClose}
     >
       <button
@@ -61,49 +85,50 @@ export default function ProductLightbox({
         <X className="h-7 w-7" />
       </button>
 
-      <div className="relative flex h-[80vh] w-full max-w-5xl items-center justify-center">
-        <BackendImage
+      <div
+        className="relative min-h-0 w-full max-w-5xl flex-1"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <Image
           src={images[index] || ""}
           alt={`${productName} — تصویر ${index + 1}`}
-          className="max-h-full max-w-full object-contain"
+          fill
+          sizes="(max-width: 1024px) 100vw, 1024px"
+          className="object-contain"
           priority
         />
 
         {images.length > 1 && (
           <>
-            <button
-              type="button"
-              className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white backdrop-blur-sm transition-colors hover:bg-white/20 disabled:opacity-30"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(index + 1);
-              }}
-              disabled={index >= images.length - 1}
-              aria-label="تصویر بعدی"
-            >
-              <ChevronLeft className="h-7 w-7" />
-            </button>
-            <button
-              type="button"
-              className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white backdrop-blur-sm transition-colors hover:bg-white/20 disabled:opacity-30"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(index - 1);
-              }}
-              disabled={index <= 0}
-              aria-label="تصویر قبلی"
-            >
-              <ChevronRight className="h-7 w-7" />
-            </button>
+            {index < images.length - 1 && (
+              <button
+                type="button"
+                className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+                onClick={() => onSelect(index + 1)}
+                aria-label="تصویر بعدی"
+              >
+                <ChevronLeft className="h-7 w-7" />
+              </button>
+            )}
+            {index > 0 && (
+              <button
+                type="button"
+                className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+                onClick={() => onSelect(index - 1)}
+                aria-label="تصویر قبلی"
+              >
+                <ChevronRight className="h-7 w-7" />
+              </button>
+            )}
           </>
         )}
       </div>
 
       {images.length > 1 && (
-        <div className="absolute bottom-6 flex max-w-full gap-2 overflow-x-auto px-4">
+        <div className="flex max-w-full shrink-0 gap-2 overflow-x-auto overflow-y-hidden px-4 py-1 scrollbar-hide">
           {images.map((image, thumbIndex) => (
             <button
-              key={image}
+              key={`${image}-${thumbIndex}`}
               type="button"
               className={cn(
                 "relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-all",
@@ -111,18 +136,19 @@ export default function ProductLightbox({
                   ? "scale-110 border-white"
                   : "border-white/30 opacity-60 hover:opacity-100"
               )}
-              onClick={(e) => {
-                e.stopPropagation();
+              onClick={(event) => {
+                event.stopPropagation();
                 onSelect(thumbIndex);
               }}
               aria-label={`تصویر ${thumbIndex + 1}`}
               aria-current={thumbIndex === index}
             >
-              <BackendImage src={image} alt="" className="h-full w-full object-cover" sizes="64px" />
+              <Image src={image} alt="" fill sizes="64px" className="object-cover" />
             </button>
           ))}
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }
