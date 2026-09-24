@@ -2,9 +2,10 @@
 
 import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Truck, Check, RefreshCw, AlertCircle, Loader2 } from "lucide-react";
+import { Truck, Check, RefreshCw, AlertCircle } from "lucide-react";
 import { useShippingStore } from "@/store/shipping-store";
 import { ShippingMethod } from "@/services/shipping/types";
+import { ShippingMethodsSkeleton } from "@/components/checkout/CheckoutSkeletons";
 import { formatPrice } from "@/lib/utils";
 
 /**
@@ -79,20 +80,7 @@ export default function ShippingMethodSelector({
 
   // Loading state (Requirement: 7.3)
   if (isLoading) {
-    return (
-      <div className="min-h-[200px] flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          <div className="relative w-12 h-12 mb-4">
-            <div className="absolute top-0 right-0 w-full h-full border-4 border-secondary-200 dark:border-voxcina-darkBlue/30 rounded-full animate-pulse-soft"></div>
-            <div className="absolute top-0 right-0 w-full h-full border-4 border-t-voxcina-blue dark:border-t-secondary-200 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
-            <Truck className="absolute inset-0 m-auto w-5 h-5 text-voxcina-blue/40 dark:text-secondary-200/40" />
-          </div>
-          <p className="text-voxcina-blue/70 dark:text-secondary-200/70 font-medium">
-            در حال دریافت روش‌های ارسال...
-          </p>
-        </div>
-      </div>
-    );
+    return <ShippingMethodsSkeleton />;
   }
 
   // Error state with retry button (Requirement: 1.5)

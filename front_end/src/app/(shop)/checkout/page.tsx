@@ -21,6 +21,7 @@ const MapPicker = dynamic(() => import("@/components/ui/MapPicker"), {
 });
 import PaymentMethods from "@/components/checkout/PaymentMethods";
 import ShippingMethodSelector from "@/components/checkout/ShippingMethodSelector";
+import { AddressSectionSkeleton } from "@/components/checkout/CheckoutSkeletons";
 import CartSummary from "@/components/cart/CartSummary";
 import { useCart } from "@/hooks/useCart";
 import { useAddress } from "@/hooks/useAddress";
@@ -650,18 +651,8 @@ export default function CheckoutPage() {
                   <motion.div 
                     initial={{ opacity: 0 }} 
                     animate={{ opacity: 1 }}
-                    className="min-h-[200px] flex items-center justify-center"
                   >
-                    <div className="flex flex-col items-center">
-                      <div className="relative w-12 h-12 mb-4">
-                        <div className="absolute top-0 right-0 w-full h-full border-4 border-secondary-200 dark:border-voxcina-darkBlue/30 rounded-full animate-pulse-soft"></div>
-                        <div className="absolute top-0 right-0 w-full h-full border-4 border-t-voxcina-blue dark:border-t-secondary-200 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
-                        <MapPin className="absolute inset-0 m-auto w-5 h-5 text-voxcina-blue/40 dark:text-secondary-200/40" />
-                      </div>
-                      <p className="text-voxcina-blue/70 dark:text-secondary-200/70 font-medium">
-                        در حال بارگذاری آدرس‌ها...
-                      </p>
-                    </div>
+                    <AddressSectionSkeleton />
                   </motion.div>
                 ) : addresses.length === 0 ? (
                   <motion.div
