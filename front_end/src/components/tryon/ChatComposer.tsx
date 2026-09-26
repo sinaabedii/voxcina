@@ -5,10 +5,10 @@ import Button from "@/components/ui/Button";
 
 /** Ways into a chat about the garment/recommendations, offered once a try-on result is on screen. */
 export const TRYON_CHAT_OPENERS = [
-  { icon: Sparkles, text: "این روم من چطوره؟" },
-  { icon: Layers, text: "یه ست پیشنهاد بده" },
+  { icon: Sparkles, text: "این لباس چطور به من میاد؟" },
+  { icon: Layers, text: "یه ست مناسب پیشنهاد بده" },
   { icon: Shirt, text: "سایزش برام مناسبه؟" },
-  { icon: Search, text: "رنگ دیگه‌ای هم داره؟" },
+  { icon: Search, text: "رنگ دیگه‌ای ازش هست؟" },
 ];
 
 interface ChatComposerProps {
@@ -31,21 +31,23 @@ export default function ChatComposer({
   onSelectOpener,
 }: ChatComposerProps) {
   return (
-    <>
+    <div className="flex-shrink-0 pt-2 space-y-2">
       {showOpeners && (
-        <div className="flex-shrink-0 space-y-2 mt-2">
-          <div className="flex flex-wrap gap-1.5">
-            {TRYON_CHAT_OPENERS.map((opener) => (
+        <div className="flex flex-wrap gap-1.5 pt-0.5">
+          {TRYON_CHAT_OPENERS.map((opener) => {
+            const Icon = opener.icon;
+            return (
               <button
                 key={opener.text}
+                type="button"
                 onClick={() => onSelectOpener(opener.text)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white dark:bg-voxcina-blue/30 border border-secondary-400 dark:border-voxcina-blue/40 text-voxcina-blue/60 dark:text-voxcina-cream/60 hover:border-voxcina-blue/40 dark:hover:border-voxcina-cream/40 hover:bg-voxcina-blue/[0.08] dark:hover:bg-voxcina-cream/[0.08] hover:text-voxcina-blue dark:hover:text-voxcina-cream transition-all text-xs"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background dark:bg-voxcina-blue/25 border border-secondary-300 dark:border-voxcina-blue/30 text-voxcina-blue/70 dark:text-voxcina-cream/70 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/50 hover:bg-secondary-100/60 dark:hover:bg-voxcina-blue/40 hover:text-voxcina-blue dark:hover:text-voxcina-cream transition-all duration-200 text-xs shadow-soft"
               >
-                <opener.icon className="h-3 w-3" />
-                {opener.text}
+                <Icon className="h-3 w-3 text-amber-500" />
+                <span>{opener.text}</span>
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
       )}
 
@@ -54,26 +56,30 @@ export default function ChatComposer({
           e.preventDefault();
           onSubmit();
         }}
-        className="flex gap-2 mt-2 flex-shrink-0"
+        className="flex items-center gap-2"
       >
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="پیام به ووکسا..."
-          className="flex-1 bg-white dark:bg-voxcina-blue/30 border border-secondary-400 dark:border-voxcina-blue/40 rounded-xl px-3 py-2 text-xs text-voxcina-blue dark:text-voxcina-cream placeholder:text-voxcina-blue/40 focus:outline-none focus:border-voxcina-blue/60 focus:ring-2 focus:ring-voxcina-blue/15 focus:shadow-focus-warm transition-all"
-          disabled={disabled}
-        />
+        <div className="relative flex-1">
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="پیام به ووکسا (درباره سایز، ست یا استایل)..."
+            className="w-full bg-background border border-secondary-300 dark:border-voxcina-blue/30 rounded-xl px-3.5 py-2.5 text-xs md:text-sm text-voxcina-blue dark:text-voxcina-cream placeholder:text-voxcina-blue/40 dark:placeholder:text-voxcina-cream/40 focus:outline-none focus:border-voxcina-blue/60 focus:ring-2 focus:ring-voxcina-blue/15 dark:focus:ring-voxcina-cream/15 transition-all shadow-inner-soft"
+            disabled={disabled}
+          />
+        </div>
+
         <Button
           type="submit"
           variant="primary"
           size="sm"
           disabled={disabled || !value.trim()}
-          className="rounded-xl px-3 shadow-inset-button focus:shadow-focus-warm"
+          className="rounded-xl px-4 h-10 shadow-inset-button font-medium flex-shrink-0"
         >
           <Send className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline mr-1 text-xs">ارسال</span>
         </Button>
       </form>
-    </>
+    </div>
   );
 }

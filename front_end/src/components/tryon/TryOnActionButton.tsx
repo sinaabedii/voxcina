@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { RefreshCw, Shirt } from "lucide-react";
+import { Loader2, Shirt, Sparkles } from "lucide-react";
 import { itemVariants } from "@/lib/tryon-motion";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,8 @@ interface TryOnActionButtonProps {
   productName?: string;
   processing: boolean;
   disabled: boolean;
+  hasPhoto?: boolean;
+  hasSelection?: boolean;
   onClick: () => void;
 }
 
@@ -18,8 +20,21 @@ export default function TryOnActionButton({
   productName,
   processing,
   disabled,
+  hasPhoto = true,
+  hasSelection = true,
   onClick,
 }: TryOnActionButtonProps) {
+  let label = "پرو لباس روی عکس من";
+  if (processing) {
+    label = "در حال پردازش با هوش مصنوعی...";
+  } else if (!hasPhoto) {
+    label = "ابتدا عکس خود را آپلود کنید";
+  } else if (!hasSelection || !productName) {
+    label = "یک لباس را از لیست انتخاب کنید";
+  } else {
+    label = `پرو مجازی — ${productName}`;
+  }
+
   return (
     <motion.button
       type="button"
@@ -27,21 +42,26 @@ export default function TryOnActionButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-300",
+        "w-full py-3.5 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-300 relative overflow-hidden group shadow-soft",
         disabled
-          ? "bg-voxcina-blue/10 dark:bg-voxcina-blue/20 text-voxcina-blue/30 dark:text-voxcina-cream/30 cursor-not-allowed"
-          : "bg-voxcina-blue text-voxcina-cream shadow-inset-button hover:opacity-90 active:opacity-80"
+          ? "bg-secondary-300/60 dark:bg-voxcina-blue/20 text-voxcina-blue/40 dark:text-voxcina-cream/40 border border-secondary-300 dark:border-voxcina-blue/30 cursor-not-allowed shadow-none"
+          : "bg-voxcina-blue text-voxcina-cream dark:bg-voxcina-cream dark:text-voxcina-blue shadow-inset-button hover:opacity-95 active:scale-[0.99] hover:shadow-medium"
       )}
     >
       {processing ? (
         <>
-          <RefreshCw className="h-4 w-4 animate-spin" />
-          در حال پرو...
+          <Loader2 className="h-4 w-4 animate-spin text-current" />
+          <span>{label}</span>
+          <span className="text-[10px] opacity-75 hidden sm:inline">(حدود ۳۰ ثانیه)</span>
         </>
       ) : (
         <>
-          <Shirt className="h-4 w-4" />
-          {productName ? `پرو کن — ${productName}` : "ابتدا یک لباس انتخاب کنید"}
+          {!disabled ? (
+            <Sparkles className="h-4 w-4 animate-pulse-soft text-amber-300 dark:text-amber-600" />
+          ) : (
+            <Shirt className="h-4 w-4 opacity-50" />
+          )}
+          <span className="truncate max-w-[280px]">{label}</span>
         </>
       )}
     </motion.button>

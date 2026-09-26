@@ -28,12 +28,12 @@ function TranscriptSkeleton() {
   return (
     <div className="space-y-3 p-2">
       {SKELETON_ROWS.map((row, idx) => (
-        <div key={idx} className={cn("flex items-start gap-1.5", row.fromUser && "flex-row-reverse")}>
-          <div className="w-7 h-7 rounded-full bg-voxcina-blue/10 dark:bg-voxcina-cream/10 animate-pulse flex-shrink-0" />
+        <div key={idx} className={cn("flex items-start gap-2", row.fromUser && "flex-row-reverse")}>
+          <div className="w-7 h-7 rounded-xl bg-secondary-300/60 dark:bg-voxcina-blue/30 animate-pulse flex-shrink-0" />
           <div className={cn("space-y-1.5 flex-1", row.width)}>
-            <div className="h-3 bg-voxcina-blue/10 dark:bg-voxcina-cream/10 rounded-xl animate-pulse" />
+            <div className="h-3.5 bg-secondary-300/60 dark:bg-voxcina-blue/30 rounded-xl animate-pulse" />
             {row.secondLine && (
-              <div className={cn("h-3 bg-voxcina-blue/10 dark:bg-voxcina-cream/10 rounded-xl animate-pulse", row.secondLine)} />
+              <div className={cn("h-3.5 bg-secondary-300/60 dark:bg-voxcina-blue/30 rounded-xl animate-pulse", row.secondLine)} />
             )}
           </div>
         </div>
@@ -45,16 +45,16 @@ function TranscriptSkeleton() {
 /** The three-dot bubble shown while the agent is answering. */
 function TypingIndicator() {
   return (
-    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex items-start gap-1.5 mt-2">
-      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-voxcina-blue flex items-center justify-center shadow-inset-button">
-        <Sparkles className="h-3 w-3 text-voxcina-cream" />
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex items-start gap-2 mt-2">
+      <div className="flex-shrink-0 w-7 h-7 rounded-xl bg-voxcina-blue dark:bg-voxcina-cream text-voxcina-cream dark:text-voxcina-blue flex items-center justify-center shadow-inset-button">
+        <Sparkles className="h-3.5 w-3.5" />
       </div>
-      <div className="bg-white dark:bg-voxcina-blue/25 rounded-xl rounded-tl-sm border border-secondary-400 dark:border-voxcina-blue/30 px-3 py-2.5">
-        <div className="flex items-center gap-1">
+      <div className="bg-background rounded-2xl rounded-tl-sm border border-secondary-300 dark:border-voxcina-blue/30 px-3.5 py-2.5 shadow-soft">
+        <div className="flex items-center gap-1.5">
           {[0, 150, 300].map((delay) => (
             <div
               key={delay}
-              className="w-1.5 h-1.5 bg-voxcina-blue/40 dark:bg-voxcina-cream/40 rounded-full animate-bounce"
+              className="w-1.5 h-1.5 bg-voxcina-blue/50 dark:bg-voxcina-cream/50 rounded-full animate-bounce"
               style={{ animationDelay: `${delay}ms` }}
             />
           ))}
@@ -76,12 +76,19 @@ export default function ChatTranscript({
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages]);
+  }, [messages, typing]);
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin space-y-1.5 rounded-xl bg-voxcina-blue/[0.06] dark:bg-voxcina-cream/[0.05] border border-secondary-400 dark:border-voxcina-blue/30 p-3">
+    <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin px-3 py-2 space-y-2 rounded-2xl bg-secondary-100/40 dark:bg-voxcina-blue/10 border border-secondary-300/60 dark:border-voxcina-blue/20">
       {loading ? (
         <TranscriptSkeleton />
+      ) : messages.length === 0 ? (
+        <div className="h-full min-h-[160px] flex flex-col items-center justify-center text-center p-6 text-voxcina-blue/50 dark:text-voxcina-cream/50 space-y-2">
+          <Sparkles className="h-6 w-6 text-amber-500/70 animate-pulse-soft" />
+          <p className="text-xs max-w-xs leading-relaxed">
+            ووکسا همراه شماست. پس از انجام پرو، نظرات و پیشنهادهای استایلینگ را اینجا دریافت می‌کنید.
+          </p>
+        </div>
       ) : (
         <AnimatePresence>
           {messages.map((message, idx) => (

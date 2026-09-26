@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Camera, ShoppingBag, Sparkles } from "lucide-react";
+import { Camera, Loader2, ShoppingBag, Sparkles } from "lucide-react";
 import BackendImage from "@/components/BackendImage";
 import Button from "@/components/ui/Button";
 import { getRecommendedDisplayImage, getRecommendedHref } from "@/lib/tryon-recommendation";
@@ -29,18 +29,21 @@ export default function RecommendationCard({
   const image = getRecommendedDisplayImage(product);
 
   return (
-    <div className="bg-background border border-secondary-400 dark:border-voxcina-blue/30 rounded-xl p-3 mt-3">
-      <div className="flex items-center gap-1.5 mb-2">
-        <Sparkles className="h-3.5 w-3.5 text-voxcina-blue dark:text-voxcina-cream animate-badge-float" />
-        <p className="text-[11px] font-bold text-voxcina-blue dark:text-voxcina-cream">پیشنهاد فروشنده</p>
+    <div className="bg-background border border-secondary-300 dark:border-voxcina-blue/30 rounded-2xl p-3.5 mt-3 shadow-soft max-w-sm mr-9">
+      <div className="flex items-center gap-1.5 mb-2.5">
+        <Sparkles className="h-3.5 w-3.5 text-amber-500 animate-pulse-soft" />
+        <p className="text-xs font-bold text-voxcina-blue dark:text-voxcina-cream">
+          پیشنهاد استایلیست
+        </p>
       </div>
+
       <Link
         href={getRecommendedHref(product)}
         target="_blank"
         rel="noopener noreferrer nofollow"
-        className="flex items-center gap-3 mb-2 group"
+        className="flex items-center gap-3 mb-3 group"
       >
-        <div className="w-14 h-14 rounded-xl overflow-hidden bg-background border border-secondary-300 dark:border-voxcina-blue/20 flex-shrink-0">
+        <div className="w-14 h-16 rounded-xl overflow-hidden bg-secondary-100 dark:bg-voxcina-blue/20 border border-secondary-300 dark:border-voxcina-blue/20 flex-shrink-0 shadow-inner-soft">
           {image ? (
             <BackendImage
               src={image}
@@ -53,31 +56,41 @@ export default function RecommendationCard({
             </div>
           )}
         </div>
+
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-voxcina-blue dark:text-voxcina-cream truncate group-hover:underline">{product.product_name}</p>
-          <p className="text-[11px] font-medium text-voxcina-blue/70 dark:text-voxcina-cream/70 mt-0.5">{formatPrice(product.price)}</p>
+          <p className="text-xs font-bold text-voxcina-blue dark:text-voxcina-cream truncate group-hover:underline">
+            {product.product_name}
+          </p>
+          <p className="text-xs font-semibold text-voxcina-blue/80 dark:text-voxcina-cream/80 mt-1">
+            {formatPrice(product.price)}
+          </p>
         </div>
       </Link>
+
       <div className="flex gap-2">
         <Button
           variant="primary"
           size="sm"
-          className="text-[10px] flex-1 h-7 shadow-inset-button focus:shadow-focus-warm"
+          className="text-xs flex-1 h-8 rounded-xl shadow-inset-button font-medium"
           onClick={onAddToCart}
           disabled={disabled}
         >
-          <ShoppingBag className="h-3 w-3 ml-1" />
+          <ShoppingBag className="h-3.5 w-3.5 ml-1.5" />
           افزودن به سبد
         </Button>
         <Button
           variant="outline"
           size="sm"
-          className="text-[10px] flex-1 h-7 border-voxcina-blue/40 dark:border-voxcina-cream/40 text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-blue/[0.04] dark:hover:bg-voxcina-cream/[0.04] focus:shadow-focus-warm"
+          className="text-xs flex-1 h-8 rounded-xl border-secondary-300 dark:border-voxcina-blue/30 hover:bg-secondary-100 dark:hover:bg-voxcina-blue/20 text-voxcina-blue dark:text-voxcina-cream font-medium"
           onClick={onTryOn}
           disabled={disabled}
         >
-          <Camera className="h-3 w-3 ml-1" />
-          {busy ? "..." : "پرو کن"}
+          {busy ? (
+            <Loader2 className="h-3.5 w-3.5 ml-1.5 animate-spin" />
+          ) : (
+            <Camera className="h-3.5 w-3.5 ml-1.5" />
+          )}
+          {busy ? "در حال آماده‌سازی..." : "پرو این مدل"}
         </Button>
       </div>
     </div>
