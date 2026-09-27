@@ -140,30 +140,29 @@ type SendBulkResponse struct {
 	} `json:"data"`
 }
 
-// SendAdminOrderAlert notifies shop managers via the bulk API.
-// Template 816379 ("ثبت سفارش (اطلاع به مدیر)") — rendered as plain text since
-// the bulk endpoint does not accept template params (only /v1/send/verify does).
-// Uses SMSIR_ADMIN_ORDER_TEMPLATE_ID lineNumber? No — bulk uses SMSIR_LINE_NUMBER
-// for the sender. The template text is rendered locally from orderNumber.
-// If SMSIR_ADMIN_ORDER_TEMPLATE_ID is unset, this is a no-op. Uses the bulk
-// endpoint so all admins get one API call; chunked at 100 per SMS.ir limit.
+// SendAdminOrderAlert notifies shop managers one by one via the verify API.
+// Template 816379 ("ثبت سفارش (اطلاع به مدیر)") param: #ORDER_NUMBER#.
+// Uses SMSIR_ADMIN_ORDER_TEMPLATE_ID. Verify sends go out over SMS.ir's shared
+// service lines (like OTP), so they deliver even when the account's dedicated
+// bulk lines fail, and they reach blacklist-opted-out numbers. No-op if the
+// template env var is unset. Every admin is attempted; the first error (if any)
+// is returned.
 func (s *SMSService) SendAdminOrderAlert(adminPhones []string, orderNumber string) error {
 	templateIDStr := strings.TrimSpace(os.Getenv("SMSIR_ADMIN_ORDER_TEMPLATE_ID"))
 	if templateIDStr == "" {
 		return nil
 	}
-	// Validate template id is numeric (816379) — not used in the bulk call but
-	// confirms the env var is deliberately configured.
-	var tid int
-	fmt.Sscanf(templateIDStr, "%d", &tid)
-	if tid == 0 {
+	var templateID int
+	fmt.Sscanf(templateIDStr, "%d", &templateID)
+	if templateID == 0 {
 		return fmt.Errorf("invalid admin order template ID: %s", templateIDStr)
 	}
 	if strings.TrimSpace(orderNumber) == "" {
 		return fmt.Errorf("orderNumber is required for admin order SMS")
 	}
-	mobiles := make([]string, 0, len(adminPhones))
+	orderNumber = strings.TrimSpace(orderNumber)
 	seen := make(map[string]struct{}, len(adminPhones))
+	var firstErr error
 	for _, p := range adminPhones {
 		p = strings.TrimSpace(p)
 		if p == "" {
@@ -177,40 +176,15 @@ func (s *SMSService) SendAdminOrderAlert(adminPhones []string, orderNumber strin
 			continue
 		}
 		seen[n] = struct{}{}
-		mobiles = append(mobiles, n)
-	}
-	if len(mobiles) == 0 {
-		return nil
-	}
-
-	// Render template 816379 locally — bulk API has no templateId/parameters.
-	// Keep text identical to the approved template so the copy is consistent.
-	messageText := fmt.Sprintf(
-		"مدیر گرامی،\nسفارش جدیدی با شماره سفارش %s ثبت شد.\nلطفا برای مشاهده جزئیات و رسیدگی به آن، وارد پنل فروشگاه شوید.\nVoxcina.com",
-		strings.TrimSpace(orderNumber),
-	)
-
-	lineStr := strings.TrimSpace(os.Getenv("SMSIR_LINE_NUMBER"))
-	if lineStr == "" {
-		return fmt.Errorf("SMSIR_LINE_NUMBER is required for bulk SMS")
-	}
-	var lineNumber int64
-	fmt.Sscanf(lineStr, "%d", &lineNumber)
-	if lineNumber == 0 {
-		return fmt.Errorf("invalid SMSIR_LINE_NUMBER: %s", lineStr)
-	}
-
-	for i := 0; i < len(mobiles); i += 100 {
-		end := i + 100
-		if end > len(mobiles) {
-			end = len(mobiles)
-		}
-		chunk := mobiles[i:end]
-		if err := s.sendBulk(lineNumber, messageText, chunk); err != nil {
-			return err
+		if err := s.send(n, templateID, []SMSParameter{
+			{Name: "ORDER_NUMBER", Value: orderNumber},
+		}); err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
 		}
 	}
-	return nil
+	return firstErr
 }
 
 func (s *SMSService) sendBulk(lineNumber int64, messageText string, mobiles []string) error {
