@@ -1,9 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, Clock, Minus, Plus, Ticket, Users } from "lucide-react";
+import { Calendar, Clock, Minus, Plus, Ticket, Truck, Users } from "lucide-react";
 
 import Button from "@/components/ui/Button";
+import {
+  SHIPPING_DISCOUNT_LABELS,
+  SHIPPING_DISCOUNT_OPTIONS,
+  type ShippingDiscount,
+} from "@/lib/shipping-discount";
 
 const USAGE_PRESETS = [10, 25, 50, 100, 250, 500];
 
@@ -21,6 +26,7 @@ const VALIDITY_PRESETS = [
  * - Budget split between customer discount and seller commission
  * - User usage limit (max_uses, minimum 1)
  * - Expiration / validity period (valid_days, 1 to 365 days)
+ * - Shipping option ("free" | "half" | "full"; "full" = customer pays)
  */
 export default function VoucherSplitPicker({
   totalPercent,
@@ -41,7 +47,8 @@ export default function VoucherSplitPicker({
     discountPercent: number,
     sellerSharePercent: number,
     maxUses: number,
-    validDays: number
+    validDays: number,
+    shippingDiscount: ShippingDiscount
   ) => void;
 }) {
   // Start at the midpoint, rounded down, so the default is a real position on
@@ -49,6 +56,9 @@ export default function VoucherSplitPicker({
   const [discountPercent, setDiscountPercent] = useState(Math.floor(totalPercent / 2));
   const [maxUses, setMaxUses] = useState<number>(50);
   const [validDays, setValidDays] = useState<number>(30);
+  // "full" (customer pays shipping) is the default, matching discounts the
+  // backend creates when the field is absent.
+  const [shippingDiscount, setShippingDiscount] = useState<ShippingDiscount>("full");
 
   const sellerSharePercent = totalPercent - discountPercent;
 
@@ -334,12 +344,49 @@ export default function VoucherSplitPicker({
           )}
         </div>
 
-        {/* 4. Configuration Preview Summary */}
+        {/* 4. Shipping Discount Section */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label
+              htmlFor="voucher-shipping-discount"
+              className="flex items-center gap-2 text-sm font-bold text-voxcina-blue dark:text-voxcina-cream"
+            >
+              <Truck className="h-4 w-4 text-voxcina-blue/70 dark:text-voxcina-cream/70" />
+              <span>تخفیف هزینه ارسال</span>
+            </label>
+          </div>
+
+          <select
+            id="voucher-shipping-discount"
+            value={shippingDiscount}
+            onChange={(e) => setShippingDiscount(e.target.value as ShippingDiscount)}
+            disabled={isSubmitting}
+            className="w-full rounded-xl border border-voxcina-cream dark:border-voxcina-blue/30 bg-white/80 dark:bg-voxcina-blue/20 text-voxcina-blue dark:text-voxcina-cream py-2.5 px-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-voxcina-blue/20 dark:focus:ring-voxcina-cream/20 transition-all disabled:opacity-60"
+          >
+            {SHIPPING_DISCOUNT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1.5 text-xs leading-relaxed text-voxcina-blue/50 dark:text-voxcina-cream/50">
+            در حالت «{SHIPPING_DISCOUNT_LABELS.free}»، ۵۰٪ هزینه ارسال بر عهده فروشنده و مابقی بر
+            عهده پلتفرم است. در دو حالت دیگر، هزینه ارسال توسط پلتفرم و کاربر پرداخت می‌شود.
+          </p>
+        </div>
+
+        {/* 5. Configuration Preview Summary */}
         <div className="rounded-xl border border-voxcina-cream/80 dark:border-voxcina-blue/30 bg-voxcina-cream/20 dark:bg-voxcina-blue/15 p-3.5 text-xs space-y-1.5 text-voxcina-blue/80 dark:text-voxcina-cream/80">
           <div className="flex justify-between items-center">
             <span>تخفیف مشتری / سهم فروشنده:</span>
             <span className="font-bold text-voxcina-blue dark:text-voxcina-cream">
               {discountPercent.toLocaleString("fa-IR")}٪ / {sellerSharePercent.toLocaleString("fa-IR")}٪
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span>تخفیف هزینه ارسال:</span>
+            <span className="font-bold text-voxcina-blue dark:text-voxcina-cream">
+              {SHIPPING_DISCOUNT_LABELS[shippingDiscount]}
             </span>
           </div>
           <div className="flex justify-between items-center">
@@ -365,7 +412,7 @@ export default function VoucherSplitPicker({
         <Button
           variant="primary"
           className="w-full rounded-xl"
-          onClick={() => onCreate(discountPercent, sellerSharePercent, maxUses, validDays)}
+          onClick={() => onCreate(discountPercent, sellerSharePercent, maxUses, validDays, shippingDiscount)}
           disabled={disabled || isSubmitting || !isValid}
           isLoading={isSubmitting}
         >

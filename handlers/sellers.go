@@ -257,10 +257,24 @@ func CreateSellerVoucher(w http.ResponseWriter, r *http.Request) {
 		MaxUses            *int       `json:"max_uses"`
 		ValidDays          *int       `json:"valid_days"`
 		ValidTo            *time.Time `json:"valid_to"`
+		ShippingDiscount   string     `json:"shipping_discount"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "درخواست نامعتبر است")
 		return
+	}
+
+	// Mirror CreateDiscount: unknown values are rejected, missing/empty means
+	// "full" (the customer pays shipping). Pre-existing rows stored "" and the
+	// charge paths treat "" as full via ShippingDiscountPercent, so nothing
+	// old breaks.
+	if !models.IsValidShippingDiscount(payload.ShippingDiscount) {
+		utils.ErrorResponse(w, http.StatusBadRequest, "تخفیف هزینه ارسال نامعتبر است")
+		return
+	}
+	shippingDiscount := payload.ShippingDiscount
+	if shippingDiscount == "" {
+		shippingDiscount = models.ShippingDiscountFull
 	}
 
 	now := time.Now()
@@ -299,6 +313,7 @@ func CreateSellerVoucher(w http.ResponseWriter, r *http.Request) {
 		Code:               code,
 		Type:               "percentage",
 		Value:              float64(*payload.DiscountPercent),
+		ShippingDiscount:   shippingDiscount,
 		MinOrderAmount:     0,
 		ValidFrom:          now,
 		ValidTo:            validTo,

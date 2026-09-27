@@ -27,17 +27,20 @@ import (
 // The Orders* counters below report the full funnel anyway, so an unpaid or
 // cancelled order is visible rather than quietly dropped.
 type VoucherPerformance struct {
-	Code               string     `json:"code"`
-	DiscountPercent    int        `json:"discount_percent"`
-	SellerSharePercent int        `json:"seller_share_percent"`
-	Status             string     `json:"status"`
-	CreatedAt          time.Time  `json:"created_at"`
-	ValidFrom          time.Time  `json:"valid_from"`
-	ValidTo            time.Time  `json:"valid_to"`
-	MaxUses            int        `json:"max_uses"`
-	UsedCount          int        `json:"used_count"`
-	FirstUsedAt        *time.Time `json:"first_used_at,omitempty"`
-	LastUsedAt         *time.Time `json:"last_used_at,omitempty"`
+	Code               string `json:"code"`
+	DiscountPercent    int    `json:"discount_percent"`
+	SellerSharePercent int    `json:"seller_share_percent"`
+	// Mirrors models.Discount.ShippingDiscount ("free" | "half" | "full"; "" on
+	// pre-existing rows, treated as full everywhere). Omitted when empty.
+	ShippingDiscount string     `json:"shipping_discount,omitempty"`
+	Status           string     `json:"status"`
+	CreatedAt        time.Time  `json:"created_at"`
+	ValidFrom        time.Time  `json:"valid_from"`
+	ValidTo          time.Time  `json:"valid_to"`
+	MaxUses          int        `json:"max_uses"`
+	UsedCount        int        `json:"used_count"`
+	FirstUsedAt      *time.Time `json:"first_used_at,omitempty"`
+	LastUsedAt       *time.Time `json:"last_used_at,omitempty"`
 
 	OrdersTotal     int `json:"orders_total"`
 	OrdersPaid      int `json:"orders_paid"`
@@ -310,6 +313,7 @@ func BuildVoucherPerformance(vouchers []models.Discount, agg map[string]voucherA
 			Code:               v.Code,
 			DiscountPercent:    int(v.Value),
 			SellerSharePercent: v.SellerSharePercent,
+			ShippingDiscount:   v.ShippingDiscount,
 			Status:             voucherStatus(v, now),
 			CreatedAt:          v.CreatedAt,
 			ValidFrom:          v.ValidFrom,

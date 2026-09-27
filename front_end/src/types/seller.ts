@@ -13,6 +13,12 @@ export interface VoucherPerformance {
   discount_percent: number;
   /** The seller's commission, in whole percent. The two add up to 36. */
   seller_share_percent: number;
+  /**
+   * Shipping-discount option ("free" | "half" | "full"; absent/"" on legacy
+   * rows, treated as full = customer pays shipping). Mirrors
+   * models.Discount.ShippingDiscount via services.VoucherPerformance.
+   */
+  shipping_discount?: string;
   status: "active" | "scheduled" | "expired" | "depleted";
   created_at: string;
   valid_from: string;

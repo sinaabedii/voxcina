@@ -61,8 +61,8 @@ export default function SellerPage() {
             isSubmitting={isCreating}
             disabled={!panel.can_create}
             disabledReason={`به سقف ${panel.active_limit.toLocaleString("fa-IR")} کد فعال رسیده‌اید. تا منقضی شدن یکی از کدها امکان ساخت کد جدید نیست.`}
-            onCreate={(discountPercent, sellerSharePercent, maxUses, validDays) =>
-              createVoucher(discountPercent, sellerSharePercent, maxUses, validDays)
+            onCreate={(discountPercent, sellerSharePercent, maxUses, validDays, shippingDiscount) =>
+              createVoucher(discountPercent, sellerSharePercent, maxUses, validDays, shippingDiscount)
             }
           />
         </div>

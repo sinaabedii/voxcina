@@ -20,6 +20,10 @@ import {
   AdminTh,
 } from "@/components/admin/ui";
 import { formatPrice } from "@/lib/utils";
+import {
+  SHIPPING_DISCOUNT_LABELS,
+  type ShippingDiscount,
+} from "@/lib/shipping-discount";
 import type {
   AttributedOrder,
   SellerPerformance,
@@ -182,6 +186,7 @@ export function SellerVouchersTable({ vouchers }: { vouchers: VoucherPerformance
           <AdminTh>کد</AdminTh>
           <AdminTh>تقسیم ۳۶٪</AdminTh>
           <AdminTh>وضعیت</AdminTh>
+          <AdminTh>ارسال</AdminTh>
           <AdminTh>سقف و مصرف</AdminTh>
           <AdminTh>تاریخ انقضا</AdminTh>
           <AdminTh>سفارش پرداخت‌شده</AdminTh>
@@ -219,6 +224,14 @@ export function SellerVouchersTable({ vouchers }: { vouchers: VoucherPerformance
             </AdminTd>
             <AdminTd>
               <AdminBadge tone={status.tone}>{status.label}</AdminBadge>
+            </AdminTd>
+            <AdminTd className="whitespace-nowrap">
+              {voucher.shipping_discount && voucher.shipping_discount !== "full" && (
+                <AdminBadge tone={voucher.shipping_discount === "free" ? "success" : "info"}>
+                  {SHIPPING_DISCOUNT_LABELS[voucher.shipping_discount as ShippingDiscount] ||
+                    SHIPPING_DISCOUNT_LABELS.full}
+                </AdminBadge>
+              )}
             </AdminTd>
             <AdminTd className="whitespace-nowrap min-w-[7.5rem]">
               {hasLimit ? (

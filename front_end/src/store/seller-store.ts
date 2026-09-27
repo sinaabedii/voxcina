@@ -20,12 +20,16 @@ interface SellerStore {
   error: string | null;
 
   fetchPanel: () => Promise<void>;
-  /** Mints a code. Both halves, usage limit, and validity days are sent. */
+  /**
+   * Mints a code. Both halves, usage limit, validity days and the shipping
+   * option are sent ("free" | "half" | "full"; "full" = customer pays).
+   */
   createVoucher: (
     discountPercent: number,
     sellerSharePercent: number,
     maxUses: number,
-    validDays: number
+    validDays: number,
+    shippingDiscount: string
   ) => Promise<boolean>;
 }
 
@@ -68,7 +72,7 @@ export const useSellerStore = create<SellerStore>((set, get) => ({
     }
   },
 
-  createVoucher: async (discountPercent, sellerSharePercent, maxUses, validDays) => {
+  createVoucher: async (discountPercent, sellerSharePercent, maxUses, validDays, shippingDiscount) => {
     set({ isCreating: true, error: null });
     try {
       const response = await fetch("/api/seller/vouchers", {
@@ -79,6 +83,7 @@ export const useSellerStore = create<SellerStore>((set, get) => ({
           seller_share_percent: sellerSharePercent,
           max_uses: maxUses,
           valid_days: validDays,
+          shipping_discount: shippingDiscount,
         }),
       });
       if (!response.ok) {
