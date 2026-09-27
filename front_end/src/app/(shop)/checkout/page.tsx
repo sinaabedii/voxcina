@@ -80,6 +80,11 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [operationLoading, setOperationLoading] = useState<string | null>(null);
   const paymentRequestInFlight = useRef(false);
+  /* Anchor for the shipping step: selecting an address reloads quotes by
+     cityCode, so bring the shipping section into view (mobile flow).
+     Must live with the other hooks — after the early returns it breaks the
+     hook order (React #310) once the cart rehydrates. */
+  const shippingRef = useRef<HTMLDivElement>(null);
 
   // Shipping sent to the backend is the BASE (pre-discount) cost; the code's
   // shipping discount is applied to both the displayed total and checkoutTotal.
@@ -425,9 +430,6 @@ export default function CheckoutPage() {
     return <Home className="w-4 h-4 ml-2" />;
   };
 
-  /* Anchor for the shipping step: selecting an address reloads quotes by
-     cityCode, so bring the shipping section into view (mobile flow). */
-  const shippingRef = useRef<HTMLDivElement>(null);
   const handleSelectAddress = (address: Address) => {
     setSelectedAddress(address);
     requestAnimationFrame(() => {
