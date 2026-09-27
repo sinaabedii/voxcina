@@ -20,8 +20,13 @@ interface SellerStore {
   error: string | null;
 
   fetchPanel: () => Promise<void>;
-  /** Mints a code. Both halves are sent so the API can reject a bad split. */
-  createVoucher: (discountPercent: number, sellerSharePercent: number) => Promise<boolean>;
+  /** Mints a code. Both halves, usage limit, and validity days are sent. */
+  createVoucher: (
+    discountPercent: number,
+    sellerSharePercent: number,
+    maxUses: number,
+    validDays: number
+  ) => Promise<boolean>;
 }
 
 function authHeaders(): HeadersInit {
@@ -63,7 +68,7 @@ export const useSellerStore = create<SellerStore>((set, get) => ({
     }
   },
 
-  createVoucher: async (discountPercent, sellerSharePercent) => {
+  createVoucher: async (discountPercent, sellerSharePercent, maxUses, validDays) => {
     set({ isCreating: true, error: null });
     try {
       const response = await fetch("/api/seller/vouchers", {
@@ -72,6 +77,8 @@ export const useSellerStore = create<SellerStore>((set, get) => ({
         body: JSON.stringify({
           discount_percent: discountPercent,
           seller_share_percent: sellerSharePercent,
+          max_uses: maxUses,
+          valid_days: validDays,
         }),
       });
       if (!response.ok) {

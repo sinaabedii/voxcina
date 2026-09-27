@@ -182,6 +182,8 @@ export function SellerVouchersTable({ vouchers }: { vouchers: VoucherPerformance
           <AdminTh>کد</AdminTh>
           <AdminTh>تقسیم ۳۶٪</AdminTh>
           <AdminTh>وضعیت</AdminTh>
+          <AdminTh>سقف و مصرف</AdminTh>
+          <AdminTh>تاریخ انقضا</AdminTh>
           <AdminTh>سفارش پرداخت‌شده</AdminTh>
           <AdminTh>مشتری یکتا</AdminTh>
           <AdminTh>تخفیف مشتری</AdminTh>
@@ -196,6 +198,13 @@ export function SellerVouchersTable({ vouchers }: { vouchers: VoucherPerformance
           label: voucher.status,
           tone: "neutral" as const,
         };
+
+        const used = voucher.used_count ?? voucher.orders_paid ?? 0;
+        const max = voucher.max_uses;
+        const hasLimit = typeof max === "number" && max > 0;
+        const percent = hasLimit ? Math.min(100, Math.round((used / max) * 100)) : null;
+        const isDepleted = hasLimit && used >= max;
+
         return (
           <tr key={voucher.code}>
             <AdminTd className="font-mono font-bold whitespace-nowrap">{voucher.code}</AdminTd>
@@ -210,6 +219,74 @@ export function SellerVouchersTable({ vouchers }: { vouchers: VoucherPerformance
             </AdminTd>
             <AdminTd>
               <AdminBadge tone={status.tone}>{status.label}</AdminBadge>
+            </AdminTd>
+            <AdminTd className="whitespace-nowrap min-w-[7.5rem]">
+              {hasLimit ? (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="font-medium text-voxcina-blue dark:text-voxcina-cream">
+                      {faNumber(used)} از {faNumber(max)}
+                    </span>
+                    <span className="text-[10px] text-voxcina-blue/60 dark:text-voxcina-cream/60">
+                      {faNumber(percent ?? 0)}٪
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-voxcina-cream dark:bg-voxcina-blue/30 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        isDepleted
+                          ? "bg-red-500"
+                          : (percent ?? 0) >= 80
+                          ? "bg-amber-500"
+                          : "bg-voxcina-blue dark:bg-voxcina-cream"
+                      }`}
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <span className="text-xs text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                  {faNumber(used)} (نامحدود)
+                </span>
+              )}
+            </AdminTd>
+            <AdminTd className="whitespace-nowrap">
+              <div className="space-y-0.5">
+                <span className="text-sm font-medium">{faDate(voucher.valid_to)}</span>
+                {(() => {
+                  if (!voucher.valid_to) return null;
+                  const d = new Date(voucher.valid_to);
+                  if (Number.isNaN(d.getTime())) return null;
+                  const diffMs = d.getTime() - Date.now();
+                  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                  if (voucher.status === "expired" || diffDays < 0) {
+                    return (
+                      <span className="block text-[11px] text-red-500 dark:text-red-400">
+                        منقضی شده
+                      </span>
+                    );
+                  }
+                  if (diffDays === 0) {
+                    return (
+                      <span className="block text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                        امروز منقضی می‌شود
+                      </span>
+                    );
+                  }
+                  if (diffDays <= 7) {
+                    return (
+                      <span className="block text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                        {faNumber(diffDays)} روز باقی‌مانده
+                      </span>
+                    );
+                  }
+                  return (
+                    <span className="block text-[11px] text-voxcina-blue/50 dark:text-voxcina-cream/50">
+                      {faNumber(diffDays)} روز دیگر
+                    </span>
+                  );
+                })()}
+              </div>
             </AdminTd>
             <AdminTd>
               {faNumber(voucher.orders_paid)}

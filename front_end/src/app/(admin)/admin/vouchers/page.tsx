@@ -17,6 +17,10 @@ import {
 import type { LucideIcon } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
+import {
+  type ShippingDiscount,
+  SHIPPING_DISCOUNT_LABELS,
+} from "@/lib/shipping-discount";
 import { useAdminVoucherStore } from "@/store/admin-voucher-store";
 import {
   AdminVoucher,
@@ -106,6 +110,12 @@ function VoucherRow({ voucher }: { voucher: AdminVoucher }) {
             <AdminBadge tone={STATUS_TONES[voucher.status]}>
               {STATUS_LABELS[voucher.status]}
             </AdminBadge>
+            {voucher.shipping_discount && voucher.shipping_discount !== "full" && (
+              <AdminBadge tone={voucher.shipping_discount === "free" ? "success" : "info"}>
+                {SHIPPING_DISCOUNT_LABELS[voucher.shipping_discount as ShippingDiscount] ||
+                  SHIPPING_DISCOUNT_LABELS.full}
+              </AdminBadge>
+            )}
           </div>
           <div className="flex items-center gap-1.5 text-voxcina-blue dark:text-voxcina-cream font-bold">
             {isPercentage ? <Percent className="w-4 h-4" /> : <Tag className="w-4 h-4" />}

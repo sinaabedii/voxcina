@@ -3,6 +3,12 @@ import Link from "next/link";
 import { useCart } from "@/hooks/useCart";
 import { useCartStore } from "@/store/cart-store";
 import { formatPrice } from "@/lib/utils";
+import {
+  shippingDiscountPercent,
+  applyShippingDiscount,
+  SHIPPING_DISCOUNT_LABELS,
+  type ShippingDiscount,
+} from "@/lib/shipping-discount";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/input";
 import { Receipt, Tag, ShoppingBag, CreditCard, Percent, CheckCircle, X } from "lucide-react";
@@ -24,8 +30,11 @@ const CartSummary: React.FC<CartSummaryProps> = ({
 }) => {
   const { cart, summary, promoCode, applyPromoCode, removePromoCode } = useCart();
   
-  // Use provided shipping cost or fall back to cart summary shipping
-  const effectiveShipping = shippingCost !== undefined ? shippingCost : summary.shipping;
+  // `shippingCost` / `summary.shipping` are the BASE (pre-discount) shipping
+  // cost; the active promo code's shipping discount is applied here.
+  const shippingBase = shippingCost !== undefined ? shippingCost : summary.shipping;
+  const shippingPercent = shippingDiscountPercent(promoCode?.shippingDiscount);
+  const effectiveShipping = applyShippingDiscount(shippingBase, shippingPercent);
   const subtotalAfterDiscount = summary.subtotal - summary.discount;
   // Recalculate total - no tax, only subtotal + shipping - discount
   const effectiveTotal = showShipping
@@ -74,7 +83,14 @@ const CartSummary: React.FC<CartSummaryProps> = ({
           {showShipping && (
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">هزینه ارسال</span>
-              <span>{effectiveShipping === 0 ? "رایگان" : formatPrice(effectiveShipping)}</span>
+              <div className="text-left">
+                <span>{effectiveShipping === 0 ? "رایگان" : formatPrice(effectiveShipping)}</span>
+                {shippingPercent > 0 && shippingBase > 0 && (
+                  <span className="block text-xs text-muted-foreground">
+                    {SHIPPING_DISCOUNT_LABELS[promoCode?.shippingDiscount as ShippingDiscount]}
+                  </span>
+                )}
+              </div>
             </div>
           )}
 

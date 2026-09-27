@@ -11,6 +11,7 @@ import {
   SellerVouchersTable,
 } from "@/components/seller/SellerStatsPanel";
 import VoucherSplitPicker from "@/components/seller/VoucherSplitPicker";
+import ShippingResponsibilityNote from "@/components/seller/ShippingResponsibilityNote";
 import { useSellerStore } from "@/store/seller-store";
 
 /**
@@ -49,6 +50,8 @@ export default function SellerPage() {
 
       <SellerSummaryCards summary={panel.summary} />
 
+      <ShippingResponsibilityNote />
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 mb-8">
         <div className="lg:col-span-1">
           <VoucherSplitPicker
@@ -58,7 +61,9 @@ export default function SellerPage() {
             isSubmitting={isCreating}
             disabled={!panel.can_create}
             disabledReason={`به سقف ${panel.active_limit.toLocaleString("fa-IR")} کد فعال رسیده‌اید. تا منقضی شدن یکی از کدها امکان ساخت کد جدید نیست.`}
-            onCreate={createVoucher}
+            onCreate={(discountPercent, sellerSharePercent, maxUses, validDays) =>
+              createVoucher(discountPercent, sellerSharePercent, maxUses, validDays)
+            }
           />
         </div>
         <div className="lg:col-span-2">

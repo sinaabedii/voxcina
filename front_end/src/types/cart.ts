@@ -1,4 +1,5 @@
 import { Product } from "./product";
+import type { ShippingDiscount } from "@/lib/shipping-discount";
 
 export interface CartItemVariant {
   variantId?: string;
@@ -61,4 +62,7 @@ export interface PromoCode {
   // For negotiated coupons: restricts the discount to cart items whose
   // productId AND color match one of these entries (any size qualifies).
   requiredColors?: RequiredColorEntry[];
+  // Shipping discount carried by an admin discount code ("free" | "half" |
+  // "full"). Negotiated coupons never carry one.
+  shippingDiscount?: ShippingDiscount;
 }

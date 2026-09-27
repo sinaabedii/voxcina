@@ -27,6 +27,11 @@ import JalaliDatePicker, {
 } from "@/components/auth/JalaliDatePicker";
 import { TargetingCriteria, UserTargetingStats } from "@/types/discount";
 import { User } from "@/types/user";
+import {
+  type ShippingDiscount,
+  SHIPPING_DISCOUNT_LABELS,
+  SHIPPING_DISCOUNT_OPTIONS,
+} from "@/lib/shipping-discount";
 import { useAuthStore } from "@/store/auth-store";
 import { localStorageManager } from "@/lib/local-storage-manager";
 import {
@@ -60,6 +65,7 @@ interface DiscountData {
   isPublic: boolean;
   assignedUsers: string[];
   targetingCriteria?: TargetingCriteria;
+  shippingDiscount: string;
 }
 
 function getDatePickerValue(value?: string): string {
@@ -67,6 +73,15 @@ function getDatePickerValue(value?: string): string {
   if (/^(13|14)\d{2}-\d{2}-\d{2}$/.test(value)) return value;
   return gregorianToJalaliString(value);
 }
+
+const SHIPPING_DISCOUNT_TONES: Record<ShippingDiscount, "success" | "info" | "neutral"> = {
+  free: "success",
+  half: "info",
+  full: "neutral",
+};
+
+const SHIPPING_DISCOUNT_HELPER_TEXT =
+  "در حالت «ارسال رایگان»، ۵۰٪ هزینه ارسال بر عهده فروشنده و مابقی بر عهده پلتفرم است. در دو حالت دیگر، هزینه ارسال توسط پلتفرم و کاربر پرداخت می‌شود.";
 
 export default function AdminDiscountsPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -102,6 +117,7 @@ export default function AdminDiscountsPage() {
     isPublic: boolean;
     assignedUsers: string[];
     targetingCriteria: TargetingCriteria;
+    shippingDiscount: string;
   }>({
     code: "",
     type: "percentage",
@@ -117,6 +133,7 @@ export default function AdminDiscountsPage() {
     isPublic: true,
     assignedUsers: [],
     targetingCriteria: {},
+    shippingDiscount: "full",
   });
 
   // Fetch discounts from API
@@ -148,6 +165,7 @@ export default function AdminDiscountsPage() {
           isPublic: d.is_public ?? true,
           assignedUsers: (d.assigned_users || []).map((u: any) => typeof u === 'string' ? u : u.toString()),
           targetingCriteria: d.targeting_criteria,
+          shippingDiscount: d.shipping_discount || "full",
         }));
         setDiscounts(mapped);
       }
@@ -306,6 +324,7 @@ export default function AdminDiscountsPage() {
         is_public: newDiscount.isPublic,
         assigned_users: newDiscount.assignedUsers,
         targeting_criteria: Object.keys(newDiscount.targetingCriteria).length > 0 ? newDiscount.targetingCriteria : undefined,
+        shipping_discount: newDiscount.shippingDiscount,
       };
       const response = await fetch("/api/admin/discounts", {
         method: "POST",
@@ -313,7 +332,7 @@ export default function AdminDiscountsPage() {
         body: JSON.stringify(body),
       });
       if (response.ok) {
-        setNewDiscount({ code: "", type: "percentage", value: "", minOrder: "", maxUses: "", usedCount: 0, startDate: getYesterdayJalaliString(), endDate: "", isActive: true, forProducts: [], forCategories: [], isPublic: true, assignedUsers: [], targetingCriteria: {} });
+        setNewDiscount({ code: "", type: "percentage", value: "", minOrder: "", maxUses: "", usedCount: 0, startDate: getYesterdayJalaliString(), endDate: "", isActive: true, forProducts: [], forCategories: [], isPublic: true, assignedUsers: [], targetingCriteria: {}, shippingDiscount: "full" });
         setIsAddModalOpen(false);
         fetchDiscounts();
       } else {
@@ -339,6 +358,7 @@ export default function AdminDiscountsPage() {
         max_uses: typeof editingDiscount.maxUses === 'string' ? parseInt(editingDiscount.maxUses) || 0 : editingDiscount.maxUses,
         is_public: editingDiscount.isPublic,
         assigned_users: editingDiscount.assignedUsers,
+        shipping_discount: editingDiscount.shippingDiscount,
       };
       if (editingDiscount.startDate) body.valid_from = jalaliToGregorianISOString(editingDiscount.startDate);
       if (editingDiscount.endDate) body.valid_to = jalaliToGregorianISOString(editingDiscount.endDate);
@@ -536,6 +556,17 @@ export default function AdminDiscountsPage() {
                             </span>
                           </div>
                         </div>
+                        <div className="mt-2">
+                          <AdminBadge
+                            tone={
+                              SHIPPING_DISCOUNT_TONES[discount.shippingDiscount as ShippingDiscount] ||
+                              "neutral"
+                            }
+                          >
+                            {SHIPPING_DISCOUNT_LABELS[discount.shippingDiscount as ShippingDiscount] ||
+                              SHIPPING_DISCOUNT_LABELS.full}
+                          </AdminBadge>
+                        </div>
                         {discount.forCategories.length > 0 && (
                           <div className="mt-1 text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60">
                             فقط برای: {discount.forCategories.join(', ')}
@@ -632,6 +663,19 @@ export default function AdminDiscountsPage() {
             >
               <option value="percentage">درصدی</option>
               <option value="fixed">مبلغ ثابت</option>
+            </AdminSelect>
+          </AdminField>
+
+          <AdminField label="تخفیف هزینه ارسال" hint={SHIPPING_DISCOUNT_HELPER_TEXT}>
+            <AdminSelect
+              value={newDiscount.shippingDiscount}
+              onChange={(e) => setNewDiscount({ ...newDiscount, shippingDiscount: e.target.value })}
+            >
+              {SHIPPING_DISCOUNT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </AdminSelect>
           </AdminField>
 
@@ -812,6 +856,19 @@ export default function AdminDiscountsPage() {
                 >
                   <option value="percentage">درصدی</option>
                   <option value="fixed">مبلغ ثابت</option>
+                </AdminSelect>
+              </AdminField>
+
+              <AdminField label="تخفیف هزینه ارسال" hint={SHIPPING_DISCOUNT_HELPER_TEXT}>
+                <AdminSelect
+                  value={editingDiscount.shippingDiscount}
+                  onChange={(e) => setEditingDiscount({ ...editingDiscount, shippingDiscount: e.target.value })}
+                >
+                  {SHIPPING_DISCOUNT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </AdminSelect>
               </AdminField>
 

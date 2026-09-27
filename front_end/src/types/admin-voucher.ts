@@ -34,6 +34,7 @@ export interface AdminVoucher {
   used_count?: number;
   max_uses?: number;
   min_order_amount?: number;
+  shipping_discount?: string;
   required_products?: AdminVoucherProduct[];
 }
 

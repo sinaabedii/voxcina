@@ -32,6 +32,7 @@ import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import { Address } from "@/types/user";
 import { ShippingMethod, getCartWeightGrams } from "@/services/shipping/types";
 import { formatPrice, generateId } from "@/lib/utils";
+import { shippingDiscountPercent, applyShippingDiscount } from "@/lib/shipping-discount";
 import { activityTracker } from "@/lib/activity-tracker";
 import { toast } from "react-toastify";
 
@@ -86,7 +87,11 @@ export default function CheckoutPage() {
   const [operationLoading, setOperationLoading] = useState<string | null>(null);
   const paymentRequestInFlight = useRef(false);
 
-  const shippingCost = selectedShippingMethod?.price ?? summary.shipping ?? 0;
+  // Shipping sent to the backend is the BASE (pre-discount) cost; the code's
+  // shipping discount is applied to both the displayed total and checkoutTotal.
+  const shippingBase = selectedShippingMethod?.price ?? summary.shipping ?? 0;
+  const shippingDiscount = shippingDiscountPercent(promoCode?.shippingDiscount);
+  const shippingCost = applyShippingDiscount(shippingBase, shippingDiscount);
   const checkoutTotal = Math.max(0, summary.subtotal + shippingCost - summary.discount);
   // Postex quotes by total quantity (Σ quantity), not cart-line count, and
   // by real cart weight so the box type and courier pricing are accurate.
@@ -500,7 +505,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           items: orderItems,
           totalAmount: totalAmount,
-          shippingCost,
+          shippingCost: shippingBase,
           taxAmount: 0,
           discountAmount: summary.discount,
           shippingAddress: shippingAddress,

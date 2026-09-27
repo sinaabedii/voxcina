@@ -5,6 +5,7 @@ import { Product } from "@/types/product";
 import { generateId, formatPrice } from "@/lib/utils";
 import { useAuthStore, type AuthStore } from "./auth-store";
 import { findColorVariant, getCanonicalColor } from "@/lib/product-variants";
+import { shippingDiscountPercent, applyShippingDiscount } from "@/lib/shipping-discount";
 import { toast } from "react-toastify";
 
 // ============================================================================
@@ -866,12 +867,16 @@ export const useCartStore = create<CartStore>()(
         const subtotalAfterDiscount = subtotal - discountVal;
         const taxRate = 0.10; // 10% tax
         const tax = subtotalAfterDiscount * taxRate;
-        const shipping = subtotalAfterDiscount > 500000 ? 0 : 35000; // Free shipping over 500,000
+        const shippingBase = subtotalAfterDiscount > 500000 ? 0 : 35000; // Free shipping over 500,000
+        const shippingPercent = shippingDiscountPercent(promoCode?.shippingDiscount);
+        const shipping = applyShippingDiscount(shippingBase, shippingPercent);
         const total = subtotalAfterDiscount + tax + shipping;
         set({
           summary: {
-            subtotal: subtotal, 
-            shipping,
+            subtotal: subtotal,
+            // `shipping` is the BASE (pre-discount) shipping cost. Consumers apply
+            // the active promo code's shipping discount themselves.
+            shipping: shippingBase,
             tax,
             discount: discountVal,
             total,
@@ -934,6 +939,7 @@ export const useCartStore = create<CartStore>()(
           const minPurchase = discount.min_order_amount || 0;
           const applicableProductIds = discount.applicable_to?.product_ids || [];
           const applicableCategoryIds = discount.applicable_to?.category_ids || [];
+          const shippingDiscount = discount.shipping_discount || "full";
 
           if (currentSubtotal < minPurchase) {
             set({ error: `حداقل خرید برای این کد ${formatPrice(minPurchase)} تومان است`, promoCode: { code, isValid: false, errorMessage: `حداقل خرید ${formatPrice(minPurchase)}`, discountPercentage, maxDiscount, expireDate: discount.valid_to, minPurchase } });
@@ -951,7 +957,7 @@ export const useCartStore = create<CartStore>()(
             return;
           }
 
-          set({ promoCode: { code, isValid: true, errorMessage: '', discountPercentage, maxDiscount, expireDate: discount.valid_to, minPurchase, applicableProductIds, applicableCategoryIds, description: discount.type === 'percentage' ? `${discount.value}٪ تخفیف` : `${formatPrice(discount.value)} تومان تخفیف`, type: 'admin' }, error: null });
+          set({ promoCode: { code, isValid: true, errorMessage: '', discountPercentage, maxDiscount, expireDate: discount.valid_to, minPurchase, applicableProductIds, applicableCategoryIds, description: discount.type === 'percentage' ? `${discount.value}٪ تخفیف` : `${formatPrice(discount.value)} تومان تخفیف`, type: 'admin', shippingDiscount }, error: null });
           // Increment usage count in backend — authenticated via Authorization header
           // so activate can also handle negotiated coupons scoped to the user.
           {
@@ -989,6 +995,8 @@ export const useCartStore = create<CartStore>()(
               color: rp.color,
               colorName: rp.color_name,
             })),
+            // Negotiated / cart-recovery coupons never carry a shipping discount.
+            shippingDiscount: "full",
           },
           error: null,
         });

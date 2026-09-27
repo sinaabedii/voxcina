@@ -51,6 +51,13 @@ func CreateDiscount(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
+	if !models.IsValidShippingDiscount(discount.ShippingDiscount) {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid shipping discount. Must be 'free', 'half', or 'full'.")
+		return
+	}
+	if discount.ShippingDiscount == "" {
+		discount.ShippingDiscount = models.ShippingDiscountFull
+	}
 
 	// Validate targeting configuration
 	// If is_public is false (targeted promotion), assigned_users should be provided
@@ -388,6 +395,13 @@ func UpdateDiscount(w http.ResponseWriter, r *http.Request) {
 	}
 	if value, ok := rawUpdates["value"].(float64); ok && value != 0 {
 		updateDoc["value"] = value
+	}
+	if shippingDiscount, ok := rawUpdates["shipping_discount"].(string); ok && shippingDiscount != "" {
+		if !models.IsValidShippingDiscount(shippingDiscount) {
+			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid shipping discount. Must be 'free', 'half', or 'full'.")
+			return
+		}
+		updateDoc["shipping_discount"] = shippingDiscount
 	}
 	if minOrderAmount, ok := rawUpdates["min_order_amount"].(float64); ok {
 		updateDoc["min_order_amount"] = minOrderAmount

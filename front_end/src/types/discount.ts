@@ -1,5 +1,7 @@
 // Discount types for targeted promotions feature
 
+import type { ShippingDiscount } from "@/lib/shipping-discount";
+
 // Defines which products/categories a discount applies to
 export interface DiscountApplicability {
   productIds?: string[];
@@ -34,6 +36,7 @@ export interface Discount {
   isPublic: boolean;
   assignedUsers?: string[];
   targetingCriteria?: TargetingCriteria;
+  shippingDiscount?: ShippingDiscount;
 }
 
 // Request type for creating/updating discounts
@@ -49,6 +52,7 @@ export interface DiscountFormData {
   isPublic: boolean;
   assignedUsers?: string[];
   targetingCriteria?: TargetingCriteria;
+  shippingDiscount?: ShippingDiscount;
 }
 
 // User filter request for targeting

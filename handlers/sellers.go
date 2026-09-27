@@ -203,10 +203,46 @@ func buildSellerPanel(ctx context.Context, seller models.User) (*sellerPanelPayl
 	return payload, nil
 }
 
+func validateSellerVoucherParams(discountPercent, sellerSharePercent, maxUses *int, validDays *int, validTo *time.Time, now time.Time) (time.Time, string) {
+	if discountPercent == nil || sellerSharePercent == nil {
+		return time.Time{}, "درصد تخفیف مشتری و سهم فروشنده هر دو باید مشخص شوند"
+	}
+	if maxUses == nil || *maxUses <= 0 {
+		return time.Time{}, "سقف تعداد استفاده برای کاربران باید عددی بزرگتر از صفر باشد"
+	}
+
+	if err := models.ValidateSellerVoucherSplit(*discountPercent, *sellerSharePercent); err != nil {
+		switch {
+		case errors.Is(err, models.ErrSellerSplitOutOfRange):
+			return time.Time{}, "هر سهم باید عددی صحیح بین ۰ تا ۳۶ باشد"
+		default:
+			return time.Time{}, "مجموع تخفیف مشتری و سهم فروشنده باید دقیقاً ۳۶ درصد باشد"
+		}
+	}
+
+	if validDays != nil {
+		if *validDays < 1 || *validDays > 365 {
+			return time.Time{}, "مدت اعتبار باید بین ۱ تا ۳۶۵ روز (حداکثر ۱ سال) باشد"
+		}
+		return now.Add(time.Duration(*validDays) * 24 * time.Hour), ""
+	} else if validTo != nil {
+		if !validTo.After(now) {
+			return time.Time{}, "تاریخ انقضا باید در آینده باشد"
+		}
+		maxAllowed := now.Add(366 * 24 * time.Hour)
+		if validTo.After(maxAllowed) {
+			return time.Time{}, "تاریخ انقضا نمی‌تواند بیشتر از ۱ سال باشد"
+		}
+		return *validTo, ""
+	}
+
+	return time.Time{}, "مدت اعتبار یا تاریخ انقضا الزامی است (حداکثر ۱ سال)"
+}
+
 // CreateSellerVoucher handles POST /api/seller/vouchers.
 //
-// The body carries only the split. The code text, validity and ownership are
-// all decided here — a seller cannot name their own code, claim someone else's
+// The body carries the split, usage cap and validity. The code text and ownership are
+// decided here — a seller cannot name their own code, claim someone else's
 // id, or mint a code outside the fixed budget.
 func CreateSellerVoucher(w http.ResponseWriter, r *http.Request) {
 	sellerID, ok := currentUserID(r)
@@ -216,35 +252,27 @@ func CreateSellerVoucher(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload struct {
-		DiscountPercent    *int `json:"discount_percent"`
-		SellerSharePercent *int `json:"seller_share_percent"`
+		DiscountPercent    *int       `json:"discount_percent"`
+		SellerSharePercent *int       `json:"seller_share_percent"`
+		MaxUses            *int       `json:"max_uses"`
+		ValidDays          *int       `json:"valid_days"`
+		ValidTo            *time.Time `json:"valid_to"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "درخواست نامعتبر است")
 		return
 	}
-	if payload.DiscountPercent == nil || payload.SellerSharePercent == nil {
-		utils.ErrorResponse(w, http.StatusBadRequest, "درصد تخفیف مشتری و سهم فروشنده هر دو باید مشخص شوند")
-		return
-	}
 
-	// Both halves are validated, not one plus a derived remainder: a client
-	// that computes the split differently is caught here rather than minting a
-	// code whose two percentages disagree.
-	if err := models.ValidateSellerVoucherSplit(*payload.DiscountPercent, *payload.SellerSharePercent); err != nil {
-		switch {
-		case errors.Is(err, models.ErrSellerSplitOutOfRange):
-			utils.ErrorResponse(w, http.StatusBadRequest, "هر سهم باید عددی صحیح بین ۰ تا ۳۶ باشد")
-		default:
-			utils.ErrorResponse(w, http.StatusBadRequest, "مجموع تخفیف مشتری و سهم فروشنده باید دقیقاً ۳۶ درصد باشد")
-		}
+	now := time.Now()
+	validTo, errMsg := validateSellerVoucherParams(payload.DiscountPercent, payload.SellerSharePercent, payload.MaxUses, payload.ValidDays, payload.ValidTo, now)
+	if errMsg != "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, errMsg)
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
 
-	now := time.Now()
 	existing, err := sellerVouchersFor(ctx, sellerID)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در بررسی کدهای موجود")
@@ -273,8 +301,8 @@ func CreateSellerVoucher(w http.ResponseWriter, r *http.Request) {
 		Value:              float64(*payload.DiscountPercent),
 		MinOrderAmount:     0,
 		ValidFrom:          now,
-		ValidTo:            now.Add(sellerVoucherValidity),
-		MaxUses:            0, // unlimited
+		ValidTo:            validTo,
+		MaxUses:            *payload.MaxUses,
 		UsedCount:          0,
 		IsPublic:           true,
 		CreatedAt:          now,

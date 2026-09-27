@@ -34,6 +34,8 @@ type VoucherPerformance struct {
 	CreatedAt          time.Time  `json:"created_at"`
 	ValidFrom          time.Time  `json:"valid_from"`
 	ValidTo            time.Time  `json:"valid_to"`
+	MaxUses            int        `json:"max_uses"`
+	UsedCount          int        `json:"used_count"`
 	FirstUsedAt        *time.Time `json:"first_used_at,omitempty"`
 	LastUsedAt         *time.Time `json:"last_used_at,omitempty"`
 
@@ -312,6 +314,8 @@ func BuildVoucherPerformance(vouchers []models.Discount, agg map[string]voucherA
 			CreatedAt:          v.CreatedAt,
 			ValidFrom:          v.ValidFrom,
 			ValidTo:            v.ValidTo,
+			MaxUses:            v.MaxUses,
+			UsedCount:          v.UsedCount,
 			FirstUsedAt:        row.FirstUsedAt,
 			LastUsedAt:         row.LastUsedAt,
 

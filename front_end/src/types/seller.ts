@@ -17,6 +17,8 @@ export interface VoucherPerformance {
   created_at: string;
   valid_from: string;
   valid_to: string;
+  max_uses?: number;
+  used_count?: number;
   first_used_at?: string;
   last_used_at?: string;
 

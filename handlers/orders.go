@@ -415,6 +415,17 @@ func calculateAdminDiscount(discount models.Discount, items []models.OrderItem, 
 	return math.Min(base, base*discount.Value/100), nil
 }
 
+// applyShippingDiscount returns the shipping amount the customer pays after a
+// shipping-discount percentage. Rounding must match the frontend
+// applyShippingDiscount (round half away from zero) or the checkout total
+// cross-check fails.
+func applyShippingDiscount(base float64, percent float64) float64 {
+	if percent <= 0 {
+		return base
+	}
+	return math.Round(base * (100 - percent) / 100)
+}
+
 // reduceInventory decreases the inventory for each item in the order
 // This should be called after successful payment
 func reduceInventory(ctx context.Context, items []models.OrderItem) error {
@@ -696,13 +707,16 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 
 	var orderData struct {
 		// UserID is now from context, remove from here if it was present
-		Items           []models.OrderItem `json:"items"`
-		TotalAmount     float64            `json:"totalAmount"`
-		ShippingCost    float64            `json:"shippingCost"`
-		TaxAmount       float64            `json:"taxAmount"`
-		DiscountAmount  float64            `json:"discountAmount"`
-		ShippingAddress models.Address     `json:"shippingAddress"`
-		PromoCode       string             `json:"promoCode,omitempty"`
+		Items       []models.OrderItem `json:"items"`
+		TotalAmount float64            `json:"totalAmount"`
+		// ShippingCost is the BASE pre-discount shipping quoted for this order;
+		// the server applies the promo code's shipping discount on top and
+		// stores the customer-paid (effective) amount on the order.
+		ShippingCost    float64        `json:"shippingCost"`
+		TaxAmount       float64        `json:"taxAmount"`
+		DiscountAmount  float64        `json:"discountAmount"`
+		ShippingAddress models.Address `json:"shippingAddress"`
+		PromoCode       string         `json:"promoCode,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&orderData); err != nil {
@@ -718,6 +732,7 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// Validate promo code if provided
+	var shippingDiscountPercent float64
 	if orderData.PromoCode != "" {
 		now := time.Now()
 
@@ -818,6 +833,7 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 				utils.ErrorResponse(w, http.StatusBadRequest, "کد تخفیف به سقف مصرف رسیده است")
 				return
 			}
+			shippingDiscountPercent = models.ShippingDiscountPercent(discount.ShippingDiscount)
 		}
 	}
 
@@ -882,7 +898,8 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, http.StatusBadRequest, "مقادیر مالی سفارش نامعتبر است")
 		return
 	}
-	expectedTotal := subtotal + orderData.ShippingCost - orderData.DiscountAmount
+	effectiveShippingCost := applyShippingDiscount(orderData.ShippingCost, shippingDiscountPercent)
+	expectedTotal := subtotal + effectiveShippingCost - orderData.DiscountAmount
 	if math.Abs(expectedTotal-orderData.TotalAmount) > 1 {
 		utils.ErrorResponse(w, http.StatusBadRequest, "مبلغ سفارش با اقلام سبد خرید مطابقت ندارد")
 		return
@@ -898,7 +915,7 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		OrderNumber:     fmt.Sprintf("DGS-%05d", orderCount),
 		Items:           itemsWithSnapshots,
 		TotalAmount:     expectedTotal,
-		ShippingCost:    orderData.ShippingCost,
+		ShippingCost:    effectiveShippingCost,
 		TaxAmount:       0,
 		DiscountAmount:  orderData.DiscountAmount,
 		DiscountCode:    orderData.PromoCode,

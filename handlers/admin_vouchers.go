@@ -26,6 +26,7 @@ type adminVoucherItem struct {
 	Type              string           `json:"type"` // "public" | "targeted" | "seller" | "negotiated" | "cart_recovery"
 	DiscountType      string           `json:"discount_type"`
 	Value             float64          `json:"value"`
+	ShippingDiscount  string           `json:"shipping_discount,omitempty"`
 	Status            string           `json:"status"` // "active" | "scheduled" | "expired" | "used" | "depleted"
 	ValidFrom         string           `json:"valid_from,omitempty"`
 	ValidUntil        string           `json:"valid_until"`
@@ -166,6 +167,7 @@ func GetAdminVouchers(w http.ResponseWriter, r *http.Request) {
 						Type:              voucherType,
 						DiscountType:      d.Type,
 						Value:             d.Value,
+						ShippingDiscount:  d.ShippingDiscount,
 						Status:            status,
 						ValidFrom:         d.ValidFrom.Format(time.RFC3339),
 						ValidUntil:        d.ValidTo.Format(time.RFC3339),

@@ -24,18 +24,19 @@ type TargetingCriteria struct {
 
 // Discount represents a promotional code or discount
 type Discount struct {
-	ID             primitive.ObjectID    `bson:"_id,omitempty"           json:"id,omitempty"`
-	Code           string                `bson:"code"                    json:"code"`  // Unique (e.g., "SUMMER20")
-	Type           string                `bson:"type"                    json:"type"`  // Values: "percentage", "fixed"
-	Value          float64               `bson:"value"                   json:"value"` // e.g., 20 (for 20% or $20 off)
-	MinOrderAmount float64               `bson:"min_order_amount"        json:"min_order_amount"`
-	ValidFrom      time.Time             `bson:"valid_from"              json:"valid_from"`
-	ValidTo        time.Time             `bson:"valid_to"                json:"valid_to"`
-	MaxUses        int                   `bson:"max_uses,omitempty"      json:"max_uses,omitempty"`      // Optional: Max redemptions
-	UsedCount      int                   `bson:"used_count"              json:"used_count"`              // Track redemptions
-	ApplicableTo   DiscountApplicability `bson:"applicable_to,omitempty" json:"applicable_to,omitempty"` // Optional: Restrict to products/categories
-	CreatedAt      time.Time             `bson:"created_at,omitempty"    json:"created_at,omitempty"`
-	UpdatedAt      time.Time             `bson:"updated_at,omitempty"    json:"updated_at,omitempty"`
+	ID               primitive.ObjectID    `bson:"_id,omitempty"           json:"id,omitempty"`
+	Code             string                `bson:"code"                    json:"code"`                            // Unique (e.g., "SUMMER20")
+	Type             string                `bson:"type"                    json:"type"`                            // Values: "percentage", "fixed"
+	Value            float64               `bson:"value"                   json:"value"`                           // e.g., 20 (for 20% or $20 off)
+	ShippingDiscount string                `bson:"shipping_discount,omitempty" json:"shipping_discount,omitempty"` // "free" | "half" | "full"; empty/"full" = no shipping discount
+	MinOrderAmount   float64               `bson:"min_order_amount"        json:"min_order_amount"`
+	ValidFrom        time.Time             `bson:"valid_from"              json:"valid_from"`
+	ValidTo          time.Time             `bson:"valid_to"                json:"valid_to"`
+	MaxUses          int                   `bson:"max_uses,omitempty"      json:"max_uses,omitempty"`      // Optional: Max redemptions
+	UsedCount        int                   `bson:"used_count"              json:"used_count"`              // Track redemptions
+	ApplicableTo     DiscountApplicability `bson:"applicable_to,omitempty" json:"applicable_to,omitempty"` // Optional: Restrict to products/categories
+	CreatedAt        time.Time             `bson:"created_at,omitempty"    json:"created_at,omitempty"`
+	UpdatedAt        time.Time             `bson:"updated_at,omitempty"    json:"updated_at,omitempty"`
 
 	// Targeting fields for public/targeted promotions
 	IsPublic          bool                 `bson:"is_public"                    json:"is_public"`                    // true = available to all, false = targeted
@@ -61,6 +62,36 @@ type Discount struct {
 // IsSellerVoucher reports whether this code belongs to a seller.
 func (d *Discount) IsSellerVoucher() bool {
 	return d.SellerID != nil && !d.SellerID.IsZero()
+}
+
+const (
+	ShippingDiscountFree = "free"
+	ShippingDiscountHalf = "half"
+	ShippingDiscountFull = "full"
+)
+
+// ShippingDiscountPercent maps a shipping-discount option to the percent of
+// the shipping cost the customer gets off. Empty/unknown/"full" => 0.
+func ShippingDiscountPercent(option string) float64 {
+	switch option {
+	case ShippingDiscountFree:
+		return 100
+	case ShippingDiscountHalf:
+		return 50
+	default:
+		return 0
+	}
+}
+
+// IsValidShippingDiscount reports whether option is an accepted shipping
+// discount value. Empty is accepted and treated as full.
+func IsValidShippingDiscount(option string) bool {
+	switch option {
+	case "", ShippingDiscountFree, ShippingDiscountHalf, ShippingDiscountFull:
+		return true
+	default:
+		return false
+	}
 }
 
 // Note: This model requires the following indexes:
