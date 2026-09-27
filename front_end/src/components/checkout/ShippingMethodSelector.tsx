@@ -2,10 +2,11 @@
 
 import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Truck, Check, RefreshCw, AlertCircle } from "lucide-react";
+import { Truck, RefreshCw, AlertCircle } from "lucide-react";
 import { useShippingStore } from "@/store/shipping-store";
 import { ShippingMethod } from "@/services/shipping/types";
 import { ShippingMethodsSkeleton } from "@/components/checkout/CheckoutSkeletons";
+import SelectableRadioCard from "@/components/checkout/SelectableRadioCard";
 import { formatPrice } from "@/lib/utils";
 
 /**
@@ -139,84 +140,51 @@ export default function ShippingMethodSelector({
   // Render shipping methods (Requirements: 1.2, 5.1, 5.2, 5.3)
   return (
     <AnimatePresence>
-      <div className="space-y-4">
+      <div className="space-y-3 md:space-y-4">
         {shippingMethods.map((method, index) => (
           <motion.div
             key={method.id}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
-            className={`border rounded-xl p-4 cursor-pointer transition-all duration-300 ${
-              selectedMethodId === method.id
-                ? "border-voxcina-blue dark:border-voxcina-cream/70 bg-voxcina-cream/30 dark:bg-voxcina-blue/20 shadow-sm"
-                : "border-voxcina-cream/30 dark:border-voxcina-blue/30 hover:border-voxcina-blue/50 dark:hover:border-voxcina-cream/30 hover:shadow-sm"
-            }`}
-            onClick={() => onSelectMethod(method)}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="relative flex items-center">
-                  <input
-                    type="radio"
-                    id={`shipping-${method.id}`}
-                    name="shipping-method"
-                    checked={selectedMethodId === method.id}
-                    onChange={() => onSelectMethod(method)}
-                    className="w-5 h-5 opacity-0 absolute"
+            <SelectableRadioCard
+              selected={selectedMethodId === method.id}
+              onSelect={() => onSelectMethod(method)}
+              radioId={`shipping-${method.id}`}
+              radioName="shipping-method"
+              leading={
+                method.courierLogo ? (
+                  <img
+                    src={method.courierLogo}
+                    alt={method.courierName}
+                    className="h-8 w-8 shrink-0 object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
                   />
-                  <div
-                    className={`w-5 h-5 rounded-full border flex items-center justify-center mr-3 ml-2 transition-all duration-200 ${
-                      selectedMethodId === method.id
-                        ? "border-voxcina-blue dark:border-voxcina-cream bg-voxcina-blue dark:bg-voxcina-cream text-white dark:text-voxcina-blue"
-                        : "border-voxcina-blue/30 dark:border-voxcina-cream/30"
-                    }`}
-                  >
-                    {selectedMethodId === method.id && (
-                      <Check className="w-3 h-3" />
-                    )}
-                  </div>
-                  
-                  {/* Courier Logo */}
-                  {method.courierLogo && (
-                    <img
-                      src={method.courierLogo}
-                      alt={method.courierName}
-                      className="w-8 h-8 object-contain ml-2"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                  )}
-                  
-                  <div className="flex flex-col">
-                    <label
-                      htmlFor={`shipping-${method.id}`}
-                      className="font-medium cursor-pointer text-voxcina-blue dark:text-voxcina-cream"
-                    >
-                      {method.courierName}
-                    </label>
-                    <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
-                      {method.serviceName}
-                    </span>
-                  </div>
+                ) : undefined
+              }
+              title={method.courierName}
+              description={method.serviceName}
+              meta={
+                <span
+                  className={`font-bold ${
+                    selectedMethodId === method.id
+                      ? "text-voxcina-blue dark:text-voxcina-cream"
+                      : "text-voxcina-blue/70 dark:text-voxcina-cream/70"
+                  }`}
+                >
+                  {formatPrice(method.price)}
+                </span>
+              }
+              body={
+                <div className="mr-7 flex items-start text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                  <Truck className="ml-2 mt-0.5 h-4 w-4 flex-shrink-0 text-voxcina-blue/50 dark:text-voxcina-cream/50" />
+                  <p>{method.slaDays}</p>
                 </div>
-              </div>
-              <span
-                className={`font-bold ${
-                  selectedMethodId === method.id
-                    ? "text-voxcina-blue dark:text-voxcina-cream"
-                    : "text-voxcina-blue/70 dark:text-voxcina-cream/70"
-                }`}
-              >
-                {formatPrice(method.price)}
-              </span>
-            </div>
-            
-            {/* SLA / Delivery Time (Requirement: 5.2) */}
-            <div className="flex mt-3 mr-10 text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 items-start">
-              <Truck className="h-4 w-4 text-voxcina-blue/50 dark:text-voxcina-cream/50 mt-0.5 ml-2 flex-shrink-0" />
-              <p>{method.slaDays}</p>
-            </div>
+              }
+            />
           </motion.div>
         ))}
       </div>

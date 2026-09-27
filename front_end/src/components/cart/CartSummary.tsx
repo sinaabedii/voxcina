@@ -2,16 +2,13 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/hooks/useCart";
 import { useCartStore } from "@/store/cart-store";
-import { formatPrice } from "@/lib/utils";
 import {
   shippingDiscountPercent,
-  applyShippingDiscount,
-  SHIPPING_DISCOUNT_LABELS,
-  type ShippingDiscount,
 } from "@/lib/shipping-discount";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/input";
-import { Receipt, Tag, ShoppingBag, CreditCard, Percent, CheckCircle, X } from "lucide-react";
+import OrderTotalsRows from "@/components/checkout/OrderTotalsRows";
+import { Receipt, Tag, ShoppingBag, CreditCard, CheckCircle, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
 
@@ -31,15 +28,10 @@ const CartSummary: React.FC<CartSummaryProps> = ({
   const { cart, summary, promoCode, applyPromoCode, removePromoCode } = useCart();
   
   // `shippingCost` / `summary.shipping` are the BASE (pre-discount) shipping
-  // cost; the active promo code's shipping discount is applied here.
+  // cost; the active promo code's shipping discount is applied inside
+  // OrderTotalsRows (single source of truth for totals rows).
   const shippingBase = shippingCost !== undefined ? shippingCost : summary.shipping;
   const shippingPercent = shippingDiscountPercent(promoCode?.shippingDiscount);
-  const effectiveShipping = applyShippingDiscount(shippingBase, shippingPercent);
-  const subtotalAfterDiscount = summary.subtotal - summary.discount;
-  // Recalculate total - no tax, only subtotal + shipping - discount
-  const effectiveTotal = showShipping
-    ? subtotalAfterDiscount + effectiveShipping
-    : subtotalAfterDiscount;
   const [promoInput, setPromoInput] = useState("");
   const [promoError, setPromoError] = useState("");
 
@@ -72,58 +64,15 @@ const CartSummary: React.FC<CartSummaryProps> = ({
         </h2>
 
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground flex items-center">
-              <ShoppingBag className="ml-1 h-4 w-4" />
-              جمع سبد خرید
-            </span>
-            <span className="font-medium">{formatPrice(summary.subtotal)}</span>
-          </div>
-
-          {showShipping && (
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">هزینه ارسال</span>
-              <div className="text-left">
-                <span>{effectiveShipping === 0 ? "رایگان" : formatPrice(effectiveShipping)}</span>
-                {shippingPercent > 0 && shippingBase > 0 && (
-                  <span className="block text-xs text-muted-foreground">
-                    {SHIPPING_DISCOUNT_LABELS[promoCode?.shippingDiscount as ShippingDiscount]}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          <AnimatePresence>
-            {summary.discount > 0 && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="flex justify-between text-success items-center"
-              >
-                <span className="flex items-center">
-                  <Percent className="ml-1 h-4 w-4" />
-                  تخفیف
-                </span>
-                <span>- {formatPrice(summary.discount)}</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {showShipping && (
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">جمع پس از تخفیف</span>
-              <span>{formatPrice(subtotalAfterDiscount)}</span>
-            </div>
-          )}
-
-          <div className="border-t border-border/10 pt-4 mt-4">
-            <div className="flex justify-between font-bold text-primary">
-              <span>مجموع</span>
-              <span>{formatPrice(effectiveTotal)}</span>
-            </div>
-          </div>
+          <OrderTotalsRows
+            subtotal={summary.subtotal}
+            discount={summary.discount}
+            shippingBase={shippingBase}
+            shippingPercent={shippingPercent}
+            shippingDiscountValue={promoCode?.shippingDiscount}
+            showShipping={showShipping}
+            variant="full"
+          />
 
           <div className="mt-6 bg-secondary/30 p-4 rounded-xl border border-border/5">
             <AnimatePresence mode="wait">
@@ -160,7 +109,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
                   </div>
                 </motion.div>
               ) : !readOnly ? (
-                <motion.div 
+                <motion.div
                   key="promo-input"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -176,8 +125,8 @@ const CartSummary: React.FC<CartSummaryProps> = ({
                       className="ml-2"
                       leftElement={<Tag className="h-4 w-4" />}
                     />
-                    <Button 
-                      variant="secondary" 
+                    <Button
+                      variant="secondary"
                       onClick={handleApplyPromoCode}
                       className="shadow-soft hover:shadow-medium"
                     >
@@ -188,6 +137,17 @@ const CartSummary: React.FC<CartSummaryProps> = ({
               ) : null}
             </AnimatePresence>
           </div>
+
+          {readOnly && (
+            <div className="mt-3 text-center">
+              <Link
+                href="/cart"
+                className="text-xs text-voxcina-blue/70 underline underline-offset-4 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream"
+              >
+                تغییر کد تخفیف در سبد خرید
+              </Link>
+            </div>
+          )}
 
           {showCheckoutButton && (
             <Link href="/checkout" className="block mt-6">
