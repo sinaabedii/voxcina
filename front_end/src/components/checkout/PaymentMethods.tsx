@@ -59,7 +59,6 @@ const PaymentMethods: React.FC<PaymentMethodsProps> = ({
     <CheckoutSectionCard
       title="روش پرداخت"
       icon={<CreditCard className="w-5 h-5" />}
-      step="۳"
       className="animate-fadeIn"
     >
         <div className="space-y-3 md:space-y-4">

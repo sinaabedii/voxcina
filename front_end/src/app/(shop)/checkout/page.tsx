@@ -691,7 +691,6 @@ export default function CheckoutPage() {
             <CheckoutSectionCard
               title="آدرس تحویل"
               icon={<MapPin className="w-5 h-5" />}
-              step="۱"
             >
                 {addressesLoading ? (
                   <motion.div 
@@ -778,7 +777,6 @@ export default function CheckoutPage() {
               <CheckoutSectionCard
                 title="روش ارسال"
                 icon={<Truck className="w-5 h-5" />}
-                step="۲"
                 contentClassName="p-4 md:p-6"
               >
                 <ShippingMethodSelector
@@ -818,7 +816,6 @@ export default function CheckoutPage() {
             <CheckoutSectionCard
               title="جزئیات پرداخت"
               icon={<Receipt className="w-5 h-5" />}
-              step="۴"
             >
               <OrderTotalsRows
                 subtotal={summary.subtotal}
