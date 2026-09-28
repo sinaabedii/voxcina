@@ -4,10 +4,11 @@ import { useEffect, useState, useRef } from "react";
 import { useProductStore } from "@/store/product-store";
 import { useCategoryStore } from "@/store/category-store";
 import { useAuthStore } from "@/store/auth-store";
-import { ColorVariant, SizeVariant, ProductAttribute, VariantAIMetadata } from "@/types/product";
+import { ColorVariant, SizeVariant, ProductAttribute, VariantAIMetadata, ProductSizeMeasurement } from "@/types/product";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
+import ProductSizingSection from "@/components/admin/products/ProductSizingSection";
 import {
   AdminError,
   AdminField,
@@ -58,6 +59,8 @@ export default function AddProductPage() {
   const [isFlashSale, setIsFlashSale] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [inStock, setInStock] = useState(true);
+  const [sizingTypeId, setSizingTypeId] = useState("");
+  const [sizeChart, setSizeChart] = useState<ProductSizeMeasurement[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
@@ -532,6 +535,15 @@ export default function AddProductPage() {
     formData.append("isFlashSale", isFlashSale ? "true" : "false");
     formData.append("isActive", isActive ? "true" : "false");
     formData.append("inStock", inStock ? "true" : "false");
+    if (sizingTypeId) {
+      formData.append("sizing_type_id", sizingTypeId);
+    }
+    const cleanSizeChart = (sizeChart || []).filter(
+      (row) => row.size && row.size.trim() !== ""
+    );
+    if (cleanSizeChart.length > 0) {
+      formData.append("size_chart", JSON.stringify(cleanSizeChart));
+    }
 
     // Add main product images (in order)
     const mainImageFiles = getNewImageFiles(mainImageItems);
@@ -988,6 +1000,17 @@ export default function AddProductPage() {
             </Button>
           )}
         </AdminTableCard>
+
+        {/* Product Sizing Type & Size Chart */}
+        <ProductSizingSection
+          sizingTypeId={sizingTypeId}
+          sizeChart={sizeChart}
+          colorVariants={colorVariants}
+          onChangeSizingTypeId={setSizingTypeId}
+          onChangeSizeChart={setSizeChart}
+          adminToken={adminToken ?? undefined}
+        />
+
         <AdminTableCard className="p-4 md:p-6 space-y-3">
           <h2 className="font-semibold text-voxcina-blue dark:text-voxcina-cream">ویژگی‌ها</h2>
           {attributes.map((attr, idx) => (

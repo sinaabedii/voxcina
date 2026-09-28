@@ -342,6 +342,20 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/shop-collections/{id}", handlers.AdminUpdateShopCollection).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/shop-collections/{id}", handlers.AdminDeleteShopCollection).Methods(http.MethodDelete)
 
+	// Admin Sizing Types
+	// Note: /sizing-types/generate must be registered before /{id} wildcard to avoid route shadowing
+	adminRouter.HandleFunc("/sizing-types/generate", handlers.GenerateSizingType).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/sizing-types", handlers.CreateSizingType).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/sizing-types/{id}", handlers.GetSizingType).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/sizing-types/{id}", handlers.UpdateSizingType).Methods(http.MethodPut)
+	adminRouter.HandleFunc("/sizing-types/{id}", handlers.DeleteSizingType).Methods(http.MethodDelete)
+
+	// Staff-reachable sizing types (for product editing dropdown)
+	staffRouter.HandleFunc("/sizing-types", handlers.ListAdminSizingTypes).Methods(http.MethodGet)
+
+	// Public reads of sizing types (active only)
+	api.HandleFunc("/sizing-types", handlers.ListPublicSizingTypes).Methods(http.MethodGet)
+
 	// External service management (bot/channel integrations): CRUD, key
 	// rotation with a grace window, webhook test delivery, linked identities
 	// and the config audit trail.

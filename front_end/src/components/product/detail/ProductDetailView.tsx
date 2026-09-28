@@ -265,7 +265,12 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
         />
       </div>
 
-      <ProductInfoTabs product={product} className="mt-12" />
+      <ProductInfoTabs
+        product={product}
+        selectedSize={selection.selectedSize}
+        onSelectSize={selection.setSize}
+        className="mt-12"
+      />
 
       <ProductTryOnPanel
         className="mt-12"

@@ -4,11 +4,12 @@ import { useEffect, useState, useRef } from "react";
 import { useProductStore } from "@/store/product-store";
 import { useCategoryStore } from "@/store/category-store";
 import { useAuthStore } from "@/store/auth-store";
-import { ColorVariant, SizeVariant, ProductAttribute, VariantAIMetadata } from "@/types/product";
+import { ColorVariant, SizeVariant, ProductAttribute, VariantAIMetadata, ProductSizeMeasurement } from "@/types/product";
 import { describeCartReconciliation } from "@/lib/cart-reconciliation";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
+import ProductSizingSection from "@/components/admin/products/ProductSizingSection";
 import {
   AdminError,
   AdminField,
@@ -59,6 +60,8 @@ export default function EditProductPage() {
   const [isFlashSale, setIsFlashSale] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [inStock, setInStock] = useState(true);
+  const [sizingTypeId, setSizingTypeId] = useState("");
+  const [sizeChart, setSizeChart] = useState<ProductSizeMeasurement[]>([]);
   const [submitting, setSubmitting] = useState(false);
   // Id of the product currently mirrored into the form fields below, so a
   // route change re-hydrates instead of keeping the previous product's values.
@@ -179,6 +182,8 @@ export default function EditProductPage() {
     setIsActive(activeProduct.is_active);
     setInStock(activeProduct.inStock);
     setCollection((activeProduct as any).collection || "");
+    setSizingTypeId(activeProduct.sizing_type_id || "");
+    setSizeChart(activeProduct.size_chart || []);
 
     const sm = (activeProduct as any).searchMetadata || {};
     setAiMetadata({
@@ -610,6 +615,11 @@ export default function EditProductPage() {
     formData.append("isFlashSale", isFlashSale ? "true" : "false");
     formData.append("isActive", isActive ? "true" : "false");
     formData.append("inStock", inStock ? "true" : "false");
+    formData.append("sizing_type_id", sizingTypeId || "");
+    const cleanSizeChart = (sizeChart || []).filter(
+      (row) => row.size && row.size.trim() !== ""
+    );
+    formData.append("size_chart", JSON.stringify(cleanSizeChart));
 
     // Send main images order info (includes both existing paths and new file positions)
     const mainImageOrder = getImageOrderInfo(mainImageItems);
@@ -1058,6 +1068,17 @@ export default function EditProductPage() {
             </Button>
           )}
         </AdminTableCard>
+
+        {/* Product Sizing Type & Size Chart */}
+        <ProductSizingSection
+          sizingTypeId={sizingTypeId}
+          sizeChart={sizeChart}
+          colorVariants={colorVariants}
+          onChangeSizingTypeId={setSizingTypeId}
+          onChangeSizeChart={setSizeChart}
+          adminToken={adminToken ?? undefined}
+        />
+
         <AdminTableCard className="p-4 md:p-6 space-y-3">
           <h2 className="font-semibold text-voxcina-blue dark:text-voxcina-cream">ویژگی‌ها</h2>
           {attributes.map((attr, idx) => (

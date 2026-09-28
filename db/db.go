@@ -151,6 +151,12 @@ func Connect(cfg *config.Config) *mongo.Database {
 		// Non-critical, continue anyway
 	}
 
+	// Sizing types (Phase 1 sizing feature)
+	if err := CreateSizingTypeIndexes(); err != nil {
+		log.Printf("Warning: Could not ensure sizing type indexes: %v", err)
+		// Non-critical, continue anyway
+	}
+
 	// Seller (affiliate) vouchers: unique promo codes, seller ownership, and
 	// the order/user lookups every commission report runs.
 	if err := CreateSellerVoucherIndexes(); err != nil {

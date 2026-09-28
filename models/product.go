@@ -68,6 +68,12 @@ type ProductAttribute struct {
 	Value string `bson:"value" json:"value"` // e.g., "Cotton", "Machine Washable"
 }
 
+// ProductSizeMeasurement represents measurement values for a specific size in a size chart
+type ProductSizeMeasurement struct {
+	Size   string            `bson:"size" json:"size"`
+	Values map[string]string `bson:"values" json:"values"`
+}
+
 // Product represents a product in the shop
 type Product struct {
 	ID            primitive.ObjectID   `bson:"_id,omitempty"            json:"id,omitempty"`
@@ -90,6 +96,11 @@ type Product struct {
 	UpdatedAt     time.Time            `bson:"updated_at"               json:"updated_at"`
 	AverageRating float64              `bson:"average_rating,omitempty" json:"average_rating,omitempty"` // Average rating calculated from reviews
 	ReviewCount   int                  `bson:"review_count,omitempty"   json:"review_count,omitempty"`   // Total number of reviews
+
+	// Sizing and Size Chart
+	SizingTypeID *primitive.ObjectID      `bson:"sizing_type_id,omitempty" json:"sizing_type_id,omitempty"`
+	SizeChart    []ProductSizeMeasurement `bson:"size_chart,omitempty"      json:"size_chart,omitempty"`
+	SizingType   *SizingType              `bson:"-"                        json:"sizing_type,omitempty"`
 
 	// AI Agent Search Optimization (embedded for fast retrieval)
 	SearchMetadata *ProductSearchMetadata `bson:"search_metadata,omitempty" json:"searchMetadata,omitempty"` // AI-optimized search fields

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import ProductAttributes from "@/components/product/ProductAttributes";
-import SizeGuideTable from "@/components/product/SizeGuideTable";
+import ProductSizeGuide from "./ProductSizeGuide";
 import { cn } from "@/lib/utils";
 import { Product } from "@/types/product";
 
@@ -35,6 +35,8 @@ const CARE_NOTES = [
 
 interface ProductInfoTabsProps {
   product: Product;
+  selectedSize?: string;
+  onSelectSize?: (size: string) => void;
   className?: string;
 }
 
@@ -49,7 +51,12 @@ interface ProductInfoTabsProps {
  * Specs sit beside the panel rather than inside a tab: they are the thing
  * people cross-check while reading any of the three tabs.
  */
-export default function ProductInfoTabs({ product, className }: ProductInfoTabsProps) {
+export default function ProductInfoTabs({
+  product,
+  selectedSize,
+  onSelectSize,
+  className,
+}: ProductInfoTabsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("description");
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -108,13 +115,23 @@ export default function ProductInfoTabs({ product, className }: ProductInfoTabsP
         })}
       </div>
 
-      <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-8 lg:p-6">
+      <div
+        className={cn(
+          "grid gap-6 p-5 lg:gap-8 lg:p-6",
+          activeTab === "sizeGuide"
+            ? "grid-cols-1"
+            : "lg:grid-cols-[minmax(0,1fr)_20rem]"
+        )}
+      >
         <div
           role="tabpanel"
           id={`product-panel-${activeTab}`}
           aria-labelledby={`product-tab-${activeTab}`}
           tabIndex={0}
-          className="min-h-[15rem] max-w-prose text-sm leading-relaxed text-foreground/80"
+          className={cn(
+            "min-h-[15rem] text-sm leading-relaxed text-foreground/80",
+            activeTab !== "sizeGuide" && "max-w-prose"
+          )}
         >
           {activeTab === "description" &&
             (product.description?.trim() ? (
@@ -136,10 +153,19 @@ export default function ProductInfoTabs({ product, className }: ProductInfoTabsP
             </>
           )}
 
-          {activeTab === "sizeGuide" && <SizeGuideTable isOpen />}
+          {activeTab === "sizeGuide" && (
+            <ProductSizeGuide
+              product={product}
+              selectedSize={selectedSize}
+              onSelectSize={onSelectSize}
+            />
+          )}
         </div>
 
-        <ProductAttributes attributes={product.attributes} className="mb-0 self-start" />
+        <ProductAttributes
+          attributes={product.attributes}
+          className={cn("mb-0 self-start", activeTab === "sizeGuide" && "mt-4 max-w-xl")}
+        />
       </div>
     </section>
   );

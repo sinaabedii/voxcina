@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef } from "react";
+import { forwardRef, useState } from "react";
 import Link from "next/link";
 import { Heart, RotateCcw, Share2, ShieldCheck, Shirt, Truck } from "lucide-react";
 import BackendImage from "@/components/BackendImage";
@@ -15,6 +15,7 @@ import StockStatus from "@/components/ui/StockStatus";
 import { cn, toPersianNumber } from "@/lib/utils";
 import { Product } from "@/types/product";
 import { VariantSelection } from "./useVariantSelection";
+import SizeGuideModal from "./SizeGuideModal";
 
 export interface BrandLink {
   name: string;
@@ -81,6 +82,7 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
     actionRowRef
   ) {
     const hint = selectionHint(selection);
+    const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
 
     return (
       <div className={cn("animate-hero-rise", className)}>
@@ -124,6 +126,8 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
             availableSizes={selection.selectedColor ? selection.sizesForSelectedColor : undefined}
             showClearButton={!!(selection.selectedSize || selection.selectedColor)}
             onClear={selection.clear}
+            showSizeGuide={true}
+            onSizeGuideClick={() => setIsSizeGuideOpen(true)}
           />
         )}
 
@@ -208,6 +212,14 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
             { icon: ShieldCheck, title: "ضمانت اصالت کالا", description: <>تضمین اصالت و کیفیت<br />تمامی محصولات</> },
           ]}
           columns={3}
+        />
+
+        <SizeGuideModal
+          isOpen={isSizeGuideOpen}
+          onClose={() => setIsSizeGuideOpen(false)}
+          product={product}
+          selectedSize={selection.selectedSize}
+          onSelectSize={selection.setSize}
         />
       </div>
     );

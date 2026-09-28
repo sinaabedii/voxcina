@@ -64,6 +64,8 @@ var staffReachableAdminRoutes = []string{
 	"POST /api/admin/blog-runs/{id}/research",
 	"POST /api/admin/blog-runs/{id}/write",
 	"POST /api/admin/blog-runs/{id}/prompts",
+
+	"GET /api/admin/sizing-types",
 }
 
 // staffReachableWhenAIEnabled holds the product-editor AI helpers. They are

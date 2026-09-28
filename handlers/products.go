@@ -313,6 +313,14 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 	gender := strings.TrimSpace(r.FormValue("gender"))
 	colorVariantsJSON := r.FormValue("colorVariants") // Changed from variantsJSON
 	attributesJSON := r.FormValue("attributes")
+	sizingTypeIDStr := r.FormValue("sizing_type_id")
+	if sizingTypeIDStr == "" {
+		sizingTypeIDStr = r.FormValue("sizingTypeId")
+	}
+	sizeChartJSON := r.FormValue("size_chart")
+	if sizeChartJSON == "" {
+		sizeChartJSON = r.FormValue("sizeChart")
+	}
 	searchMetadataJSON := r.FormValue("searchMetadata")
 	isFlashSaleStr := r.FormValue("isFlashSale")
 	isActiveStr := r.FormValue("isActive")
@@ -443,6 +451,33 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 				w,
 				http.StatusBadRequest,
 				"Invalid attributes JSON format: "+err.Error(),
+			)
+			return
+		}
+	}
+
+	var sizingTypeID *primitive.ObjectID
+	stVal := strings.TrimSpace(sizingTypeIDStr)
+	if stVal != "" && stVal != "null" {
+		stID, err := primitive.ObjectIDFromHex(stVal)
+		if err != nil {
+			utils.ErrorResponse(
+				w,
+				http.StatusBadRequest,
+				"Invalid sizing_type_id format: "+err.Error(),
+			)
+			return
+		}
+		sizingTypeID = &stID
+	}
+
+	var sizeChart []models.ProductSizeMeasurement
+	if strings.TrimSpace(sizeChartJSON) != "" {
+		if err := json.Unmarshal([]byte(sizeChartJSON), &sizeChart); err != nil {
+			utils.ErrorResponse(
+				w,
+				http.StatusBadRequest,
+				"Invalid size_chart JSON format: "+err.Error(),
 			)
 			return
 		}
@@ -733,6 +768,8 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		IsFlashSale:    isFlashSale,
 		IsActive:       isActive,
 		InStock:        inStock,
+		SizingTypeID:   sizingTypeID,
+		SizeChart:      sizeChart,
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
 		SearchMetadata: searchMetadata,
@@ -1429,6 +1466,14 @@ func GetProduct(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Look up and attach sizing type if product references one
+	if product.SizingTypeID != nil && !product.SizingTypeID.IsZero() {
+		var sizingType models.SizingType
+		if err := db.Database.Collection("sizing_types").FindOne(ctx, bson.M{"_id": product.SizingTypeID, "is_active": true}).Decode(&sizingType); err == nil {
+			product.SizingType = &sizingType
+		}
+	}
+
 	utils.JSONResponse(w, http.StatusOK, product)
 }
 
@@ -1547,19 +1592,23 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	if strings.Contains(contentType, "application/json") {
 		// Handle JSON request
 		var productUpdate struct {
-			Name           *string                       `json:"name"`
-			Description    *string                       `json:"description"`
-			Price          *float64                      `json:"price"`
-			OriginalPrice  *float64                      `json:"originalPrice"`
-			CategoryIDs    []string                      `json:"categoryIds"`
-			BrandID        *string                       `json:"brandId"`
-			Collection     *string                       `json:"collection"`
-			ColorVariants  []models.ColorVariant         `json:"colorVariants"`
-			Attributes     []models.ProductAttribute     `json:"attributes"`
-			IsFlashSale    *bool                         `json:"isFlashSale"`
-			IsActive       *bool                         `json:"isActive"`
-			InStock        *bool                         `json:"inStock"`
-			SearchMetadata *models.ProductSearchMetadata `json:"searchMetadata"`
+			Name              *string                          `json:"name"`
+			Description       *string                          `json:"description"`
+			Price             *float64                         `json:"price"`
+			OriginalPrice     *float64                         `json:"originalPrice"`
+			CategoryIDs       []string                         `json:"categoryIds"`
+			BrandID           *string                          `json:"brandId"`
+			Collection        *string                          `json:"collection"`
+			ColorVariants     []models.ColorVariant            `json:"colorVariants"`
+			Attributes        []models.ProductAttribute        `json:"attributes"`
+			IsFlashSale       *bool                            `json:"isFlashSale"`
+			IsActive          *bool                            `json:"isActive"`
+			InStock           *bool                            `json:"inStock"`
+			SearchMetadata    *models.ProductSearchMetadata    `json:"searchMetadata"`
+			SizingTypeID      *string                          `json:"sizingTypeId"`
+			SizingTypeIDSnake *string                          `json:"sizing_type_id"`
+			SizeChart         *[]models.ProductSizeMeasurement `json:"sizeChart"`
+			SizeChartSnake    *[]models.ProductSizeMeasurement `json:"size_chart"`
 		}
 
 		// Parse JSON request body
@@ -1700,6 +1749,35 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		if productUpdate.SearchMetadata != nil {
 			productUpdate.SearchMetadata.UpdatedAt = time.Now()
 			update["search_metadata"] = productUpdate.SearchMetadata
+			somethingToUpdate = true
+		}
+
+		stIDPtr := productUpdate.SizingTypeID
+		if stIDPtr == nil {
+			stIDPtr = productUpdate.SizingTypeIDSnake
+		}
+		if stIDPtr != nil {
+			stVal := strings.TrimSpace(*stIDPtr)
+			if stVal == "" || stVal == "null" {
+				update["sizing_type_id"] = nil
+				somethingToUpdate = true
+			} else {
+				stObjID, err := primitive.ObjectIDFromHex(stVal)
+				if err != nil {
+					utils.ErrorResponse(w, http.StatusBadRequest, "Invalid sizing_type_id format")
+					return
+				}
+				update["sizing_type_id"] = &stObjID
+				somethingToUpdate = true
+			}
+		}
+
+		scPtr := productUpdate.SizeChart
+		if scPtr == nil {
+			scPtr = productUpdate.SizeChartSnake
+		}
+		if scPtr != nil {
+			update["size_chart"] = *scPtr
 			somethingToUpdate = true
 		}
 
@@ -1912,6 +1990,46 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		if tryOnImage := r.FormValue("tryOnImage"); tryOnImage != "" {
 			update["try_on_image"] = tryOnImage
 			somethingToUpdate = true
+		}
+
+		if _, exists := r.Form["sizing_type_id"]; exists || r.Form["sizingTypeId"] != nil {
+			stIDStr := r.FormValue("sizing_type_id")
+			if stIDStr == "" {
+				stIDStr = r.FormValue("sizingTypeId")
+			}
+			stIDStr = strings.TrimSpace(stIDStr)
+			if stIDStr == "" || stIDStr == "null" {
+				update["sizing_type_id"] = nil
+				somethingToUpdate = true
+			} else {
+				stObjID, err := primitive.ObjectIDFromHex(stIDStr)
+				if err != nil {
+					utils.ErrorResponse(w, http.StatusBadRequest, "Invalid sizing_type_id format: "+err.Error())
+					return
+				}
+				update["sizing_type_id"] = &stObjID
+				somethingToUpdate = true
+			}
+		}
+
+		if _, exists := r.Form["size_chart"]; exists || r.Form["sizeChart"] != nil {
+			scJSON := r.FormValue("size_chart")
+			if scJSON == "" {
+				scJSON = r.FormValue("sizeChart")
+			}
+			scJSON = strings.TrimSpace(scJSON)
+			if scJSON == "" || scJSON == "null" || scJSON == "[]" {
+				update["size_chart"] = []models.ProductSizeMeasurement{}
+				somethingToUpdate = true
+			} else {
+				var sizeChart []models.ProductSizeMeasurement
+				if err := json.Unmarshal([]byte(scJSON), &sizeChart); err != nil {
+					utils.ErrorResponse(w, http.StatusBadRequest, "Invalid size_chart JSON format: "+err.Error())
+					return
+				}
+				update["size_chart"] = sizeChart
+				somethingToUpdate = true
+			}
 		}
 
 		// Process main image order (supports reordering, adding, and removing)
@@ -2222,6 +2340,13 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 			"Error fetching updated product: "+err.Error(),
 		)
 		return
+	}
+
+	if updatedProduct.SizingTypeID != nil && !updatedProduct.SizingTypeID.IsZero() {
+		var sizingType models.SizingType
+		if err := db.Database.Collection("sizing_types").FindOne(ctx, bson.M{"_id": updatedProduct.SizingTypeID}).Decode(&sizingType); err == nil {
+			updatedProduct.SizingType = &sizingType
+		}
 	}
 
 	// Best-effort: upsert (or refresh) embedding in FAISS vector index

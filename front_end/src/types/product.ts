@@ -1,4 +1,11 @@
+import { SizingType } from "./sizing-type";
+
 // Updated types for hierarchical color → size variant structure
+
+export interface ProductSizeMeasurement {
+  size: string;
+  values: Record<string, string>;
+}
 
 export interface SizeVariant {
   size: string;           // e.g., "S", "M", "L", "XL", "XXL"
@@ -131,6 +138,9 @@ export interface Product {
   updated_at: string; // ISO 8601 timestamp
   average_rating?: number;
   review_count?: number;
+  sizing_type_id?: string;
+  size_chart?: ProductSizeMeasurement[];
+  sizing_type?: SizingType;
   searchMetadata?: ProductSearchMetadata;
 }
 

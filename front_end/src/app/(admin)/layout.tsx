@@ -38,6 +38,7 @@ import {
   Layers,
   ShieldAlert,
   Store,
+  Ruler,
 } from "lucide-react";
 
 /**
@@ -172,6 +173,11 @@ export default function AdminLayout({
       name: "دسته‌بندی‌ها",
       href: "/admin/categories",
       icon: <Tags className="w-5 h-5 ml-3" />,
+    },
+    {
+      name: "انواع سایزبندی",
+      href: "/admin/sizing-types",
+      icon: <Ruler className="w-5 h-5 ml-3" />,
     },
     {
       name: "برندها",
