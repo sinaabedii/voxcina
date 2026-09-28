@@ -153,17 +153,75 @@ func describeTryonProduct(ctx context.Context, productID, color string) (summary
 
 	colorName = color
 	facts := ""
+	siblings := ""
 	if cv, _, ok := findColorVariant(&product, color, color); ok {
 		colorValue = canonicalColorValue(cv)
 		colorName = cv.ColorName
 		facts = variantFactLine(&product, cv)
+		// Sibling colors are grounded here — not via search_catalog — so
+		// "رنگ دیگه‌ای ازش هست؟" is answered from this product's own
+		// inventory. The tried variant is excluded via the same match
+		// semantics that found it; when it cannot be identified there is no
+		// safe exclusion, so no sibling block is emitted.
+		triedColor := colorValue
+		if triedColor == "" {
+			triedColor = color
+		}
+		siblings = siblingColorLine(product.ColorVariants, triedColor)
 	}
 
 	summary = fmt.Sprintf("%s - %s - %.0f تومان", product.Name, colorName, product.Price)
 	if facts != "" {
 		summary += " | " + facts
 	}
+	if siblings != "" {
+		summary += " | " + siblings
+	}
 	return summary, colorValue, colorName, nil
+}
+
+// siblingColorLine lists the other color variants of the same product with
+// their real stock: in-stock siblings with their available sizes, out-of-stock
+// ones marked ناموجود so the agent says "تمام شده" instead of denying they
+// exist. The tried variant (triedColor, matched with colorVariantMatches
+// semantics) is excluded. Pure: variants + tried color in, string out.
+// Returns "" when there is nothing to list.
+func siblingColorLine(variants []models.ColorVariant, triedColor string) string {
+	var inStock, outOfStock []string
+	for _, cv := range variants {
+		if colorVariantMatches(cv, triedColor, triedColor) {
+			continue
+		}
+		name := strings.TrimSpace(cv.ColorName)
+		if name == "" {
+			name = strings.TrimSpace(cv.Color)
+		}
+		if name == "" {
+			continue
+		}
+		var sizes []string
+		for _, s := range cv.Sizes {
+			if s.Quantity > 0 {
+				sizes = append(sizes, s.Size)
+			}
+		}
+		if len(sizes) > 0 {
+			inStock = append(inStock, fmt.Sprintf("%s (سایزهای %s)", name, strings.Join(sizes, "، ")))
+		} else {
+			outOfStock = append(outOfStock, fmt.Sprintf("%s (ناموجود)", name))
+		}
+	}
+	var line string
+	if len(inStock) > 0 {
+		line = "رنگ‌های دیگر همین مدل (موجود): " + strings.Join(inStock, "، ")
+	}
+	if len(outOfStock) > 0 {
+		if line != "" {
+			line += "؛ "
+		}
+		line += "ناموجود: " + strings.Join(outOfStock, "، ")
+	}
+	return line
 }
 
 // variantFactLine packs the per-variant facts a customer asks about in the
