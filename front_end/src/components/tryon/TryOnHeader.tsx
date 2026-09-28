@@ -27,7 +27,7 @@ export default function TryOnHeader({ eligibleCount }: TryOnHeaderProps) {
                 اتاق پرو مجازی و استایلینگ
               </h1>
               <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-voxcina-blue/10 dark:bg-voxcina-cream/10 text-voxcina-blue dark:text-voxcina-cream border border-voxcina-blue/15 dark:border-voxcina-cream/15">
-                هوش مصنوعی وکسینا
+                وکسا
               </span>
             </div>
             <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 mt-0.5">

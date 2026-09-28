@@ -1,13 +1,12 @@
 "use client";
 
-import { Layers, Search, Send, Shirt, Sparkles } from "lucide-react";
+import { Layers, Search, Send, Sparkles } from "lucide-react";
 import Button from "@/components/ui/Button";
 
 /** Ways into a chat about the garment/recommendations, offered once a try-on result is on screen. */
 export const TRYON_CHAT_OPENERS = [
   { icon: Sparkles, text: "این لباس چطور به من میاد؟" },
   { icon: Layers, text: "یه ست مناسب پیشنهاد بده" },
-  { icon: Shirt, text: "سایزش برام مناسبه؟" },
   { icon: Search, text: "رنگ دیگه‌ای ازش هست؟" },
 ];
 
