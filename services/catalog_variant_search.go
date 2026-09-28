@@ -288,6 +288,101 @@ func buildVariantPipeline(base bson.M, p searchCatalogToolParams, _ map[string]i
 	return pipeline
 }
 
+func variantStock(sizes bson.A) (inStock bool, names []string) {
+	for _, raw := range sizes {
+		var sizeDoc bson.M
+		switch d := raw.(type) {
+		case bson.M:
+			sizeDoc = d
+		case map[string]interface{}:
+			sizeDoc = bson.M(d)
+		default:
+			continue
+		}
+		size, _ := sizeDoc["size"].(string)
+		if size == "" {
+			continue
+		}
+		var qty int64
+		switch q := sizeDoc["quantity"].(type) {
+		case int:
+			qty = int64(q)
+		case int32:
+			qty = int64(q)
+		case int64:
+			qty = q
+		case float64:
+			qty = int64(q)
+		default:
+			continue
+		}
+		if qty > 0 {
+			names = append(names, size)
+		}
+	}
+	return len(names) > 0, names
+}
+
+// GenderFilterValues maps a product gender to the server-side gender filter
+// values a catalog search should accept: the garment's own gender plus the
+// unisex rows that fit anyone. Anything else (including "یونیسکس" or empty)
+// returns nil, meaning no gender restriction. Exported so the try-on handler
+// can apply the same pre-filter to its complementary-product queries.
+func GenderFilterValues(gender string) []string {
+	switch strings.TrimSpace(gender) {
+	case "مردانه":
+		return []string{"مردانه", "male", "men", "man", "یونیسکس", "unisex"}
+	case "زنانه":
+		return []string{"زنانه", "female", "women", "woman", "یونیسکس", "unisex"}
+	default:
+		return nil
+	}
+}
+
+func genderFilterValues(gender string) []string {
+	return GenderFilterValues(gender)
+}
+
+// EffectiveProductGender returns the garment gender of a product as "مردانه"
+// or "زنانه", resolved from its variants' AI metadata (where the admin form
+// stores it) with product search_metadata as fallback. Unisex-only, empty or
+// unknown genders yield "" (no restriction). Exported so the try-on handler
+// can apply the same pre-filter to its complementary-product queries.
+func EffectiveProductGender(p models.Product) string {
+	for _, cv := range p.ColorVariants {
+		if cv.AIMetadata == nil {
+			continue
+		}
+		if g := strings.TrimSpace(cv.AIMetadata.Gender); g == "مردانه" || g == "زنانه" {
+			return g
+		}
+	}
+	if p.SearchMetadata != nil {
+		if g := strings.TrimSpace(p.SearchMetadata.Gender); g == "مردانه" || g == "زنانه" {
+			return g
+		}
+	}
+	return ""
+}
+
+// defaultGendersForProduct loads a product by hex ID and returns the gender
+// filter values for its gender. Any error or empty/unisex gender returns nil
+// (no restriction), so a missing product never blocks the search.
+func defaultGendersForProduct(ctx context.Context, productID string) []string {
+	if db.Database == nil {
+		return nil
+	}
+	oid, err := primitive.ObjectIDFromHex(strings.TrimSpace(productID))
+	if err != nil {
+		return nil
+	}
+	var product models.Product
+	if err := db.Database.Collection("products").FindOne(ctx, bson.M{"_id": oid}).Decode(&product); err != nil {
+		return nil
+	}
+	return genderFilterValues(EffectiveProductGender(product))
+}
+
 func docToHit(doc bson.M) CatalogVariantHit {
 	idVal, _ := doc["_id"].(primitive.ObjectID)
 	productID := idVal.Hex()
@@ -309,19 +404,20 @@ func docToHit(doc bson.M) CatalogVariantHit {
 	}
 	var variantID, color, colorName, swatch string
 	var sizes []string
+	inStock := false
 	if cvRaw != nil {
 		variantID, _ = cvRaw["variant_id"].(string)
 		color, _ = cvRaw["color"].(string)
 		colorName, _ = cvRaw["color_name"].(string)
 		swatch, _ = cvRaw["swatch_image"].(string)
-		if rawSizes, ok := cvRaw["sizes"].(bson.A); ok {
-			for _, raw := range rawSizes {
-				if sizeDoc, ok := raw.(bson.M); ok {
-					if size, ok := sizeDoc["size"].(string); ok {
-						sizes = append(sizes, size)
-					}
-				}
-			}
+		var rawSizes bson.A
+		if rs, ok := cvRaw["sizes"].(bson.A); ok {
+			rawSizes = rs
+		} else if arr, ok := cvRaw["sizes"].([]interface{}); ok {
+			rawSizes = bson.A(arr)
+		}
+		if rawSizes != nil {
+			inStock, sizes = variantStock(rawSizes)
 		}
 		if swatch == "" {
 			if img, ok := cvRaw["images"].(bson.A); ok && len(img) > 0 {
@@ -340,7 +436,8 @@ func docToHit(doc bson.M) CatalogVariantHit {
 			swatch = v
 		}
 	}
-	inStock := false
+	// inStock already reflects true size stock above; the override stays for
+	// callers that precomputed it (e.g. aggregation-side stock flags).
 	if b, ok := doc["__variant_in_stock"].(bool); ok {
 		inStock = b
 	}

@@ -416,6 +416,9 @@ func findComplementaryProducts(productID, color string) ([]services.CouponCartIt
 			},
 		},
 	}
+	if genders := services.GenderFilterValues(services.EffectiveProductGender(product)); len(genders) > 0 {
+		filter["color_variants.ai_metadata.gender"] = bson.M{"$in": genders}
+	}
 
 	compProducts, err := queryCompProducts(collection, ctx, filter)
 	if err != nil {
@@ -432,6 +435,9 @@ func findComplementaryProducts(productID, color string) ([]services.CouponCartIt
 					"try_on_garment_type": bson.M{"$ne": sourceGarmentType},
 				},
 			},
+		}
+		if genders := services.GenderFilterValues(services.EffectiveProductGender(product)); len(genders) > 0 {
+			fallbackFilter["color_variants.ai_metadata.gender"] = bson.M{"$in": genders}
 		}
 		fmt.Println("[tryon-chat] no garment-type matches, trying fallback query")
 		compProducts, err = queryCompProducts(collection, ctx, fallbackFilter)

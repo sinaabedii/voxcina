@@ -638,7 +638,7 @@ func buildTools(state NegotiationState, mode string) []map[string]interface{} {
 						"price_min":     map[string]interface{}{"type": "number"},
 						"price_max":     map[string]interface{}{"type": "number"},
 						"in_stock":      map[string]interface{}{"type": "boolean"},
-						"limit":         map[string]interface{}{"type": "integer", "minimum": 1, "maximum": 8, "description": "Max variant hits to return."},
+						"limit":         map[string]interface{}{"type": "integer", "minimum": 1, "maximum": 12, "description": "ALWAYS pass explicitly: questions about one product's colors/variants → high enough to cover all variants (up to 12); open-ended browsing → 6."},
 					},
 					"required": []string{"query"},
 				},
@@ -908,7 +908,7 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 
 	case toolName == "search_catalog" && err == nil && result != nil:
 		// Execute the catalog search synchronously so the model sees real data.
-		catalogHits = executeSearchCatalog(toolCtx, result.toolCalls)
+		catalogHits = executeSearchCatalog(toolCtx, result.toolCalls, in.Request.TryonProductID)
 		// Make returned catalog IDs valid for the existing recommendation/coupon
 		// validators. This is still server-authenticated data, never model input.
 		for _, hit := range catalogHits {
@@ -987,7 +987,7 @@ func RunSellerAgentStream(ctx context.Context, in SellerAgentInput, w io.Writer)
 			return nil, fmt.Errorf("both streaming models failed: %v", err)
 		}
 		if catalogHits == nil {
-			catalogHits = executeSearchCatalog(toolCtx, result.toolCalls)
+			catalogHits = executeSearchCatalog(toolCtx, result.toolCalls, in.Request.TryonProductID)
 		}
 	}
 
@@ -2204,7 +2204,7 @@ func buildToolResultMessage(hits []CatalogVariantHit) string {
 	return string(b)
 }
 
-func executeSearchCatalog(ctx context.Context, calls []accumulatedToolCall) []CatalogVariantHit {
+func executeSearchCatalog(ctx context.Context, calls []accumulatedToolCall, tryonProductID string) []CatalogVariantHit {
 	for _, c := range calls {
 		if c.name != "search_catalog" {
 			continue
@@ -2213,6 +2213,9 @@ func executeSearchCatalog(ctx context.Context, calls []accumulatedToolCall) []Ca
 		if err := json.Unmarshal([]byte(c.arguments), &p); err != nil {
 			fmt.Printf("[search_catalog] bad args: %v\n", err)
 			continue
+		}
+		if tryonProductID != "" && len(p.Genders) == 0 {
+			p.Genders = defaultGendersForProduct(ctx, tryonProductID)
 		}
 		hits, _ := SearchCatalogVariants(ctx, p)
 		return hits
