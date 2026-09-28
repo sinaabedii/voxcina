@@ -49,6 +49,10 @@ func NewRouter() *mux.Router {
 	api.HandleFunc("/auth/signup/verify-otp", handlers.VerifySignupOTP).Methods(http.MethodPost)
 	api.HandleFunc("/auth/signup/resend-otp", handlers.ResendSignupOTP).Methods(http.MethodPost)
 
+	// Referral seller signup routes (public; the ref code binds server-side)
+	api.HandleFunc("/auth/seller-signup/send-otp", handlers.SendSellerSignupOTP).Methods(http.MethodPost)
+	api.HandleFunc("/auth/seller-signup/verify-otp", handlers.VerifySellerSignupOTP).Methods(http.MethodPost)
+
 	// Forgot password routes (OTP-based)
 	api.HandleFunc("/auth/forgot-password/send-otp", handlers.SendForgotPasswordOTP).Methods(http.MethodPost)
 	api.HandleFunc("/auth/forgot-password/reset", handlers.ResetPasswordWithOTP).Methods(http.MethodPost)
@@ -282,6 +286,10 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/users/filter/count", handlers.GetFilteredUserCount).Methods("POST")
 	adminRouter.HandleFunc("/users/{userId}", handlers.GetUserByID).Methods("GET")
 	adminRouter.HandleFunc("/users/{userId}/role", handlers.UpdateUserRole).Methods("PUT")
+	// Registered before /users/{userId} is not required here (distinct path
+	// depth), but it sits beside the role grant it mirrors; see
+	// routes_shadow_test.go.
+	adminRouter.HandleFunc("/users/{userId}/seller-referral-permission", handlers.UpdateSellerReferralPermission).Methods("PUT")
 	adminRouter.HandleFunc("/users/{userId}", handlers.UpdateUserAsAdmin).Methods("PUT")
 	adminRouter.HandleFunc("/users/{userId}", handlers.DeleteUser).
 		Methods("DELETE")

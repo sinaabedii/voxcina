@@ -636,6 +636,150 @@
         }
       }
     },
+    "/api/auth/seller-signup/send-otp": {
+      "post": {
+        "tags": [
+          "Auth",
+          "Seller"
+        ],
+        "summary": "Send a referral seller signup OTP",
+        "operationId": "sendSellerSignupOtp",
+        "description": "Step 1 of the referral seller signup. The ref code comes from the signup link (?ref=REF-XXXXXXXX) and is resolved server-side to a seller holding the recruiter permission.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "firstName",
+                  "lastName",
+                  "phone",
+                  "ref"
+                ],
+                "properties": {
+                  "firstName": {
+                    "type": "string"
+                  },
+                  "lastName": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "birthday": {
+                    "type": "string"
+                  },
+                  "ref": {
+                    "type": "string",
+                    "description": "Referral code from the signup link (REF-XXXXXXXX)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OTP dispatched",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "expiresIn": {
+                      "type": "integer",
+                      "description": "Seconds"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Referral code unknown or revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Phone belongs to an account that cannot become a referral seller",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/seller-signup/verify-otp": {
+      "post": {
+        "tags": [
+          "Auth",
+          "Seller"
+        ],
+        "summary": "Complete referral seller signup with the OTP",
+        "operationId": "verifySellerSignupOtp",
+        "description": "Step 2: creates a referral seller (role=seller, 20% budget, parent bound) or upgrades an existing customer. Returns the user summary and a token pair.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "phone",
+                  "code"
+                ],
+                "properties": {
+                  "phone": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Existing customer upgraded; returns the user summary and a token pair",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Referral seller created; returns the user summary and a token pair",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
     "/api/auth/forgot-password/send-otp": {
       "post": {
         "tags": [
@@ -7189,6 +7333,63 @@
         "responses": {
           "200": {
             "description": "Role changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/{userId}/seller-referral-permission": {
+      "put": {
+        "tags": [
+          "Admin",
+          "Users",
+          "Seller"
+        ],
+        "summary": "Grant or revoke a seller's recruiter permission",
+        "operationId": "updateSellerReferralPermission",
+        "description": "Target must hold the seller role; recruited sellers (parent_seller_id set) can never be granted. Granting a seller with no code mints one (REF-XXXXXXXX); revoking keeps the code but disables it.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "can_refer"
+                ],
+                "properties": {
+                  "can_refer": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Permission updated; returns can_refer, referral_code and signup_path",
             "content": {
               "application/json": {
                 "schema": {

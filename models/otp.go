@@ -18,8 +18,13 @@ type OTP struct {
 	// UserID pins a bind_phone OTP to the user it was requested for, so a
 	// verified code can only promote that identity — not whichever account
 	// queries the record first.
-	UserID   primitive.ObjectID `bson:"user_id,omitempty" json:"-"`
-	Verified bool               `bson:"verified"      json:"verified"` // Whether OTP has been verified
+	UserID primitive.ObjectID `bson:"user_id,omitempty" json:"-"`
+	// SellerReferrerID pins a seller_signup OTP to the referring seller the
+	// ref code resolved to at send time, so verification cannot be retargeted
+	// at a different referrer. It is re-validated (still a seller, still
+	// allowed to recruit) at verify time.
+	SellerReferrerID *primitive.ObjectID `bson:"seller_referrer_id,omitempty" json:"-"`
+	Verified         bool                `bson:"verified"      json:"verified"` // Whether OTP has been verified
 	// VerificationToken is a short-lived, one-time grant created after a
 	// successful login OTP check. It is never exposed in normal OTP responses.
 	VerificationToken string    `bson:"verification_token,omitempty" json:"-"`
@@ -36,6 +41,11 @@ const (
 	// OTPPurposeBindPhone verifies control of a phone for an external
 	// (bot-channel) identity. It is independent of the signup/login purposes.
 	OTPPurposeBindPhone = "bind_phone"
+	// OTPPurposeSellerSignup verifies control of a phone for the referral
+	// seller signup flow. It reuses the otps collection and the standard
+	// code/rate-limit/SMS machinery; the referrer binding travels on
+	// SellerReferrerID below.
+	OTPPurposeSellerSignup = "seller_signup"
 )
 
 // MaxOTPAttempts is the maximum number of verification attempts allowed

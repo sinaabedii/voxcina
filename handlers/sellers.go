@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -121,11 +123,24 @@ type sellerPanelPayload struct {
 		MinPercent   int `json:"min_percent"`
 		MaxPercent   int `json:"max_percent"`
 	} `json:"budget"`
-	Summary      services.SellerPerformance    `json:"summary"`
-	Vouchers     []services.VoucherPerformance `json:"vouchers"`
-	RecentOrders []services.AttributedOrder    `json:"recent_orders"`
-	CanCreate    bool                          `json:"can_create"`
-	ActiveLimit  int                           `json:"active_limit"`
+	// Referral is the recruiter surface: whether this seller may recruit,
+	// the code they share, and the path-only signup URL the storefront
+	// resolves against its own origin (no host config exists server-side,
+	// so the panel returns a path and the frontend copies the absolute link).
+	Referral struct {
+		CanRefer   bool   `json:"can_refer"`
+		Code       string `json:"code,omitempty"`
+		SignupPath string `json:"signup_path,omitempty"`
+	} `json:"referral"`
+	// ReferralEarnings is the parent's 5% cut of the recruited team's paid
+	// sales. Separate from Summary.Commission by construction — see
+	// services.ReferralEarnings.
+	ReferralEarnings services.ReferralEarnings     `json:"referral_earnings"`
+	Summary          services.SellerPerformance    `json:"summary"`
+	Vouchers         []services.VoucherPerformance `json:"vouchers"`
+	RecentOrders     []services.AttributedOrder    `json:"recent_orders"`
+	CanCreate        bool                          `json:"can_create"`
+	ActiveLimit      int                           `json:"active_limit"`
 }
 
 // GetSellerPanel handles GET /api/seller/overview.
@@ -198,13 +213,63 @@ func buildSellerPanel(ctx context.Context, seller models.User) (*sellerPanelPayl
 	payload.Seller.Name = seller.Name
 	payload.Seller.Phone = seller.Phone
 	payload.Seller.Email = seller.Email
-	payload.Budget.TotalPercent = models.SellerVoucherBudgetPercent
+	// The seller's own budget drives the voucher picker: standard sellers
+	// split 36, referral-joined sellers split 20. A stored value outside the
+	// {36, 20} whitelist (including every legacy document, which stores
+	// nothing) is treated as the standard budget.
+	budget := models.NormalizeSellerBudget(seller.SellerBudgetPercent)
+	if seller.SellerBudgetPercent != 0 && budget != seller.SellerBudgetPercent {
+		log.Printf("seller %s has out-of-whitelist seller_budget_percent=%d; treating as %d",
+			seller.ID.Hex(), seller.SellerBudgetPercent, budget)
+	}
+	payload.Budget.TotalPercent = budget
 	payload.Budget.MinPercent = models.SellerVoucherMinPercent
-	payload.Budget.MaxPercent = models.SellerVoucherMaxPercent
+	payload.Budget.MaxPercent = budget
+	payload.Referral.CanRefer = seller.CanReferSellers
+	if seller.CanReferSellers && seller.SellerReferralCode != "" {
+		payload.Referral.Code = seller.SellerReferralCode
+		payload.Referral.SignupPath = "/seller/sign-up?ref=" + seller.SellerReferralCode
+	}
+	// No referral code means this seller could never have recruited, so the
+	// team lookup is skipped and the earnings stay zero.
+	payload.ReferralEarnings = services.ReferralEarnings{Sellers: []services.SellerPerformance{}}
+	if seller.SellerReferralCode != "" {
+		earnings, err := services.ReferralEarningsFor(ctx, db.Database, seller.ID, now)
+		if err != nil {
+			return nil, err
+		}
+		payload.ReferralEarnings = earnings
+		summary.ReferralCommission = earnings.Commission
+		summary.ReferralOrdersPaid = earnings.OrdersPaid
+		summary.ReferralSellerCount = earnings.SellerCount
+		payload.Summary = summary
+	}
 	return payload, nil
 }
 
+// toPersianDigits renders a non-negative integer in Persian digits so dynamic
+// budget messages read like the hand-written Persian copy around them
+// ("دقیقاً ۳۶ درصد", not "دقیقاً 36 درصد").
+func toPersianDigits(n int) string {
+	if n == 0 {
+		return "۰"
+	}
+	var out []rune
+	for n > 0 {
+		out = append([]rune{rune('۰' + n%10)}, out...)
+		n /= 10
+	}
+	return string(out)
+}
+
 func validateSellerVoucherParams(discountPercent, sellerSharePercent, maxUses *int, validDays *int, validTo *time.Time, now time.Time) (time.Time, string) {
+	return validateSellerVoucherParamsForBudget(models.SellerVoucherBudgetPercent, discountPercent, sellerSharePercent, maxUses, validDays, validTo, now)
+}
+
+// validateSellerVoucherParamsForBudget is the budget-aware core: the split is
+// checked against the caller's own budget (36 standard, 20 referral-joined)
+// so each seller's picker matches their panel's budget block.
+func validateSellerVoucherParamsForBudget(budget int, discountPercent, sellerSharePercent, maxUses *int, validDays *int, validTo *time.Time, now time.Time) (time.Time, string) {
 	if discountPercent == nil || sellerSharePercent == nil {
 		return time.Time{}, "درصد تخفیف مشتری و سهم فروشنده هر دو باید مشخص شوند"
 	}
@@ -212,12 +277,13 @@ func validateSellerVoucherParams(discountPercent, sellerSharePercent, maxUses *i
 		return time.Time{}, "سقف تعداد استفاده برای کاربران باید عددی بزرگتر از صفر باشد"
 	}
 
-	if err := models.ValidateSellerVoucherSplit(*discountPercent, *sellerSharePercent); err != nil {
+	if err := models.ValidateSellerVoucherSplitForBudget(budget, *discountPercent, *sellerSharePercent); err != nil {
+		faBudget := toPersianDigits(budget)
 		switch {
 		case errors.Is(err, models.ErrSellerSplitOutOfRange):
-			return time.Time{}, "هر سهم باید عددی صحیح بین ۰ تا ۳۶ باشد"
+			return time.Time{}, fmt.Sprintf("هر سهم باید عددی صحیح بین ۰ تا %s باشد", faBudget)
 		default:
-			return time.Time{}, "مجموع تخفیف مشتری و سهم فروشنده باید دقیقاً ۳۶ درصد باشد"
+			return time.Time{}, fmt.Sprintf("مجموع تخفیف مشتری و سهم فروشنده باید دقیقاً %s درصد باشد", faBudget)
 		}
 	}
 
@@ -320,7 +386,7 @@ func DeleteSellerVoucher(w http.ResponseWriter, r *http.Request) {
 //
 // The body carries the split, usage cap and validity. The code text and ownership are
 // decided here — a seller cannot name their own code, claim someone else's
-// id, or mint a code outside the fixed budget.
+// id, or mint a code outside their own budget (36 standard, 20 referral-joined).
 func CreateSellerVoucher(w http.ResponseWriter, r *http.Request) {
 	sellerID, ok := currentUserID(r)
 	if !ok {
@@ -355,14 +421,27 @@ func CreateSellerVoucher(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now()
-	validTo, errMsg := validateSellerVoucherParams(payload.DiscountPercent, payload.SellerSharePercent, payload.MaxUses, payload.ValidDays, payload.ValidTo, now)
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+
+	// The caller's own budget decides the split: legacy documents (no stored
+	// budget) and any out-of-whitelist value fall back to the standard 36.
+	var seller models.User
+	if err := db.Database.Collection("users").FindOne(ctx, bson.M{"_id": sellerID}).Decode(&seller); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در دریافت اطلاعات فروشنده")
+		return
+	}
+	budget := models.NormalizeSellerBudget(seller.SellerBudgetPercent)
+	if seller.SellerBudgetPercent != 0 && budget != seller.SellerBudgetPercent {
+		log.Printf("seller %s has out-of-whitelist seller_budget_percent=%d; treating as %d",
+			sellerID.Hex(), seller.SellerBudgetPercent, budget)
+	}
+
+	validTo, errMsg := validateSellerVoucherParamsForBudget(budget, payload.DiscountPercent, payload.SellerSharePercent, payload.MaxUses, payload.ValidDays, payload.ValidTo, now)
 	if errMsg != "" {
 		utils.ErrorResponse(w, http.StatusBadRequest, errMsg)
 		return
 	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
-	defer cancel()
 
 	existing, err := sellerVouchersFor(ctx, sellerID)
 	if err != nil {

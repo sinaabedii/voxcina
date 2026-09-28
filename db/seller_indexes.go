@@ -22,6 +22,14 @@ import (
 //   - orders.discount_code — the statistics pipeline matches orders by the
 //     codes a seller owns; without this it is a collection scan per report.
 //   - users.role — the admin sellers table lists users by role.
+//   - users.seller_referral_code partial unique — recruiter codes are resolved
+//     BY CODE at seller signup, and the admin grant mints them in a
+//     retry-on-collision loop that is only sound if the database enforces
+//     uniqueness. Partial (not sparse): most documents have no code at all,
+//     and the filter uses only $and/$type/$gt — $ne is rejected by the server
+//     in a partialFilterExpression.
+//   - users.parent_seller_id — the parent-commission roll-up finds every
+//     direct child of a seller; plain non-unique.
 //
 // Index creation is best-effort and never fatal: the code unique index is the
 // one that can legitimately fail on an existing deployment, if duplicate codes
@@ -67,6 +75,31 @@ func CreateSellerVoucherIndexes() error {
 		Options: options.Index().SetName("user_role_idx"),
 	}); err != nil {
 		log.Printf("Error creating users role index: %v", err)
+		return err
+	}
+
+	users := Database.Collection("users")
+	if _, err := users.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{{Key: "seller_referral_code", Value: 1}},
+		Options: options.Index().SetUnique(true).SetName("user_seller_referral_code_unique").
+			SetPartialFilterExpression(bson.M{"$and": []bson.M{
+				{"seller_referral_code": bson.M{"$type": "string"}},
+				{"seller_referral_code": bson.M{"$gt": ""}},
+			}}),
+	}); err != nil {
+		log.Printf(
+			"WARNING: could not create the partial unique index on users.seller_referral_code (%v). "+
+				"Referral code minting still pre-checks for collisions, so it degrades to a "+
+				"small race window rather than breaking.",
+			err,
+		)
+	}
+
+	if _, err := users.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "parent_seller_id", Value: 1}},
+		Options: options.Index().SetName("user_parent_seller_idx"),
+	}); err != nil {
+		log.Printf("Error creating users parent_seller index: %v", err)
 		return err
 	}
 

@@ -93,6 +93,14 @@ type SellerPerformance struct {
 	RevenueCollected float64 `json:"revenue_collected"`
 	AvgOrderValue    float64 `json:"avg_order_value"`
 	ItemsSold        int     `json:"items_sold"`
+
+	// Referral-team cut. When this seller recruited sub-sellers, these carry
+	// the parent's 5% share of the children's commission bases plus the team
+	// size behind it. They are NEVER mixed into Commission above — the
+	// seller's own earnings and the referral earnings settle separately.
+	ReferralCommission  float64 `json:"referral_commission"`
+	ReferralOrdersPaid  int     `json:"referral_orders_paid"`
+	ReferralSellerCount int     `json:"referral_seller_count"`
 }
 
 // AttributedOrder is one order credited to a seller code, for the drill-down
@@ -533,4 +541,115 @@ func MeasureSellers(
 		out[sellerID] = summary
 	}
 	return out, nil
+}
+
+// ReferralEarnings is a parent seller's cut of their recruited team's sales:
+// one hop only (children recruited directly by this seller), computed as
+// ReferralParentCommissionPercent of each child's already-measured
+// CommissionBase. Children with no vouchers or no paid orders contribute
+// zero rows — they still count toward SellerCount because the team card
+// reports recruited sellers, not just earning ones.
+type ReferralEarnings struct {
+	Commission  float64             `json:"referral_commission"`
+	OrdersPaid  int                 `json:"referral_orders_paid"`
+	SellerCount int                 `json:"referral_seller_count"`
+	Sellers     []SellerPerformance `json:"referral_sellers"`
+}
+
+// ReferralCommissionAmount is the parent's cut of a single commission base.
+// One function so the panel, the admin detail view and any future settlement
+// job can never disagree on the rate.
+func ReferralCommissionAmount(commissionBase float64) float64 {
+	return commissionBase * float64(models.ReferralParentCommissionPercent) / 100
+}
+
+// SumReferralEarnings folds already-measured child roll-ups into the parent's
+// referral cut. Pure (no DB) so it stays unit-testable like the commission
+// helpers above; ReferralEarningsFor handles the loading.
+func SumReferralEarnings(children []SellerPerformance) ReferralEarnings {
+	out := ReferralEarnings{Sellers: make([]SellerPerformance, 0, len(children))}
+	for _, c := range children {
+		out.Commission += ReferralCommissionAmount(c.CommissionBase)
+		out.OrdersPaid += c.OrdersPaid
+		out.Sellers = append(out.Sellers, c)
+	}
+	out.SellerCount = len(children)
+	return out
+}
+
+// ReferralEarningsFor measures every direct child of parentID and returns the
+// parent's referral cut.
+//
+// Budget handling: the commission math never reads users.seller_budget_percent
+// — each code's own SellerSharePercent drives it — so no $ifNull fallback is
+// needed in the aggregation; legacy children without a stored budget are
+// simply measured like every other seller. The parent link is history, not
+// status: a child who was later demoted or deactivated keeps their orders
+// attributed, exactly like the seller's own reports keep retired codes.
+func ReferralEarningsFor(
+	ctx context.Context,
+	database *mongo.Database,
+	parentID primitive.ObjectID,
+	now time.Time,
+) (ReferralEarnings, error) {
+	cursor, err := database.Collection("users").Find(ctx, bson.M{"parent_seller_id": parentID})
+	if err != nil {
+		return ReferralEarnings{}, err
+	}
+	var children []models.User
+	if err := cursor.All(ctx, &children); err != nil {
+		_ = cursor.Close(ctx)
+		return ReferralEarnings{}, err
+	}
+	_ = cursor.Close(ctx)
+
+	if len(children) == 0 {
+		return ReferralEarnings{Sellers: []SellerPerformance{}}, nil
+	}
+
+	ids := make([]primitive.ObjectID, 0, len(children))
+	byID := make(map[primitive.ObjectID]models.User, len(children))
+	grouped := make(map[primitive.ObjectID][]models.Discount, len(children))
+	for _, c := range children {
+		ids = append(ids, c.ID)
+		byID[c.ID] = c
+		grouped[c.ID] = nil
+	}
+
+	voucherCursor, err := database.Collection("discounts").Find(ctx, bson.M{"seller_id": bson.M{"$in": ids}})
+	if err != nil {
+		return ReferralEarnings{}, err
+	}
+	var vouchers []models.Discount
+	if err := voucherCursor.All(ctx, &vouchers); err != nil {
+		_ = voucherCursor.Close(ctx)
+		return ReferralEarnings{}, err
+	}
+	_ = voucherCursor.Close(ctx)
+	for _, v := range vouchers {
+		if v.SellerID == nil {
+			continue
+		}
+		if _, ok := grouped[*v.SellerID]; ok {
+			grouped[*v.SellerID] = append(grouped[*v.SellerID], v)
+		}
+	}
+
+	measured, err := MeasureSellers(ctx, database, grouped, now)
+	if err != nil {
+		return ReferralEarnings{}, err
+	}
+
+	summaries := make([]SellerPerformance, 0, len(children))
+	for _, c := range children {
+		row := measured[c.ID]
+		row.SellerID = c.ID
+		row.Name = c.Name
+		row.Phone = c.Phone
+		row.Email = c.Email
+		row.IsActive = c.IsActive
+		row.JoinedAt = c.CreatedAt
+		summaries = append(summaries, row)
+	}
+	return SumReferralEarnings(summaries), nil
 }

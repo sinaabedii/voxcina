@@ -20,6 +20,48 @@ const SellerVoucherBudgetPercent = 36
 // seller splits (discount % + share % == 20).
 const ReferralSellerVoucherBudgetPercent = 20
 
+// ReferralParentCommissionPercent is the cut a referring seller earns on every
+// paid order placed through one of their sub-sellers' voucher codes: 5% of
+// the child's CommissionBase (paid merchandise net of discounts and approved
+// returns). It is tracked separately and never mixed into either seller's own
+// Commission.
+const ReferralParentCommissionPercent = 5
+
+// NormalizeSellerBudget maps any stored SellerBudgetPercent to a usable
+// budget: the two program budgets (36 standard, 20 referral-joined) pass
+// through, everything else — including unset 0 from legacy documents — falls
+// back to the standard budget. Read paths use this so a corrupt value can
+// never widen a seller's picker; write paths must additionally reject
+// out-of-whitelist values via IsValidSellerBudget instead of silently
+// normalizing them.
+func NormalizeSellerBudget(budget int) int {
+	switch budget {
+	case SellerVoucherBudgetPercent, ReferralSellerVoucherBudgetPercent:
+		return budget
+	default:
+		return SellerVoucherBudgetPercent
+	}
+}
+
+// IsValidSellerBudget reports whether a budget may be persisted on
+// User.SellerBudgetPercent: unset (0, legacy/standard) or one of the two
+// program budgets. Anything else is a product-level unknown and must be
+// rejected at the write path.
+func IsValidSellerBudget(budget int) bool {
+	return budget == 0 ||
+		budget == SellerVoucherBudgetPercent ||
+		budget == ReferralSellerVoucherBudgetPercent
+}
+
+// SellerReferralCodePrefix marks an auto-minted recruiter code. The code is
+// shared as a link (/seller/sign-up?ref=REF-XXXXXXXX), so like the voucher
+// prefix it carries no readable identity — the suffix is random hex.
+const SellerReferralCodePrefix = "REF-"
+
+// SellerReferralCodeRandomBytes sizes the random suffix: 4 bytes render as 8
+// upper-case hex characters (REF-XXXXXXXX).
+const SellerReferralCodeRandomBytes = 4
+
 // The standard-budget split moves in whole percentage points. It is a picker
 // with 37 positions (0..36), not a slider over the reals: a code reading
 // "17.5% off" is not something a seller can say out loud, and fractional

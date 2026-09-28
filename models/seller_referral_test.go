@@ -53,3 +53,46 @@ func TestReferralSellerVoucherBudgetIs20(t *testing.T) {
 		t.Errorf("ReferralSellerVoucherBudgetPercent = %d, want 20", ReferralSellerVoucherBudgetPercent)
 	}
 }
+
+// TestNormalizeSellerBudgetWhitelist pins the write-path defense: only the
+// two program budgets survive; unset and anything unknown collapse to the
+// standard budget so a corrupt value can never widen a seller's picker.
+func TestNormalizeSellerBudgetWhitelist(t *testing.T) {
+	cases := []struct{ in, want int }{
+		{0, SellerVoucherBudgetPercent},          // unset legacy document
+		{36, SellerVoucherBudgetPercent},         // standard
+		{20, ReferralSellerVoucherBudgetPercent}, // referral-joined
+		{50, SellerVoucherBudgetPercent},         // corrupt
+		{-5, SellerVoucherBudgetPercent},         // corrupt
+		{1, SellerVoucherBudgetPercent},          // unknown
+		{35, SellerVoucherBudgetPercent},         // near-miss
+	}
+	for _, tc := range cases {
+		if got := NormalizeSellerBudget(tc.in); got != tc.want {
+			t.Errorf("NormalizeSellerBudget(%d) = %d, want %d", tc.in, got, tc.want)
+		}
+	}
+}
+
+// TestIsValidSellerBudget pins what may be persisted: unset (legacy) or one
+// of the two program budgets. Everything else must be rejected at the write
+// path, never silently normalized.
+func TestIsValidSellerBudget(t *testing.T) {
+	for _, b := range []int{0, SellerVoucherBudgetPercent, ReferralSellerVoucherBudgetPercent} {
+		if !IsValidSellerBudget(b) {
+			t.Errorf("IsValidSellerBudget(%d) = false, want true", b)
+		}
+	}
+	for _, b := range []int{1, 19, 21, 35, 37, 50, -1, 100} {
+		if IsValidSellerBudget(b) {
+			t.Errorf("IsValidSellerBudget(%d) = true, want false", b)
+		}
+	}
+}
+
+// TestReferralParentCommissionPercentIs5 pins the parent's cut itself.
+func TestReferralParentCommissionPercentIs5(t *testing.T) {
+	if ReferralParentCommissionPercent != 5 {
+		t.Errorf("ReferralParentCommissionPercent = %d, want 5", ReferralParentCommissionPercent)
+	}
+}

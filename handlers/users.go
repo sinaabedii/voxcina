@@ -2,7 +2,10 @@ package handlers
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -1323,6 +1326,144 @@ func UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSONResponse(w, http.StatusOK, updatedUser)
+}
+
+// sellerReferralCodeAttempts bounds the retry loop that mints a recruiter
+// code. Same shape as the voucher-code loop: 4 random bytes already make a
+// collision unlikely; this just refuses to spin forever.
+const sellerReferralCodeAttempts = 8
+
+// sellerReferralGrantDecide is the pure policy behind
+// UpdateSellerReferralPermission: who may hold the recruiter permission and
+// when a fresh code must be minted. Pure (no DB) so it stays unit-testable.
+//
+//   - Only role=="seller" holders use the permission; every other role is
+//     rejected.
+//   - True one-level depth: a seller who was themselves recruited
+//     (ParentSellerID != nil) can never be granted the permission, so referral
+//     chains are impossible and commission is always exactly one hop.
+//   - A grant to a seller with no code yet needs one minted; revoking — or
+//     granting to a seller who already has a code — never touches the code.
+func sellerReferralGrantDecide(target models.User, grant bool) (needCode bool, errMsg string) {
+	if target.Role != RoleSeller {
+		return false, "فقط فروشندگان می‌توانند مجوز معرفی فروشنده دریافت کنند"
+	}
+	if grant && target.ParentSellerID != nil {
+		return false, "فروشندگان معرفی‌شده نمی‌توانند فروشنده دیگری را معرفی کنند"
+	}
+	if grant && target.SellerReferralCode == "" {
+		return true, ""
+	}
+	return false, ""
+}
+
+// generateSellerReferralCode mints an unused recruiter code (REF-XXXXXXXX).
+//
+// The suffix is random hex, not derived from the seller: the code travels in
+// a shareable link and must not leak identity. Uniqueness is checked against
+// the users collection only — referral codes resolve there and share no
+// namespace with checkout promo codes. The partial unique index on
+// seller_referral_code is the final arbiter; the update path still maps a
+// duplicate-key race to a retryable 409.
+func generateSellerReferralCode(ctx context.Context) (string, error) {
+	users := db.Database.Collection("users")
+	for attempt := 0; attempt < sellerReferralCodeAttempts; attempt++ {
+		raw := make([]byte, models.SellerReferralCodeRandomBytes)
+		if _, err := rand.Read(raw); err != nil {
+			return "", err
+		}
+		code := models.SellerReferralCodePrefix + strings.ToUpper(hex.EncodeToString(raw))
+		taken, err := users.CountDocuments(ctx, bson.M{"seller_referral_code": code})
+		if err != nil {
+			return "", err
+		}
+		if taken == 0 {
+			return code, nil
+		}
+	}
+	return "", errors.New("could not mint an unused seller referral code")
+}
+
+// UpdateSellerReferralPermission handles PUT /api/admin/users/{userId}/seller-referral-permission.
+// Requires admin authentication (AdminAuthMiddleware).
+//
+// Grants or revokes a seller's permission to recruit sub-sellers. Granting a
+// seller with no code mints one; revoking keeps the existing code but clients
+// must treat can_refer=false as disabled — the signup flow resolves only
+// codes whose owner still holds the permission.
+func UpdateSellerReferralPermission(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userIDStr, ok := vars["userId"]
+	if !ok {
+		utils.ErrorResponse(w, http.StatusBadRequest, "شناسه کاربر در مسیر مشخص نشده است")
+		return
+	}
+	userID, err := primitive.ObjectIDFromHex(userIDStr)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "شناسه کاربر نامعتبر است")
+		return
+	}
+
+	var payload struct {
+		CanRefer *bool `json:"can_refer"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "درخواست نامعتبر است")
+		return
+	}
+	if payload.CanRefer == nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "فیلد can_refer الزامی است")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	userCollection := db.Database.Collection("users")
+
+	var target models.User
+	if err := userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&target); err != nil {
+		if err == mongo.ErrNoDocuments {
+			utils.ErrorResponse(w, http.StatusNotFound, "کاربر یافت نشد")
+		} else {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در دریافت کاربر")
+		}
+		return
+	}
+
+	needCode, errMsg := sellerReferralGrantDecide(target, *payload.CanRefer)
+	if errMsg != "" {
+		utils.ErrorResponse(w, http.StatusBadRequest, errMsg)
+		return
+	}
+
+	code := target.SellerReferralCode
+	set := bson.M{"can_refer_sellers": *payload.CanRefer, "updated_at": time.Now()}
+	if needCode {
+		code, err = generateSellerReferralCode(ctx)
+		if err != nil {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در ساخت کد معرفی")
+			return
+		}
+		set["seller_referral_code"] = code
+	}
+
+	if _, err := userCollection.UpdateOne(ctx, bson.M{"_id": userID}, bson.M{"$set": set}); err != nil {
+		if mongo.IsDuplicateKeyError(err) {
+			utils.ErrorResponse(w, http.StatusConflict, "کد معرفی تکراری شد؛ دوباره تلاش کنید")
+		} else {
+			utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در ذخیره مجوز معرفی")
+		}
+		return
+	}
+
+	resp := map[string]interface{}{
+		"can_refer":     *payload.CanRefer,
+		"referral_code": code,
+	}
+	if code != "" {
+		resp["signup_path"] = "/seller/sign-up?ref=" + code
+	}
+	utils.JSONResponse(w, http.StatusOK, resp)
 }
 
 // UpdateUserAsAdmin handles PUT /api/admin/users/{userId}
