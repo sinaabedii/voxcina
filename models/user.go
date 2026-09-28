@@ -153,6 +153,24 @@ type User struct {
 	// and names no source could resolve. omitempty keeps legacy documents
 	// behaving exactly as before.
 	Gender string `bson:"gender,omitempty" json:"gender,omitempty"`
+
+	// Referral-seller program fields (Phase 1). Only documents with
+	// role == "seller" use them; every other role ignores them.
+	//
+	// CanReferSellers is an admin-granted permission for a seller to recruit
+	// sub-sellers. When true the seller panel exposes their referral code.
+	CanReferSellers bool `bson:"can_refer_sellers,omitempty" json:"can_refer_sellers,omitempty"`
+	// SellerReferralCode is the unique code this seller shares with recruits
+	// (format REF-XXXXXXXX, decided in Phase 2). Empty means none issued.
+	SellerReferralCode string `bson:"seller_referral_code,omitempty" json:"seller_referral_code,omitempty"`
+	// ParentSellerID is the referring seller. Nil means a direct seller.
+	// Propagation is one level only: a referred seller's own recruits still
+	// point at their direct referrer, never transitively at the grandparent.
+	ParentSellerID *primitive.ObjectID `bson:"parent_seller_id,omitempty" json:"parent_seller_id,omitempty"`
+	// SellerBudgetPercent is the voucher budget this seller splits between
+	// customer discount and seller share (36 standard, 20 referral-joined).
+	// Zero means unset: see EffectiveSellerBudget.
+	SellerBudgetPercent int `bson:"seller_budget_percent,omitempty" json:"seller_budget_percent,omitempty"`
 }
 
 // Resolved customer genders stored on User.Gender. Anything else (including
@@ -194,4 +212,16 @@ func (u *User) HasPhone() bool {
 // check).
 func (u *User) HasPassword() bool {
 	return u.PasswordHash != ""
+}
+
+// EffectiveSellerBudget returns the voucher budget this seller splits.
+// A zero SellerBudgetPercent means the field was never set — every legacy
+// seller document predates the referral program — so it falls back to the
+// standard SellerVoucherBudgetPercent (36). Referral-joined sellers carry an
+// explicit ReferralSellerVoucherBudgetPercent (20).
+func (u *User) EffectiveSellerBudget() int {
+	if u.SellerBudgetPercent <= 0 {
+		return SellerVoucherBudgetPercent
+	}
+	return u.SellerBudgetPercent
 }

@@ -16,10 +16,16 @@ import (
 // silently rewrite history. A different split means a new code.
 const SellerVoucherBudgetPercent = 36
 
-// The split moves in whole percentage points. It is a picker with 37 positions
-// (0..36), not a slider over the reals: a code reading "17.5% off" is not
-// something a seller can say out loud, and fractional shares turn commission
-// reconciliation into a rounding argument.
+// ReferralSellerVoucherBudgetPercent is the fixed budget a referral-joined
+// seller splits (discount % + share % == 20).
+const ReferralSellerVoucherBudgetPercent = 20
+
+// The standard-budget split moves in whole percentage points. It is a picker
+// with 37 positions (0..36), not a slider over the reals: a code reading
+// "17.5% off" is not something a seller can say out loud, and fractional
+// shares turn commission reconciliation into a rounding argument. Referral
+// sellers use the same picker shape over their own budget (0..20); the range
+// below binds the standard budget only.
 const (
 	SellerVoucherMinPercent = 0
 	SellerVoucherMaxPercent = SellerVoucherBudgetPercent
@@ -47,14 +53,22 @@ var (
 // client that computes the remainder differently is caught here instead of
 // silently minting a code whose two percentages disagree.
 func ValidateSellerVoucherSplit(discountPercent, sellerSharePercent int) error {
-	if discountPercent < SellerVoucherMinPercent || discountPercent > SellerVoucherMaxPercent {
-		return ErrSellerSplitOutOfRange
+	return ValidateSellerVoucherSplitForBudget(SellerVoucherBudgetPercent, discountPercent, sellerSharePercent)
+}
+
+// ValidateSellerVoucherSplitForBudget checks a proposed split against an
+// explicit budget (standard 36 or referral 20). Both shares must be whole
+// numbers in 0..budget and add up to exactly budget. Errors wrap the
+// package sentinels so errors.Is callers keep working across budgets.
+func ValidateSellerVoucherSplitForBudget(budget, discountPercent, sellerSharePercent int) error {
+	if discountPercent < SellerVoucherMinPercent || discountPercent > budget {
+		return fmt.Errorf("each share must be a whole number between 0 and %d: %w", budget, ErrSellerSplitOutOfRange)
 	}
-	if sellerSharePercent < SellerVoucherMinPercent || sellerSharePercent > SellerVoucherMaxPercent {
-		return ErrSellerSplitOutOfRange
+	if sellerSharePercent < SellerVoucherMinPercent || sellerSharePercent > budget {
+		return fmt.Errorf("each share must be a whole number between 0 and %d: %w", budget, ErrSellerSplitOutOfRange)
 	}
-	if discountPercent+sellerSharePercent != SellerVoucherBudgetPercent {
-		return ErrSellerSplitBudget
+	if discountPercent+sellerSharePercent != budget {
+		return fmt.Errorf("the customer discount and the seller share must add up to exactly %d%%: %w", budget, ErrSellerSplitBudget)
 	}
 	return nil
 }
