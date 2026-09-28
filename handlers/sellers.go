@@ -232,6 +232,7 @@ func buildSellerPanel(ctx context.Context, seller models.User) (*sellerPanelPayl
 	}
 	// No referral code means this seller could never have recruited, so the
 	// team lookup is skipped and the earnings stay zero.
+	// Invariant: referral codes are never deleted (revoke keeps the code), so presence stays a safe history gate.
 	payload.ReferralEarnings = services.ReferralEarnings{Sellers: []services.SellerPerformance{}}
 	if seller.SellerReferralCode != "" {
 		earnings, err := services.ReferralEarningsFor(ctx, db.Database, seller.ID, now)
@@ -426,6 +427,9 @@ func CreateSellerVoucher(w http.ResponseWriter, r *http.Request) {
 
 	// The caller's own budget decides the split: legacy documents (no stored
 	// budget) and any out-of-whitelist value fall back to the standard 36.
+	// Whitelist-by-construction: the budget is loaded server-side from the
+	// user document — no request input reaches it — so IsValidSellerBudget is
+	// intentionally uncalled here.
 	var seller models.User
 	if err := db.Database.Collection("users").FindOne(ctx, bson.M{"_id": sellerID}).Decode(&seller); err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در دریافت اطلاعات فروشنده")

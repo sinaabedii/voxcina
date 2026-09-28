@@ -215,13 +215,10 @@ func (u *User) HasPassword() bool {
 }
 
 // EffectiveSellerBudget returns the voucher budget this seller splits.
-// A zero SellerBudgetPercent means the field was never set — every legacy
-// seller document predates the referral program — so it falls back to the
-// standard SellerVoucherBudgetPercent (36). Referral-joined sellers carry an
-// explicit ReferralSellerVoucherBudgetPercent (20).
+// It delegates to NormalizeSellerBudget so every reader shares one rule:
+// unset (0 — every legacy document predates the referral program) and any
+// out-of-whitelist value fall back to the standard budget, while the two
+// program budgets (36 standard, 20 referral-joined) pass through.
 func (u *User) EffectiveSellerBudget() int {
-	if u.SellerBudgetPercent <= 0 {
-		return SellerVoucherBudgetPercent
-	}
-	return u.SellerBudgetPercent
+	return NormalizeSellerBudget(u.SellerBudgetPercent)
 }

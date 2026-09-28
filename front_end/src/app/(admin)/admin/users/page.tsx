@@ -14,6 +14,8 @@ import {
   Smartphone,
   Clock,
   X,
+  UserPlus,
+  UserMinus,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { useAdminUsersStore } from "@/store/auth-store";
@@ -83,6 +85,7 @@ export default function AdminUsersPage() {
     error,
     fetchAllUsers,
     updateUserAsAdmin,
+    updateSellerReferralPermission,
     deleteUserAsAdmin,
   } = useAdminUsersStore();
 
@@ -101,6 +104,10 @@ export default function AdminUsersPage() {
   const [editedRole, setEditedRole] = useState<User['role'] | ''>('');
   const [isStatusChangeDialogOpen, setIsStatusChangeDialogOpen] = useState(false);
   const [userToChangeStatus, setUserToChangeStatus] = useState<User | null>(null);
+  const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
+  const [referralTarget, setReferralTarget] = useState<User | null>(null);
+  const [referralGrant, setReferralGrant] = useState(false);
+  const [isReferralSaving, setIsReferralSaving] = useState(false);
 
   useEffect(() => {
     fetchAllUsers().catch(err => {
@@ -226,6 +233,31 @@ export default function AdminUsersPage() {
     setIsStatusChangeDialogOpen(true);
   };
 
+  // Recruited sellers (parent_seller_id set) can never be granted the
+  // referral permission — the backend 400s it — so the UI never offers it.
+  const confirmReferralChange = (user: User) => {
+    if (user.role !== "seller" || user.parent_seller_id) return;
+    setReferralTarget(user);
+    setReferralGrant(!(user.can_refer_sellers === true));
+    setIsReferralModalOpen(true);
+  };
+
+  const handleReferralConfirm = async () => {
+    if (!referralTarget) return;
+    setIsReferralSaving(true);
+    try {
+      // Success and failure toasts come from the store; a failure leaves the
+      // modal open so a retryable 409 can be retried without re-picking.
+      await updateSellerReferralPermission(referralTarget.id, referralGrant);
+      setIsReferralModalOpen(false);
+      setReferralTarget(null);
+    } catch {
+      // Already toasted in the store.
+    } finally {
+      setIsReferralSaving(false);
+    }
+  };
+
   const handleStatusChangeConfirm = async () => {
     if (userToChangeStatus) {
       try {
@@ -321,6 +353,7 @@ export default function AdminUsersPage() {
                 <>
                   <AdminTh>کاربر</AdminTh>
                   <AdminTh>نقش</AdminTh>
+                  <AdminTh className="text-center">دعوت فروشنده</AdminTh>
                   <AdminTh className="text-center">وضعیت</AdminTh>
                   <AdminTh className="text-center">اپلیکیشن</AdminTh>
                   <AdminTh>آخرین ورود</AdminTh>
@@ -349,6 +382,46 @@ export default function AdminUsersPage() {
                     <AdminBadge tone={roleTone(user.role)}>
                       {roleLabel(user.role)}
                     </AdminBadge>
+                  </AdminTd>
+                  <AdminTd className="whitespace-nowrap text-center">
+                    {user.role === "seller" ? (
+                      user.parent_seller_id ? (
+                        <span title="این فروشنده از طریق دعوت ثبت‌نام کرده و امکان دعوت فروشنده دیگری را ندارد">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled
+                            className="rounded-lg opacity-40"
+                            title="این فروشنده از طریق دعوت ثبت‌نام کرده و امکان دعوت فروشنده دیگری را ندارد"
+                            aria-label="اجازه دعوت فروشنده"
+                          >
+                            <UserPlus className="h-4 w-4" />
+                          </Button>
+                        </span>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => confirmReferralChange(user)}
+                            className={`rounded-lg ${
+                              user.can_refer_sellers === true
+                                ? "text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
+                                : "text-green-500 hover:text-green-600 dark:text-green-400 dark:hover:text-green-300"
+                            }`}
+                            title="اجازه دعوت فروشنده"
+                            aria-label="اجازه دعوت فروشنده"
+                          >
+                            {user.can_refer_sellers === true ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                          </Button>
+                          {user.seller_referral_code && (
+                            <span className="font-mono text-xs opacity-60">{user.seller_referral_code}</span>
+                          )}
+                        </div>
+                      )
+                    ) : (
+                      <span className="opacity-40">—</span>
+                    )}
                   </AdminTd>
                   <AdminTd className="whitespace-nowrap text-center">
                     <AdminBadge tone={user.isActive === true ? "success" : "danger"}>
@@ -503,6 +576,40 @@ export default function AdminUsersPage() {
                           </div>
                         )}
 
+                        {user.role === "seller" && (
+                          <div className="flex items-center justify-between gap-2 text-xs text-voxcina-blue/70 dark:text-voxcina-cream/70">
+                            <span>
+                              اجازه دعوت فروشنده
+                              {user.seller_referral_code && (
+                                <span className="font-mono opacity-60"> ({user.seller_referral_code})</span>
+                              )}
+                            </span>
+                            {user.parent_seller_id ? (
+                              <span
+                                title="این فروشنده از طریق دعوت ثبت‌نام کرده و امکان دعوت فروشنده دیگری را ندارد"
+                                className="opacity-60"
+                              >
+                                دعوت‌شده
+                              </span>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => confirmReferralChange(user)}
+                                className={`rounded-lg ${
+                                  user.can_refer_sellers === true
+                                    ? "text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
+                                    : "text-green-500 hover:text-green-600 dark:text-green-400 dark:hover:text-green-300"
+                                }`}
+                                aria-label="اجازه دعوت فروشنده"
+                              >
+                                {user.can_refer_sellers === true ? <UserMinus className="h-4 w-4 ml-1" /> : <UserPlus className="h-4 w-4 ml-1" />}
+                                <span className="text-xs">{user.can_refer_sellers === true ? "لغو مجوز" : "فعال‌سازی"}</span>
+                              </Button>
+                            )}
+                          </div>
+                        )}
+
                         <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-voxcina-cream/30 dark:border-voxcina-blue/30">
                           <Button
                             variant="ghost"
@@ -620,6 +727,33 @@ export default function AdminUsersPage() {
             isLoading={isLoading}
           >
             بله، حذف کن
+          </Button>
+        </AdminModalActions>
+      </AdminModal>
+
+      {/* Referral Permission Confirmation Modal */}
+      <AdminModal
+        isOpen={isReferralModalOpen && !!referralTarget}
+        onClose={() => setIsReferralModalOpen(false)}
+        title={referralGrant ? "فعال‌سازی مجوز دعوت" : "لغو مجوز دعوت"}
+        size="sm"
+      >
+        <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 leading-relaxed flex items-start gap-2">
+          <AlertTriangle className={`h-5 w-5 shrink-0 mt-0.5 ${referralGrant ? "text-green-500" : "text-red-500"}`} />
+          {referralGrant
+            ? <>فعال‌سازی مجوز دعوت برای این فروشنده؟ «{referralTarget?.name}»</>
+            : <>لغو مجوز دعوت؟ (کد قبلی حفظ می‌شود)</>}
+        </p>
+        <AdminModalActions onCancel={() => setIsReferralModalOpen(false)}>
+          <Button
+            variant={referralGrant ? "primary" : "danger"}
+            size="sm"
+            className="rounded-xl min-w-[80px]"
+            onClick={handleReferralConfirm}
+            disabled={isReferralSaving}
+            isLoading={isReferralSaving}
+          >
+            {referralGrant ? "فعال کن" : "لغو کن"}
           </Button>
         </AdminModalActions>
       </AdminModal>

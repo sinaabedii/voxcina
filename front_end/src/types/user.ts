@@ -15,6 +15,13 @@ export interface User {
   updatedAt: string;
   isActive?: boolean;
   reviews?: Review[];
+  // Seller referral program (mirrors models/user.go snake_case JSON tags)
+  /** Whether this seller may invite sub-sellers (one level only). */
+  can_refer_sellers?: boolean;
+  /** The seller's own invite code, present once granted. */
+  seller_referral_code?: string;
+  /** Set when this seller joined via another seller's invite — such sellers can never be granted. */
+  parent_seller_id?: string;
   // Mobile app tracking fields
   hasMobileApp?: boolean;
   lastAppOpen?: string;

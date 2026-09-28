@@ -3,10 +3,14 @@
 import { useEffect } from "react";
 import { Store } from "lucide-react";
 
-import { AdminError, AdminLoading, AdminPageHeader } from "@/components/admin/ui";
+import { AdminBadge, AdminError, AdminLoading, AdminPageHeader } from "@/components/admin/ui";
 import {
+  getReferralSellers,
   SellerBreakdown,
   SellerOrdersTable,
+  SellerReferralEarnings,
+  SellerReferralInviteBox,
+  SellerReferralTeamTable,
   SellerSummaryCards,
   SellerVouchersTable,
 } from "@/components/seller/SellerStatsPanel";
@@ -40,6 +44,18 @@ export default function SellerPage() {
     return null;
   }
 
+  const teamSellers = getReferralSellers(panel.referral_earnings);
+  const hasReferralData =
+    (panel.summary.referral_commission ?? 0) > 0 ||
+    (panel.summary.referral_orders_paid ?? 0) > 0 ||
+    (panel.summary.referral_seller_count ?? 0) > 0 ||
+    (panel.referral_earnings?.referral_commission ?? 0) > 0 ||
+    (panel.referral_earnings?.referral_orders_paid ?? 0) > 0 ||
+    (panel.referral_earnings?.referral_seller_count ?? 0) > 0 ||
+    teamSellers.length > 0;
+  const showReferralEarnings = Boolean(panel.referral?.can_refer) || hasReferralData;
+  const isReferralBudget = panel.budget.total_percent <= 20;
+
   return (
     <>
       <AdminPageHeader
@@ -50,10 +66,22 @@ export default function SellerPage() {
 
       <SellerSummaryCards summary={panel.summary} />
 
+      {panel.referral?.can_refer && <SellerReferralInviteBox referral={panel.referral} />}
+
       <ShippingResponsibilityNote />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 mb-8">
         <div className="lg:col-span-1">
+          <div className="mb-3 flex items-center gap-2 flex-wrap">
+            <AdminBadge tone="info">
+              سقف تقسیم {panel.budget.total_percent.toLocaleString("fa-IR")}٪
+            </AdminBadge>
+            {isReferralBudget && (
+              <span className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60">
+                عضو تیم معرفی — سقف شما {panel.budget.total_percent.toLocaleString("fa-IR")}٪ است
+              </span>
+            )}
+          </div>
           <VoucherSplitPicker
             totalPercent={panel.budget.total_percent}
             minPercent={panel.budget.min_percent}
@@ -71,12 +99,22 @@ export default function SellerPage() {
         </div>
       </div>
 
+      {showReferralEarnings && (
+        <SellerReferralEarnings summary={panel.summary} earnings={panel.referral_earnings} />
+      )}
+
       <section className="mb-8">
         <h2 className="mb-4 text-lg font-bold text-voxcina-blue dark:text-voxcina-cream">
           کدهای تخفیف شما
         </h2>
-        <SellerVouchersTable vouchers={panel.vouchers} onRemove={removeVoucher} />
+        <SellerVouchersTable
+          vouchers={panel.vouchers}
+          onRemove={removeVoucher}
+          budgetTotal={panel.budget.total_percent}
+        />
       </section>
+
+      <SellerReferralTeamTable earnings={panel.referral_earnings} />
 
       <section>
         <h2 className="mb-4 text-lg font-bold text-voxcina-blue dark:text-voxcina-cream">

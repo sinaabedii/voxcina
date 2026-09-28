@@ -20,6 +20,10 @@ export interface AuthStore extends AuthState {
   getProfile: () => Promise<User>;
   fetchAllUsers: () => Promise<User[]>;
   updateUserAsAdmin: (userId: string, userData: Partial<User>) => Promise<User>;
+  updateSellerReferralPermission: (
+    userId: string,
+    canRefer: boolean
+  ) => Promise<{ can_refer: boolean; referral_code: string }>;
   deleteUserAsAdmin: (userId: string) => Promise<void>;
   loginSms: (phone: string, verificationToken: string) => Promise<User>;
   allUsers: User[];
@@ -666,6 +670,9 @@ export const useAuthStore = create<AuthStore>()(
             appPlatform: u.app_platform || u.appPlatform,
             appVersion: u.app_version || u.appVersion,
             lastLogin: u.last_login || u.lastLogin,
+            can_refer_sellers: u.can_refer_sellers,
+            seller_referral_code: u.seller_referral_code,
+            parent_seller_id: u.parent_seller_id,
           })) : [];
 
           set({ allUsers: users, isLoading: false, error: null });
@@ -720,6 +727,7 @@ export const useAuthStore = create<AuthStore>()(
             throw new Error(errorMessage);
           }
 
+          const prev = get().allUsers.find((u) => u.id === userId);
           const finalUser: User = {
             id: updatedUserBE.id || updatedUserBE._id,
             name: updatedUserBE.name,
@@ -731,6 +739,11 @@ export const useAuthStore = create<AuthStore>()(
             isActive: updatedUserBE.is_active, // Assuming backend sends this
             addresses: updatedUserBE.addresses || [],
             // avatar: updatedUserBE.avatar, // If avatar comes from backend
+            // The role endpoint does not ship referral fields; keep the row's
+            // values so a role edit cannot silently clear the referral state.
+            can_refer_sellers: updatedUserBE.can_refer_sellers ?? prev?.can_refer_sellers,
+            seller_referral_code: updatedUserBE.seller_referral_code ?? prev?.seller_referral_code,
+            parent_seller_id: updatedUserBE.parent_seller_id ?? prev?.parent_seller_id,
           };
 
           set((state) => ({
@@ -747,6 +760,57 @@ export const useAuthStore = create<AuthStore>()(
           set({ isLoading: false, error: errorMessage });
           toast.error(errorMessage);
           throw error;
+        }
+      },
+
+      updateSellerReferralPermission: async (userId, canRefer) => {
+        set({ isLoading: true, error: null });
+        // Same admin-token retrieval as updateUserAsAdmin (Requirement 2.1)
+        const token = get().adminToken || localStorageManager.getAccessToken();
+        if (!token) {
+          const errorMessage = "Admin not authenticated";
+          set({ isLoading: false, error: errorMessage });
+          toast.error(errorMessage);
+          throw new Error(errorMessage);
+        }
+
+        try {
+          const response = await fetch(`/api/admin/users/${userId}/seller-referral-permission`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify({ can_refer: canRefer }),
+          });
+
+          const data = await response.json().catch(() => ({}));
+
+          if (!response.ok) {
+            // The backend answers 400/404/409 with a Persian body.error.
+            throw new Error(data.error || "خطا در ذخیره مجوز معرفی");
+          }
+
+          set((state) => ({
+            allUsers: state.allUsers.map((user) =>
+              user.id === userId
+                ? {
+                    ...user,
+                    can_refer_sellers: data.can_refer,
+                    seller_referral_code: data.referral_code || user.seller_referral_code,
+                  }
+                : user
+            ),
+            isLoading: false,
+            error: null,
+          }));
+          toast.success(canRefer ? "مجوز دعوت فعال شد" : "مجوز دعوت لغو شد");
+          return data;
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "خطا در ذخیره مجوز معرفی";
+          set({ isLoading: false, error: errorMessage });
+          toast.error(errorMessage);
+          throw error instanceof Error ? error : new Error(errorMessage);
         }
       },
 
@@ -889,6 +953,7 @@ export const useAdminUsersStore = () => useAuthStore((state) => ({
     error: state.error,
     fetchAllUsers: state.fetchAllUsers,
     updateUserAsAdmin: state.updateUserAsAdmin,
+    updateSellerReferralPermission: state.updateSellerReferralPermission,
     deleteUserAsAdmin: state.deleteUserAsAdmin,
     adminToken: state.adminToken,
 }));

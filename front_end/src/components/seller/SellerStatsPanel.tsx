@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Wallet,
   ShoppingCart,
@@ -13,6 +13,8 @@ import {
   Trash2,
   Copy,
   Check,
+  Link2,
+  Gift,
 } from "lucide-react";
 
 import {
@@ -31,7 +33,9 @@ import {
 } from "@/lib/shipping-discount";
 import type {
   AttributedOrder,
+  ReferralEarnings,
   SellerPerformance,
+  SellerReferralInfo,
   VoucherPerformance,
 } from "@/types/seller";
 
@@ -244,17 +248,264 @@ export function SellerBreakdown({ summary }: { summary: SellerPerformance }) {
   );
 }
 
+/**
+ * The recruiter's team list, tolerating both JSON keys: the deployed backend
+ * ships `referral_sellers` (services.ReferralEarnings); `sellers` is a
+ * forward-compat alias that is never written.
+ */
+export function getReferralSellers(earnings?: ReferralEarnings | null): SellerPerformance[] {
+  if (!earnings) return [];
+  if (Array.isArray(earnings.referral_sellers)) return earnings.referral_sellers;
+  if (Array.isArray(earnings.sellers)) return earnings.sellers ?? [];
+  return [];
+}
+
+/**
+ * The recruiter invite box. Rendered only when the seller may recruit and a
+ * code was issued — the page also gates on `can_refer`, this guards the code.
+ *
+ * The backend returns a path-only signup URL (no host config exists
+ * server-side), so the absolute link is built client-side against the
+ * storefront origin.
+ */
+export function SellerReferralInviteBox({
+  referral,
+}: {
+  referral?: SellerReferralInfo | null;
+}) {
+  const [origin, setOrigin] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") setOrigin(window.location.origin);
+  }, []);
+
+  if (!referral?.can_refer || !referral?.code) return null;
+
+  const inviteLink = referral.signup_path ? `${origin}${referral.signup_path}` : "";
+
+  const handleCopy = async () => {
+    const text: string = inviteLink || referral.signup_path || referral.code || "";
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <section className="mb-8 rounded-2xl border border-voxcina-cream dark:border-voxcina-blue/20 bg-white/90 dark:bg-voxcina-blue/10 p-5 md:p-6">
+      <div className="flex items-center gap-3 mb-2">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-voxcina-blue/10 text-voxcina-blue dark:bg-voxcina-cream/10 dark:text-voxcina-cream">
+          <Link2 className="h-5 w-5" />
+        </span>
+        <h2 className="text-base font-bold text-voxcina-blue dark:text-voxcina-cream">
+          لینک دعوت فروشنده
+        </h2>
+        <span dir="ltr">
+          <AdminBadge tone="info" className="font-mono">
+            {referral.code}
+          </AdminBadge>
+        </span>
+      </div>
+
+      <p className="text-sm leading-relaxed text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-4">
+        این لینک را برای فروشندگان جدید بفرستید؛ ثبت‌نام از طریق آن، آن‌ها را به تیم شما اضافه می‌کند و
+        سهم شما از فروش تیم در همین پنل حساب می‌شود.
+      </p>
+
+      <div className="flex flex-col sm:flex-row items-stretch gap-2">
+        <div
+          dir="ltr"
+          className="flex-1 min-w-0 truncate rounded-xl border border-voxcina-cream dark:border-voxcina-blue/30 bg-voxcina-cream/30 dark:bg-voxcina-blue/20 px-3 py-2.5 text-xs font-mono text-voxcina-blue dark:text-voxcina-cream text-left"
+        >
+          {inviteLink || referral.signup_path || referral.code}
+        </div>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-voxcina-blue px-4 py-2.5 text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95 dark:bg-voxcina-cream dark:text-voxcina-blue"
+        >
+          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          {copied ? "کپی شد!" : "کپی لینک"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The referral money card: what the team earned the parent, and the parent's
+ * total claim (own commission + referral commission) with a side-by-side
+ * breakdown so the two never look mixed.
+ *
+ * Pure display — the page decides whether to mount it (can_refer or any team
+ * history), so zeros render honestly instead of hiding the breakdown.
+ */
+export function SellerReferralEarnings({
+  summary,
+  earnings,
+}: {
+  summary: SellerPerformance;
+  earnings?: ReferralEarnings | null;
+}) {
+  const referralCommission = summary.referral_commission ?? earnings?.referral_commission ?? 0;
+  const referralOrders = summary.referral_orders_paid ?? earnings?.referral_orders_paid ?? 0;
+  const sellerCount = summary.referral_seller_count ?? earnings?.referral_seller_count ?? 0;
+  const ownCommission = summary.commission ?? 0;
+  const totalClaim = ownCommission + referralCommission;
+
+  return (
+    <section className="mb-8 rounded-2xl border border-voxcina-cream dark:border-voxcina-blue/20 bg-white/90 dark:bg-voxcina-blue/10 p-5 md:p-6">
+      <div className="flex items-center gap-3 mb-1">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-voxcina-blue/10 text-voxcina-blue dark:bg-voxcina-cream/10 dark:text-voxcina-cream">
+          <Gift className="h-5 w-5" />
+        </span>
+        <h2 className="text-base font-bold text-voxcina-blue dark:text-voxcina-cream">
+          درآمد معرفی فروشندگان
+        </h2>
+      </div>
+      <p className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60 mb-5">
+        سهم شما از فروش پرداخت‌شده تیم معرفی‌شده، جدا از فروش خودتان حساب می‌شود.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="rounded-xl border border-voxcina-cream dark:border-voxcina-blue/30 bg-voxcina-cream/30 dark:bg-voxcina-blue/20 p-4 text-center">
+          <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 mb-1">
+            تعداد فروشندگان معرفی‌شده
+          </p>
+          <p className="text-2xl font-black text-voxcina-blue dark:text-voxcina-cream">
+            {faNumber(sellerCount)}
+          </p>
+          <p className="mt-1 text-[11px] text-voxcina-blue/50 dark:text-voxcina-cream/50">نفر</p>
+        </div>
+        <div className="rounded-xl border border-voxcina-cream dark:border-voxcina-blue/30 bg-voxcina-cream/30 dark:bg-voxcina-blue/20 p-4 text-center">
+          <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 mb-1">
+            سفارش‌های پرداخت‌شده تیم
+          </p>
+          <p className="text-2xl font-black text-voxcina-blue dark:text-voxcina-cream">
+            {faNumber(referralOrders)}
+          </p>
+          <p className="mt-1 text-[11px] text-voxcina-blue/50 dark:text-voxcina-cream/50">سفارش</p>
+        </div>
+        <div className="rounded-xl border border-green-200/80 dark:border-green-800/40 bg-gradient-to-br from-green-50/90 to-emerald-50/40 dark:from-green-950/30 dark:to-emerald-950/10 p-4 text-center">
+          <p className="text-xs font-semibold text-green-800 dark:text-green-300 mb-1">
+            درآمد حاصل از معرفی
+          </p>
+          <p className="text-2xl font-black text-green-700 dark:text-green-400">
+            {formatPrice(referralCommission)}
+          </p>
+          <p className="mt-1 text-[11px] text-green-700/70 dark:text-green-400/70">
+            سهم تیم، جدا از فروش خودتان
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-green-200/80 dark:border-green-800/40 bg-green-50/60 dark:bg-green-950/20 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold text-green-800 dark:text-green-300">
+            جمع کل دریافتی شما
+          </p>
+          <p className="mt-1 text-2xl font-black text-green-700 dark:text-green-400">
+            {formatPrice(totalClaim)}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs flex-wrap">
+          <span className="inline-flex items-center gap-1 rounded-lg bg-white/80 dark:bg-voxcina-blue/30 border border-voxcina-cream dark:border-voxcina-blue/30 px-2.5 py-1.5 font-medium text-voxcina-blue dark:text-voxcina-cream">
+            فروش خودتان: {formatPrice(ownCommission)}
+          </span>
+          <span className="font-bold text-green-700 dark:text-green-400">+</span>
+          <span className="inline-flex items-center gap-1 rounded-lg bg-white/80 dark:bg-voxcina-blue/30 border border-green-200/80 dark:border-green-800/40 px-2.5 py-1.5 font-medium text-green-800 dark:text-green-300">
+            سهم تیم: {formatPrice(referralCommission)}
+          </span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Per-recruit mini-table from the referral earnings payload. Optional by
+ * construction: renders nothing when the team list is empty.
+ */
+export function SellerReferralTeamTable({
+  earnings,
+}: {
+  earnings?: ReferralEarnings | null;
+}) {
+  const sellers = getReferralSellers(earnings);
+  if (sellers.length === 0) return null;
+
+  return (
+    <section className="mb-8">
+      <h2 className="mb-4 text-lg font-bold text-voxcina-blue dark:text-voxcina-cream">
+        عملکرد فروشندگان معرفی‌شده
+      </h2>
+      <AdminTable
+        head={
+          <>
+            <AdminTh>فروشنده</AdminTh>
+            <AdminTh>وضعیت</AdminTh>
+            <AdminTh>سفارش پرداخت‌شده</AdminTh>
+            <AdminTh>مشتری یکتا</AdminTh>
+            <AdminTh>مبنای فروش تیم</AdminTh>
+            <AdminTh>سهم فروشنده</AdminTh>
+            <AdminTh>عضویت</AdminTh>
+          </>
+        }
+      >
+        {sellers.map((seller) => (
+          <tr key={`${seller.seller_id}-${seller.name}`}>
+            <AdminTd className="whitespace-nowrap font-medium">
+              {seller.name || "—"}
+              {seller.voucher_count > 0 && (
+                <span className="block text-[11px] font-normal opacity-60">
+                  {faNumber(seller.voucher_count)} کد تخفیف
+                </span>
+              )}
+            </AdminTd>
+            <AdminTd>
+              <AdminBadge tone={seller.is_active ? "success" : "neutral"}>
+                {seller.is_active ? "فعال" : "غیرفعال"}
+              </AdminBadge>
+            </AdminTd>
+            <AdminTd className="whitespace-nowrap">{faNumber(seller.orders_paid)}</AdminTd>
+            <AdminTd className="whitespace-nowrap">{faNumber(seller.unique_customers)}</AdminTd>
+            <AdminTd className="whitespace-nowrap">{formatPrice(seller.commission_base)}</AdminTd>
+            <AdminTd className="whitespace-nowrap">{formatPrice(seller.commission)}</AdminTd>
+            <AdminTd className="whitespace-nowrap">{faDate(seller.joined_at)}</AdminTd>
+          </tr>
+        ))}
+      </AdminTable>
+    </section>
+  );
+}
+
 /** Per-code table: the split, the funnel, and what each code earned. */
 export function SellerVouchersTable({
   vouchers,
   onRemove,
+  budgetTotal,
 }: {
   vouchers: VoucherPerformance[];
   /** Expires a code via DELETE /api/seller/vouchers/{id}. Optional so the admin view of this table stays read-only. */
   onRemove?: (id: string) => Promise<boolean>;
+  /** The seller's split budget (36 standard, 20 referral-joined). Labels render from it; defaults to 36. */
+  budgetTotal?: number;
 }) {
   const [removeTarget, setRemoveTarget] = useState<VoucherPerformance | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
+  const splitLabel = `تقسیم ${faNumber(budgetTotal ?? 36)}٪`;
 
   const handleConfirmRemove = async () => {
     if (!removeTarget || !onRemove) return;
@@ -405,7 +656,7 @@ export function SellerVouchersTable({
               <div className="border-t border-voxcina-cream/70 dark:border-voxcina-blue/20 pt-3">
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-xs">
                   <div>
-                    <dt className="text-voxcina-blue/60 dark:text-voxcina-cream/60">تقسیم ۳۶٪</dt>
+                    <dt className="text-voxcina-blue/60 dark:text-voxcina-cream/60">{splitLabel}</dt>
                     <dd className="font-medium mt-0.5 whitespace-nowrap">
                       <span className="text-amber-700 dark:text-amber-400">
                         {faNumber(voucher.discount_percent)}٪ مشتری
@@ -475,7 +726,7 @@ export function SellerVouchersTable({
               <AdminTh>وضعیت</AdminTh>
               <AdminTh className="text-green-700 dark:text-green-400 font-bold">درآمد شما</AdminTh>
               <AdminTh>تعداد استفاده</AdminTh>
-              <AdminTh>تقسیم ۳۶٪</AdminTh>
+              <AdminTh>{splitLabel}</AdminTh>
               <AdminTh>ارسال</AdminTh>
               <AdminTh>تاریخ انقضا</AdminTh>
               <AdminTh>سفارش‌های پرداخت‌شده</AdminTh>

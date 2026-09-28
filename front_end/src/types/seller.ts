@@ -16,7 +16,10 @@ export interface VoucherPerformance {
   code: string;
   /** The shopper's discount, in whole percent. */
   discount_percent: number;
-  /** The seller's commission, in whole percent. The two add up to 36. */
+  /**
+   * The seller's commission, in whole percent. The two add up to the seller's
+   * budget (36 standard, 20 referral-joined) — see SellerPanel.budget.
+   */
   seller_share_percent: number;
   /**
    * Shipping-discount option ("free" | "half" | "full"; absent/"" on legacy
@@ -88,6 +91,38 @@ export interface SellerPerformance {
   revenue_collected: number;
   avg_order_value: number;
   items_sold: number;
+
+  /**
+   * Referral-team cut. When this seller recruited sub-sellers these carry the
+   * parent's share of the children's paid sales plus the team size behind it.
+   * They are NEVER mixed into `commission` above — own earnings and referral
+   * earnings settle separately; the panel sums them for the total claim.
+   * Optional so older payloads without the referral program still parse.
+   */
+  referral_commission?: number;
+  referral_orders_paid?: number;
+  referral_seller_count?: number;
+}
+
+/** Recruiter surface for GET /api/seller/overview (`referral`). */
+export interface SellerReferralInfo {
+  can_refer: boolean;
+  code?: string;
+  /** Path-only signup URL, e.g. "/seller/sign-up?ref=REF-XXXXXXXX". */
+  signup_path?: string;
+}
+
+/**
+ * A parent seller's cut of their recruited team's paid sales
+ * (services.ReferralEarnings). `referral_sellers` is the backend JSON key;
+ * `sellers` is accepted as a forward-compat alias and never written.
+ */
+export interface ReferralEarnings {
+  referral_commission: number;
+  referral_orders_paid: number;
+  referral_seller_count: number;
+  referral_sellers: SellerPerformance[];
+  sellers?: SellerPerformance[];
 }
 
 /** One order credited to a seller code, for the drill-down table. */
@@ -112,6 +147,10 @@ export interface AttributedOrder {
 export interface SellerPanel {
   seller: { id: string; name: string; phone?: string; email?: string };
   budget: { total_percent: number; min_percent: number; max_percent: number };
+  /** Recruiter surface; absent on payloads predating the referral program. */
+  referral?: SellerReferralInfo;
+  /** Parent's cut of the recruited team's paid sales; absent when never recruited. */
+  referral_earnings?: ReferralEarnings;
   summary: SellerPerformance;
   vouchers: VoucherPerformance[];
   recent_orders: AttributedOrder[];

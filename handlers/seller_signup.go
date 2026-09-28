@@ -348,7 +348,10 @@ func VerifySellerSignupOTP(w http.ResponseWriter, r *http.Request) {
 		}
 		if _, err := userCollection.UpdateOne(ctx, bson.M{"_id": existingUser.ID}, bson.M{
 			"$set": bson.M{
-				"role":                  RoleSeller,
+				"role": RoleSeller,
+				// Whitelist-by-construction: the budget is hardcoded to the
+				// referral constant — no request input reaches it — so
+				// IsValidSellerBudget is intentionally uncalled here.
 				"seller_budget_percent": models.ReferralSellerVoucherBudgetPercent,
 				"parent_seller_id":      referrer.ID,
 				"updated_at":            now,
@@ -405,25 +408,28 @@ func VerifySellerSignupOTP(w http.ResponseWriter, r *http.Request) {
 	// New-account path. Passwordless like any OTP-established identity: the
 	// seller signs in through the OTP login flow.
 	user := models.User{
-		ID:                  primitive.NewObjectID(),
-		Name:                otp.FirstName + " " + otp.LastName,
-		FirstName:           otp.FirstName,
-		LastName:            otp.LastName,
-		Phone:               req.Phone,
-		Addresses:           []models.Address{},
-		Role:                RoleSeller,
-		IsActive:            true,
-		AccountType:         models.AccountTypeRegistered,
-		CreatedAt:           now,
-		UpdatedAt:           now,
-		LastLogin:           &now,
-		Birthday:            otp.Birthday,
+		ID:          primitive.NewObjectID(),
+		Name:        otp.FirstName + " " + otp.LastName,
+		FirstName:   otp.FirstName,
+		LastName:    otp.LastName,
+		Phone:       req.Phone,
+		Addresses:   []models.Address{},
+		Role:        RoleSeller,
+		IsActive:    true,
+		AccountType: models.AccountTypeRegistered,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+		LastLogin:   &now,
+		Birthday:    otp.Birthday,
+		// Whitelist-by-construction: the budget is hardcoded to the referral
+		// constant — no request input reaches it — so IsValidSellerBudget is
+		// intentionally uncalled here.
 		SellerBudgetPercent: models.ReferralSellerVoucherBudgetPercent,
 		ParentSellerID:      &referrer.ID,
 	}
 	if _, err = userCollection.InsertOne(ctx, user); err != nil {
 		fmt.Printf("Seller signup creation error: %v\n", err)
-		if strings.Contains(err.Error(), "duplicate key") {
+		if mongo.IsDuplicateKeyError(err) {
 			utils.ErrorResponse(w, http.StatusConflict, "این شماره تلفن قبلاً ثبت شده است")
 		} else {
 			utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در ایجاد حساب فروشندگی")
