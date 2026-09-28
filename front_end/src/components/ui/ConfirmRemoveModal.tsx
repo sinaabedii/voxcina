@@ -11,6 +11,13 @@ interface ConfirmRemoveModalProps {
   productName: string;
   willInvalidate: boolean;
   voucherCode?: string;
+  /**
+   * Optional copy override for non-product removals (e.g. removing a voucher
+   * code). When both are given they replace the product-oriented title and
+   * body; the icon, buttons and layout stay the same.
+   */
+  title?: string;
+  description?: React.ReactNode;
 }
 
 export default function ConfirmRemoveModal({
@@ -20,7 +27,10 @@ export default function ConfirmRemoveModal({
   productName,
   willInvalidate,
   voucherCode,
+  title,
+  description,
 }: ConfirmRemoveModalProps) {
+  const hasCustomCopy = Boolean(title && description);
   return (
     <Modal
       isOpen={isOpen}
@@ -30,7 +40,19 @@ export default function ConfirmRemoveModal({
       contentClassName="max-w-sm"
     >
       <div className="text-center">
-        {willInvalidate ? (
+        {hasCustomCopy ? (
+          <>
+            <div className="mx-auto w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
+              <Trash2 className="h-6 w-6 text-red-600 dark:text-red-400" />
+            </div>
+            <h3 className="text-base font-bold text-voxcina-blue dark:text-voxcina-cream mb-2">
+              {title}
+            </h3>
+            <p className="text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 mb-6">
+              {description}
+            </p>
+          </>
+        ) : willInvalidate ? (
           <>
             <div className="mx-auto w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-4">
               <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />

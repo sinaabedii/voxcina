@@ -27,9 +27,12 @@ import (
 // The Orders* counters below report the full funnel anyway, so an unpaid or
 // cancelled order is visible rather than quietly dropped.
 type VoucherPerformance struct {
-	Code               string `json:"code"`
-	DiscountPercent    int    `json:"discount_percent"`
-	SellerSharePercent int    `json:"seller_share_percent"`
+	// ID is the underlying discount document id; the seller panel's remove
+	// action addresses vouchers by it (DELETE /api/seller/vouchers/{id}).
+	ID                 primitive.ObjectID `json:"id"`
+	Code               string             `json:"code"`
+	DiscountPercent    int                `json:"discount_percent"`
+	SellerSharePercent int                `json:"seller_share_percent"`
 	// Mirrors models.Discount.ShippingDiscount ("free" | "half" | "full"; "" on
 	// pre-existing rows, treated as full everywhere). Omitted when empty.
 	ShippingDiscount string     `json:"shipping_discount,omitempty"`
@@ -310,6 +313,7 @@ func BuildVoucherPerformance(vouchers []models.Discount, agg map[string]voucherA
 	for _, v := range vouchers {
 		row := agg[v.Code]
 		perf := VoucherPerformance{
+			ID:                 v.ID,
 			Code:               v.Code,
 			DiscountPercent:    int(v.Value),
 			SellerSharePercent: v.SellerSharePercent,

@@ -217,6 +217,7 @@ func NewRouter() *mux.Router {
 	sellerRouter.Use(middlewares.SellerAuthMiddleware)
 	sellerRouter.HandleFunc("/overview", handlers.GetSellerPanel).Methods(http.MethodGet)
 	sellerRouter.HandleFunc("/vouchers", handlers.CreateSellerVoucher).Methods(http.MethodPost)
+	sellerRouter.HandleFunc("/vouchers/{id}", handlers.DeleteSellerVoucher).Methods(http.MethodDelete)
 
 	// The two prefix routes are named so routes_staff_test.go can tell, for any
 	// registered admin endpoint, which of the two gates it sits behind.

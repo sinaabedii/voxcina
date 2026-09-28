@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Wallet,
   ShoppingCart,
@@ -9,6 +10,7 @@ import {
   Package,
   RotateCcw,
   Receipt,
+  Trash2,
 } from "lucide-react";
 
 import {
@@ -19,6 +21,7 @@ import {
   AdminTd,
   AdminTh,
 } from "@/components/admin/ui";
+import ConfirmRemoveModal from "@/components/ui/ConfirmRemoveModal";
 import { formatPrice } from "@/lib/utils";
 import {
   SHIPPING_DISCOUNT_LABELS,
@@ -168,7 +171,27 @@ export function SellerBreakdown({ summary }: { summary: SellerPerformance }) {
 }
 
 /** Per-code table: the split, the funnel, and what each code earned. */
-export function SellerVouchersTable({ vouchers }: { vouchers: VoucherPerformance[] }) {
+export function SellerVouchersTable({
+  vouchers,
+  onRemove,
+}: {
+  vouchers: VoucherPerformance[];
+  /** Expires a code via DELETE /api/seller/vouchers/{id}. Optional so the admin view of this table stays read-only. */
+  onRemove?: (id: string) => Promise<boolean>;
+}) {
+  const [removeTarget, setRemoveTarget] = useState<VoucherPerformance | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
+
+  const handleConfirmRemove = async () => {
+    if (!removeTarget || !onRemove) return;
+    setIsRemoving(true);
+    const ok = await onRemove(removeTarget.id ?? removeTarget.code);
+    setIsRemoving(false);
+    // The store toasts the failure reason; keep the dialog open so the seller
+    // can retry, close it once the code is actually gone.
+    if (ok) setRemoveTarget(null);
+  };
+
   if (vouchers.length === 0) {
     return (
       <AdminEmpty
@@ -180,6 +203,7 @@ export function SellerVouchersTable({ vouchers }: { vouchers: VoucherPerformance
   }
 
   return (
+    <>
     <AdminTable
       head={
         <>
@@ -195,6 +219,7 @@ export function SellerVouchersTable({ vouchers }: { vouchers: VoucherPerformance
           <AdminTh>مبنای سهم</AdminTh>
           <AdminTh>سهم فروشنده</AdminTh>
           <AdminTh>آخرین استفاده</AdminTh>
+          {onRemove && <AdminTh>حذف</AdminTh>}
         </>
       }
     >
@@ -314,10 +339,45 @@ export function SellerVouchersTable({ vouchers }: { vouchers: VoucherPerformance
               {formatPrice(voucher.commission)}
             </AdminTd>
             <AdminTd className="whitespace-nowrap">{faDate(voucher.last_used_at)}</AdminTd>
+            {onRemove && (
+              <AdminTd>
+                {voucher.status === "active" && (
+                  <button
+                    type="button"
+                    aria-label="حذف کد تخفیف"
+                    title="حذف کد تخفیف"
+                    disabled={isRemoving}
+                    className="rounded-lg text-red-500/70 hover:text-red-500 dark:text-red-400/70 dark:hover:text-red-400 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                    onClick={() => setRemoveTarget(voucher)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </AdminTd>
+            )}
           </tr>
         );
       })}
     </AdminTable>
+
+    <ConfirmRemoveModal
+      isOpen={removeTarget !== null}
+      onClose={() => setRemoveTarget(null)}
+      onConfirm={handleConfirmRemove}
+      productName={removeTarget?.code ?? ""}
+      willInvalidate={false}
+      title="حذف کد تخفیف"
+      description={
+        <>
+          کد تخفیف{" "}
+          <span className="font-mono font-semibold text-voxcina-blue dark:text-voxcina-cream">
+            {removeTarget?.code}
+          </span>{" "}
+          بلافاصله غیرفعال می‌شود و دیگر قابل استفاده نیست. آیا مطمئن هستید؟
+        </>
+      }
+    />
+    </>
   );
 }
 

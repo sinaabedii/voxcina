@@ -17,6 +17,7 @@ interface SellerStore {
   panel: SellerPanel | null;
   isLoading: boolean;
   isCreating: boolean;
+  isRemoving: boolean;
   error: string | null;
 
   fetchPanel: () => Promise<void>;
@@ -31,6 +32,13 @@ interface SellerStore {
     validDays: number,
     shippingDiscount: string
   ) => Promise<boolean>;
+  /**
+   * Expires a code server-side (valid_to = now), so it stops working
+   * immediately. The row stays — with its stats — for the earnings history.
+   * `id` is the voucher identifier the backend DELETE route expects (the
+   * panel rows fall back to the code when no id is shipped).
+   */
+  removeVoucher: (id: string) => Promise<boolean>;
 }
 
 function authHeaders(): HeadersInit {
@@ -51,6 +59,7 @@ export const useSellerStore = create<SellerStore>((set, get) => ({
   panel: null,
   isLoading: false,
   isCreating: false,
+  isRemoving: false,
   error: null,
 
   fetchPanel: async () => {
@@ -102,6 +111,33 @@ export const useSellerStore = create<SellerStore>((set, get) => ({
     } catch (err) {
       const message = (err as Error).message;
       set({ isCreating: false, error: message });
+      toast.error(message);
+      return false;
+    }
+  },
+
+  removeVoucher: async (id) => {
+    set({ isRemoving: true, error: null });
+    try {
+      const response = await fetch(`/api/seller/vouchers/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      if (!response.ok) {
+        const message = await readError(response, "خطا در حذف کد تخفیف");
+        set({ isRemoving: false, error: message });
+        toast.error(message);
+        return false;
+      }
+      set({ isRemoving: false });
+      toast.success("کد تخفیف حذف شد");
+      // Same reasoning as createVoucher: the server decides the new status and
+      // expiry stamp, so reload the panel rather than patching the row locally.
+      await get().fetchPanel();
+      return true;
+    } catch (err) {
+      const message = (err as Error).message;
+      set({ isRemoving: false, error: message });
       toast.error(message);
       return false;
     }

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -237,6 +238,82 @@ func validateSellerVoucherParams(discountPercent, sellerSharePercent, maxUses *i
 	}
 
 	return time.Time{}, "مدت اعتبار یا تاریخ انقضا الزامی است (حداکثر ۱ سال)"
+}
+
+// sellerVoucherOwnedBy reports whether the discount is a seller voucher issued
+// to sellerID. DeleteSellerVoucher treats every false answer as 404, so a
+// caller can never probe whether another seller's code exists.
+func sellerVoucherOwnedBy(d *models.Discount, sellerID primitive.ObjectID) bool {
+	return d.IsSellerVoucher() && *d.SellerID == sellerID
+}
+
+// sellerVoucherRemovalDecide decides what DeleteSellerVoucher does with a
+// loaded discount: owned=false means answer 404 (missing, not a seller
+// voucher, or someone else's — indistinguishable on purpose); alreadyExpired
+// means answer 200 without writing because the code is already unusable.
+func sellerVoucherRemovalDecide(d *models.Discount, sellerID primitive.ObjectID, now time.Time) (owned bool, alreadyExpired bool) {
+	if !sellerVoucherOwnedBy(d, sellerID) {
+		return false, false
+	}
+	return true, !now.Before(d.ValidTo)
+}
+
+// DeleteSellerVoucher handles DELETE /api/seller/vouchers/{id}.
+//
+// Seller vouchers are never hard-deleted: order history references them (the
+// admin DeleteDiscount refuses the same way), so "removal" retires the code by
+// moving valid_to to now. GetDiscountByCode rejects anything with
+// now.After(ValidTo), so the code stops working everywhere immediately. The
+// operation is idempotent — re-removing an already-expired code answers 200
+// without a write. Ownership is hidden: a code that is missing, not a seller
+// voucher, or owned by someone else all answer the same 404.
+func DeleteSellerVoucher(w http.ResponseWriter, r *http.Request) {
+	sellerID, ok := currentUserID(r)
+	if !ok {
+		utils.ErrorResponse(w, http.StatusUnauthorized, "احراز هویت لازم است")
+		return
+	}
+
+	objID, err := primitive.ObjectIDFromHex(mux.Vars(r)["id"])
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "شناسه کد تخفیف نامعتبر است")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	collection := db.Database.Collection("discounts")
+	var existing models.Discount
+	if err := collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&existing); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			utils.ErrorResponse(w, http.StatusNotFound, "کد تخفیف یافت نشد")
+			return
+		}
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در بررسی کد تخفیف")
+		return
+	}
+
+	now := time.Now()
+	owned, alreadyExpired := sellerVoucherRemovalDecide(&existing, sellerID, now)
+	if !owned {
+		utils.ErrorResponse(w, http.StatusNotFound, "کد تخفیف یافت نشد")
+		return
+	}
+	if alreadyExpired {
+		utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "کد تخفیف قبلاً منقضی شده است"})
+		return
+	}
+
+	if _, err := collection.UpdateOne(ctx,
+		bson.M{"_id": objID},
+		bson.M{"$set": bson.M{"valid_to": now, "updated_at": now}},
+	); err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "خطا در حذف کد تخفیف")
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, map[string]string{"message": "کد تخفیف با موفقیت حذف شد"})
 }
 
 // CreateSellerVoucher handles POST /api/seller/vouchers.

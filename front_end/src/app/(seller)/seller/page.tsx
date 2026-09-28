@@ -22,7 +22,7 @@ import { useSellerStore } from "@/store/seller-store";
  * figures.
  */
 export default function SellerPage() {
-  const { panel, isLoading, isCreating, error, fetchPanel, createVoucher } = useSellerStore();
+  const { panel, isLoading, isCreating, error, fetchPanel, createVoucher, removeVoucher } = useSellerStore();
 
   useEffect(() => {
     fetchPanel();
@@ -75,7 +75,7 @@ export default function SellerPage() {
         <h2 className="mb-4 text-lg font-bold text-voxcina-blue dark:text-voxcina-cream">
           کدهای تخفیف شما
         </h2>
-        <SellerVouchersTable vouchers={panel.vouchers} />
+        <SellerVouchersTable vouchers={panel.vouchers} onRemove={removeVoucher} />
       </section>
 
       <section>

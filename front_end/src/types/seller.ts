@@ -8,6 +8,11 @@
 
 /** One voucher code with everything measurable about it. */
 export interface VoucherPerformance {
+  /**
+   * The voucher document id, when the API ships it. The remove endpoint is
+   * addressed by id; rows without one fall back to `code`.
+   */
+  id?: string;
   code: string;
   /** The shopper's discount, in whole percent. */
   discount_percent: number;

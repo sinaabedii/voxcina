@@ -1,11 +1,111 @@
 package handlers
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
+	"backEnd/models"
 )
 
+func TestSellerVoucherRemovalDecide(t *testing.T) {
+	now := time.Date(2026, 9, 28, 12, 0, 0, 0, time.UTC)
+	sellerID := primitive.NewObjectID()
+	otherID := primitive.NewObjectID()
+
+	sellerVoucher := func(owner primitive.ObjectID, validTo time.Time) *models.Discount {
+		return &models.Discount{SellerID: &owner, ValidTo: validTo}
+	}
+
+	tests := []struct {
+		name               string
+		discount           *models.Discount
+		sellerID           primitive.ObjectID
+		wantOwned          bool
+		wantAlreadyExpired bool
+	}{
+		{
+			name:      "owned active voucher needs expiring",
+			discount:  sellerVoucher(sellerID, now.Add(time.Hour)),
+			sellerID:  sellerID,
+			wantOwned: true,
+		},
+		{
+			// Idempotent path: the handler must answer 200 without writing.
+			name:               "owned already-expired voucher is a no-op",
+			discount:           sellerVoucher(sellerID, now.Add(-time.Hour)),
+			sellerID:           sellerID,
+			wantOwned:          true,
+			wantAlreadyExpired: true,
+		},
+		{
+			// Boundary: valid_to == now is already unusable
+			// (GetDiscountByCode rejects now.After(ValidTo) only on strictly
+			// future codes, and equality is not strictly future).
+			name:               "valid_to exactly now counts as expired",
+			discount:           sellerVoucher(sellerID, now),
+			sellerID:           sellerID,
+			wantOwned:          true,
+			wantAlreadyExpired: true,
+		},
+		{
+			name:     "another seller's voucher is hidden",
+			discount: sellerVoucher(otherID, now.Add(time.Hour)),
+			sellerID: sellerID,
+		},
+		{
+			// An admin/platform discount has no seller_id; a seller must not
+			// be able to expire it.
+			name:     "non-seller discount is hidden",
+			discount: &models.Discount{ValidTo: now.Add(time.Hour)},
+			sellerID: sellerID,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			owned, alreadyExpired := sellerVoucherRemovalDecide(tt.discount, tt.sellerID, now)
+			if owned != tt.wantOwned || alreadyExpired != tt.wantAlreadyExpired {
+				t.Fatalf("got owned=%v alreadyExpired=%v, want owned=%v alreadyExpired=%v",
+					owned, alreadyExpired, tt.wantOwned, tt.wantAlreadyExpired)
+			}
+		})
+	}
+}
+
+func TestDeleteSellerVoucherRejectsBadID(t *testing.T) {
+	sellerID := primitive.NewObjectID()
+	req := httptest.NewRequest(http.MethodDelete, "/api/seller/vouchers/not-an-objectid", nil)
+	req = req.WithContext(context.WithValue(req.Context(), "userID", sellerID))
+	req = mux.SetURLVars(req, map[string]string{"id": "not-an-objectid"})
+	rec := httptest.NewRecorder()
+
+	DeleteSellerVoucher(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", rec.Code)
+	}
+}
+
+func TestDeleteSellerVoucherRequiresAuth(t *testing.T) {
+	req := httptest.NewRequest(http.MethodDelete, "/api/seller/vouchers/"+primitive.NewObjectID().Hex(), nil)
+	req = mux.SetURLVars(req, map[string]string{"id": primitive.NewObjectID().Hex()})
+	rec := httptest.NewRecorder()
+
+	DeleteSellerVoucher(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", rec.Code)
+	}
+}
+
 func TestValidateSellerVoucherParams(t *testing.T) {
+
 	now := time.Date(2026, 9, 27, 12, 0, 0, 0, time.UTC)
 
 	intPtr := func(v int) *int { return &v }
