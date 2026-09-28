@@ -172,7 +172,12 @@ export const useProductStore = create<ProductState>()(
         const isStale = () => requestId !== activeProductRequestId;
         set({ isLoading: true, error: null, activeProduct: null, activeProductReviews: [] });
         try {
-          const response = await fetch(`/api/products/${id}`);
+          const { adminToken } = useAuthStore.getState();
+          const headers: Record<string, string> = {};
+          if (adminToken) {
+            headers["Authorization"] = `Bearer ${adminToken}`;
+          }
+          const response = await fetch(`/api/admin/products/${id}`, { headers });
           if (!response.ok) {
             throw new Error("Failed to fetch product");
           }

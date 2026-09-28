@@ -20,6 +20,7 @@ import (
 var staffReachableAdminRoutes = []string{
 	"GET /api/admin/products",
 	"POST /api/admin/products",
+	"GET /api/admin/products/{id}",
 	"GET /api/admin/products/{id}/cart-usage",
 	"PUT /api/admin/products/{id}",
 	"DELETE /api/admin/products/{id}",

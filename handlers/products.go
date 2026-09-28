@@ -1477,6 +1477,47 @@ func GetProduct(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, http.StatusOK, product)
 }
 
+// GetProductByID handles GET /api/admin/products/{id}
+// Returns the full product document without productPublicProjection so that
+// admin edit pages can read AI metadata and search metadata fields.
+func GetProductByID(w http.ResponseWriter, r *http.Request) {
+	productID, err := primitive.ObjectIDFromHex(mux.Vars(r)["id"])
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid product ID format")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	collection := db.Database.Collection("products")
+
+	var product models.Product
+	err = collection.FindOne(ctx, bson.M{"_id": productID}).Decode(&product)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusNotFound, "Product not found")
+		return
+	}
+
+	// Normalize Persian/Arabic digits in size strings
+	for i := range product.ColorVariants {
+		for j := range product.ColorVariants[i].Sizes {
+			size := &product.ColorVariants[i].Sizes[j]
+			size.Size = utils.NormalizePersianDigits(size.Size)
+		}
+	}
+
+	// Look up and attach sizing type if product references one
+	if product.SizingTypeID != nil && !product.SizingTypeID.IsZero() {
+		var sizingType models.SizingType
+		if err := db.Database.Collection("sizing_types").FindOne(ctx, bson.M{"_id": product.SizingTypeID, "is_active": true}).Decode(&sizingType); err == nil {
+			product.SizingType = &sizingType
+		}
+	}
+
+	utils.JSONResponse(w, http.StatusOK, product)
+}
+
 // SearchProducts handles GET /api/products/search?q=<query>
 func SearchProducts(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")

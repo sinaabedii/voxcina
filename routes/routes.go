@@ -268,6 +268,7 @@ func NewRouter() *mux.Router {
 	staffRouter.HandleFunc("/products", handlers.AdminListProducts).Methods("GET")
 	staffRouter.HandleFunc("/products", handlers.AddProduct).Methods("POST")
 	staffRouter.HandleFunc("/products/{id}/cart-usage", handlers.GetProductCartUsage).Methods("GET")
+	staffRouter.HandleFunc("/products/{id}", handlers.GetProductByID).Methods("GET")
 	staffRouter.HandleFunc("/products/{id}", handlers.UpdateProduct).Methods("PUT")
 	staffRouter.HandleFunc("/products/{id}", handlers.DeleteProduct).Methods("DELETE")
 
