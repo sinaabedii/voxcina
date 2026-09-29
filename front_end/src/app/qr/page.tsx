@@ -66,14 +66,6 @@ const BLOB_BOTTOM_LEFT =
   "M0 296 C42 282 92 292 122 326 C156 364 148 424 178 464 C210 506 272 512 312 548 C354 586 360 650 396 690 C405 701 415 711 428 720 L0 720 Z";
 
 /**
- * Simplified wing mark, drawn inline: a gull band with pointed tips and a
- * centre tail — the gesture of the VOXCINA logo, used as the blob watermark
- * the way the collection page embeds its logo. Inline path, no image asset.
- */
-const WING_MARK =
-  "M8 14 C58 24 102 48 130 74 C158 48 202 24 252 14 C216 44 174 76 130 104 C86 76 44 44 8 14 Z";
-
-/**
  * Fine monochrome fractal noise tile — the paper/plaster film grain shared
  * with `TexturedBackground` and `MastheadSurface`. Pure data-URI SVG, no
  * image asset, no JS.
@@ -119,25 +111,25 @@ export default function QrPage() {
           <path d={BLOB_TOP_RIGHT} fill={NAVY} />
         </svg>
 
-        {/* Wing-mark watermark embedded in the solid mass — cream at partial
-            opacity, the collection page's logo-in-blob move, drawn inline. */}
-        <div className="absolute right-[8%] top-3 w-[clamp(96px,26vw,160px)] opacity-[0.16]">
-          <svg viewBox="0 0 260 150" className="h-auto w-full">
-            <path d={WING_MARK} fill="#FCFAF8" />
-            <text
-              x="130"
-              y="142"
-              textAnchor="middle"
-              direction="ltr"
-              fill="#FCFAF8"
-              fontSize="30"
-              fontWeight="700"
-              letterSpacing="6"
-            >
-              VOXCINA
-            </text>
-          </svg>
-        </div>
+        {/* The real VOXCINA logo (full lockup: wing + wordmark), embedded in
+            the solid mass with the exact CSS-mask technique `TexturedBackground`
+            uses on the collection page: the logo image masks a solid cream
+            fill, so it renders crisp in brand tone at partial opacity. Same
+            corner/size family as the reference; decorative only. */}
+        <div
+          className="absolute right-[8%] top-3 aspect-[951/522] w-[clamp(96px,26vw,160px)] opacity-[0.16]"
+          style={{
+            backgroundColor: "#F2EEE9",
+            WebkitMaskImage: "url(/images/Logo/WXTransparent-org.png)",
+            maskImage: "url(/images/Logo/WXTransparent-org.png)",
+            WebkitMaskRepeat: "no-repeat",
+            maskRepeat: "no-repeat",
+            WebkitMaskSize: "contain",
+            maskSize: "contain",
+            WebkitMaskPosition: "center",
+            maskPosition: "center",
+          }}
+        />
 
         {/* Bottom-left counterweight: a 38% echo reaching further into the
             canvas, with the solid mass layered on top of it. */}
