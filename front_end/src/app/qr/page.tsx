@@ -49,23 +49,29 @@ export const viewport: Viewport = {
   themeColor: "#1A3C69",
 };
 
-/**
- * Top-right navy blob silhouette. Straight edges run along the viewBox top
- * and right — those sides bleed off the frame — while a hand-shaped bézier
- * wave faces the canvas. Same grammar as `TexturedBackground`'s blobs
- * (collection page), with a new path.
- */
-const BLOB_TOP_RIGHT =
-  "M400 0 L150 0 C106 24 94 76 120 110 C146 146 200 148 234 192 C266 234 250 294 284 342 C312 382 352 398 400 400 Z";
+/** Brand navy — the same value `TexturedBackground` uses. */
+const NAVY = "#1A3C69";
 
 /**
- * Bottom-left counterweight: straight along the viewBox left and bottom
- * (bleeding edges), with an unstructured wave travelling down-right. The
- * top-right/bottom-left pairing is the collection background's asymmetric
- * weighting — deliberately unbalanced, never a mirrored frame.
+ * Top-right organic mass. The exact path grammar (and path data) as the
+ * collection page's `TexturedBackground`: straight top/right edges that bleed
+ * off the frame, a hand-drawn bézier wave facing the canvas. Rendered three
+ * times at growing sizes to step 35% → 70% → solid opacity along one edge.
  */
+const BLOB_TOP_RIGHT =
+  "M312 0 C260 8 214 34 190 78 C164 126 176 190 216 228 C258 268 326 262 372 296 C420 332 428 402 474 440 C518 476 584 480 632 452 C666 432 696 438 720 452 L720 0 Z";
+
+/** Bottom-left counterweight — likewise straight left/bottom bleed edges. */
 const BLOB_BOTTOM_LEFT =
-  "M0 400 L0 150 C30 158 56 138 86 158 C122 182 116 236 152 266 C190 298 244 300 282 336 C316 368 356 392 400 400 Z";
+  "M0 296 C42 282 92 292 122 326 C156 364 148 424 178 464 C210 506 272 512 312 548 C354 586 360 650 396 690 C405 701 415 711 428 720 L0 720 Z";
+
+/**
+ * Simplified wing mark, drawn inline: a gull band with pointed tips and a
+ * centre tail — the gesture of the VOXCINA logo, used as the blob watermark
+ * the way the collection page embeds its logo. Inline path, no image asset.
+ */
+const WING_MARK =
+  "M8 14 C58 24 102 48 130 74 C158 48 202 24 252 14 C216 44 174 76 130 104 C86 76 44 44 8 14 Z";
 
 /**
  * Fine monochrome fractal noise tile — the paper/plaster film grain shared
@@ -76,114 +82,77 @@ const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E\")";
 
 export default function QrPage() {
+  // No `overflow-hidden` on <main>: with a centred plaque, clipping on a
+  // short phone would cut off the top AND bottom of the card with no way to
+  // scroll to either. The bleed-clipping job belongs to the background
+  // wrapper below, which still clips every blob that runs off-frame.
   return (
-    <main className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-voxcina-cream px-5 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]">
-      {/* Organic background. Deliberately STATIC: infinite motion on a
-          fixed full-viewport layer forces whole-screen repaints every frame,
-          so every layer below renders once and never animates. */}
+    <main className="relative flex min-h-dvh flex-col items-center justify-center bg-voxcina-cream px-5 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]">
+      {/* Organic background in the collection page's language: bold, crisp-
+          edged navy shapes bleeding off the frame, layered at visibly
+          different opacities. Deliberately STATIC — no blur on the silhouettes
+          and no animation: infinite motion (or per-frame filtering) on a
+          fixed full-viewport layer forces whole-screen repaints. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 overflow-hidden"
       >
-        {/* The site sketch, now SCATTERED: pieces of the homepage wireframe
-            (nav pill, hero card, chips, product cards) placed loosely at
-            different angles down the diagonal cream band between the two
-            blobs — no straight rotated column anymore. Heavily blurred so it
-            reads as a ghost of the homepage, not a diagram. */}
-        <div className="absolute -left-[10%] top-[7%] w-[58%] -rotate-6 opacity-40 blur-[6px]">
-          <div className="flex items-center justify-between rounded-full border border-voxcina-blue/45 px-4 py-3">
-            <span className="h-5 w-5 rounded-full border border-voxcina-blue/55" />
-            <span className="flex items-center gap-2">
-              <span className="h-1.5 w-8 rounded-full bg-voxcina-blue/45" />
-              <span className="h-1.5 w-5 rounded-full bg-voxcina-blue/45" />
-              <span className="h-1.5 w-10 rounded-full bg-voxcina-blue/45" />
-            </span>
-            <span className="h-4 w-4 rounded-md border border-voxcina-blue/55" />
-          </div>
-        </div>
-
-        <div className="absolute -left-[14%] top-[24%] w-[58%] rotate-[5deg] opacity-35 blur-[7px]">
-          <div className="flex h-32 flex-col justify-center gap-2.5 rounded-3xl border border-voxcina-blue/45 bg-voxcina-blue/[0.06] px-6">
-            <span className="h-2.5 w-1/2 rounded-full bg-voxcina-blue/50" />
-            <span className="h-1.5 w-3/4 rounded-full bg-voxcina-blue/35" />
-            <span className="h-1.5 w-2/3 rounded-full bg-voxcina-blue/35" />
-            <span className="mt-1 h-6 w-16 rounded-full bg-voxcina-blue/55" />
-          </div>
-        </div>
-
-        <div className="absolute -right-[10%] top-[50%] w-[46%] -rotate-3 opacity-35 blur-[6px]">
-          <div className="flex gap-2.5">
-            <span className="h-7 flex-1 rounded-full border border-voxcina-blue/45" />
-            <span className="h-7 flex-1 rounded-full border border-voxcina-blue/45 bg-voxcina-blue/20" />
-            <span className="h-7 flex-1 rounded-full border border-voxcina-blue/45" />
-          </div>
-        </div>
-
-        <div className="absolute -right-[8%] bottom-[14%] w-[52%] rotate-[7deg] opacity-40 blur-[6px]">
-          <div className="flex gap-3">
-            <div className="flex-1 rounded-2xl border border-voxcina-blue/45 p-2.5">
-              <span className="block h-14 rounded-xl bg-voxcina-blue/30" />
-              <span className="mt-2 block h-1.5 w-4/5 rounded-full bg-voxcina-blue/45" />
-              <span className="mt-1.5 block h-1.5 w-2/5 rounded-full bg-voxcina-blue/55" />
-            </div>
-            <div className="flex-1 rounded-2xl border border-voxcina-blue/45 p-2.5">
-              <span className="block h-14 rounded-xl bg-voxcina-blue/30" />
-              <span className="mt-2 block h-1.5 w-3/5 rounded-full bg-voxcina-blue/45" />
-              <span className="mt-1.5 block h-1.5 w-2/5 rounded-full bg-voxcina-blue/55" />
-            </div>
-          </div>
-        </div>
-
-        {/* Two soft navy forms bleeding off the top-right and bottom-left —
-            hand-shaped bézier silhouettes (the collection page's organic
-            language), each with a blurred halo path behind it so the edge
-            melts into the plaster instead of reading as a cut shape. */}
+        {/* Top-right mass: three nested waves anchored at the same corner —
+            the same hand-drawn path at growing sizes, so the 35% → 70% →
+            solid steps follow one organic edge instead of fading to nothing. */}
         <svg
-          viewBox="0 0 400 400"
-          className="absolute -top-[14%] -right-[20%] w-[95vw] max-w-[470px] overflow-visible blur-[1.5px]"
+          viewBox="0 0 720 720"
+          className="absolute -top-1 -right-1 h-auto w-[100vw] max-w-[560px]"
         >
-          <path
-            d={BLOB_TOP_RIGHT}
-            fill="#1A3C69"
-            opacity="0.3"
-            transform="translate(-16 -12) scale(1.07)"
-            className="blur-[12px]"
-          />
-          <path d={BLOB_TOP_RIGHT} fill="#1A3C69" />
+          <path d={BLOB_TOP_RIGHT} fill={NAVY} opacity="0.35" />
+        </svg>
+        <svg
+          viewBox="0 0 720 720"
+          className="absolute -top-1 -right-1 h-auto w-[84vw] max-w-[470px]"
+        >
+          <path d={BLOB_TOP_RIGHT} fill={NAVY} opacity="0.7" />
+        </svg>
+        <svg
+          viewBox="0 0 720 720"
+          className="absolute -top-1 -right-1 h-auto w-[68vw] max-w-[390px]"
+        >
+          <path d={BLOB_TOP_RIGHT} fill={NAVY} />
         </svg>
 
-        <svg
-          viewBox="0 0 400 400"
-          className="absolute -bottom-[16%] -left-[20%] w-[95vw] max-w-[470px] overflow-visible blur-[1.5px]"
-        >
-          <path
-            d={BLOB_BOTTOM_LEFT}
-            fill="#1A3C69"
-            opacity="0.3"
-            transform="translate(14 12) scale(1.07)"
-            className="blur-[12px]"
-          />
-          <path d={BLOB_BOTTOM_LEFT} fill="#1A3C69" />
-        </svg>
-
-        {/* Small stray blob on the left edge — a third, off-axis form keeps
-            the composition unbalanced (collection backgrounds are never
-            mirrored). */}
-        <div className="absolute -left-[12%] top-[54%] h-36 w-36 rounded-[58%_42%_52%_48%/46%_56%_44%_54%] bg-voxcina-blue/20 blur-[10px]" />
-
-        {/* One sketch fragment drawn in cream ON TOP of the top-right blob:
-            the wireframe peeking into the navy form, the way the collection
-            page layers content panels over its blobs. */}
-        <div className="absolute right-[2%] top-[6%] w-[52%] -rotate-[5deg] opacity-50 blur-[6px]">
-          <div className="flex items-center justify-between rounded-full border border-white/35 px-4 py-3">
-            <span className="h-5 w-5 rounded-full border border-white/45" />
-            <span className="flex items-center gap-2">
-              <span className="h-1.5 w-8 rounded-full bg-white/35" />
-              <span className="h-1.5 w-5 rounded-full bg-white/35" />
-            </span>
-            <span className="h-4 w-4 rounded-md border border-white/45" />
-          </div>
+        {/* Wing-mark watermark embedded in the solid mass — cream at partial
+            opacity, the collection page's logo-in-blob move, drawn inline. */}
+        <div className="absolute right-[8%] top-3 w-[clamp(96px,26vw,160px)] opacity-[0.16]">
+          <svg viewBox="0 0 260 150" className="h-auto w-full">
+            <path d={WING_MARK} fill="#FCFAF8" />
+            <text
+              x="130"
+              y="142"
+              textAnchor="middle"
+              direction="ltr"
+              fill="#FCFAF8"
+              fontSize="30"
+              fontWeight="700"
+              letterSpacing="6"
+            >
+              VOXCINA
+            </text>
+          </svg>
         </div>
+
+        {/* Bottom-left counterweight: a 38% echo reaching further into the
+            canvas, with the solid mass layered on top of it. */}
+        <svg
+          viewBox="0 0 720 720"
+          className="absolute -bottom-1 -left-1 h-auto w-[96vw] max-w-[540px]"
+        >
+          <path d={BLOB_BOTTOM_LEFT} fill={NAVY} opacity="0.38" />
+        </svg>
+        <svg
+          viewBox="0 0 720 720"
+          className="absolute -bottom-1 -left-1 h-auto w-[76vw] max-w-[430px]"
+        >
+          <path d={BLOB_BOTTOM_LEFT} fill={NAVY} />
+        </svg>
 
         {/* Film grain over the whole surface, plaster-like — identical
             treatment to the collection/trending brand surfaces. */}
@@ -195,8 +164,8 @@ export default function QrPage() {
 
       <div className="relative w-full max-w-sm">
         {/* Plaque: effectively opaque so body text keeps AA contrast no matter
-            which blob or fragment sits behind it (over navy the 95% lightCream
-            reads ≈ #F1F0F1). */}
+            which blob layer sits behind it (over solid navy the 95%
+            lightCream reads ≈ #F1F0F1). */}
         <div className="relative rounded-[2rem] border border-voxcina-blue/10 bg-voxcina-lightCream/95 px-6 py-10 shadow-medium ring-1 ring-white/60 backdrop-blur-md sm:px-10 sm:py-12">
           {/* Scan hint — the quiet "how did I get here" line */}
           <p className="flex items-center justify-center gap-3 text-xs text-voxcina-blue/80">
