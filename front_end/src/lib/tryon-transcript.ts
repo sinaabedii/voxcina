@@ -63,7 +63,10 @@ export function agentMessageForTurn(turn: TryOnChatTurn, streamed: string): Chat
 
   const message: ChatMessage = { role: "agent", content };
   if (rec) message.recommendedProduct = rec;
-  if (hits.length) message.catalogHits = hits;
+  if (hits.length) {
+    message.catalogHits = hits;
+    if (turn.hits_title) message.catalogHitsTitle = turn.hits_title;
+  }
   return message;
 }
 
@@ -79,6 +82,9 @@ function restoreCards(message: ChatMessage, toolCall?: TryonChatMessage["tool_ca
   }
   if (Array.isArray(result.catalog_hits) && result.catalog_hits.length) {
     message.catalogHits = result.catalog_hits as CatalogVariantHit[];
+    if (typeof result.catalog_hits_title === "string" && result.catalog_hits_title) {
+      message.catalogHitsTitle = result.catalog_hits_title;
+    }
   }
 }
 

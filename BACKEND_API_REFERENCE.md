@@ -666,6 +666,8 @@ Missing `id` and `timestamp` are filled server-side. Side effect: a message whos
 
 `POST /api/tryon/chat-stream` — SSE. Styling answers and catalog recommendations about the tried-on garment (`SellerModeTryon`). The agent has **no coupon tool**: when the customer asks for a discount, Voxa stays in character and points them at the checkout-page chat (§2.8).
 
+The agent has three tools, and every one of them is a **tool → agent** channel, never a tool → UI pipe: `recommend_product`, `search_catalog`, and `show_color_variants`. Tool output goes back into the model's context; the card rows a customer sees (`catalog_hits` on the `done` event) are resolved server-side **after** the turn — `show_color_variants` looking up the named `variant_ids` against the sibling colors of the garment in focus and the turn's `search_catalog` hits, with unknown ids dropped. So raw tool output reaches the UI only through a fallback when the model never curated.
+
 **Request** — deliberately minimal:
 ```json
 {
@@ -687,7 +689,7 @@ data: {"type":"token","text":"یه شلوار هم بذار کنارش…"}
 data: {"type":"done","reply":"…","recommended_product":{…},"catalog_hits":[…]}
 ```
 
-Event types: `token` (incremental text) · `done` (terminal, carries the decision) · `error`. The `coupon` key exists in the shared `StreamEvent` type but is only ever populated by the checkout negotiation stream (§2.8) — try-on turns carry `recommended_product` / `catalog_hits` or nothing.
+Event types: `token` (incremental text) · `done` (terminal, carries the decision) · `error`. The `coupon` key exists in the shared `StreamEvent` type but is only ever populated by the checkout negotiation stream (§2.8) — try-on turns carry `recommended_product` / `catalog_hits` / `hits_title` or nothing.
 
 ```jsonc
 // StreamEvent
@@ -700,12 +702,15 @@ Event types: `token` (incremental text) · `done` (terminal, carries the decisio
     "size": "32", "image": "/uploads/products/colors/…"
   },
   "catalog_hits": [
-    { "product_id": "…", "variant_id": "…", "product_name": "…", "price": 890000,
-      "color": "#…", "color_name": "…", "image": "…", "in_stock": true,
-      "sizes": ["M","L"], "reason": "…" }
-  ]
+    { "product_id": "...", "variant_id": "...", "product_name": "...", "price": 890000,
+      "color": "#...", "color_name": "...", "image": "...", "in_stock": true,
+      "sizes": ["M","L"], "reason": "..." }
+  ],
+  "hits_title": "رنگهای دیگر همین مدل"
 }
 ```
+
+`hits_title` (optional) overrides the card header. It is set to "رنگهای دیگر همین مدل" when the whole curated set came from the garment-in-focus's other colors (`show_color_variants` naming only sibling variant ids), and omitted otherwise — including on the raw `search_catalog` fallback, which keeps the default header.
 
 Persistence runs on a fresh `context.Background()` with a 10 s timeout, not the request context, so a client disconnecting mid-stream cannot cancel the transcript writes.
 

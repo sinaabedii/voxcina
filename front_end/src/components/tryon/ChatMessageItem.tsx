@@ -143,7 +143,9 @@ export default function ChatMessageItem({
         </div>
       </motion.div>
 
-      {!!message.catalogHits?.length && <CatalogHitsCard hits={message.catalogHits} />}
+      {!!message.catalogHits?.length && (
+        <CatalogHitsCard hits={message.catalogHits} title={message.catalogHitsTitle} />
+      )}
       {message.recommendedProduct && (
         <RecommendationCard
           product={message.recommendedProduct}

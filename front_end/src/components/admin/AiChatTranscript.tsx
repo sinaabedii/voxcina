@@ -275,7 +275,7 @@ function AdminChatMessageItem({
 
       {!isUser && stored && <AdminMessageDetails stored={stored} />}
 
-      {!!message.catalogHits?.length && <CatalogHitsCard hits={message.catalogHits} />}
+      {!!message.catalogHits?.length && <CatalogHitsCard hits={message.catalogHits} title={message.catalogHitsTitle} />}
       {message.recommendedProduct && <AdminRecommendationCard product={message.recommendedProduct} />}
     </>
   );

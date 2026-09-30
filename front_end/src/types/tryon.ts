@@ -48,6 +48,8 @@ export interface TryOnChatTurn {
   reply?: string;
   recommended_product?: RecommendedProduct;
   catalog_hits?: CatalogVariantHit[];
+  /** Card-grid heading when the hits are the garment's own other colors. */
+  hits_title?: string;
 }
 
 export interface TryonMessageData {
@@ -68,4 +70,5 @@ export interface ChatMessage {
   // message so the transcript keeps them where they were said.
   recommendedProduct?: RecommendedProduct;
   catalogHits?: CatalogVariantHit[];
+  catalogHitsTitle?: string;
 }

@@ -110,12 +110,13 @@ func buildTryOnChatInput(ctx context.Context, userID primitive.ObjectID, req ser
 		return input, fmt.Errorf("no garment in the fitting room to talk about")
 	}
 
-	tryonContext, colorValue, colorName, err := describeTryonProduct(ctx, input.Request.TryonProductID, input.Request.TryonColor)
+	tryonContext, colorValue, colorName, siblingVariants, err := describeTryonProduct(ctx, input.Request.TryonProductID, input.Request.TryonColor)
 	if err != nil {
 		return input, err
 	}
 	input.TryonContext = tryonContext
 	input.TryonColorName = colorName
+	input.SiblingVariants = siblingVariants
 	if colorValue != "" {
 		// Pin the context to the canonical variant value so every colour the
 		// agent names matches how the catalog and the cart spell it.
@@ -140,15 +141,19 @@ func buildTryOnChatInput(ctx context.Context, userID primitive.ObjectID, req ser
 // garment fact that is not in the context. With only a name and a price there,
 // she had to dodge the most common fitting-room questions ("جنسش چیه؟",
 // "سایز XL داری؟") about the very item on screen; now she can answer them.
-func describeTryonProduct(ctx context.Context, productID, color string) (summary, colorValue, colorName string, err error) {
+//
+// It also returns card-ready rows for the product's OTHER color variants (the
+// tried one excluded): they feed the {{SIBLINGS}} prompt block and are the id
+// source the show_color_variants tool resolves against.
+func describeTryonProduct(ctx context.Context, productID, color string) (summary, colorValue, colorName string, siblingVariants []services.CatalogVariantHit, err error) {
 	objID, err := primitive.ObjectIDFromHex(productID)
 	if err != nil {
-		return "", "", "", fmt.Errorf("invalid product ID %q: %w", productID, err)
+		return "", "", "", nil, fmt.Errorf("invalid product ID %q: %w", productID, err)
 	}
 
 	var product models.Product
 	if err := db.Database.Collection("products").FindOne(ctx, bson.M{"_id": objID}).Decode(&product); err != nil {
-		return "", "", "", fmt.Errorf("product %s not found: %w", productID, err)
+		return "", "", "", nil, fmt.Errorf("product %s not found: %w", productID, err)
 	}
 
 	colorName = color
@@ -168,6 +173,7 @@ func describeTryonProduct(ctx context.Context, productID, color string) (summary
 			triedColor = color
 		}
 		siblings = siblingColorLine(product.ColorVariants, triedColor)
+		siblingVariants = siblingVariantHits(&product, triedColor)
 	}
 
 	summary = fmt.Sprintf("%s - %s - %.0f تومان", product.Name, colorName, product.Price)
@@ -177,7 +183,48 @@ func describeTryonProduct(ctx context.Context, productID, color string) (summary
 	if siblings != "" {
 		summary += " | " + siblings
 	}
-	return summary, colorValue, colorName, nil
+	return summary, colorValue, colorName, siblingVariants, nil
+}
+
+// siblingVariantHits renders the tried product's other color variants as
+// card-ready rows for the agent's show_color_variants tool — one per color,
+// with the same tried-variant exclusion semantics siblingColorLine uses. Image
+// prefers the try-on image, falling back to the first gallery image; Sizes
+// lists only the in-stock size names. Capped at 12 rows.
+func siblingVariantHits(product *models.Product, triedColor string) []services.CatalogVariantHit {
+	var hits []services.CatalogVariantHit
+	for _, cv := range product.ColorVariants {
+		if colorVariantMatches(cv, triedColor, triedColor) {
+			continue
+		}
+		if len(hits) >= 12 {
+			break
+		}
+		image := cv.TryOnImage
+		if image == "" && len(cv.Images) > 0 {
+			image = cv.Images[0]
+		}
+		var sizes []string
+		inStock := false
+		for _, s := range cv.Sizes {
+			if s.Quantity > 0 {
+				sizes = append(sizes, s.Size)
+				inStock = true
+			}
+		}
+		hits = append(hits, services.CatalogVariantHit{
+			ProductID:   product.ID.Hex(),
+			VariantID:   cv.VariantID,
+			ProductName: product.Name,
+			Price:       product.Price,
+			Color:       canonicalColorValue(cv),
+			ColorName:   cv.ColorName,
+			Image:       image,
+			InStock:     inStock,
+			Sizes:       sizes,
+		})
+	}
+	return hits
 }
 
 // siblingColorLine lists the other color variants of the same product with
@@ -358,18 +405,28 @@ func persistTryOnChatTurn(ctx context.Context, userID primitive.ObjectID, input 
 	}
 
 	// The stored tool_call shape is what the fitting room reads back on reload
-	// to restore the recommendation card — keep it stable.
+	// to restore the cards — keep it stable. When a recommendation and catalog
+	// hits coexist, the hits ride inside the recommendation's result map so
+	// neither is dropped.
 	if rec := recommendedProductRecord(turn.RecommendedProduct); rec != nil {
+		result := map[string]interface{}{"recommended_product": rec}
+		if len(turn.CatalogHits) > 0 {
+			result["catalog_hits"] = turn.CatalogHits
+			result["catalog_hits_title"] = turn.HitsTitle
+		}
 		agentMsg.ToolCall = &models.TryonChatToolCall{
 			Name:      "recommend_product",
 			Arguments: map[string]interface{}{"product_id": turn.RecommendedProduct.ProductID},
-			Result:    map[string]interface{}{"recommended_product": rec},
+			Result:    result,
 		}
 	} else if len(turn.CatalogHits) > 0 {
 		agentMsg.ToolCall = &models.TryonChatToolCall{
 			Name:      "search_catalog",
 			Arguments: map[string]interface{}{},
-			Result:    map[string]interface{}{"catalog_hits": turn.CatalogHits},
+			Result: map[string]interface{}{
+				"catalog_hits":       turn.CatalogHits,
+				"catalog_hits_title": turn.HitsTitle,
+			},
 		}
 	}
 

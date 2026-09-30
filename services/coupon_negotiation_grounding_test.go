@@ -56,7 +56,7 @@ func TestToolOutcomeMessageReflectsResolvedDecision(t *testing.T) {
 	recommended := &CouponCartItem{ProductID: "comp-1", ProductName: "شلوار جین راسته", Price: 500000}
 
 	var payload map[string]interface{}
-	if err := json.Unmarshal([]byte(toolOutcomeMessage("offer_coupon", coupon, recommended, 5_000_000)), &payload); err != nil {
+	if err := json.Unmarshal([]byte(toolOutcomeMessage("offer_coupon", coupon, recommended, nil, 5_000_000)), &payload); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 	if payload["granted_percent"] != float64(10) {
@@ -80,7 +80,7 @@ func TestToolOutcomeMessageReflectsResolvedDecision(t *testing.T) {
 
 	// No readable cart: the outcome must not hand the model a ۰ to quote.
 	var noSubtotal map[string]interface{}
-	if err := json.Unmarshal([]byte(toolOutcomeMessage("offer_coupon", coupon, recommended, 0)), &noSubtotal); err != nil {
+	if err := json.Unmarshal([]byte(toolOutcomeMessage("offer_coupon", coupon, recommended, nil, 0)), &noSubtotal); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 	if _, present := noSubtotal["amount_off_formatted"]; present {
@@ -88,7 +88,7 @@ func TestToolOutcomeMessageReflectsResolvedDecision(t *testing.T) {
 	}
 
 	var noCoupon map[string]interface{}
-	if err := json.Unmarshal([]byte(toolOutcomeMessage("offer_coupon", nil, nil, 0)), &noCoupon); err != nil {
+	if err := json.Unmarshal([]byte(toolOutcomeMessage("offer_coupon", nil, nil, nil, 0)), &noCoupon); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 	if noCoupon["ok"] != false {
@@ -96,7 +96,7 @@ func TestToolOutcomeMessageReflectsResolvedDecision(t *testing.T) {
 	}
 
 	var noRec map[string]interface{}
-	if err := json.Unmarshal([]byte(toolOutcomeMessage("recommend_product", nil, nil, 0)), &noRec); err != nil {
+	if err := json.Unmarshal([]byte(toolOutcomeMessage("recommend_product", nil, nil, nil, 0)), &noRec); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 	if noRec["ok"] != false {

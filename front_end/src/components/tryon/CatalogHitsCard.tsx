@@ -8,16 +8,18 @@ import { CatalogVariantHit } from "@/types/tryon";
 
 interface CatalogHitsCardProps {
   hits: CatalogVariantHit[];
+  /** Heading override — e.g. "رنگ‌های دیگر همین مدل" for same-product colors. */
+  title?: string;
 }
 
 /** What the agent found in the catalog: one card per color variant. */
-export default function CatalogHitsCard({ hits }: CatalogHitsCardProps) {
+export default function CatalogHitsCard({ hits, title }: CatalogHitsCardProps) {
   return (
     <div className="bg-background border border-secondary-300 dark:border-voxcina-blue/30 rounded-2xl p-3.5 mt-3 shadow-soft max-w-md mr-9">
       <div className="flex items-center gap-1.5 mb-2.5">
         <ShoppingBag className="h-3.5 w-3.5 text-voxcina-blue dark:text-voxcina-cream" />
         <p className="text-xs font-bold text-voxcina-blue dark:text-voxcina-cream">
-          نتایج جستجوی ووکسا در کاتالوگ
+          {title || "نتایج جستجوی ووکسا در کاتالوگ"}
         </p>
       </div>
 
