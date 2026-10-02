@@ -4,23 +4,12 @@ import { formatDate, formatPrice, toPersianNumber } from "@/lib/utils";
 import type { OrderReceipt as Receipt } from "@/types/order-receipt";
 import styles from "./order-receipt.module.css";
 
-const paymentLabels: Record<string, string> = {
-  paid: "پرداخت شده",
-  pending: "در انتظار پرداخت",
-  failed: "پرداخت ناموفق",
-  abandoned: "پرداخت تکمیل نشده",
-  expired: "مهلت پرداخت تمام شده",
-  cancelled: "پرداخت لغو شده",
-  refunded: "وجه بازگردانده شده",
-};
-
 /** Shared JSX only: order/address text is escaped by React, never raw HTML. */
 export default function OrderReceipt({ receipt }: { receipt: Receipt }) {
   const address = receipt.shipping_address || {};
   const recipient = [address.first_name, address.last_name].filter(Boolean).join(" ");
   const region = [address.province || address.state, address.city].filter(Boolean).join("، ");
   const subtotal = receipt.items.reduce((sum, item) => sum + item.quantity * item.price_at_purchase, 0);
-  const paid = receipt.payment_status === "paid";
 
   return (
     <article className={styles.sheet} dir="rtl" aria-label={`فاکتور سفارش ${receipt.order_number}`}>
@@ -39,11 +28,6 @@ export default function OrderReceipt({ receipt }: { receipt: Receipt }) {
           <p className={styles.date}>تاریخ ثبت: {receipt.jalali_created_at || formatDate(receipt.created_at)}</p>
         </div>
       </header>
-
-      <div className={styles.statusLine}>
-        <span>وضعیت سفارش: <strong>{receipt.status_text || "ثبت نشده"}</strong></span>
-        <span>وضعیت پرداخت: <strong className={paid ? styles.paid : undefined}>{paymentLabels[receipt.payment_status] || "ثبت نشده"}</strong></span>
-      </div>
 
       <section className={styles.recipient} aria-labelledby="receipt-recipient">
         <div className={styles.recipientHeading}>
@@ -89,8 +73,6 @@ export default function OrderReceipt({ receipt }: { receipt: Receipt }) {
         <div className={styles.payment}>
           <h2>اطلاعات پرداخت</h2>
           <p>{getPaymentMethodText(receipt)}</p>
-          <p className={paid ? styles.paid : styles.paymentNote}>{paymentLabels[receipt.payment_status] || "وضعیت پرداخت ثبت نشده"}</p>
-          {!paid && <p className={styles.paymentNote}>این فاکتور به معنی تأیید پرداخت نیست.</p>}
         </div>
         <dl className={styles.totals}>
           <div><dt>جمع کالاها</dt><dd>{formatPrice(subtotal)}</dd></div>

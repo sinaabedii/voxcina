@@ -59,8 +59,6 @@
 .orderIdentity h1 { font-size: 16px; font-weight: 700; color: var(--receipt-blue); }
 .orderNumber { font-size: 15px; font-weight: 700; margin: 3px 0; }
 .date { font-size: 9px; color: var(--receipt-muted); }
-.statusLine { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding: 9px 0; font-size: 9px; border-bottom: 1px solid var(--receipt-rule); }
-.paid { color: #216449; font-weight: 700; }
 .recipient { padding: 12px 0; border-bottom: 1px solid var(--receipt-rule); }
 .recipientHeading { display: flex; flex-wrap: wrap; gap: 4px 12px; justify-content: space-between; color: var(--receipt-blue); }
 .sheet h2 { font-size: 11px; font-weight: 700; }
@@ -83,7 +81,6 @@
 .summary { display: grid; grid-template-columns: 1fr 1.3fr; gap: 24px; margin-top: 18px; }
 .payment h2 { color: var(--receipt-blue); margin-bottom: 4px; }
 .payment { font-size: 10px; }
-.paymentNote { color: var(--receipt-muted); font-size: 9px; margin-top: 4px; }
 .totals { font-size: 10px; }
 .totals > div { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; }
 .totals dd { text-align: left; font-variant-numeric: tabular-nums; }
@@ -112,8 +109,51 @@
   :global(.Toastify) { display: none !important; }
   .workspace { background: white; padding: 0; min-height: 0; }
   .toolbar { display: none; }
-  .sheet { width: 100%; max-width: none; min-height: 0; padding: 0; margin: 0; box-shadow: none; }
+  .screenNote { display: none; }
+  /* Keep the shared receipt within the printable A5 area. These are print-only
+     reductions; the on-screen preview keeps its more generous spacing. */
+  .sheet {
+    width: 100%;
+    max-width: none;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+    font-size: 9px;
+    line-height: 1.45;
+  }
+  .letterhead { gap: 10px; padding: 2px 0 7px; border-bottom-width: 2px; }
+  .identity { gap: 8px; }
+  .logo { width: 38px; height: 38px; }
+  .brand { font-size: 19px; line-height: 1.2; }
+  .wordmark { font-size: 9px; letter-spacing: 1px; }
+  .tagline { font-size: 8px; margin-top: 1px; }
+  .orderIdentity h1 { font-size: 13px; }
+  .orderNumber { font-size: 12px; margin: 1px 0; }
+  .date { font-size: 8px; }
+  .recipient { padding: 7px 0; }
+  .recipientHeading { gap: 2px 10px; }
+  .recipientName { margin-top: 2px; }
+  .addressCodes { gap: 2px 12px; margin-top: 3px; font-size: 8px; }
+  .items { margin-top: 8px; }
+  .sectionHeading { margin-bottom: 3px; }
+  .sectionHeading span { font-size: 8px; }
+  .sheet h2 { font-size: 10px; }
   .table thead { display: table-header-group; }
+  .table { font-size: 8.5px; line-height: 1.35; }
+  .table th { padding: 4px 3px; }
+  .table td { padding: 4px 3px; }
   .table tr, .letterhead, .recipient, .summary, .footer { break-inside: avoid; page-break-inside: avoid; }
+  .sectionHeading { break-after: avoid; page-break-after: avoid; }
+  .table th:nth-child(n+2), .table td:nth-child(n+2) { white-space: nowrap; }
+  .rowNumber { font-size: 8px; }
+  .variant, .sku { font-size: 8px; margin-top: 1px; }
+  .summary { gap: 12px; margin-top: 9px; }
+  .payment { font-size: 9px; }
+  .totals { font-size: 8px; }
+  .payment h2 { margin-bottom: 2px; }
+  .totals > div { padding: 2px 0; }
+  .totals .grandTotal { margin-top: 4px; padding-top: 5px; border-top-width: 1px; font-size: 10px; }
+  .footer { padding-top: 5px; margin-top: 10px; font-size: 8px; }
   .sheet { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
