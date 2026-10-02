@@ -18,6 +18,7 @@ import {
   FileText,
   Layers,
   ArrowRight,
+  Shirt,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import Button from "@/components/ui/Button";
@@ -126,6 +127,8 @@ export default function SizingTypeModal({
   const [adminMeasurementGuide, setAdminMeasurementGuide] = useState<string | null>(null);
   const [generalFitGuide, setGeneralFitGuide] = useState("");
   const [imagePrompt, setImagePrompt] = useState("");
+  const [imagePromptMannequin, setImagePromptMannequin] = useState("");
+  const [activePromptTab, setActivePromptTab] = useState<"vector" | "mannequin">("vector");
   const [measurements, setMeasurements] = useState<SizingMeasurementDef[]>([]);
   const [isActive, setIsActive] = useState(true);
   const [displayOrder, setDisplayOrder] = useState(0);
@@ -152,7 +155,8 @@ export default function SizingTypeModal({
   }, []);
 
   // UI state
-  const [isCopiedPrompt, setIsCopiedPrompt] = useState(false);
+  const [isCopiedVector, setIsCopiedVector] = useState(false);
+  const [isCopiedMannequin, setIsCopiedMannequin] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // Reset or populate fields when modal opens or editing changes
@@ -166,6 +170,7 @@ export default function SizingTypeModal({
         setAdminMeasurementGuide(editingSizingType.admin_measurement_guide ?? null);
         setGeneralFitGuide(editingSizingType.general_fit_guide || "");
         setImagePrompt(editingSizingType.image_prompt || "");
+        setImagePromptMannequin(editingSizingType.image_prompt_mannequin || "");
         setMeasurements(editingSizingType.measurements || []);
         setIsActive(editingSizingType.is_active ?? true);
         setDisplayOrder(editingSizingType.display_order ?? 0);
@@ -180,6 +185,7 @@ export default function SizingTypeModal({
         setAdminMeasurementGuide(null);
         setGeneralFitGuide("");
         setImagePrompt("");
+        setImagePromptMannequin("");
         setMeasurements([]);
         setIsActive(true);
         setDisplayOrder(0);
@@ -217,7 +223,8 @@ export default function SizingTypeModal({
         setAdminMeasurementGuide(result.admin_measurement_guide ?? null);
         setGeneralFitGuide(result.general_fit_guide || "");
         setMeasurements(result.measurements || []);
-        setImagePrompt(result.nano_banana_prompt || "");
+        setImagePrompt(result.image_prompt_vector || result.nano_banana_prompt || "");
+        setImagePromptMannequin(result.image_prompt_mannequin || "");
         setActiveTab("editor");
         toast.success("پژوهش اندازه‌ها و راهنمای خریدار با موفقیت آماده شد");
       }
@@ -264,13 +271,20 @@ export default function SizingTypeModal({
   };
 
   // Copy prompt handler
-  const handleCopyPrompt = async () => {
-    if (!imagePrompt) return;
+  const handleCopyPrompt = async (type: "vector" | "mannequin") => {
+    const text = type === "vector" ? imagePrompt : imagePromptMannequin;
+    if (!text) return;
     try {
-      await navigator.clipboard.writeText(imagePrompt);
-      setIsCopiedPrompt(true);
-      toast.success("پرامپت Nano Banana Pro در کلیپ‌بورد کپی شد");
-      setTimeout(() => setIsCopiedPrompt(false), 2500);
+      await navigator.clipboard.writeText(text);
+      if (type === "vector") {
+        setIsCopiedVector(true);
+        setTimeout(() => setIsCopiedVector(false), 2500);
+        toast.success("پرامپت طرح خطی وکتور کپی شد");
+      } else {
+        setIsCopiedMannequin(true);
+        setTimeout(() => setIsCopiedMannequin(false), 2500);
+        toast.success("پرامپت مانکن ۳ بعدی کپی شد");
+      }
     } catch {
       toast.error("امکان کپی در کلیپ‌بورد وجود ندارد");
     }
@@ -367,6 +381,7 @@ export default function SizingTypeModal({
     }
     formData.append("general_fit_guide", generalFitGuide.trim());
     formData.append("image_prompt", imagePrompt.trim());
+    formData.append("image_prompt_mannequin", imagePromptMannequin.trim());
     formData.append("is_active", String(isActive));
     formData.append("display_order", String(displayOrder));
     formData.append("measurements", JSON.stringify(measurements));
@@ -843,51 +858,144 @@ export default function SizingTypeModal({
                 )}
               </div>
 
-              {/* Nano Banana Pro Image Prompt Card */}
-              <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-voxcina-blue text-white p-5 md:p-6 rounded-2xl shadow-md border border-indigo-900/50 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-white/10">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-amber-400" />
-                    <h4 className="text-sm md:text-base font-bold text-white">
-                      پرامپت تولید دیاگرام در Nano Banana Pro
-                    </h4>
+              {/* Dual-Prompt Generator Card */}
+              <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-voxcina-blue text-white p-5 md:p-6 rounded-2xl shadow-xl border border-indigo-900/60 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-white/10">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center shrink-0">
+                      <Sparkles className="w-5 h-5 text-amber-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm md:text-base font-bold text-white">
+                        پرامپت‌های تولید تصویر راهنمای اندازه
+                      </h4>
+                      <p className="text-[11px] text-slate-300/80 mt-0.5">
+                        مهندسی شده برای ابزارهای تولید تصویر هوش مصنوعی (Nano Banana Pro / Midjourney)
+                      </p>
+                    </div>
                   </div>
-                  <Button
+                </div>
+
+                {/* Tab Switcher */}
+                <div className="flex p-1 bg-black/40 rounded-xl border border-white/10 gap-1.5">
+                  <button
                     type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={handleCopyPrompt}
-                    disabled={!imagePrompt}
-                    className="rounded-xl border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                    onClick={() => setActivePromptTab("vector")}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                      activePromptTab === "vector"
+                        ? "bg-gradient-to-r from-indigo-600 to-voxcina-blue text-white shadow-md shadow-indigo-600/30"
+                        : "text-slate-300 hover:text-white hover:bg-white/5"
+                    }`}
                   >
-                    {isCopiedPrompt ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 ml-1.5 text-emerald-400" />
-                        کپی شد!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5 ml-1.5" />
-                        کپی پرامپت اختصاصی
-                      </>
+                    <Layers className="w-4 h-4" />
+                    <span>طرح خطی وکتور (Vector Flat Sketch)</span>
+                    {imagePrompt && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1" />
                     )}
-                  </Button>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActivePromptTab("mannequin")}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                      activePromptTab === "mannequin"
+                        ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-600/30"
+                        : "text-slate-300 hover:text-white hover:bg-white/5"
+                    }`}
+                  >
+                    <Shirt className="w-4 h-4" />
+                    <span>مانکن نامرئی ۳ بعدی (3D Ghost Mannequin)</span>
+                    {imagePromptMannequin && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1" />
+                    )}
+                  </button>
                 </div>
 
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  این پرامپت مهندسی شده را کپی کرده و در هوش مصنوعی <span className="font-semibold text-amber-300">Nano Banana Pro</span> تصویر دیاگرام راهنمای اندازه را تولید فرمایید، سپس فایل تصویری خروجی را در بخش زیر بارگذاری نمایید.
-                </p>
+                {/* Active Tab Content */}
+                {activePromptTab === "vector" ? (
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs bg-white/5 p-3.5 rounded-xl border border-white/10">
+                      <div className="space-y-1">
+                        <span className="font-semibold text-amber-300">سبک وکتور و فلت اسکچ:</span>
+                        <p className="leading-relaxed text-slate-300 text-[11px] md:text-xs">
+                          طرح خطی و تکنیکال وکتور لباس با خطوط ابعاد تراموتا روی پس‌زمینه کرم ملایم (#FAF7F2).
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCopyPrompt("vector")}
+                        disabled={!imagePrompt}
+                        className="shrink-0 rounded-xl border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                      >
+                        {isCopiedVector ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 ml-1.5 text-emerald-400" />
+                            کپی شد!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 ml-1.5" />
+                            کپی پرامپت وکتور
+                          </>
+                        )}
+                      </Button>
+                    </div>
 
-                <div className="relative">
-                  <textarea
-                    rows={4}
-                    dir="ltr"
-                    value={imagePrompt}
-                    onChange={(e) => setImagePrompt(e.target.value)}
-                    placeholder="Fashion technical flat sketch diagram prompt for Nano Banana Pro..."
-                    className="w-full font-mono text-xs p-3 rounded-xl bg-black/40 border border-white/10 text-emerald-300 focus:outline-none focus:border-indigo-400 placeholder-white/30 resize-y"
-                  />
-                </div>
+                    <div className="relative">
+                      <textarea
+                        rows={4}
+                        dir="ltr"
+                        value={imagePrompt}
+                        onChange={(e) => setImagePrompt(e.target.value)}
+                        placeholder="Fashion technical flat sketch diagram prompt for Nano Banana Pro..."
+                        className="w-full font-mono text-xs p-3.5 rounded-xl bg-black/40 border border-white/10 text-emerald-300 focus:outline-none focus:border-indigo-400 placeholder-white/30 resize-y"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs bg-white/5 p-3.5 rounded-xl border border-white/10">
+                      <div className="space-y-1">
+                        <span className="font-semibold text-purple-300">سبک مانکن نامرئی استودیویی:</span>
+                        <p className="leading-relaxed text-slate-300 text-[11px] md:text-xs">
+                          عکاسی استودیویی لباس واقعی روی مانکن نامرئی با فرم و ایستایی سه‌بعدی روی پس‌زمینه سفید خالص (#FFFFFF) منطبق با تم و رنگ‌های لوکس وکسینا.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCopyPrompt("mannequin")}
+                        disabled={!imagePromptMannequin}
+                        className="shrink-0 rounded-xl border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                      >
+                        {isCopiedMannequin ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 ml-1.5 text-emerald-400" />
+                            کپی شد!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 ml-1.5" />
+                            کپی پرامپت مانکن ۳ بعدی
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    <div className="relative">
+                      <textarea
+                        rows={4}
+                        dir="ltr"
+                        value={imagePromptMannequin}
+                        onChange={(e) => setImagePromptMannequin(e.target.value)}
+                        placeholder="3D Ghost mannequin studio photo prompt for Nano Banana Pro..."
+                        className="w-full font-mono text-xs p-3.5 rounded-xl bg-black/40 border border-white/10 text-purple-300 focus:outline-none focus:border-purple-400 placeholder-white/30 resize-y"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Diagram Image Upload */}

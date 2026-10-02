@@ -23,6 +23,7 @@ type SizingType struct {
 	Description           string                 `bson:"description,omitempty" json:"description,omitempty"`
 	Measurements          []SizingMeasurementDef `bson:"measurements" json:"measurements"`
 	ImagePrompt           string                 `bson:"image_prompt,omitempty" json:"image_prompt,omitempty"`
+	ImagePromptMannequin  string                 `bson:"image_prompt_mannequin,omitempty" json:"image_prompt_mannequin,omitempty"`
 	ImagePath             string                 `bson:"image_path,omitempty" json:"image_path,omitempty"`
 	GeneralFitGuide       string                 `bson:"general_fit_guide,omitempty" json:"general_fit_guide,omitempty"`
 	AdminMeasurementGuide string                 `bson:"admin_measurement_guide,omitempty" json:"admin_measurement_guide,omitempty"`

@@ -23,11 +23,20 @@ func TestBuildSizingAgentPromptContainsRequiredDirectives(t *testing.T) {
 	if !strings.Contains(prompt, searchCtx) {
 		t.Errorf("prompt missing search context")
 	}
-	if !strings.Contains(prompt, "Minimalist premium fashion size-guide diagram") {
-		t.Errorf("prompt missing shared diagram style block")
+	if !strings.Contains(prompt, "Technical flat sketch vector of the garment") {
+		t.Errorf("prompt missing vector diagram style block")
 	}
 	if !strings.Contains(prompt, "#FAF7F2") {
-		t.Errorf("prompt missing background color code")
+		t.Errorf("prompt missing off-white background color code")
+	}
+	if !strings.Contains(prompt, "invisible ghost mannequin (hollow-man 3D effect)") {
+		t.Errorf("prompt missing mannequin diagram style block")
+	}
+	if !strings.Contains(prompt, "#FFFFFF") {
+		t.Errorf("prompt missing white background color code")
+	}
+	if !strings.Contains(prompt, "image_prompt_mannequin") {
+		t.Errorf("prompt missing image_prompt_mannequin directive")
 	}
 }
 
@@ -69,7 +78,8 @@ func TestSizingAgentResultParsingAndConversion(t *testing.T) {
 			}
 		],
 		"general_fit_guide": "کت بلیزر زنانه با برش استاندارد، مناسب استایل‌های کژوال و رسمی است.",
-		"nano_banana_prompt": "Minimalist premium fashion size-guide diagram... The garment is a tailored blazer... 1. A vertical line along the side, labeled \"قد کل\""
+		"nano_banana_prompt": "Minimalist premium fashion size-guide diagram... The garment is a tailored blazer... 1. A vertical line along the side, labeled \"قد کل\"",
+		"image_prompt_mannequin": "High-end luxury fashion studio product photography on an invisible ghost mannequin... labeled \"قد کل\""
 	}`
 
 	var result SizingAgentResult
@@ -86,6 +96,9 @@ func TestSizingAgentResultParsingAndConversion(t *testing.T) {
 	if len(result.Measurements) != 5 {
 		t.Fatalf("expected 5 measurements, got %d", len(result.Measurements))
 	}
+	if result.ImagePromptMannequin == "" {
+		t.Errorf("expected ImagePromptMannequin to be parsed")
+	}
 
 	defs := result.ToMeasurementDefs()
 	if len(defs) != len(result.Measurements) {
@@ -97,6 +110,36 @@ func TestSizingAgentResultParsingAndConversion(t *testing.T) {
 	}
 	if defs[0].GarmentMeasurement == "" {
 		t.Errorf("garment measurement instruction was not converted: %+v", defs[0])
+	}
+}
+
+func TestSizingAgentPromptFallbacks(t *testing.T) {
+	// 1. nano_banana_prompt provided, others empty
+	res1 := SizingAgentResult{
+		NanoBananaPrompt: "vector-prompt",
+	}
+	if res1.ImagePromptVector == "" {
+		res1.ImagePromptVector = res1.NanoBananaPrompt
+	}
+	if res1.ImagePrompt == "" {
+		res1.ImagePrompt = res1.ImagePromptVector
+	}
+	if res1.ImagePromptVector != "vector-prompt" || res1.ImagePrompt != "vector-prompt" {
+		t.Errorf("res1 fallback failed: %+v", res1)
+	}
+
+	// 2. image_prompt_vector provided, nano_banana_prompt empty
+	res2 := SizingAgentResult{
+		ImagePromptVector: "vector-prompt-2",
+	}
+	if res2.NanoBananaPrompt == "" {
+		res2.NanoBananaPrompt = res2.ImagePromptVector
+	}
+	if res2.ImagePrompt == "" {
+		res2.ImagePrompt = res2.ImagePromptVector
+	}
+	if res2.NanoBananaPrompt != "vector-prompt-2" || res2.ImagePrompt != "vector-prompt-2" {
+		t.Errorf("res2 fallback failed: %+v", res2)
 	}
 }
 
@@ -125,7 +168,7 @@ func TestSizingAgentSchemaValidity(t *testing.T) {
 	if !ok {
 		t.Fatalf("properties must be a map")
 	}
-	for _, requiredField := range []string{"name", "slug", "measurements", "admin_measurement_guide", "nano_banana_prompt"} {
+	for _, requiredField := range []string{"name", "slug", "measurements", "admin_measurement_guide", "nano_banana_prompt", "image_prompt_mannequin"} {
 		if _, exists := props[requiredField]; !exists {
 			t.Errorf("missing property in schema: %s", requiredField)
 		}
@@ -196,7 +239,8 @@ func TestSizingAgentResearchUsesSequentialDefinitionAndBuyerGuideCalls(t *testin
 				"garment_measurement":"لباس را تخت کنید و از زیر حلقه تا زیر حلقه به صورت عرض تخت اندازه بگیرید."
 			}],
 			"admin_measurement_guide":"لباس را بدون کشش روی سطح صاف قرار دهید.",
-			"nano_banana_prompt":"diagram"
+			"nano_banana_prompt":"vector diagram",
+			"image_prompt_mannequin":"mannequin diagram"
 		}`},
 		{Content: `{"general_fit_guide":"ابتدا دور سینه را در برجسته‌ترین قسمت اندازه بگیرید؛ سپس با جدول لباس مقایسه کنید."}`},
 	}}
@@ -223,10 +267,32 @@ func TestSizingAgentResearchUsesSequentialDefinitionAndBuyerGuideCalls(t *testin
 		!strings.Contains(fake.calls[1].prompt, `"garment_measurement":"لباس را تخت کنید`) {
 		t.Errorf("second prompt does not contain the exact generated measurement JSON: %s", fake.calls[1].prompt)
 	}
+	if !strings.Contains(fake.calls[1].prompt, `"style_notes":"اورسایز"`) {
+		t.Errorf("second prompt missing style notes in input JSON: %s", fake.calls[1].prompt)
+	}
+	for _, directive := range []string{
+		"You are an expert master fashion pattern maker and garment sizing specialist for an Iranian premium fashion e-commerce brand.",
+		"natural, fluent, and highly understandable Persian for buyers",
+		"thorough Persian advice summarizing how this garment is meant to fit, fabric drape/stretch considerations, sizing recommendations between two sizes, and styling notes",
+		"ONE short, cohesive paragraph consisting of only a couple of sentences",
+		"ایستایی و تن‌خور لباس روی اندام",
+		"رعایت نیم‌فاصله",
+		"Do NOT produce bullet points, numbered lists, headings, tape-measure instructions, or long explanations",
+	} {
+		if !strings.Contains(fake.calls[1].prompt, directive) {
+			t.Errorf("second prompt missing buyer-guide directive %q", directive)
+		}
+	}
 	if result.GeneralFitGuide == "" || result.AdminMeasurementGuide == "" {
 		t.Fatalf("expected buyer guide and transient admin guide in result: %+v", result)
 	}
 	if result.ImagePrompt != result.NanoBananaPrompt {
 		t.Errorf("ImagePrompt alias was not preserved")
+	}
+	if result.ImagePromptVector != "vector diagram" {
+		t.Errorf("expected ImagePromptVector to be set, got %q", result.ImagePromptVector)
+	}
+	if result.ImagePromptMannequin != "mannequin diagram" {
+		t.Errorf("expected ImagePromptMannequin to be set, got %q", result.ImagePromptMannequin)
 	}
 }

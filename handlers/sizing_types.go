@@ -359,6 +359,7 @@ func CreateSizingType(w http.ResponseWriter, r *http.Request) {
 		description           string
 		measurements          []models.SizingMeasurementDef
 		imagePrompt           string
+		imagePromptMannequin  string
 		imagePath             string
 		generalFitGuide       string
 		adminMeasurementGuide string
@@ -378,6 +379,10 @@ func CreateSizingType(w http.ResponseWriter, r *http.Request) {
 		imagePrompt = strings.TrimSpace(r.FormValue("image_prompt"))
 		if imagePrompt == "" {
 			imagePrompt = strings.TrimSpace(r.FormValue("imagePrompt"))
+		}
+		imagePromptMannequin = strings.TrimSpace(r.FormValue("image_prompt_mannequin"))
+		if imagePromptMannequin == "" {
+			imagePromptMannequin = strings.TrimSpace(r.FormValue("imagePromptMannequin"))
 		}
 		imagePath = strings.TrimSpace(r.FormValue("image_path"))
 		if imagePath == "" {
@@ -443,6 +448,8 @@ func CreateSizingType(w http.ResponseWriter, r *http.Request) {
 			Measurements               []models.SizingMeasurementDef `json:"measurements"`
 			ImagePrompt                string                        `json:"image_prompt"`
 			ImagePromptCamel           string                        `json:"imagePrompt"`
+			ImagePromptMannequin       string                        `json:"image_prompt_mannequin"`
+			ImagePromptMannequinCamel  string                        `json:"imagePromptMannequin"`
 			ImagePath                  string                        `json:"image_path"`
 			ImagePathCamel             string                        `json:"imagePath"`
 			GeneralFitGuide            string                        `json:"general_fit_guide"`
@@ -467,6 +474,10 @@ func CreateSizingType(w http.ResponseWriter, r *http.Request) {
 		imagePrompt = strings.TrimSpace(req.ImagePrompt)
 		if imagePrompt == "" {
 			imagePrompt = strings.TrimSpace(req.ImagePromptCamel)
+		}
+		imagePromptMannequin = strings.TrimSpace(req.ImagePromptMannequin)
+		if imagePromptMannequin == "" {
+			imagePromptMannequin = strings.TrimSpace(req.ImagePromptMannequinCamel)
 		}
 		imagePath = strings.TrimSpace(req.ImagePath)
 		if imagePath == "" {
@@ -534,6 +545,7 @@ func CreateSizingType(w http.ResponseWriter, r *http.Request) {
 		Description:           description,
 		Measurements:          measurements,
 		ImagePrompt:           imagePrompt,
+		ImagePromptMannequin:  imagePromptMannequin,
 		ImagePath:             imagePath,
 		GeneralFitGuide:       generalFitGuide,
 		AdminMeasurementGuide: adminMeasurementGuide,
@@ -614,6 +626,12 @@ func UpdateSizingType(w http.ResponseWriter, r *http.Request) {
 			updateFields["image_prompt"] = strings.TrimSpace(r.FormValue("image_prompt"))
 		} else if _, exists := r.Form["imagePrompt"]; exists {
 			updateFields["image_prompt"] = strings.TrimSpace(r.FormValue("imagePrompt"))
+		}
+
+		if _, exists := r.Form["image_prompt_mannequin"]; exists {
+			updateFields["image_prompt_mannequin"] = strings.TrimSpace(r.FormValue("image_prompt_mannequin"))
+		} else if _, exists := r.Form["imagePromptMannequin"]; exists {
+			updateFields["image_prompt_mannequin"] = strings.TrimSpace(r.FormValue("imagePromptMannequin"))
 		}
 
 		if _, exists := r.Form["general_fit_guide"]; exists {
@@ -709,6 +727,8 @@ func UpdateSizingType(w http.ResponseWriter, r *http.Request) {
 			Measurements               *[]models.SizingMeasurementDef `json:"measurements"`
 			ImagePrompt                *string                        `json:"image_prompt"`
 			ImagePromptCamel           *string                        `json:"imagePrompt"`
+			ImagePromptMannequin       *string                        `json:"image_prompt_mannequin"`
+			ImagePromptMannequinCamel  *string                        `json:"imagePromptMannequin"`
 			ImagePath                  *string                        `json:"image_path"`
 			ImagePathCamel             *string                        `json:"imagePath"`
 			GeneralFitGuide            *string                        `json:"general_fit_guide"`
@@ -754,6 +774,11 @@ func UpdateSizingType(w http.ResponseWriter, r *http.Request) {
 			updateFields["image_prompt"] = strings.TrimSpace(*req.ImagePrompt)
 		} else if req.ImagePromptCamel != nil {
 			updateFields["image_prompt"] = strings.TrimSpace(*req.ImagePromptCamel)
+		}
+		if req.ImagePromptMannequin != nil {
+			updateFields["image_prompt_mannequin"] = strings.TrimSpace(*req.ImagePromptMannequin)
+		} else if req.ImagePromptMannequinCamel != nil {
+			updateFields["image_prompt_mannequin"] = strings.TrimSpace(*req.ImagePromptMannequinCamel)
 		}
 		if req.ImagePath != nil {
 			updateFields["image_path"] = strings.TrimSpace(*req.ImagePath)

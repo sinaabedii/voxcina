@@ -159,6 +159,8 @@ func TestPublicSizingTypeResponseExcludesAdminMeasurementGuidance(t *testing.T) 
 	public := toPublicSizingTypeResponse(models.SizingType{
 		Name:                  "کت بلیزر",
 		AdminMeasurementGuide: "راهنمای داخلی اندازه‌گیری لباس",
+		ImagePrompt:           "vector prompt",
+		ImagePromptMannequin:  "mannequin prompt",
 		Measurements: []models.SizingMeasurementDef{{
 			Key:                "chest",
 			Label:              "عرض سینه",
@@ -175,6 +177,9 @@ func TestPublicSizingTypeResponseExcludesAdminMeasurementGuidance(t *testing.T) 
 	encoded := string(data)
 	if strings.Contains(encoded, "admin_measurement_guide") || strings.Contains(encoded, "garment_measurement") {
 		t.Fatalf("public sizing response leaked admin measurement guidance: %s", encoded)
+	}
+	if strings.Contains(encoded, "image_prompt_mannequin") {
+		t.Fatalf("public sizing response leaked admin-only image prompt mannequin: %s", encoded)
 	}
 	if !strings.Contains(encoded, "body_guide") || !strings.Contains(encoded, "fit_advice") {
 		t.Fatalf("public sizing response lost buyer-facing measurement guidance: %s", encoded)

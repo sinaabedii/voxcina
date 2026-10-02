@@ -13,6 +13,7 @@ export interface SizingType {
   description?: string;
   measurements: SizingMeasurementDef[];
   image_prompt?: string;
+  image_prompt_mannequin?: string;
   image_path?: string;
   admin_measurement_guide?: string;
   general_fit_guide?: string;
@@ -29,4 +30,6 @@ export interface SizingGenerateResponse {
   admin_measurement_guide?: string;
   general_fit_guide: string;
   nano_banana_prompt: string;
+  image_prompt_vector?: string;
+  image_prompt_mannequin?: string;
 }

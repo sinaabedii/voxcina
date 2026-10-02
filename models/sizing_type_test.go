@@ -11,6 +11,8 @@ import (
 func TestSizingTypeGuidanceFieldsPreserveJSONAndBSONNames(t *testing.T) {
 	sizingType := SizingType{
 		AdminMeasurementGuide: "لباس را بدون کشش روی سطح صاف قرار دهید.",
+		ImagePrompt:           "vector prompt",
+		ImagePromptMannequin:  "mannequin prompt",
 		Measurements: []SizingMeasurementDef{{
 			Key:                "chest_width",
 			Label:              "عرض سینه",
@@ -25,6 +27,12 @@ func TestSizingTypeGuidanceFieldsPreserveJSONAndBSONNames(t *testing.T) {
 	var jsonFields map[string]interface{}
 	if err := json.Unmarshal(jsonData, &jsonFields); err != nil {
 		t.Fatalf("unmarshal JSON failed: %v", err)
+	}
+	if jsonFields["image_prompt_mannequin"] != sizingType.ImagePromptMannequin {
+		t.Errorf("image_prompt_mannequin JSON field mismatch: %v", jsonFields["image_prompt_mannequin"])
+	}
+	if jsonFields["image_prompt"] != sizingType.ImagePrompt {
+		t.Errorf("image_prompt JSON field mismatch: %v", jsonFields["image_prompt"])
 	}
 	if jsonFields["admin_measurement_guide"] != sizingType.AdminMeasurementGuide {
 		t.Errorf("admin guidance JSON field mismatch: %v", jsonFields["admin_measurement_guide"])
@@ -45,6 +53,12 @@ func TestSizingTypeGuidanceFieldsPreserveJSONAndBSONNames(t *testing.T) {
 	var bsonFields bson.M
 	if err := bson.Unmarshal(bsonData, &bsonFields); err != nil {
 		t.Fatalf("unmarshal BSON failed: %v", err)
+	}
+	if bsonFields["image_prompt_mannequin"] != sizingType.ImagePromptMannequin {
+		t.Errorf("image_prompt_mannequin BSON field mismatch: %v", bsonFields["image_prompt_mannequin"])
+	}
+	if bsonFields["image_prompt"] != sizingType.ImagePrompt {
+		t.Errorf("image_prompt BSON field mismatch: %v", bsonFields["image_prompt"])
 	}
 	if bsonFields["admin_measurement_guide"] != sizingType.AdminMeasurementGuide {
 		t.Errorf("admin guidance BSON field mismatch: %v", bsonFields["admin_measurement_guide"])
