@@ -276,6 +276,44 @@ func GenerateSizingDiagramPrompts(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, http.StatusOK, result)
 }
 
+// ExtrapolateSizingMeasurements handles POST /api/admin/sizing-types/extrapolate-measurements
+func ExtrapolateSizingMeasurements(w http.ResponseWriter, r *http.Request) {
+	var input services.ExtrapolateMeasurementsInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid JSON body: "+err.Error())
+		return
+	}
+
+	if len(input.SizeChart) == 0 {
+		utils.ErrorResponse(w, http.StatusBadRequest, "At least one size chart row is required")
+		return
+	}
+
+	if len(input.Measurements) == 0 {
+		utils.ErrorResponse(w, http.StatusBadRequest, "At least one measurement definition is required")
+		return
+	}
+
+	input.Model = strings.TrimSpace(input.Model)
+	if input.Model != "" {
+		if err := services.ValidateModelName(input.Model); err != nil {
+			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid AI model format: "+err.Error())
+			return
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel()
+
+	result, err := services.ExtrapolateSizeChartMeasurementsWithModel(ctx, input)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to extrapolate measurements: "+err.Error())
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, result)
+}
+
 // ListAdminSizingTypes handles GET /api/admin/sizing-types
 func ListAdminSizingTypes(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)

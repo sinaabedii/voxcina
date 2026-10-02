@@ -6,7 +6,10 @@ import {
   SizingGenerateResponse,
   SizingDiagramPromptsResponse,
   SizingMeasurementDef,
+  ExtrapolateMeasurementsRequest,
+  ExtrapolateMeasurementsResponse,
 } from "@/types/sizing-type";
+import { ProductSizeMeasurement } from "@/types/product";
 
 interface SizingTypeState {
   sizingTypes: SizingType[];
@@ -37,6 +40,10 @@ interface SizingTypeActions {
     },
     adminToken?: string
   ) => Promise<SizingDiagramPromptsResponse | null>;
+  extrapolateSizeChart: (
+    payload: ExtrapolateMeasurementsRequest,
+    adminToken?: string
+  ) => Promise<ProductSizeMeasurement[] | null>;
   createSizingType: (formData: FormData, adminToken: string) => Promise<SizingType | null>;
   updateSizingType: (
     id: string,
@@ -245,6 +252,41 @@ export const useSizingTypeStore = create<SizingTypeState & SizingTypeActions>(
           err instanceof Error
             ? err.message
             : "خطا در به‌روزرسانی پرامپت‌های دیاگرام";
+        set({ error: errorMsg, isGenerating: false });
+        toast.error(errorMsg);
+        return null;
+      }
+    },
+
+    extrapolateSizeChart: async (payload, adminToken) => {
+      set({ isGenerating: true, error: null });
+      const token = resolveToken(adminToken);
+      try {
+        const response = await fetch("/api/admin/sizing-types/extrapolate-measurements", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const msg = await extractErrorMessage(
+            response,
+            "خطا در تکمیل هوشمند جدول سایزبندی"
+          );
+          throw new Error(msg);
+        }
+
+        const data: ExtrapolateMeasurementsResponse = await response.json();
+        set({ isGenerating: false });
+        return data.size_chart || [];
+      } catch (err: unknown) {
+        const errorMsg =
+          err instanceof Error
+            ? err.message
+            : "خطا در تکمیل هوشمند جدول سایزبندی";
         set({ error: errorMsg, isGenerating: false });
         toast.error(errorMsg);
         return null;

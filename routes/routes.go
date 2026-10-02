@@ -344,9 +344,10 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/shop-collections/{id}", handlers.AdminDeleteShopCollection).Methods(http.MethodDelete)
 
 	// Admin Sizing Types
-	// Note: /sizing-types/generate and /sizing-types/generate-prompts must be registered before /{id} wildcard to avoid route shadowing
+	// Note: /sizing-types/generate, /sizing-types/generate-prompts, and /sizing-types/extrapolate-measurements must be registered before /{id} wildcard to avoid route shadowing
 	adminRouter.HandleFunc("/sizing-types/generate", handlers.GenerateSizingType).Methods(http.MethodPost)
 	adminRouter.HandleFunc("/sizing-types/generate-prompts", handlers.GenerateSizingDiagramPrompts).Methods(http.MethodPost)
+	adminRouter.HandleFunc("/sizing-types/extrapolate-measurements", handlers.ExtrapolateSizingMeasurements).Methods(http.MethodPost)
 	adminRouter.HandleFunc("/sizing-types", handlers.CreateSizingType).Methods(http.MethodPost)
 	adminRouter.HandleFunc("/sizing-types/{id}", handlers.GetSizingType).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/sizing-types/{id}", handlers.UpdateSizingType).Methods(http.MethodPut)

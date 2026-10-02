@@ -15,8 +15,10 @@ import {
   ChevronDown,
   Table as TableIcon,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
+import { toast } from "react-toastify";
 import Button from "@/components/ui/Button";
 import {
   AdminTableCard,
@@ -35,6 +37,7 @@ export interface ProductSizingSectionProps {
   onChangeSizingTypeId: (id: string) => void;
   onChangeSizeChart: (chart: ProductSizeMeasurement[]) => void;
   adminToken?: string;
+  aiModel?: string;
 }
 
 export default function ProductSizingSection({
@@ -44,13 +47,20 @@ export default function ProductSizingSection({
   onChangeSizingTypeId,
   onChangeSizeChart,
   adminToken,
+  aiModel,
 }: ProductSizingSectionProps) {
-  const { sizingTypes, fetchAdminSizingTypes, fetchPublicSizingTypes, isLoading } =
-    useSizingTypeStore();
+  const {
+    sizingTypes,
+    fetchAdminSizingTypes,
+    fetchPublicSizingTypes,
+    extrapolateSizeChart,
+    isLoading,
+  } = useSizingTypeStore();
 
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
   const [zoomDiagram, setZoomDiagram] = useState(false);
   const [activeTooltipKey, setActiveTooltipKey] = useState<string | null>(null);
+  const [isExtrapolating, setIsExtrapolating] = useState(false);
 
   // Fetch sizing types on mount if not already loaded
   useEffect(() => {
@@ -176,6 +186,45 @@ export default function ProductSizingSection({
   // Remove a size row
   const handleRemoveSizeRow = (rowIndex: number) => {
     onChangeSizeChart(sizeChart.filter((_, idx) => idx !== rowIndex));
+  };
+
+  // AI Measurement Extrapolation
+  const handleExtrapolateMeasurements = async () => {
+    if (!selectedSizingType || measurements.length === 0) return;
+    if (sizeChart.length === 0) {
+      toast.warn("ابتدا حداقل یک ردیف سایز ایجاد کنید");
+      return;
+    }
+
+    const hasAnyValue = sizeChart.some((row) =>
+      Object.values(row.values || {}).some((v) => v && v.trim() !== "")
+    );
+    if (!hasAnyValue) {
+      toast.warn("برای دقت گرادینگ، لطفاً حداقل ابعاد یک سایز پایه را وارد نمایید");
+      return;
+    }
+
+    setIsExtrapolating(true);
+    try {
+      const newChart = await extrapolateSizeChart(
+        {
+          clothing_type: selectedSizingType.name,
+          measurements,
+          size_chart: sizeChart,
+          model: aiModel,
+        },
+        adminToken
+      );
+
+      if (newChart && newChart.length > 0) {
+        onChangeSizeChart(newChart);
+        toast.success("اندازه‌های خالی بر اساس اصول گرادینگ با موفقیت تکمیل شدند");
+      }
+    } catch {
+      toast.error("خطا در تکمیل خودکار جدول سایزبندی");
+    } finally {
+      setIsExtrapolating(false);
+    }
   };
 
   const measurements: SizingMeasurementDef[] = selectedSizingType?.measurements || [];
@@ -374,6 +423,28 @@ export default function ProductSizingSection({
               >
                 <Plus className="w-3 h-3 ml-1" />
                 افزودن ردیف سایز
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleExtrapolateMeasurements}
+                disabled={isExtrapolating || sizeChart.length === 0}
+                className="rounded-xl text-xs border-purple-200 text-purple-700 dark:border-purple-800 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/20 shadow-2xs font-semibold"
+                title="تکمیل خودکار مقادیر خالی برای سایر سایزها بر اساس سایزهای وارد شده و استاندارد گرادینگ (۱ تا ۳ سانتی‌متر اختلاف در هر پله سایز)"
+              >
+                {isExtrapolating ? (
+                  <>
+                    <Loader2 className="w-3 h-3 ml-1.5 animate-spin text-purple-600 dark:text-purple-400" />
+                    در حال تکمیل هوشمند...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3 h-3 ml-1.5 text-amber-500" />
+                    تکمیل هوشمند اندازه‌ها (AI)
+                  </>
+                )}
               </Button>
             </div>
           </div>

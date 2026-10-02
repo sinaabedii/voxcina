@@ -1,3 +1,5 @@
+import type { ProductSizeMeasurement } from "./product";
+
 export interface SizingMeasurementDef {
   key: string;
   label: string;
@@ -37,4 +39,15 @@ export interface SizingGenerateResponse {
 export interface SizingDiagramPromptsResponse {
   image_prompt_vector: string;
   image_prompt_mannequin: string;
+}
+
+export interface ExtrapolateMeasurementsRequest {
+  clothing_type: string;
+  measurements: SizingMeasurementDef[];
+  size_chart: ProductSizeMeasurement[];
+  model?: string;
+}
+
+export interface ExtrapolateMeasurementsResponse {
+  size_chart: ProductSizeMeasurement[];
 }

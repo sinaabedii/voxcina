@@ -45,6 +45,19 @@ type DiagramPromptsResult struct {
 	ImagePromptMannequin string `json:"image_prompt_mannequin"`
 }
 
+// ExtrapolateMeasurementsInput represents the inputs for extrapolating missing size chart values.
+type ExtrapolateMeasurementsInput struct {
+	ClothingType string                          `json:"clothing_type"`
+	Measurements []SizingAgentMeasurement        `json:"measurements"`
+	SizeChart    []models.ProductSizeMeasurement `json:"size_chart"`
+	Model        string                          `json:"model,omitempty"`
+}
+
+// ExtrapolateMeasurementsResult holds the completed size chart after extrapolation.
+type ExtrapolateMeasurementsResult struct {
+	SizeChart []models.ProductSizeMeasurement `json:"size_chart"`
+}
+
 // ToMeasurementDefs converts agent measurements to model measurement definitions.
 func (r *SizingAgentResult) ToMeasurementDefs() []models.SizingMeasurementDef {
 	defs := make([]models.SizingMeasurementDef, len(r.Measurements))
@@ -95,6 +108,12 @@ func GenerateSizingResearchWithModel(ctx context.Context, clothingType, styleNot
 func UpdateDiagramPromptsWithModel(ctx context.Context, clothingType, styleNotes string, measurements []SizingAgentMeasurement, currentVectorPrompt, currentMannequinPrompt, modelOverride string) (*DiagramPromptsResult, error) {
 	agent := NewSizingAgent()
 	return agent.UpdateDiagramPromptsWithModel(ctx, clothingType, styleNotes, measurements, currentVectorPrompt, currentMannequinPrompt, modelOverride)
+}
+
+// ExtrapolateSizeChartMeasurementsWithModel extrapolates missing measurements in a size chart using an optional model override.
+func ExtrapolateSizeChartMeasurementsWithModel(ctx context.Context, input ExtrapolateMeasurementsInput) (*ExtrapolateMeasurementsResult, error) {
+	agent := NewSizingAgent()
+	return agent.ExtrapolateSizeChartMeasurementsWithModel(ctx, input)
 }
 
 // Research conducts tailoring research and returns standard measurements and diagram prompt.
@@ -229,6 +248,280 @@ func buildFallbackDiagramPrompts(clothingType, styleNotes string, measurements [
 		ImagePromptVector:    vectorPrompt,
 		ImagePromptMannequin: mannequinPrompt,
 	}
+}
+
+// ExtrapolateSizeChartMeasurementsWithModel fills in missing measurement values across all size rows using apparel grading principles.
+func (a *SizingAgent) ExtrapolateSizeChartMeasurementsWithModel(ctx context.Context, input ExtrapolateMeasurementsInput) (*ExtrapolateMeasurementsResult, error) {
+	if len(input.SizeChart) == 0 {
+		return nil, fmt.Errorf("at least one size chart row is required")
+	}
+	if len(input.Measurements) == 0 {
+		return nil, fmt.Errorf("at least one measurement definition is required")
+	}
+
+	model := ResolveModel(strings.TrimSpace(input.Model), ResolveModel(ChatModelOverride(ctx), "openai/gpt-4o-mini"))
+
+	prompt := buildExtrapolateMeasurementsPrompt(input)
+	resp, err := a.openRouter.CallWithSchemaAndModel(ctx, prompt, extrapolateMeasurementsSchema(), model)
+
+	var result ExtrapolateMeasurementsResult
+	if err == nil {
+		if unmarshalErr := json.Unmarshal([]byte(resp.Content), &result); unmarshalErr == nil && len(result.SizeChart) > 0 {
+			// Merge protection: Ensure existing admin values are strictly preserved
+			merged := mergeAndProtectSizeChart(input.SizeChart, result.SizeChart, input.Measurements)
+			return &ExtrapolateMeasurementsResult{SizeChart: merged}, nil
+		}
+	}
+
+	// Deterministic fallback if LLM call or parsing failed
+	return fallbackExtrapolateMeasurements(input), nil
+}
+
+func mergeAndProtectSizeChart(original []models.ProductSizeMeasurement, generated []models.ProductSizeMeasurement, defs []SizingAgentMeasurement) []models.ProductSizeMeasurement {
+	genMap := make(map[string]map[string]string)
+	for _, row := range generated {
+		sizeKey := strings.TrimSpace(strings.ToUpper(row.Size))
+		if row.Values != nil {
+			genMap[sizeKey] = row.Values
+		}
+	}
+
+	mergedChart := make([]models.ProductSizeMeasurement, len(original))
+	for i, origRow := range original {
+		sizeKey := strings.TrimSpace(strings.ToUpper(origRow.Size))
+		vals := make(map[string]string)
+		genVals := genMap[sizeKey]
+
+		for _, m := range defs {
+			origVal := ""
+			if origRow.Values != nil {
+				origVal = strings.TrimSpace(origRow.Values[m.Key])
+			}
+
+			if origVal != "" {
+				// Anchor: ground truth provided by admin
+				vals[m.Key] = origVal
+			} else if genVals != nil && strings.TrimSpace(genVals[m.Key]) != "" {
+				vals[m.Key] = formatMeasurementNumber(strings.TrimSpace(genVals[m.Key]))
+			}
+		}
+
+		mergedChart[i] = models.ProductSizeMeasurement{
+			Size:   origRow.Size,
+			Values: vals,
+		}
+	}
+
+	// If any missing values remain after LLM generation, fill with deterministic fallback
+	return fallbackExtrapolateChartRows(mergedChart, defs)
+}
+
+func formatMeasurementNumber(s string) string {
+	s = strings.TrimSpace(s)
+	// Remove trailing unit like "cm" if model added it
+	s = strings.TrimSuffix(strings.TrimSuffix(s, "cm"), "CM")
+	s = strings.TrimSpace(s)
+	var val float64
+	if _, err := fmt.Sscanf(s, "%f", &val); err == nil {
+		if val == float64(int64(val)) {
+			return fmt.Sprintf("%d", int64(val))
+		}
+		return fmt.Sprintf("%.1f", val)
+	}
+	return s
+}
+
+func defaultGradingDeltaForMeasurement(key, label string) float64 {
+	k := strings.ToLower(key + " " + label)
+	if strings.Contains(k, "shoulder") || strings.Contains(k, "شانه") ||
+		strings.Contains(k, "sleeve") || strings.Contains(k, "آستین") ||
+		strings.Contains(k, "neck") || strings.Contains(k, "collar") || strings.Contains(k, "یقه") ||
+		strings.Contains(k, "cuff") || strings.Contains(k, "مچ") {
+		return 1.0
+	}
+	return 2.0
+}
+
+func fallbackExtrapolateChartRows(chart []models.ProductSizeMeasurement, defs []SizingAgentMeasurement) []models.ProductSizeMeasurement {
+	n := len(chart)
+	if n == 0 {
+		return chart
+	}
+
+	res := make([]models.ProductSizeMeasurement, n)
+	for i := range chart {
+		res[i] = models.ProductSizeMeasurement{
+			Size:   chart[i].Size,
+			Values: make(map[string]string),
+		}
+		if chart[i].Values != nil {
+			for k, v := range chart[i].Values {
+				res[i].Values[k] = strings.TrimSpace(v)
+			}
+		}
+	}
+
+	for _, m := range defs {
+		key := m.Key
+		defaultDelta := defaultGradingDeltaForMeasurement(key, m.Label)
+
+		// Collect known numeric values and indices
+		type anchor struct {
+			idx int
+			val float64
+		}
+		var anchors []anchor
+		for i := 0; i < n; i++ {
+			valStr := strings.TrimSpace(res[i].Values[key])
+			if valStr != "" {
+				var f float64
+				if _, err := fmt.Sscanf(valStr, "%f", &f); err == nil {
+					anchors = append(anchors, anchor{idx: i, val: f})
+				}
+			}
+		}
+
+		if len(anchors) == 0 {
+			// No anchor exists at all; skip or keep empty
+			continue
+		}
+
+		// Calculate step delta if multiple anchors exist
+		stepDelta := defaultDelta
+		if len(anchors) >= 2 {
+			totalDelta := 0.0
+			steps := 0
+			for j := 0; j < len(anchors)-1; j++ {
+				diff := anchors[j+1].val - anchors[j].val
+				dist := anchors[j+1].idx - anchors[j].idx
+				if dist > 0 {
+					totalDelta += diff
+					steps += dist
+				}
+			}
+			if steps > 0 {
+				calcDelta := totalDelta / float64(steps)
+				if calcDelta > 0.1 && calcDelta < 10.0 {
+					stepDelta = calcDelta
+				}
+			}
+		}
+
+		// 1. Fill backward from first anchor
+		first := anchors[0]
+		for i := first.idx - 1; i >= 0; i-- {
+			if res[i].Values[key] == "" {
+				extrapolated := first.val - float64(first.idx-i)*stepDelta
+				if extrapolated < 1.0 {
+					extrapolated = 1.0
+				}
+				res[i].Values[key] = formatMeasurementNumber(fmt.Sprintf("%.1f", extrapolated))
+			}
+		}
+
+		// 2. Interpolate between anchors
+		for j := 0; j < len(anchors)-1; j++ {
+			a1 := anchors[j]
+			a2 := anchors[j+1]
+			dist := a2.idx - a1.idx
+			if dist > 1 {
+				gapDelta := (a2.val - a1.val) / float64(dist)
+				for i := a1.idx + 1; i < a2.idx; i++ {
+					if res[i].Values[key] == "" {
+						extrapolated := a1.val + float64(i-a1.idx)*gapDelta
+						res[i].Values[key] = formatMeasurementNumber(fmt.Sprintf("%.1f", extrapolated))
+					}
+				}
+			}
+		}
+
+		// 3. Fill forward from last anchor
+		last := anchors[len(anchors)-1]
+		for i := last.idx + 1; i < n; i++ {
+			if res[i].Values[key] == "" {
+				extrapolated := last.val + float64(i-last.idx)*stepDelta
+				res[i].Values[key] = formatMeasurementNumber(fmt.Sprintf("%.1f", extrapolated))
+			}
+		}
+	}
+
+	return res
+}
+
+func fallbackExtrapolateMeasurements(input ExtrapolateMeasurementsInput) *ExtrapolateMeasurementsResult {
+	extrapolated := fallbackExtrapolateChartRows(input.SizeChart, input.Measurements)
+	return &ExtrapolateMeasurementsResult{SizeChart: extrapolated}
+}
+
+func extrapolateMeasurementsSchema() map[string]interface{} {
+	return map[string]interface{}{
+		"name":   "sizing_extrapolate_measurements_output",
+		"strict": true,
+		"schema": map[string]interface{}{
+			"type":                 "object",
+			"additionalProperties": false,
+			"properties": map[string]interface{}{
+				"size_chart": map[string]interface{}{
+					"type":        "array",
+					"description": "Complete size chart containing every size row with all measurement keys fully populated",
+					"items": map[string]interface{}{
+						"type":                 "object",
+						"additionalProperties": false,
+						"properties": map[string]interface{}{
+							"size": map[string]interface{}{
+								"type":        "string",
+								"description": "The exact size label (e.g. S, M, L, XL, 38, 40)",
+							},
+							"values": map[string]interface{}{
+								"type":        "object",
+								"description": "Key-value map of measurement keys to centimeter measurement numbers",
+								"additionalProperties": map[string]interface{}{
+									"type": "string",
+								},
+							},
+						},
+						"required": []string{"size", "values"},
+					},
+				},
+			},
+			"required": []string{"size_chart"},
+		},
+	}
+}
+
+func buildExtrapolateMeasurementsPrompt(input ExtrapolateMeasurementsInput) string {
+	measurementsJSON, _ := json.MarshalIndent(input.Measurements, "", "  ")
+	sizeChartJSON, _ := json.MarshalIndent(input.SizeChart, "", "  ")
+
+	return fmt.Sprintf(`You are an expert master garment pattern maker, tailoring technical designer, and apparel grading specialist for an Iranian premium fashion e-commerce brand.
+
+Clothing Type: %s
+
+Measurement Definitions:
+%s
+
+Current Size Chart (with anchor and empty values):
+%s
+
+Your task is to extrapolate and fill in EVERY missing measurement value across all size rows using professional apparel grading rules.
+
+Core Grading Rules:
+1. PRESERVE ANCHORS: NEVER modify or overwrite any measurement value already filled by the admin! Those values are ground truth.
+2. GRADING STEP & PROGRESSION: Across adjacent size steps, measurements typically vary by 1 to 3 cm (usually 2 cm for standard body dimensions). Decide the exact increment/decrement based on:
+   - Clothing Type: Tailored suits/blazers vs casual t-shirts/hoodies vs trousers/pants vs outerwear/coats.
+   - Size Progression: Order of sizes (e.g. XS -> S -> M -> L -> XL -> 2XL -> 3XL, or numeric 36 -> 38 -> 40 -> 42). Smaller sizes must have smaller/equal measurements; larger sizes must have larger/equal measurements.
+   - Measurement Section / Anatomical Location:
+     * Shoulder width, sleeve length, collar/neck, cuff openings grade in smaller increments (typically 0.5 cm to 1.5 cm per step, commonly 1 cm).
+     * Total garment length and body widths (half-chest, half-waist, half-hip) grade by 1.5 cm to 3 cm (typically 2 cm per step).
+     * Full circumferences grade proportionally (e.g. 4 cm circumference = 2 cm half-width).
+3. FORMAT: Values must be clean centimeter numbers without unit suffixes (e.g. "50", "52", "54", "72.5", "74"). If existing values are integers, prefer clean integers or 0.5 cm increments.
+4. COMPLETENESS: Fill in every single empty measurement value for every size row in the returned size_chart. Preserve the exact size names and measurement keys.
+
+Return valid JSON matching the schema.`,
+		input.ClothingType,
+		string(measurementsJSON),
+		string(sizeChartJSON),
+	)
 }
 
 func diagramPromptsSchema() map[string]interface{} {

@@ -1077,6 +1077,7 @@ export default function EditProductPage() {
           onChangeSizingTypeId={setSizingTypeId}
           onChangeSizeChart={setSizeChart}
           adminToken={adminToken ?? undefined}
+          aiModel={productAiModel}
         />
 
         <AdminTableCard className="p-4 md:p-6 space-y-3">

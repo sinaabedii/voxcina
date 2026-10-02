@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"backEnd/models"
 )
 
 func TestBuildSizingAgentPromptContainsRequiredDirectives(t *testing.T) {
@@ -352,6 +354,125 @@ func TestUpdateDiagramPromptsWithModel(t *testing.T) {
 	// 3. Validation case: empty measurements
 	_, errEmpty := agentSuccess.UpdateDiagramPromptsWithModel(context.Background(), "کت زنانه", "", nil, "", "", "")
 	if errEmpty == nil {
+		t.Errorf("expected error on empty measurements")
+	}
+}
+
+func TestExtrapolateSizeChartMeasurementsWithModel(t *testing.T) {
+	defs := []SizingAgentMeasurement{
+		{Key: "chest", Label: "عرض سینه"},
+		{Key: "shoulder", Label: "عرض شانه"},
+	}
+
+	chart := []models.ProductSizeMeasurement{
+		{
+			Size: "S",
+			Values: map[string]string{
+				"chest":    "",
+				"shoulder": "",
+			},
+		},
+		{
+			Size: "M",
+			Values: map[string]string{
+				"chest":    "50",
+				"shoulder": "44",
+			},
+		},
+		{
+			Size: "L",
+			Values: map[string]string{
+				"chest":    "",
+				"shoulder": "",
+			},
+		},
+	}
+
+	// 1. Success case through structured client with anchor protection
+	fakeSuccess := &fakeSizingStructuredClient{responses: []*StructuredResponse{
+		{Content: `{
+			"size_chart": [
+				{"size": "S", "values": {"chest": "48", "shoulder": "43"}},
+				{"size": "M", "values": {"chest": "999", "shoulder": "999"}},
+				{"size": "L", "values": {"chest": "52", "shoulder": "45"}}
+			]
+		}`},
+	}}
+
+	agentSuccess := &SizingAgent{openRouter: fakeSuccess}
+	input := ExtrapolateMeasurementsInput{
+		ClothingType: "تی شرت مردانه",
+		Measurements: defs,
+		SizeChart:    chart,
+		Model:        "test-model",
+	}
+
+	res, err := agentSuccess.ExtrapolateSizeChartMeasurementsWithModel(context.Background(), input)
+	if err != nil {
+		t.Fatalf("ExtrapolateSizeChartMeasurementsWithModel failed: %v", err)
+	}
+	if len(res.SizeChart) != 3 {
+		t.Fatalf("expected 3 rows, got %d", len(res.SizeChart))
+	}
+
+	// S should be extrapolated
+	if res.SizeChart[0].Values["chest"] != "48" || res.SizeChart[0].Values["shoulder"] != "43" {
+		t.Errorf("expected S row to be extrapolated to 48/43, got: %+v", res.SizeChart[0].Values)
+	}
+
+	// M is an anchor: 999 returned by LLM must be rejected, preserving 50/44
+	if res.SizeChart[1].Values["chest"] != "50" || res.SizeChart[1].Values["shoulder"] != "44" {
+		t.Errorf("anchor M row was overwritten: expected 50/44, got: %+v", res.SizeChart[1].Values)
+	}
+
+	// L should be extrapolated
+	if res.SizeChart[2].Values["chest"] != "52" || res.SizeChart[2].Values["shoulder"] != "45" {
+		t.Errorf("expected L row to be extrapolated to 52/45, got: %+v", res.SizeChart[2].Values)
+	}
+
+	// 2. Fallback case on LLM failure
+	fakeFail := &fakeSizingStructuredClient{responses: []*StructuredResponse{
+		{Content: `error from api`},
+	}}
+	agentFail := &SizingAgent{openRouter: fakeFail}
+	resFallback, err := agentFail.ExtrapolateSizeChartMeasurementsWithModel(context.Background(), input)
+	if err != nil {
+		t.Fatalf("fallback extrapolation failed: %v", err)
+	}
+	if len(resFallback.SizeChart) != 3 {
+		t.Fatalf("expected 3 rows in fallback, got %d", len(resFallback.SizeChart))
+	}
+	// Fallback uses default delta: chest=2.0, shoulder=1.0
+	// M is 50/44
+	// S should be 50-2=48, 44-1=43
+	if resFallback.SizeChart[0].Values["chest"] != "48" || resFallback.SizeChart[0].Values["shoulder"] != "43" {
+		t.Errorf("expected fallback S row 48/43, got: %+v", resFallback.SizeChart[0].Values)
+	}
+	// M anchor preserved
+	if resFallback.SizeChart[1].Values["chest"] != "50" || resFallback.SizeChart[1].Values["shoulder"] != "44" {
+		t.Errorf("expected fallback M row 50/44, got: %+v", resFallback.SizeChart[1].Values)
+	}
+	// L should be 50+2=52, 44+1=45
+	if resFallback.SizeChart[2].Values["chest"] != "52" || resFallback.SizeChart[2].Values["shoulder"] != "45" {
+		t.Errorf("expected fallback L row 52/45, got: %+v", resFallback.SizeChart[2].Values)
+	}
+
+	// 3. Validation checks
+	_, errNoChart := agentSuccess.ExtrapolateSizeChartMeasurementsWithModel(context.Background(), ExtrapolateMeasurementsInput{
+		ClothingType: "کت",
+		Measurements: defs,
+		SizeChart:    nil,
+	})
+	if errNoChart == nil {
+		t.Errorf("expected error on empty size chart")
+	}
+
+	_, errNoDefs := agentSuccess.ExtrapolateSizeChartMeasurementsWithModel(context.Background(), ExtrapolateMeasurementsInput{
+		ClothingType: "کت",
+		Measurements: nil,
+		SizeChart:    chart,
+	})
+	if errNoDefs == nil {
 		t.Errorf("expected error on empty measurements")
 	}
 }

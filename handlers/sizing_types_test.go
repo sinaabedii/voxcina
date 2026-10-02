@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"backEnd/models"
+	"backEnd/services"
 )
 
 func TestValidateImageMagicBytes(t *testing.T) {
@@ -251,5 +252,75 @@ func TestGenerateSizingDiagramPromptsValidation(t *testing.T) {
 	}
 	if !strings.Contains(res.ImagePromptVector, "مانتو کژوال") || !strings.Contains(res.ImagePromptMannequin, "invisible ghost mannequin") {
 		t.Errorf("unexpected diagram prompt response: %+v", res)
+	}
+}
+
+func TestExtrapolateSizingMeasurementsValidation(t *testing.T) {
+	// 1. Missing chart
+	reqEmptyChart := httptest.NewRequest("POST", "/api/admin/sizing-types/extrapolate-measurements", strings.NewReader(`{
+		"clothing_type": "کت",
+		"measurements": [{"key":"chest","label":"عرض سینه"}],
+		"size_chart": []
+	}`))
+	reqEmptyChart.Header.Set("Content-Type", "application/json")
+	wEmptyChart := httptest.NewRecorder()
+	ExtrapolateSizingMeasurements(wEmptyChart, reqEmptyChart)
+	if wEmptyChart.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for empty size chart, got %d", wEmptyChart.Code)
+	}
+
+	// 2. Missing measurements
+	reqEmptyDefs := httptest.NewRequest("POST", "/api/admin/sizing-types/extrapolate-measurements", strings.NewReader(`{
+		"clothing_type": "کت",
+		"measurements": [],
+		"size_chart": [{"size":"M","values":{}}]
+	}`))
+	reqEmptyDefs.Header.Set("Content-Type", "application/json")
+	wEmptyDefs := httptest.NewRecorder()
+	ExtrapolateSizingMeasurements(wEmptyDefs, reqEmptyDefs)
+	if wEmptyDefs.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for empty measurements, got %d", wEmptyDefs.Code)
+	}
+
+	// 3. Invalid model format
+	reqInvalidModel := httptest.NewRequest("POST", "/api/admin/sizing-types/extrapolate-measurements", strings.NewReader(`{
+		"clothing_type": "کت",
+		"model": "bad model with spaces",
+		"measurements": [{"key":"chest","label":"عرض سینه"}],
+		"size_chart": [{"size":"M","values":{"chest":"50"}}]
+	}`))
+	reqInvalidModel.Header.Set("Content-Type", "application/json")
+	wInvalidModel := httptest.NewRecorder()
+	ExtrapolateSizingMeasurements(wInvalidModel, reqInvalidModel)
+	if wInvalidModel.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for invalid model format, got %d", wInvalidModel.Code)
+	}
+
+	// 4. Valid extrapolation via fallback
+	reqValid := httptest.NewRequest("POST", "/api/admin/sizing-types/extrapolate-measurements", strings.NewReader(`{
+		"clothing_type": "کت زنانه",
+		"measurements": [{"key":"chest","label":"عرض سینه"}],
+		"size_chart": [
+			{"size":"S","values":{"chest":""}},
+			{"size":"M","values":{"chest":"50"}},
+			{"size":"L","values":{"chest":""}}
+		]
+	}`))
+	reqValid.Header.Set("Content-Type", "application/json")
+	wValid := httptest.NewRecorder()
+	ExtrapolateSizingMeasurements(wValid, reqValid)
+	if wValid.Code != http.StatusOK {
+		t.Fatalf("expected 200 for valid extrapolation, got %d: %s", wValid.Code, wValid.Body.String())
+	}
+
+	var res services.ExtrapolateMeasurementsResult
+	if err := json.Unmarshal(wValid.Body.Bytes(), &res); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if len(res.SizeChart) != 3 {
+		t.Fatalf("expected 3 rows, got %d", len(res.SizeChart))
+	}
+	if res.SizeChart[0].Values["chest"] != "48" || res.SizeChart[1].Values["chest"] != "50" || res.SizeChart[2].Values["chest"] != "52" {
+		t.Errorf("unexpected extrapolated chart values: %+v", res.SizeChart)
 	}
 }
