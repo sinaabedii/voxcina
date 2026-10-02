@@ -138,6 +138,7 @@ func slugify(s string) string {
 func GenerateSizingType(w http.ResponseWriter, r *http.Request) {
 	var clothingType string
 	var styleNotes string
+	var model string
 
 	contentType := r.Header.Get("Content-Type")
 	if strings.Contains(contentType, "application/json") {
@@ -146,6 +147,7 @@ func GenerateSizingType(w http.ResponseWriter, r *http.Request) {
 			ClothingTypeCamel string `json:"clothingType"`
 			StyleNotes        string `json:"style_notes"`
 			StyleNotesCamel   string `json:"styleNotes"`
+			Model             string `json:"model"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid JSON body: "+err.Error())
@@ -159,6 +161,7 @@ func GenerateSizingType(w http.ResponseWriter, r *http.Request) {
 		if styleNotes == "" {
 			styleNotes = req.StyleNotesCamel
 		}
+		model = req.Model
 	} else {
 		clothingType = r.FormValue("clothing_type")
 		if clothingType == "" {
@@ -168,6 +171,7 @@ func GenerateSizingType(w http.ResponseWriter, r *http.Request) {
 		if styleNotes == "" {
 			styleNotes = r.FormValue("styleNotes")
 		}
+		model = r.FormValue("model")
 	}
 
 	clothingType = strings.TrimSpace(clothingType)
@@ -176,10 +180,18 @@ func GenerateSizingType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	model = strings.TrimSpace(model)
+	if model != "" {
+		if err := services.ValidateModelName(model); err != nil {
+			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid AI model format: "+err.Error())
+			return
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 	defer cancel()
 
-	result, err := services.GenerateSizingResearch(ctx, clothingType, styleNotes)
+	result, err := services.GenerateSizingResearchWithModel(ctx, clothingType, styleNotes, model)
 	if err != nil {
 		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to generate sizing research: "+err.Error())
 		return

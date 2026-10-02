@@ -60,12 +60,22 @@ func NewSizingAgent() *SizingAgent {
 
 // GenerateSizingResearch is a convenience function that uses default clients.
 func GenerateSizingResearch(ctx context.Context, clothingType, styleNotes string) (*SizingAgentResult, error) {
+	return GenerateSizingResearchWithModel(ctx, clothingType, styleNotes, "")
+}
+
+// GenerateSizingResearchWithModel conducts tailoring research using an optional model override.
+func GenerateSizingResearchWithModel(ctx context.Context, clothingType, styleNotes, modelOverride string) (*SizingAgentResult, error) {
 	agent := NewSizingAgent()
-	return agent.Research(ctx, clothingType, styleNotes)
+	return agent.ResearchWithModel(ctx, clothingType, styleNotes, modelOverride)
 }
 
 // Research conducts tailoring research and returns standard measurements and diagram prompt.
 func (a *SizingAgent) Research(ctx context.Context, clothingType, styleNotes string) (*SizingAgentResult, error) {
+	return a.ResearchWithModel(ctx, clothingType, styleNotes, "")
+}
+
+// ResearchWithModel conducts tailoring research and returns standard measurements and diagram prompt using the given model.
+func (a *SizingAgent) ResearchWithModel(ctx context.Context, clothingType, styleNotes, modelOverride string) (*SizingAgentResult, error) {
 	trimmedType := strings.TrimSpace(clothingType)
 	if trimmedType == "" {
 		return nil, fmt.Errorf("clothing type is required")
@@ -74,8 +84,8 @@ func (a *SizingAgent) Research(ctx context.Context, clothingType, styleNotes str
 	// 1. Gather context using Brave Search if available
 	searchContext := a.collectSearchContext(ctx, trimmedType)
 
-	// 2. Resolve model via AI settings or fallback to gpt-4o-mini
-	model := ResolveModel(ChatModelOverride(ctx), "openai/gpt-4o-mini")
+	// 2. Resolve model: explicit override > AI settings chat_model > fallback to gpt-4o-mini
+	model := ResolveModel(strings.TrimSpace(modelOverride), ResolveModel(ChatModelOverride(ctx), "openai/gpt-4o-mini"))
 
 	// 3. Build schema and prompt
 	schema := sizingAgentSchema()

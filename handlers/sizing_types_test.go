@@ -2,6 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"backEnd/models"
@@ -149,5 +152,28 @@ func TestValidateMeasurements(t *testing.T) {
 	}
 	if err := validateMeasurements(valid); err != nil {
 		t.Errorf("unexpected error on valid measurements: %v", err)
+	}
+}
+
+func TestGenerateSizingTypeValidation(t *testing.T) {
+	// Test empty clothing_type
+	reqEmpty := httptest.NewRequest("POST", "/api/admin/sizing-types/generate", strings.NewReader(`{"clothing_type": ""}`))
+	reqEmpty.Header.Set("Content-Type", "application/json")
+	wEmpty := httptest.NewRecorder()
+	GenerateSizingType(wEmpty, reqEmpty)
+	if wEmpty.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for empty clothing_type, got %d", wEmpty.Code)
+	}
+
+	// Test invalid model format
+	reqInvalidModel := httptest.NewRequest("POST", "/api/admin/sizing-types/generate", strings.NewReader(`{"clothing_type": "هودی", "model": "invalid model with spaces"}`))
+	reqInvalidModel.Header.Set("Content-Type", "application/json")
+	wInvalidModel := httptest.NewRecorder()
+	GenerateSizingType(wInvalidModel, reqInvalidModel)
+	if wInvalidModel.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for invalid model format, got %d", wInvalidModel.Code)
+	}
+	if !strings.Contains(wInvalidModel.Body.String(), "Invalid AI model format") {
+		t.Errorf("expected body to mention invalid format, got: %s", wInvalidModel.Body.String())
 	}
 }

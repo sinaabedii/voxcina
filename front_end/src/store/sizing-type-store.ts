@@ -21,6 +21,7 @@ interface SizingTypeActions {
   generateSizingResearch: (
     clothingType: string,
     styleNotes?: string,
+    model?: string,
     adminToken?: string
   ) => Promise<SizingGenerateResponse | null>;
   createSizingType: (formData: FormData, adminToken: string) => Promise<SizingType | null>;
@@ -152,21 +153,26 @@ export const useSizingTypeStore = create<SizingTypeState & SizingTypeActions>(
     generateSizingResearch: async (
       clothingType: string,
       styleNotes?: string,
+      model?: string,
       adminToken?: string
     ) => {
       set({ isGenerating: true, error: null });
       const token = resolveToken(adminToken);
       try {
+        const payload: { clothing_type: string; style_notes: string; model?: string } = {
+          clothing_type: clothingType,
+          style_notes: styleNotes || "",
+        };
+        if (model && model.trim()) {
+          payload.model = model.trim();
+        }
         const response = await fetch("/api/admin/sizing-types/generate", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            clothing_type: clothingType,
-            style_notes: styleNotes || "",
-          }),
+          body: JSON.stringify(payload),
         });
 
         if (!response.ok) {

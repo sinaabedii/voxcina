@@ -17,8 +17,8 @@ import (
 
 // OpenRouterStructuredClient wraps OpenRouter with JSON schema support and graceful fallback.
 type OpenRouterStructuredClient struct {
-	apiKey   string
-	baseURL  string
+	apiKey     string
+	baseURL    string
 	httpClient *http.Client
 }
 
@@ -32,7 +32,7 @@ const requestTimeout = 5 * time.Minute
 // from environment via http.ProxyFromEnvironment — matching all other services.
 func NewOpenRouterStructuredClient() *OpenRouterStructuredClient {
 	return &OpenRouterStructuredClient{
-		apiKey: os.Getenv("OPENROUTER_API_KEY"),
+		apiKey:  os.Getenv("OPENROUTER_API_KEY"),
 		baseURL: "https://openrouter.ai/api/v1",
 		httpClient: &http.Client{
 			Timeout: requestTimeout,
@@ -143,7 +143,7 @@ func (c *OpenRouterStructuredClient) CallStructured(ctx context.Context, req Str
 	}
 	if req.Schema != nil {
 		body["response_format"] = map[string]interface{}{
-			"type": "json_schema",
+			"type":        "json_schema",
 			"json_schema": req.Schema,
 		}
 	}
@@ -221,12 +221,43 @@ func (c *OpenRouterStructuredClient) CallStructured(ctx context.Context, req Str
 		// Check HTTP status before decoding
 		if resp.StatusCode != 200 {
 			bodyStr := string(bodyBytes)
-			if len(bodyStr) > 200 {
-				bodyStr = bodyStr[:200]
+			logPrefix := bodyStr
+			if len(logPrefix) > 300 {
+				logPrefix = logPrefix[:300]
 			}
-			log.Printf("[openrouter] HTTP %d (attempt %d): %s", resp.StatusCode, attempt+1, bodyStr)
-			lastErr = fmt.Errorf("OpenRouter HTTP %d: %s", resp.StatusCode, bodyStr)
-			// Don't retry on client errors
+			log.Printf("[openrouter] HTTP %d (attempt %d): %s", resp.StatusCode, attempt+1, logPrefix)
+			lastErr = fmt.Errorf("OpenRouter HTTP %d: %s", resp.StatusCode, logPrefix)
+
+			// Special recovery 1: Model requires reasoning (e.g. DeepSeek-R1, OpenAI o1/o3-mini).
+			// OpenRouter returns HTTP 400: "Reasoning is mandatory for this endpoint and cannot be disabled."
+			lowerBody := strings.ToLower(bodyStr)
+			if resp.StatusCode == 400 && (strings.Contains(bodyStr, "Reasoning is mandatory") ||
+				(strings.Contains(lowerBody, "reasoning") && strings.Contains(lowerBody, "cannot be disabled"))) {
+				log.Printf("[openrouter] Model %s requires reasoning; retrying with reasoning enabled (exclude: true)...", req.Model)
+				body["reasoning"] = map[string]interface{}{"exclude": true}
+				if currentMax, ok := body["max_tokens"].(int); !ok || currentMax < 8192 {
+					body["max_tokens"] = 8192
+				}
+				if newJSON, marshalErr := json.Marshal(body); marshalErr == nil {
+					jsonData = newJSON
+					continue
+				}
+			}
+
+			// Special recovery 2: Provider does not support the reasoning parameter at all.
+			if resp.StatusCode == 400 && strings.Contains(lowerBody, "reasoning") &&
+				(strings.Contains(lowerBody, "unrecognized") ||
+					strings.Contains(lowerBody, "unknown") ||
+					strings.Contains(lowerBody, "not supported")) {
+				log.Printf("[openrouter] Model %s does not accept reasoning parameter; retrying without reasoning...", req.Model)
+				delete(body, "reasoning")
+				if newJSON, marshalErr := json.Marshal(body); marshalErr == nil {
+					jsonData = newJSON
+					continue
+				}
+			}
+
+			// Don't retry on other client errors
 			if resp.StatusCode >= 400 && resp.StatusCode < 500 {
 				return nil, lastErr
 			}
@@ -266,7 +297,7 @@ func (c *OpenRouterStructuredClient) CallStructured(ctx context.Context, req Str
 		if err := json.Unmarshal([]byte(content), &parsed); err == nil {
 			return &StructuredResponse{
 				Content: content,
-				Usage:   struct {
+				Usage: struct {
 					PromptTokens     int `json:"prompt_tokens"`
 					CompletionTokens int `json:"completion_tokens"`
 					TotalTokens      int `json:"total_tokens"`
@@ -324,16 +355,27 @@ func extractJSONFromBraces(content string) string {
 	content = strings.TrimSuffix(content, "```")
 	content = strings.TrimSpace(content)
 
+	// First attempt: check the outermost braces directly
+	firstBrace := strings.Index(content, "{")
+	lastBrace := strings.LastIndex(content, "}")
+	if firstBrace != -1 && lastBrace > firstBrace {
+		candidate := content[firstBrace : lastBrace+1]
+		var tmp interface{}
+		if err := json.Unmarshal([]byte(candidate), &tmp); err == nil {
+			return candidate
+		}
+	}
+
+	// Secondary attempt: scan for valid JSON substring
 	for i := 0; i < len(content); i++ {
 		if content[i] == '{' {
-			for j := i + 1; j < len(content) && j-i < 10000; j++ {
+			for j := len(content) - 1; j > i; j-- {
 				if content[j] == '}' {
 					candidate := content[i : j+1]
 					var tmp interface{}
 					if err := json.Unmarshal([]byte(candidate), &tmp); err == nil {
 						return candidate
 					}
-					break
 				}
 			}
 		}

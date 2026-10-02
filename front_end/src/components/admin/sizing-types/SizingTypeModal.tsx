@@ -118,6 +118,7 @@ export default function SizingTypeModal({
   // AI prompt state
   const [clothingTypeInput, setClothingTypeInput] = useState("");
   const [styleNotesInput, setStyleNotesInput] = useState("");
+  const [aiModelInput, setAiModelInput] = useState("");
 
   // Form Fields
   const [name, setName] = useState("");
@@ -185,6 +186,7 @@ export default function SizingTypeModal({
         setImageFile(null);
         setClothingTypeInput("");
         setStyleNotesInput("");
+        setAiModelInput("");
         setActiveTab(initialMode === "manual" ? "editor" : "ai");
       }
     } else {
@@ -203,6 +205,7 @@ export default function SizingTypeModal({
       const result = await generateSizingResearch(
         clothingTypeInput.trim(),
         styleNotesInput.trim(),
+        aiModelInput.trim() || undefined,
         adminToken || undefined
       );
 
@@ -511,6 +514,23 @@ export default function SizingTypeModal({
                     disabled={isGenerating}
                   />
                 </AdminField>
+
+                <div className="rounded-xl p-3 border border-voxcina-cream dark:border-voxcina-blue/20 bg-voxcina-cream/20 dark:bg-voxcina-blue/10">
+                  <AdminField
+                    label="مدل هوش مصنوعی (OpenRouter)"
+                    htmlFor="sizing-ai-model"
+                    hint="اختیاری: نام مدل را به صورت owner/model وارد کنید، مثلاً openai/gpt-4o-mini یا google/gemini-2.5-flash. در صورت خالی بودن، مدل پیش‌فرض استفاده می‌شود."
+                  >
+                    <AdminInput
+                      id="sizing-ai-model"
+                      dir="ltr"
+                      placeholder="openai/gpt-4o-mini"
+                      value={aiModelInput}
+                      onChange={(e) => setAiModelInput(e.target.value)}
+                      disabled={isGenerating}
+                    />
+                  </AdminField>
+                </div>
 
                 {/* Loading state animation */}
                 {isGenerating && (
