@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles,
@@ -105,6 +105,7 @@ export default function SizingTypeModal({
     createSizingType,
     updateSizingType,
     generateSizingResearch,
+    generateDiagramPrompts,
     isGenerating,
   } = useSizingTypeStore();
 
@@ -130,6 +131,8 @@ export default function SizingTypeModal({
   const [imagePromptMannequin, setImagePromptMannequin] = useState("");
   const [activePromptTab, setActivePromptTab] = useState<"vector" | "mannequin">("vector");
   const [measurements, setMeasurements] = useState<SizingMeasurementDef[]>([]);
+  const [promptMeasurements, setPromptMeasurements] = useState<SizingMeasurementDef[]>([]);
+  const [isUpdatingPrompts, setIsUpdatingPrompts] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [displayOrder, setDisplayOrder] = useState(0);
 
@@ -172,6 +175,7 @@ export default function SizingTypeModal({
         setImagePrompt(editingSizingType.image_prompt || "");
         setImagePromptMannequin(editingSizingType.image_prompt_mannequin || "");
         setMeasurements(editingSizingType.measurements || []);
+        setPromptMeasurements(editingSizingType.measurements || []);
         setIsActive(editingSizingType.is_active ?? true);
         setDisplayOrder(editingSizingType.display_order ?? 0);
         setExistingImagePath(editingSizingType.image_path || null);
@@ -187,6 +191,7 @@ export default function SizingTypeModal({
         setImagePrompt("");
         setImagePromptMannequin("");
         setMeasurements([]);
+        setPromptMeasurements([]);
         setIsActive(true);
         setDisplayOrder(0);
         setExistingImagePath(null);
@@ -223,6 +228,7 @@ export default function SizingTypeModal({
         setAdminMeasurementGuide(result.admin_measurement_guide ?? null);
         setGeneralFitGuide(result.general_fit_guide || "");
         setMeasurements(result.measurements || []);
+        setPromptMeasurements(result.measurements || []);
         setImagePrompt(result.image_prompt_vector || result.nano_banana_prompt || "");
         setImagePromptMannequin(result.image_prompt_mannequin || "");
         setActiveTab("editor");
@@ -230,6 +236,56 @@ export default function SizingTypeModal({
       }
     } catch {
       toast.error("خطا در ارتباط با دستیار هوشمند");
+    }
+  };
+
+  // Detect when any measurement that was part of promptMeasurements has been removed
+  const hasRemovedMeasurements = useMemo(() => {
+    if (promptMeasurements.length === 0) return false;
+    if (!imagePrompt && !imagePromptMannequin) return false;
+    return promptMeasurements.some(
+      (pm) => !measurements.some((m) => m.key === pm.key)
+    );
+  }, [promptMeasurements, measurements, imagePrompt, imagePromptMannequin]);
+
+  // Regenerate diagram prompts for remaining measurements
+  const handleUpdateDiagramPrompts = async () => {
+    const clothingType = name.trim() || clothingTypeInput.trim();
+    if (!clothingType) {
+      toast.error("لطفاً نام نوع لباس را وارد کنید");
+      return;
+    }
+    if (measurements.length === 0) {
+      toast.warning("حداقل یک متغیر اندازه برای به‌روزرسانی پرامپت‌ها لازم است");
+      return;
+    }
+
+    setIsUpdatingPrompts(true);
+    try {
+      const res = await generateDiagramPrompts(
+        {
+          clothingType,
+          styleNotes: styleNotesInput.trim() || undefined,
+          model: aiModelInput.trim() || undefined,
+          measurements,
+          currentVectorPrompt: imagePrompt,
+          currentMannequinPrompt: imagePromptMannequin,
+        },
+        adminToken || undefined
+      );
+
+      if (res) {
+        setImagePrompt(res.image_prompt_vector);
+        setImagePromptMannequin(res.image_prompt_mannequin);
+        setPromptMeasurements([...measurements]);
+        toast.success(
+          `پرامپت‌های تصویر برای ${toPersianNumber(measurements.length)} اندازه باقی‌مانده به‌روزرسانی شدند`
+        );
+      }
+    } catch {
+      toast.error("خطا در به‌روزرسانی پرامپت‌های دیاگرام");
+    } finally {
+      setIsUpdatingPrompts(false);
     }
   };
 
@@ -759,6 +815,40 @@ export default function SizingTypeModal({
                   </div>
                 </div>
 
+                {/* Outdated Prompts Warning Banner */}
+                {hasRemovedMeasurements && (
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3.5 rounded-xl border border-amber-300/70 dark:border-amber-700/60 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent dark:from-amber-950/40 dark:via-amber-900/20 dark:to-transparent">
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0 text-amber-600 dark:text-amber-400 mt-0.5 sm:mt-0">
+                        <Sparkles className="w-4 h-4 animate-pulse" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                          ناهماهنگی ابعاد با پرامپت‌های دیاگرام
+                        </p>
+                        <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 leading-relaxed mt-0.5">
+                          اندازه‌ای از این لباس حذف شده است، اما پرامپت‌های تولید تصویر دیاگرام هنوز حاوی خطوط ابعاد قبلی هستند.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="primary"
+                      onClick={handleUpdateDiagramPrompts}
+                      disabled={isUpdatingPrompts || measurements.length === 0}
+                      className="shrink-0 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold shadow-sm"
+                    >
+                      <RefreshCw
+                        className={`w-3.5 h-3.5 ml-1.5 ${isUpdatingPrompts ? "animate-spin" : ""}`}
+                      />
+                      {isUpdatingPrompts
+                        ? "در حال به‌روزرسانی..."
+                        : `به‌روزرسانی پرامپت‌های تصویر برای ${toPersianNumber(measurements.length)} اندازه باقی‌مانده`}
+                    </Button>
+                  </div>
+                )}
+
                 {/* Measurements List */}
                 {measurements.length === 0 ? (
                   <div className="p-6 text-center rounded-xl border border-dashed border-voxcina-cream dark:border-voxcina-blue/40 text-voxcina-blue/50 dark:text-voxcina-cream/50 text-sm">
@@ -875,6 +965,33 @@ export default function SizingTypeModal({
                     </div>
                   </div>
                 </div>
+
+                {/* Outdated Alert in Prompt Card */}
+                {hasRemovedMeasurements && (
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-xl border border-amber-400/40 bg-amber-500/15 text-amber-200">
+                    <div className="flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span className="text-xs font-medium">
+                        ابعاد تغییر یافته است — بروزرسانی پرامپت‌های وکتور و مانکن با دکمه به‌روزرسانی
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="primary"
+                      onClick={handleUpdateDiagramPrompts}
+                      disabled={isUpdatingPrompts || measurements.length === 0}
+                      className="shrink-0 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20"
+                    >
+                      <RefreshCw
+                        className={`w-3.5 h-3.5 ml-1.5 ${isUpdatingPrompts ? "animate-spin" : ""}`}
+                      />
+                      {isUpdatingPrompts
+                        ? "در حال به‌روزرسانی..."
+                        : `به‌روزرسانی پرامپت‌های تصویر برای ${toPersianNumber(measurements.length)} اندازه باقی‌مانده`}
+                    </Button>
+                  </div>
+                )}
 
                 {/* Tab Switcher */}
                 <div className="flex p-1 bg-black/40 rounded-xl border border-white/10 gap-1.5">

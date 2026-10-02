@@ -33,3 +33,8 @@ export interface SizingGenerateResponse {
   image_prompt_vector?: string;
   image_prompt_mannequin?: string;
 }
+
+export interface SizingDiagramPromptsResponse {
+  image_prompt_vector: string;
+  image_prompt_mannequin: string;
+}

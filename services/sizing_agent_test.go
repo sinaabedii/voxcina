@@ -296,3 +296,62 @@ func TestSizingAgentResearchUsesSequentialDefinitionAndBuyerGuideCalls(t *testin
 		t.Errorf("expected ImagePromptMannequin to be set, got %q", result.ImagePromptMannequin)
 	}
 }
+
+func TestUpdateDiagramPromptsWithModel(t *testing.T) {
+	measurements := []SizingAgentMeasurement{
+		{Key: "chest_width", Label: "عرض سینه"},
+		{Key: "total_length", Label: "قد کل"},
+	}
+
+	// 1. Success case through structured client
+	fakeSuccess := &fakeSizingStructuredClient{responses: []*StructuredResponse{
+		{Content: `{"image_prompt_vector":"custom vector prompt","image_prompt_mannequin":"custom mannequin prompt"}`},
+	}}
+
+	agentSuccess := &SizingAgent{openRouter: fakeSuccess}
+	res, err := agentSuccess.UpdateDiagramPromptsWithModel(context.Background(), "کت زنانه", "کژوال", measurements, "old-vector", "old-mannequin", "test-model")
+	if err != nil {
+		t.Fatalf("UpdateDiagramPromptsWithModel failed: %v", err)
+	}
+	if res.ImagePromptVector != "custom vector prompt" || res.ImagePromptMannequin != "custom mannequin prompt" {
+		t.Errorf("unexpected prompts from success response: %+v", res)
+	}
+	if len(fakeSuccess.calls) != 1 {
+		t.Fatalf("expected 1 call, got %d", len(fakeSuccess.calls))
+	}
+	if fakeSuccess.calls[0].model != "test-model" {
+		t.Errorf("expected model override, got %s", fakeSuccess.calls[0].model)
+	}
+	if !strings.Contains(fakeSuccess.calls[0].prompt, "Remaining Measurements (2 items)") {
+		t.Errorf("prompt missing item count in call: %s", fakeSuccess.calls[0].prompt)
+	}
+	if !strings.Contains(fakeSuccess.calls[0].prompt, "old-vector") || !strings.Contains(fakeSuccess.calls[0].prompt, "old-mannequin") {
+		t.Errorf("prompt missing current prompts in call: %s", fakeSuccess.calls[0].prompt)
+	}
+
+	// 2. Fallback case on error or malformed response
+	fakeFallback := &fakeSizingStructuredClient{responses: []*StructuredResponse{
+		{Content: `invalid json`},
+	}}
+	agentFallback := &SizingAgent{openRouter: fakeFallback}
+	resFallback, err := agentFallback.UpdateDiagramPromptsWithModel(context.Background(), "کت زنانه", "کژوال", measurements, "", "", "")
+	if err != nil {
+		t.Fatalf("UpdateDiagramPromptsWithModel fallback failed: %v", err)
+	}
+	if !strings.Contains(resFallback.ImagePromptVector, "کت زنانه (کژوال)") ||
+		!strings.Contains(resFallback.ImagePromptVector, `1. A dimension line indicating chest_width, labeled "عرض سینه"`) ||
+		!strings.Contains(resFallback.ImagePromptVector, `2. A dimension line indicating total_length, labeled "قد کل"`) {
+		t.Errorf("vector prompt fallback format mismatch: %s", resFallback.ImagePromptVector)
+	}
+	if !strings.Contains(resFallback.ImagePromptMannequin, "invisible ghost mannequin") ||
+		!strings.Contains(resFallback.ImagePromptMannequin, `1. An elegant dimension line indicating chest_width, labeled "عرض سینه"`) ||
+		!strings.Contains(resFallback.ImagePromptMannequin, `2. An elegant dimension line indicating total_length, labeled "قد کل"`) {
+		t.Errorf("mannequin prompt fallback format mismatch: %s", resFallback.ImagePromptMannequin)
+	}
+
+	// 3. Validation case: empty measurements
+	_, errEmpty := agentSuccess.UpdateDiagramPromptsWithModel(context.Background(), "کت زنانه", "", nil, "", "", "")
+	if errEmpty == nil {
+		t.Errorf("expected error on empty measurements")
+	}
+}

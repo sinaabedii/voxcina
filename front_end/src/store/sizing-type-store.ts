@@ -4,6 +4,8 @@ import { useAuthStore } from "./auth-store";
 import {
   SizingType,
   SizingGenerateResponse,
+  SizingDiagramPromptsResponse,
+  SizingMeasurementDef,
 } from "@/types/sizing-type";
 
 interface SizingTypeState {
@@ -24,6 +26,17 @@ interface SizingTypeActions {
     model?: string,
     adminToken?: string
   ) => Promise<SizingGenerateResponse | null>;
+  generateDiagramPrompts: (
+    params: {
+      clothingType: string;
+      styleNotes?: string;
+      model?: string;
+      measurements: SizingMeasurementDef[];
+      currentVectorPrompt?: string;
+      currentMannequinPrompt?: string;
+    },
+    adminToken?: string
+  ) => Promise<SizingDiagramPromptsResponse | null>;
   createSizingType: (formData: FormData, adminToken: string) => Promise<SizingType | null>;
   updateSizingType: (
     id: string,
@@ -189,6 +202,49 @@ export const useSizingTypeStore = create<SizingTypeState & SizingTypeActions>(
       } catch (err: unknown) {
         const errorMsg =
           err instanceof Error ? err.message : "خطا در تولید هوشمند راهنمای سایز";
+        set({ error: errorMsg, isGenerating: false });
+        toast.error(errorMsg);
+        return null;
+      }
+    },
+
+    generateDiagramPrompts: async (params, adminToken) => {
+      set({ isGenerating: true, error: null });
+      const token = resolveToken(adminToken);
+      try {
+        const payload = {
+          clothing_type: params.clothingType,
+          style_notes: params.styleNotes || "",
+          model: params.model?.trim() || undefined,
+          measurements: params.measurements,
+          current_vector_prompt: params.currentVectorPrompt || "",
+          current_mannequin_prompt: params.currentMannequinPrompt || "",
+        };
+        const response = await fetch("/api/admin/sizing-types/generate-prompts", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const msg = await extractErrorMessage(
+            response,
+            "خطا در به‌روزرسانی پرامپت‌های دیاگرام"
+          );
+          throw new Error(msg);
+        }
+
+        const data: SizingDiagramPromptsResponse = await response.json();
+        set({ isGenerating: false });
+        return data;
+      } catch (err: unknown) {
+        const errorMsg =
+          err instanceof Error
+            ? err.message
+            : "خطا در به‌روزرسانی پرامپت‌های دیاگرام";
         set({ error: errorMsg, isGenerating: false });
         toast.error(errorMsg);
         return null;

@@ -200,6 +200,82 @@ func GenerateSizingType(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, http.StatusOK, result)
 }
 
+// GenerateSizingDiagramPrompts handles POST /api/admin/sizing-types/generate-prompts
+func GenerateSizingDiagramPrompts(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ClothingType                string                        `json:"clothing_type"`
+		ClothingTypeCamel           string                        `json:"clothingType"`
+		StyleNotes                  string                        `json:"style_notes"`
+		StyleNotesCamel             string                        `json:"styleNotes"`
+		Model                       string                        `json:"model"`
+		Measurements                []models.SizingMeasurementDef `json:"measurements"`
+		CurrentVectorPrompt         string                        `json:"current_vector_prompt"`
+		CurrentVectorPromptCamel    string                        `json:"currentVectorPrompt"`
+		CurrentMannequinPrompt      string                        `json:"current_mannequin_prompt"`
+		CurrentMannequinPromptCamel string                        `json:"currentMannequinPrompt"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid JSON body: "+err.Error())
+		return
+	}
+
+	clothingType := strings.TrimSpace(req.ClothingType)
+	if clothingType == "" {
+		clothingType = strings.TrimSpace(req.ClothingTypeCamel)
+	}
+
+	styleNotes := strings.TrimSpace(req.StyleNotes)
+	if styleNotes == "" {
+		styleNotes = strings.TrimSpace(req.StyleNotesCamel)
+	}
+
+	currentVector := strings.TrimSpace(req.CurrentVectorPrompt)
+	if currentVector == "" {
+		currentVector = strings.TrimSpace(req.CurrentVectorPromptCamel)
+	}
+
+	currentMannequin := strings.TrimSpace(req.CurrentMannequinPrompt)
+	if currentMannequin == "" {
+		currentMannequin = strings.TrimSpace(req.CurrentMannequinPromptCamel)
+	}
+
+	if len(req.Measurements) == 0 {
+		utils.ErrorResponse(w, http.StatusBadRequest, "At least one measurement is required")
+		return
+	}
+
+	model := strings.TrimSpace(req.Model)
+	if model != "" {
+		if err := services.ValidateModelName(model); err != nil {
+			utils.ErrorResponse(w, http.StatusBadRequest, "Invalid AI model format: "+err.Error())
+			return
+		}
+	}
+
+	agentMeasurements := make([]services.SizingAgentMeasurement, len(req.Measurements))
+	for i, m := range req.Measurements {
+		agentMeasurements[i] = services.SizingAgentMeasurement{
+			Key:                m.Key,
+			Label:              m.Label,
+			BodyGuide:          m.BodyGuide,
+			FitAdvice:          m.FitAdvice,
+			GarmentMeasurement: m.GarmentMeasurement,
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel()
+
+	result, err := services.UpdateDiagramPromptsWithModel(ctx, clothingType, styleNotes, agentMeasurements, currentVector, currentMannequin, model)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Failed to update diagram prompts: "+err.Error())
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, result)
+}
+
 // ListAdminSizingTypes handles GET /api/admin/sizing-types
 func ListAdminSizingTypes(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)

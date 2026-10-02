@@ -39,6 +39,12 @@ type SizingAgentResult struct {
 	AdminMeasurementGuide string `json:"admin_measurement_guide,omitempty"`
 }
 
+// DiagramPromptsResult holds the updated diagram prompts for vector and mannequin styles.
+type DiagramPromptsResult struct {
+	ImagePromptVector    string `json:"image_prompt_vector"`
+	ImagePromptMannequin string `json:"image_prompt_mannequin"`
+}
+
 // ToMeasurementDefs converts agent measurements to model measurement definitions.
 func (r *SizingAgentResult) ToMeasurementDefs() []models.SizingMeasurementDef {
 	defs := make([]models.SizingMeasurementDef, len(r.Measurements))
@@ -83,6 +89,12 @@ func GenerateSizingResearch(ctx context.Context, clothingType, styleNotes string
 func GenerateSizingResearchWithModel(ctx context.Context, clothingType, styleNotes, modelOverride string) (*SizingAgentResult, error) {
 	agent := NewSizingAgent()
 	return agent.ResearchWithModel(ctx, clothingType, styleNotes, modelOverride)
+}
+
+// UpdateDiagramPromptsWithModel updates the diagram prompts for vector and mannequin styles based on the given measurements.
+func UpdateDiagramPromptsWithModel(ctx context.Context, clothingType, styleNotes string, measurements []SizingAgentMeasurement, currentVectorPrompt, currentMannequinPrompt, modelOverride string) (*DiagramPromptsResult, error) {
+	agent := NewSizingAgent()
+	return agent.UpdateDiagramPromptsWithModel(ctx, clothingType, styleNotes, measurements, currentVectorPrompt, currentMannequinPrompt, modelOverride)
 }
 
 // Research conducts tailoring research and returns standard measurements and diagram prompt.
@@ -154,6 +166,145 @@ func (a *SizingAgent) ResearchWithModel(ctx context.Context, clothingType, style
 	}
 
 	return &result, nil
+}
+
+// UpdateDiagramPromptsWithModel updates the diagram prompts for vector and mannequin styles so they describe only the provided measurements.
+func (a *SizingAgent) UpdateDiagramPromptsWithModel(ctx context.Context, clothingType, styleNotes string, measurements []SizingAgentMeasurement, currentVectorPrompt, currentMannequinPrompt, modelOverride string) (*DiagramPromptsResult, error) {
+	if len(measurements) == 0 {
+		return nil, fmt.Errorf("at least one measurement is required")
+	}
+
+	model := ResolveModel(strings.TrimSpace(modelOverride), ResolveModel(ChatModelOverride(ctx), "openai/gpt-4o-mini"))
+
+	prompt := buildUpdateDiagramPromptsPrompt(clothingType, styleNotes, measurements, currentVectorPrompt, currentMannequinPrompt)
+	resp, err := a.openRouter.CallWithSchemaAndModel(ctx, prompt, diagramPromptsSchema(), model)
+	if err == nil {
+		var result DiagramPromptsResult
+		if unmarshalErr := json.Unmarshal([]byte(resp.Content), &result); unmarshalErr == nil && result.ImagePromptVector != "" && result.ImagePromptMannequin != "" {
+			return &result, nil
+		}
+	}
+
+	// Fallback logic: construct standard prompts templates using the style blocks and measurements
+	return buildFallbackDiagramPrompts(clothingType, styleNotes, measurements), nil
+}
+
+func buildFallbackDiagramPrompts(clothingType, styleNotes string, measurements []SizingAgentMeasurement) *DiagramPromptsResult {
+	garmentDesc := strings.TrimSpace(clothingType)
+	if garmentDesc == "" {
+		garmentDesc = "garment"
+	}
+	if strings.TrimSpace(styleNotes) != "" {
+		garmentDesc = fmt.Sprintf("%s (%s)", garmentDesc, strings.TrimSpace(styleNotes))
+	}
+
+	var vectorLines strings.Builder
+	var mannequinLines strings.Builder
+
+	for i, m := range measurements {
+		label := strings.TrimSpace(m.Label)
+		if label == "" {
+			label = m.Key
+		}
+		num := i + 1
+		vectorLines.WriteString(fmt.Sprintf("%d. A dimension line indicating %s, labeled \"%s\"\n", num, m.Key, label))
+		mannequinLines.WriteString(fmt.Sprintf("%d. An elegant dimension line indicating %s, labeled \"%s\"\n", num, m.Key, label))
+	}
+
+	vectorPrompt := fmt.Sprintf("%s\n\nThe garment is a %s. Draw exactly %d dimension lines with these exact Persian labels:\n%s",
+		sizeGuideVectorDiagramStyleBlock,
+		garmentDesc,
+		len(measurements),
+		strings.TrimRight(vectorLines.String(), "\n"),
+	)
+
+	mannequinPrompt := fmt.Sprintf("%s\n\nThe garment is a photorealistic luxury %s with authentic tailoring details. Place exactly %d elegant dimension lines with these exact Persian labels:\n%s",
+		sizeGuideMannequinDiagramStyleBlock,
+		garmentDesc,
+		len(measurements),
+		strings.TrimRight(mannequinLines.String(), "\n"),
+	)
+
+	return &DiagramPromptsResult{
+		ImagePromptVector:    vectorPrompt,
+		ImagePromptMannequin: mannequinPrompt,
+	}
+}
+
+func diagramPromptsSchema() map[string]interface{} {
+	return map[string]interface{}{
+		"name":   "sizing_diagram_prompts_output",
+		"strict": true,
+		"schema": map[string]interface{}{
+			"type":                 "object",
+			"additionalProperties": false,
+			"properties": map[string]interface{}{
+				"image_prompt_vector": map[string]interface{}{
+					"type":        "string",
+					"description": "English prompt for technical flat sketch vector line art diagram on warm off-white background (#FAF7F2), with exact numbered Persian labels matching the remaining measurements",
+				},
+				"image_prompt_mannequin": map[string]interface{}{
+					"type":        "string",
+					"description": "English prompt for realistic 3D invisible ghost mannequin studio product photography on pure white background (#FFFFFF) with Voxcina luxury aesthetic and exact numbered Persian labels matching the remaining measurements",
+				},
+			},
+			"required": []string{"image_prompt_vector", "image_prompt_mannequin"},
+		},
+	}
+}
+
+func buildUpdateDiagramPromptsPrompt(clothingType, styleNotes string, measurements []SizingAgentMeasurement, currentVectorPrompt, currentMannequinPrompt string) string {
+	measurementsJSON, _ := json.MarshalIndent(measurements, "", "  ")
+
+	return fmt.Sprintf(`You are an expert master fashion pattern maker, garment sizing specialist, and technical illustrator for an Iranian e-commerce fashion brand.
+
+Clothing Type: %s
+Style & Fit Notes: %s
+
+Current Remaining Measurements (%d items):
+%s
+
+Current Vector Diagram Prompt (if any):
+%s
+
+Current Mannequin Diagram Prompt (if any):
+%s
+
+Your task is to update or regenerate the two diagram image generator prompts so they describe ONLY the remaining measurements above:
+1. "image_prompt_vector": English prompt for technical flat sketch vector line art diagram.
+   It MUST strictly follow this exact format:
+   First, paste the vector style block verbatim:
+   "%s"
+   Then, describe the garment silhouette clearly, and list numbered dimension lines 1..%d with their exact Persian labels in quotes matching ONLY the remaining measurements:
+   "The garment is a [silhouette description]. Draw exactly %d dimension lines with these exact Persian labels:
+   1. A [orientation] line along [location], labeled \"[Exact Persian Label]\"
+   2. ... "
+
+2. "image_prompt_mannequin": English prompt for realistic 3D invisible ghost mannequin studio product photography on pure white background (#FFFFFF).
+   It MUST strictly follow this exact format:
+   First, paste the mannequin style block verbatim:
+   "%s"
+   Then, describe the real garment matching the style and fit, and list numbered dimension lines 1..%d with their exact Persian labels in quotes matching ONLY the remaining measurements:
+   "The garment is a [photorealistic garment description]. Place exactly %d elegant dimension lines with these exact Persian labels:
+   1. A [orientation] line along [location], labeled \"[Exact Persian Label]\"
+   2. ... "
+
+Do NOT include any deleted or previous measurements. Renumber all dimension lines consecutively from 1 to %d.
+Return valid JSON matching the schema.`,
+		clothingType,
+		styleNotes,
+		len(measurements),
+		string(measurementsJSON),
+		currentVectorPrompt,
+		currentMannequinPrompt,
+		sizeGuideVectorDiagramStyleBlock,
+		len(measurements),
+		len(measurements),
+		sizeGuideMannequinDiagramStyleBlock,
+		len(measurements),
+		len(measurements),
+		len(measurements),
+	)
 }
 
 type sizingBuyerGuideInput struct {

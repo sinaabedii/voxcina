@@ -208,3 +208,48 @@ func TestGenerateSizingTypeValidation(t *testing.T) {
 		t.Errorf("expected body to mention invalid format, got: %s", wInvalidModel.Body.String())
 	}
 }
+
+func TestGenerateSizingDiagramPromptsValidation(t *testing.T) {
+	// Test empty measurements
+	reqEmpty := httptest.NewRequest("POST", "/api/admin/sizing-types/generate-prompts", strings.NewReader(`{"clothing_type": "مانتو", "measurements": []}`))
+	reqEmpty.Header.Set("Content-Type", "application/json")
+	wEmpty := httptest.NewRecorder()
+	GenerateSizingDiagramPrompts(wEmpty, reqEmpty)
+	if wEmpty.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for empty measurements, got %d", wEmpty.Code)
+	}
+
+	// Test invalid model format
+	reqInvalidModel := httptest.NewRequest("POST", "/api/admin/sizing-types/generate-prompts", strings.NewReader(`{"clothing_type": "مانتو", "model": "invalid model", "measurements": [{"key":"chest","label":"عرض سینه"}]}`))
+	reqInvalidModel.Header.Set("Content-Type", "application/json")
+	wInvalidModel := httptest.NewRecorder()
+	GenerateSizingDiagramPrompts(wInvalidModel, reqInvalidModel)
+	if wInvalidModel.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for invalid model format, got %d", wInvalidModel.Code)
+	}
+
+	// Test valid fallback execution
+	reqValid := httptest.NewRequest("POST", "/api/admin/sizing-types/generate-prompts", strings.NewReader(`{
+		"clothing_type": "مانتو کژوال",
+		"measurements": [
+			{"key":"chest_width","label":"عرض سینه"},
+			{"key":"total_length","label":"قد کل"}
+		]
+	}`))
+	reqValid.Header.Set("Content-Type", "application/json")
+	wValid := httptest.NewRecorder()
+	GenerateSizingDiagramPrompts(wValid, reqValid)
+	if wValid.Code != http.StatusOK {
+		t.Errorf("expected 200 for valid diagram prompt regeneration, got %d: %s", wValid.Code, wValid.Body.String())
+	}
+	var res struct {
+		ImagePromptVector    string `json:"image_prompt_vector"`
+		ImagePromptMannequin string `json:"image_prompt_mannequin"`
+	}
+	if err := json.Unmarshal(wValid.Body.Bytes(), &res); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if !strings.Contains(res.ImagePromptVector, "مانتو کژوال") || !strings.Contains(res.ImagePromptMannequin, "invisible ghost mannequin") {
+		t.Errorf("unexpected diagram prompt response: %+v", res)
+	}
+}
