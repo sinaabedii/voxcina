@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -56,5 +57,32 @@ func TestNoShadowedRoutes(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("walking router: %v", err)
+	}
+}
+
+func TestOrderReceiptRoutesAreAuthenticated(t *testing.T) {
+	router := NewRouter()
+	for _, path := range []string{
+		"/api/orders/507f1f77bcf86cd799439011/receipt",
+		"/api/admin/orders/507f1f77bcf86cd799439011/receipt",
+	} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		var match mux.RouteMatch
+		if !router.Match(req, &match) {
+			t.Fatalf("receipt route %s is not registered", path)
+		}
+		matched, err := match.Route.GetPathTemplate()
+		if err != nil {
+			t.Fatalf("get receipt route template for %s: %v", path, err)
+		}
+		if !strings.HasSuffix(matched, "/receipt") {
+			t.Fatalf("receipt request %s matched %s", path, matched)
+		}
+
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusUnauthorized {
+			t.Errorf("unauthenticated receipt request %s returned %d, want %d", path, recorder.Code, http.StatusUnauthorized)
+		}
 	}
 }

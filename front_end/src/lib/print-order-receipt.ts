@@ -1,47 +1,37 @@
+import { toast } from "react-toastify";
+
 /**
  * Triggers native browser print preview for an A5 order receipt
- * directly on the current tab without opening a new tab.
+ * in a new top-level tab or window.
  */
-export function printOrderReceipt(orderId: string): Promise<void> {
-  return new Promise((resolve) => {
-    if (typeof window === "undefined" || !orderId) {
-      resolve();
-      return;
-    }
+export function printOrderReceipt(
+  orderId: string,
+  audience: "admin" | "customer" = "admin",
+): Promise<void> {
+  if (typeof window === "undefined" || !orderId) {
+    return Promise.resolve();
+  }
 
-    const frameId = "order-receipt-print-frame";
-    const oldFrame = document.getElementById(frameId);
-    if (oldFrame) {
-      oldFrame.remove();
-    }
+  // Keep this synchronous so browsers treat it as part of the user's click.
+  // Open a blank same-origin tab first: `noopener` in window.open's features
+  // returns null even on success, making blocked-popup detection unreliable.
+  // Detach the opener BEFORE navigating to the authenticated receipt page.
+  const receiptWindow = window.open("about:blank", "_blank");
+  if (!receiptWindow) {
+    toast.error("پنجره چاپ باز نشد. اجازه باز شدن پنجره‌های جدید را برای این سایت فعال کنید و دوباره تلاش کنید.", {
+      toastId: "order-receipt-popup-blocked",
+    });
+    return Promise.resolve();
+  }
+  receiptWindow.opener = null;
+  const base = audience === "admin" ? "/admin/orders" : "/dashboard/orders";
+  receiptWindow.location.replace(`${base}/${encodeURIComponent(orderId)}/receipt?autoprint=true`);
 
-    const iframe = document.createElement("iframe");
-    iframe.id = frameId;
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "none";
-    iframe.style.opacity = "0";
-    iframe.style.pointerEvents = "none";
-    iframe.setAttribute("aria-hidden", "true");
+  // Do not wait for the print dialog or tab lifecycle; either can be blocked
+  // or cancelled, and the caller should not remain in a loading state.
+  return Promise.resolve();
+}
 
-    const cleanup = () => {
-      try {
-        if (iframe.parentNode) {
-          iframe.parentNode.removeChild(iframe);
-        }
-      } catch {
-        // ignore
-      }
-      resolve();
-    };
-
-    // Safety timeout in case print dialog never fires or is cancelled
-    setTimeout(cleanup, 120000);
-
-    iframe.src = `/admin/orders/${orderId}/receipt?autoprint=true`;
-    document.body.appendChild(iframe);
-  });
+export function printCustomerOrderReceipt(orderId: string): Promise<void> {
+  return printOrderReceipt(orderId, "customer");
 }

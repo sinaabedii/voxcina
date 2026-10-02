@@ -2676,6 +2676,52 @@
         }
       }
     },
+    "/api/orders/{orderId}/receipt": {
+      "get": {
+        "tags": [
+          "Checkout & Orders"
+        ],
+        "summary": "Customer-safe printable order receipt",
+        "description": "Returns the authenticated owner's receipt using only persisted order-item snapshots. Deleted catalog products do not affect the response.",
+        "operationId": "getOrderReceipt",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Allowlisted order receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderReceipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/api/orders/{orderId}": {
       "get": {
         "tags": [
@@ -6606,6 +6652,50 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/admin/orders/{orderId}/receipt": {
+      "get": {
+        "tags": [
+          "Admin",
+          "Checkout & Orders"
+        ],
+        "summary": "Printable order receipt (admin)",
+        "description": "Returns the same allowlisted receipt DTO as the customer endpoint. Admins may look up any order, including inactive orders.",
+        "operationId": "getAdminOrderReceipt",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Allowlisted order receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderReceipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       }
@@ -11655,6 +11745,155 @@
           "quantity": {
             "type": "integer",
             "minimum": 1
+          }
+        }
+      },
+      "OrderReceipt": {
+        "type": "object",
+        "description": "Explicitly allowlisted printable receipt; contains no user, catalog, timeline, discount-code, or payment-token fields.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "order_number": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderReceiptItem"
+            }
+          },
+          "total_amount": {
+            "type": "number"
+          },
+          "shipping_cost": {
+            "type": "number"
+          },
+          "tax_amount": {
+            "type": "number"
+          },
+          "discount_amount": {
+            "type": "number"
+          },
+          "shipping_address": {
+            "$ref": "#/components/schemas/OrderReceiptAddress"
+          },
+          "status": {
+            "type": "string"
+          },
+          "status_text": {
+            "type": "string"
+          },
+          "tracking_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "payment_status": {
+            "type": "string"
+          },
+          "payment_method": {
+            "type": "string"
+          },
+          "gateway_name": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "jalali_created_at": {
+            "type": "string"
+          }
+        }
+      },
+      "OrderReceiptItem": {
+        "type": "object",
+        "properties": {
+          "product": {
+            "$ref": "#/components/schemas/OrderReceiptProduct"
+          },
+          "variant": {
+            "$ref": "#/components/schemas/OrderVariant"
+          },
+          "quantity": {
+            "type": "integer"
+          },
+          "price_at_purchase": {
+            "type": "number"
+          }
+        }
+      },
+      "OrderReceiptProduct": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          }
+        }
+      },
+      "OrderReceiptAddress": {
+        "type": "object",
+        "description": "Display-only shipping address fields; identifiers, coordinates, codes, and default flags are excluded.",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "phone_number": {
+            "type": "string"
+          },
+          "province": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "postal_code": {
+            "type": "string"
+          },
+          "street": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          }
+        }
+      },
+      "OrderVariant": {
+        "type": "object",
+        "properties": {
+          "variantId": {
+            "type": "string"
+          },
+          "size": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "colorName": {
+            "type": "string"
+          },
+          "sku": {
+            "type": "string"
           }
         }
       },

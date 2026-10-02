@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Calendar, ChevronLeft, Download, Truck } from "lucide-react";
+import { Calendar, ChevronLeft, FileText, Truck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
-import Button from "@/components/ui/Button";
 import { OrderStatusBadge } from "./OrderStatusBadge";
-import { downloadInvoice } from "@/components/OrderInvoice";
 import { Order } from "@/types/order";
 import { formatDate, formatPrice, toPersianNumber } from "@/lib/utils";
 
@@ -51,16 +49,14 @@ export default function OrderCard({ order, onOpen }: OrderCardProps) {
             {formatPrice(order.total_amount)}
           </span>
           <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => downloadInvoice(order)}
-              title="دانلود فاکتور"
-              aria-label={`دانلود فاکتور سفارش ${order.order_number}`}
-              className="h-8 w-8 rounded-full p-0 text-voxcina-blue/70 dark:text-voxcina-cream/70"
+            <Link
+              href={`/dashboard/orders/${order.id}/receipt`}
+              title="چاپ فاکتور"
+              aria-label={`چاپ فاکتور سفارش ${order.order_number}`}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-voxcina-blue/70 dark:text-voxcina-cream/70"
             >
-              <Download className="h-4 w-4" />
-            </Button>
+              <FileText className="h-4 w-4" />
+            </Link>
             <Link
               href={`/dashboard/orders/${order.id}`}
               onClick={() => onOpen(order)}

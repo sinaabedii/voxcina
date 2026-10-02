@@ -40,7 +40,7 @@ export function OrderHeroHeader({ order, onRefresh, onPrint }: OrderHeroHeaderPr
     try {
       await printOrderReceipt(order.id);
     } finally {
-      setTimeout(() => setIsPrintingReceipt(false), 2000);
+      setIsPrintingReceipt(false);
     }
   };
 

@@ -317,6 +317,7 @@ func NewRouter() *mux.Router {
 	adminRouter.HandleFunc("/orders/stats", handlers.GetOrderStats).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/orders", handlers.GetAllOrders).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/orders/recent", handlers.GetRecentOrders).Methods(http.MethodGet)
+	adminRouter.HandleFunc("/orders/{orderId}/receipt", handlers.GetAdminOrderReceipt).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/orders/{orderId}", handlers.GetAdminOrderById).Methods(http.MethodGet)
 	adminRouter.HandleFunc("/orders/{orderId}", handlers.UpdateOrderStatusAdmin).Methods(http.MethodPut)
 	adminRouter.HandleFunc("/orders/{orderId}", handlers.DeleteOrder).Methods("DELETE")
@@ -489,6 +490,7 @@ func NewRouter() *mux.Router {
 	// The GetOrder handler itself performs the fine-grained check (owner or admin).
 	orderAuthRouter := api.PathPrefix("/orders").Subrouter()
 	orderAuthRouter.Use(middlewares.AuthMiddleware) // Apply general auth here
+	orderAuthRouter.HandleFunc("/{orderId}/receipt", handlers.GetOrderReceipt).Methods(http.MethodGet)
 	orderAuthRouter.HandleFunc("/{orderId}", handlers.GetOrder).Methods(http.MethodGet)
 	orderAuthRouter.HandleFunc("/{orderId}/confirm-payment", handlers.ConfirmPayment).Methods(http.MethodPost)
 	orderAuthRouter.HandleFunc("/{orderId}/return-request", handlers.GetReturnRequestStatus).Methods(http.MethodGet)

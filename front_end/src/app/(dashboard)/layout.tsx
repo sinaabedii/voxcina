@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import { localStorageManager } from "@/lib/local-storage-manager";
@@ -12,6 +12,7 @@ import { X } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { isLoading, isAuthorized } = useProtectedRoute({ requiredAuth: true, requiredRole: "customer" });
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
@@ -45,6 +46,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   if (!isAuthorized) return null;
+
+  // Receipt pages intentionally bypass dashboard chrome so the authenticated
+  // document is the only thing visible in the browser print tree.
+  if (pathname?.endsWith("/receipt")) return <>{children}</>;
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-voxcina-blue/95 transition-all duration-300">

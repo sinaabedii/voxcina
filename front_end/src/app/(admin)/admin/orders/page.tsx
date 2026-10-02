@@ -117,7 +117,7 @@ export default function AdminOrdersPage() {
     try {
       await printOrderReceipt(orderId);
     } finally {
-      setTimeout(() => setPrintingOrderId(null), 2000);
+      setPrintingOrderId(null);
     }
   };
 

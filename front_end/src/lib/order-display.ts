@@ -1,5 +1,3 @@
-import { Order } from "@/types/order";
-
 const paymentGatewayLabels: Record<string, string> = {
   zibal: "زیبال",
   digipay: "دیجی‌پی",
@@ -10,7 +8,12 @@ export const getPaymentGatewayText = (gateway?: string) =>
   (gateway && paymentGatewayLabels[gateway]) || gateway || "درگاه آنلاین";
 
 export const getPaymentMethodText = (
-  order: Pick<Order, "payment_method" | "gateway_name" | "zibal_track_id" | "zibal_ref_number">
+  order: {
+    payment_method?: string;
+    gateway_name?: string;
+    zibal_track_id?: number;
+    zibal_ref_number?: string;
+  }
 ) => {
   const gateway = order.gateway_name ||
     (order.zibal_track_id || order.zibal_ref_number ? "zibal" : undefined);

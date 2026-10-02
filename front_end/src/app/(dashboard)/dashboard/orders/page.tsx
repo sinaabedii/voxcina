@@ -7,7 +7,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
   Calendar,
-  Download,
   FileText,
   PackageSearch,
   Search,
@@ -24,7 +23,6 @@ import PageTitle from "@/components/dashboard/ui/PageTitle";
 import OrderCard from "@/components/dashboard/orders/OrderCard";
 import OrdersGuide from "@/components/dashboard/orders/OrdersGuide";
 import { OrderStatusBadge } from "@/components/dashboard/orders/OrderStatusBadge";
-import { downloadInvoice } from "@/components/OrderInvoice";
 import { useOrderStore } from "@/store/order-store";
 import { Order } from "@/types/order";
 import { formatDate, formatPrice, toPersianNumber } from "@/lib/utils";
@@ -106,15 +104,14 @@ function OrderRow({ order, onOpen }: { order: Order; onOpen: (order: Order) => v
             </span>
           )}
 
-          <button
-            type="button"
-            title="دانلود فاکتور"
-            aria-label={`دانلود فاکتور سفارش ${order.order_number}`}
-            onClick={() => downloadInvoice(order)}
+          <Link
+            title="چاپ فاکتور"
+            aria-label={`چاپ فاکتور سفارش ${order.order_number}`}
+            href={`/dashboard/orders/${order.id}/receipt`}
             className="inline-flex h-9 w-9 items-center justify-center rounded-full text-voxcina-blue/60 transition-colors hover:bg-voxcina-blue/10 dark:text-voxcina-cream/60 dark:hover:bg-voxcina-blue/20"
           >
-            <Download className="h-5 w-5" />
-          </button>
+            <FileText className="h-5 w-5" />
+          </Link>
 
           <Link
             href={`/dashboard/orders/${order.id}`}

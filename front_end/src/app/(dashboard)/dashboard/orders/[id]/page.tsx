@@ -8,6 +8,7 @@ import {
   Calendar,
   ChevronRight,
   CreditCard,
+  FileText,
   MapPin,
   Package,
   PackageSearch,
@@ -159,10 +160,16 @@ export default function OrderDetailPage() {
   return (
     <div className="container mx-auto max-w-4xl px-3 py-4 md:px-4 md:py-6">
       <div className="mb-3">
-        <Link href="/dashboard/orders" className={BACK_BUTTON_CLASSES}>
-          <ChevronRight className="h-4 w-4" />
-          بازگشت به لیست سفارش‌ها
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/dashboard/orders" className={BACK_BUTTON_CLASSES}>
+            <ChevronRight className="h-4 w-4" />
+            بازگشت به لیست سفارش‌ها
+          </Link>
+          <Link href={`/dashboard/orders/${order.id}/receipt`} className={BACK_BUTTON_CLASSES}>
+            <FileText className="h-4 w-4" />
+            چاپ فاکتور
+          </Link>
+        </div>
       </div>
 
       <Card className="overflow-hidden rounded-xl border border-voxcina-cream shadow-md dark:border-voxcina-blue/20">
