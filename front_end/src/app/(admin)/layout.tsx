@@ -313,9 +313,19 @@ export default function AdminLayout({
     return null;
   }
 
+  // Printable receipt pages must not render the admin header, sidebar, or dashboard layout
+  const isReceiptPage = pathname?.endsWith("/receipt");
+  if (isReceiptPage) {
+    return (
+      <div className="min-h-screen bg-slate-100 dark:bg-slate-900 print:bg-white print:p-0 print:m-0">
+        {staffRedirectPending ? null : canOpenSection ? children : <SectionAccessDenied />}
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-voxcina-blue/95 transition-all duration-300">
-      <header className="bg-white/80 dark:bg-voxcina-blue/90 border-b border-voxcina-cream/30 dark:border-voxcina-blue/30 py-3 px-4 md:px-6 sticky top-0 z-30 shadow-sm backdrop-blur-sm">
+      <header className="bg-white/80 dark:bg-voxcina-blue/90 border-b border-voxcina-cream/30 dark:border-voxcina-blue/30 py-3 px-4 md:px-6 sticky top-0 z-30 shadow-sm backdrop-blur-sm print:hidden">
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
             <button
@@ -548,7 +558,7 @@ export default function AdminLayout({
             `shrink-0` stops a wide admin table from squeezing it. */}
         <aside
           aria-label="منوی پنل مدیریت"
-          className="hidden md:block w-72 shrink-0 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto overscroll-contain border-l border-voxcina-cream/30 dark:border-voxcina-blue/30 py-6 bg-white/90 dark:bg-voxcina-blue/90 backdrop-blur-sm">
+          className="hidden md:block w-72 shrink-0 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto overscroll-contain border-l border-voxcina-cream/30 dark:border-voxcina-blue/30 py-6 bg-white/90 dark:bg-voxcina-blue/90 backdrop-blur-sm print:hidden">
           <div className="py-8 px-4">
             <div className="px-4 mb-6">
               <h2 className="text-lg font-bold text-voxcina-blue dark:text-voxcina-cream">
@@ -613,12 +623,12 @@ export default function AdminLayout({
         </aside>
 
         <motion.main
-          className="flex-grow p-4 md:p-6 lg:p-8 overflow-x-hidden"
+          className="flex-grow p-4 md:p-6 lg:p-8 overflow-x-hidden print:p-0 print:m-0 print:overflow-visible"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <div className="container mx-auto">
+          <div className="container mx-auto print:max-w-none print:w-full print:p-0 print:m-0">
             {staffRedirectPending ? null : canOpenSection ? children : <SectionAccessDenied />}
           </div>
         </motion.main>

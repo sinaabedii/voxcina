@@ -15,11 +15,13 @@ import {
   TruckIcon,
   DollarSign,
   Package,
-  Receipt,
+  FileText,
+  Loader2,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
 import { getPaymentMethodText } from "@/lib/order-display";
+import { printOrderReceipt } from "@/lib/print-order-receipt";
 import { useOrderStore } from '@/store/order-store';
 import { AdminOrderFilters } from "@/types/order";
 import {
@@ -108,6 +110,16 @@ export default function AdminOrdersPage() {
   const currentOrders = orders;
   const [cancelTarget, setCancelTarget] = useState<(typeof orders)[number] | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
+
+  const handlePrintReceipt = async (orderId: string) => {
+    setPrintingOrderId(orderId);
+    try {
+      await printOrderReceipt(orderId);
+    } finally {
+      setTimeout(() => setPrintingOrderId(null), 2000);
+    }
+  };
 
   const handleCancelOrder = async () => {
     if (!cancelTarget) return;
@@ -319,16 +331,20 @@ export default function AdminOrdersPage() {
                           <AdminBadge tone={getStatusTone(order.status)}>
                             {order.status_text}
                           </AdminBadge>
-                          <a
-                            href={`/admin/orders/${order.id}/receipt?autoprint=true`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="چاپ رسید A5 سفارش"
-                            className="mr-3 flex items-center text-sm text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream transition-colors"
+                          <button
+                            type="button"
+                            onClick={() => handlePrintReceipt(order.id)}
+                            disabled={printingOrderId === order.id}
+                            title="چاپ فاکتور و رسید A5 سفارش"
+                            aria-label={`چاپ رسید سفارش ${order.order_number}`}
+                            className="mr-3 inline-flex h-8 w-8 items-center justify-center rounded-lg text-voxcina-blue/70 hover:text-voxcina-blue hover:bg-voxcina-cream/40 dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream dark:hover:bg-voxcina-blue/20 transition-colors cursor-pointer disabled:opacity-60"
                           >
-                            <Receipt className="w-4 h-4 ml-1" />
-                            <span>رسید A5</span>
-                          </a>
+                            {printingOrderId === order.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <FileText className="w-4 h-4" />
+                            )}
+                          </button>
                           <a
                             href={`/admin/orders/${order.id}`}
                             className="mr-3 flex items-center text-sm text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream transition-colors"

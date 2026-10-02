@@ -90,8 +90,9 @@ export default function OrderReceiptA5Page() {
           const urlParams = new URLSearchParams(window.location.search);
           if (urlParams.get("autoprint") === "true") {
             setTimeout(() => {
+              window.focus();
               window.print();
-            }, 450);
+            }, 300);
           }
         }
       } catch (err) {
@@ -105,6 +106,25 @@ export default function OrderReceiptA5Page() {
       fetchOrder();
     }
   }, [orderId]);
+
+  // Clean up print iframe in parent after print dialog closes
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      try {
+        if (window.parent && window.parent !== window) {
+          const frame = window.parent.document.getElementById("order-receipt-print-frame");
+          if (frame) {
+            frame.remove();
+          }
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    window.addEventListener("afterprint", handleAfterPrint);
+    return () => window.removeEventListener("afterprint", handleAfterPrint);
+  }, []);
 
   if (isLoading) {
     return (
@@ -166,6 +186,9 @@ export default function OrderReceiptA5Page() {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
+          header,
+          aside,
+          nav,
           .print\\:hidden {
             display: none !important;
           }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -12,12 +13,14 @@ import {
   CreditCard,
   Truck,
   ExternalLink,
-  Receipt,
+  FileText,
+  Loader2,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
 import { Order } from "@/types/order";
 import { getPaymentGatewayText } from "@/lib/order-display";
+import { printOrderReceipt } from "@/lib/print-order-receipt";
 import { CopyButton, getStatusMeta, getPaymentStatusMeta } from "./order-detail-utils";
 
 interface OrderHeroHeaderProps {
@@ -27,9 +30,19 @@ interface OrderHeroHeaderProps {
 }
 
 export function OrderHeroHeader({ order, onRefresh, onPrint }: OrderHeroHeaderProps) {
+  const [isPrintingReceipt, setIsPrintingReceipt] = useState(false);
   const statusMeta = getStatusMeta(order.status);
   const paymentMeta = getPaymentStatusMeta(order.payment_status);
   const isSnappPay = order.gateway_name === "snappay";
+
+  const handlePrintReceipt = async () => {
+    setIsPrintingReceipt(true);
+    try {
+      await printOrderReceipt(order.id);
+    } finally {
+      setTimeout(() => setIsPrintingReceipt(false), 2000);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -69,16 +82,20 @@ export function OrderHeroHeader({ order, onRefresh, onPrint }: OrderHeroHeaderPr
           >
             <RefreshCw className="w-4 h-4" />
           </button>
-          <a
-            href={`/admin/orders/${order.id}/receipt?autoprint=true`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-voxcina-cream/70 dark:border-white/10 bg-white dark:bg-voxcina-blue/30 text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/40 shadow-2xs font-semibold text-xs py-2 px-3.5 transition-colors"
-            title="چاپ رسید A5 سفارش"
+          <button
+            type="button"
+            onClick={handlePrintReceipt}
+            disabled={isPrintingReceipt}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-voxcina-cream/70 dark:border-white/10 bg-white dark:bg-voxcina-blue/30 text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/40 shadow-2xs font-semibold text-xs py-2 px-3.5 transition-colors cursor-pointer disabled:opacity-60"
+            title="چاپ رسید تک‌برگی A5 سفارش"
           >
-            <Receipt className="w-4 h-4 ml-1" />
-            <span>رسید چاپی A5</span>
-          </a>
+            {isPrintingReceipt ? (
+              <Loader2 className="w-4 h-4 ml-1 animate-spin text-voxcina-blue dark:text-voxcina-cream" />
+            ) : (
+              <FileText className="w-4 h-4 ml-1" />
+            )}
+            <span>{isPrintingReceipt ? "در حال آماده‌سازی..." : "رسید چاپی A5"}</span>
+          </button>
         </div>
       </div>
 
