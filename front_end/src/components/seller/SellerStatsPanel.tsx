@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Wallet,
   ShoppingCart,
@@ -505,7 +505,19 @@ export function SellerVouchersTable({
 }) {
   const [removeTarget, setRemoveTarget] = useState<VoucherPerformance | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const splitLabel = `تقسیم ${faNumber(budgetTotal ?? 36)}٪`;
+
+  const totalCount = vouchers.length;
+  const activeCount = useMemo(
+    () => vouchers.filter((v) => v.status === "active").length,
+    [vouchers]
+  );
+
+  const displayedVouchers = useMemo(() => {
+    if (showAll) return vouchers;
+    return vouchers.filter((v) => v.status === "active");
+  }, [vouchers, showAll]);
 
   const handleConfirmRemove = async () => {
     if (!removeTarget || !onRemove) return;
@@ -529,9 +541,56 @@ export function SellerVouchersTable({
 
   return (
     <>
-      {/* Mobile Card Layout */}
-      <div className="block lg:hidden space-y-4">
-        {vouchers.map((voucher) => {
+      {/* Vouchers Filter & Status Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3.5 sm:p-4 rounded-2xl border border-voxcina-cream dark:border-voxcina-blue/20 bg-white/80 dark:bg-voxcina-blue/15 shadow-2xs mb-4">
+        <label className="inline-flex items-center gap-2.5 cursor-pointer select-none text-xs sm:text-sm font-medium text-voxcina-blue dark:text-voxcina-cream">
+          <input
+            type="checkbox"
+            checked={showAll}
+            onChange={(e) => setShowAll(e.target.checked)}
+            className="w-4 h-4 rounded text-voxcina-blue focus:ring-voxcina-blue/30 border-voxcina-cream dark:border-voxcina-blue/40 bg-white dark:bg-voxcina-blue/40 cursor-pointer"
+          />
+          <span>نمایش همه کدهای تخفیف (شامل منقضی، تمام‌شده و غیرفعال)</span>
+        </label>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <AdminBadge tone={activeCount > 0 ? "success" : "neutral"}>
+            {faNumber(activeCount)} فعال از {faNumber(totalCount)} کد
+          </AdminBadge>
+          {totalCount - activeCount > 0 && !showAll && (
+            <span className="text-[11px] text-voxcina-blue/50 dark:text-voxcina-cream/50">
+              ({faNumber(totalCount - activeCount)} کد غیرفعال/منقضی پنهان است)
+            </span>
+          )}
+        </div>
+      </div>
+
+      {displayedVouchers.length === 0 ? (
+        <div className="p-8 sm:p-10 rounded-2xl border border-dashed border-voxcina-cream dark:border-voxcina-blue/30 bg-voxcina-cream/15 dark:bg-voxcina-blue/10 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-voxcina-cream/50 dark:bg-voxcina-blue/30 text-voxcina-blue/70 dark:text-voxcina-cream/70 flex items-center justify-center mx-auto shadow-2xs">
+            <Ticket className="w-6 h-6 stroke-[1.5]" />
+          </div>
+          <div className="space-y-1 max-w-md mx-auto">
+            <h4 className="text-sm font-bold text-voxcina-blue dark:text-voxcina-cream">
+              کد تخفیف فعالی وجود ندارد
+            </h4>
+            <p className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 leading-relaxed">
+              کد تخفیف فعالی وجود ندارد. برای مشاهده کدهای گذشته (منقضی یا تمام‌شده)، تیک بالا را فعال کنید.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAll(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-voxcina-blue text-white dark:bg-voxcina-cream dark:text-voxcina-blue hover:opacity-90 transition-opacity shadow-xs cursor-pointer"
+          >
+            <span>مشاهده کدهای گذشته ({faNumber(totalCount)} کد)</span>
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Mobile Card Layout */}
+          <div className="block lg:hidden space-y-4">
+            {displayedVouchers.map((voucher) => {
           const status = VOUCHER_STATUS[voucher.status] ?? {
             label: voucher.status,
             tone: "neutral" as const,
@@ -738,7 +797,7 @@ export function SellerVouchersTable({
             </>
           }
         >
-          {vouchers.map((voucher) => {
+          {displayedVouchers.map((voucher) => {
             const status = VOUCHER_STATUS[voucher.status] ?? {
               label: voucher.status,
               tone: "neutral" as const,
@@ -854,24 +913,26 @@ export function SellerVouchersTable({
           })}
         </AdminTable>
       </div>
+    </>
+  )}
 
-    <ConfirmRemoveModal
-      isOpen={removeTarget !== null}
-      onClose={() => setRemoveTarget(null)}
-      onConfirm={handleConfirmRemove}
-      productName={removeTarget?.code ?? ""}
-      willInvalidate={false}
-      title="حذف کد تخفیف"
-      description={
-        <>
-          کد تخفیف{" "}
-          <span className="font-mono font-semibold text-voxcina-blue dark:text-voxcina-cream">
-            {removeTarget?.code}
-          </span>{" "}
-          بلافاصله غیرفعال می‌شود و دیگر قابل استفاده نیست. آیا مطمئن هستید؟
-        </>
-      }
-    />
+      <ConfirmRemoveModal
+        isOpen={removeTarget !== null}
+        onClose={() => setRemoveTarget(null)}
+        onConfirm={handleConfirmRemove}
+        productName={removeTarget?.code ?? ""}
+        willInvalidate={false}
+        title="حذف کد تخفیف"
+        description={
+          <>
+            کد تخفیف{" "}
+            <span className="font-mono font-semibold text-voxcina-blue dark:text-voxcina-cream">
+              {removeTarget?.code}
+            </span>{" "}
+            بلافاصله غیرفعال می‌شود و دیگر قابل استفاده نیست. آیا مطمئن هستید؟
+          </>
+        }
+      />
     </>
   );
 }
