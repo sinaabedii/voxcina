@@ -15,6 +15,7 @@ import {
   TruckIcon,
   DollarSign,
   Package,
+  Receipt,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
@@ -318,6 +319,16 @@ export default function AdminOrdersPage() {
                           <AdminBadge tone={getStatusTone(order.status)}>
                             {order.status_text}
                           </AdminBadge>
+                          <a
+                            href={`/admin/orders/${order.id}/receipt?autoprint=true`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="چاپ رسید A5 سفارش"
+                            className="mr-3 flex items-center text-sm text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream transition-colors"
+                          >
+                            <Receipt className="w-4 h-4 ml-1" />
+                            <span>رسید A5</span>
+                          </a>
                           <a
                             href={`/admin/orders/${order.id}`}
                             className="mr-3 flex items-center text-sm text-voxcina-blue/70 hover:text-voxcina-blue dark:text-voxcina-cream/70 dark:hover:text-voxcina-cream transition-colors"

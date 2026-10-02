@@ -12,6 +12,7 @@ import {
   CreditCard,
   Truck,
   ExternalLink,
+  Receipt,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { formatPrice } from "@/lib/utils";
@@ -68,15 +69,16 @@ export function OrderHeroHeader({ order, onRefresh, onPrint }: OrderHeroHeaderPr
           >
             <RefreshCw className="w-4 h-4" />
           </button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onPrint}
-            className="rounded-xl border-voxcina-cream/70 dark:border-white/10 bg-white dark:bg-voxcina-blue/30 text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/40 shadow-2xs font-semibold text-xs py-2 px-3.5"
+          <a
+            href={`/admin/orders/${order.id}/receipt?autoprint=true`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-voxcina-cream/70 dark:border-white/10 bg-white dark:bg-voxcina-blue/30 text-voxcina-blue dark:text-voxcina-cream hover:bg-voxcina-cream/40 shadow-2xs font-semibold text-xs py-2 px-3.5 transition-colors"
+            title="چاپ رسید A5 سفارش"
           >
-            <Printer className="w-4 h-4 ml-1.5" />
-            چاپ فاکتور
-          </Button>
+            <Receipt className="w-4 h-4 ml-1" />
+            <span>رسید چاپی A5</span>
+          </a>
         </div>
       </div>
 
