@@ -259,7 +259,63 @@ func ListPublicSizingTypes(w http.ResponseWriter, r *http.Request) {
 		sizingTypes = []models.SizingType{}
 	}
 
-	utils.JSONResponse(w, http.StatusOK, sizingTypes)
+	publicSizingTypes := make([]publicSizingTypeResponse, len(sizingTypes))
+	for i, sizingType := range sizingTypes {
+		publicSizingTypes[i] = toPublicSizingTypeResponse(sizingType)
+	}
+
+	utils.JSONResponse(w, http.StatusOK, publicSizingTypes)
+}
+
+// publicSizingTypeResponse deliberately excludes admin-only garment measurement
+// instructions while retaining the buyer-facing sizing data.
+type publicSizingTypeResponse struct {
+	ID              primitive.ObjectID     `json:"id"`
+	Name            string                 `json:"name"`
+	Slug            string                 `json:"slug"`
+	Description     string                 `json:"description,omitempty"`
+	Measurements    []publicMeasurementDef `json:"measurements"`
+	ImagePrompt     string                 `json:"image_prompt,omitempty"`
+	ImagePath       string                 `json:"image_path,omitempty"`
+	GeneralFitGuide string                 `json:"general_fit_guide,omitempty"`
+	IsActive        bool                   `json:"is_active"`
+	DisplayOrder    int                    `json:"display_order"`
+	CreatedAt       time.Time              `json:"created_at"`
+	UpdatedAt       time.Time              `json:"updated_at"`
+}
+
+type publicMeasurementDef struct {
+	Key       string `json:"key"`
+	Label     string `json:"label"`
+	BodyGuide string `json:"body_guide"`
+	FitAdvice string `json:"fit_advice"`
+}
+
+func toPublicSizingTypeResponse(sizingType models.SizingType) publicSizingTypeResponse {
+	measurements := make([]publicMeasurementDef, len(sizingType.Measurements))
+	for i, measurement := range sizingType.Measurements {
+		measurements[i] = publicMeasurementDef{
+			Key:       measurement.Key,
+			Label:     measurement.Label,
+			BodyGuide: measurement.BodyGuide,
+			FitAdvice: measurement.FitAdvice,
+		}
+	}
+
+	return publicSizingTypeResponse{
+		ID:              sizingType.ID,
+		Name:            sizingType.Name,
+		Slug:            sizingType.Slug,
+		Description:     sizingType.Description,
+		Measurements:    measurements,
+		ImagePrompt:     sizingType.ImagePrompt,
+		ImagePath:       sizingType.ImagePath,
+		GeneralFitGuide: sizingType.GeneralFitGuide,
+		IsActive:        sizingType.IsActive,
+		DisplayOrder:    sizingType.DisplayOrder,
+		CreatedAt:       sizingType.CreatedAt,
+		UpdatedAt:       sizingType.UpdatedAt,
+	}
 }
 
 // GetSizingType handles GET /api/admin/sizing-types/{id}
@@ -298,15 +354,16 @@ func CreateSizingType(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header.Get("Content-Type")
 
 	var (
-		name            string
-		slug            string
-		description     string
-		measurements    []models.SizingMeasurementDef
-		imagePrompt     string
-		imagePath       string
-		generalFitGuide string
-		isActive        = true
-		displayOrder    = 0
+		name                  string
+		slug                  string
+		description           string
+		measurements          []models.SizingMeasurementDef
+		imagePrompt           string
+		imagePath             string
+		generalFitGuide       string
+		adminMeasurementGuide string
+		isActive              = true
+		displayOrder          = 0
 	)
 
 	if strings.Contains(contentType, "multipart/form-data") {
@@ -329,6 +386,10 @@ func CreateSizingType(w http.ResponseWriter, r *http.Request) {
 		generalFitGuide = strings.TrimSpace(r.FormValue("general_fit_guide"))
 		if generalFitGuide == "" {
 			generalFitGuide = strings.TrimSpace(r.FormValue("generalFitGuide"))
+		}
+		adminMeasurementGuide = strings.TrimSpace(r.FormValue("admin_measurement_guide"))
+		if adminMeasurementGuide == "" {
+			adminMeasurementGuide = strings.TrimSpace(r.FormValue("adminMeasurementGuide"))
 		}
 
 		if activeStr := r.FormValue("is_active"); activeStr != "" {
@@ -376,20 +437,22 @@ func CreateSizingType(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		var req struct {
-			Name                 string                        `json:"name"`
-			Slug                 string                        `json:"slug"`
-			Description          string                        `json:"description"`
-			Measurements         []models.SizingMeasurementDef `json:"measurements"`
-			ImagePrompt          string                        `json:"image_prompt"`
-			ImagePromptCamel     string                        `json:"imagePrompt"`
-			ImagePath            string                        `json:"image_path"`
-			ImagePathCamel       string                        `json:"imagePath"`
-			GeneralFitGuide      string                        `json:"general_fit_guide"`
-			GeneralFitGuideCamel string                        `json:"generalFitGuide"`
-			IsActive             *bool                         `json:"is_active"`
-			IsActiveCamel        *bool                         `json:"isActive"`
-			DisplayOrder         *int                          `json:"display_order"`
-			DisplayOrderCamel    *int                          `json:"displayOrder"`
+			Name                       string                        `json:"name"`
+			Slug                       string                        `json:"slug"`
+			Description                string                        `json:"description"`
+			Measurements               []models.SizingMeasurementDef `json:"measurements"`
+			ImagePrompt                string                        `json:"image_prompt"`
+			ImagePromptCamel           string                        `json:"imagePrompt"`
+			ImagePath                  string                        `json:"image_path"`
+			ImagePathCamel             string                        `json:"imagePath"`
+			GeneralFitGuide            string                        `json:"general_fit_guide"`
+			GeneralFitGuideCamel       string                        `json:"generalFitGuide"`
+			AdminMeasurementGuide      string                        `json:"admin_measurement_guide"`
+			AdminMeasurementGuideCamel string                        `json:"adminMeasurementGuide"`
+			IsActive                   *bool                         `json:"is_active"`
+			IsActiveCamel              *bool                         `json:"isActive"`
+			DisplayOrder               *int                          `json:"display_order"`
+			DisplayOrderCamel          *int                          `json:"displayOrder"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -412,6 +475,10 @@ func CreateSizingType(w http.ResponseWriter, r *http.Request) {
 		generalFitGuide = strings.TrimSpace(req.GeneralFitGuide)
 		if generalFitGuide == "" {
 			generalFitGuide = strings.TrimSpace(req.GeneralFitGuideCamel)
+		}
+		adminMeasurementGuide = strings.TrimSpace(req.AdminMeasurementGuide)
+		if adminMeasurementGuide == "" {
+			adminMeasurementGuide = strings.TrimSpace(req.AdminMeasurementGuideCamel)
 		}
 
 		if req.IsActive != nil {
@@ -461,18 +528,19 @@ func CreateSizingType(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now()
 	newSizingType := models.SizingType{
-		ID:              primitive.NewObjectID(),
-		Name:            name,
-		Slug:            slug,
-		Description:     description,
-		Measurements:    measurements,
-		ImagePrompt:     imagePrompt,
-		ImagePath:       imagePath,
-		GeneralFitGuide: generalFitGuide,
-		IsActive:        isActive,
-		DisplayOrder:    displayOrder,
-		CreatedAt:       now,
-		UpdatedAt:       now,
+		ID:                    primitive.NewObjectID(),
+		Name:                  name,
+		Slug:                  slug,
+		Description:           description,
+		Measurements:          measurements,
+		ImagePrompt:           imagePrompt,
+		ImagePath:             imagePath,
+		GeneralFitGuide:       generalFitGuide,
+		AdminMeasurementGuide: adminMeasurementGuide,
+		IsActive:              isActive,
+		DisplayOrder:          displayOrder,
+		CreatedAt:             now,
+		UpdatedAt:             now,
 	}
 
 	_, err = collection.InsertOne(ctx, newSizingType)
@@ -554,6 +622,12 @@ func UpdateSizingType(w http.ResponseWriter, r *http.Request) {
 			updateFields["general_fit_guide"] = strings.TrimSpace(r.FormValue("generalFitGuide"))
 		}
 
+		if _, exists := r.Form["admin_measurement_guide"]; exists {
+			updateFields["admin_measurement_guide"] = strings.TrimSpace(r.FormValue("admin_measurement_guide"))
+		} else if _, exists := r.Form["adminMeasurementGuide"]; exists {
+			updateFields["admin_measurement_guide"] = strings.TrimSpace(r.FormValue("adminMeasurementGuide"))
+		}
+
 		if activeStr := r.FormValue("is_active"); activeStr != "" {
 			if b, err := strconv.ParseBool(activeStr); err == nil {
 				updateFields["is_active"] = b
@@ -629,20 +703,22 @@ func UpdateSizingType(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		var req struct {
-			Name                 *string                        `json:"name"`
-			Slug                 *string                        `json:"slug"`
-			Description          *string                        `json:"description"`
-			Measurements         *[]models.SizingMeasurementDef `json:"measurements"`
-			ImagePrompt          *string                        `json:"image_prompt"`
-			ImagePromptCamel     *string                        `json:"imagePrompt"`
-			ImagePath            *string                        `json:"image_path"`
-			ImagePathCamel       *string                        `json:"imagePath"`
-			GeneralFitGuide      *string                        `json:"general_fit_guide"`
-			GeneralFitGuideCamel *string                        `json:"generalFitGuide"`
-			IsActive             *bool                          `json:"is_active"`
-			IsActiveCamel        *bool                          `json:"isActive"`
-			DisplayOrder         *int                           `json:"display_order"`
-			DisplayOrderCamel    *int                           `json:"displayOrder"`
+			Name                       *string                        `json:"name"`
+			Slug                       *string                        `json:"slug"`
+			Description                *string                        `json:"description"`
+			Measurements               *[]models.SizingMeasurementDef `json:"measurements"`
+			ImagePrompt                *string                        `json:"image_prompt"`
+			ImagePromptCamel           *string                        `json:"imagePrompt"`
+			ImagePath                  *string                        `json:"image_path"`
+			ImagePathCamel             *string                        `json:"imagePath"`
+			GeneralFitGuide            *string                        `json:"general_fit_guide"`
+			GeneralFitGuideCamel       *string                        `json:"generalFitGuide"`
+			AdminMeasurementGuide      *string                        `json:"admin_measurement_guide"`
+			AdminMeasurementGuideCamel *string                        `json:"adminMeasurementGuide"`
+			IsActive                   *bool                          `json:"is_active"`
+			IsActiveCamel              *bool                          `json:"isActive"`
+			DisplayOrder               *int                           `json:"display_order"`
+			DisplayOrderCamel          *int                           `json:"displayOrder"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -688,6 +764,11 @@ func UpdateSizingType(w http.ResponseWriter, r *http.Request) {
 			updateFields["general_fit_guide"] = strings.TrimSpace(*req.GeneralFitGuide)
 		} else if req.GeneralFitGuideCamel != nil {
 			updateFields["general_fit_guide"] = strings.TrimSpace(*req.GeneralFitGuideCamel)
+		}
+		if req.AdminMeasurementGuide != nil {
+			updateFields["admin_measurement_guide"] = strings.TrimSpace(*req.AdminMeasurementGuide)
+		} else if req.AdminMeasurementGuideCamel != nil {
+			updateFields["admin_measurement_guide"] = strings.TrimSpace(*req.AdminMeasurementGuideCamel)
 		}
 		if req.IsActive != nil {
 			updateFields["is_active"] = *req.IsActive

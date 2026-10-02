@@ -9,7 +9,6 @@ import {
   Check,
   Plus,
   Trash2,
-  HelpCircle,
   ImageIcon,
   Loader2,
   Ruler,
@@ -124,6 +123,7 @@ export default function SizingTypeModal({
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
+  const [adminMeasurementGuide, setAdminMeasurementGuide] = useState<string | null>(null);
   const [generalFitGuide, setGeneralFitGuide] = useState("");
   const [imagePrompt, setImagePrompt] = useState("");
   const [measurements, setMeasurements] = useState<SizingMeasurementDef[]>([]);
@@ -163,6 +163,7 @@ export default function SizingTypeModal({
         setName(editingSizingType.name || "");
         setSlug(editingSizingType.slug || "");
         setDescription(editingSizingType.description || "");
+        setAdminMeasurementGuide(editingSizingType.admin_measurement_guide ?? null);
         setGeneralFitGuide(editingSizingType.general_fit_guide || "");
         setImagePrompt(editingSizingType.image_prompt || "");
         setMeasurements(editingSizingType.measurements || []);
@@ -176,6 +177,7 @@ export default function SizingTypeModal({
         setName("");
         setSlug("");
         setDescription("");
+        setAdminMeasurementGuide(null);
         setGeneralFitGuide("");
         setImagePrompt("");
         setMeasurements([]);
@@ -212,11 +214,12 @@ export default function SizingTypeModal({
       if (result) {
         setName(result.name || clothingTypeInput.trim());
         setSlug(result.slug || "");
+        setAdminMeasurementGuide(result.admin_measurement_guide ?? null);
         setGeneralFitGuide(result.general_fit_guide || "");
         setMeasurements(result.measurements || []);
         setImagePrompt(result.nano_banana_prompt || "");
         setActiveTab("editor");
-        toast.success("راهنمای ابعاد و پرامپت اختصاصی با موفقیت تدوین شد");
+        toast.success("پژوهش اندازه‌ها و راهنمای خریدار با موفقیت آماده شد");
       }
     } catch {
       toast.error("خطا در ارتباط با دستیار هوشمند");
@@ -232,6 +235,7 @@ export default function SizingTypeModal({
         label: "",
         body_guide: "",
         fit_advice: "",
+        garment_measurement: "",
       },
     ]);
   };
@@ -358,6 +362,9 @@ export default function SizingTypeModal({
     formData.append("name", name.trim());
     if (slug.trim()) formData.append("slug", slug.trim());
     formData.append("description", description.trim());
+    if (adminMeasurementGuide !== null) {
+      formData.append("admin_measurement_guide", adminMeasurementGuide.trim());
+    }
     formData.append("general_fit_guide", generalFitGuide.trim());
     formData.append("image_prompt", imagePrompt.trim());
     formData.append("is_active", String(isActive));
@@ -461,8 +468,25 @@ export default function SizingTypeModal({
                       دستیار پژوهش تخصصی الگوسازی و سایزبندی
                     </h3>
                     <p className="text-xs md:text-sm text-voxcina-blue/70 dark:text-voxcina-cream/70 leading-relaxed">
-                      کافیست نام نوع لباس و ویژگی‌های فیت مورد نظرتان را وارد کنید. هوش مصنوعی استانداردهای بین‌المللی خیاطی، متغیرهای ضروری اندازه‌گیری بدن، توصیه‌های آزادی (Ease) و پرامپت اختصاصی تولید دیاگرام در مدل Nano Banana Pro را خودکار آماده می‌کند.
+                      هوش مصنوعی ابتدا اندازه‌های خود لباس و جدول استاندارد آن را بررسی می‌کند و راهنمای اندازه‌گیری لباس را برای بازبینی شما می‌سازد؛ سپس با تکیه بر همان اندازه‌های ساختاریافته، راهنمای اندازه‌گیری بدن برای خریدار را تدوین می‌کند.
                     </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 mt-5 pt-4 border-t border-purple-200/40 dark:border-purple-800/30">
+                  <div className="flex items-start gap-2.5 rounded-xl bg-white/60 dark:bg-white/5 border border-purple-200/50 dark:border-purple-800/30 p-3">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-600 text-white text-xs font-bold shrink-0">۱</span>
+                    <div>
+                      <p className="text-xs font-bold text-voxcina-blue dark:text-voxcina-cream">پژوهش اندازه‌های لباس</p>
+                      <p className="text-[11px] text-voxcina-blue/60 dark:text-voxcina-cream/60 leading-relaxed mt-1">راهنمای داخلی اندازه‌گیری قطعات لباس برای کنترل شما</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2.5 rounded-xl bg-white/60 dark:bg-white/5 border border-indigo-200/50 dark:border-indigo-800/30 p-3">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold shrink-0">۲</span>
+                    <div>
+                      <p className="text-xs font-bold text-voxcina-blue dark:text-voxcina-cream">راهنمای خریدار</p>
+                      <p className="text-[11px] text-voxcina-blue/60 dark:text-voxcina-cream/60 leading-relaxed mt-1">دستور اندازه‌گیری بدن بر اساس اندازه‌های دقیق بالا</p>
+                    </div>
                   </div>
                 </div>
 
@@ -537,7 +561,7 @@ export default function SizingTypeModal({
                   <div className="p-4 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/40 flex items-center gap-3 text-purple-700 dark:text-purple-300">
                     <Loader2 className="w-5 h-5 animate-spin shrink-0" />
                     <div className="text-xs md:text-sm font-medium">
-                      در حال تحلیل استانداردهای الگوسازی و تدوین راهنمای فارسی و پرامپت Nano Banana Pro...
+                      مرحله اول: در حال پژوهش اندازه‌های لباس؛ سپس راهنمای خریدار از روی همان اندازه‌ها تدوین می‌شود...
                     </div>
                   </div>
                 )}
@@ -569,7 +593,7 @@ export default function SizingTypeModal({
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4 ml-2 text-amber-300" />
-                        تولید ابعاد و راهنما با هوش مصنوعی
+                        پژوهش و تولید دو مرحله‌ای
                       </>
                     )}
                   </Button>
@@ -646,15 +670,33 @@ export default function SizingTypeModal({
                   />
                 </AdminField>
 
+                {adminMeasurementGuide !== null && (
+                  <div className="rounded-xl border border-amber-200/80 dark:border-amber-800/40 bg-amber-50/70 dark:bg-amber-950/20 p-4 space-y-3">
+                    <div className="flex items-start gap-2">
+                      <Info className="w-4 h-4 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <div>
+                        <h4 className="text-sm font-bold text-amber-900 dark:text-amber-200">راهنمای اندازه‌گیری لباس (ویژه ادمین)</h4>
+                        <p className="text-xs text-amber-800/70 dark:text-amber-200/70 leading-relaxed mt-1">این راهنما نتیجه پژوهش مرحله اول است و فقط برای بررسی اندازه‌های قطعات لباس در اختیار شماست؛ برای خریدار نمایش داده نمی‌شود.</p>
+                      </div>
+                    </div>
+                    <AdminTextarea
+                      rows={4}
+                      value={adminMeasurementGuide}
+                      onChange={(e) => setAdminMeasurementGuide(e.target.value)}
+                      placeholder="نحوه قرار دادن لباس، نقاط اندازه‌گیری و ثبت ابعاد در جدول..."
+                    />
+                  </div>
+                )}
+
                 <AdminField
-                  label="راهنمای کلی فیت و تطابق اندازه (مخصوص خریداران)"
-                  hint="این متن در تب راهنمای سایز صفحه محصول برای مشتریان نمایش داده می‌شود."
+                  label="راهنمای اندازه‌گیری بدن (مخصوص خریداران)"
+                  hint="این متن از روی اندازه‌های ساختاریافته بالا نوشته می‌شود و در تب راهنمای سایز به مشتری نمایش داده می‌شود؛ نکات فیت را کوتاه نگه دارید."
                 >
                   <AdminTextarea
-                    rows={3}
+                    rows={4}
                     value={generalFitGuide}
                     onChange={(e) => setGeneralFitGuide(e.target.value)}
-                    placeholder="نکات فیت و ایستایی لباس در تن، آزادی‌های در نظر گرفته شده، و توصیه به انتخاب سایز بر اساس قواره..."
+                    placeholder="برای اندازه‌گیری بخش‌های لازم بدن، متر را کجا و چگونه قرار دهد؛ در پایان فقط یک نکته کوتاه درباره فیت یا انتخاب سایز..."
                   />
                 </AdminField>
               </div>
@@ -782,6 +824,19 @@ export default function SizingTypeModal({
                             />
                           </AdminField>
                         </div>
+
+                        <AdminField
+                          label="نحوه اندازه‌گیری خود لباس (ویژه ادمین)"
+                          hint="نقطه و روش اندازه‌گیری همین بخش روی لباس تخت یا در جدول سایز"
+                        >
+                          <AdminInput
+                            value={m.garment_measurement || ""}
+                            onChange={(e) =>
+                              handleUpdateMeasurement(idx, "garment_measurement", e.target.value)
+                            }
+                            placeholder="لباس را تخت کنید و عرض سینه را از زیر حلقه تا زیر حلقه بگیرید..."
+                          />
+                        </AdminField>
                       </div>
                     ))}
                   </div>

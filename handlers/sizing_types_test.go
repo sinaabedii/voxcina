@@ -155,6 +155,32 @@ func TestValidateMeasurements(t *testing.T) {
 	}
 }
 
+func TestPublicSizingTypeResponseExcludesAdminMeasurementGuidance(t *testing.T) {
+	public := toPublicSizingTypeResponse(models.SizingType{
+		Name:                  "کت بلیزر",
+		AdminMeasurementGuide: "راهنمای داخلی اندازه‌گیری لباس",
+		Measurements: []models.SizingMeasurementDef{{
+			Key:                "chest",
+			Label:              "عرض سینه",
+			BodyGuide:          "دور سینه را اندازه بگیرید.",
+			FitAdvice:          "آزادی مناسب در نظر بگیرید.",
+			GarmentMeasurement: "عرض تخت لباس را اندازه بگیرید.",
+		}},
+	})
+
+	data, err := json.Marshal(public)
+	if err != nil {
+		t.Fatalf("failed to marshal public sizing type: %v", err)
+	}
+	encoded := string(data)
+	if strings.Contains(encoded, "admin_measurement_guide") || strings.Contains(encoded, "garment_measurement") {
+		t.Fatalf("public sizing response leaked admin measurement guidance: %s", encoded)
+	}
+	if !strings.Contains(encoded, "body_guide") || !strings.Contains(encoded, "fit_advice") {
+		t.Fatalf("public sizing response lost buyer-facing measurement guidance: %s", encoded)
+	}
+}
+
 func TestGenerateSizingTypeValidation(t *testing.T) {
 	// Test empty clothing_type
 	reqEmpty := httptest.NewRequest("POST", "/api/admin/sizing-types/generate", strings.NewReader(`{"clothing_type": ""}`))
