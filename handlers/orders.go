@@ -29,6 +29,16 @@ var (
 	errDiscountProductScope = errors.New("discount does not apply to order")
 )
 
+const maxCheckoutShippingMethodLength = 200
+
+func normalizeCheckoutShippingMethod(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if len([]rune(value)) > maxCheckoutShippingMethodLength {
+		return "", fmt.Errorf("shipping method is too long")
+	}
+	return value, nil
+}
+
 type checkoutDiscountRuleError struct {
 	kind    error
 	message string
@@ -717,10 +727,17 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		DiscountAmount  float64        `json:"discountAmount"`
 		ShippingAddress models.Address `json:"shippingAddress"`
 		PromoCode       string         `json:"promoCode,omitempty"`
+		ShippingMethod  string         `json:"shippingMethod,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&orderData); err != nil {
 		utils.ErrorResponse(w, http.StatusBadRequest, "Invalid order payload")
+		return
+	}
+	var shippingMethodErr error
+	orderData.ShippingMethod, shippingMethodErr = normalizeCheckoutShippingMethod(orderData.ShippingMethod)
+	if shippingMethodErr != nil {
+		utils.ErrorResponse(w, http.StatusBadRequest, "روش ارسال نامعتبر است")
 		return
 	}
 
@@ -919,6 +936,7 @@ func Checkout(w http.ResponseWriter, r *http.Request) {
 		TaxAmount:       0,
 		DiscountAmount:  orderData.DiscountAmount,
 		DiscountCode:    orderData.PromoCode,
+		ShippingMethod:  orderData.ShippingMethod,
 		ShippingAddress: orderData.ShippingAddress,
 		Status:          "pending",
 		StatusText:      "در انتظار پردازش",

@@ -26,7 +26,8 @@ export interface OrderReceipt {
   };
   status: string;
   status_text: string;
-  tracking_code?: string | null;
+  /** The selected delivery method, when included by the receipt endpoint. */
+  shipping_method?: string | null;
   payment_status: string;
   payment_method: string;
   gateway_name?: string;

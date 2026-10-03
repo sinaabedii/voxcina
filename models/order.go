@@ -53,6 +53,7 @@ type Order struct {
 	Items                       []OrderItem          `bson:"items"                      json:"items"`                                    // Items in the order
 	TotalAmount                 float64              `bson:"total_amount"               json:"total_amount"`                             // Total cost of the order
 	ShippingCost                float64              `bson:"shipping_cost"              json:"shipping_cost"`                            // Shipping cost
+	ShippingMethod              string               `bson:"shipping_method,omitempty"   json:"shipping_method,omitempty"`               // Display-only snapshot of the selected shipping method
 	TaxAmount                   float64              `bson:"tax_amount"                 json:"tax_amount"`                               // Tax included in the order total
 	DiscountAmount              float64              `bson:"discount_amount"            json:"discount_amount"`                          // Discount amount applied
 	DiscountCode                string               `bson:"discount_code,omitempty"    json:"discount_code,omitempty"`                  // Discount code used

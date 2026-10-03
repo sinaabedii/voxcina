@@ -530,6 +530,7 @@ export default function CheckoutPage() {
           taxAmount: 0,
           discountAmount: summary.discount,
           shippingAddress: shippingAddress,
+          shippingMethod: selectedShippingMethod?.serviceName?.trim() || selectedShippingMethod?.courierName?.trim() || undefined,
           promoCode: promoCode?.code && promoCode.isValid ? promoCode.code : undefined,
         }),
       });

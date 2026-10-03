@@ -11785,9 +11785,9 @@
           "status_text": {
             "type": "string"
           },
-          "tracking_code": {
+          "shipping_method": {
             "type": "string",
-            "nullable": true
+            "description": "Display-only snapshot of the selected shipping method"
           },
           "payment_status": {
             "type": "string"
@@ -12805,6 +12805,11 @@
           },
           "shippingAddress": {
             "$ref": "#/components/schemas/AddressInput"
+          },
+          "shippingMethod": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Display-only label for the selected shipping method; not used for pricing or fulfillment"
           },
           "promoCode": {
             "type": "string",

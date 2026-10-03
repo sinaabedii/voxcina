@@ -113,13 +113,15 @@
   /* Keep the shared receipt within the printable A5 area. These are print-only
      reductions; the on-screen preview keeps its more generous spacing. */
   .sheet {
+    display: flex;
+    flex-direction: column;
     width: 100%;
     max-width: none;
-    min-height: 0;
+    min-height: calc(210mm - 12mm);
     padding: 0;
     margin: 0;
     box-shadow: none;
-    font-size: 9px;
+    font-size: 9.5px;
     line-height: 1.45;
   }
   .letterhead { gap: 10px; padding: 2px 0 7px; border-bottom-width: 2px; }
@@ -140,7 +142,7 @@
   .sectionHeading span { font-size: 8px; }
   .sheet h2 { font-size: 10px; }
   .table thead { display: table-header-group; }
-  .table { font-size: 8.5px; line-height: 1.35; }
+  .table { font-size: 9px; line-height: 1.35; }
   .table th { padding: 4px 3px; }
   .table td { padding: 4px 3px; }
   .table tr, .letterhead, .recipient, .summary, .footer { break-inside: avoid; page-break-inside: avoid; }
@@ -148,9 +150,9 @@
   .table th:nth-child(n+2), .table td:nth-child(n+2) { white-space: nowrap; }
   .rowNumber { font-size: 8px; }
   .variant, .sku { font-size: 8px; margin-top: 1px; }
-  .summary { gap: 12px; margin-top: 9px; }
-  .payment { font-size: 9px; }
-  .totals { font-size: 8px; }
+  .summary { gap: 12px; margin-top: auto; }
+  .payment { align-self: end; font-size: 9.5px; }
+  .totals { font-size: 8.5px; }
   .payment h2 { margin-bottom: 2px; }
   .totals > div { padding: 2px 0; }
   .totals .grandTotal { margin-top: 4px; padding-top: 5px; border-top-width: 1px; font-size: 10px; }

@@ -9,6 +9,7 @@ export default function OrderReceipt({ receipt }: { receipt: Receipt }) {
   const address = receipt.shipping_address || {};
   const recipient = [address.first_name, address.last_name].filter(Boolean).join(" ");
   const region = [address.province || address.state, address.city].filter(Boolean).join("، ");
+  const shippingMethod = receipt.shipping_method?.trim();
   const subtotal = receipt.items.reduce((sum, item) => sum + item.quantity * item.price_at_purchase, 0);
 
   return (
@@ -38,7 +39,7 @@ export default function OrderReceipt({ receipt }: { receipt: Receipt }) {
         <p>{[region, address.address || address.street].filter(Boolean).join("، ") || "نشانی ثبت نشده"}</p>
         <div className={styles.addressCodes}>
           {address.postal_code && <span>کد پستی: <bdi>{address.postal_code}</bdi></span>}
-          {receipt.tracking_code && <span>کد رهگیری ارسال: <bdi>{receipt.tracking_code}</bdi></span>}
+          {shippingMethod && <span>روش ارسال: <bdi>{shippingMethod}</bdi></span>}
         </div>
       </section>
 

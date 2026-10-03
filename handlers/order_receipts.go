@@ -56,7 +56,7 @@ type orderReceiptResponse struct {
 	ShippingAddress orderReceiptAddress `json:"shipping_address"`
 	Status          string              `json:"status"`
 	StatusText      string              `json:"status_text"`
-	TrackingCode    *string             `json:"tracking_code"`
+	ShippingMethod  string              `json:"shipping_method,omitempty"`
 	PaymentStatus   string              `json:"payment_status"`
 	PaymentMethod   string              `json:"payment_method"`
 	GatewayName     string              `json:"gateway_name"`
@@ -89,7 +89,7 @@ func newOrderReceiptResponse(order models.Order) orderReceiptResponse {
 			PostalCode: address.PostalCode, Street: address.Street, City: address.City,
 			State: address.State, Country: address.Country,
 		},
-		Status: order.Status, StatusText: getStatusText(order.Status), TrackingCode: order.TrackingCode,
+		Status: order.Status, StatusText: getStatusText(order.Status), ShippingMethod: order.ShippingMethod,
 		PaymentStatus: order.PaymentStatus, PaymentMethod: order.PaymentMethod,
 		GatewayName: order.GatewayName, CreatedAt: order.CreatedAt,
 		JalaliCreatedAt: order.GetJalaliCreatedAt(),

@@ -21,7 +21,8 @@ func TestNewOrderReceiptResponseAllowlistsSensitiveOrderFields(t *testing.T) {
 		Items:           []models.OrderItem{{ProductID: primitive.NewObjectID(), ProductName: "پیراهن", ProductImage: "/uploads/shirt.jpg", Quantity: 2, PriceAtPurchase: 1250000}},
 		ShippingAddress: models.Address{FirstName: "علی", Address: "خیابان اصلی", PostalCode: "1234567890", Latitude: 35.7, IsDefault: true},
 		Status:          "processing", PaymentStatus: "paid", PaymentMethod: "online", GatewayName: "zibal",
-		DiscountCode: "SECRET-DISCOUNT", MerchantTransactionID: "merchant-secret", GatewayTransactionID: "provider-secret",
+		ShippingMethod: "پست پیشتاز",
+		DiscountCode:   "SECRET-DISCOUNT", MerchantTransactionID: "merchant-secret", GatewayTransactionID: "provider-secret",
 		GatewayReference: "token-secret", TrackingCode: stringPtr("TRK-1"), Timeline: []models.OrderTimelineEntry{{Note: "internal"}},
 		Notes: []models.OrderNote{{Content: "admin-only"}}, CreatedAt: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC),
 	}
@@ -33,16 +34,28 @@ func TestNewOrderReceiptResponseAllowlistsSensitiveOrderFields(t *testing.T) {
 	serialized := string(payload)
 	for _, forbidden := range []string{
 		"user_id", "discount_code", "merchant_transaction_id", "gateway_transaction_id", "gateway_reference",
-		"timeline", "notes", "latitude", "is_default", "provider-secret", "token-secret", "admin-only",
+		"timeline", "notes", "latitude", "is_default", "provider-secret", "token-secret", "admin-only", "tracking_code", "TRK-1",
 	} {
 		if strings.Contains(serialized, forbidden) {
 			t.Errorf("receipt contains forbidden field or value %q: %s", forbidden, serialized)
 		}
 	}
-	for _, expected := range []string{"DGS-10001", "پیراهن", "1250000", "zibal", "TRK-1", "jalali_created_at"} {
+	for _, expected := range []string{"DGS-10001", "پیراهن", "1250000", "zibal", "پست پیشتاز", "shipping_method", "jalali_created_at"} {
 		if !strings.Contains(serialized, expected) {
 			t.Errorf("receipt is missing expected value %q: %s", expected, serialized)
 		}
+	}
+}
+
+func TestNormalizeCheckoutShippingMethod(t *testing.T) {
+	method, err := normalizeCheckoutShippingMethod("  پست پیشتاز  ")
+	if err != nil || method != "پست پیشتاز" {
+		t.Fatalf("normalized shipping method = %q, err = %v", method, err)
+	}
+
+	tooLong := strings.Repeat("ا", maxCheckoutShippingMethodLength+1)
+	if _, err := normalizeCheckoutShippingMethod(tooLong); err == nil {
+		t.Fatal("expected an overlong shipping method to be rejected")
 	}
 }
 
