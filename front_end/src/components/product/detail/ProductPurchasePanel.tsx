@@ -16,6 +16,7 @@ import { cn, toPersianNumber } from "@/lib/utils";
 import { Product } from "@/types/product";
 import { VariantSelection } from "./useVariantSelection";
 import SizeGuideModal from "./SizeGuideModal";
+import SizeRecommendationModal from "./SizeRecommendationModal";
 
 export interface BrandLink {
   name: string;
@@ -83,6 +84,7 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
   ) {
     const hint = selectionHint(selection);
     const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
+    const [isSizeRecommendationOpen, setIsSizeRecommendationOpen] = useState(false);
 
     return (
       <div className={cn("animate-hero-rise", className)}>
@@ -127,7 +129,10 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
             showClearButton={!!(selection.selectedSize || selection.selectedColor)}
             onClear={selection.clear}
             showSizeGuide={true}
+            sizeGuideLabel="جدول اندازه‌ها"
             onSizeGuideClick={() => setIsSizeGuideOpen(true)}
+            showSizeRecommendation
+            onSizeRecommendationClick={() => setIsSizeRecommendationOpen(true)}
           />
         )}
 
@@ -220,6 +225,14 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
           product={product}
           selectedSize={selection.selectedSize}
           onSelectSize={selection.setSize}
+        />
+
+        <SizeRecommendationModal
+          isOpen={isSizeRecommendationOpen}
+          onClose={() => setIsSizeRecommendationOpen(false)}
+          onOpenSizeGuide={() => setIsSizeGuideOpen(true)}
+          product={product}
+          selection={selection}
         />
       </div>
     );

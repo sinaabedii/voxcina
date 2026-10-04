@@ -146,6 +146,8 @@ func NewRouter() *mux.Router {
 		Methods(http.MethodGet)
 	api.HandleFunc("/products/collection/{collectionValue}", handlers.GetProductsByCollection).
 		Methods(http.MethodGet)
+	api.HandleFunc("/products/{id}/size-recommendation", handlers.RecommendProductSize).
+		Methods(http.MethodPost)
 	api.HandleFunc("/products/{id}", handlers.GetProduct).Methods(http.MethodGet)
 
 	// AI-Powered Search and Chat endpoints
