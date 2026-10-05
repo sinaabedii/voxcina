@@ -28,9 +28,10 @@ import (
 )
 
 const (
-	sizingTypesCollection = "sizing_types"
-	sizingTypeUploadDir   = "./uploads/size-guides"
-	sizingTypeWebPrefix   = "/uploads/size-guides/"
+	sizingTypesCollection        = "sizing_types"
+	sizingChartPresetsCollection = "sizing_chart_presets"
+	sizingTypeUploadDir          = "./uploads/size-guides"
+	sizingTypeWebPrefix          = "/uploads/size-guides/"
 )
 
 // validateImageMagicBytes checks magic bytes for common web image formats.
@@ -342,7 +343,15 @@ func ListAdminSizingTypes(w http.ResponseWriter, r *http.Request) {
 		sizingTypes = []models.SizingType{}
 	}
 
-	utils.JSONResponse(w, http.StatusOK, sizingTypes)
+	// Attach each template's saved size-chart snapshots (saved_size_charts)
+	// so the admin form can offer them when the template is reused.
+	items, err := attachSavedSizeCharts(ctx, sizingTypes)
+	if err != nil {
+		utils.ErrorResponse(w, http.StatusInternalServerError, "Error fetching size chart presets: "+err.Error())
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, items)
 }
 
 // ListPublicSizingTypes handles GET /api/sizing-types
@@ -993,6 +1002,14 @@ func DeleteSizingType(w http.ResponseWriter, r *http.Request) {
 		bson.M{"$unset": bson.M{"sizing_type_id": ""}},
 	); err != nil {
 		utils.LogAction("DELETE_SIZING_TYPE_UNLINK_PRODUCTS_FAILED", fmt.Sprintf("error: %v, sizing_type_id: %s", err, objID.Hex()))
+	}
+
+	// Remove every size-chart snapshot archived for this template
+	if _, err := db.Database.Collection(sizingChartPresetsCollection).DeleteMany(
+		ctx,
+		bson.M{"sizing_type_id": objID},
+	); err != nil {
+		utils.LogAction("DELETE_SIZING_TYPE_PRESET_FAILED", fmt.Sprintf("error: %v, sizing_type_id: %s", err, objID.Hex()))
 	}
 
 	utils.JSONResponse(w, http.StatusOK, map[string]string{

@@ -74,6 +74,18 @@ type ProductSizeMeasurement struct {
 	Values map[string]string `bson:"values" json:"values"`
 }
 
+// SizingChartPreset stores a distinct size chart saved against a sizing
+// template so the admin form can offer every filled variant back when the
+// same template is reused on another product. One document per distinct
+// chart per sizing type id (content_hash dedupes; touch refreshes updated_at).
+type SizingChartPreset struct {
+	ID           primitive.ObjectID       `bson:"_id,omitempty"  json:"id,omitempty"`
+	SizingTypeID primitive.ObjectID       `bson:"sizing_type_id" json:"sizing_type_id"`
+	SizeChart    []ProductSizeMeasurement `bson:"size_chart"     json:"size_chart"`
+	ContentHash  string                   `bson:"content_hash"   json:"content_hash"`
+	UpdatedAt    time.Time                `bson:"updated_at"     json:"updated_at"`
+}
+
 // Product represents a product in the shop
 type Product struct {
 	ID            primitive.ObjectID   `bson:"_id,omitempty"            json:"id,omitempty"`

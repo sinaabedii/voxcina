@@ -23,6 +23,19 @@ export interface SizingType {
   display_order: number;
   created_at?: string;
   updated_at?: string;
+  /**
+   * Admin-only: distinct saved size charts for this template (learned from
+   * product saves), sorted newest first. Absent when the template was never
+   * used, and never returned by the public listing — treat it as optional.
+   */
+  saved_size_charts?: SizingTypeSavedChart[];
+}
+
+export interface SizingTypeSavedChart {
+  /** Full chart rows of that save ({size, values}), keyed by template measurement. */
+  size_chart: ProductSizeMeasurement[];
+  /** Save timestamp; the admin list orders entries by it (newest first). */
+  updated_at: string;
 }
 
 export interface SizingGenerateResponse {

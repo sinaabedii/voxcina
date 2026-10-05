@@ -815,6 +815,10 @@ func AddProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Best-effort: archive the saved size chart as a distinct snapshot for the
+	// sizing template so it can be reused from the admin form (guard is inside).
+	saveSizingChartSnapshot(ctx, sizingTypeID, sizeChart)
+
 	// Best-effort: upsert product embedding into FAISS vector index
 	if product.SearchMetadata != nil && len(product.SearchMetadata.EmbeddingVector) > 0 {
 		faissClient := services.NewFaissClientFromEnv()
@@ -2362,6 +2366,15 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 			"Error updating product: "+err.Error(),
 		)
 		return
+	}
+
+	// Best-effort: archive the sizing template's saved size chart as a
+	// distinct snapshot when this save carried both a non-nil template and a
+	// usable chart (a cleared template or an empty slice never touches the
+	// stored snapshots; the validity guard lives inside saveSizingChartSnapshot).
+	if stID, ok := update["sizing_type_id"].(*primitive.ObjectID); ok && stID != nil {
+		chart, _ := update["size_chart"].([]models.ProductSizeMeasurement)
+		saveSizingChartSnapshot(ctx, stID, chart)
 	}
 
 	// Delete old images from filesystem after successful DB update

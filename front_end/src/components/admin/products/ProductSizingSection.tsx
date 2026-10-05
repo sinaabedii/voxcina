@@ -16,6 +16,8 @@ import {
   Table as TableIcon,
   CheckCircle2,
   Loader2,
+  History,
+  Eraser,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "react-toastify";
@@ -25,10 +27,55 @@ import {
   AdminBadge,
   AdminModal,
 } from "@/components/admin/ui";
-import { SizingType, SizingMeasurementDef } from "@/types/sizing-type";
+import {
+  SizingType,
+  SizingTypeSavedChart,
+  SizingMeasurementDef,
+} from "@/types/sizing-type";
 import { ProductSizeMeasurement, ColorVariant } from "@/types/product";
 import { useSizingTypeStore } from "@/store/sizing-type-store";
 import { toPersianNumber } from "@/lib/utils";
+
+/** Notice shown when values were loaded from one of a template's saved charts. */
+const PRESET_NOTICE_TEXT =
+  "مقادیر قبلی این قالب بارگذاری شد؛ می‌توانید ویرایش کنید";
+
+/** Jalali, Persian-digit date (admin convention: toLocaleDateString("fa-IR")). */
+const formatSavedChartDate = (dateString?: string): string => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString("fa-IR");
+};
+
+/** Stable identity of a saved-table entry (its save timestamp). */
+const savedEntryKey = (entry?: SizingTypeSavedChart): string =>
+  String(entry?.updated_at ?? "");
+
+/**
+ * Usable saved tables of a template, newest first (backend contract order).
+ * Entries without a timestamp or with an empty chart are unusable — they
+ * cannot be picked or marked in the chooser.
+ */
+const getSavedSizeCharts = (type?: SizingType | null): SizingTypeSavedChart[] =>
+  (type?.saved_size_charts ?? []).filter(
+    (entry) =>
+      !!entry?.updated_at &&
+      Array.isArray(entry.size_chart) &&
+      entry.size_chart.length > 0
+  );
+
+/** «جدول ۲ — ۱۴۰۴/۰۷/۱۲ (+ row-count hint)» label for a saved table. */
+const savedEntryLabel = (
+  entry: SizingTypeSavedChart,
+  index: number,
+  withCount: boolean
+): string => {
+  const date = formatSavedChartDate(entry?.updated_at);
+  const base = `جدول ${toPersianNumber(index + 1)}${date ? ` — ${date}` : ""}`;
+  if (!withCount) return base;
+  const rows = Array.isArray(entry?.size_chart) ? entry.size_chart.length : 0;
+  return `${base} (${toPersianNumber(rows)} ردیف)`;
+};
 
 export interface ProductSizingSectionProps {
   sizingTypeId?: string;
@@ -61,6 +108,19 @@ export default function ProductSizingSection({
   const [zoomDiagram, setZoomDiagram] = useState(false);
   const [activeTooltipKey, setActiveTooltipKey] = useState<string | null>(null);
   const [isExtrapolating, setIsExtrapolating] = useState(false);
+  // Set when measurement values were loaded from one of the template's saved
+  // size charts — drives the inline, non-error notice near the table.
+  const [presetNoticeText, setPresetNoticeText] = useState<string | null>(null);
+  // Key of the saved table currently loaded into the chart (marks the loaded
+  // entry in the notice/picker). Reset alongside the notice on stale events.
+  const [loadedSavedChartKey, setLoadedSavedChartKey] = useState<string | null>(null);
+
+  // Shared stale-state reset: template change/deselect, chart cleared, last
+  // row removed, or the AI rewrite — clears both the notice and the marker.
+  const resetPresetFeedback = () => {
+    setPresetNoticeText(null);
+    setLoadedSavedChartKey(null);
+  };
 
   // Fetch sizing types on mount if not already loaded
   useEffect(() => {
@@ -102,23 +162,177 @@ export default function ProductSizingSection({
     return Array.from(set);
   }, [colorVariants]);
 
+  // ── Reusable filled size chart (prefill from the template's last save) ─────
+  // Row matching: size labels compared after trimming and lowercasing, so
+  // a saved "M" matches chart rows "M", "m" and " M ".
+  const normalizeSizeKey = (value: unknown): string =>
+    String(value ?? "").trim().toLowerCase();
+
+  const rowHasAnyValue = (row: ProductSizeMeasurement): boolean =>
+    Object.values(row?.values || {}).some((v) => String(v ?? "").trim() !== "");
+
+  const hasAnyChartValue = (chart: ProductSizeMeasurement[]): boolean =>
+    chart.some(rowHasAnyValue);
+
+  // Merge preset values into chart rows. Existing non-empty values are never
+  // touched; rows whose size label has no preset counterpart stay empty-valued.
+  const applyPresetToRows = (
+    preset: ProductSizeMeasurement[],
+    rows: ProductSizeMeasurement[]
+  ): { rows: ProductSizeMeasurement[]; changed: boolean } => {
+    const known = preset
+      .filter((p) => p && normalizeSizeKey(p.size))
+      .map((p) => ({ key: normalizeSizeKey(p.size), values: p.values || {} }));
+    const next = rows.map((row) => {
+      if (rowHasAnyValue(row)) return row;
+      const match = known.find((p) => p.key === normalizeSizeKey(row?.size));
+      if (!match) return row;
+      const presetValues: Record<string, string> = {};
+      for (const [key, value] of Object.entries(match.values || {})) {
+        if (
+          value !== undefined &&
+          value !== null &&
+          String(value).trim() !== ""
+        ) {
+          presetValues[key] = String(value);
+        }
+      }
+      if (Object.keys(presetValues).length === 0) return row;
+      return { ...row, values: presetValues };
+    });
+    return { rows: next, changed: next.some((row, i) => row !== rows[i]) };
+  };
+
+  // Fill `rows` from ONE saved table entry; existing non-empty values are
+  // never touched (applyPresetToRows enforces that). Returns true when the
+  // chart changed. `markKey=false` keeps the "currently loaded" marker intact
+  // (used by auxiliary fills such as the variant sync).
+  const tryApplySavedEntry = (
+    entry: SizingTypeSavedChart | undefined,
+    rows: ProductSizeMeasurement[],
+    markKey = true
+  ): boolean => {
+    if (!entry?.size_chart?.length) return false;
+    const { rows: merged, changed } = applyPresetToRows(entry.size_chart, rows);
+    if (!changed) return false;
+    onChangeSizeChart(merged);
+    setPresetNoticeText(PRESET_NOTICE_TEXT);
+    if (markKey) setLoadedSavedChartKey(savedEntryKey(entry));
+    return true;
+  };
+
+  // Clear action for the preset notice: keep the rows, empty every cell; the
+  // saved-tables picker stays available for loading a different table.
+  const handleClearChartValues = () => {
+    onChangeSizeChart(
+      sizeChart.map((row) => ({ ...row, values: {} as Record<string, string> }))
+    );
+    resetPresetFeedback();
+  };
+
+  // Seed fresh rows directly from a saved table (size labels + values).
+  const seedRowsFromEntry = (
+    entry: SizingTypeSavedChart
+  ): ProductSizeMeasurement[] =>
+    (entry.size_chart || [])
+      .filter((p) => p && String(p.size ?? "").trim())
+      .map((p) => ({
+        size: String(p.size),
+        values: Object.fromEntries(
+          Object.entries(p.values || {}).filter(
+            ([, v]) =>
+              v !== null && v !== undefined && String(v).trim() !== ""
+          )
+        ),
+      }));
+
+  // Keep variant-governed seeded rows even when nothing matched (rows stay
+  // empty-valued exactly as they would without a saved table).
+  const seedRowsWithSavedEntry = (
+    entry: SizingTypeSavedChart,
+    seededRows: ProductSizeMeasurement[]
+  ) => {
+    if (!tryApplySavedEntry(entry, seededRows)) {
+      onChangeSizeChart(seededRows);
+    }
+  };
+
+  // No rows and no variant sizes: seed the rows straight from the table.
+  const seedChartFromSavedEntry = (entry: SizingTypeSavedChart) => {
+    const presetRows = seedRowsFromEntry(entry);
+    onChangeSizeChart(presetRows);
+    if (presetRows.length > 0 && hasAnyChartValue(presetRows)) {
+      setPresetNoticeText(PRESET_NOTICE_TEXT);
+      setLoadedSavedChartKey(savedEntryKey(entry));
+    }
+  };
+
   // Handle Sizing Type selection
   const handleSelectSizingType = (newId: string) => {
     onChangeSizingTypeId(newId);
+    resetPresetFeedback();
 
     if (!newId) {
       onChangeSizeChart([]);
       return;
     }
 
-    // If sizeChart is currently empty and we have variant sizes, auto-populate rows!
-    if (sizeChart.length === 0 && variantSizes.length > 0) {
-      const initialChart: ProductSizeMeasurement[] = variantSizes.map((size) => ({
+    // selectedSizingType still reflects the previous selection in this closure,
+    // so resolve the newly chosen template directly from the store list. Its
+    // saved_size_charts (admin responses only; absent on the public fallback)
+    // may prefill the chart — the NEWEST table loads automatically, and only
+    // while the chart contains no measurement values.
+    const newType = sizingTypes.find((st) => st.id === newId);
+    const newestSaved = getSavedSizeCharts(newType)[0];
+
+    // Rows already exist: keep their order/labels as governed by the variant
+    // sync; the table only fills values into an otherwise fully empty chart.
+    if (sizeChart.length > 0) {
+      if (newestSaved && !hasAnyChartValue(sizeChart)) {
+        tryApplySavedEntry(newestSaved, sizeChart);
+      }
+      return;
+    }
+
+    // Empty chart with variant sizes: seed rows from the variant sizes (as
+    // today), then fill the values from the newest saved table.
+    if (variantSizes.length > 0) {
+      const seededRows: ProductSizeMeasurement[] = variantSizes.map((size) => ({
         size,
         values: {},
       }));
-      onChangeSizeChart(initialChart);
+      if (newestSaved) {
+        seedRowsWithSavedEntry(newestSaved, seededRows);
+      } else {
+        onChangeSizeChart(seededRows);
+      }
+      return;
     }
+
+    if (newestSaved) {
+      seedChartFromSavedEntry(newestSaved);
+    }
+  };
+
+  // Picker action: load the admin-chosen saved table into the current chart
+  // (same fill rules as the automatic prefill; the picker is only reachable
+  // while the chart carries no values, so existing cells are never lost).
+  const handleLoadSavedChartEntry = (entry: SizingTypeSavedChart) => {
+    if (sizeChart.length > 0) {
+      if (hasAnyChartValue(sizeChart)) return;
+      tryApplySavedEntry(entry, sizeChart);
+      return;
+    }
+
+    if (variantSizes.length > 0) {
+      seedRowsWithSavedEntry(
+        entry,
+        variantSizes.map((size) => ({ size, values: {} }))
+      );
+      return;
+    }
+
+    seedChartFromSavedEntry(entry);
   };
 
   // Synchronize size rows with product color variant sizes
@@ -140,10 +354,17 @@ export default function ProductSizingSection({
       return;
     }
 
-    onChangeSizeChart([
+    const withMissing = [
       ...sizeChart,
       ...missing.map((size) => ({ size, values: {} as Record<string, string> })),
-    ]);
+    ];
+
+    // Rows appended by the sync start empty; when the template has saved
+    // tables, matching empty rows are filled from the NEWEST table (existing
+    // values are never overwritten). Otherwise unchanged behaviour.
+    if (!tryApplySavedEntry(getSavedSizeCharts(selectedSizingType)[0], withMissing)) {
+      onChangeSizeChart(withMissing);
+    }
     toast.success(
       `${toPersianNumber(missing.length)} سایز از تنوع محصول به جدول ابعاد اضافه شد`
     );
@@ -189,7 +410,9 @@ export default function ProductSizingSection({
 
   // Remove a size row
   const handleRemoveSizeRow = (rowIndex: number) => {
-    onChangeSizeChart(sizeChart.filter((_, idx) => idx !== rowIndex));
+    const next = sizeChart.filter((_, idx) => idx !== rowIndex);
+    onChangeSizeChart(next);
+    if (next.length === 0) resetPresetFeedback();
   };
 
   // AI Measurement Extrapolation
@@ -222,6 +445,8 @@ export default function ProductSizingSection({
 
       if (newChart && newChart.length > 0) {
         onChangeSizeChart(newChart);
+        // The AI rewrote the cells; the notice and "loaded" marker are stale now.
+        resetPresetFeedback();
         toast.success("اندازه‌های خالی بر اساس اصول گرادینگ با موفقیت تکمیل شدند");
       }
     } catch {
@@ -232,6 +457,23 @@ export default function ProductSizingSection({
   };
 
   const measurements: SizingMeasurementDef[] = selectedSizingType?.measurements || [];
+
+  // Saved-tables strip state: the chooser appears when the template has an
+  // archive and the chart is value-less (fresh, cleared, or unmatched).
+  const savedChartEntries = getSavedSizeCharts(selectedSizingType);
+  const showSavedChartsPicker =
+    savedChartEntries.length > 0 && !hasAnyChartValue(sizeChart);
+  // The entry currently occupying the chart — shown as a small badge in the
+  // notice when something was loaded (auto-prefill or a picker choice).
+  let loadedSavedBadge: string | null = null;
+  if (loadedSavedChartKey) {
+    const loadedIndex = savedChartEntries.findIndex(
+      (entry) => savedEntryKey(entry) === loadedSavedChartKey
+    );
+    if (loadedIndex >= 0) {
+      loadedSavedBadge = savedEntryLabel(savedChartEntries[loadedIndex], loadedIndex, false);
+    }
+  }
 
   return (
     <AdminTableCard className="p-4 md:p-6 space-y-6">
@@ -452,6 +694,64 @@ export default function ProductSizingSection({
               </Button>
             </div>
           </div>
+
+          {/* Archive strip: loaded-table notice (top) and saved-tables chooser when empty */}
+          {(presetNoticeText || showSavedChartsPicker) && (
+            <div className="flex flex-col gap-2">
+              {/* Loaded notice: subtle, informational — kept until values are cleared */}
+              {presetNoticeText && (
+                <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800/60">
+                  <span className="flex flex-wrap items-center gap-2 text-xs text-sky-700 dark:text-sky-300 font-medium">
+                    <History className="w-3.5 h-3.5 shrink-0" />
+                    {presetNoticeText}
+                    {loadedSavedBadge && (
+                      <span className="rounded-md bg-sky-100/80 dark:bg-sky-500/10 border border-sky-200 dark:border-sky-700/50 px-2 py-0.5 text-[11px] font-semibold text-sky-800 dark:text-sky-200">
+                        {loadedSavedBadge}
+                      </span>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleClearChartValues}
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-700/80 dark:text-sky-400/80 hover:text-sky-700 dark:hover:text-sky-300 transition-colors shrink-0"
+                  >
+                    <Eraser className="w-3 h-3" />
+                    پاک کردن مقادیر
+                  </button>
+                </div>
+              )}
+
+              {/* Saved-tables chooser: reachable whenever the chart is value-less */}
+              {showSavedChartsPicker && (
+                <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-50/80 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-800/60">
+                  <span className="flex items-center gap-2 text-xs font-medium text-sky-700 dark:text-sky-300 shrink-0">
+                    <History className="w-3.5 h-3.5 shrink-0" />
+                    بارگذاری جدول ذخیره‌شده
+                  </span>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const picked = savedChartEntries.find(
+                        (entry) => savedEntryKey(entry) === e.target.value
+                      );
+                      if (picked) handleLoadSavedChartEntry(picked);
+                    }}
+                    className="flex-1 min-w-[200px] rounded-lg border border-sky-200 dark:border-sky-800/60 bg-white/90 dark:bg-voxcina-blue/40 px-2.5 py-1.5 text-xs text-voxcina-blue dark:text-voxcina-cream focus:outline-none"
+                  >
+                    <option value="">انتخاب از آرشیو این قالب…</option>
+                    {savedChartEntries.map((entry, idx) => (
+                      <option
+                        key={`${savedEntryKey(entry) || "saved"}-${idx}`}
+                        value={savedEntryKey(entry)}
+                      >
+                        {savedEntryLabel(entry, idx, true)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Table Container */}
           {activeTab === "edit" ? (
