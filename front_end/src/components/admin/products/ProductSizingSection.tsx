@@ -125,24 +125,28 @@ export default function ProductSizingSection({
   const handleSyncWithVariants = () => {
     if (variantSizes.length === 0) return;
 
-    const existingMap = new Map<string, Record<string, string>>();
-    for (const row of sizeChart) {
-      existingMap.set(row.size.trim(), row.values || {});
+    const normalize = (value: unknown) => String(value ?? "").trim();
+
+    // Sizes already present in the chart (null-safe: rows can be partially filled)
+    const existingSizes = new Set(
+      sizeChart.map((row) => normalize(row?.size)).filter(Boolean)
+    );
+
+    // Fill the size column with every color-variant size that is still missing
+    const missing = variantSizes.filter((vSize) => !existingSizes.has(normalize(vSize)));
+
+    if (missing.length === 0) {
+      toast.info("سایزهای جدول از قبل با سایزهای تنوع محصول همگام است");
+      return;
     }
 
-    // Keep existing rows and add missing variant sizes
-    const merged: ProductSizeMeasurement[] = [...sizeChart];
-
-    for (const vSize of variantSizes) {
-      if (!merged.some((row) => row.size.trim() === vSize)) {
-        merged.push({
-          size: vSize,
-          values: existingMap.get(vSize) || {},
-        });
-      }
-    }
-
-    onChangeSizeChart(merged);
+    onChangeSizeChart([
+      ...sizeChart,
+      ...missing.map((size) => ({ size, values: {} as Record<string, string> })),
+    ]);
+    toast.success(
+      `${toPersianNumber(missing.length)} سایز از تنوع محصول به جدول ابعاد اضافه شد`
+    );
   };
 
   // Add custom size row
