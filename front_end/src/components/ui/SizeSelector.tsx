@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Sparkles, X } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface SizeSelectorProps {
@@ -38,6 +38,9 @@ const SizeSelector: React.FC<SizeSelectorProps> = ({
   onClear,
   className,
 }) => {
+  // framer-motion animations ignore the CSS `motion-reduce:` escape hatch, so
+  // the hover lift/tap squash are switched off for users who opt out federally.
+  const reduceMotion = useReducedMotion();
   const isAvailable = (size: string) => {
     if (!availableSizes) return true;
     return availableSizes.includes(size);
@@ -68,13 +71,15 @@ const SizeSelector: React.FC<SizeSelectorProps> = ({
                 {sizeGuideLabel}
               </button>
             )}
-            {showClearButton && selectedSize && onClear && (
+            {/* The caller decides when clearing is meaningful (size, colour, or
+                both); this row only refuses an entry point it cannot act on. */}
+            {showClearButton && onClear && (
               <button
                 type="button"
-                className="text-xs text-destructive hover:text-destructive/80 transition-colors flex items-center"
+                className="flex min-h-11 items-center rounded-lg px-2 text-xs text-destructive transition-colors hover:text-destructive/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40 motion-reduce:transition-none"
                 onClick={onClear}
               >
-                <X className="h-3 w-3 ml-1" />
+                <X className="h-3 w-3 ml-1" aria-hidden="true" />
                 حذف انتخاب
               </button>
             )}
@@ -91,17 +96,18 @@ const SizeSelector: React.FC<SizeSelectorProps> = ({
               key={size}
               type="button"
               className={cn(
-                "min-h-11 px-4 py-2 border rounded-lg text-sm transition-all motion-reduce:transition-none",
+                "min-h-11 px-4 py-2 border rounded-lg text-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 motion-reduce:transition-none",
                 isSelected
                   ? "border-primary bg-primary/10 text-primary font-medium shadow-soft"
                   : available
-                    ? "border-border/30 text-foreground hover:border-primary/50"
+                    ? "border-border/30 text-foreground hover:border-primary/50 hover:bg-primary/5"
                     : "border-border/20 text-muted-foreground opacity-60 cursor-not-allowed"
               )}
+              aria-pressed={isSelected}
               onClick={() => available && onSizeChange(isSelected ? undefined : size)}
               data-size-option={size}
-              whileHover={available ? { y: -2 } : {}}
-              whileTap={available ? { scale: 0.97 } : {}}
+              whileHover={available && !reduceMotion ? { y: -2 } : undefined}
+              whileTap={available && !reduceMotion ? { scale: 0.97 } : undefined}
               disabled={!available}
             >
               {size}

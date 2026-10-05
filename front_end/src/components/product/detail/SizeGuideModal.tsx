@@ -29,8 +29,13 @@ export default function SizeGuideModal({
       isOpen={isOpen}
       onClose={onClose}
       title="راهنمای جامع سایزبندی و اندازه‌گیری"
-      contentClassName="max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl border border-border/30 bg-background/95 backdrop-blur-md shadow-2xl p-0"
+      overlayClassName="items-end sm:items-center sm:p-4"
+      contentClassName="max-w-4xl max-h-[94vh] sm:max-h-[92vh] overflow-y-auto rounded-t-3xl rounded-b-none sm:rounded-3xl border border-border/30 bg-background/95 backdrop-blur-md shadow-2xl p-0"
+      className="p-0"
     >
+      {/* Bottom sheet under `sm` (matches SizeRecommendationModal), centred
+          dialog above. `className="p-0"` removes the shared Modal's extra
+          wrapper padding — the panel owns its spacing here. */}
       <div className="p-4 sm:p-6" dir="rtl">
         <ProductSizeGuide
           product={product}

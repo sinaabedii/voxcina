@@ -66,6 +66,11 @@ export default function ProductInfoTabs({
   };
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Home" || event.key === "End") {
+      event.preventDefault();
+      focusTab(event.key === "Home" ? TABS[0].key : TABS[TABS.length - 1].key);
+      return;
+    }
     // RTL tablist: ArrowLeft moves to the next tab on screen.
     const step = event.key === "ArrowLeft" ? 1 : event.key === "ArrowRight" ? -1 : 0;
     if (!step) return;
@@ -99,11 +104,11 @@ export default function ProductInfoTabs({
               role="tab"
               id={`product-tab-${tab.key}`}
               aria-selected={isActive}
-              aria-controls={`product-panel-${tab.key}`}
+              aria-controls="product-tabpanel"
               tabIndex={isActive ? 0 : -1}
               onClick={() => setActiveTab(tab.key)}
               className={cn(
-                "px-3 py-4 text-sm transition-colors",
+                "px-3 py-4 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50",
                 isActive
                   ? "bg-secondary/40 font-medium text-primary"
                   : "text-foreground/75 hover:bg-secondary/20 hover:text-primary"
@@ -125,7 +130,7 @@ export default function ProductInfoTabs({
       >
         <div
           role="tabpanel"
-          id={`product-panel-${activeTab}`}
+          id="product-tabpanel"
           aria-labelledby={`product-tab-${activeTab}`}
           tabIndex={0}
           className={cn(
