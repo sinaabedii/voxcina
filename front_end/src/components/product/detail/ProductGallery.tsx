@@ -160,7 +160,7 @@ export default function ProductGallery({
 
   return (
     <>
-      <div className={cn("animate-hero-rise", className)}>
+      <div className={cn("animate-hero-rise min-w-0", className)}>
         <div className={GALLERY_LAYOUT}>
           {hasMultiple && (
             <div className={GALLERY_RAIL} aria-label="تصاویر محصول">

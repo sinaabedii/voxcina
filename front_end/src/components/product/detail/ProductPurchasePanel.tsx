@@ -87,7 +87,7 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
     const [isSizeRecommendationOpen, setIsSizeRecommendationOpen] = useState(false);
 
     return (
-      <div className={cn("animate-hero-rise", className)}>
+      <div className={cn("animate-hero-rise min-w-0", className)}>
         <h1 className="mb-2 text-2xl font-bold text-primary lg:text-3xl">{product.name}</h1>
 
         <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2">
