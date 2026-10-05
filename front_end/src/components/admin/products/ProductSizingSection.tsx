@@ -460,7 +460,7 @@ export default function ProductSizingSection({
               <table className="w-full text-right text-xs">
                 <thead>
                   <tr className="bg-voxcina-cream/40 dark:bg-voxcina-blue/40 border-b border-voxcina-cream/60 dark:border-voxcina-blue/30">
-                    <th className="p-3 font-bold text-voxcina-blue dark:text-voxcina-cream w-28 whitespace-nowrap">
+                    <th className="p-3 font-bold text-voxcina-blue dark:text-voxcina-cream w-28 min-w-[120px] whitespace-nowrap">
                       سایز
                     </th>
 
@@ -549,7 +549,7 @@ export default function ProductSizingSection({
                               handleUpdateSizeLabel(rowIdx, e.target.value)
                             }
                             placeholder="مثلاً M"
-                            className="w-full text-xs font-bold text-voxcina-blue dark:text-voxcina-cream bg-white dark:bg-voxcina-blue/40 border border-voxcina-cream/80 dark:border-voxcina-blue/40 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-voxcina-blue/60"
+                            className="w-full min-w-[88px] text-xs font-bold text-voxcina-blue dark:text-voxcina-cream bg-white dark:bg-voxcina-blue/40 border border-voxcina-cream/80 dark:border-voxcina-blue/40 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-voxcina-blue/60"
                           />
                         </td>
 
@@ -622,7 +622,7 @@ export default function ProductSizingSection({
                         key={idx}
                         className={idx % 2 === 0 ? "bg-white/40 dark:bg-transparent" : "bg-voxcina-cream/10 dark:bg-voxcina-blue/10"}
                       >
-                        <td className="p-3 font-bold text-voxcina-blue dark:text-voxcina-cream">
+                        <td className="p-3 font-bold text-voxcina-blue dark:text-voxcina-cream whitespace-nowrap">
                           {row.size}
                         </td>
                         {measurements.map((m) => (

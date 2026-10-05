@@ -673,14 +673,14 @@ export default function EditProductPage() {
 
   if (loadedProductId !== productId && isLoading) {
     return (
-      <div className="max-w-2xl mx-auto py-8">
+      <div className="max-w-5xl mx-auto py-8">
         <AdminLoading message="در حال بارگذاری محصول..." />
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto py-8">
+    <div className="max-w-5xl mx-auto py-8">
       <AdminPageHeader
         title="ویرایش محصول"
         actions={
