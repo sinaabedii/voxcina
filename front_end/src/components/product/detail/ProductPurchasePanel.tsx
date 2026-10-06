@@ -252,7 +252,11 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
         <SizeRecommendationModal
           isOpen={isSizeRecommendationOpen}
           onClose={() => setIsSizeRecommendationOpen(false)}
-          onOpenSizeGuide={() => setIsSizeGuideOpen(true)}
+          onOpenSizeGuide={() => {
+            // Let the recommendation dialog restore its body lock before the
+            // guide's Modal acquires its own lock.
+            window.setTimeout(() => setIsSizeGuideOpen(true), 0);
+          }}
           product={product}
           selection={selection}
         />

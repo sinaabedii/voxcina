@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   AlertCircle,
@@ -10,6 +11,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   HelpCircle,
   Info,
   LockKeyhole,
@@ -156,6 +158,7 @@ export default function SizeRecommendationModal({
   product,
   selection,
 }: SizeRecommendationModalProps) {
+  const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
@@ -175,19 +178,44 @@ export default function SizeRecommendationModal({
   const [result, setResult] = useState<SizeRecommendationResponse | null>(null);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showMeasurements, setShowMeasurements] = useState(false);
   const reduceMotion = useReducedMotion();
   const fields = useMemo(() => getMeasurementFields(product), [product]);
 
   onCloseRef.current = onClose;
   isOpenRef.current = isOpen;
 
-  // The form is tall; when its result replaces it, reset the reading position
-  // so the recommendation card — not the middle of the old form — is on screen.
+  // Every step starts at the top, including returning to edit a long form.
+  // Move keyboard focus with it without opening the phone's keyboard.
   useEffect(() => {
-    if (isOpen && step === "result") {
-      mainRef.current?.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+    if (isOpen) {
+      mainRef.current?.scrollTo({ top: 0, behavior: "instant" });
+      if (step !== "intro") mainRef.current?.focus({ preventScroll: true });
     }
-  }, [isOpen, step, reduceMotion]);
+  }, [isOpen, step]);
+
+  // Mobile browsers can keep 100dvh at its original height while a software
+  // keyboard covers the bottom. Track the visible viewport so the actions and
+  // the scrolling form stay usable while entering measurements.
+  useEffect(() => {
+    if (!isOpen || !window.visualViewport) return;
+    const viewport = window.visualViewport;
+    const updateViewport = () => {
+      if (!overlayRef.current) return;
+      const visibleHeight = Math.min(viewport.height, window.innerHeight);
+      overlayRef.current.style.setProperty("--size-dialog-viewport-height", `${visibleHeight}px`);
+      overlayRef.current.style.top = `${viewport.offsetTop}px`;
+    };
+    updateViewport();
+    viewport.addEventListener("resize", updateViewport);
+    viewport.addEventListener("scroll", updateViewport);
+    window.addEventListener("resize", updateViewport);
+    return () => {
+      viewport.removeEventListener("resize", updateViewport);
+      viewport.removeEventListener("scroll", updateViewport);
+      window.removeEventListener("resize", updateViewport);
+    };
+  }, [isOpen]);
 
   // Validation/API errors render as the last block inside the scroll area; a
   // failed attempt submitted from the top of the form would otherwise sit
@@ -210,12 +238,19 @@ export default function SizeRecommendationModal({
       setResult(null);
       setError("");
       setIsSubmitting(false);
+      setShowMeasurements(false);
       return;
     }
 
     previousFocusRef.current = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
+    const previousPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
     document.body.style.overflow = "hidden";
+    // Keep the page from shifting when the scrollbar disappears behind the
+    // dialog. This is especially noticeable on the product page's centered
+    // gallery and purchase column.
+    if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
     const focusTimer = window.setTimeout(() => closeRef.current?.focus(), 0);
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -232,10 +267,11 @@ export default function SizeRecommendationModal({
       if (!focusable.length) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      const activeIndex = focusable.indexOf(document.activeElement as HTMLElement);
+      if (event.shiftKey && activeIndex <= 0) {
         event.preventDefault();
         last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
+      } else if (!event.shiftKey && (activeIndex === -1 || document.activeElement === last)) {
         event.preventDefault();
         first.focus();
       }
@@ -246,6 +282,7 @@ export default function SizeRecommendationModal({
       window.clearTimeout(focusTimer);
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPaddingRight;
       previousFocusRef.current?.focus({ preventScroll: true });
     };
   }, [isOpen]);
@@ -364,22 +401,17 @@ export default function SizeRecommendationModal({
     sizeIsAvailable(result?.recommended_size);
   const currentStepIndex = wizardSteps.findIndex(({ key }) => key === step);
 
+  // Escape the animated purchase column: its transform creates a containing
+  // block for fixed descendants, even once the entrance animation finishes.
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 60,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "100vw",
-            boxSizing: "border-box",
-            padding: "1rem",
-          }}
+    typeof document !== "undefined"
+      ? createPortal(
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+          key="size-recommendation-overlay"
+          ref={overlayRef}
+          className="fixed inset-x-0 top-0 z-[60] flex h-[var(--size-dialog-viewport-height,100dvh)] items-center justify-center overflow-hidden bg-black/60 p-0 backdrop-blur-sm sm:p-6"
           initial={reduceMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={reduceMotion ? undefined : { opacity: 0 }}
@@ -397,22 +429,10 @@ export default function SizeRecommendationModal({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={reduceMotion ? undefined : { opacity: 0, y: 20, scale: 0.96 }}
             transition={{ type: "spring" as const, damping: 30, stiffness: 400 }}
-            className="overflow-hidden rounded-3xl border border-border/30 bg-background shadow-2xl"
-            style={{
-              position: "relative",
-              display: "flex",
-              flexDirection: "column",
-              flexShrink: 0,
-              width: "100%",
-              maxWidth: "42rem",
-              height: "760px",
-              maxHeight: "calc(100dvh - 2rem)",
-              boxSizing: "border-box",
-            }}
+            className="relative flex h-full max-h-full w-full shrink-0 flex-col overflow-hidden bg-background shadow-2xl sm:h-[760px] sm:max-w-[48rem] sm:rounded-3xl sm:border sm:border-border/30"
           >
             <header
-              className="shrink-0 border-b border-border/20 bg-card/90 px-3 py-3 backdrop-blur-md sm:px-6 sm:py-4"
-              style={{ flexShrink: 0 }}
+              className="shrink-0 border-b border-border/20 bg-card/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md sm:px-6 sm:py-4"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2.5">
@@ -420,12 +440,12 @@ export default function SizeRecommendationModal({
                     <Ruler className="h-5 w-5" aria-hidden="true" />
                   </div>
                   <div className="min-w-0">
-                    <h2 id="size-recommendation-title" className="text-base font-bold text-primary sm:text-lg">
+                    <h2 id="size-recommendation-title" className="text-lg font-bold text-foreground sm:text-xl">
                       سایز مناسب من
                     </h2>
                     <p
                       id="size-recommendation-description"
-                      className="line-clamp-2 text-[11px] leading-4 text-muted-foreground"
+                      className="mt-1 truncate text-xs leading-5 text-muted-foreground"
                     >
                       برای {product.name}
                     </p>
@@ -453,7 +473,7 @@ export default function SizeRecommendationModal({
                     <span
                       aria-current={index === currentStepIndex ? "step" : undefined}
                       className={cn(
-                        "mt-1 block truncate text-[10px] leading-4",
+                        "mt-1.5 block truncate text-xs leading-5",
                         index === currentStepIndex ? "font-semibold text-primary" : "text-muted-foreground"
                       )}
                     >
@@ -466,13 +486,9 @@ export default function SizeRecommendationModal({
     
             <main
               ref={mainRef}
-              className="min-h-0 overflow-y-auto overscroll-contain px-3 py-4 pb-8 sm:px-7 sm:py-6 sm:pb-10"
-              style={{
-                minHeight: 0,
-                flex: "1 1 0%",
-                overflowY: "auto",
-                overscrollBehavior: "contain",
-              }}
+              tabIndex={-1}
+              aria-label={wizardSteps[currentStepIndex].label}
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 pb-8 [WebkitOverflowScrolling:touch] sm:px-7 sm:py-6 sm:pb-10"
             >
           {/* Persistent live region: announced when the outcome lands, from any
               step. Placed first so it is read before the result content. */}
@@ -486,7 +502,7 @@ export default function SizeRecommendationModal({
               <div className="mx-auto w-full max-w-2xl">
               {step === "intro" && (
                 <div className="space-y-5 sm:space-y-6">
-                  <div className="rounded-3xl border border-primary/15 bg-gradient-to-br from-primary/10 via-card to-secondary/30 p-4 sm:p-7">
+                  <div className="rounded-2xl border border-border/40 bg-secondary/50 p-5 sm:p-7">
                     <div className="mb-4 flex items-center gap-2 text-primary">
                       <Sparkles className="h-5 w-5" />
                       <span className="text-sm font-bold">انتخابی نزدیک‌تر به تن‌خور شما</span>
@@ -495,20 +511,20 @@ export default function SizeRecommendationModal({
                       با چند اطلاعات ساده، سایز مناسب را پیدا کنید.
                     </h3>
                     <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                      این نتیجه یک تخمین تقریبی است، نه اندازه‌گیری قطعی. اطلاعات شما فقط برای همین پیشنهاد استفاده می‌شود و ذخیره نمی‌شود.
+                      قد، وزن تقریبی و تن‌خور دلخواهتان را وارد کنید. اگر اندازه‌های بیشتری دارید، می‌توانید برای پیشنهاد دقیق‌تر اضافه کنید.
                     </p>
                   </div>
     
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-2xl border border-border/30 bg-card/70 p-4">
                       <LockKeyhole className="mb-3 h-5 w-5 text-primary" />
-                      <p className="text-sm font-semibold">ذخیره در حساب کاربری</p>
-                      <p className="mt-1 text-xs leading-6 text-muted-foreground">با نام دلخواه چند پروفایل اندازهگیری بسازید و در خریدهای بعدی دوباره استفاده کنید.</p>
+                      <p className="text-sm font-semibold">اطلاعات شما ذخیره نمی‌شود</p>
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">اندازه‌ها فقط برای همین پیشنهاد استفاده می‌شوند؛ نیازی به ورود به حساب نیست.</p>
                     </div>
                     <div className="rounded-2xl border border-border/30 bg-card/70 p-4">
                       <HelpCircle className="mb-3 h-5 w-5 text-primary" />
                       <p className="text-sm font-semibold">کمتر از یک دقیقه</p>
-                      <p className="mt-1 text-xs leading-6 text-muted-foreground">قد، وزن تقریبی و قواره دلخواه کافی است؛ چند اندازه دیگر اختیاری‌اند.</p>
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">در پایان، سایز پیشنهادی را ببینید و با یک دکمه برای این محصول انتخاب کنید.</p>
                     </div>
                   </div>
                 </div>
@@ -516,40 +532,10 @@ export default function SizeRecommendationModal({
     
               {step === "form" && (
                 <form id="size-recommendation-form" onSubmit={submit} className="space-y-6">
-                  <section>
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <div>
-                        <h3 className="text-sm font-bold text-foreground">روش وارد کردن اندازه‌ها</h3>
-                        <p className="mt-1 text-xs text-muted-foreground">هر دو روش نتیجه‌ای تقریبی به شما می‌دهند.</p>
-                      </div>
-                      <Info className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {[
-                        ["measured", "اندازه‌های بدنم را دارم", "اندازه‌های بدن با متر"],
-                        ["reference", "تخمین سریع / لباس مرجع", "اندازه لباس مشابه شما"],
-                      ].map(([value, title, description]) => (
-                        <button
-                          key={value}
-                          type="button"
-                          aria-pressed={method === value}
-                          onClick={() => setMethod(value as Method)}
-                          className={cn(
-                            "min-h-[72px] rounded-2xl border p-3 text-right transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 motion-reduce:transition-none",
-                            method === value
-                              ? "border-primary bg-primary/10 text-primary"
-                              : "border-border/30 bg-card hover:border-primary/40"
-                          )}
-                        >
-                          <span className="flex items-center justify-between gap-2 text-sm font-semibold">
-                            {title}
-                            {method === value && <CheckCircle2 className="h-4 w-4" />}
-                          </span>
-                          <span className="mt-1 block text-xs text-muted-foreground">{description}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </section>
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">از قد و وزن شما شروع کنیم</h3>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">فقط قد و وزن لازم است؛ اندازه‌های بیشتر اختیاری‌اند.</p>
+                  </div>
     
                   <section className="grid gap-4 sm:grid-cols-2">
                     <label className="space-y-2">
@@ -562,7 +548,7 @@ export default function SizeRecommendationModal({
                           maxLength={3}
                           placeholder="مثلاً ۱۷۲"
                           aria-invalid={Boolean(error && !height)}
-                          className="h-12 w-full rounded-xl border border-border/40 bg-card px-4 pl-14 text-sm outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-primary focus:ring-2 focus:ring-primary/15 motion-reduce:transition-none"
+                          className="h-12 w-full rounded-xl border border-border/40 bg-card px-4 pl-20 text-base outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-primary focus:ring-2 focus:ring-primary/15 motion-reduce:transition-none"
                         />
                         <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">سانتی‌متر</span>
                       </div>
@@ -574,7 +560,7 @@ export default function SizeRecommendationModal({
                         onChange={(event) => setWeight(event.target.value)}
                         aria-invalid={Boolean(error && !weight)}
                         className={cn(
-                          "h-12 w-full rounded-xl border border-border/40 bg-card px-4 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/15 motion-reduce:transition-none",
+                            "h-12 w-full rounded-xl border border-border/40 bg-card px-4 text-base outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/15 motion-reduce:transition-none",
                           !weight && "text-muted-foreground/70"
                         )}
                       >
@@ -583,35 +569,6 @@ export default function SizeRecommendationModal({
                       </select>
                     </label>
                   </section>
-    
-                  {fields.length > 0 && (
-                    <section>
-                      <div className="mb-3">
-                        <h3 className="text-sm font-bold text-foreground">اندازه‌های اختیاری برای دقت بیشتر</h3>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {method === "measured" ? "به سانتی‌متر وارد کنید؛ لازم نیست همه را بدانید." : "اندازه لباس مشابه را به سانتی‌متر وارد کنید."}
-                        </p>
-                      </div>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        {fields.map((field) => (
-                          <label key={field.key} className="space-y-2">
-                            <span className="text-sm font-medium">{field.label}</span>
-                            <div className="relative">
-                              <input
-                                value={toPersianNumber(measurements[field.key] || "")}
-                                onChange={(event) => updateMeasurement(field.key, event.target.value)}
-                                inputMode="numeric"
-                                maxLength={3}
-                                placeholder="مثلاً ۹۶"
-                                className="h-12 w-full rounded-xl border border-border/40 bg-card px-4 pl-14 text-sm outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-primary focus:ring-2 focus:ring-primary/15 motion-reduce:transition-none"
-                              />
-                              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">cm</span>
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-                    </section>
-                  )}
     
                   <section>
                     <div className="mb-3">
@@ -631,7 +588,7 @@ export default function SizeRecommendationModal({
                           )}
                         >
                           <span className="block text-sm font-semibold">{option.label}</span>
-                          <span className="mt-1 block text-[10px] text-muted-foreground">{option.description}</span>
+                          <span className="mt-1 block text-xs text-muted-foreground">{option.description}</span>
                         </button>
                       ))}
                     </div>
@@ -642,12 +599,80 @@ export default function SizeRecommendationModal({
                     <select
                       value={usualSize}
                       onChange={(event) => setUsualSize(event.target.value)}
-                      className="h-12 w-full rounded-xl border border-border/40 bg-card px-4 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/15 motion-reduce:transition-none"
+                      className="h-12 w-full rounded-xl border border-border/40 bg-card px-4 text-base outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/15 motion-reduce:transition-none"
                     >
                       <option value="">نمی‌دانم / وارد نمی‌کنم</option>
                       {selection.sizes.map((size) => <option key={size} value={size}>{size}</option>)}
                     </select>
                   </label>
+
+                  {fields.length > 0 && (
+                    <section className="rounded-2xl border border-border/40 bg-card">
+                      <button
+                        type="button"
+                        aria-expanded={showMeasurements}
+                        aria-controls="size-extra-measurements"
+                        onClick={() => setShowMeasurements((current) => !current)}
+                        className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl p-4 text-right focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                      >
+                        <span>
+                          <span className="block text-sm font-semibold">اندازه‌های بیشتر برای دقت بالاتر</span>
+                          <span className="mt-1 block text-xs leading-5 text-muted-foreground">اختیاری — اگر متر یا لباس مشابه در دسترس دارید</span>
+                        </span>
+                        <ChevronDown aria-hidden="true" className={cn("h-5 w-5 shrink-0 transition-transform motion-reduce:transition-none", showMeasurements && "rotate-180")} />
+                      </button>
+                      {showMeasurements && (
+                        <div id="size-extra-measurements" className="space-y-5 border-t border-border/30 p-4">
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {[
+                              ["measured", "اندازه‌های بدن", "با متر اندازه گرفته‌ام"],
+                              ["reference", "اندازه لباس مشابه", "لباسی که تن‌خورش را می‌پسندم"],
+                            ].map(([value, title, description]) => (
+                              <button
+                                key={value}
+                                type="button"
+                                aria-pressed={method === value}
+                                onClick={() => setMethod(value as Method)}
+                                className={cn(
+                                  "min-h-[72px] rounded-xl border p-3 text-right focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+                                  method === value ? "border-primary bg-primary/10 text-foreground" : "border-border/40 hover:border-primary/40"
+                                )}
+                              >
+                                <span className="flex items-center justify-between gap-2 text-sm font-semibold">
+                                  {title}
+                                  {method === value && <CheckCircle2 className="h-4 w-4" />}
+                                </span>
+                                <span className="mt-1 block text-xs text-muted-foreground">{description}</span>
+                              </button>
+                            ))}
+                          </div>
+                          <p className="text-sm leading-6 text-muted-foreground">به سانتی‌متر وارد کنید؛ لازم نیست همه اندازه‌ها را بدانید.</p>
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            {fields.map((field, index) => (
+                              <label key={field.key} className="space-y-2">
+                                <span className="text-sm font-medium">{field.label}</span>
+                                <div className="relative">
+                                  <input
+                                    value={toPersianNumber(measurements[field.key] || "")}
+                                    onChange={(event) => updateMeasurement(field.key, event.target.value)}
+                                    inputMode="numeric"
+                                    maxLength={3}
+                                    placeholder="مثلاً ۹۶"
+                                    aria-describedby={method === "measured" && field.hint ? `size-measurement-hint-${index}` : undefined}
+                                    className="h-12 w-full rounded-xl border border-border/40 bg-background px-4 pl-14 text-base outline-none placeholder:text-muted-foreground/60 focus:border-primary focus:ring-2 focus:ring-primary/15"
+                                  />
+                                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">cm</span>
+                                </div>
+                                {method === "measured" && field.hint && (
+                                  <span id={`size-measurement-hint-${index}`} className="block text-xs leading-6 text-muted-foreground">{field.hint}</span>
+                                )}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </section>
+                  )}
                 </form>
               )}
     
@@ -783,8 +808,10 @@ export default function SizeRecommendationModal({
             </main>
     
             <footer
-              className="flex shrink-0 flex-col gap-2.5 border-t border-border/20 bg-card/90 px-3 py-3 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-6 sm:py-4"
-              style={{ flexShrink: 0 }}
+              className={cn(
+                "flex shrink-0 flex-col gap-2.5 border-t border-border/20 bg-card/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-6 sm:py-4",
+                step === "form" && "flex-row items-center"
+              )}
             >
               {step === "intro" && (
                 <>
@@ -799,7 +826,7 @@ export default function SizeRecommendationModal({
                   <button type="button" onClick={() => setStep("intro")} className="flex min-h-11 items-center justify-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 motion-reduce:transition-none">
                     <ChevronRight className="h-4 w-4" /> بازگشت
                   </button>
-                  <Button className="w-full sm:min-w-[12rem]" form="size-recommendation-form" type="submit" size="lg" isLoading={isSubmitting} rightIcon={<ArrowLeft className="h-4 w-4" />}>
+                  <Button className="min-w-0 flex-1 sm:min-w-[12rem] sm:flex-none" form="size-recommendation-form" type="submit" size="lg" isLoading={isSubmitting} rightIcon={<ArrowLeft className="h-4 w-4" />}>
                     دیدن سایز پیشنهادی
                   </Button>
                 </>
@@ -827,8 +854,11 @@ export default function SizeRecommendationModal({
             )}
             </footer>
           </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )
+      : null
   );
 }
