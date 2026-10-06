@@ -154,7 +154,7 @@ export default function ProductGallery({
   const isSwitching = !!selectedSrc && !!displayedSrc && selectedSrc !== displayedSrc;
   const altText = [productName, brand].filter(Boolean).join(" — ");
   const galleryActions = (
-    <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between p-4 sm:p-5">
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))] sm:p-5">
       <Link href={backHref} aria-label="بازگشت به محصولات" className="pointer-events-auto flex size-11 items-center justify-center rounded-xl border border-white/50 bg-voxcina-lightCream/80 text-voxcina-blue backdrop-blur-sm transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-voxcina-blue">
         <ArrowRight className="size-5" />
       </Link>

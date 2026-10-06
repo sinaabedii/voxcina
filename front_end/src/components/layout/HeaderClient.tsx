@@ -59,9 +59,16 @@ const HeaderClient: React.FC<HeaderClientProps> = ({ navItems }) => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const isProductDetailPage = pathname?.startsWith("/products/") && pathname !== "/products";
+
   return (
     <>
-      <div className="sticky top-0 z-40 w-full px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-5">
+      <div
+        className={cn(
+          "sticky top-0 z-40 w-full px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-5",
+          isProductDetailPage && "hidden lg:block"
+        )}
+      >
         <header
           className={cn(
             "w-full max-w-7xl mx-auto rounded-xl sm:rounded-2xl md:rounded-3xl transition-all duration-500 ease-in-out",

@@ -59,7 +59,7 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
       : 0;
 
     return (
-      <div id="product-selection" className={cn("relative z-10 -mt-6 flex min-w-0 flex-col rounded-t-[28px] bg-voxcina-blue px-5 pb-6 pt-5 text-voxcina-cream sm:px-7 sm:py-7 lg:mt-0 lg:rounded-none lg:pt-7 lg:justify-center lg:px-8 xl:px-10", className)}>
+      <div id="product-selection" className={cn("relative z-10 -mt-6 flex min-w-0 flex-col rounded-t-[32px] bg-voxcina-blue px-5 pb-6 pt-5 text-voxcina-cream sm:-mt-8 sm:rounded-t-[36px] sm:px-7 sm:py-7 lg:mt-0 lg:rounded-none lg:pt-7 lg:justify-center lg:px-8 xl:px-10", className)}>
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             {(brand || product.brand) && (

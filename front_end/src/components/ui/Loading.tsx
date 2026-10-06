@@ -170,7 +170,7 @@ export function ImageSkeleton({ className = "" }: { className?: string }) {
 // `ProductPurchasePanel` and needs updating when that layout changes.
 export function ProductDetailSkeleton() {
   return (
-    <div className="container pb-12 pt-0 sm:px-6 sm:pt-4 lg:pt-6" aria-hidden="true">
+    <div className="w-full pb-12 pt-0 sm:container sm:mx-auto sm:px-6 sm:pt-4 lg:pt-6" aria-hidden="true">
       <div className="mb-5 hidden h-5 w-2/3 max-w-md rounded bg-muted animate-pulse lg:block" />
 
       <div className="overflow-hidden bg-voxcina-blue sm:rounded-[28px] lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px]">
@@ -189,7 +189,7 @@ export function ProductDetailSkeleton() {
         </div>
 
         {/* Purchase panel — title, brand row, price, selectors, actions, badges */}
-        <div className="relative z-10 -mt-6 rounded-t-[28px] bg-voxcina-blue px-5 pb-6 pt-5 sm:px-7 sm:py-7 lg:mt-0 lg:rounded-none lg:px-8 xl:px-10 [&_.bg-muted]:bg-voxcina-cream/15">
+        <div className="relative z-10 -mt-6 rounded-t-[32px] bg-voxcina-blue px-5 pb-6 pt-5 sm:-mt-8 sm:rounded-t-[36px] sm:px-7 sm:py-7 lg:mt-0 lg:rounded-none lg:px-8 xl:px-10 [&_.bg-muted]:bg-voxcina-cream/15">
           <div className="mb-3 h-8 w-4/5 rounded bg-muted animate-pulse" />
           <div className="mb-5 h-6 w-1/2 rounded bg-muted animate-pulse" />
           <div className="mb-6 h-9 w-2/5 rounded bg-muted animate-pulse" />
