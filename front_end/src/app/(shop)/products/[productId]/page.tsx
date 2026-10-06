@@ -150,8 +150,9 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
 
       <div className="container py-8 md:py-16">
         {/* Breadcrumbs - Server rendered for SEO */}
-        <div className="text-sm text-voxcina-blue/60 dark:text-voxcina-cream/60 mb-6">
+        <div className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 mb-6">
           <Breadcrumbs
+            className="text-xs"
             items={[
               { title: "خانه", href: "/" },
               { title: "محصولات", href: "/products" },
