@@ -18,6 +18,7 @@ import { useReviewStore } from "@/store/review-store";
 import { useTryOnStore } from "@/store/tryon-store";
 import { Product, Review } from "@/types/product";
 import ProductGallery from "./ProductGallery";
+import { cn } from "@/lib/utils";
 import ProductInfoTabs from "./ProductInfoTabs";
 import ProductPurchasePanel, { BrandLink } from "./ProductPurchasePanel";
 import ProductStickyBar from "./ProductStickyBar";
@@ -66,6 +67,8 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
   const [isShareOpen, setShareOpen] = useState(false);
   const [isNotifyOpen, setNotifyOpen] = useState(false);
   const [isNotifyEnabled, setNotifyEnabled] = useState(false);
+  const [isAdding, setAdding] = useState(false);
+  const addingRef = useRef(false);
 
   const actionRowRef = useRef<HTMLDivElement>(null);
   const viewStartRef = useRef(Date.now());
@@ -204,7 +207,15 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
   };
 
   const handleAddToCart = async () => {
-    if (await addSelectionToCart()) toast.success("محصول به سبد خرید اضافه شد");
+    if (addingRef.current) return;
+    addingRef.current = true;
+    setAdding(true);
+    try {
+      if (await addSelectionToCart()) toast.success("محصول به سبد خرید اضافه شد");
+    } finally {
+      addingRef.current = false;
+      setAdding(false);
+    }
   };
 
   const handleTryOn = async () => {
@@ -237,11 +248,14 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
 
   return (
     <>
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_26rem] xl:grid-cols-[minmax(0,1fr)_28rem] xl:gap-12">
+      <div className="overflow-hidden rounded-[28px] bg-voxcina-blue shadow-medium lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px]">
         <ProductGallery
           images={images}
           productName={product.name}
           brand={product.brand}
+          isFavorite={product.id ? isFavorite(product.id) : false}
+          onToggleFavorite={() => product.id && addToFavorites(product.id)}
+          backHref="/products"
           onImageView={handleImageView}
           onZoomChange={handleZoomChange}
         />
@@ -253,12 +267,11 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
           brand={brand}
           avgRating={avgRating}
           reviewCount={reviews.length}
-          isFavorite={product.id ? isFavorite(product.id) : false}
+          isAdding={isAdding}
           isTryOnAvailable={isTryOnAvailable}
           isNotifyEnabled={isNotifyEnabled}
           onColorChange={handleColorChange}
           onAddToCart={handleAddToCart}
-          onToggleFavorite={() => product.id && addToFavorites(product.id)}
           onTryOn={handleTryOn}
           onShare={handleShare}
           onNotifyRequest={() => setNotifyOpen(true)}
@@ -269,11 +282,11 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
         product={product}
         selectedSize={selection.selectedSize}
         onSelectSize={selection.setSize}
-        className="mt-12"
+        className="mt-6 lg:mt-10"
       />
 
       <ProductTryOnPanel
-        className="mt-12"
+        className={cn("mt-6 lg:mt-10", !isTryOnAvailable && "hidden")}
         isAvailable={isTryOnAvailable}
         isProcessing={isTryOnProcessing}
         resultImage={resultImage}
@@ -298,6 +311,7 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
         image={images[0]}
         anchorRef={actionRowRef}
         onAddToCart={handleAddToCart}
+        isAdding={isAdding}
       />
 
       <StockNotifyModal

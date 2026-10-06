@@ -13,17 +13,17 @@
  */
 
 /** Height of the main image frame at each breakpoint. */
-export const GALLERY_FRAME_HEIGHT = "h-[420px] sm:h-[480px] lg:h-[560px] xl:h-[640px]";
+export const GALLERY_FRAME_HEIGHT = "aspect-[6/7] sm:aspect-[4/3] lg:aspect-auto lg:h-[660px] xl:h-[700px]";
 
 /** Gallery shell: rail under the frame on mobile, beside it from `lg` up. */
-export const GALLERY_LAYOUT = "flex flex-col-reverse gap-3 lg:flex-row";
+export const GALLERY_LAYOUT = "flex flex-col-reverse lg:flex-row lg:gap-3";
 
 /** Thumbnail rail: horizontal scroller on mobile, vertical column from `lg`. */
 export const GALLERY_RAIL =
-  "flex gap-3 overflow-x-auto pb-1 scrollbar-thin lg:w-20 lg:shrink-0 lg:flex-col lg:overflow-x-visible lg:overflow-y-auto lg:pb-0";
+  "hidden gap-3 scrollbar-thin lg:flex lg:w-16 lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:max-h-[660px] xl:max-h-[700px]";
 
 /** One thumbnail. */
-export const GALLERY_THUMB = "h-20 w-20 shrink-0 overflow-hidden rounded-xl";
+export const GALLERY_THUMB = "h-20 w-16 shrink-0 overflow-hidden rounded-xl";
 
 /** Thumbnails the skeleton draws before the real count is known. */
 export const GALLERY_SKELETON_THUMBS = 4;

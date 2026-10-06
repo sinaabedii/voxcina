@@ -2,10 +2,10 @@
 
 import { RefObject, useEffect, useState } from "react";
 import Image from "next/image";
-import Button from "@/components/ui/Button";
-import { cn, formatPrice, toPersianNumber } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { Product } from "@/types/product";
 import { VariantSelection } from "./useVariantSelection";
+import ProductCartButton from "./ProductCartButton";
 
 interface ProductStickyBarProps {
   product: Product;
@@ -14,10 +14,11 @@ interface ProductStickyBarProps {
   /** The panel's action row. The bar shows once this scrolls out of view. */
   anchorRef: RefObject<HTMLDivElement | null>;
   onAddToCart: () => void;
+  isAdding: boolean;
 }
 
 /**
- * Desktop add-to-cart bar, pinned to the bottom of the viewport.
+ * Add-to-cart bar, pinned to the bottom after the main action leaves the viewport.
  *
  * Below the hero this page runs long — tabs, try-on, reviews, similar products —
  * so by the time someone has read the reviews the buy button is several
@@ -26,8 +27,8 @@ interface ProductStickyBarProps {
  * chosen yet it scrolls back to the pickers instead of failing.
  *
  * Bottom rather than top because the site header is already `sticky top-0`.
- * Mounted at all widths but only shown from `lg` up; on a phone the panel is
- * close enough that a permanent bar would just eat viewport height.
+ * On phones the same compact purchase pill keeps buying reachable below the
+ * details. It is hidden until the original purchase action has scrolled past.
  */
 export default function ProductStickyBar({
   product,
@@ -35,6 +36,7 @@ export default function ProductStickyBar({
   image,
   anchorRef,
   onAddToCart,
+  isAdding,
 }: ProductStickyBarProps) {
   const [isVisible, setVisible] = useState(false);
 
@@ -67,51 +69,47 @@ export default function ProductStickyBar({
 
   const handleClick = () => {
     if (missingSelection) {
-      anchorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      document.getElementById("product-selection")?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        block: "center",
+      });
       return;
     }
     onAddToCart();
   };
 
+  if (!product.inStock) return null;
+
   return (
     <div
       aria-hidden={!isVisible}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-30 hidden border-t border-border/20 bg-card/95 shadow-strong backdrop-blur-md transition-transform duration-300 motion-reduce:transition-none lg:block",
-        isVisible ? "translate-y-0" : "pointer-events-none translate-y-full"
+        "fixed inset-x-3 bottom-[max(12px,env(safe-area-inset-bottom))] z-30 mx-auto max-w-lg rounded-[28px] border border-voxcina-cream/15 bg-voxcina-blue p-2 shadow-strong transition-transform duration-300 motion-reduce:transition-none lg:inset-x-6 lg:max-w-5xl lg:p-3",
+        isVisible ? "translate-y-0" : "pointer-events-none translate-y-[calc(100%+2rem)]"
       )}
     >
-      <div className="container flex items-center gap-4 py-3">
+      <div className="flex items-center gap-4">
         {image && (
-          <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-border/20 bg-card">
+          <span className="relative hidden h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-voxcina-cream lg:block">
             <Image src={image} alt="" fill sizes="56px" className="object-contain" />
           </span>
         )}
 
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-medium text-primary">{product.name}</p>
-          <p className="truncate text-xs text-muted-foreground">
+        <div className="hidden min-w-0 flex-1 lg:block">
+          <p className="truncate font-medium text-voxcina-cream">{product.name}</p>
+          <p className="mt-1 truncate text-xs text-voxcina-cream/70">
             {variantSummary || "رنگ و سایز انتخاب نشده"}
           </p>
         </div>
 
-        <div className="shrink-0 text-left">
-          <p className="font-bold text-foreground">{formatPrice(product.price)}</p>
-          {selection.isComplete && selection.inventory > 0 && (
-            <p className="text-xs text-muted-foreground">
-              {toPersianNumber(selection.inventory)} عدد موجود
-            </p>
-          )}
-        </div>
-
-        <Button
-          variant="primary"
+        <ProductCartButton
+          total={product.price * selection.quantity}
+          isAdding={isAdding}
           onClick={handleClick}
           tabIndex={isVisible ? 0 : -1}
-          className="shrink-0 rounded-xl px-8"
-        >
-          {missingSelection ? "انتخاب رنگ و سایز" : "افزودن به سبد خرید"}
-        </Button>
+          className="lg:w-auto lg:min-w-[340px]"
+          label={missingSelection ? "انتخاب رنگ و سایز" : "افزودن به سبد خرید"}
+        />
       </div>
     </div>
   );

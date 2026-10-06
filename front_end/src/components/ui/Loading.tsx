@@ -170,24 +170,26 @@ export function ImageSkeleton({ className = "" }: { className?: string }) {
 // `ProductPurchasePanel` and needs updating when that layout changes.
 export function ProductDetailSkeleton() {
   return (
-    <div className="container py-8 md:py-16" aria-hidden="true">
-      <div className="mb-6 h-5 w-2/3 max-w-md rounded bg-muted animate-pulse" />
+    <div className="container px-3 pb-12 pt-1 sm:px-6 sm:pt-4 lg:pt-6" aria-hidden="true">
+      <div className="mb-5 hidden h-5 w-2/3 max-w-md rounded bg-muted animate-pulse lg:block" />
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_26rem] xl:grid-cols-[minmax(0,1fr)_28rem] xl:gap-12">
+      <div className="overflow-hidden rounded-[28px] bg-voxcina-blue lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px]">
         {/* Gallery — same shell, rail and frame height as ProductGallery */}
-        <div className={GALLERY_LAYOUT}>
+        <div className="min-w-0 lg:bg-voxcina-lightCream lg:p-4">
+          <div className={GALLERY_LAYOUT}>
           <div className={GALLERY_RAIL}>
             {Array.from({ length: GALLERY_SKELETON_THUMBS }).map((_, i) => (
               <div key={i} className={`${GALLERY_THUMB} bg-muted animate-pulse`} />
             ))}
           </div>
           <div
-            className={`w-full rounded-2xl bg-muted animate-pulse lg:flex-1 ${GALLERY_FRAME_HEIGHT}`}
+            className={`w-full rounded-b-[28px] bg-voxcina-cream animate-pulse lg:flex-1 lg:rounded-2xl ${GALLERY_FRAME_HEIGHT}`}
           />
+          </div>
         </div>
 
         {/* Purchase panel — title, brand row, price, selectors, actions, badges */}
-        <div>
+        <div className="relative z-10 -mt-6 rounded-t-[28px] bg-voxcina-blue px-5 pb-6 pt-5 sm:px-7 sm:py-7 lg:mt-0 lg:rounded-none lg:px-8 xl:px-10 [&_.bg-muted]:bg-voxcina-cream/15">
           <div className="mb-3 h-8 w-4/5 rounded bg-muted animate-pulse" />
           <div className="mb-5 h-6 w-1/2 rounded bg-muted animate-pulse" />
           <div className="mb-6 h-9 w-2/5 rounded bg-muted animate-pulse" />
@@ -216,22 +218,17 @@ export function ProductDetailSkeleton() {
             <div className="h-12 w-32 rounded-xl bg-muted animate-pulse" />
             <div className="h-12 flex-1 rounded-xl bg-muted animate-pulse" />
           </div>
-          <div className="mb-8 grid grid-cols-3 gap-2">
+          <div className="mb-4 grid grid-cols-3 gap-2">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="h-11 rounded-xl bg-muted animate-pulse" />
             ))}
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-20 rounded-lg bg-muted animate-pulse" />
-            ))}
-          </div>
         </div>
       </div>
 
       {/* Info tabs */}
-      <div className="mt-12 h-64 rounded-2xl bg-muted animate-pulse" />
+      <div className="mt-6 h-64 rounded-[24px] bg-muted animate-pulse lg:mt-10" />
     </div>
   );
 }

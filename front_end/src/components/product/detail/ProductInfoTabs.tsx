@@ -82,7 +82,7 @@ export default function ProductInfoTabs({
   return (
     <section
       className={cn(
-        "overflow-hidden rounded-2xl border border-border/20 bg-card/50 shadow-soft",
+        "overflow-hidden rounded-[24px] border border-voxcina-blue/10 bg-voxcina-lightCream dark:border-voxcina-cream/10 dark:bg-card lg:rounded-[28px]",
         className
       )}
     >
@@ -90,7 +90,7 @@ export default function ProductInfoTabs({
         role="tablist"
         aria-label="اطلاعات محصول"
         onKeyDown={handleKeyDown}
-        className="grid grid-cols-3 divide-x divide-x-reverse divide-border/20 border-b border-border/20"
+        className="grid grid-cols-3 gap-1 border-b border-voxcina-blue/10 px-3 pt-2 dark:border-voxcina-cream/10 sm:px-5"
       >
         {TABS.map((tab) => {
           const isActive = activeTab === tab.key;
@@ -108,10 +108,10 @@ export default function ProductInfoTabs({
               tabIndex={isActive ? 0 : -1}
               onClick={() => setActiveTab(tab.key)}
               className={cn(
-                "px-3 py-4 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50",
+                "min-h-14 border-b-2 px-1 py-3 text-[11px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50 motion-reduce:transition-none sm:px-3 sm:text-sm",
                 isActive
-                  ? "bg-secondary/40 font-medium text-primary"
-                  : "text-foreground/75 hover:bg-secondary/20 hover:text-primary"
+                  ? "border-voxcina-blue font-bold text-voxcina-blue dark:border-voxcina-cream dark:text-voxcina-cream"
+                  : "border-transparent text-foreground/55 hover:text-foreground"
               )}
             >
               {tab.label}
@@ -122,7 +122,7 @@ export default function ProductInfoTabs({
 
       <div
         className={cn(
-          "grid gap-6 p-5 lg:gap-8 lg:p-6",
+            "grid gap-6 p-5 sm:p-7 lg:gap-10 lg:p-8",
           activeTab === "sizeGuide"
             ? "grid-cols-1"
             : "lg:grid-cols-[minmax(0,1fr)_20rem]"
@@ -134,13 +134,16 @@ export default function ProductInfoTabs({
           aria-labelledby={`product-tab-${activeTab}`}
           tabIndex={0}
           className={cn(
-            "min-h-[15rem] text-sm leading-relaxed text-foreground/80",
+            "min-h-[12rem] text-sm leading-8 text-foreground/80",
             activeTab !== "sizeGuide" && "max-w-prose"
           )}
         >
           {activeTab === "description" &&
             (product.description?.trim() ? (
-              <p className="whitespace-pre-line">{product.description}</p>
+              <div>
+                <h2 className="mb-3 text-base font-bold text-foreground">دربارهٔ این محصول</h2>
+                <p className="whitespace-pre-line">{product.description}</p>
+              </div>
             ) : (
               <p className="text-muted-foreground">
                 توضیحاتی برای این محصول ثبت نشده است. مشخصات کامل را در ستون کناری ببینید.

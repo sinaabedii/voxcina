@@ -2,47 +2,14 @@
 
 import { forwardRef, useState } from "react";
 import Link from "next/link";
-import { Heart, RotateCcw, Share2, ShieldCheck, Shirt, Truck } from "lucide-react";
-import BackendImage from "@/components/BackendImage";
-import Button from "@/components/ui/Button";
-import ColorSelector from "@/components/ui/ColorSelector";
-import { FeatureGrid } from "@/components/ui/FeatureCard";
-import PriceDisplay from "@/components/ui/PriceDisplay";
-import QuantitySelector from "@/components/ui/QuantitySelector";
-import SizeSelector from "@/components/ui/SizeSelector";
-import StarRating from "@/components/ui/StarRating";
-import StockStatus from "@/components/ui/StockStatus";
+import Image from "next/image";
+import { Check, Minus, Plus, Ruler, Share2, ShieldCheck, Shirt, Sparkles, Star } from "lucide-react";
 import { cn, toPersianNumber } from "@/lib/utils";
 import { Product } from "@/types/product";
 import { VariantSelection } from "./useVariantSelection";
+import ProductCartButton from "./ProductCartButton";
 import SizeGuideModal from "./SizeGuideModal";
 import SizeRecommendationModal from "./SizeRecommendationModal";
-
-// Compact only the PDP's pickers; other consumers keep the shared defaults.
-// Size buttons stay at least 44px in both directions, including long labels.
-const mobileSizeSelectorClassName = cn(
-  "max-sm:mb-4",
-  "max-sm:[&>div:first-child]:flex-wrap max-sm:[&>div:first-child]:gap-x-2",
-  "max-sm:[&>div:first-child>div]:gap-1 max-sm:[&>div:first-child_button]:px-1.5 max-sm:[&>div:first-child_button]:text-[11px]",
-  "max-sm:[&_[data-size-option]]:min-w-11 max-sm:[&_[data-size-option]]:px-2 max-sm:[&_[data-size-option]]:py-1 max-sm:[&_[data-size-option]]:text-xs"
-);
-
-// Put the smaller visual rings on the swatches, not on the 44px tap targets.
-// The existing check icon identifies selection; disabled opacity stays intact.
-const mobileColorSelectorClassName = cn(
-  "max-sm:mb-4 max-sm:[&>div:last-child]:gap-1",
-  "max-sm:[&>div:last-child>button]:size-11 max-sm:[&>div:last-child>button]:ring-0 max-sm:[&>div:last-child>button]:ring-offset-0",
-  "max-sm:[&>div:last-child>button>:is(span,img)]:size-6 max-sm:[&>div:last-child>button>:is(span,img)]:ring-1 max-sm:[&>div:last-child>button>:is(span,img)]:ring-border/30",
-  "max-sm:[&>div:last-child>button:has(svg)>:is(span,img)]:ring-2 max-sm:[&>div:last-child>button:has(svg)>:is(span,img)]:ring-primary max-sm:[&>div:last-child>button:has(svg)>:is(span,img)]:ring-offset-2",
-  "max-sm:[&>div:last-child>button>svg]:size-3.5",
-  "max-sm:[&>div:last-child>button:focus-visible]:outline max-sm:[&>div:last-child>button:focus-visible]:outline-2 max-sm:[&>div:last-child>button:focus-visible]:outline-offset-2 max-sm:[&>div:last-child>button:focus-visible]:outline-primary"
-);
-
-// The three action buttons share one grid cell, so the Persian label alone can
-// eat the whole cell and the SVG (a shrinkable flex item) collapses to 0px on
-// phones. Keep the icons fixed and compact padding/font under sm instead.
-const mobileActionRowClassName = "max-sm:px-2 max-sm:text-xs";
-const mobileActionIconClassName = "ml-1.5 h-4 w-4 shrink-0";
 
 export interface BrandLink {
   name: string;
@@ -56,224 +23,172 @@ interface ProductPurchasePanelProps {
   brand?: BrandLink;
   avgRating: number;
   reviewCount: number;
-  isFavorite: boolean;
   isTryOnAvailable: boolean;
   isNotifyEnabled: boolean;
+  isAdding: boolean;
   onColorChange: (color?: string) => void;
   onAddToCart: () => void;
-  onToggleFavorite: () => void;
   onTryOn: () => void;
   onShare: () => void;
   onNotifyRequest: () => void;
   className?: string;
 }
 
-/** Why the quantity stepper is still disabled, in the visitor's words. */
+const subtleButton = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl text-xs text-voxcina-cream/80 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-voxcina-cream motion-reduce:transition-none";
+
 function selectionHint(selection: VariantSelection): string | null {
   if (selection.isComplete) return null;
-  if (selection.needsColorSelection && selection.needsSizeSelection) return "ابتدا رنگ و سایز را انتخاب کنید";
-  if (selection.needsColorSelection) return "ابتدا رنگ را انتخاب کنید";
-  if (selection.needsSizeSelection) return "ابتدا سایز را انتخاب کنید";
+  if (selection.needsColorSelection && selection.needsSizeSelection) return "رنگ و سایز دلخواهتان را انتخاب کنید";
+  if (selection.needsColorSelection) return "رنگ دلخواهتان را انتخاب کنید";
+  if (selection.needsSizeSelection) return "سایز دلخواهتان را انتخاب کنید";
   return null;
 }
 
-/**
- * Everything needed to decide and buy: identity, price, variant pickers, stock
- * and the action row. Deliberately short — the description, care notes, size
- * chart and specs moved to a full-width section below the fold, because on a
- * desktop viewport they made this column run roughly three times the height of
- * the gallery next to it and left the page badly lopsided.
- *
- * The ref lands on the action row: `ProductStickyBar` observes it to know when
- * the add-to-cart button has scrolled out of view.
- */
+/** The reference's compact, dark purchase surface, in Voxcina's navy and cream. */
 const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProps>(
   function ProductPurchasePanel(
-    {
-      product,
-      selection,
-      brand,
-      avgRating,
-      reviewCount,
-      isFavorite,
-      isTryOnAvailable,
-      isNotifyEnabled,
-      onColorChange,
-      onAddToCart,
-      onToggleFavorite,
-      onTryOn,
-      onShare,
-      onNotifyRequest,
-      className,
-    },
+    { product, selection, brand, avgRating, reviewCount, isTryOnAvailable, isNotifyEnabled,
+      isAdding, onColorChange, onAddToCart, onTryOn, onShare, onNotifyRequest, className },
     actionRowRef
   ) {
-    const hint = selectionHint(selection);
     const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
     const [isSizeRecommendationOpen, setIsSizeRecommendationOpen] = useState(false);
+    const hint = selectionHint(selection);
+    const discount = product.originalPrice > product.price
+      ? Math.round((1 - product.price / product.originalPrice) * 100)
+      : 0;
 
     return (
-      <div className={cn("animate-hero-rise min-w-0", className)}>
-        <h1 className="mb-2 text-2xl font-bold text-primary lg:text-3xl">{product.name}</h1>
+      <div id="product-selection" className={cn("relative z-10 -mt-6 flex min-w-0 flex-col rounded-t-[28px] bg-voxcina-blue px-5 pb-6 pt-5 text-voxcina-cream sm:px-7 sm:py-7 lg:mt-0 lg:rounded-none lg:pt-7 lg:justify-center lg:px-8 xl:px-10", className)}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            {(brand || product.brand) && (
+              <p className="mb-1.5 text-[11px] text-voxcina-cream/70 sm:text-xs">
+                {brand ? <Link href={brand.href} className="rounded hover:text-white focus-visible:outline focus-visible:outline-2">{brand.name}</Link> : product.brand}
+              </p>
+            )}
+            <h1 className="text-lg font-bold leading-relaxed text-voxcina-cream sm:text-2xl lg:text-[26px]">{product.name}</h1>
+          </div>
+          <div className="shrink-0 pt-1 text-left">
+            <p className="text-base font-bold tabular-nums sm:text-xl">{toPersianNumber(product.price.toLocaleString("en-US"))}</p>
+            <span className="text-[10px] text-voxcina-cream/75">تومان</span>
+            {discount > 0 && (
+              <div className="mt-1 flex items-center justify-end gap-1.5 text-[10px]">
+                <del className="text-voxcina-cream/60">{toPersianNumber(product.originalPrice.toLocaleString("en-US"))}</del>
+                <span className="rounded-full bg-voxcina-cream px-1.5 py-0.5 font-bold text-voxcina-blue">{toPersianNumber(discount)}٪</span>
+              </div>
+            )}
+          </div>
+        </div>
 
-        <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2">
-          {brand ? (
-            <Link href={brand.href} className="group flex items-center gap-2">
-              {brand.logo && (
-                <span className="relative block h-6 w-6 overflow-hidden rounded-full border border-border/30">
-                  {/* 24px slot. Without `sizes` this falls back to BackendImage's
-                      400px default and pulls a variant larger than the product photo. */}
-                  <BackendImage src={brand.logo} alt="" className="h-full w-full object-cover" sizes="24px" />
-                </span>
-              )}
-              <span className="text-sm font-medium text-foreground/80 transition-colors group-hover:text-primary">
-                {brand.name}
-              </span>
-            </Link>
-          ) : (
-            product.brand && <span className="text-sm font-medium text-foreground/80">{product.brand}</span>
+        {product.description?.trim() && (
+          <p className="mt-1.5 line-clamp-2 text-xs leading-6 text-voxcina-cream/75">{product.description}</p>
+        )}
+
+        <a href="#reviews" className="mt-3 flex min-h-8 w-fit items-center gap-2.5 rounded text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+          <span className="flex gap-0.5" aria-hidden="true">
+            {Array.from({ length: 5 }, (_, index) => (
+              <Star key={index} className={cn("size-4", reviewCount && index < Math.round(avgRating) ? "fill-voxcina-cream text-voxcina-cream" : "text-voxcina-cream/35")} />
+            ))}
+          </span>
+          <span className="text-voxcina-cream/75">
+            {reviewCount ? `${toPersianNumber(avgRating.toFixed(1))} · ${toPersianNumber(reviewCount)} نظر` : "اولین نظر را شما بنویسید"}
+          </span>
+        </a>
+
+        <div className="mt-4 flex items-end justify-between gap-3">
+          {selection.colors.length > 0 && (
+            <fieldset className="min-w-0 flex-1">
+              <legend className="mb-1 text-xs">
+                رنگ: <span className="text-voxcina-cream/75">{selection.selectedVariant?.colorName || "انتخاب کنید"}</span>
+              </legend>
+              <div className="flex flex-wrap gap-1">
+                {selection.colors.map((color) => {
+                  const key = color.variantId || color.colorName;
+                  const selected = selection.selectedColor === key;
+                  const available = !selection.selectedSize || selection.colorsForSelectedSize.some((item) => item.variantId === color.variantId);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      aria-label={`${color.colorName}${available ? "" : "، ناموجود در این سایز"}`}
+                      aria-pressed={selected}
+                      disabled={!available}
+                      title={color.colorName}
+                      onClick={() => onColorChange(selected ? undefined : key)}
+                      className={cn("relative flex size-11 items-center justify-center rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream disabled:cursor-not-allowed disabled:opacity-35", selected && "border border-dashed border-voxcina-cream/90")}
+                    >
+                      <span className="relative block size-7 overflow-hidden rounded-[7px] border border-white/40" style={{ backgroundColor: color.color?.startsWith("#") ? color.color : "#DFD8CC" }}>
+                        {color.swatchImage && <Image src={color.swatchImage} alt="" fill sizes="28px" className="object-cover" />}
+                      </span>
+                      {selected && <Check className="absolute size-3.5 rounded-full bg-voxcina-blue p-0.5 text-white" aria-hidden="true" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
           )}
-
-          {reviewCount > 0 && (
-            <a href="#reviews" className="group flex items-center gap-2 text-sm text-muted-foreground">
-              <StarRating initialRating={Math.round(avgRating)} readonly size="sm" />
-              <span className="transition-colors group-hover:text-primary">
-                {toPersianNumber(reviewCount)} نظر
-              </span>
-            </a>
+          {product.inStock && (
+            <div className="shrink-0 pb-0.5">
+              <span className="sr-only">تعداد</span>
+              <div className="flex h-11 items-center overflow-hidden rounded-xl bg-voxcina-cream text-voxcina-blue" dir="ltr">
+                <button type="button" aria-label="کاهش تعداد" disabled={!selection.canModifyQuantity || selection.quantity <= 1} onClick={() => selection.setQuantity(selection.quantity - 1)} className="flex size-11 items-center justify-center hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] disabled:opacity-35"><Minus className="size-3.5" /></button>
+                <span className="min-w-5 text-center text-sm font-bold tabular-nums" aria-live="polite">{toPersianNumber(selection.quantity)}</span>
+                <button type="button" aria-label="افزایش تعداد" disabled={!selection.canModifyQuantity || selection.quantity >= selection.inventory} onClick={() => selection.setQuantity(selection.quantity + 1)} className="flex size-11 items-center justify-center hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] disabled:opacity-35"><Plus className="size-3.5" /></button>
+              </div>
+            </div>
           )}
         </div>
 
-        <PriceDisplay price={product.price} originalPrice={product.originalPrice} className="mb-6" />
-
         {selection.sizes.length > 0 && (
-          <SizeSelector
-            className={mobileSizeSelectorClassName}
-            sizes={selection.sizes}
-            selectedSize={selection.selectedSize}
-            onSizeChange={selection.setSize}
-            availableSizes={selection.selectedColor ? selection.sizesForSelectedColor : undefined}
-            showClearButton={!!(selection.selectedSize || selection.selectedColor)}
-            onClear={selection.clear}
-            showSizeGuide={true}
-            sizeGuideLabel="جدول اندازه‌ها"
-            onSizeGuideClick={() => setIsSizeGuideOpen(true)}
-            showSizeRecommendation
-            onSizeRecommendationClick={() => setIsSizeRecommendationOpen(true)}
-          />
-        )}
-
-        {selection.colors.length > 0 && (
-          <ColorSelector
-            className={mobileColorSelectorClassName}
-            colors={selection.colors.map((color) => ({
-              ...color,
-              isAvailable:
-                !selection.selectedSize ||
-                selection.colorsForSelectedSize.some((available) => available.variantId === color.variantId),
-            }))}
-            selectedColor={selection.selectedColor}
-            onColorChange={onColorChange}
-          />
-        )}
-
-        <StockStatus
-          inStock={product.inStock}
-          isNotifyEnabled={isNotifyEnabled}
-          onNotifyClick={onNotifyRequest}
-          className="mb-6"
-        />
-
-        {product.inStock && (
-          <div ref={actionRowRef} className="mb-8 space-y-3">
-            <div className="flex items-stretch gap-3">
-              <QuantitySelector
-                value={selection.quantity}
-                onChange={selection.setQuantity}
-                min={1}
-                max={selection.canModifyQuantity ? selection.inventory : 1}
-                disabled={!selection.canModifyQuantity}
-              />
-              <Button
-                variant="primary"
-                size="lg"
-                onClick={onAddToCart}
-                className="flex-1 rounded-xl shadow-soft transition-shadow hover:shadow-medium"
-              >
-                افزودن به سبد خرید
-              </Button>
+          <fieldset className="mt-3">
+            <legend className="sr-only">انتخاب سایز</legend>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <span className="text-xs">سایز{selection.selectedSize && <span className="mr-1 text-voxcina-cream/75">: {toPersianNumber(selection.selectedSize)}</span>}</span>
+              <button type="button" className={cn(subtleButton, "min-h-8")} onClick={() => setIsSizeGuideOpen(true)}><Ruler className="size-3.5" />راهنمای سایز</button>
             </div>
+            <div className="flex flex-wrap gap-2">
+              {selection.sizes.map((size) => {
+                const selected = size === selection.selectedSize;
+                const available = !selection.selectedColor || selection.sizesForSelectedColor.includes(size);
+                return (
+                  <button key={size} type="button" data-size-option={size} aria-pressed={selected} disabled={!available} onClick={() => selection.setSize(selected ? undefined : size)} className={cn("min-h-11 min-w-11 rounded-xl border px-3 text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-voxcina-cream disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none", selected ? "border-voxcina-cream bg-voxcina-cream font-bold text-voxcina-blue" : "border-voxcina-cream/25 hover:border-voxcina-cream/70", !available && "line-through")}>
+                    {toPersianNumber(size)}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-2">
+              <button type="button" className={subtleButton} onClick={() => setIsSizeRecommendationOpen(true)}><Sparkles className="size-3.5" />سایز مناسب من</button>
+              {(selection.selectedSize || selection.selectedColor) && <button type="button" onClick={selection.clear} className={subtleButton}>پاک کردن انتخاب‌ها</button>}
+            </div>
+          </fieldset>
+        )}
 
-            {hint && <p className="text-xs text-amber-600 dark:text-amber-400">{hint}</p>}
-            {selection.isComplete && selection.inventory > 0 && (
-              <p className="text-xs text-muted-foreground">
-                موجودی: {toPersianNumber(selection.inventory)} عدد
+        <div ref={actionRowRef} className="mt-4">
+          {product.inStock ? (
+            <>
+              <p className="mb-3 text-[11px] text-voxcina-cream/75" aria-live="polite">
+                {hint || (selection.inventory > 0 ? `${toPersianNumber(selection.inventory)} عدد موجود در این رنگ و سایز` : "این ترکیب رنگ و سایز موجود نیست")}
               </p>
-            )}
+              <ProductCartButton total={product.price * selection.quantity} isAdding={isAdding} onClick={onAddToCart} />
+            </>
+          ) : (
+            <>
+              <p className="mb-3 text-sm text-voxcina-cream/75">این محصول فعلاً ناموجود است</p>
+              <button type="button" onClick={onNotifyRequest} disabled={isNotifyEnabled} className="min-h-14 w-full rounded-full bg-voxcina-cream px-5 text-sm font-bold text-voxcina-blue focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-voxcina-cream disabled:opacity-60">{isNotifyEnabled ? "اطلاع‌رسانی فعال شد" : "موجود شد، خبرم کن"}</button>
+            </>
+          )}
+        </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              <Button
-                variant={isFavorite ? "primary" : "outline"}
-                onClick={onToggleFavorite}
-                className={cn(
-                  "rounded-xl",
-                  mobileActionRowClassName,
-                  isFavorite && "bg-red-500 text-white hover:bg-red-600"
-                )}
-              >
-                <Heart className={mobileActionIconClassName} fill={isFavorite ? "currentColor" : "none"} />
-                علاقه‌مندی
-              </Button>
-              <Button
-                variant="outline"
-                onClick={onTryOn}
-                disabled={!isTryOnAvailable}
-                title={isTryOnAvailable ? undefined : "برای این محصول در دسترس نیست"}
-                className={cn("rounded-xl", mobileActionRowClassName)}
-              >
-                <Shirt className={mobileActionIconClassName} />
-                پرو مجازی
-              </Button>
-              <Button
-                variant="outline"
-                onClick={onShare}
-                className={cn("rounded-xl", mobileActionRowClassName)}
-              >
-                <Share2 className={mobileActionIconClassName} />
-                اشتراک‌گذاری
-              </Button>
-            </div>
-          </div>
-        )}
+        <div className="mt-3 flex items-center justify-between gap-3 border-b border-voxcina-cream/15 pb-2">
+          <button type="button" onClick={onTryOn} disabled={!isTryOnAvailable || !product.inStock} title={isTryOnAvailable ? undefined : "برای این محصول در دسترس نیست"} className={cn(subtleButton, "disabled:cursor-not-allowed disabled:opacity-40")}><Shirt className="size-4" />پرو مجازی</button>
+          <button type="button" onClick={onShare} className={subtleButton}><Share2 className="size-3.5" />اشتراک‌گذاری</button>
+        </div>
+        <p className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-voxcina-cream/65"><ShieldCheck className="size-3.5" />ضمانت اصالت کالا<span aria-hidden="true" className="mx-1">·</span>۷ روز فرصت بازگشت</p>
 
-        <FeatureGrid
-          features={[
-            { icon: Truck, title: "ارسال سریع", description: <>ارسال به سراسر کشور<br />طی ۲-۳ روز کاری</> },
-            { icon: RotateCcw, title: "۷ روز ضمانت بازگشت", description: <>در صورت عدم رضایت<br />بدون قید و شرط</> },
-            { icon: ShieldCheck, title: "ضمانت اصالت کالا", description: <>تضمین اصالت و کیفیت<br />تمامی محصولات</> },
-          ]}
-          columns={3}
-        />
-
-        <SizeGuideModal
-          isOpen={isSizeGuideOpen}
-          onClose={() => setIsSizeGuideOpen(false)}
-          product={product}
-          selectedSize={selection.selectedSize}
-          onSelectSize={selection.setSize}
-        />
-
-        <SizeRecommendationModal
-          isOpen={isSizeRecommendationOpen}
-          onClose={() => setIsSizeRecommendationOpen(false)}
-          onOpenSizeGuide={() => {
-            // Let the recommendation dialog restore its body lock before the
-            // guide's Modal acquires its own lock.
-            window.setTimeout(() => setIsSizeGuideOpen(true), 0);
-          }}
-          product={product}
-          selection={selection}
-        />
+        <SizeGuideModal isOpen={isSizeGuideOpen} onClose={() => setIsSizeGuideOpen(false)} product={product} selectedSize={selection.selectedSize} onSelectSize={selection.setSize} />
+        <SizeRecommendationModal isOpen={isSizeRecommendationOpen} onClose={() => setIsSizeRecommendationOpen(false)} onOpenSizeGuide={() => window.setTimeout(() => setIsSizeGuideOpen(true), 0)} product={product} selection={selection} />
       </div>
     );
   }

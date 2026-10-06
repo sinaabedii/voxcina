@@ -148,9 +148,9 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
       {/* BreadcrumbList JSON-LD schema for SEO */}
       <BreadcrumbSchema items={breadcrumbItems} />
 
-      <div className="container py-8 md:py-16">
+      <div className="container px-3 pb-12 pt-1 sm:px-6 sm:pt-4 lg:pb-20 lg:pt-6">
         {/* Breadcrumbs - Server rendered for SEO */}
-        <div className="text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 mb-6">
+        <div className="mb-5 hidden text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 lg:block">
           <Breadcrumbs
             className="text-xs"
             items={[
@@ -169,7 +169,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
 
         {/* Similar Products - Server rendered */}
         {similarProducts.length > 0 && (
-          <section className="mt-16">
+          <section className="mt-10 lg:mt-16">
             <SectionTitle title="محصولات مشابه" size="lg" />
             <ProductGrid items={similarProducts} />
           </section>
