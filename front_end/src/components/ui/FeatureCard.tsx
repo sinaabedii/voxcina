@@ -23,11 +23,7 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
   return (
     <motion.div
       className={cn(
-        // mobile: one compact horizontal row — icon inline, title and description
-        // flowing into ~2 tight lines instead of a 3-line stacked card
-        "flex items-center gap-2.5 px-3.5 py-2 transition-colors sm:hover:bg-secondary/30",
-        // sm+: keeps the original centered card layout
-        "sm:flex-col sm:items-center sm:gap-0 sm:p-4",
+        "flex min-w-0 flex-col items-center px-1 py-2 text-center transition-colors sm:p-4 sm:hover:bg-secondary/30",
         className
       )}
       whileHover={{ y: -2 }}
@@ -35,26 +31,18 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
     >
       <Icon
         className={cn(
-          "h-4 w-4 shrink-0 text-primary sm:mb-2 sm:h-6 sm:w-6",
+          "mb-1.5 h-4 w-4 shrink-0 text-primary sm:mb-2 sm:h-6 sm:w-6",
           iconClassName
         )}
       />
-      <div className="min-w-0 flex-1 leading-snug sm:leading-normal">
-        <h4 className="inline text-[13px] font-medium text-foreground sm:block sm:text-center sm:text-sm">
+      <div className="w-full min-w-0 break-words">
+        <h4 className="flex min-h-8 items-center justify-center text-[11px] font-medium leading-4 text-foreground sm:block sm:min-h-0 sm:text-sm sm:leading-5">
           {title}
         </h4>
         {description && (
-          <>
-            <span
-              aria-hidden="true"
-              className="mx-1 align-middle text-muted-foreground/50 sm:hidden"
-            >
-              ·
-            </span>
-            <div className="inline text-[11px] text-muted-foreground sm:mt-1 sm:block sm:text-center sm:text-xs">
-              {description}
-            </div>
-          </>
+          <div className="mt-1 text-[11px] leading-4 text-muted-foreground sm:text-xs">
+            {description}
+          </div>
         )}
       </div>
     </motion.div>
@@ -78,9 +66,13 @@ export const FeatureGrid: React.FC<FeatureGridProps> = ({
 }) => {
   const gridCols = {
     2: "grid-cols-1 sm:grid-cols-2",
-    3: "grid-cols-1 sm:grid-cols-3",
+    3: "grid-cols-3",
     4: "grid-cols-2 sm:grid-cols-4",
   };
+  const dividerClasses =
+    columns === 3
+      ? "divide-x divide-x-reverse"
+      : "divide-y sm:divide-y-0 sm:divide-x sm:divide-x-reverse";
 
   return (
     <motion.div
@@ -93,7 +85,8 @@ export const FeatureGrid: React.FC<FeatureGridProps> = ({
     >
       <div
         className={cn(
-          "grid divide-y sm:divide-y-0 sm:divide-x sm:divide-x-reverse divide-border/20",
+          "grid divide-border/20",
+          dividerClasses,
           gridCols[columns]
         )}
       >

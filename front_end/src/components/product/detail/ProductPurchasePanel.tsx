@@ -18,6 +18,26 @@ import { VariantSelection } from "./useVariantSelection";
 import SizeGuideModal from "./SizeGuideModal";
 import SizeRecommendationModal from "./SizeRecommendationModal";
 
+// Compact only the PDP's pickers; other consumers keep the shared defaults.
+// Size buttons stay at least 44px in both directions, including long labels.
+const mobileSizeSelectorClassName = cn(
+  "max-sm:mb-4",
+  "max-sm:[&>div:first-child]:flex-wrap max-sm:[&>div:first-child]:gap-x-2",
+  "max-sm:[&>div:first-child>div]:gap-1 max-sm:[&>div:first-child_button]:px-1.5 max-sm:[&>div:first-child_button]:text-[11px]",
+  "max-sm:[&_[data-size-option]]:min-w-11 max-sm:[&_[data-size-option]]:px-2 max-sm:[&_[data-size-option]]:py-1 max-sm:[&_[data-size-option]]:text-xs"
+);
+
+// Put the smaller visual rings on the swatches, not on the 44px tap targets.
+// The existing check icon identifies selection; disabled opacity stays intact.
+const mobileColorSelectorClassName = cn(
+  "max-sm:mb-4 max-sm:[&>div:last-child]:gap-1",
+  "max-sm:[&>div:last-child>button]:size-11 max-sm:[&>div:last-child>button]:ring-0 max-sm:[&>div:last-child>button]:ring-offset-0",
+  "max-sm:[&>div:last-child>button>:is(span,img)]:size-6 max-sm:[&>div:last-child>button>:is(span,img)]:ring-1 max-sm:[&>div:last-child>button>:is(span,img)]:ring-border/30",
+  "max-sm:[&>div:last-child>button:has(svg)>:is(span,img)]:ring-2 max-sm:[&>div:last-child>button:has(svg)>:is(span,img)]:ring-primary max-sm:[&>div:last-child>button:has(svg)>:is(span,img)]:ring-offset-2",
+  "max-sm:[&>div:last-child>button>svg]:size-3.5",
+  "max-sm:[&>div:last-child>button:focus-visible]:outline max-sm:[&>div:last-child>button:focus-visible]:outline-2 max-sm:[&>div:last-child>button:focus-visible]:outline-offset-2 max-sm:[&>div:last-child>button:focus-visible]:outline-primary"
+);
+
 export interface BrandLink {
   name: string;
   href: string;
@@ -122,6 +142,7 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
 
         {selection.sizes.length > 0 && (
           <SizeSelector
+            className={mobileSizeSelectorClassName}
             sizes={selection.sizes}
             selectedSize={selection.selectedSize}
             onSizeChange={selection.setSize}
@@ -138,6 +159,7 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
 
         {selection.colors.length > 0 && (
           <ColorSelector
+            className={mobileColorSelectorClassName}
             colors={selection.colors.map((color) => ({
               ...color,
               isAvailable:
