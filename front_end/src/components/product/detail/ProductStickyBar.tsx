@@ -84,10 +84,17 @@ export default function ProductStickyBar({
     <div
       aria-hidden={!isVisible}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg rounded-t-[24px] border-x border-t border-voxcina-cream/15 bg-voxcina-blue p-2 pb-[max(8px,env(safe-area-inset-bottom))] shadow-strong transition-transform duration-300 motion-reduce:transition-none lg:inset-x-6 lg:bottom-[max(12px,env(safe-area-inset-bottom))] lg:max-w-5xl lg:rounded-[28px] lg:border lg:p-3",
+        "fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg overflow-hidden rounded-t-[24px] border-x border-t border-white/20 bg-[#0e223d]/85 p-2 pb-[max(8px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(10,25,47,0.45),inset_0_1px_1px_rgba(255,255,255,0.25)] backdrop-blur-2xl backdrop-saturate-150 transition-transform duration-300 motion-reduce:transition-none lg:inset-x-6 lg:bottom-[max(12px,env(safe-area-inset-bottom))] lg:max-w-5xl lg:rounded-[28px] lg:border lg:p-3",
         isVisible ? "translate-y-0" : "pointer-events-none translate-y-[calc(100%+2rem)]"
       )}
     >
+      {/* Luminous light objects behind bottom sticky glass bar */}
+      <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
+        <div className="absolute -bottom-8 right-12 h-28 w-48 rounded-full bg-gradient-to-r from-[#E6C687]/25 to-transparent blur-2xl" />
+        <div className="absolute -bottom-8 left-12 h-28 w-48 rounded-full bg-gradient-to-l from-[#3b82f6]/20 to-transparent blur-2xl" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.08] via-transparent to-black/20" />
+      </div>
+
       <div className="flex items-center gap-4">
         {image && (
           <span className="relative hidden h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-voxcina-cream lg:block">

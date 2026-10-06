@@ -263,14 +263,21 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
       {/* Mobile sticky top bar that slides down on scroll */}
       <div
         className={cn(
-          "fixed inset-x-0 top-0 z-30 flex items-center justify-between border-b border-voxcina-cream/15 bg-voxcina-blue/95 px-4 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] shadow-soft backdrop-blur-md transition-transform duration-300 motion-reduce:transition-none lg:hidden",
+          "fixed inset-x-0 top-0 z-30 flex items-center justify-between overflow-hidden border-b border-white/20 bg-[#0e223d]/85 px-4 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] shadow-[0_10px_30px_rgba(10,25,47,0.35)] backdrop-blur-2xl backdrop-saturate-150 transition-transform duration-300 motion-reduce:transition-none lg:hidden",
           isScrolled ? "translate-y-0" : "-translate-y-full pointer-events-none"
         )}
       >
+        {/* Light objects behind sticky bar */}
+        <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
+          <div className="absolute -top-10 right-10 h-28 w-28 rounded-full bg-[#E6C687]/30 blur-xl" />
+          <div className="absolute -top-10 left-10 h-28 w-28 rounded-full bg-[#3b82f6]/25 blur-xl" />
+          <div className="absolute inset-0 bg-gradient-to-b from-white/[0.08] to-transparent" />
+        </div>
+
         <Link
           href="/products"
           aria-label="بازگشت به محصولات"
-          className="flex size-10 items-center justify-center rounded-xl bg-voxcina-cream/15 text-voxcina-cream transition-colors hover:bg-voxcina-cream/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream"
+          className="flex size-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-voxcina-cream backdrop-blur-md transition-all hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream"
         >
           <ArrowRight className="size-5" />
         </Link>
@@ -282,13 +289,13 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
           onClick={() => product.id && addToFavorites(product.id)}
           aria-label={product.id && isFavorite(product.id) ? "حذف از علاقه‌مندی‌ها" : "افزودن به علاقه‌مندی‌ها"}
           aria-pressed={product.id ? isFavorite(product.id) : false}
-          className="flex size-10 items-center justify-center rounded-xl bg-voxcina-cream/15 text-voxcina-cream transition-colors hover:bg-voxcina-cream/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream"
+          className="flex size-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-voxcina-cream backdrop-blur-md transition-all hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream"
         >
           <Heart className="size-5" fill={product.id && isFavorite(product.id) ? "currentColor" : "none"} />
         </button>
       </div>
 
-      <div className="bg-voxcina-blue sm:rounded-[28px] sm:shadow-medium lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px] lg:overflow-hidden">
+      <div className="bg-[#0e223d] sm:rounded-[28px] sm:shadow-[0_20px_50px_rgba(10,25,47,0.35)] sm:border sm:border-white/15 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px] lg:overflow-hidden">
         <ProductGallery
           images={images}
           productName={product.name}
