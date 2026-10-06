@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowRight, Heart } from "lucide-react";
 import { toast } from "react-toastify";
 import Button from "@/components/ui/Button";
 import LazyMount from "@/components/ui/LazyMount";
@@ -68,7 +70,17 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
   const [isNotifyOpen, setNotifyOpen] = useState(false);
   const [isNotifyEnabled, setNotifyEnabled] = useState(false);
   const [isAdding, setAdding] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const addingRef = useRef(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 80);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const actionRowRef = useRef<HTMLDivElement>(null);
   const viewStartRef = useRef(Date.now());
@@ -248,7 +260,35 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
 
   return (
     <>
-      <div className="overflow-hidden bg-voxcina-blue sm:rounded-[28px] sm:shadow-medium lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px]">
+      {/* Mobile sticky top bar that slides down on scroll */}
+      <div
+        className={cn(
+          "fixed inset-x-0 top-0 z-30 flex items-center justify-between border-b border-voxcina-cream/15 bg-voxcina-blue/95 px-4 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] shadow-soft backdrop-blur-md transition-transform duration-300 motion-reduce:transition-none lg:hidden",
+          isScrolled ? "translate-y-0" : "-translate-y-full pointer-events-none"
+        )}
+      >
+        <Link
+          href="/products"
+          aria-label="بازگشت به محصولات"
+          className="flex size-10 items-center justify-center rounded-xl bg-voxcina-cream/15 text-voxcina-cream transition-colors hover:bg-voxcina-cream/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream"
+        >
+          <ArrowRight className="size-5" />
+        </Link>
+        <p className="line-clamp-1 px-3 text-center text-sm font-bold text-voxcina-cream">
+          {product.name}
+        </p>
+        <button
+          type="button"
+          onClick={() => product.id && addToFavorites(product.id)}
+          aria-label={product.id && isFavorite(product.id) ? "حذف از علاقه‌مندی‌ها" : "افزودن به علاقه‌مندی‌ها"}
+          aria-pressed={product.id ? isFavorite(product.id) : false}
+          className="flex size-10 items-center justify-center rounded-xl bg-voxcina-cream/15 text-voxcina-cream transition-colors hover:bg-voxcina-cream/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream"
+        >
+          <Heart className="size-5" fill={product.id && isFavorite(product.id) ? "currentColor" : "none"} />
+        </button>
+      </div>
+
+      <div className="bg-voxcina-blue sm:rounded-[28px] sm:shadow-medium lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px] lg:overflow-hidden">
         <ProductGallery
           images={images}
           productName={product.name}
@@ -256,6 +296,7 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
           isFavorite={product.id ? isFavorite(product.id) : false}
           onToggleFavorite={() => product.id && addToFavorites(product.id)}
           backHref="/products"
+          isScrolled={isScrolled}
           onImageView={handleImageView}
           onZoomChange={handleZoomChange}
         />
@@ -282,11 +323,11 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
         product={product}
         selectedSize={selection.selectedSize}
         onSelectSize={selection.setSize}
-        className="mt-6 px-3 sm:px-0 lg:mt-10"
+        className="relative z-10 mt-6 px-3 sm:px-0 lg:mt-10"
       />
 
       <ProductTryOnPanel
-        className={cn("mt-6 px-3 sm:px-0 lg:mt-10", !isTryOnAvailable && "hidden")}
+        className={cn("relative z-10 mt-6 px-3 sm:px-0 lg:mt-10", !isTryOnAvailable && "hidden")}
         isAvailable={isTryOnAvailable}
         isProcessing={isTryOnProcessing}
         resultImage={resultImage}
@@ -294,7 +335,7 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
         onStart={handleTryOn}
       />
 
-      <section id="reviews" className="mt-12 scroll-mt-28 px-3 sm:px-0">
+      <section id="reviews" className="relative z-10 mt-12 scroll-mt-28 px-3 sm:px-0">
         <LazyMount fallback={<div className="min-h-[24rem]" />}>
           <ProductReviews
             productId={product.id}

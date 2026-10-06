@@ -28,6 +28,7 @@ interface ProductGalleryProps {
   isFavorite: boolean;
   onToggleFavorite: () => void;
   backHref: string;
+  isScrolled?: boolean;
   /** Fires when an image is committed to the main frame, with time on the previous one. */
   onImageView?: (view: { index: number; total: number; source: ImageViewSource; dwellMs: number }) => void;
   onZoomChange?: (zoomed: boolean, index: number) => void;
@@ -57,6 +58,7 @@ export default function ProductGallery({
   isFavorite,
   onToggleFavorite,
   backHref,
+  isScrolled = false,
   onImageView,
   onZoomChange,
   className,
@@ -154,7 +156,12 @@ export default function ProductGallery({
   const isSwitching = !!selectedSrc && !!displayedSrc && selectedSrc !== displayedSrc;
   const altText = [productName, brand].filter(Boolean).join(" — ");
   const galleryActions = (
-    <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))] sm:p-5">
+    <div
+      className={cn(
+        "pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))] sm:p-5 transition-opacity duration-200",
+        isScrolled && "opacity-0 pointer-events-none lg:opacity-100 lg:pointer-events-auto"
+      )}
+    >
       <Link href={backHref} aria-label="بازگشت به محصولات" className="pointer-events-auto flex size-11 items-center justify-center rounded-xl border border-white/50 bg-voxcina-lightCream/80 text-voxcina-blue backdrop-blur-sm transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-voxcina-blue">
         <ArrowRight className="size-5" />
       </Link>
@@ -166,7 +173,7 @@ export default function ProductGallery({
 
   if (!total) {
     return (
-      <div className={cn("min-w-0 lg:bg-voxcina-lightCream lg:p-4", className)}>
+      <div className={cn("sticky top-0 z-0 min-w-0 lg:static lg:bg-voxcina-lightCream lg:p-4", className)}>
         <div
           className={cn(
             "relative flex w-full flex-col items-center justify-center gap-3 bg-voxcina-cream text-voxcina-blue/50 sm:rounded-b-[28px] lg:rounded-2xl",
@@ -183,7 +190,7 @@ export default function ProductGallery({
 
   return (
     <>
-      <div className={cn("min-w-0 lg:bg-voxcina-lightCream lg:p-4", className)}>
+      <div className={cn("sticky top-0 z-0 min-w-0 lg:static lg:bg-voxcina-lightCream lg:p-4", className)}>
         <div className={GALLERY_LAYOUT}>
           {hasMultiple && (
             <div className={GALLERY_RAIL} aria-label="تصاویر محصول">

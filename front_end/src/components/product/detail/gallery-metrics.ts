@@ -13,7 +13,7 @@
  */
 
 /** Height of the main image frame at each breakpoint. */
-export const GALLERY_FRAME_HEIGHT = "aspect-[6/7] sm:aspect-[4/3] lg:aspect-auto lg:h-[660px] xl:h-[700px]";
+export const GALLERY_FRAME_HEIGHT = "aspect-[3/4] sm:aspect-[4/3] lg:aspect-auto lg:h-[660px] xl:h-[700px]";
 
 /** Gallery shell: rail under the frame on mobile, beside it from `lg` up. */
 export const GALLERY_LAYOUT = "flex flex-col-reverse lg:flex-row lg:gap-3";

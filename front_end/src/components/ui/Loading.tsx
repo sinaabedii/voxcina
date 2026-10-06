@@ -173,7 +173,7 @@ export function ProductDetailSkeleton() {
     <div className="w-full pb-12 pt-0 sm:container sm:mx-auto sm:px-6 sm:pt-4 lg:pt-6" aria-hidden="true">
       <div className="mb-5 hidden h-5 w-2/3 max-w-md rounded bg-muted animate-pulse lg:block" />
 
-      <div className="overflow-hidden bg-voxcina-blue sm:rounded-[28px] lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px]">
+      <div className="bg-voxcina-blue sm:rounded-[28px] lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px] lg:overflow-hidden">
         {/* Gallery — same shell, rail and frame height as ProductGallery */}
         <div className="min-w-0 lg:bg-voxcina-lightCream lg:p-4">
           <div className={GALLERY_LAYOUT}>
