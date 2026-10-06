@@ -252,7 +252,7 @@ export default function ProductGallery({
                 fill
                 sizes="(max-width: 1024px) 100vw, 46vw"
                 className={cn(
-                  "object-contain transition-transform duration-300 motion-reduce:transition-none",
+                  "object-cover lg:object-contain transition-transform duration-300 motion-reduce:transition-none",
                   zoomOrigin && "scale-150"
                 )}
                 style={zoomOrigin ? { transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%` } : undefined}
@@ -266,7 +266,7 @@ export default function ProductGallery({
                   alt=""
                   fill
                   sizes="(max-width: 1024px) 100vw, 46vw"
-                  className="object-contain"
+                  className="object-cover lg:object-contain"
                   loading="eager"
                   onLoad={() => commitPendingImage(selected)}
                 />
@@ -312,7 +312,7 @@ export default function ProductGallery({
               <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 lg:hidden" aria-label="انتخاب تصویر">
                 {images.slice(Math.max(0, Math.min(selected - 2, total - 5)), Math.max(0, Math.min(selected - 2, total - 5)) + 5).map((image, offset) => {
                   const index = Math.max(0, Math.min(selected - 2, total - 5)) + offset;
-                  return <button key={`${image}-${index}`} type="button" aria-label={`نمایش تصویر ${toPersianNumber(index + 1)}`} aria-current={selected === index} onClick={() => select(index, "thumbnail")} className="flex h-11 w-6 items-center justify-center rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-blue"><span className={cn("h-1 rounded-full transition-all motion-reduce:transition-none", selected === index ? "w-5 bg-voxcina-blue" : "w-2 bg-voxcina-blue/30")} /></button>;
+                  return <button key={`${image}-${index}`} type="button" aria-label={`نمایش تصویر ${toPersianNumber(index + 1)}`} aria-current={selected === index} onClick={() => select(index, "thumbnail")} className="flex h-11 w-6 items-center justify-center rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-blue"><span className={cn("h-1 rounded-full drop-shadow transition-all motion-reduce:transition-none", selected === index ? "w-5 bg-white" : "w-2 bg-white/60")} /></button>;
                 })}
               </div>
             )}
