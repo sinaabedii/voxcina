@@ -35,6 +35,12 @@ import { VariantSelection } from "./useVariantSelection";
 type Step = "intro" | "form" | "result";
 type Method = "measured" | "reference";
 
+const wizardSteps: Array<{ key: Step; label: string }> = [
+  { key: "intro", label: "آشنایی" },
+  { key: "form", label: "اطلاعات" },
+  { key: "result", label: "پیشنهاد" },
+];
+
 interface SizeRecommendationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -356,17 +362,18 @@ export default function SizeRecommendationModal({
     Boolean(result?.recommended_size) &&
     (result?.status === "recommended" || freeSizeRecommendation) &&
     sizeIsAvailable(result?.recommended_size);
+  const currentStepIndex = wizardSteps.findIndex(({ key }) => key === step);
 
   return (
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 p-2 backdrop-blur-sm sm:items-center sm:p-4"
           initial={reduceMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={reduceMotion ? undefined : { opacity: 0 }}
           transition={{ duration: 0.2 }}
-          onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+          onPointerDown={(event) => event.target === event.currentTarget && onClose()}
           dir="rtl"
         >
           <motion.div
@@ -374,38 +381,67 @@ export default function SizeRecommendationModal({
             role="dialog"
             aria-modal="true"
             aria-labelledby="size-recommendation-title"
+            aria-describedby="size-recommendation-description"
             initial={reduceMotion ? false : { opacity: 0, y: 20, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={reduceMotion ? undefined : { opacity: 0, y: 20, scale: 0.96 }}
             transition={{ type: "spring" as const, damping: 30, stiffness: 400 }}
-            className="flex h-[min(94vh,760px)] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl border border-border/30 bg-background shadow-2xl sm:h-[min(90vh,760px)] sm:rounded-3xl"
+            className="flex h-[min(calc(100dvh-1rem),760px)] max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border/30 bg-background shadow-2xl sm:h-[min(90dvh,760px)] sm:max-h-[calc(100dvh-2rem)]"
           >
-            <header className="flex shrink-0 items-center justify-between border-b border-border/20 bg-card/80 px-4 py-4 backdrop-blur-md sm:px-6">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <Ruler className="h-5 w-5" aria-hidden="true" />
+            <header className="shrink-0 border-b border-border/20 bg-card/90 px-3 py-3 backdrop-blur-md sm:px-6 sm:py-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <Ruler className="h-5 w-5" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 id="size-recommendation-title" className="text-base font-bold text-primary sm:text-lg">
+                      سایز مناسب من
+                    </h2>
+                    <p
+                      id="size-recommendation-description"
+                      className="line-clamp-2 text-[11px] leading-4 text-muted-foreground"
+                    >
+                      برای {product.name}
+                    </p>
+                  </div>
                 </div>
-                <div>
-              <h2 id="size-recommendation-title" className="text-base font-bold text-primary sm:text-lg">
-                سایز مناسب من
-              </h2>
-              <p className="max-w-[26ch] truncate text-[11px] text-muted-foreground sm:max-w-none">برای {product.name}</p>
-                </div>
+                <button
+                  ref={closeRef}
+                  type="button"
+                  onClick={onClose}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 motion-reduce:transition-none"
+                  aria-label="بستن راهنمای انتخاب سایز"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
-              <button
-                ref={closeRef}
-                type="button"
-                onClick={onClose}
-                className="flex h-11 w-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 motion-reduce:transition-none"
-                aria-label="بستن"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <nav aria-label="مراحل انتخاب سایز" className="mt-3 flex items-start gap-1.5">
+                {wizardSteps.map((wizardStep, index) => (
+                  <div key={wizardStep.key} className="min-w-0 flex-1 text-center">
+                    <div
+                      className={cn(
+                        "h-1.5 rounded-full transition-colors motion-reduce:transition-none",
+                        index <= currentStepIndex ? "bg-primary" : "bg-secondary"
+                      )}
+                    />
+                    <span
+                      aria-current={index === currentStepIndex ? "step" : undefined}
+                      className={cn(
+                        "mt-1 block truncate text-[10px] leading-4",
+                        index === currentStepIndex ? "font-semibold text-primary" : "text-muted-foreground"
+                      )}
+                    >
+                      {wizardStep.label}
+                    </span>
+                  </div>
+                ))}
+              </nav>
             </header>
     
             <main
               ref={mainRef}
-              className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-7 sm:py-6"
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 pb-8 sm:px-7 sm:py-6 sm:pb-10"
             >
           {/* Persistent live region: announced when the outcome lands, from any
               step. Placed first so it is read before the result content. */}
@@ -416,9 +452,10 @@ export default function SizeRecommendationModal({
                 : statusCopy(result.status).title
               : ""}
           </p>
+              <div className="mx-auto w-full max-w-2xl">
               {step === "intro" && (
-                <div className="space-y-6">
-                  <div className="rounded-3xl border border-primary/15 bg-gradient-to-br from-primary/10 via-card to-secondary/30 p-5 sm:p-7">
+                <div className="space-y-5 sm:space-y-6">
+                  <div className="rounded-3xl border border-primary/15 bg-gradient-to-br from-primary/10 via-card to-secondary/30 p-4 sm:p-7">
                     <div className="mb-4 flex items-center gap-2 text-primary">
                       <Sparkles className="h-5 w-5" />
                       <span className="text-sm font-bold">انتخابی نزدیک‌تر به تن‌خور شما</span>
@@ -711,13 +748,14 @@ export default function SizeRecommendationModal({
                   <span>{error}</span>
                 </div>
               )}
+              </div>
             </main>
     
-            <footer className="flex shrink-0 flex-col gap-3 border-t border-border/20 bg-card/90 px-4 py-4 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <footer className="flex shrink-0 flex-col gap-2.5 border-t border-border/20 bg-card/90 px-3 py-3 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-6 sm:py-4">
               {step === "intro" && (
                 <>
                   <p className="text-center text-[11px] text-muted-foreground sm:text-right">بدون نیاز به عکس، سن یا اطلاعات هویتی</p>
-                  <Button size="lg" onClick={() => setStep("form")} rightIcon={<ChevronLeft className="h-4 w-4" />}>
+                  <Button className="w-full sm:w-auto" size="lg" onClick={() => setStep("form")} rightIcon={<ChevronLeft className="h-4 w-4" />}>
                     شروع راهنمای انتخاب سایز
                   </Button>
                 </>
@@ -727,7 +765,7 @@ export default function SizeRecommendationModal({
                   <button type="button" onClick={() => setStep("intro")} className="flex min-h-11 items-center justify-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 motion-reduce:transition-none">
                     <ChevronRight className="h-4 w-4" /> بازگشت
                   </button>
-                  <Button form="size-recommendation-form" type="submit" size="lg" isLoading={isSubmitting} rightIcon={<ArrowLeft className="h-4 w-4" />}>
+                  <Button className="w-full sm:min-w-[12rem]" form="size-recommendation-form" type="submit" size="lg" isLoading={isSubmitting} rightIcon={<ArrowLeft className="h-4 w-4" />}>
                     دیدن سایز پیشنهادی
                   </Button>
                 </>
@@ -743,11 +781,11 @@ export default function SizeRecommendationModal({
                     </button>
                   </div>
               {recommendationAvailable ? (
-                <Button size="lg" onClick={applyRecommendation} rightIcon={<Check className="h-4 w-4" />}>
+                    <Button className="w-full sm:min-w-[12rem]" size="lg" onClick={applyRecommendation} rightIcon={<Check className="h-4 w-4" />}>
                   انتخاب سایز {toPersianNumber(result.recommended_size ?? "")}
                 </Button>
                   ) : (
-                    <Button size="lg" variant="outline" onClick={handleOpenGuide}>
+                    <Button className="w-full sm:min-w-[12rem]" size="lg" variant="outline" onClick={handleOpenGuide}>
                       مشاهده جدول اندازه‌ها
                     </Button>
                   )}
