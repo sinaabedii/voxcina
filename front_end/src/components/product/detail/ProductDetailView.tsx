@@ -19,6 +19,8 @@ import { useProductStore } from "@/store/product-store";
 import { useReviewStore } from "@/store/review-store";
 import { useTryOnStore } from "@/store/tryon-store";
 import { Product, Review } from "@/types/product";
+import { gsap, ScrollTrigger } from "@/lib/gsap-plugins";
+import { useGSAP } from "@gsap/react";
 import ProductGallery from "./ProductGallery";
 import { cn } from "@/lib/utils";
 import ProductInfoTabs from "./ProductInfoTabs";
@@ -73,6 +75,10 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
   const [isScrolled, setIsScrolled] = useState(false);
   const addingRef = useRef(false);
 
+  const heroRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const actionRowRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 80);
@@ -82,7 +88,6 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const actionRowRef = useRef<HTMLDivElement>(null);
   const viewStartRef = useRef(Date.now());
   const viewReportedRef = useRef(false);
 
@@ -104,6 +109,59 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
     const leading = variant?.images?.length ? variant.images : product.colorVariants?.[0]?.images || [];
     return [...leading, ...(product.mainImages || [])];
   }, [product.colorVariants, product.mainImages, selection.selectedColor]);
+
+  useGSAP(
+    () => {
+      const hero = heroRef.current;
+      const panel = panelRef.current;
+      if (!hero || !panel) return;
+
+      const mm = gsap.matchMedia();
+      const easeInOut = gsap.parseEase("power2.inOut");
+      const setY = gsap.quickSetter(panel, "y", "px");
+
+      mm.add("(max-width: 1023px) and (prefers-reduced-motion: no-preference)", () => {
+        gsap.set(panel, { willChange: "transform" });
+
+        const getTravelDistance = () => {
+          const gallery = hero.querySelector<HTMLElement>("[data-product-gallery]");
+          return Math.max((gallery?.offsetHeight || 480) - 24, 200);
+        };
+
+        const st = ScrollTrigger.create({
+          trigger: hero,
+          start: "top top",
+          end: () => `+=${getTravelDistance()}`,
+          snap: {
+            snapTo: [0, 1],
+            duration: { min: 0.25, max: 0.45 },
+            delay: 0.05,
+            ease: "power2.out",
+          },
+          onUpdate: (self) => {
+            const p = self.progress;
+            if (p <= 0 || p >= 1) {
+              setY(0);
+            } else {
+              const eased = easeInOut(p);
+              const D = getTravelDistance();
+              setY(-(eased - p) * D);
+            }
+          },
+        });
+
+        return () => {
+          st.kill();
+          gsap.set(panel, { clearProps: "transform,willChange" });
+        };
+      });
+
+      return () => {
+        mm.revert();
+      };
+    },
+    { scope: heroRef, dependencies: [images] }
+  );
 
   const isTryOnAvailable = useMemo(
     () => Boolean(product.colorVariants?.some((variant) => variant.tryOnImage)),
@@ -295,7 +353,10 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
         </button>
       </div>
 
-      <div className="bg-[#0e223d] sm:rounded-[28px] sm:shadow-[0_20px_50px_rgba(10,25,47,0.35)] sm:border sm:border-white/15 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px] lg:overflow-hidden">
+      <div
+        ref={heroRef}
+        className="bg-[#0e223d] sm:rounded-[28px] sm:shadow-[0_20px_50px_rgba(10,25,47,0.35)] sm:border sm:border-white/15 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px] lg:overflow-hidden"
+      >
         <ProductGallery
           images={images}
           productName={product.name}
@@ -309,6 +370,7 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
         />
 
         <ProductPurchasePanel
+          panelRef={panelRef}
           ref={actionRowRef}
           product={product}
           selection={selection}
