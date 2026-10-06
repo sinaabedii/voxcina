@@ -170,10 +170,10 @@ export function ImageSkeleton({ className = "" }: { className?: string }) {
 // `ProductPurchasePanel` and needs updating when that layout changes.
 export function ProductDetailSkeleton() {
   return (
-    <div className="container px-3 pb-12 pt-1 sm:px-6 sm:pt-4 lg:pt-6" aria-hidden="true">
+    <div className="container pb-12 pt-0 sm:px-6 sm:pt-4 lg:pt-6" aria-hidden="true">
       <div className="mb-5 hidden h-5 w-2/3 max-w-md rounded bg-muted animate-pulse lg:block" />
 
-      <div className="overflow-hidden rounded-[28px] bg-voxcina-blue lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px]">
+      <div className="overflow-hidden bg-voxcina-blue sm:rounded-[28px] lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px]">
         {/* Gallery — same shell, rail and frame height as ProductGallery */}
         <div className="min-w-0 lg:bg-voxcina-lightCream lg:p-4">
           <div className={GALLERY_LAYOUT}>
@@ -183,7 +183,7 @@ export function ProductDetailSkeleton() {
             ))}
           </div>
           <div
-            className={`w-full rounded-b-[28px] bg-voxcina-cream animate-pulse lg:flex-1 lg:rounded-2xl ${GALLERY_FRAME_HEIGHT}`}
+            className={`w-full bg-voxcina-cream animate-pulse sm:rounded-b-[28px] lg:flex-1 lg:rounded-2xl ${GALLERY_FRAME_HEIGHT}`}
           />
           </div>
         </div>
@@ -228,7 +228,7 @@ export function ProductDetailSkeleton() {
       </div>
 
       {/* Info tabs */}
-      <div className="mt-6 h-64 rounded-[24px] bg-muted animate-pulse lg:mt-10" />
+      <div className="mt-6 mx-3 h-64 rounded-[24px] bg-muted animate-pulse sm:mx-0 lg:mt-10" />
     </div>
   );
 }

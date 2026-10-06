@@ -148,7 +148,11 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
       {/* BreadcrumbList JSON-LD schema for SEO */}
       <BreadcrumbSchema items={breadcrumbItems} />
 
-      <div className="container px-3 pb-12 pt-1 sm:px-6 sm:pt-4 lg:pb-20 lg:pt-6">
+      {/* Full-bleed hero on mobile: the reference has the image touching the
+          phone's top and side edges, with the navy sheet tucked under it.
+          Padding returns below the fold and from `sm` up, where the layout
+          reverts to a floating card. */}
+      <div className="container pb-12 pt-0 sm:px-6 sm:pt-4 lg:pb-20 lg:pt-6">
         {/* Breadcrumbs - Server rendered for SEO */}
         <div className="mb-5 hidden text-xs text-voxcina-blue/60 dark:text-voxcina-cream/60 lg:block">
           <Breadcrumbs
@@ -169,7 +173,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
 
         {/* Similar Products - Server rendered */}
         {similarProducts.length > 0 && (
-          <section className="mt-10 lg:mt-16">
+          <section className="mt-10 px-3 sm:px-0 lg:mt-16">
             <SectionTitle title="محصولات مشابه" size="lg" />
             <ProductGrid items={similarProducts} />
           </section>

@@ -84,7 +84,7 @@ export default function ProductStickyBar({
     <div
       aria-hidden={!isVisible}
       className={cn(
-        "fixed inset-x-3 bottom-[max(12px,env(safe-area-inset-bottom))] z-30 mx-auto max-w-lg rounded-[28px] border border-voxcina-cream/15 bg-voxcina-blue p-2 shadow-strong transition-transform duration-300 motion-reduce:transition-none lg:inset-x-6 lg:max-w-5xl lg:p-3",
+        "fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg rounded-t-[24px] border-x border-t border-voxcina-cream/15 bg-voxcina-blue p-2 pb-[max(8px,env(safe-area-inset-bottom))] shadow-strong transition-transform duration-300 motion-reduce:transition-none lg:inset-x-6 lg:bottom-[max(12px,env(safe-area-inset-bottom))] lg:max-w-5xl lg:rounded-[28px] lg:border lg:p-3",
         isVisible ? "translate-y-0" : "pointer-events-none translate-y-[calc(100%+2rem)]"
       )}
     >

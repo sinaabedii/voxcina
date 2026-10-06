@@ -169,7 +169,7 @@ export default function ProductGallery({
       <div className={cn("min-w-0 lg:bg-voxcina-lightCream lg:p-4", className)}>
         <div
           className={cn(
-            "relative flex w-full flex-col items-center justify-center gap-3 rounded-b-[28px] bg-voxcina-cream text-voxcina-blue/50 lg:rounded-2xl",
+            "relative flex w-full flex-col items-center justify-center gap-3 bg-voxcina-cream text-voxcina-blue/50 sm:rounded-b-[28px] lg:rounded-2xl",
             GALLERY_FRAME_HEIGHT
           )}
         >
@@ -211,7 +211,7 @@ export default function ProductGallery({
           <div
             ref={frameRef}
             className={cn(
-               "group relative w-full overflow-hidden rounded-b-[28px] bg-voxcina-cream lg:min-w-0 lg:flex-1 lg:rounded-2xl",
+               "group relative w-full overflow-hidden bg-voxcina-cream sm:rounded-b-[28px] lg:min-w-0 lg:flex-1 lg:rounded-2xl",
               GALLERY_FRAME_HEIGHT
             )}
             onPointerMove={trackPointer}

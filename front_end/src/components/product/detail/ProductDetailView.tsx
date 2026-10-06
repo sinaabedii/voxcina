@@ -248,7 +248,7 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
 
   return (
     <>
-      <div className="overflow-hidden rounded-[28px] bg-voxcina-blue shadow-medium lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px]">
+      <div className="overflow-hidden bg-voxcina-blue sm:rounded-[28px] sm:shadow-medium lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px]">
         <ProductGallery
           images={images}
           productName={product.name}
@@ -282,11 +282,11 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
         product={product}
         selectedSize={selection.selectedSize}
         onSelectSize={selection.setSize}
-        className="mt-6 lg:mt-10"
+        className="mt-6 px-3 sm:px-0 lg:mt-10"
       />
 
       <ProductTryOnPanel
-        className={cn("mt-6 lg:mt-10", !isTryOnAvailable && "hidden")}
+        className={cn("mt-6 px-3 sm:px-0 lg:mt-10", !isTryOnAvailable && "hidden")}
         isAvailable={isTryOnAvailable}
         isProcessing={isTryOnProcessing}
         resultImage={resultImage}
@@ -294,7 +294,7 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
         onStart={handleTryOn}
       />
 
-      <section id="reviews" className="mt-12 scroll-mt-28">
+      <section id="reviews" className="mt-12 scroll-mt-28 px-3 sm:px-0">
         <LazyMount fallback={<div className="min-h-[24rem]" />}>
           <ProductReviews
             productId={product.id}
