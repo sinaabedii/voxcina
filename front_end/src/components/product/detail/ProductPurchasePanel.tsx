@@ -38,6 +38,12 @@ const mobileColorSelectorClassName = cn(
   "max-sm:[&>div:last-child>button:focus-visible]:outline max-sm:[&>div:last-child>button:focus-visible]:outline-2 max-sm:[&>div:last-child>button:focus-visible]:outline-offset-2 max-sm:[&>div:last-child>button:focus-visible]:outline-primary"
 );
 
+// The three action buttons share one grid cell, so the Persian label alone can
+// eat the whole cell and the SVG (a shrinkable flex item) collapses to 0px on
+// phones. Keep the icons fixed and compact padding/font under sm instead.
+const mobileActionRowClassName = "max-sm:px-2 max-sm:text-xs";
+const mobileActionIconClassName = "ml-1.5 h-4 w-4 shrink-0";
+
 export interface BrandLink {
   name: string;
   href: string;
@@ -209,9 +215,13 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
               <Button
                 variant={isFavorite ? "primary" : "outline"}
                 onClick={onToggleFavorite}
-                className={cn("rounded-xl", isFavorite && "bg-red-500 text-white hover:bg-red-600")}
+                className={cn(
+                  "rounded-xl",
+                  mobileActionRowClassName,
+                  isFavorite && "bg-red-500 text-white hover:bg-red-600"
+                )}
               >
-                <Heart className="ml-1.5 h-4 w-4" fill={isFavorite ? "currentColor" : "none"} />
+                <Heart className={mobileActionIconClassName} fill={isFavorite ? "currentColor" : "none"} />
                 علاقه‌مندی
               </Button>
               <Button
@@ -219,13 +229,17 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
                 onClick={onTryOn}
                 disabled={!isTryOnAvailable}
                 title={isTryOnAvailable ? undefined : "برای این محصول در دسترس نیست"}
-                className="rounded-xl"
+                className={cn("rounded-xl", mobileActionRowClassName)}
               >
-                <Shirt className="ml-1.5 h-4 w-4" />
+                <Shirt className={mobileActionIconClassName} />
                 پرو مجازی
               </Button>
-              <Button variant="outline" onClick={onShare} className="rounded-xl">
-                <Share2 className="ml-1.5 h-4 w-4" />
+              <Button
+                variant="outline"
+                onClick={onShare}
+                className={cn("rounded-xl", mobileActionRowClassName)}
+              >
+                <Share2 className={mobileActionIconClassName} />
                 اشتراک‌گذاری
               </Button>
             </div>
