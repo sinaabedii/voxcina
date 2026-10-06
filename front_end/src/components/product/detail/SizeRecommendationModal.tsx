@@ -368,7 +368,18 @@ export default function SizeRecommendationModal({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 p-2 backdrop-blur-sm sm:items-center sm:p-4"
+          className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 60,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "100vw",
+            boxSizing: "border-box",
+            padding: "1rem",
+          }}
           initial={reduceMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={reduceMotion ? undefined : { opacity: 0 }}
@@ -386,9 +397,23 @@ export default function SizeRecommendationModal({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={reduceMotion ? undefined : { opacity: 0, y: 20, scale: 0.96 }}
             transition={{ type: "spring" as const, damping: 30, stiffness: 400 }}
-            className="flex h-[min(calc(100dvh-1rem),760px)] max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border/30 bg-background shadow-2xl sm:h-[min(90dvh,760px)] sm:max-h-[calc(100dvh-2rem)]"
+            className="overflow-hidden rounded-3xl border border-border/30 bg-background shadow-2xl"
+            style={{
+              position: "relative",
+              display: "flex",
+              flexDirection: "column",
+              flexShrink: 0,
+              width: "100%",
+              maxWidth: "42rem",
+              height: "760px",
+              maxHeight: "calc(100dvh - 2rem)",
+              boxSizing: "border-box",
+            }}
           >
-            <header className="shrink-0 border-b border-border/20 bg-card/90 px-3 py-3 backdrop-blur-md sm:px-6 sm:py-4">
+            <header
+              className="shrink-0 border-b border-border/20 bg-card/90 px-3 py-3 backdrop-blur-md sm:px-6 sm:py-4"
+              style={{ flexShrink: 0 }}
+            >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2.5">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -441,7 +466,13 @@ export default function SizeRecommendationModal({
     
             <main
               ref={mainRef}
-              className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 pb-8 sm:px-7 sm:py-6 sm:pb-10"
+              className="min-h-0 overflow-y-auto overscroll-contain px-3 py-4 pb-8 sm:px-7 sm:py-6 sm:pb-10"
+              style={{
+                minHeight: 0,
+                flex: "1 1 0%",
+                overflowY: "auto",
+                overscrollBehavior: "contain",
+              }}
             >
           {/* Persistent live region: announced when the outcome lands, from any
               step. Placed first so it is read before the result content. */}
@@ -751,7 +782,10 @@ export default function SizeRecommendationModal({
               </div>
             </main>
     
-            <footer className="flex shrink-0 flex-col gap-2.5 border-t border-border/20 bg-card/90 px-3 py-3 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-6 sm:py-4">
+            <footer
+              className="flex shrink-0 flex-col gap-2.5 border-t border-border/20 bg-card/90 px-3 py-3 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-6 sm:py-4"
+              style={{ flexShrink: 0 }}
+            >
               {step === "intro" && (
                 <>
                   <p className="text-center text-[11px] text-muted-foreground sm:text-right">بدون نیاز به عکس، سن یا اطلاعات هویتی</p>
