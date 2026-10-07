@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { Check, Palette, X } from "lucide-react";
 import { cn, toPersianNumber } from "@/lib/utils";
@@ -27,33 +28,40 @@ export default function ProductColorModal({
   onSelectColor,
   productName,
 }: ProductColorModalProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     if (!isOpen) return;
-    const previous = document.body.style.overflow;
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.body.style.overflow = previous;
+      document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="color-modal-title"
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-md transition-all sm:items-center sm:p-4"
+      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/75 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
+      dir="rtl"
     >
-      <div className="relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[32px] border-t border-white/20 bg-[#0e223d] shadow-2xl sm:max-h-[80vh] sm:rounded-3xl sm:border">
+      <div className="relative flex max-h-[85dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[32px] border-t border-white/20 bg-[#0e223d] shadow-2xl sm:max-h-[80vh] sm:rounded-3xl sm:border">
         {/* Specular highlights & ambient glow */}
         <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
           <div className="absolute -top-16 -right-16 h-48 w-48 rounded-full bg-[radial-gradient(circle,rgba(230,198,135,0.25)_0%,transparent_70%)]" />
@@ -62,12 +70,12 @@ export default function ProductColorModal({
         </div>
 
         {/* Mobile handle indicator */}
-        <div className="flex justify-center pt-3 pb-1 sm:hidden">
+        <div className="flex shrink-0 justify-center pt-3 pb-1 sm:hidden">
           <div className="h-1.5 w-12 rounded-full bg-white/25" />
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-5 py-4">
           <div className="flex items-center gap-2.5">
             <span className="flex size-9 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-voxcina-cream shadow-xs">
               <Palette className="size-4" />
@@ -93,15 +101,15 @@ export default function ProductColorModal({
 
         {/* Filter reminder if size selected */}
         {selectedSize && (
-          <div className="border-b border-white/5 bg-white/[0.04] px-5 py-2">
+          <div className="shrink-0 border-b border-white/5 bg-white/[0.04] px-5 py-2">
             <p className="text-xs text-voxcina-cream/75">
               وضعیت موجودی بر اساس سایز انتخابی <span className="font-bold text-white">{toPersianNumber(selectedSize)}</span> نمایش داده می‌شود.
             </p>
           </div>
         )}
 
-        {/* Colors Grid */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+        {/* Colors Grid - Scrollable with min-h-0 and overscroll-contain */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 touch-pan-y">
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             {colors.map((color) => {
               const key = color.variantId || color.colorName;
@@ -164,7 +172,7 @@ export default function ProductColorModal({
         </div>
 
         {/* Footer CTA */}
-        <div className="border-t border-white/10 p-4 sm:p-5">
+        <div className="shrink-0 border-t border-white/10 p-4 sm:p-5">
           <button
             type="button"
             onClick={onClose}
@@ -174,6 +182,7 @@ export default function ProductColorModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
