@@ -8,6 +8,7 @@ import { cn, toPersianNumber } from "@/lib/utils";
 import { Product } from "@/types/product";
 import { VariantSelection } from "./useVariantSelection";
 import ProductCartButton from "./ProductCartButton";
+import ProductColorModal from "./ProductColorModal";
 import SizeGuideModal from "./SizeGuideModal";
 import SizeRecommendationModal from "./SizeRecommendationModal";
 
@@ -53,10 +54,29 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
   ) {
     const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
     const [isSizeRecommendationOpen, setIsSizeRecommendationOpen] = useState(false);
+    const [isColorModalOpen, setIsColorModalOpen] = useState(false);
     const hint = selectionHint(selection);
     const discount = product.originalPrice > product.price
       ? Math.round((1 - product.price / product.originalPrice) * 100)
       : 0;
+
+    const MAX_PREVIEW_COLORS = 4;
+    const selectedColorIndex = selection.colors.findIndex(
+      (c) => (c.variantId || c.colorName) === selection.selectedColor
+    );
+    let previewColors = selection.colors;
+    if (selection.colors.length > MAX_PREVIEW_COLORS) {
+      if (selectedColorIndex >= 3) {
+        previewColors = [
+          selection.colors[0],
+          selection.colors[1],
+          selection.colors[selectedColorIndex],
+        ];
+      } else {
+        previewColors = selection.colors.slice(0, 3);
+      }
+    }
+    const remainingColorsCount = selection.colors.length - previewColors.length;
 
     return (
       <div
@@ -120,11 +140,22 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
         <div className="mt-4 flex items-end justify-between gap-3">
           {selection.colors.length > 0 && (
             <fieldset className="min-w-0 flex-1">
-              <legend className="mb-1 text-xs">
-                رنگ: <span className="text-voxcina-cream/75">{selection.selectedVariant?.colorName || "انتخاب کنید"}</span>
-              </legend>
-              <div className="flex flex-wrap gap-1">
-                {selection.colors.map((color) => {
+              <div className="mb-1.5 flex items-center justify-between">
+                <legend className="text-xs">
+                  رنگ: <span className="text-voxcina-cream/75">{selection.selectedVariant?.colorName || "انتخاب کنید"}</span>
+                </legend>
+                {selection.colors.length > MAX_PREVIEW_COLORS && (
+                  <button
+                    type="button"
+                    onClick={() => setIsColorModalOpen(true)}
+                    className="text-xs text-voxcina-cream/70 transition-colors hover:text-white"
+                  >
+                    همه ({toPersianNumber(selection.colors.length)})
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 flex-nowrap">
+                {previewColors.map((color) => {
                   const key = color.variantId || color.colorName;
                   const selected = selection.selectedColor === key;
                   const available = !selection.selectedSize || selection.colorsForSelectedSize.some((item) => item.variantId === color.variantId);
@@ -138,19 +169,30 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
                       title={color.colorName}
                       onClick={() => onColorChange(selected ? undefined : key)}
                       className={cn(
-                        "relative flex size-11 items-center justify-center rounded-xl transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream disabled:cursor-not-allowed disabled:opacity-35",
+                        "relative flex size-9 shrink-0 items-center justify-center rounded-xl transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream disabled:cursor-not-allowed disabled:opacity-35",
                         selected
                           ? "border border-dashed border-voxcina-cream bg-white/20 shadow-[0_4px_16px_rgba(230,198,135,0.35)]"
                           : "border border-white/15 bg-white/[0.08] hover:border-white/30 hover:bg-white/[0.14]"
                       )}
                     >
-                      <span className="relative block size-7 overflow-hidden rounded-[8px] border border-white/50 shadow-sm" style={{ backgroundColor: color.color?.startsWith("#") ? color.color : "#DFD8CC" }}>
-                        {color.swatchImage && <Image src={color.swatchImage} alt="" fill sizes="28px" className="object-cover" />}
+                      <span className="relative block size-6 overflow-hidden rounded-[7px] border border-white/50 shadow-sm" style={{ backgroundColor: color.color?.startsWith("#") ? color.color : "#DFD8CC" }}>
+                        {color.swatchImage && <Image src={color.swatchImage} alt="" fill sizes="24px" className="object-cover" />}
                       </span>
-                      {selected && <Check className="absolute size-3.5 rounded-full bg-voxcina-blue p-0.5 text-white shadow-xs" aria-hidden="true" />}
+                      {selected && <Check className="absolute size-3 rounded-full bg-voxcina-blue p-0.5 text-white shadow-xs" aria-hidden="true" />}
                     </button>
                   );
                 })}
+                {remainingColorsCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setIsColorModalOpen(true)}
+                    aria-label={`مشاهده ${toPersianNumber(remainingColorsCount)} رنگ دیگر`}
+                    title={`مشاهده ${toPersianNumber(remainingColorsCount)} رنگ دیگر`}
+                    className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-xs font-bold text-voxcina-cream shadow-xs transition-all hover:border-white/40 hover:bg-white/20 hover:text-white active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream"
+                  >
+                    {toPersianNumber(remainingColorsCount)}+
+                  </button>
+                )}
               </div>
             </fieldset>
           )}
@@ -158,12 +200,12 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
             <div className="shrink-0 pb-0.5">
               <span className="sr-only">تعداد</span>
               <div
-                className="flex h-11 items-center overflow-hidden rounded-xl border border-white/40 bg-gradient-to-b from-white/95 to-voxcina-cream/95 text-voxcina-blue shadow-[0_4px_14px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.8)]"
+                className="flex h-9 items-center overflow-hidden rounded-xl border border-white/40 bg-gradient-to-b from-white/95 to-voxcina-cream/95 text-voxcina-blue shadow-[0_4px_14px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.8)]"
                 dir="ltr"
               >
-                <button type="button" aria-label="کاهش تعداد" disabled={!selection.canModifyQuantity || selection.quantity <= 1} onClick={() => selection.setQuantity(selection.quantity - 1)} className="flex size-11 items-center justify-center hover:bg-white/80 active:bg-voxcina-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] disabled:opacity-35"><Minus className="size-3.5" /></button>
-                <span className="min-w-5 text-center text-sm font-bold tabular-nums" aria-live="polite">{toPersianNumber(selection.quantity)}</span>
-                <button type="button" aria-label="افزایش تعداد" disabled={!selection.canModifyQuantity || selection.quantity >= selection.inventory} onClick={() => selection.setQuantity(selection.quantity + 1)} className="flex size-11 items-center justify-center hover:bg-white/80 active:bg-voxcina-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] disabled:opacity-35"><Plus className="size-3.5" /></button>
+                <button type="button" aria-label="کاهش تعداد" disabled={!selection.canModifyQuantity || selection.quantity <= 1} onClick={() => selection.setQuantity(selection.quantity - 1)} className="flex size-9 items-center justify-center hover:bg-white/80 active:bg-voxcina-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] disabled:opacity-35"><Minus className="size-3" /></button>
+                <span className="min-w-4 text-center text-xs font-bold tabular-nums" aria-live="polite">{toPersianNumber(selection.quantity)}</span>
+                <button type="button" aria-label="افزایش تعداد" disabled={!selection.canModifyQuantity || selection.quantity >= selection.inventory} onClick={() => selection.setQuantity(selection.quantity + 1)} className="flex size-9 items-center justify-center hover:bg-white/80 active:bg-voxcina-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] disabled:opacity-35"><Plus className="size-3" /></button>
               </div>
             </div>
           )}
@@ -285,6 +327,16 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
           </button>
         </div>
 
+        <ProductColorModal
+          isOpen={isColorModalOpen}
+          onClose={() => setIsColorModalOpen(false)}
+          colors={selection.colors}
+          selectedColor={selection.selectedColor}
+          selectedSize={selection.selectedSize}
+          colorsForSelectedSize={selection.colorsForSelectedSize}
+          onSelectColor={onColorChange}
+          productName={product.name}
+        />
         <SizeGuideModal isOpen={isSizeGuideOpen} onClose={() => setIsSizeGuideOpen(false)} product={product} selectedSize={selection.selectedSize} onSelectSize={selection.setSize} />
         <SizeRecommendationModal isOpen={isSizeRecommendationOpen} onClose={() => setIsSizeRecommendationOpen(false)} onOpenSizeGuide={() => window.setTimeout(() => setIsSizeGuideOpen(true), 0)} product={product} selection={selection} />
       </div>
