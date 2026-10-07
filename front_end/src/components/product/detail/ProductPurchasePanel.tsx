@@ -84,17 +84,17 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             {(brand || product.brand) && (
-              <p className="mb-1.5 text-[11px] text-voxcina-cream/70 sm:text-xs">
+              <p className="mb-1 text-xs text-voxcina-cream/70">
                 {brand ? <Link href={brand.href} className="rounded hover:text-white focus-visible:outline focus-visible:outline-2">{brand.name}</Link> : product.brand}
               </p>
             )}
-            <h1 className="text-lg font-bold leading-relaxed text-voxcina-cream sm:text-2xl lg:text-[26px]">{product.name}</h1>
+            <h1 className="text-xl font-bold leading-snug text-voxcina-cream sm:text-2xl">{product.name}</h1>
           </div>
           <div className="shrink-0 pt-1 text-left">
-            <p className="text-base font-bold tabular-nums sm:text-xl">{toPersianNumber(product.price.toLocaleString("en-US"))}</p>
-            <span className="text-[10px] text-voxcina-cream/75">تومان</span>
+            <p className="text-xl font-bold tabular-nums text-white sm:text-2xl">{toPersianNumber(product.price.toLocaleString("en-US"))}</p>
+            <span className="text-xs text-voxcina-cream/75">تومان</span>
             {discount > 0 && (
-              <div className="mt-1 flex items-center justify-end gap-1.5 text-[10px]">
+              <div className="mt-1 flex items-center justify-end gap-1.5 text-xs">
                 <del className="text-voxcina-cream/60">{toPersianNumber(product.originalPrice.toLocaleString("en-US"))}</del>
                 <span className="rounded-full bg-voxcina-cream px-1.5 py-0.5 font-bold text-voxcina-blue">{toPersianNumber(discount)}٪</span>
               </div>
@@ -103,7 +103,7 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
         </div>
 
         {product.description?.trim() && (
-          <p className="mt-1.5 line-clamp-2 text-xs leading-6 text-voxcina-cream/75">{product.description}</p>
+          <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-voxcina-cream/75">{product.description}</p>
         )}
 
         <a href="#reviews" className="mt-3 flex min-h-8 w-fit items-center gap-2.5 rounded text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -193,7 +193,7 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
                     disabled={!available}
                     onClick={() => selection.setSize(selected ? undefined : size)}
                     className={cn(
-                      "min-h-11 min-w-11 rounded-xl border px-3 text-xs transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-voxcina-cream disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none",
+                      "min-h-11 min-w-11 rounded-xl border px-3 text-sm transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-voxcina-cream disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none",
                       selected
                         ? "border-white/90 bg-gradient-to-b from-white to-voxcina-cream font-bold text-voxcina-blue shadow-[0_4px_14px_rgba(230,198,135,0.35),inset_0_1px_1px_rgba(255,255,255,0.9)]"
                         : "border-white/15 bg-white/[0.07] text-voxcina-cream hover:border-white/30 hover:bg-white/[0.14]",
@@ -255,7 +255,7 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
         <div ref={actionRowRef} className="mt-4">
           {product.inStock ? (
             <>
-              <p className="mb-3 text-[11px] text-voxcina-cream/75" aria-live="polite">
+              <p className="mb-3 text-xs text-voxcina-cream/75" aria-live="polite">
                 {hint || (selection.inventory > 0 ? `${toPersianNumber(selection.inventory)} عدد موجود در این رنگ و سایز` : "این ترکیب رنگ و سایز موجود نیست")}
               </p>
               <ProductCartButton total={product.price * selection.quantity} isAdding={isAdding} onClick={onAddToCart} />
@@ -263,13 +263,13 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
           ) : (
             <>
               <p className="mb-3 text-sm text-voxcina-cream/75">این محصول فعلاً ناموجود است</p>
-              <button type="button" onClick={onNotifyRequest} disabled={isNotifyEnabled} className="min-h-14 w-full rounded-full bg-voxcina-cream px-5 text-sm font-bold text-voxcina-blue focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-voxcina-cream disabled:opacity-60">{isNotifyEnabled ? "اطلاع‌رسانی فعال شد" : "موجود شد، خبرم کن"}</button>
+              <button type="button" onClick={onNotifyRequest} disabled={isNotifyEnabled} className="min-h-14 w-full rounded-full bg-voxcina-cream px-5 text-base font-bold text-voxcina-blue focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-voxcina-cream disabled:opacity-60">{isNotifyEnabled ? "اطلاع‌رسانی فعال شد" : "موجود شد، خبرم کن"}</button>
             </>
           )}
         </div>
 
         <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3">
-          <p className="flex items-center gap-1.5 text-[10px] text-voxcina-cream/75">
+          <p className="flex items-center gap-1.5 text-xs text-voxcina-cream/75">
             <ShieldCheck className="size-3.5 text-voxcina-cream/90" />
             ضمانت اصالت کالا
             <span aria-hidden="true" className="mx-1">·</span>

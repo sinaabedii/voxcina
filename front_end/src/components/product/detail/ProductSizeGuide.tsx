@@ -119,12 +119,12 @@ export default function ProductSizeGuide({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-border/20">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h3 className="text-base sm:text-lg font-bold text-primary">
+            <h3 className="text-base font-bold text-primary">
               {sizingType?.name
                 ? `راهنمای ابعاد و اندازه‌گیری: ${sizingType.name}`
                 : "راهنمای تخصصی ابعاد و انتخاب سایز"}
             </h3>
-            <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+            <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
               <Ruler className="w-3 h-3" />
               ابعاد دقیق (cm)
             </span>
@@ -193,7 +193,7 @@ export default function ProductSizeGuide({
               جدول ابعاد قطعات لباس (سانتی‌متر):
             </span>
             {onSelectSize && (
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 کلیک روی هر سطر، سایز را در فرم خرید انتخاب می‌کند
               </span>
             )}
@@ -223,7 +223,7 @@ export default function ProductSizeGuide({
                     >
                       <div className="inline-flex items-center gap-1">
                         <span>{m.label}</span>
-                        <span className="text-[10px] text-muted-foreground">(cm)</span>
+                        <span className="text-xs text-muted-foreground">(cm)</span>
                       </div>
                     </th>
                   ))}
@@ -280,7 +280,7 @@ export default function ProductSizeGuide({
                           >
                             <span className="whitespace-nowrap font-bold">{row.size}</span>
                             {isSelected && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-primary text-primary-foreground text-[10px] font-normal">
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-primary text-primary-foreground text-xs font-normal">
                                 <Check className="w-2.5 h-2.5 ml-0.5" />
                                 انتخابی
                               </span>
@@ -315,7 +315,7 @@ export default function ProductSizeGuide({
             </table>
           </div>
 
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
+          <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
             <span>* تمامی اندازه‌ها بر اساس سانتی‌متر و با خطای احتمالی ۱ الی ۲ سانتی‌متر درج شده‌اند.</span>
           </div>
         </div>
@@ -377,7 +377,7 @@ export default function ProductSizeGuide({
 
                       {m.body_guide && (
                         <div className="space-y-1">
-                          <span className="text-[11px] font-bold text-foreground/90 flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-foreground/90 flex items-center gap-1.5">
                             <Ruler className="w-3 h-3 text-primary shrink-0" />
                             روش اندازه‌گیری روی بدن:
                           </span>
@@ -389,7 +389,7 @@ export default function ProductSizeGuide({
 
                       {m.fit_advice && (
                         <div className="space-y-1 pt-1 border-t border-border/10">
-                          <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                             <CheckCircle2 className="w-3 h-3 shrink-0" />
                             نکات تطابق و آزادی دوخت (Ease Allowance):
                           </span>

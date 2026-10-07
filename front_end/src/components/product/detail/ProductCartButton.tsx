@@ -36,13 +36,13 @@ export default function ProductCartButton({
       {/* Specular glass reflection sheen across top half of pill */}
       <span className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/60 to-transparent" aria-hidden="true" />
 
-      <span className="relative z-10 flex flex-1 items-center justify-center gap-2 text-xs font-bold sm:text-sm">
+      <span className="relative z-10 flex flex-1 items-center justify-center gap-2 text-sm font-bold sm:text-base">
         {isAdding && <Loader2 className="size-4 shrink-0 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
         {isAdding ? "در حال افزودن…" : label}
       </span>
       <span className="relative z-10 flex shrink-0 items-baseline gap-1.5 border-r border-voxcina-blue/20 pr-4">
         <span className="text-sm font-bold tabular-nums sm:text-base">{toPersianNumber(total.toLocaleString("en-US"))}</span>
-        <span className="text-[10px]">تومان</span>
+        <span className="text-xs">تومان</span>
       </span>
     </button>
   );

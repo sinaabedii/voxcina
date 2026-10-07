@@ -103,7 +103,7 @@ export default function ProductStickyBar({
         )}
 
         <div className="hidden min-w-0 flex-1 lg:block">
-          <p className="truncate font-medium text-voxcina-cream">{product.name}</p>
+          <p className="truncate text-sm font-medium text-voxcina-cream">{product.name}</p>
           <p className="mt-1 truncate text-xs text-voxcina-cream/70">
             {variantSummary || "رنگ و سایز انتخاب نشده"}
           </p>

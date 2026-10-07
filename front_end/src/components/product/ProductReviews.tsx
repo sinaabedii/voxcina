@@ -175,7 +175,7 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
           <div className="text-center md:border-l md:border-border/10 md:pl-8">
             <div className="text-4xl font-bold mb-2 text-primary flex justify-center items-baseline">
               {avgRating.toFixed(1)}
-              <span className="text-lg text-muted-foreground mr-1">از 5</span>
+              <span className="text-sm text-muted-foreground mr-1">از 5</span>
             </div>
             <StarRating
               initialRating={avgRating}
@@ -189,7 +189,7 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
           </div>
 
           <div className="flex-grow">
-            <h3 className="text-lg font-medium mb-4 text-primary">توزیع امتیازها</h3>
+            <h3 className="text-base font-bold mb-4 text-primary">توزیع امتیازها</h3>
             <div className="space-y-3">
               {ratingStats.map((stat) => (
                 <div key={stat.stars} className="flex items-center">
@@ -234,7 +234,7 @@ const ProductReviews: React.FC<ProductReviewsProps> = ({
           animate={{ opacity: 1, y: 0 }}
           className="voxcina-card p-6 mb-8"
         >
-          <h3 className="text-lg font-medium mb-4 text-primary border-r-2 border-primary pr-2">نظر خود را بنویسید</h3>
+          <h3 className="text-base font-bold mb-4 text-primary border-r-2 border-primary pr-2">نظر خود را بنویسید</h3>
 
           <div className="space-y-4">
             <div>
