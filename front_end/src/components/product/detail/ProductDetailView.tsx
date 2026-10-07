@@ -73,10 +73,6 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
   const [isScrolled, setIsScrolled] = useState(false);
   const addingRef = useRef(false);
 
-  const heroRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const actionRowRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 80);
@@ -86,6 +82,7 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const actionRowRef = useRef<HTMLDivElement>(null);
   const viewStartRef = useRef(Date.now());
   const viewReportedRef = useRef(false);
 
@@ -298,10 +295,7 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
         </button>
       </div>
 
-      <div
-        ref={heroRef}
-        className="bg-[#0e223d] sm:rounded-[28px] sm:shadow-[0_20px_50px_rgba(10,25,47,0.35)] sm:border sm:border-white/15 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px] lg:overflow-hidden"
-      >
+      <div className="bg-[#0e223d] sm:rounded-[28px] sm:shadow-[0_20px_50px_rgba(10,25,47,0.35)] sm:border sm:border-white/15 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px] lg:overflow-hidden">
         <ProductGallery
           images={images}
           productName={product.name}
@@ -315,7 +309,6 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
         />
 
         <ProductPurchasePanel
-          panelRef={panelRef}
           ref={actionRowRef}
           product={product}
           selection={selection}

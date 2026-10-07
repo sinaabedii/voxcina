@@ -173,7 +173,7 @@ export default function ProductGallery({
 
   if (!total) {
     return (
-      <div data-product-gallery className={cn("sticky top-0 z-0 min-w-0 lg:static lg:bg-voxcina-lightCream lg:p-4", className)}>
+      <div className={cn("sticky top-0 z-0 min-w-0 lg:static lg:bg-voxcina-lightCream lg:p-4", className)}>
         <div
           className={cn(
             "relative flex w-full flex-col items-center justify-center gap-3 bg-voxcina-cream text-voxcina-blue/50 sm:rounded-b-[28px] lg:rounded-2xl",
@@ -190,7 +190,7 @@ export default function ProductGallery({
 
   return (
     <>
-      <div data-product-gallery className={cn("sticky top-0 z-0 min-w-0 lg:static lg:bg-voxcina-lightCream lg:p-4", className)}>
+      <div className={cn("sticky top-0 z-0 min-w-0 lg:static lg:bg-voxcina-lightCream lg:p-4", className)}>
         <div className={GALLERY_LAYOUT}>
           {hasMultiple && (
             <div className={GALLERY_RAIL} aria-label="تصاویر محصول">

@@ -90,7 +90,7 @@ export default function ProductInfoTabs({
         role="tablist"
         aria-label="اطلاعات محصول"
         onKeyDown={handleKeyDown}
-        className="flex items-stretch border-b border-voxcina-blue/10 px-1 pt-2 dark:border-voxcina-cream/10 sm:px-5"
+        className="grid grid-cols-3 gap-1 border-b border-voxcina-blue/10 px-3 pt-2 dark:border-voxcina-cream/10 sm:px-5"
       >
         {TABS.map((tab) => {
           const isActive = activeTab === tab.key;
@@ -108,10 +108,10 @@ export default function ProductInfoTabs({
               tabIndex={isActive ? 0 : -1}
               onClick={() => setActiveTab(tab.key)}
               className={cn(
-                "flex-1 min-h-12 border-b-2 px-1 py-3 text-center text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50 motion-reduce:transition-none sm:min-h-14 sm:px-3 sm:text-sm",
+                "min-h-14 border-b-2 px-1 py-3 text-[11px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50 motion-reduce:transition-none sm:px-3 sm:text-sm",
                 isActive
                   ? "border-voxcina-blue font-bold text-voxcina-blue dark:border-voxcina-cream dark:text-voxcina-cream"
-                  : "border-transparent text-foreground/50 hover:text-foreground"
+                  : "border-transparent text-foreground/55 hover:text-foreground"
               )}
             >
               {tab.label}
@@ -122,7 +122,7 @@ export default function ProductInfoTabs({
 
       <div
         className={cn(
-          "grid gap-5 p-4 sm:p-7 lg:gap-10 lg:p-8",
+            "grid gap-6 p-5 sm:p-7 lg:gap-10 lg:p-8",
           activeTab === "sizeGuide"
             ? "grid-cols-1"
             : "lg:grid-cols-[minmax(0,1fr)_20rem]"
