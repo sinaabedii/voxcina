@@ -40,6 +40,45 @@ interface ProductInfoTabsProps {
   className?: string;
 }
 
+function parseDescriptionToBullets(text?: string): string[] {
+  if (!text || !text.trim()) return [];
+
+  const rawLines = text
+    .split(/\r?\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (rawLines.length > 1) {
+    return rawLines
+      .map((line) =>
+        line
+          .replace(/^[\s•\-\*\u2022\u2023\u25E6\u2043\u2219]+/, "")
+          .replace(/^\d+[\.\-\)]\s*/, "")
+          .trim()
+      )
+      .filter(Boolean);
+  }
+
+  const singleLine = rawLines[0] || "";
+  const sentences = singleLine
+    .split(/(?<=[.؛!\n])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (sentences.length > 1) {
+    return sentences
+      .map((s) =>
+        s
+          .replace(/^[\s•\-\*\u2022\u2023\u25E6\u2043\u2219]+/, "")
+          .replace(/^\d+[\.\-\)]\s*/, "")
+          .trim()
+      )
+      .filter(Boolean);
+  }
+
+  return [singleLine];
+}
+
 /**
  * Long-form product information, full width under the hero.
  *
@@ -131,22 +170,30 @@ export default function ProductInfoTabs({
           {activeTab === "description" && (
             <div className="space-y-6">
               <div>
-                <h2 className="mb-3 text-base font-bold text-foreground">توضیحات این محصول</h2>
-                {product.description?.trim() ? (
-                  <p className="max-w-prose whitespace-pre-line text-sm leading-8 text-foreground/80">
-                    {product.description}
-                  </p>
+                <h2 className="mb-3 text-base font-bold text-foreground">توضیحات محصول</h2>
+                {parseDescriptionToBullets(product.description).length > 0 ? (
+                  <ul className="space-y-2 text-sm leading-7 text-foreground/85">
+                    {parseDescriptionToBullets(product.description).map((bullet, idx) => (
+                      <li key={idx} className="flex items-start gap-2.5">
+                        <span
+                          className="mt-2.5 size-1.5 shrink-0 rounded-full bg-voxcina-blue dark:bg-voxcina-cream"
+                          aria-hidden="true"
+                        />
+                        <span className="flex-1">{bullet}</span>
+                      </li>
+                    ))}
+                  </ul>
                 ) : (
                   <p className="text-xs text-foreground/55">
-                    توضیحات متنی برای این محصول ثبت نشده است. مشخصات و ویژگی‌های آن در ادامه قابل مشاهده است.
+                    توضیحات متنی برای این محصول ثبت نشده است. مشخصات فنی در ادامه آمده است.
                   </p>
                 )}
               </div>
 
-              {/* Integrated Features / Specifications */}
+              {/* Integrated Features / Specifications as compact bullet points */}
               <ProductAttributes
                 attributes={product.attributes}
-                className="border-t border-voxcina-blue/10 pt-6 dark:border-voxcina-cream/10"
+                className="border-t border-voxcina-blue/10 pt-5 dark:border-voxcina-cream/10"
               />
             </div>
           )}

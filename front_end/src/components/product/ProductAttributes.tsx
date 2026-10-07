@@ -35,7 +35,7 @@ const ProductAttributes: React.FC<ProductAttributesProps> = ({
   }
 
   return (
-    <div className={cn("space-y-3.5", className)}>
+    <div className={cn("space-y-3", className)}>
       <div className="flex items-center gap-2">
         <span className="flex size-6 items-center justify-center rounded-lg bg-voxcina-blue/10 text-voxcina-blue dark:bg-voxcina-cream/10 dark:text-voxcina-cream">
           <Sparkles className="size-3.5" />
@@ -43,21 +43,27 @@ const ProductAttributes: React.FC<ProductAttributesProps> = ({
         <h3 className="text-base font-bold text-foreground">{title}</h3>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4">
+      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {validAttributes.map((attribute, index) => (
-          <div
+          <li
             key={`${attribute.name}-${index}`}
-            className="flex flex-col justify-center rounded-xl border border-voxcina-blue/10 bg-white/70 p-3 shadow-2xs backdrop-blur-xs transition-colors hover:border-voxcina-blue/20 dark:border-white/10 dark:bg-white/[0.04]"
+            className="flex items-start gap-2.5 rounded-xl border border-voxcina-blue/10 bg-white/70 px-3 py-2 text-xs shadow-2xs backdrop-blur-xs transition-colors hover:border-voxcina-blue/20 dark:border-white/10 dark:bg-white/[0.04]"
           >
-            <span className="text-xs font-medium text-foreground/55">
-              {attribute.shownName || attribute.name}
-            </span>
-            <span className="mt-1 text-sm font-semibold text-foreground">
-              {attribute.value}
-            </span>
-          </div>
+            <span
+              className="mt-1.5 size-1.5 shrink-0 rounded-full bg-[#D4B373]"
+              aria-hidden="true"
+            />
+            <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+              <span className="font-medium text-foreground/60">
+                {attribute.shownName || attribute.name}:
+              </span>
+              <span className="font-semibold text-foreground">
+                {attribute.value}
+              </span>
+            </div>
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 };
