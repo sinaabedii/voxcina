@@ -123,21 +123,24 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
         </div>
 
         {product.description?.trim() && (
-          <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-voxcina-cream/75">{product.description}</p>
+          <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-voxcina-cream/75">{product.description}</p>
         )}
 
-        <a href="#reviews" className="mt-3 flex min-h-8 w-fit items-center gap-2.5 rounded text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+        <a href="#reviews" className="mt-1.5 inline-flex w-fit items-center gap-2 rounded text-xs text-voxcina-cream/80 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
           <span className="flex gap-0.5" aria-hidden="true">
             {Array.from({ length: 5 }, (_, index) => (
-              <Star key={index} className={cn("size-4", reviewCount && index < Math.round(avgRating) ? "fill-voxcina-cream text-voxcina-cream" : "text-voxcina-cream/35")} />
+              <Star key={index} className={cn("size-3.5", reviewCount && index < Math.round(avgRating) ? "fill-[#E6C687] text-[#E6C687]" : "text-voxcina-cream/30")} />
             ))}
           </span>
-          <span className="text-voxcina-cream/75">
-            {reviewCount ? `${toPersianNumber(avgRating.toFixed(1))} · ${toPersianNumber(reviewCount)} نظر` : "اولین نظر را شما بنویسید"}
+          <span className="font-medium text-voxcina-cream">
+            {reviewCount ? toPersianNumber(avgRating.toFixed(1)) : "۰"}
+          </span>
+          <span className="text-voxcina-cream/60">
+            {reviewCount ? `(${toPersianNumber(reviewCount)} نظر)` : "(ثبت اولین نظر)"}
           </span>
         </a>
 
-        <div className="mt-4 flex items-end justify-between gap-3">
+        <div className="mt-3.5 flex items-end justify-between gap-3">
           {selection.colors.length > 0 && (
             <fieldset className="min-w-0 flex-1">
               <div className="mb-1.5 flex items-center justify-between">
@@ -169,16 +172,16 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
                       title={color.colorName}
                       onClick={() => onColorChange(selected ? undefined : key)}
                       className={cn(
-                        "relative flex size-9 shrink-0 items-center justify-center rounded-xl transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream disabled:cursor-not-allowed disabled:opacity-35",
+                        "relative flex size-8 shrink-0 items-center justify-center rounded-lg transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream disabled:cursor-not-allowed disabled:opacity-35",
                         selected
-                          ? "border border-dashed border-voxcina-cream bg-white/20 shadow-[0_4px_16px_rgba(230,198,135,0.35)]"
+                          ? "border border-dashed border-voxcina-cream bg-white/20 shadow-[0_2px_10px_rgba(230,198,135,0.35)]"
                           : "border border-white/15 bg-white/[0.08] hover:border-white/30 hover:bg-white/[0.14]"
                       )}
                     >
-                      <span className="relative block size-6 overflow-hidden rounded-[7px] border border-white/50 shadow-sm" style={{ backgroundColor: color.color?.startsWith("#") ? color.color : "#DFD8CC" }}>
-                        {color.swatchImage && <Image src={color.swatchImage} alt="" fill sizes="24px" className="object-cover" />}
+                      <span className="relative block size-5 overflow-hidden rounded-[5px] border border-white/50 shadow-xs" style={{ backgroundColor: color.color?.startsWith("#") ? color.color : "#DFD8CC" }}>
+                        {color.swatchImage && <Image src={color.swatchImage} alt="" fill sizes="20px" className="object-cover" />}
                       </span>
-                      {selected && <Check className="absolute size-3 rounded-full bg-voxcina-blue p-0.5 text-white shadow-xs" aria-hidden="true" />}
+                      {selected && <Check className="absolute size-2.5 rounded-full bg-voxcina-blue p-0.5 text-white shadow-xs" aria-hidden="true" />}
                     </button>
                   );
                 })}
@@ -188,7 +191,7 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
                     onClick={() => setIsColorModalOpen(true)}
                     aria-label={`مشاهده ${toPersianNumber(remainingColorsCount)} رنگ دیگر`}
                     title={`مشاهده ${toPersianNumber(remainingColorsCount)} رنگ دیگر`}
-                    className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-xs font-bold text-voxcina-cream shadow-xs transition-all hover:border-white/40 hover:bg-white/20 hover:text-white active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream"
+                    className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-xs font-bold text-voxcina-cream shadow-xs transition-all hover:border-white/40 hover:bg-white/20 hover:text-white active:scale-95 focus-visible:outline-2 focus-visible:outline-voxcina-cream"
                   >
                     {toPersianNumber(remainingColorsCount)}+
                   </button>
@@ -200,12 +203,12 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
             <div className="shrink-0 pb-0.5">
               <span className="sr-only">تعداد</span>
               <div
-                className="flex h-9 items-center overflow-hidden rounded-xl border border-white/40 bg-gradient-to-b from-white/95 to-voxcina-cream/95 text-voxcina-blue shadow-[0_4px_14px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.8)]"
+                className="flex h-8 items-center overflow-hidden rounded-lg border border-white/40 bg-gradient-to-b from-white/95 to-voxcina-cream/95 text-voxcina-blue shadow-[0_2px_10px_rgba(0,0,0,0.12),inset_0_1px_1px_rgba(255,255,255,0.8)]"
                 dir="ltr"
               >
-                <button type="button" aria-label="کاهش تعداد" disabled={!selection.canModifyQuantity || selection.quantity <= 1} onClick={() => selection.setQuantity(selection.quantity - 1)} className="flex size-9 items-center justify-center hover:bg-white/80 active:bg-voxcina-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] disabled:opacity-35"><Minus className="size-3" /></button>
+                <button type="button" aria-label="کاهش تعداد" disabled={!selection.canModifyQuantity || selection.quantity <= 1} onClick={() => selection.setQuantity(selection.quantity - 1)} className="flex size-8 items-center justify-center hover:bg-white/80 active:bg-voxcina-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] disabled:opacity-35"><Minus className="size-3" /></button>
                 <span className="min-w-4 text-center text-xs font-bold tabular-nums" aria-live="polite">{toPersianNumber(selection.quantity)}</span>
-                <button type="button" aria-label="افزایش تعداد" disabled={!selection.canModifyQuantity || selection.quantity >= selection.inventory} onClick={() => selection.setQuantity(selection.quantity + 1)} className="flex size-9 items-center justify-center hover:bg-white/80 active:bg-voxcina-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] disabled:opacity-35"><Plus className="size-3" /></button>
+                <button type="button" aria-label="افزایش تعداد" disabled={!selection.canModifyQuantity || selection.quantity >= selection.inventory} onClick={() => selection.setQuantity(selection.quantity + 1)} className="flex size-8 items-center justify-center hover:bg-white/80 active:bg-voxcina-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] disabled:opacity-35"><Plus className="size-3" /></button>
               </div>
             </div>
           )}
