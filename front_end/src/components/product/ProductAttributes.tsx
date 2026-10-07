@@ -1,8 +1,7 @@
 "use client";
 
 import React from "react";
-import { CheckCircle } from "lucide-react";
-import { motion } from "framer-motion";
+import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProductAttribute } from "@/types/product";
 
@@ -15,8 +14,8 @@ interface ProductAttributesProps {
 
 const ProductAttributes: React.FC<ProductAttributesProps> = ({
   attributes,
-  title = "ویژگی‌های محصول",
-  emptyMessage = "ویژگی خاصی درج نشده است",
+  title = "ویژگی‌ها و مشخصات محصول",
+  emptyMessage,
   className,
 }) => {
   // Filter out empty, false, or "0" values
@@ -30,31 +29,36 @@ const ProductAttributes: React.FC<ProductAttributesProps> = ({
 
   const hasAttributes = validAttributes && validAttributes.length > 0;
 
+  if (!hasAttributes) {
+    if (!emptyMessage) return null;
+    return <p className="text-xs text-foreground/50">{emptyMessage}</p>;
+  }
+
   return (
-    <motion.div
-      className={cn(
-        "bg-secondary/30 rounded-xl p-4 mb-6 shadow-soft backdrop-blur-sm",
-        className
-      )}
-      whileHover={{ y: -3 }}
-      transition={{ duration: 0.3 }}
-    >
-      <h3 className="text-sm font-medium mb-3 text-foreground">{title}</h3>
-      <ul className="space-y-2">
-        {hasAttributes ? (
-          validAttributes.map((attribute, index) => (
-            <li key={index} className="text-sm flex items-start">
-              <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400 mt-0.5 ml-2 flex-shrink-0" />
-              <span className="text-foreground/80">
-                {attribute.shownName || attribute.name}: {attribute.value}
-              </span>
-            </li>
-          ))
-        ) : (
-          <li className="text-sm text-muted-foreground">{emptyMessage}</li>
-        )}
-      </ul>
-    </motion.div>
+    <div className={cn("space-y-3.5", className)}>
+      <div className="flex items-center gap-2">
+        <span className="flex size-6 items-center justify-center rounded-lg bg-voxcina-blue/10 text-voxcina-blue dark:bg-voxcina-cream/10 dark:text-voxcina-cream">
+          <Sparkles className="size-3.5" />
+        </span>
+        <h3 className="text-base font-bold text-foreground">{title}</h3>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4">
+        {validAttributes.map((attribute, index) => (
+          <div
+            key={`${attribute.name}-${index}`}
+            className="flex flex-col justify-center rounded-xl border border-voxcina-blue/10 bg-white/70 p-3 shadow-2xs backdrop-blur-xs transition-colors hover:border-voxcina-blue/20 dark:border-white/10 dark:bg-white/[0.04]"
+          >
+            <span className="text-xs font-medium text-foreground/55">
+              {attribute.shownName || attribute.name}
+            </span>
+            <span className="mt-1 text-sm font-semibold text-foreground">
+              {attribute.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 };
 

@@ -17,7 +17,7 @@ import { Product } from "@/types/product";
 // Anything genuinely worth deferring from here must pass a `loading` fallback.
 
 const TABS = [
-  { key: "description", label: "توضیحات محصول" },
+  { key: "description", label: "توضیحات این محصول" },
   { key: "care", label: "نحوه نگهداری" },
   { key: "sizeGuide", label: "جدول سایزبندی" },
 ] as const;
@@ -120,45 +120,47 @@ export default function ProductInfoTabs({
         })}
       </div>
 
-      <div
-        className={cn(
-            "grid gap-6 p-5 sm:p-7 lg:gap-10 lg:p-8",
-          activeTab === "sizeGuide"
-            ? "grid-cols-1"
-            : "lg:grid-cols-[minmax(0,1fr)_20rem]"
-        )}
-      >
+      <div className="p-5 sm:p-7 lg:p-8">
         <div
           role="tabpanel"
           id="product-tabpanel"
           aria-labelledby={`product-tab-${activeTab}`}
           tabIndex={0}
-          className={cn(
-            "min-h-[12rem] text-sm leading-8 text-foreground/80",
-            activeTab !== "sizeGuide" && "max-w-prose"
-          )}
+          className="min-h-[12rem] text-sm leading-8 text-foreground/80"
         >
-          {activeTab === "description" &&
-            (product.description?.trim() ? (
+          {activeTab === "description" && (
+            <div className="space-y-6">
               <div>
-                <h2 className="mb-3 text-base font-bold text-foreground">دربارهٔ این محصول</h2>
-                <p className="whitespace-pre-line">{product.description}</p>
+                <h2 className="mb-3 text-base font-bold text-foreground">توضیحات این محصول</h2>
+                {product.description?.trim() ? (
+                  <p className="max-w-prose whitespace-pre-line text-sm leading-8 text-foreground/80">
+                    {product.description}
+                  </p>
+                ) : (
+                  <p className="text-xs text-foreground/55">
+                    توضیحات متنی برای این محصول ثبت نشده است. مشخصات و ویژگی‌های آن در ادامه قابل مشاهده است.
+                  </p>
+                )}
               </div>
-            ) : (
-              <p className="text-muted-foreground">
-                توضیحاتی برای این محصول ثبت نشده است. مشخصات کامل را در ستون کناری ببینید.
-              </p>
-            ))}
+
+              {/* Integrated Features / Specifications */}
+              <ProductAttributes
+                attributes={product.attributes}
+                className="border-t border-voxcina-blue/10 pt-6 dark:border-voxcina-cream/10"
+              />
+            </div>
+          )}
 
           {activeTab === "care" && (
-            <>
+            <div className="max-w-prose">
+              <h2 className="mb-3 text-base font-bold text-foreground">نکات شستشو و نگهداری</h2>
               <p>برای حفظ کیفیت و افزایش طول عمر این محصول، این نکات را رعایت کنید:</p>
               <ul className="mt-3 list-disc space-y-2 pr-5">
                 {CARE_NOTES.map((note) => (
                   <li key={note}>{note}</li>
                 ))}
               </ul>
-            </>
+            </div>
           )}
 
           {activeTab === "sizeGuide" && (
@@ -169,11 +171,6 @@ export default function ProductInfoTabs({
             />
           )}
         </div>
-
-        <ProductAttributes
-          attributes={product.attributes}
-          className={cn("mb-0 self-start", activeTab === "sizeGuide" && "mt-4 max-w-xl")}
-        />
       </div>
     </section>
   );
