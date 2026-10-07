@@ -349,7 +349,7 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
         onStart={handleTryOn}
       />
 
-      <section id="reviews" className="relative z-10 mt-12 scroll-mt-28 px-3 sm:px-0">
+      <section id="reviews" className="relative z-10 mt-6 scroll-mt-28 px-3 sm:px-0 lg:mt-10">
         <LazyMount fallback={<div className="min-h-[24rem]" />}>
           <ProductReviews
             productId={product.id}
