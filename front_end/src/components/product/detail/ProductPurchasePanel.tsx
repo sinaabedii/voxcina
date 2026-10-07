@@ -34,7 +34,7 @@ interface ProductPurchasePanelProps {
   className?: string;
 }
 
-const subtleButton = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.06] px-3 text-xs text-voxcina-cream/85 transition-all hover:border-white/25 hover:bg-white/[0.12] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-voxcina-cream motion-reduce:transition-none";
+const helperButtonClass = "inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.08] px-2.5 text-xs font-medium text-voxcina-cream/90 transition-all hover:border-white/30 hover:bg-white/[0.14] hover:text-white active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none";
 
 function selectionHint(selection: VariantSelection): string | null {
   if (selection.isComplete) return null;
@@ -169,12 +169,16 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
           )}
         </div>
 
-        {selection.sizes.length > 0 && (
-          <fieldset className="mt-3">
+        {selection.sizes.length > 0 ? (
+          <fieldset className="mt-3.5">
             <legend className="sr-only">انتخاب سایز</legend>
-            <div className="mb-1 flex items-center justify-between gap-2">
-              <span className="text-xs">سایز{selection.selectedSize && <span className="mr-1 text-voxcina-cream/75">: {toPersianNumber(selection.selectedSize)}</span>}</span>
-              <button type="button" className={cn(subtleButton, "min-h-8")} onClick={() => setIsSizeGuideOpen(true)}><Ruler className="size-3.5" />راهنمای سایز</button>
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-xs">
+                سایز:{" "}
+                <span className="text-voxcina-cream/75">
+                  {selection.selectedSize ? toPersianNumber(selection.selectedSize) : "انتخاب کنید"}
+                </span>
+              </span>
             </div>
             <div className="flex flex-wrap gap-2">
               {selection.sizes.map((size) => {
@@ -201,11 +205,51 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
                 );
               })}
             </div>
-            <div className="mt-1 flex items-center justify-between gap-2">
-              <button type="button" className={subtleButton} onClick={() => setIsSizeRecommendationOpen(true)}><Sparkles className="size-3.5" />سایز مناسب من</button>
-              {(selection.selectedSize || selection.selectedColor) && <button type="button" onClick={selection.clear} className={subtleButton}>پاک کردن انتخاب‌ها</button>}
+
+            {/* Sizing & Try-on helper buttons row - unified matching style */}
+            <div className="mt-2.5 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onTryOn}
+                disabled={!isTryOnAvailable || !product.inStock}
+                title={isTryOnAvailable ? undefined : "برای این محصول در دسترس نیست"}
+                className={helperButtonClass}
+              >
+                <Shirt className="size-3.5" />
+                پرو مجازی
+              </button>
+              <button
+                type="button"
+                className={helperButtonClass}
+                onClick={() => setIsSizeGuideOpen(true)}
+              >
+                <Ruler className="size-3.5" />
+                راهنمای سایز
+              </button>
+              <button
+                type="button"
+                className={helperButtonClass}
+                onClick={() => setIsSizeRecommendationOpen(true)}
+              >
+                <Sparkles className="size-3.5" />
+                سایز مناسب من
+              </button>
             </div>
           </fieldset>
+        ) : (
+          isTryOnAvailable && (
+            <div className="mt-3.5">
+              <button
+                type="button"
+                onClick={onTryOn}
+                disabled={!product.inStock}
+                className={cn(helperButtonClass, "w-full flex-none")}
+              >
+                <Shirt className="size-3.5" />
+                پرو مجازی
+              </button>
+            </div>
+          )
         )}
 
         <div ref={actionRowRef} className="mt-4">
@@ -224,11 +268,22 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
           )}
         </div>
 
-        <div className="mt-4 flex items-center justify-between gap-3 border-b border-white/15 pb-3">
-          <button type="button" onClick={onTryOn} disabled={!isTryOnAvailable || !product.inStock} title={isTryOnAvailable ? undefined : "برای این محصول در دسترس نیست"} className={cn(subtleButton, "disabled:cursor-not-allowed disabled:opacity-40")}><Shirt className="size-4" />پرو مجازی</button>
-          <button type="button" onClick={onShare} className={subtleButton}><Share2 className="size-3.5" />اشتراک‌گذاری</button>
+        <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3">
+          <p className="flex items-center gap-1.5 text-[10px] text-voxcina-cream/75">
+            <ShieldCheck className="size-3.5 text-voxcina-cream/90" />
+            ضمانت اصالت کالا
+            <span aria-hidden="true" className="mx-1">·</span>
+            ۷ روز فرصت بازگشت
+          </p>
+          <button
+            type="button"
+            onClick={onShare}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.06] px-2.5 text-xs text-voxcina-cream/80 transition-colors hover:border-white/20 hover:bg-white/[0.12] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream"
+          >
+            <Share2 className="size-3.5" />
+            اشتراک‌گذاری
+          </button>
         </div>
-        <p className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-voxcina-cream/75"><ShieldCheck className="size-3.5 text-voxcina-cream/90" />ضمانت اصالت کالا<span aria-hidden="true" className="mx-1">·</span>۷ روز فرصت بازگشت</p>
 
         <SizeGuideModal isOpen={isSizeGuideOpen} onClose={() => setIsSizeGuideOpen(false)} product={product} selectedSize={selection.selectedSize} onSelectSize={selection.setSize} />
         <SizeRecommendationModal isOpen={isSizeRecommendationOpen} onClose={() => setIsSizeRecommendationOpen(false)} onOpenSizeGuide={() => window.setTimeout(() => setIsSizeGuideOpen(true), 0)} product={product} selection={selection} />
