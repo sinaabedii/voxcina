@@ -34,7 +34,7 @@ interface ProductPurchasePanelProps {
   className?: string;
 }
 
-const subtleButton = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.06] px-3 text-xs text-voxcina-cream/85 backdrop-blur-sm transition-all hover:border-white/25 hover:bg-white/[0.12] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-voxcina-cream motion-reduce:transition-none";
+const subtleButton = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.06] px-3 text-xs text-voxcina-cream/85 transition-all hover:border-white/25 hover:bg-white/[0.12] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-voxcina-cream motion-reduce:transition-none";
 
 function selectionHint(selection: VariantSelection): string | null {
   if (selection.isComplete) return null;
@@ -62,20 +62,20 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
       <div
         id="product-selection"
         className={cn(
-          "relative z-10 -mt-6 flex min-w-0 flex-col overflow-hidden rounded-t-[32px] border-t border-white/20 bg-[#0e223d]/90 sm:bg-[#0e223d]/85 px-5 pb-6 pt-5 text-voxcina-cream shadow-[0_-12px_40px_rgba(10,25,47,0.45),inset_0_1px_1px_rgba(255,255,255,0.25)] backdrop-blur-md sm:backdrop-blur-2xl backdrop-saturate-150 sm:-mt-8 sm:rounded-t-[36px] sm:px-7 sm:py-7 lg:mt-0 lg:rounded-none lg:border-t-0 lg:border-r lg:border-white/10 lg:pt-7 lg:justify-center lg:px-8 xl:px-10 will-change-transform",
+          "relative z-10 -mt-6 flex min-w-0 flex-col overflow-hidden rounded-t-[32px] border-t border-white/20 bg-[#0e223d] sm:bg-[#0e223d]/85 px-5 pb-6 pt-5 text-voxcina-cream shadow-[0_-12px_40px_rgba(10,25,47,0.45),inset_0_1px_1px_rgba(255,255,255,0.25)] sm:backdrop-blur-xl sm:backdrop-saturate-150 sm:-mt-8 sm:rounded-t-[36px] sm:px-7 sm:py-7 lg:mt-0 lg:rounded-none lg:border-t-0 lg:border-r lg:border-white/10 lg:pt-7 lg:justify-center lg:px-8 xl:px-10",
           className
         )}
       >
-        {/* Light-like smooth blurred objects behind the glassmorphic surface */}
+        {/* Light-like smooth objects behind the glassmorphic surface - zero GPU blur passes */}
         <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
           {/* Luminous warm amber/champagne orb - top right */}
-          <div className="absolute -top-16 -right-16 h-72 w-72 rounded-full bg-gradient-to-br from-[#E6C687]/30 via-[#D4B373]/15 to-transparent blur-3xl" />
+          <div className="absolute -top-16 -right-16 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(230,198,135,0.25)_0%,rgba(212,179,115,0.12)_45%,transparent_75%)]" />
           
           {/* Radiant sapphire/cyan light orb - mid left */}
-          <div className="absolute top-1/3 -left-20 h-80 w-80 rounded-full bg-gradient-to-tr from-[#3b82f6]/25 via-[#60a5fa]/15 to-transparent blur-3xl" />
+          <div className="absolute top-1/3 -left-20 h-88 w-88 rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.2)_0%,rgba(96,165,250,0.08)_45%,transparent_75%)]" />
 
           {/* Soft pearlescent cream glow - bottom behind cart CTA */}
-          <div className="absolute -bottom-10 right-1/4 h-64 w-64 rounded-full bg-gradient-to-t from-voxcina-cream/15 via-[#FAF7F2]/10 to-transparent blur-2xl" />
+          <div className="absolute -bottom-10 right-1/4 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(250,247,242,0.12)_0%,transparent_70%)]" />
 
           {/* Specular glass sheen highlight */}
           <div className="absolute inset-0 bg-gradient-to-b from-white/[0.08] via-transparent to-black/25" />
@@ -138,7 +138,7 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
                       title={color.colorName}
                       onClick={() => onColorChange(selected ? undefined : key)}
                       className={cn(
-                        "relative flex size-11 items-center justify-center rounded-xl backdrop-blur-md transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream disabled:cursor-not-allowed disabled:opacity-35",
+                        "relative flex size-11 items-center justify-center rounded-xl transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream disabled:cursor-not-allowed disabled:opacity-35",
                         selected
                           ? "border border-dashed border-voxcina-cream bg-white/20 shadow-[0_4px_16px_rgba(230,198,135,0.35)]"
                           : "border border-white/15 bg-white/[0.08] hover:border-white/30 hover:bg-white/[0.14]"
@@ -158,7 +158,7 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
             <div className="shrink-0 pb-0.5">
               <span className="sr-only">تعداد</span>
               <div
-                className="flex h-11 items-center overflow-hidden rounded-xl border border-white/40 bg-gradient-to-b from-white/95 to-voxcina-cream/95 text-voxcina-blue shadow-[0_4px_14px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.8)] backdrop-blur-md"
+                className="flex h-11 items-center overflow-hidden rounded-xl border border-white/40 bg-gradient-to-b from-white/95 to-voxcina-cream/95 text-voxcina-blue shadow-[0_4px_14px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.8)]"
                 dir="ltr"
               >
                 <button type="button" aria-label="کاهش تعداد" disabled={!selection.canModifyQuantity || selection.quantity <= 1} onClick={() => selection.setQuantity(selection.quantity - 1)} className="flex size-11 items-center justify-center hover:bg-white/80 active:bg-voxcina-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] disabled:opacity-35"><Minus className="size-3.5" /></button>
@@ -192,7 +192,7 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
                       "min-h-11 min-w-11 rounded-xl border px-3 text-xs transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-voxcina-cream disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none",
                       selected
                         ? "border-white/90 bg-gradient-to-b from-white to-voxcina-cream font-bold text-voxcina-blue shadow-[0_4px_14px_rgba(230,198,135,0.35),inset_0_1px_1px_rgba(255,255,255,0.9)]"
-                        : "border-white/15 bg-white/[0.07] text-voxcina-cream backdrop-blur-sm hover:border-white/30 hover:bg-white/[0.14]",
+                        : "border-white/15 bg-white/[0.07] text-voxcina-cream hover:border-white/30 hover:bg-white/[0.14]",
                       !available && "line-through opacity-40"
                     )}
                   >

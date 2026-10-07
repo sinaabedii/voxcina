@@ -72,19 +72,18 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
   const [isAdding, setAdding] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const addingRef = useRef(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    let last = false;
-    const handleScroll = () => {
-      const next = window.scrollY > 80;
-      if (next !== last) {
-        last = next;
-        setIsScrolled(next);
-      }
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
+    if (!sentinelRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsScrolled(!entry.isIntersecting);
+      },
+      { threshold: 0 }
+    );
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
   }, []);
 
   const actionRowRef = useRef<HTMLDivElement>(null);
@@ -265,24 +264,27 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
 
   return (
     <>
+      {/* 80px Top Sentinel for zero-cost IntersectionObserver scroll detection */}
+      <div ref={sentinelRef} className="pointer-events-none absolute top-0 left-0 h-20 w-px -z-50" aria-hidden="true" />
+
       {/* Mobile sticky top bar that slides down on scroll */}
       <div
         className={cn(
-          "fixed inset-x-0 top-0 z-30 flex items-center justify-between overflow-hidden border-b border-white/20 bg-[#0e223d]/85 px-4 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] shadow-[0_10px_30px_rgba(10,25,47,0.35)] backdrop-blur-2xl backdrop-saturate-150 transition-transform duration-300 motion-reduce:transition-none lg:hidden",
+          "fixed inset-x-0 top-0 z-30 flex items-center justify-between overflow-hidden border-b border-white/20 bg-[#0e223d]/95 px-4 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] shadow-[0_10px_30px_rgba(10,25,47,0.35)] transition-transform duration-300 motion-reduce:transition-none lg:hidden",
           isScrolled ? "translate-y-0" : "-translate-y-full pointer-events-none"
         )}
       >
-        {/* Light objects behind sticky bar */}
-        <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
-          <div className="absolute -top-10 right-10 h-28 w-28 rounded-full bg-[#E6C687]/30 blur-xl" />
-          <div className="absolute -top-10 left-10 h-28 w-28 rounded-full bg-[#3b82f6]/25 blur-xl" />
+        {/* Light objects behind sticky bar - zero-cost radial gradients */}
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+          <div className="absolute -top-10 right-10 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgba(230,198,135,0.25)_0%,transparent_70%)]" />
+          <div className="absolute -top-10 left-10 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.2)_0%,transparent_70%)]" />
           <div className="absolute inset-0 bg-gradient-to-b from-white/[0.08] to-transparent" />
         </div>
 
         <Link
           href="/products"
           aria-label="بازگشت به محصولات"
-          className="flex size-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-voxcina-cream backdrop-blur-md transition-all hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream"
+          className="flex size-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-voxcina-cream transition-all hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream"
         >
           <ArrowRight className="size-5" />
         </Link>
@@ -294,7 +296,7 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
           onClick={() => product.id && addToFavorites(product.id)}
           aria-label={product.id && isFavorite(product.id) ? "حذف از علاقه‌مندی‌ها" : "افزودن به علاقه‌مندی‌ها"}
           aria-pressed={product.id ? isFavorite(product.id) : false}
-          className="flex size-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-voxcina-cream backdrop-blur-md transition-all hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream"
+          className="flex size-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-voxcina-cream transition-all hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream"
         >
           <Heart className="size-5" fill={product.id && isFavorite(product.id) ? "currentColor" : "none"} />
         </button>

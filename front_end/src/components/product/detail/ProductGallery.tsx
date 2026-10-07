@@ -162,10 +162,10 @@ export default function ProductGallery({
         isScrolled && "opacity-0 pointer-events-none lg:opacity-100 lg:pointer-events-auto"
       )}
     >
-      <Link href={backHref} aria-label="بازگشت به محصولات" className="pointer-events-auto flex size-11 items-center justify-center rounded-xl border border-white/60 bg-white/70 text-voxcina-blue shadow-[0_8px_20px_rgba(0,0,0,0.12),inset_0_1px_1px_rgba(255,255,255,0.8)] backdrop-blur-xl transition-all hover:bg-white hover:scale-105 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-voxcina-blue">
+      <Link href={backHref} aria-label="بازگشت به محصولات" className="pointer-events-auto flex size-11 items-center justify-center rounded-xl border border-white/60 bg-white/85 text-voxcina-blue shadow-[0_4px_14px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.8)] transition-all hover:bg-white hover:scale-105 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-voxcina-blue">
         <ArrowRight className="size-5" />
       </Link>
-      <button type="button" onClick={onToggleFavorite} aria-label={isFavorite ? "حذف از علاقه‌مندی‌ها" : "افزودن به علاقه‌مندی‌ها"} aria-pressed={isFavorite} className="pointer-events-auto flex size-11 items-center justify-center rounded-xl border border-white/60 bg-white/70 text-voxcina-blue shadow-[0_8px_20px_rgba(0,0,0,0.12),inset_0_1px_1px_rgba(255,255,255,0.8)] backdrop-blur-xl transition-all hover:bg-white hover:scale-105 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-voxcina-blue">
+      <button type="button" onClick={onToggleFavorite} aria-label={isFavorite ? "حذف از علاقه‌مندی‌ها" : "افزودن به علاقه‌مندی‌ها"} aria-pressed={isFavorite} className="pointer-events-auto flex size-11 items-center justify-center rounded-xl border border-white/60 bg-white/85 text-voxcina-blue shadow-[0_4px_14px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.8)] transition-all hover:bg-white hover:scale-105 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-voxcina-blue">
         <Heart className="size-5" fill={isFavorite ? "currentColor" : "none"} />
       </button>
     </div>
@@ -190,7 +190,7 @@ export default function ProductGallery({
 
   return (
     <>
-      <div className={cn("sticky top-0 z-0 min-w-0 lg:static lg:bg-voxcina-lightCream lg:p-4 will-change-transform", className)}>
+      <div className={cn("sticky top-0 z-0 min-w-0 lg:static lg:bg-voxcina-lightCream lg:p-4", className)}>
         <div className={GALLERY_LAYOUT}>
           {hasMultiple && (
             <div className={GALLERY_RAIL} aria-label="تصاویر محصول">
