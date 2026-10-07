@@ -190,7 +190,7 @@ export default function ProductGallery({
 
   return (
     <>
-      <div className={cn("sticky top-0 z-0 min-w-0 lg:static lg:bg-voxcina-lightCream lg:p-4", className)}>
+      <div className={cn("sticky top-0 z-0 min-w-0 lg:static lg:bg-voxcina-lightCream lg:p-4 will-change-transform", className)}>
         <div className={GALLERY_LAYOUT}>
           {hasMultiple && (
             <div className={GALLERY_RAIL} aria-label="تصاویر محصول">

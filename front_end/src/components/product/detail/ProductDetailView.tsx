@@ -74,8 +74,13 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
   const addingRef = useRef(false);
 
   useEffect(() => {
+    let last = false;
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 80);
+      const next = window.scrollY > 80;
+      if (next !== last) {
+        last = next;
+        setIsScrolled(next);
+      }
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
