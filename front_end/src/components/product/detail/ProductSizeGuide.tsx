@@ -414,17 +414,17 @@ export default function ProductSizeGuide({
           title={`دیاگرام فنی و خطوط اندازه‌گیری: ${sizingType.name || ""}`}
           contentClassName="max-w-3xl"
         >
-          <div className="space-y-4" dir="rtl">
-            <div className="relative w-full max-h-[75vh] min-h-[300px] rounded-xl bg-white dark:bg-card/40 p-4 flex items-center justify-center overflow-hidden border border-border/20">
+          <div className="space-y-3 sm:space-y-4" dir="rtl">
+            <div className="relative w-full max-h-[55dvh] sm:max-h-[65vh] rounded-xl bg-white dark:bg-card/40 p-2 sm:p-4 flex items-center justify-center overflow-hidden border border-border/20 shadow-inner">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={sizingType.image_path}
                 alt={sizingType.name || "دیاگرام فنی"}
-                className="max-h-[70vh] w-auto object-contain"
+                className="max-h-[50dvh] sm:max-h-[60vh] max-w-full w-auto object-contain"
               />
             </div>
             {sizingType.general_fit_guide && (
-              <p className="text-xs text-muted-foreground leading-relaxed bg-secondary/30 p-3 rounded-xl border border-border/10">
+              <p className="text-xs text-muted-foreground leading-relaxed bg-secondary/30 p-2.5 sm:p-3 rounded-xl border border-border/10">
                 {sizingType.general_fit_guide}
               </p>
             )}
