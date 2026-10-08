@@ -73,7 +73,11 @@ export function useVariantSelection(
   product: Product,
   lockedVariantValue?: string | null
 ): VariantSelection {
-  const [selectedColor, setSelectedColor] = useState<string | undefined>();
+  const [selectedColor, setSelectedColor] = useState<string | undefined>(() => {
+    if (!lockedVariantValue) return undefined;
+    const match = findVariantByIdOrLegacyValue(product.colorVariants, lockedVariantValue);
+    return match ? selectionKey(match) : undefined;
+  });
   const [selectedSize, setSelectedSize] = useState<string | undefined>();
   const [quantity, setQuantity] = useState(1);
 

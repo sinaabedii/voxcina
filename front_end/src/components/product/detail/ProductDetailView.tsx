@@ -104,8 +104,10 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
 
   /** Variant images first, then the product-level shots. */
   const images = useMemo(() => {
-    const variant = findVariantByIdOrLegacyValue(product.colorVariants, selection.selectedColor);
-    const leading = variant?.images?.length ? variant.images : product.colorVariants?.[0]?.images || [];
+    const variant = selection.selectedColor
+      ? findVariantByIdOrLegacyValue(product.colorVariants, selection.selectedColor)
+      : product.colorVariants?.[0];
+    const leading = variant?.images || [];
     return [...leading, ...(product.mainImages || [])];
   }, [product.colorVariants, product.mainImages, selection.selectedColor]);
 

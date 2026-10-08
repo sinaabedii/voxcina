@@ -63,8 +63,9 @@ export default function ProductGallery({
   onZoomChange,
   className,
 }: ProductGalleryProps) {
+  const [prevImages, setPrevImages] = useState(images);
   const [selected, setSelected] = useState(0);
-  const [displayed, setDisplayed] = useState(0);
+  const [committedSrc, setCommittedSrc] = useState(images[0] || "");
   const [zoomOrigin, setZoomOrigin] = useState<{ x: number; y: number } | null>(null);
   const [isLightboxOpen, setLightboxOpen] = useState(false);
 
@@ -79,26 +80,23 @@ export default function ProductGallery({
   const total = images.length;
   const hasMultiple = total > 1;
 
+  if (images !== prevImages) {
+    setPrevImages(images);
+    setSelected(0);
+    selectedRef.current = 0;
+    sourceRef.current = "color_change";
+    if (!committedSrc && images[0]) {
+      setCommittedSrc(images[0]);
+    }
+  }
+
   const select = useCallback((index: number, source: ImageViewSource) => {
     const next = Math.min(Math.max(index, 0), Math.max(total - 1, 0));
     if (next === selectedRef.current) return;
     sourceRef.current = source;
+    selectedRef.current = next;
     setSelected(next);
   }, [total]);
-
-  // Reset when the colour changes: variant images come first in the list, so
-  // index 0 is the new colour's hero shot. Both indices reset together — the
-  // image paints immediately if cached, otherwise the overlay covers the swap.
-  const isFirstRenderRef = useRef(true);
-  useEffect(() => {
-    if (isFirstRenderRef.current) {
-      isFirstRenderRef.current = false;
-      return;
-    }
-    sourceRef.current = "color_change";
-    setSelected(0);
-    setDisplayed(0);
-  }, [images]);
 
   useEffect(() => {
     selectedRef.current = selected;
@@ -131,13 +129,27 @@ export default function ProductGallery({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [hasMultiple, isLightboxOpen, select]);
 
-  const commitPendingImage = (loadedIndex: number) => {
-    if (selectedRef.current === loadedIndex) setDisplayed(loadedIndex);
-  };
+  const commitPendingImage = useCallback((loadedSrc: string) => {
+    const currentSelectedSrc = images[Math.min(selectedRef.current, Math.max(images.length - 1, 0))];
+    if (currentSelectedSrc === loadedSrc) {
+      setCommittedSrc(loadedSrc);
+    }
+  }, [images]);
+
+  const safeSelected = Math.min(Math.max(selected, 0), Math.max(total - 1, 0));
+  const selectedSrc = images[safeSelected] || "";
+  const displayedSrc = committedSrc || selectedSrc;
+  const isSwitching = Boolean(selectedSrc && committedSrc && selectedSrc !== committedSrc);
 
   const trackPointer = (event: React.PointerEvent<HTMLDivElement>) => {
     // Magnifying follows a real cursor; on touch, the lightbox is the gesture.
-    if (event.pointerType !== "mouse" || !frameRef.current || !window.matchMedia("(hover: hover) and (min-width: 1024px)").matches) return;
+    if (
+      isSwitching ||
+      event.pointerType !== "mouse" ||
+      !frameRef.current ||
+      !window.matchMedia("(hover: hover) and (min-width: 1024px)").matches
+    )
+      return;
     const { left, top, width, height } = frameRef.current.getBoundingClientRect();
     if (!zoomOrigin) onZoomChange?.(true, selected);
     setZoomOrigin({
@@ -151,9 +163,11 @@ export default function ProductGallery({
     setZoomOrigin(null);
   };
 
-  const selectedSrc = images[selected];
-  const displayedSrc = images[Math.min(displayed, Math.max(total - 1, 0))];
-  const isSwitching = !!selectedSrc && !!displayedSrc && selectedSrc !== displayedSrc;
+  useEffect(() => {
+    if (isSwitching && zoomOrigin) {
+      clearZoom();
+    }
+  }, [isSwitching, zoomOrigin]);
   const altText = [productName, brand].filter(Boolean).join(" — ");
   const galleryActions = (
     <div
@@ -273,9 +287,11 @@ export default function ProductGallery({
                   alt=""
                   fill
                   sizes="(max-width: 1024px) 100vw, 46vw"
-                  className="object-cover lg:object-contain"
+                  className="object-cover lg:object-contain opacity-0 pointer-events-none"
                   loading="eager"
-                  onLoad={() => commitPendingImage(selected)}
+                  fetchPriority="high"
+                  onLoad={() => commitPendingImage(selectedSrc)}
+                  onError={() => commitPendingImage(selectedSrc)}
                 />
               )}
             </button>
