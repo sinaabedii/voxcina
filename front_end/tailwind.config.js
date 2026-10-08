@@ -171,6 +171,25 @@ module.exports = {
           "30%": { transform: "translateX(520%) skewX(-12deg)" },
           "100%": { transform: "translateX(520%) skewX(-12deg)" },
         },
+        // Ultra-smooth hardware-accelerated glass specular shine. Transform-only
+        // (translate3d) with pause between sweeps so it never invalidates layout.
+        "glass-shine": {
+          "0%": { transform: "translate3d(-120%, 0, 0) skewX(-20deg)", opacity: "0" },
+          "3%": { opacity: "1" },
+          "24%": { opacity: "1" },
+          "30%": { transform: "translate3d(320%, 0, 0) skewX(-20deg)", opacity: "0" },
+          "100%": { transform: "translate3d(320%, 0, 0) skewX(-20deg)", opacity: "0" },
+        },
+        // Organic ambient lighting breathing animation for radial gradient light
+        // objects behind frosted glassmorphic surfaces (compositor-only scale/transform).
+        "ambient-breathe": {
+          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1)", opacity: "0.8" },
+          "50%": { transform: "translate3d(8px, -10px, 0) scale(1.08)", opacity: "1" },
+        },
+        "ambient-breathe-delayed": {
+          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1.06)", opacity: "0.7" },
+          "50%": { transform: "translate3d(-10px, 8px, 0) scale(0.94)", opacity: "0.95" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -190,6 +209,9 @@ module.exports = {
         "float": "float 4s ease-in-out infinite",
         "badge-float": "badge-float 4s ease-in-out infinite",
         "sweep": "sweep 4.2s ease-in-out infinite",
+        "glass-shine": "glass-shine 7s cubic-bezier(0.16, 1, 0.3, 1) infinite",
+        "ambient-breathe": "ambient-breathe 8s ease-in-out infinite",
+        "ambient-breathe-delayed": "ambient-breathe-delayed 10s ease-in-out infinite",
       },
       transitionProperty: {
         'height': 'height',

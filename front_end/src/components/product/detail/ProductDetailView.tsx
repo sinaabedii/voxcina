@@ -272,15 +272,15 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
       {/* Mobile sticky top bar that slides down on scroll */}
       <div
         className={cn(
-          "fixed inset-x-0 top-0 z-30 flex items-center justify-between overflow-hidden border-b border-voxcina-blue/15 bg-[#FAF7F2]/95 px-4 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] shadow-[0_10px_30px_rgba(26,60,105,0.08)] transition-transform duration-300 motion-reduce:transition-none lg:hidden",
+          "fixed inset-x-0 top-0 z-30 flex items-center justify-between overflow-hidden border-b border-white/80 bg-white/75 sm:bg-[#FAF7F2]/80 backdrop-blur-xl backdrop-saturate-180 px-4 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] shadow-[0_10px_30px_rgba(26,60,105,0.08),inset_0_-1px_1px_rgba(255,255,255,0.95)] transition-transform duration-300 motion-reduce:transition-none lg:hidden",
           isScrolled ? "translate-y-0" : "-translate-y-full pointer-events-none"
         )}
       >
         {/* Light objects behind sticky bar - zero-cost radial gradients */}
         <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
-          <div className="absolute -top-10 right-10 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgba(212,179,115,0.2)_0%,transparent_70%)]" />
-          <div className="absolute -top-10 left-10 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgba(26,60,105,0.06)_0%,transparent_70%)]" />
-          <div className="absolute inset-0 bg-gradient-to-b from-white/80 to-transparent" />
+          <div className="absolute -top-10 right-10 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgba(212,179,115,0.28)_0%,transparent_70%)] animate-ambient-breathe" />
+          <div className="absolute -top-10 left-10 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgba(26,60,105,0.12)_0%,transparent_70%)] animate-ambient-breathe-delayed" />
+          <div className="absolute inset-0 bg-gradient-to-b from-white/70 to-transparent" />
         </div>
 
         <Link
@@ -304,7 +304,13 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
         </button>
       </div>
 
-      <div className="bg-voxcina-lightCream sm:rounded-[28px] sm:shadow-soft sm:border sm:border-voxcina-blue/10 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px] lg:overflow-hidden">
+      <div className="relative bg-voxcina-lightCream sm:rounded-[28px] sm:shadow-soft sm:border sm:border-voxcina-blue/10 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px] lg:overflow-hidden">
+        {/* Ambient light objects positioned behind the mobile glass sheet junction & lower gallery frame */}
+        <div className="pointer-events-none absolute inset-x-0 top-64 sm:top-80 h-96 z-0 overflow-hidden lg:hidden" aria-hidden="true">
+          <div className="absolute -top-12 -right-10 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(212,179,115,0.32)_0%,rgba(230,198,135,0.12)_45%,transparent_75%)] animate-ambient-breathe" />
+          <div className="absolute top-16 -left-12 h-88 w-88 rounded-full bg-[radial-gradient(circle,rgba(26,60,105,0.16)_0%,rgba(102,145,195,0.08)_45%,transparent_75%)] animate-ambient-breathe-delayed" />
+        </div>
+
         <ProductGallery
           images={images}
           productName={product.name}
@@ -343,7 +349,7 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
       />
 
       <ProductTryOnPanel
-        className={cn("relative z-10 mt-6 px-3 sm:px-0 lg:mt-10", !isTryOnAvailable && "hidden")}
+        className={cn("relative z-10 mt-4 px-3 sm:mt-6 sm:px-0 lg:mt-10", !isTryOnAvailable && "hidden")}
         isAvailable={isTryOnAvailable}
         isProcessing={isTryOnProcessing}
         resultImage={resultImage}

@@ -82,23 +82,38 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
       <div
         id="product-selection"
         className={cn(
-          "relative z-10 -mt-6 flex min-w-0 flex-col overflow-hidden rounded-t-[32px] border-t border-white/80 bg-white/90 sm:bg-[#FAF7F2]/90 px-5 pb-6 pt-5 text-voxcina-blue shadow-[0_-12px_40px_rgba(26,60,105,0.08),inset_0_1px_1px_rgba(255,255,255,0.95)] sm:backdrop-blur-xl sm:backdrop-saturate-150 sm:-mt-8 sm:rounded-t-[36px] sm:px-7 sm:py-7 lg:mt-0 lg:rounded-none lg:border-t-0 lg:border-r lg:border-voxcina-blue/10 lg:pt-7 lg:justify-center lg:px-8 xl:px-10",
+          "relative z-10 -mt-6 flex min-w-0 flex-col overflow-hidden rounded-t-[32px] px-5 pb-6 pt-5 text-voxcina-blue shadow-[0_-12px_40px_rgba(26,60,105,0.08)] sm:-mt-8 sm:rounded-t-[36px] sm:px-7 sm:py-7 lg:mt-0 lg:rounded-none lg:pt-7 lg:justify-center lg:px-8 xl:px-10 lg:shadow-none",
           className
         )}
       >
-        {/* Light-like smooth objects behind the glassmorphic surface - zero GPU blur passes */}
-        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+        {/* Layer 1: Ambient light-like objects BEHIND the frosted glass - zero GPU blur passes, purely radial gradients with gentle compositor breathing */}
+        <div className="pointer-events-none absolute inset-0 -z-30 overflow-hidden" aria-hidden="true">
           {/* Luminous warm amber/champagne orb - top right */}
-          <div className="absolute -top-16 -right-16 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(212,179,115,0.2)_0%,rgba(230,198,135,0.08)_45%,transparent_75%)]" />
-          
-          {/* Radiant sky/blue accent - mid left */}
-          <div className="absolute top-1/3 -left-20 h-88 w-88 rounded-full bg-[radial-gradient(circle,rgba(26,60,105,0.08)_0%,rgba(102,145,195,0.04)_45%,transparent_75%)]" />
+          <div className="absolute -top-16 -right-16 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(212,179,115,0.38)_0%,rgba(230,198,135,0.15)_40%,transparent_70%)] animate-ambient-breathe" />
 
-          {/* Soft pearlescent cream glow - bottom behind cart CTA */}
-          <div className="absolute -bottom-10 right-1/4 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(244,241,236,0.9)_0%,transparent_70%)]" />
+          {/* Radiant brand royal navy / sky blue accent - mid left */}
+          <div className="absolute top-1/4 -left-20 h-96 w-96 rounded-full bg-[radial-gradient(circle,rgba(26,60,105,0.18)_0%,rgba(102,145,195,0.1)_45%,transparent_75%)] animate-ambient-breathe-delayed" />
 
-          {/* Specular glass sheen highlight */}
-          <div className="absolute inset-0 bg-gradient-to-b from-white/80 via-transparent to-voxcina-cream/30" />
+          {/* Soft pearlescent cream glow - bottom right behind CTA */}
+          <div className="absolute -bottom-14 right-1/4 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(244,241,236,0.95)_0%,rgba(212,179,115,0.15)_45%,transparent_75%)] animate-ambient-breathe" />
+        </div>
+
+        {/* Layer 2: True frosted glass surface with blur & saturation boost active on mobile & desktop */}
+        <div
+          className="pointer-events-none absolute inset-0 -z-20 border-t border-white/85 bg-white/70 backdrop-blur-2xl backdrop-saturate-180 shadow-[inset_0_1.5px_1px_rgba(255,255,255,0.95),inset_0_-1px_1px_rgba(26,60,105,0.03)] sm:bg-[#FAF7F2]/75 lg:border-t-0 lg:border-r lg:border-voxcina-blue/10"
+          aria-hidden="true"
+        />
+
+        {/* Layer 3: Specular glass highlights, bevel rim reflection, and silky smooth hardware-accelerated shine */}
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+          {/* Top edge hairline glass rim reflection */}
+          <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/95 to-transparent" />
+
+          {/* Vertical glass luminosity wash */}
+          <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-transparent to-voxcina-cream/25" />
+
+          {/* Silky smooth hardware-accelerated shining specular sweep */}
+          <div className="absolute -inset-y-16 -left-full w-2/3 animate-glass-shine bg-gradient-to-r from-transparent via-white/35 via-amber-100/25 to-transparent motion-reduce:hidden" />
         </div>
 
         <div className="flex items-start justify-between gap-4">

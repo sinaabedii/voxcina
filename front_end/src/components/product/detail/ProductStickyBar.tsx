@@ -84,15 +84,15 @@ export default function ProductStickyBar({
     <div
       aria-hidden={!isVisible}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg overflow-hidden rounded-t-[24px] border-x border-t border-voxcina-blue/15 bg-[#FAF7F2]/95 p-2 pb-[max(8px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(26,60,105,0.08),inset_0_1px_1px_rgba(255,255,255,0.95)] sm:backdrop-blur-xl transition-transform duration-300 motion-reduce:transition-none lg:inset-x-6 lg:bottom-[max(12px,env(safe-area-inset-bottom))] lg:max-w-5xl lg:rounded-[28px] lg:border lg:p-3",
+        "fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg overflow-hidden rounded-t-[24px] border-x border-t border-white/80 bg-white/75 sm:bg-[#FAF7F2]/80 backdrop-blur-xl backdrop-saturate-180 p-2 pb-[max(8px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(26,60,105,0.08),inset_0_1.5px_1px_rgba(255,255,255,0.95)] transition-transform duration-300 motion-reduce:transition-none lg:inset-x-6 lg:bottom-[max(12px,env(safe-area-inset-bottom))] lg:max-w-5xl lg:rounded-[28px] lg:border lg:p-3",
         isVisible ? "translate-y-0" : "pointer-events-none translate-y-[calc(100%+2rem)]"
       )}
     >
       {/* Luminous light objects behind bottom sticky glass bar - zero GPU blur passes */}
-      <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
-        <div className="absolute -bottom-8 right-12 h-32 w-56 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(212,179,115,0.2)_0%,transparent_70%)]" />
-        <div className="absolute -bottom-8 left-12 h-32 w-56 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(26,60,105,0.06)_0%,transparent_70%)]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-white/80 via-transparent to-voxcina-cream/20" />
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+        <div className="absolute -bottom-8 right-12 h-32 w-56 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(212,179,115,0.28)_0%,transparent_70%)] animate-ambient-breathe" />
+        <div className="absolute -bottom-8 left-12 h-32 w-56 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(26,60,105,0.1)_0%,transparent_70%)] animate-ambient-breathe-delayed" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/75 via-transparent to-voxcina-cream/20" />
       </div>
 
       <div className="flex items-center gap-4">
