@@ -88,11 +88,18 @@ export default function ProductStickyBar({
         isVisible ? "translate-y-0" : "pointer-events-none translate-y-[calc(100%+2rem)]"
       )}
     >
-      {/* Luminous light objects behind bottom sticky glass bar - zero GPU blur passes */}
+      {/* Specular glass highlights, bevel rim reflection, and silky smooth hardware-accelerated shine */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
-        <div className="absolute -bottom-8 right-12 h-32 w-56 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(212,179,115,0.28)_0%,transparent_70%)] animate-ambient-breathe" />
-        <div className="absolute -bottom-8 left-12 h-32 w-56 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(26,60,105,0.1)_0%,transparent_70%)] animate-ambient-breathe-delayed" />
-        <div className="absolute inset-0 bg-gradient-to-b from-white/75 via-transparent to-voxcina-cream/20" />
+        {/* Top edge hairline glass rim reflection */}
+        <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/95 to-transparent" />
+
+        {/* Luminous light objects behind bottom sticky glass bar */}
+        <div className="absolute -bottom-8 right-12 size-36 rounded-full bg-[radial-gradient(circle_at_45%_45%,rgba(255,255,255,0.92)_0%,rgba(254,240,138,0.75)_22%,rgba(245,158,11,0.4)_48%,rgba(217,119,6,0.1)_70%,transparent_88%)] animate-light-shine-pulse" />
+        <div className="absolute -bottom-8 left-12 size-36 rounded-[48%_52%_65%_35%/55%_45%_55%_45%] bg-[radial-gradient(circle_at_45%_45%,rgba(255,255,255,0.92)_0%,rgba(186,230,253,0.75)_22%,rgba(56,189,248,0.38)_48%,rgba(26,60,105,0.12)_72%,transparent_90%)] animate-organic-morph" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-transparent to-voxcina-cream/15" />
+
+        {/* Silky smooth hardware-accelerated shining specular sweep */}
+        <div className="absolute -inset-y-16 -left-full w-2/3 animate-glass-shine bg-gradient-to-r from-transparent via-white/40 via-amber-100/25 to-transparent motion-reduce:hidden" />
       </div>
 
       <div className="flex items-center gap-4">

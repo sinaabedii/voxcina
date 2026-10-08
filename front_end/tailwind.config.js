@@ -180,6 +180,33 @@ module.exports = {
           "30%": { transform: "translate3d(320%, 0, 0) skewX(-20deg)", opacity: "0" },
           "100%": { transform: "translate3d(320%, 0, 0) skewX(-20deg)", opacity: "0" },
         },
+        // Fluid organic shape morphing for light-like blobs behind frosted glassmorphic surfaces
+        // Strictly compositor-only (transforms & opacity, no layout/border-radius reflow)
+        "organic-morph": {
+          "0%": { transform: "translate3d(0, 0, 0) rotate(0deg) scale(1)" },
+          "33%": { transform: "translate3d(6px, -10px, 0) rotate(120deg) scale(1.06)" },
+          "66%": { transform: "translate3d(-8px, 6px, 0) rotate(240deg) scale(0.95)" },
+          "100%": { transform: "translate3d(0, 0, 0) rotate(360deg) scale(1)" },
+        },
+        "organic-morph-reverse": {
+          "0%": { transform: "translate3d(0, 0, 0) rotate(360deg) scale(1)" },
+          "50%": { transform: "translate3d(-6px, 8px, 0) rotate(180deg) scale(1.08)" },
+          "100%": { transform: "translate3d(0, 0, 0) rotate(0deg) scale(1)" },
+        },
+        // Rhythmic shining flare animations for light objects (pulsing luminescence and 3D scale)
+        "light-shine-pulse": {
+          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1)", opacity: "0.8" },
+          "50%": { transform: "translate3d(5px, -8px, 0) scale(1.1)", opacity: "1" },
+        },
+        "light-shine-pulse-delayed": {
+          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1.06)", opacity: "0.75" },
+          "50%": { transform: "translate3d(-8px, 5px, 0) scale(0.95)", opacity: "1" },
+        },
+        // Inner core shimmer flare for light orbs
+        "light-orb-shimmer": {
+          "0%, 100%": { opacity: "0.65", transform: "translate3d(0, 0, 0) scale(0.92)" },
+          "50%": { opacity: "1", transform: "translate3d(0, 0, 0) scale(1.15)" },
+        },
         // Organic ambient lighting breathing animation for radial gradient light
         // objects behind frosted glassmorphic surfaces (compositor-only scale/transform).
         "ambient-breathe": {
@@ -210,6 +237,11 @@ module.exports = {
         "badge-float": "badge-float 4s ease-in-out infinite",
         "sweep": "sweep 4.2s ease-in-out infinite",
         "glass-shine": "glass-shine 7s cubic-bezier(0.16, 1, 0.3, 1) infinite",
+        "organic-morph": "organic-morph 14s ease-in-out infinite",
+        "organic-morph-reverse": "organic-morph-reverse 12s ease-in-out infinite",
+        "light-shine-pulse": "light-shine-pulse 7s ease-in-out infinite",
+        "light-shine-pulse-delayed": "light-shine-pulse-delayed 9s ease-in-out infinite",
+        "light-orb-shimmer": "light-orb-shimmer 4.5s ease-in-out infinite",
         "ambient-breathe": "ambient-breathe 8s ease-in-out infinite",
         "ambient-breathe-delayed": "ambient-breathe-delayed 10s ease-in-out infinite",
       },
