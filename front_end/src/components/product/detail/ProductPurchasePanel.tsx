@@ -140,7 +140,7 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
           </span>
         </a>
 
-        <div className="mt-3.5 flex items-end justify-between gap-3">
+        <div className="mt-3.5 flex items-center justify-between gap-3">
           {selection.colors.length > 0 && (
             <fieldset className="min-w-0 flex-1">
               <div className="mb-1.5 flex items-center justify-between">
@@ -200,15 +200,33 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
             </fieldset>
           )}
           {product.inStock && (
-            <div className="shrink-0 pb-0.5">
+            <div className="shrink-0">
               <span className="sr-only">تعداد</span>
               <div
-                className="flex h-8 items-center overflow-hidden rounded-lg border border-voxcina-blue/20 bg-white/95 text-voxcina-blue shadow-[0_2px_8px_rgba(26,60,105,0.06),inset_0_1px_1px_rgba(255,255,255,0.9)]"
+                className="flex h-10 items-center overflow-hidden rounded-xl border border-voxcina-blue/20 bg-white/95 text-voxcina-blue shadow-[0_2px_10px_rgba(26,60,105,0.08),inset_0_1px_1px_rgba(255,255,255,0.9)]"
                 dir="ltr"
               >
-                <button type="button" aria-label="کاهش تعداد" disabled={!selection.canModifyQuantity || selection.quantity <= 1} onClick={() => selection.setQuantity(selection.quantity - 1)} className="flex size-8 items-center justify-center hover:bg-voxcina-cream/60 active:bg-voxcina-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] disabled:opacity-35"><Minus className="size-3" /></button>
-                <span className="min-w-4 text-center text-xs font-bold tabular-nums" aria-live="polite">{toPersianNumber(selection.quantity)}</span>
-                <button type="button" aria-label="افزایش تعداد" disabled={!selection.canModifyQuantity || selection.quantity >= selection.inventory} onClick={() => selection.setQuantity(selection.quantity + 1)} className="flex size-8 items-center justify-center hover:bg-voxcina-cream/60 active:bg-voxcina-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] disabled:opacity-35"><Plus className="size-3" /></button>
+                <button
+                  type="button"
+                  aria-label="کاهش تعداد"
+                  disabled={!selection.canModifyQuantity || selection.quantity <= 1}
+                  onClick={() => selection.setQuantity(selection.quantity - 1)}
+                  className="flex size-10 items-center justify-center hover:bg-voxcina-cream/60 active:bg-voxcina-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] disabled:opacity-35"
+                >
+                  <Minus className="size-3.5" />
+                </button>
+                <span className="min-w-6 text-center text-sm font-bold tabular-nums" aria-live="polite">
+                  {toPersianNumber(selection.quantity)}
+                </span>
+                <button
+                  type="button"
+                  aria-label="افزایش تعداد"
+                  disabled={!selection.canModifyQuantity || selection.quantity >= selection.inventory}
+                  onClick={() => selection.setQuantity(selection.quantity + 1)}
+                  className="flex size-10 items-center justify-center hover:bg-voxcina-cream/60 active:bg-voxcina-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] disabled:opacity-35"
+                >
+                  <Plus className="size-3.5" />
+                </button>
               </div>
             </div>
           )}
@@ -238,9 +256,9 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
                     disabled={!available}
                     onClick={() => selection.setSize(selected ? undefined : size)}
                     className={cn(
-                      "min-h-11 min-w-11 rounded-xl border px-3 text-sm transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-voxcina-blue disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none",
+                      "h-9 min-w-9 rounded-lg border px-2.5 text-xs font-semibold transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-voxcina-blue disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none",
                       selected
-                        ? "border-voxcina-blue bg-voxcina-blue font-bold text-voxcina-cream shadow-[0_4px_14px_rgba(26,60,105,0.25),inset_0_1px_1px_rgba(255,255,255,0.2)]"
+                        ? "border-voxcina-blue bg-voxcina-blue font-bold text-voxcina-cream shadow-[0_2px_10px_rgba(26,60,105,0.2)]"
                         : "border-voxcina-blue/15 bg-white/80 text-voxcina-blue hover:border-voxcina-blue/30 hover:bg-white",
                       !available && "line-through opacity-40"
                     )}
