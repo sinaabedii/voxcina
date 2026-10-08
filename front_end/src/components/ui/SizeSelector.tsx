@@ -59,7 +59,7 @@ const SizeSelector: React.FC<SizeSelectorProps> = ({
                 onClick={onSizeRecommendationClick}
               >
                 <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                سایز مناسب من
+                سایز من
               </button>
             )}
             {showSizeGuide && onSizeGuideClick && (

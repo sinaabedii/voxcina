@@ -295,7 +295,7 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
                 onClick={() => setIsSizeRecommendationOpen(true)}
               >
                 <Sparkles className="size-3.5" />
-                سایز مناسب من
+                سایز من
               </button>
             </div>
           </fieldset>
