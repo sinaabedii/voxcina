@@ -989,55 +989,45 @@ input[type="checkbox"] + label > div > svg {
 @keyframes light-shine-pulse {
   0%, 100% {
     transform: translate3d(0, 0, 0) scale(1);
-    opacity: 0.8;
   }
   50% {
-    transform: translate3d(5px, -8px, 0) scale(1.1);
-    opacity: 1;
+    transform: translate3d(5px, -8px, 0) scale(1.06);
   }
 }
 
 @keyframes light-shine-pulse-delayed {
   0%, 100% {
-    transform: translate3d(0, 0, 0) scale(1.06);
-    opacity: 0.75;
+    transform: translate3d(0, 0, 0) scale(1.04);
   }
   50% {
-    transform: translate3d(-8px, 5px, 0) scale(0.95);
-    opacity: 1;
+    transform: translate3d(-8px, 5px, 0) scale(0.96);
   }
 }
 
 @keyframes light-orb-shimmer {
   0%, 100% {
-    opacity: 0.65;
-    transform: translate3d(0, 0, 0) scale(0.92);
+    transform: translate3d(0, 0, 0) scale(0.95);
   }
   50% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1.15);
+    transform: translate3d(0, 0, 0) scale(1.08);
   }
 }
 
 @keyframes ambient-breathe {
   0%, 100% {
     transform: translate3d(0, 0, 0) scale(1);
-    opacity: 0.8;
   }
   50% {
-    transform: translate3d(8px, -10px, 0) scale(1.08);
-    opacity: 1;
+    transform: translate3d(8px, -10px, 0) scale(1.05);
   }
 }
 
 @keyframes ambient-breathe-delayed {
   0%, 100% {
-    transform: translate3d(0, 0, 0) scale(1.06);
-    opacity: 0.7;
+    transform: translate3d(0, 0, 0) scale(1.04);
   }
   50% {
-    transform: translate3d(-10px, 8px, 0) scale(0.94);
-    opacity: 0.95;
+    transform: translate3d(-10px, 8px, 0) scale(0.96);
   }
 }
 
@@ -1058,12 +1048,12 @@ input[type="checkbox"] + label > div > svg {
 
 .animate-light-shine-pulse {
   animation: light-shine-pulse 7s ease-in-out infinite;
-  will-change: transform, opacity;
+  will-change: transform;
 }
 
 .animate-light-shine-pulse-delayed {
   animation: light-shine-pulse-delayed 9s ease-in-out infinite;
-  will-change: transform, opacity;
+  will-change: transform;
 }
 
 .animate-light-orb-shimmer {

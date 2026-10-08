@@ -87,22 +87,22 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
         )}
       >
         {/* Layer 1: Ethereal ambient light situation BEHIND the frosted glass */}
-        {/* Very blurred, feather-light, atmospheric illumination with zero hard contours */}
-        <div className="pointer-events-none absolute inset-0 -z-30 overflow-hidden filter blur-3xl" aria-hidden="true">
-          {/* Ambient Warm Situational Aura (top-right) - large, feather-light, slow gentle breathing */}
+        {/* Ultra-blurred, whisper-light, atmospheric illumination with zero hard contours */}
+        <div className="pointer-events-none absolute inset-0 -z-30 overflow-hidden filter blur-3xl opacity-30" aria-hidden="true">
+          {/* Ambient Warm Situational Aura (top-right) - ultra-light, whisper-soft champagne/gold */}
           <div
-            className="absolute -top-24 -right-20 size-[28rem] sm:size-[36rem] rounded-full opacity-70 will-change-transform transform-gpu animate-light-shine-pulse bg-[radial-gradient(circle_at_45%_45%,rgba(255,255,255,0.45)_0%,rgba(254,240,138,0.26)_20%,rgba(245,158,11,0.10)_45%,rgba(245,158,11,0.02)_70%,transparent_90%)]"
+            className="absolute -top-32 -right-24 size-[28rem] sm:size-[36rem] rounded-full opacity-60 will-change-transform transform-gpu animate-light-shine-pulse bg-[radial-gradient(circle_at_45%_45%,rgba(255,255,255,0.30)_0%,rgba(254,243,199,0.12)_25%,rgba(245,158,11,0.03)_50%,transparent_80%)]"
           />
 
-          {/* Ambient Cool Celestial Situational Aura (mid/lower-left) - large, feather-light, gentle drift */}
+          {/* Ambient Cool Celestial Situational Aura (mid/lower-left) - ultra-light, whisper-soft sky azure */}
           <div
-            className="absolute top-1/4 -left-24 size-[28rem] sm:size-[36rem] rounded-full opacity-65 will-change-transform transform-gpu animate-organic-morph bg-[radial-gradient(circle_at_45%_45%,rgba(255,255,255,0.40)_0%,rgba(186,230,253,0.22)_22%,rgba(56,189,248,0.08)_48%,rgba(26,60,105,0.02)_72%,transparent_92%)]"
+            className="absolute top-1/3 -left-28 size-[28rem] sm:size-[36rem] rounded-full opacity-50 will-change-transform transform-gpu animate-organic-morph bg-[radial-gradient(circle_at_45%_45%,rgba(255,255,255,0.25)_0%,rgba(224,242,254,0.10)_25%,rgba(56,189,248,0.02)_50%,transparent_80%)]"
           />
         </div>
 
         {/* Layer 2: True frosted glass surface with blur & saturation boost active on mobile & desktop */}
         <div
-          className="pointer-events-none absolute inset-0 -z-20 border-t border-white/85 bg-white/65 backdrop-blur-xl sm:backdrop-blur-2xl backdrop-saturate-160 shadow-[inset_0_1.5px_1px_rgba(255,255,255,0.95),inset_0_-1px_1px_rgba(26,60,105,0.03)] sm:bg-[#FAF7F2]/70 lg:border-t-0 lg:border-r lg:border-voxcina-blue/10"
+          className="pointer-events-none absolute inset-0 -z-20 border-t border-white/90 bg-white/80 backdrop-blur-2xl backdrop-saturate-130 shadow-[inset_0_1.5px_1px_rgba(255,255,255,0.95),inset_0_-1px_1px_rgba(26,60,105,0.03)] sm:bg-[#FAF7F2]/85 lg:border-t-0 lg:border-r lg:border-voxcina-blue/10"
           aria-hidden="true"
         />
 
@@ -112,10 +112,10 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
           <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/95 to-transparent" />
 
           {/* Vertical glass luminosity wash */}
-          <div className="absolute inset-0 bg-gradient-to-b from-white/45 via-transparent to-voxcina-cream/15" />
+          <div className="absolute inset-0 bg-gradient-to-b from-white/35 via-transparent to-voxcina-cream/10" />
 
           {/* Silky smooth hardware-accelerated shining specular sweep */}
-          <div className="absolute -inset-y-16 -left-full w-2/3 animate-glass-shine bg-gradient-to-r from-transparent via-white/45 via-amber-100/30 to-transparent motion-reduce:hidden" />
+          <div className="absolute -inset-y-16 -left-full w-2/3 animate-glass-shine bg-gradient-to-r from-transparent via-white/35 via-amber-50/20 to-transparent motion-reduce:hidden" />
         </div>
 
         <div className="flex items-start justify-between gap-4">

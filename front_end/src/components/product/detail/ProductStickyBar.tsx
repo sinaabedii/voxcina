@@ -84,7 +84,7 @@ export default function ProductStickyBar({
     <div
       aria-hidden={!isVisible}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg overflow-hidden rounded-t-[24px] border-x border-t border-white/80 bg-white/75 sm:bg-[#FAF7F2]/80 backdrop-blur-xl backdrop-saturate-180 p-2 pb-[max(8px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(26,60,105,0.08),inset_0_1.5px_1px_rgba(255,255,255,0.95)] transition-transform duration-300 motion-reduce:transition-none lg:inset-x-6 lg:bottom-[max(12px,env(safe-area-inset-bottom))] lg:max-w-5xl lg:rounded-[28px] lg:border lg:p-3",
+        "fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg overflow-hidden rounded-t-[24px] border-x border-t border-white/90 bg-white/80 sm:bg-[#FAF7F2]/85 backdrop-blur-2xl backdrop-saturate-130 p-2 pb-[max(8px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(26,60,105,0.08),inset_0_1.5px_1px_rgba(255,255,255,0.95)] transition-transform duration-300 motion-reduce:transition-none lg:inset-x-6 lg:bottom-[max(12px,env(safe-area-inset-bottom))] lg:max-w-5xl lg:rounded-[28px] lg:border lg:p-3",
         isVisible ? "translate-y-0" : "pointer-events-none translate-y-[calc(100%+2rem)]"
       )}
     >
@@ -94,14 +94,14 @@ export default function ProductStickyBar({
         <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/95 to-transparent" />
 
         {/* Subtle ambient light situation behind bottom sticky glass bar */}
-        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden filter blur-2xl opacity-50" aria-hidden="true">
-          <div className="absolute -bottom-10 right-16 size-44 rounded-full bg-[radial-gradient(circle,rgba(254,240,138,0.25)_0%,rgba(245,158,11,0.08)_40%,transparent_75%)] animate-light-shine-pulse" />
-          <div className="absolute -bottom-10 left-16 size-44 rounded-full bg-[radial-gradient(circle,rgba(186,230,253,0.22)_0%,rgba(56,189,248,0.06)_40%,transparent_75%)] animate-organic-morph" />
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden filter blur-3xl opacity-20" aria-hidden="true">
+          <div className="absolute -bottom-10 right-16 size-44 rounded-full bg-[radial-gradient(circle,rgba(254,243,199,0.18)_0%,rgba(245,158,11,0.03)_40%,transparent_75%)] animate-light-shine-pulse" />
+          <div className="absolute -bottom-10 left-16 size-44 rounded-full bg-[radial-gradient(circle,rgba(224,242,254,0.15)_0%,rgba(56,189,248,0.02)_40%,transparent_75%)] animate-organic-morph" />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-transparent to-voxcina-cream/15" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-transparent to-voxcina-cream/10" />
 
         {/* Silky smooth hardware-accelerated shining specular sweep */}
-        <div className="absolute -inset-y-16 -left-full w-2/3 animate-glass-shine bg-gradient-to-r from-transparent via-white/40 via-amber-100/25 to-transparent motion-reduce:hidden" />
+        <div className="absolute -inset-y-16 -left-full w-2/3 animate-glass-shine bg-gradient-to-r from-transparent via-white/35 via-amber-50/20 to-transparent motion-reduce:hidden" />
       </div>
 
       <div className="flex items-center gap-4">

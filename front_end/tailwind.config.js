@@ -193,29 +193,29 @@ module.exports = {
           "50%": { transform: "translate3d(-6px, 8px, 0) rotate(180deg) scale(1.08)" },
           "100%": { transform: "translate3d(0, 0, 0) rotate(0deg) scale(1)" },
         },
-        // Rhythmic shining flare animations for light objects (pulsing luminescence and 3D scale)
+        // Rhythmic shining flare animations for light objects (gentle scale drift, compositor-only)
         "light-shine-pulse": {
-          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1)", opacity: "0.8" },
-          "50%": { transform: "translate3d(5px, -8px, 0) scale(1.1)", opacity: "1" },
+          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1)" },
+          "50%": { transform: "translate3d(5px, -8px, 0) scale(1.06)" },
         },
         "light-shine-pulse-delayed": {
-          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1.06)", opacity: "0.75" },
-          "50%": { transform: "translate3d(-8px, 5px, 0) scale(0.95)", opacity: "1" },
+          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1.04)" },
+          "50%": { transform: "translate3d(-8px, 5px, 0) scale(0.96)" },
         },
         // Inner core shimmer flare for light orbs
         "light-orb-shimmer": {
-          "0%, 100%": { opacity: "0.65", transform: "translate3d(0, 0, 0) scale(0.92)" },
-          "50%": { opacity: "1", transform: "translate3d(0, 0, 0) scale(1.15)" },
+          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(0.95)" },
+          "50%": { transform: "translate3d(0, 0, 0) scale(1.08)" },
         },
         // Organic ambient lighting breathing animation for radial gradient light
         // objects behind frosted glassmorphic surfaces (compositor-only scale/transform).
         "ambient-breathe": {
-          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1)", opacity: "0.8" },
-          "50%": { transform: "translate3d(8px, -10px, 0) scale(1.08)", opacity: "1" },
+          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1)" },
+          "50%": { transform: "translate3d(8px, -10px, 0) scale(1.05)" },
         },
         "ambient-breathe-delayed": {
-          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1.06)", opacity: "0.7" },
-          "50%": { transform: "translate3d(-10px, 8px, 0) scale(0.94)", opacity: "0.95" },
+          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1.04)" },
+          "50%": { transform: "translate3d(-10px, 8px, 0) scale(0.96)" },
         },
       },
       animation: {

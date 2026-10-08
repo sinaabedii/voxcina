@@ -272,14 +272,14 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
       {/* Mobile sticky top bar that slides down on scroll */}
       <div
         className={cn(
-          "fixed inset-x-0 top-0 z-30 flex items-center justify-between overflow-hidden border-b border-white/80 bg-white/55 sm:bg-[#FAF7F2]/60 backdrop-blur-xl backdrop-saturate-190 px-4 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] shadow-[0_10px_30px_rgba(26,60,105,0.08),inset_0_-1px_1px_rgba(255,255,255,0.95)] transition-transform duration-300 motion-reduce:transition-none lg:hidden",
+          "fixed inset-x-0 top-0 z-30 flex items-center justify-between overflow-hidden border-b border-white/90 bg-white/80 sm:bg-[#FAF7F2]/85 backdrop-blur-2xl backdrop-saturate-140 px-4 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] shadow-[0_10px_30px_rgba(26,60,105,0.08),inset_0_-1px_1px_rgba(255,255,255,0.95)] transition-transform duration-300 motion-reduce:transition-none lg:hidden",
           isScrolled ? "translate-y-0" : "-translate-y-full pointer-events-none"
         )}
       >
         {/* Subtle ambient light situation behind sticky bar */}
-        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden filter blur-2xl opacity-50" aria-hidden="true">
-          <div className="absolute -top-12 right-12 size-36 rounded-full bg-[radial-gradient(circle,rgba(254,240,138,0.28)_0%,rgba(245,158,11,0.08)_40%,transparent_75%)] animate-light-shine-pulse" />
-          <div className="absolute -top-12 left-12 size-36 rounded-full bg-[radial-gradient(circle,rgba(186,230,253,0.22)_0%,rgba(56,189,248,0.06)_40%,transparent_75%)] animate-organic-morph" />
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden filter blur-3xl opacity-20" aria-hidden="true">
+          <div className="absolute -top-12 right-12 size-36 rounded-full bg-[radial-gradient(circle,rgba(254,243,199,0.18)_0%,rgba(245,158,11,0.03)_40%,transparent_75%)] animate-light-shine-pulse" />
+          <div className="absolute -top-12 left-12 size-36 rounded-full bg-[radial-gradient(circle,rgba(224,242,254,0.15)_0%,rgba(56,189,248,0.02)_40%,transparent_75%)] animate-organic-morph" />
           <div className="absolute inset-0 bg-gradient-to-b from-white/60 to-transparent" />
         </div>
 
@@ -306,9 +306,9 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
 
       <div className="relative bg-voxcina-lightCream sm:rounded-[28px] sm:shadow-soft sm:border sm:border-voxcina-blue/10 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px] lg:overflow-hidden">
         {/* Ambient light situation positioned behind the mobile glass sheet junction & lower gallery frame */}
-        <div className="pointer-events-none absolute inset-x-0 top-64 sm:top-80 h-96 z-0 overflow-hidden filter blur-3xl opacity-60 lg:hidden" aria-hidden="true">
+        <div className="pointer-events-none absolute inset-x-0 top-64 sm:top-80 h-96 z-0 overflow-hidden filter blur-3xl opacity-20 lg:hidden" aria-hidden="true">
           {/* Feather-light warm ambient situational wash */}
-          <div className="absolute -top-16 -right-16 size-[28rem] rounded-full will-change-transform transform-gpu animate-light-shine-pulse bg-[radial-gradient(circle,rgba(254,240,138,0.20)_0%,rgba(245,158,11,0.07)_40%,transparent_75%)]" />
+          <div className="absolute -top-16 -right-16 size-[28rem] rounded-full will-change-transform transform-gpu animate-light-shine-pulse bg-[radial-gradient(circle,rgba(254,243,199,0.18)_0%,rgba(245,158,11,0.03)_40%,transparent_75%)]" />
         </div>
 
         <ProductGallery
