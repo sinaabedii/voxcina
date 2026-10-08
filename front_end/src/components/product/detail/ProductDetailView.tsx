@@ -276,10 +276,10 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
           isScrolled ? "translate-y-0" : "-translate-y-full pointer-events-none"
         )}
       >
-        {/* Shining light objects behind sticky bar */}
-        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
-          <div className="absolute -top-10 right-10 size-28 rounded-full bg-[radial-gradient(circle_at_40%_40%,rgba(255,255,255,0.95)_0%,rgba(254,240,138,0.85)_20%,rgba(245,158,11,0.45)_45%,rgba(217,119,6,0.1)_68%,transparent_85%)] animate-light-shine-pulse" />
-          <div className="absolute -top-10 left-10 size-28 rounded-[48%_52%_65%_35%/55%_45%_55%_45%] bg-[radial-gradient(circle_at_45%_45%,rgba(255,255,255,0.95)_0%,rgba(186,230,253,0.85)_22%,rgba(56,189,248,0.42)_48%,rgba(26,60,105,0.12)_70%,transparent_88%)] animate-organic-morph" />
+        {/* Subtle ambient light situation behind sticky bar */}
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden filter blur-2xl opacity-50" aria-hidden="true">
+          <div className="absolute -top-12 right-12 size-36 rounded-full bg-[radial-gradient(circle,rgba(254,240,138,0.28)_0%,rgba(245,158,11,0.08)_40%,transparent_75%)] animate-light-shine-pulse" />
+          <div className="absolute -top-12 left-12 size-36 rounded-full bg-[radial-gradient(circle,rgba(186,230,253,0.22)_0%,rgba(56,189,248,0.06)_40%,transparent_75%)] animate-organic-morph" />
           <div className="absolute inset-0 bg-gradient-to-b from-white/60 to-transparent" />
         </div>
 
@@ -305,12 +305,10 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
       </div>
 
       <div className="relative bg-voxcina-lightCream sm:rounded-[28px] sm:shadow-soft sm:border sm:border-voxcina-blue/10 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px] lg:overflow-hidden">
-        {/* Ambient light objects positioned behind the mobile glass sheet junction & lower gallery frame */}
-        <div className="pointer-events-none absolute inset-x-0 top-64 sm:top-80 h-96 z-0 overflow-hidden lg:hidden" aria-hidden="true">
-          {/* Radiant gold circular sun orb */}
-          <div className="absolute -top-12 -right-10 size-80 rounded-full bg-[radial-gradient(circle_at_42%_42%,rgba(255,255,255,0.92)_0%,rgba(254,240,138,0.8)_20%,rgba(245,158,11,0.48)_45%,rgba(212,179,115,0.18)_68%,transparent_85%)] animate-light-shine-pulse" />
-          {/* Radiant celestial azure fluid blob */}
-          <div className="absolute top-16 -left-12 size-88 rounded-[45%_55%_65%_35%/55%_45%_55%_45%] bg-[radial-gradient(circle_at_45%_45%,rgba(255,255,255,0.92)_0%,rgba(186,230,253,0.8)_22%,rgba(56,189,248,0.45)_48%,rgba(26,60,105,0.16)_72%,transparent_90%)] animate-organic-morph" />
+        {/* Ambient light situation positioned behind the mobile glass sheet junction & lower gallery frame */}
+        <div className="pointer-events-none absolute inset-x-0 top-64 sm:top-80 h-96 z-0 overflow-hidden filter blur-3xl opacity-60 lg:hidden" aria-hidden="true">
+          {/* Feather-light warm ambient situational wash */}
+          <div className="absolute -top-16 -right-16 size-[28rem] rounded-full will-change-transform transform-gpu animate-light-shine-pulse bg-[radial-gradient(circle,rgba(254,240,138,0.20)_0%,rgba(245,158,11,0.07)_40%,transparent_75%)]" />
         </div>
 
         <ProductGallery

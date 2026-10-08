@@ -93,9 +93,11 @@ export default function ProductStickyBar({
         {/* Top edge hairline glass rim reflection */}
         <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/95 to-transparent" />
 
-        {/* Luminous light objects behind bottom sticky glass bar */}
-        <div className="absolute -bottom-8 right-12 size-36 rounded-full bg-[radial-gradient(circle_at_45%_45%,rgba(255,255,255,0.92)_0%,rgba(254,240,138,0.75)_22%,rgba(245,158,11,0.4)_48%,rgba(217,119,6,0.1)_70%,transparent_88%)] animate-light-shine-pulse" />
-        <div className="absolute -bottom-8 left-12 size-36 rounded-[48%_52%_65%_35%/55%_45%_55%_45%] bg-[radial-gradient(circle_at_45%_45%,rgba(255,255,255,0.92)_0%,rgba(186,230,253,0.75)_22%,rgba(56,189,248,0.38)_48%,rgba(26,60,105,0.12)_72%,transparent_90%)] animate-organic-morph" />
+        {/* Subtle ambient light situation behind bottom sticky glass bar */}
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden filter blur-2xl opacity-50" aria-hidden="true">
+          <div className="absolute -bottom-10 right-16 size-44 rounded-full bg-[radial-gradient(circle,rgba(254,240,138,0.25)_0%,rgba(245,158,11,0.08)_40%,transparent_75%)] animate-light-shine-pulse" />
+          <div className="absolute -bottom-10 left-16 size-44 rounded-full bg-[radial-gradient(circle,rgba(186,230,253,0.22)_0%,rgba(56,189,248,0.06)_40%,transparent_75%)] animate-organic-morph" />
+        </div>
         <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-transparent to-voxcina-cream/15" />
 
         {/* Silky smooth hardware-accelerated shining specular sweep */}

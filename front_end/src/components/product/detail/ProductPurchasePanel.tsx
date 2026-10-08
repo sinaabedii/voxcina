@@ -86,42 +86,23 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
           className
         )}
       >
-        {/* Layer 1: Shining, light-like objects (circles & fluid organic shapes) BEHIND the frosted glass */}
-        {/* Rendered purely via feathered multi-stop radial gradients (zero GPU blur filter passes) */}
-        <div className="pointer-events-none absolute inset-0 -z-30 overflow-hidden" aria-hidden="true">
-          {/* Shining circular light orb 1: Radiant warm amber/gold sun orb (top-right) */}
-          <div className="absolute -top-16 -right-16 size-72 sm:size-88 animate-light-shine-pulse">
-            {/* Feathered radiant aura */}
-            <div className="size-full rounded-full bg-[radial-gradient(circle_at_42%_42%,rgba(255,255,255,0.98)_0%,rgba(254,240,138,0.88)_15%,rgba(245,158,11,0.55)_38%,rgba(217,119,6,0.2)_62%,rgba(217,119,6,0.05)_80%,transparent_92%)]" />
-            {/* Concentrated shimmering core */}
-            <div className="absolute inset-16 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,1)_0%,rgba(254,240,138,0.85)_25%,rgba(245,158,11,0.4)_55%,transparent_75%)] animate-light-orb-shimmer" />
-          </div>
+        {/* Layer 1: Ethereal ambient light situation BEHIND the frosted glass */}
+        {/* Very blurred, feather-light, atmospheric illumination with zero hard contours */}
+        <div className="pointer-events-none absolute inset-0 -z-30 overflow-hidden filter blur-3xl" aria-hidden="true">
+          {/* Ambient Warm Situational Aura (top-right) - large, feather-light, slow gentle breathing */}
+          <div
+            className="absolute -top-24 -right-20 size-[28rem] sm:size-[36rem] rounded-full opacity-70 will-change-transform transform-gpu animate-light-shine-pulse bg-[radial-gradient(circle_at_45%_45%,rgba(255,255,255,0.45)_0%,rgba(254,240,138,0.26)_20%,rgba(245,158,11,0.10)_45%,rgba(245,158,11,0.02)_70%,transparent_90%)]"
+          />
 
-          {/* Shining organic light blob 1: Morphing celestial azure & brand blue (mid-left) */}
-          <div className="absolute top-1/4 -left-16 sm:-left-20 size-80 sm:size-96 rounded-[46%_54%_68%_32%/58%_38%_62%_42%] animate-organic-morph">
-            {/* Asymmetric organic fluid aura */}
-            <div className="size-full rounded-[inherit] bg-[radial-gradient(circle_at_46%_46%,rgba(255,255,255,0.96)_0%,rgba(186,230,253,0.85)_18%,rgba(56,189,248,0.55)_42%,rgba(26,60,105,0.25)_68%,rgba(26,60,105,0.06)_85%,transparent_95%)]" />
-            {/* Asymmetric fluid inner core counter-rotating */}
-            <div className="absolute inset-16 rounded-[52%_48%_38%_62%/42%_58%_44%_56%] bg-[radial-gradient(circle,rgba(255,255,255,0.98)_0%,rgba(186,230,253,0.78)_26%,rgba(56,189,248,0.38)_58%,transparent_78%)] animate-organic-morph-reverse" />
-          </div>
-
-          {/* Shining organic light blob 2: Warm champagne & rose pearlescent glow (center-bottom) */}
-          <div className="absolute -bottom-14 right-1/4 size-72 sm:size-88 rounded-[60%_40%_46%_54%/44%_56%_44%_56%] animate-light-shine-pulse-delayed">
-            {/* Organic fluid wash */}
-            <div className="size-full rounded-[inherit] animate-organic-morph-reverse bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.96)_0%,rgba(254,215,170,0.85)_20%,rgba(244,114,182,0.38)_48%,rgba(212,179,115,0.18)_70%,rgba(212,179,115,0.04)_86%,transparent_96%)]" />
-            {/* Concentrated shimmering core */}
-            <div className="absolute inset-16 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,1)_0%,rgba(254,215,170,0.8)_30%,rgba(244,114,182,0.3)_60%,transparent_80%)] animate-light-orb-shimmer" />
-          </div>
-
-          {/* Shining circular light orb 2: Golden amber accent (bottom-left) */}
-          <div className="absolute -bottom-12 -left-12 size-60 sm:size-72 animate-light-shine-pulse">
-            <div className="size-full rounded-full bg-[radial-gradient(circle_at_45%_45%,rgba(255,255,255,0.92)_0%,rgba(253,230,138,0.78)_22%,rgba(245,158,11,0.45)_48%,rgba(217,119,6,0.14)_72%,transparent_90%)]" />
-          </div>
+          {/* Ambient Cool Celestial Situational Aura (mid/lower-left) - large, feather-light, gentle drift */}
+          <div
+            className="absolute top-1/4 -left-24 size-[28rem] sm:size-[36rem] rounded-full opacity-65 will-change-transform transform-gpu animate-organic-morph bg-[radial-gradient(circle_at_45%_45%,rgba(255,255,255,0.40)_0%,rgba(186,230,253,0.22)_22%,rgba(56,189,248,0.08)_48%,rgba(26,60,105,0.02)_72%,transparent_92%)]"
+          />
         </div>
 
         {/* Layer 2: True frosted glass surface with blur & saturation boost active on mobile & desktop */}
         <div
-          className="pointer-events-none absolute inset-0 -z-20 border-t border-white/90 bg-white/50 backdrop-blur-xl sm:backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1.5px_1px_rgba(255,255,255,0.95),inset_0_-1px_1px_rgba(26,60,105,0.03)] sm:bg-[#FAF7F2]/55 lg:border-t-0 lg:border-r lg:border-voxcina-blue/10"
+          className="pointer-events-none absolute inset-0 -z-20 border-t border-white/85 bg-white/65 backdrop-blur-xl sm:backdrop-blur-2xl backdrop-saturate-160 shadow-[inset_0_1.5px_1px_rgba(255,255,255,0.95),inset_0_-1px_1px_rgba(26,60,105,0.03)] sm:bg-[#FAF7F2]/70 lg:border-t-0 lg:border-r lg:border-voxcina-blue/10"
           aria-hidden="true"
         />
 
