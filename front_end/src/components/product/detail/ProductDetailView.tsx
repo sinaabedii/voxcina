@@ -270,25 +270,25 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
       {/* Mobile sticky top bar that slides down on scroll */}
       <div
         className={cn(
-          "fixed inset-x-0 top-0 z-30 flex items-center justify-between overflow-hidden border-b border-white/20 bg-[#0e223d]/95 px-4 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] shadow-[0_10px_30px_rgba(10,25,47,0.35)] transition-transform duration-300 motion-reduce:transition-none lg:hidden",
+          "fixed inset-x-0 top-0 z-30 flex items-center justify-between overflow-hidden border-b border-voxcina-blue/15 bg-[#FAF7F2]/95 px-4 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] shadow-[0_10px_30px_rgba(26,60,105,0.08)] transition-transform duration-300 motion-reduce:transition-none lg:hidden",
           isScrolled ? "translate-y-0" : "-translate-y-full pointer-events-none"
         )}
       >
         {/* Light objects behind sticky bar - zero-cost radial gradients */}
         <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
-          <div className="absolute -top-10 right-10 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgba(230,198,135,0.25)_0%,transparent_70%)]" />
-          <div className="absolute -top-10 left-10 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.2)_0%,transparent_70%)]" />
-          <div className="absolute inset-0 bg-gradient-to-b from-white/[0.08] to-transparent" />
+          <div className="absolute -top-10 right-10 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgba(212,179,115,0.2)_0%,transparent_70%)]" />
+          <div className="absolute -top-10 left-10 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgba(26,60,105,0.06)_0%,transparent_70%)]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-white/80 to-transparent" />
         </div>
 
         <Link
           href="/products"
           aria-label="بازگشت به محصولات"
-          className="flex size-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-voxcina-cream transition-all hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream"
+          className="flex size-10 items-center justify-center rounded-xl border border-voxcina-blue/15 bg-white/80 text-voxcina-blue transition-all hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-blue"
         >
           <ArrowRight className="size-5" />
         </Link>
-        <p className="line-clamp-1 px-3 text-center text-sm font-bold text-voxcina-cream">
+        <p className="line-clamp-1 px-3 text-center text-sm font-bold text-voxcina-blue">
           {product.name}
         </p>
         <button
@@ -296,13 +296,13 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
           onClick={() => product.id && addToFavorites(product.id)}
           aria-label={product.id && isFavorite(product.id) ? "حذف از علاقه‌مندی‌ها" : "افزودن به علاقه‌مندی‌ها"}
           aria-pressed={product.id ? isFavorite(product.id) : false}
-          className="flex size-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-voxcina-cream transition-all hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream"
+          className="flex size-10 items-center justify-center rounded-xl border border-voxcina-blue/15 bg-white/80 text-voxcina-blue transition-all hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-blue"
         >
           <Heart className="size-5" fill={product.id && isFavorite(product.id) ? "currentColor" : "none"} />
         </button>
       </div>
 
-      <div className="bg-[#0e223d] sm:rounded-[28px] sm:shadow-[0_20px_50px_rgba(10,25,47,0.35)] sm:border sm:border-white/15 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px] lg:overflow-hidden">
+      <div className="bg-voxcina-lightCream sm:rounded-[28px] sm:shadow-soft sm:border sm:border-voxcina-blue/10 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px] lg:overflow-hidden">
         <ProductGallery
           images={images}
           productName={product.name}

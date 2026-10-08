@@ -35,7 +35,7 @@ interface ProductPurchasePanelProps {
   className?: string;
 }
 
-const helperButtonClass = "inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.08] px-2.5 text-xs font-medium text-voxcina-cream/90 transition-all hover:border-white/30 hover:bg-white/[0.14] hover:text-white active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none";
+const helperButtonClass = "inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-voxcina-blue/15 bg-white/80 px-2.5 text-xs font-medium text-voxcina-blue/90 shadow-2xs transition-all hover:border-voxcina-blue/30 hover:bg-white hover:text-voxcina-blue active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-blue disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none";
 
 function selectionHint(selection: VariantSelection): string | null {
   if (selection.isComplete) return null;
@@ -82,60 +82,60 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
       <div
         id="product-selection"
         className={cn(
-          "relative z-10 -mt-6 flex min-w-0 flex-col overflow-hidden rounded-t-[32px] border-t border-white/20 bg-[#0e223d] sm:bg-[#0e223d]/85 px-5 pb-6 pt-5 text-voxcina-cream shadow-[0_-12px_40px_rgba(10,25,47,0.45),inset_0_1px_1px_rgba(255,255,255,0.25)] sm:backdrop-blur-xl sm:backdrop-saturate-150 sm:-mt-8 sm:rounded-t-[36px] sm:px-7 sm:py-7 lg:mt-0 lg:rounded-none lg:border-t-0 lg:border-r lg:border-white/10 lg:pt-7 lg:justify-center lg:px-8 xl:px-10",
+          "relative z-10 -mt-6 flex min-w-0 flex-col overflow-hidden rounded-t-[32px] border-t border-white/80 bg-white/90 sm:bg-[#FAF7F2]/90 px-5 pb-6 pt-5 text-voxcina-blue shadow-[0_-12px_40px_rgba(26,60,105,0.08),inset_0_1px_1px_rgba(255,255,255,0.95)] sm:backdrop-blur-xl sm:backdrop-saturate-150 sm:-mt-8 sm:rounded-t-[36px] sm:px-7 sm:py-7 lg:mt-0 lg:rounded-none lg:border-t-0 lg:border-r lg:border-voxcina-blue/10 lg:pt-7 lg:justify-center lg:px-8 xl:px-10",
           className
         )}
       >
         {/* Light-like smooth objects behind the glassmorphic surface - zero GPU blur passes */}
         <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
           {/* Luminous warm amber/champagne orb - top right */}
-          <div className="absolute -top-16 -right-16 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(230,198,135,0.25)_0%,rgba(212,179,115,0.12)_45%,transparent_75%)]" />
+          <div className="absolute -top-16 -right-16 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(212,179,115,0.2)_0%,rgba(230,198,135,0.08)_45%,transparent_75%)]" />
           
-          {/* Radiant sapphire/cyan light orb - mid left */}
-          <div className="absolute top-1/3 -left-20 h-88 w-88 rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.2)_0%,rgba(96,165,250,0.08)_45%,transparent_75%)]" />
+          {/* Radiant sky/blue accent - mid left */}
+          <div className="absolute top-1/3 -left-20 h-88 w-88 rounded-full bg-[radial-gradient(circle,rgba(26,60,105,0.08)_0%,rgba(102,145,195,0.04)_45%,transparent_75%)]" />
 
           {/* Soft pearlescent cream glow - bottom behind cart CTA */}
-          <div className="absolute -bottom-10 right-1/4 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(250,247,242,0.12)_0%,transparent_70%)]" />
+          <div className="absolute -bottom-10 right-1/4 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(244,241,236,0.9)_0%,transparent_70%)]" />
 
           {/* Specular glass sheen highlight */}
-          <div className="absolute inset-0 bg-gradient-to-b from-white/[0.08] via-transparent to-black/25" />
+          <div className="absolute inset-0 bg-gradient-to-b from-white/80 via-transparent to-voxcina-cream/30" />
         </div>
 
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             {(brand || product.brand) && (
-              <p className="mb-1 text-xs text-voxcina-cream/70">
-                {brand ? <Link href={brand.href} className="rounded hover:text-white focus-visible:outline focus-visible:outline-2">{brand.name}</Link> : product.brand}
+              <p className="mb-1 text-xs text-voxcina-blue/70">
+                {brand ? <Link href={brand.href} className="rounded hover:text-voxcina-blue focus-visible:outline focus-visible:outline-2">{brand.name}</Link> : product.brand}
               </p>
             )}
-            <h1 className="text-xl font-bold leading-snug text-voxcina-cream sm:text-2xl">{product.name}</h1>
+            <h1 className="text-xl font-bold leading-snug text-voxcina-blue sm:text-2xl">{product.name}</h1>
           </div>
           <div className="shrink-0 pt-1 text-left">
-            <p className="text-xl font-bold tabular-nums text-white sm:text-2xl">{toPersianNumber(product.price.toLocaleString("en-US"))}</p>
-            <span className="text-xs text-voxcina-cream/75">تومان</span>
+            <p className="text-xl font-bold tabular-nums text-voxcina-blue sm:text-2xl">{toPersianNumber(product.price.toLocaleString("en-US"))}</p>
+            <span className="text-xs text-voxcina-blue/70">تومان</span>
             {discount > 0 && (
               <div className="mt-1 flex items-center justify-end gap-1.5 text-xs">
-                <del className="text-voxcina-cream/60">{toPersianNumber(product.originalPrice.toLocaleString("en-US"))}</del>
-                <span className="rounded-full bg-voxcina-cream px-1.5 py-0.5 font-bold text-voxcina-blue">{toPersianNumber(discount)}٪</span>
+                <del className="text-voxcina-blue/45">{toPersianNumber(product.originalPrice.toLocaleString("en-US"))}</del>
+                <span className="rounded-full bg-voxcina-blue px-1.5 py-0.5 font-bold text-voxcina-cream">{toPersianNumber(discount)}٪</span>
               </div>
             )}
           </div>
         </div>
 
         {product.description?.trim() && (
-          <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-voxcina-cream/75">{product.description}</p>
+          <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-voxcina-blue/75">{product.description}</p>
         )}
 
-        <a href="#reviews" className="mt-1.5 inline-flex w-fit items-center gap-2 rounded text-xs text-voxcina-cream/80 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+        <a href="#reviews" className="mt-1.5 inline-flex w-fit items-center gap-2 rounded text-xs text-voxcina-blue/80 transition-colors hover:text-voxcina-blue focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
           <span className="flex gap-0.5" aria-hidden="true">
             {Array.from({ length: 5 }, (_, index) => (
-              <Star key={index} className={cn("size-3.5", reviewCount && index < Math.round(avgRating) ? "fill-[#E6C687] text-[#E6C687]" : "text-voxcina-cream/30")} />
+              <Star key={index} className={cn("size-3.5", reviewCount && index < Math.round(avgRating) ? "fill-[#D4B373] text-[#D4B373]" : "text-voxcina-blue/20")} />
             ))}
           </span>
-          <span className="font-medium text-voxcina-cream">
+          <span className="font-medium text-voxcina-blue">
             {reviewCount ? toPersianNumber(avgRating.toFixed(1)) : "۰"}
           </span>
-          <span className="text-voxcina-cream/60">
+          <span className="text-voxcina-blue/60">
             {reviewCount ? `(${toPersianNumber(reviewCount)} نظر)` : "(ثبت اولین نظر)"}
           </span>
         </a>
@@ -145,13 +145,13 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
             <fieldset className="min-w-0 flex-1">
               <div className="mb-1.5 flex items-center justify-between">
                 <legend className="text-xs">
-                  رنگ: <span className="text-voxcina-cream/75">{selection.selectedVariant?.colorName || "انتخاب کنید"}</span>
+                  رنگ: <span className="text-voxcina-blue/75">{selection.selectedVariant?.colorName || "انتخاب کنید"}</span>
                 </legend>
                 {selection.colors.length > MAX_PREVIEW_COLORS && (
                   <button
                     type="button"
                     onClick={() => setIsColorModalOpen(true)}
-                    className="text-xs text-voxcina-cream/70 transition-colors hover:text-white"
+                    className="text-xs text-voxcina-blue/70 transition-colors hover:text-voxcina-blue"
                   >
                     همه ({toPersianNumber(selection.colors.length)})
                   </button>
@@ -172,13 +172,13 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
                       title={color.colorName}
                       onClick={() => onColorChange(selected ? undefined : key)}
                       className={cn(
-                        "relative flex size-8 shrink-0 items-center justify-center rounded-lg transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream disabled:cursor-not-allowed disabled:opacity-35",
+                        "relative flex size-8 shrink-0 items-center justify-center rounded-lg transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-blue disabled:cursor-not-allowed disabled:opacity-35",
                         selected
-                          ? "border border-dashed border-voxcina-cream bg-white/20 shadow-[0_2px_10px_rgba(230,198,135,0.35)]"
-                          : "border border-white/15 bg-white/[0.08] hover:border-white/30 hover:bg-white/[0.14]"
+                          ? "border border-dashed border-voxcina-blue bg-voxcina-blue/10 shadow-[0_2px_10px_rgba(26,60,105,0.18)]"
+                          : "border border-voxcina-blue/15 bg-white/80 hover:border-voxcina-blue/30 hover:bg-white"
                       )}
                     >
-                      <span className="relative block size-5 overflow-hidden rounded-[5px] border border-white/50 shadow-xs" style={{ backgroundColor: color.color?.startsWith("#") ? color.color : "#DFD8CC" }}>
+                      <span className="relative block size-5 overflow-hidden rounded-[5px] border border-voxcina-blue/20 shadow-xs" style={{ backgroundColor: color.color?.startsWith("#") ? color.color : "#DFD8CC" }}>
                         {color.swatchImage && <Image src={color.swatchImage} alt="" fill sizes="20px" className="object-cover" />}
                       </span>
                       {selected && <Check className="absolute size-2.5 rounded-full bg-voxcina-blue p-0.5 text-white shadow-xs" aria-hidden="true" />}
@@ -191,7 +191,7 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
                     onClick={() => setIsColorModalOpen(true)}
                     aria-label={`مشاهده ${toPersianNumber(remainingColorsCount)} رنگ دیگر`}
                     title={`مشاهده ${toPersianNumber(remainingColorsCount)} رنگ دیگر`}
-                    className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-xs font-bold text-voxcina-cream shadow-xs transition-all hover:border-white/40 hover:bg-white/20 hover:text-white active:scale-95 focus-visible:outline-2 focus-visible:outline-voxcina-cream"
+                    className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-voxcina-blue/15 bg-white/80 text-xs font-bold text-voxcina-blue shadow-xs transition-all hover:border-voxcina-blue/30 hover:bg-white active:scale-95 focus-visible:outline-2 focus-visible:outline-voxcina-blue"
                   >
                     {toPersianNumber(remainingColorsCount)}+
                   </button>
@@ -203,12 +203,12 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
             <div className="shrink-0 pb-0.5">
               <span className="sr-only">تعداد</span>
               <div
-                className="flex h-8 items-center overflow-hidden rounded-lg border border-white/40 bg-gradient-to-b from-white/95 to-voxcina-cream/95 text-voxcina-blue shadow-[0_2px_10px_rgba(0,0,0,0.12),inset_0_1px_1px_rgba(255,255,255,0.8)]"
+                className="flex h-8 items-center overflow-hidden rounded-lg border border-voxcina-blue/20 bg-white/95 text-voxcina-blue shadow-[0_2px_8px_rgba(26,60,105,0.06),inset_0_1px_1px_rgba(255,255,255,0.9)]"
                 dir="ltr"
               >
-                <button type="button" aria-label="کاهش تعداد" disabled={!selection.canModifyQuantity || selection.quantity <= 1} onClick={() => selection.setQuantity(selection.quantity - 1)} className="flex size-8 items-center justify-center hover:bg-white/80 active:bg-voxcina-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] disabled:opacity-35"><Minus className="size-3" /></button>
+                <button type="button" aria-label="کاهش تعداد" disabled={!selection.canModifyQuantity || selection.quantity <= 1} onClick={() => selection.setQuantity(selection.quantity - 1)} className="flex size-8 items-center justify-center hover:bg-voxcina-cream/60 active:bg-voxcina-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] disabled:opacity-35"><Minus className="size-3" /></button>
                 <span className="min-w-4 text-center text-xs font-bold tabular-nums" aria-live="polite">{toPersianNumber(selection.quantity)}</span>
-                <button type="button" aria-label="افزایش تعداد" disabled={!selection.canModifyQuantity || selection.quantity >= selection.inventory} onClick={() => selection.setQuantity(selection.quantity + 1)} className="flex size-8 items-center justify-center hover:bg-white/80 active:bg-voxcina-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] disabled:opacity-35"><Plus className="size-3" /></button>
+                <button type="button" aria-label="افزایش تعداد" disabled={!selection.canModifyQuantity || selection.quantity >= selection.inventory} onClick={() => selection.setQuantity(selection.quantity + 1)} className="flex size-8 items-center justify-center hover:bg-voxcina-cream/60 active:bg-voxcina-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] disabled:opacity-35"><Plus className="size-3" /></button>
               </div>
             </div>
           )}
@@ -220,7 +220,7 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
             <div className="mb-1.5 flex items-center justify-between">
               <span className="text-xs">
                 سایز:{" "}
-                <span className="text-voxcina-cream/75">
+                <span className="text-voxcina-blue/75">
                   {selection.selectedSize ? toPersianNumber(selection.selectedSize) : "انتخاب کنید"}
                 </span>
               </span>
@@ -238,10 +238,10 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
                     disabled={!available}
                     onClick={() => selection.setSize(selected ? undefined : size)}
                     className={cn(
-                      "min-h-11 min-w-11 rounded-xl border px-3 text-sm transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-voxcina-cream disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none",
+                      "min-h-11 min-w-11 rounded-xl border px-3 text-sm transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-voxcina-blue disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none",
                       selected
-                        ? "border-white/90 bg-gradient-to-b from-white to-voxcina-cream font-bold text-voxcina-blue shadow-[0_4px_14px_rgba(230,198,135,0.35),inset_0_1px_1px_rgba(255,255,255,0.9)]"
-                        : "border-white/15 bg-white/[0.07] text-voxcina-cream hover:border-white/30 hover:bg-white/[0.14]",
+                        ? "border-voxcina-blue bg-voxcina-blue font-bold text-voxcina-cream shadow-[0_4px_14px_rgba(26,60,105,0.25),inset_0_1px_1px_rgba(255,255,255,0.2)]"
+                        : "border-voxcina-blue/15 bg-white/80 text-voxcina-blue hover:border-voxcina-blue/30 hover:bg-white",
                       !available && "line-through opacity-40"
                     )}
                   >
@@ -300,22 +300,22 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
         <div ref={actionRowRef} className="mt-4">
           {product.inStock ? (
             <>
-              <p className="mb-3 text-xs text-voxcina-cream/75" aria-live="polite">
+              <p className="mb-3 text-xs text-voxcina-blue/75" aria-live="polite">
                 {hint || (selection.inventory > 0 ? `${toPersianNumber(selection.inventory)} عدد موجود در این رنگ و سایز` : "این ترکیب رنگ و سایز موجود نیست")}
               </p>
               <ProductCartButton total={product.price * selection.quantity} isAdding={isAdding} onClick={onAddToCart} />
             </>
           ) : (
             <>
-              <p className="mb-3 text-sm text-voxcina-cream/75">این محصول فعلاً ناموجود است</p>
-              <button type="button" onClick={onNotifyRequest} disabled={isNotifyEnabled} className="min-h-14 w-full rounded-full bg-voxcina-cream px-5 text-base font-bold text-voxcina-blue focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-voxcina-cream disabled:opacity-60">{isNotifyEnabled ? "اطلاع‌رسانی فعال شد" : "موجود شد، خبرم کن"}</button>
+              <p className="mb-3 text-sm text-voxcina-blue/75">این محصول فعلاً ناموجود است</p>
+              <button type="button" onClick={onNotifyRequest} disabled={isNotifyEnabled} className="min-h-14 w-full rounded-full bg-voxcina-blue px-5 text-base font-bold text-voxcina-cream shadow-[0_4px_14px_rgba(26,60,105,0.25)] hover:bg-[#15325a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-voxcina-blue disabled:opacity-60">{isNotifyEnabled ? "اطلاع‌رسانی فعال شد" : "موجود شد، خبرم کن"}</button>
             </>
           )}
         </div>
 
-        <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3">
-          <p className="flex items-center gap-1.5 text-xs text-voxcina-cream/75">
-            <ShieldCheck className="size-3.5 text-voxcina-cream/90" />
+        <div className="mt-4 flex items-center justify-between border-t border-voxcina-blue/10 pt-3">
+          <p className="flex items-center gap-1.5 text-xs text-voxcina-blue/75">
+            <ShieldCheck className="size-3.5 text-voxcina-blue/80" />
             ضمانت اصالت کالا
             <span aria-hidden="true" className="mx-1">·</span>
             ۷ روز فرصت بازگشت
@@ -323,7 +323,7 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
           <button
             type="button"
             onClick={onShare}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.06] px-2.5 text-xs text-voxcina-cream/80 transition-colors hover:border-white/20 hover:bg-white/[0.12] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-cream"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-voxcina-blue/15 bg-white/80 px-2.5 text-xs text-voxcina-blue/80 shadow-2xs transition-colors hover:border-voxcina-blue/30 hover:bg-white hover:text-voxcina-blue focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-blue"
           >
             <Share2 className="size-3.5" />
             اشتراک‌گذاری

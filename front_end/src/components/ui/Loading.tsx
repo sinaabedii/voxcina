@@ -173,7 +173,7 @@ export function ProductDetailSkeleton() {
     <div className="w-full pb-12 pt-0 sm:container sm:mx-auto sm:px-6 sm:pt-4 lg:pt-6" aria-hidden="true">
       <div className="mb-5 hidden h-5 w-2/3 max-w-md rounded bg-muted animate-pulse lg:block" />
 
-      <div className="bg-[#0e223d] sm:rounded-[28px] sm:border sm:border-white/15 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px] lg:overflow-hidden">
+      <div className="bg-voxcina-lightCream sm:rounded-[28px] sm:border sm:border-voxcina-blue/10 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px] lg:overflow-hidden">
         {/* Gallery — same shell, rail and frame height as ProductGallery */}
         <div className="min-w-0 lg:bg-voxcina-lightCream lg:p-4">
           <div className={GALLERY_LAYOUT}>
@@ -189,7 +189,7 @@ export function ProductDetailSkeleton() {
         </div>
 
         {/* Purchase panel — title, brand row, price, selectors, actions, badges */}
-        <div className="relative z-10 -mt-6 rounded-t-[32px] bg-[#0e223d] px-5 pb-6 pt-5 sm:-mt-8 sm:rounded-t-[36px] sm:px-7 sm:py-7 lg:mt-0 lg:rounded-none lg:px-8 xl:px-10 [&_.bg-muted]:bg-voxcina-cream/15">
+        <div className="relative z-10 -mt-6 rounded-t-[32px] bg-[#FAF7F2] px-5 pb-6 pt-5 sm:-mt-8 sm:rounded-t-[36px] sm:px-7 sm:py-7 lg:mt-0 lg:rounded-none lg:px-8 xl:px-10 [&_.bg-muted]:bg-voxcina-blue/10">
           <div className="mb-3 h-8 w-4/5 rounded bg-muted animate-pulse" />
           <div className="mb-5 h-6 w-1/2 rounded bg-muted animate-pulse" />
           <div className="mb-6 h-9 w-2/5 rounded bg-muted animate-pulse" />
