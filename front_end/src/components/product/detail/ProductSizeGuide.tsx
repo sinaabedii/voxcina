@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useId, useMemo, useRef } from "react";
 import {
   Ruler,
   Maximize2,
   CheckCircle2,
+  ChevronDown,
   Sparkles,
   Info,
   Shirt,
@@ -26,6 +27,12 @@ interface ProductSizeGuideProps {
   allowZoom?: boolean;
 }
 
+// Phone layout: the size column plus this many measurements form the main
+// table. Remaining columns, the diagram and the fit guidance live behind one
+// toggle. Collapsed content is hidden with CSS only, so it stays in the markup
+// and nothing is dropped from the page.
+const PHONE_PRIMARY_COLUMNS = 2;
+
 export default function ProductSizeGuide({
   product,
   selectedSize,
@@ -34,6 +41,8 @@ export default function ProductSizeGuide({
   allowZoom = true,
 }: ProductSizeGuideProps) {
   const [isZoomOpen, setIsZoomOpen] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const detailsId = useId();
 
   const { sizingTypes, fetchPublicSizingTypes, isLoading } = useSizingTypeStore();
 
@@ -113,11 +122,17 @@ export default function ProductSizeGuide({
     );
   }
 
+  // Phone-only columns: beyond the primary set, hidden until details open.
+  const columnClass = (index: number) =>
+    cn(!showDetails && index >= PHONE_PRIMARY_COLUMNS && "hidden sm:table-cell");
+
   return (
-    <div className={cn("space-y-8 text-foreground", className)} dir="rtl">
-      {/* Header & Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-border/20">
-        <div className="space-y-1">
+    <div className={cn("text-foreground leading-relaxed", className)} dir="rtl">
+      {/* Phone: summary, main table, one toggle. From sm up everything is shown;
+          from lg the diagram and table share a row. */}
+      <div className="grid grid-cols-1 items-start gap-y-5 sm:gap-y-8 lg:grid-cols-12 lg:gap-x-8">
+        {/* Summary */}
+        <div className="order-1 flex flex-col gap-2 border-b border-border/20 pb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 lg:col-span-12">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <h3 className="text-base font-bold text-primary">
               {sizingType?.name
@@ -129,65 +144,17 @@ export default function ProductSizeGuide({
               ابعاد دقیق (cm)
             </span>
           </div>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            برای انتخاب مطمئن‌ترین سایز، اندازه‌های زیر را با یکی از لباس‌های مشابه خود در حالت پهن‌شده مقایسه نمایید.
-          </p>
+
+          {selectedSize && (
+            <div className="flex items-center gap-2 self-start sm:self-center px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/30 text-xs font-semibold text-primary">
+              <CheckCircle2 className="w-4 h-4 text-primary" />
+              <span>سایز انتخابی فعلی: {selectedSize}</span>
+            </div>
+          )}
         </div>
 
-        {selectedSize && (
-          <div className="flex items-center gap-2 self-start sm:self-center px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/30 text-xs font-semibold text-primary">
-            <CheckCircle2 className="w-4 h-4 text-primary" />
-            <span>سایز انتخابی فعلی: {selectedSize}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Main Row: Technical Diagram and Dynamic Size Table */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
-        {/* Right Column: Annotated Technical Diagram */}
-        <div className="lg:col-span-5 xl:col-span-5 flex flex-col items-center">
-          <div className="w-full relative group rounded-2xl border border-border/30 bg-card/60 backdrop-blur-sm p-4 shadow-soft text-center overflow-hidden">
-            {sizingType?.image_path ? (
-              <div className="relative w-full aspect-square max-h-[340px] flex items-center justify-center overflow-hidden rounded-xl bg-white dark:bg-card/40 p-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={sizingType.image_path}
-                  alt={sizingType.name || "دیاگرام راهنمای اندازه"}
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none motion-reduce:transform-none"
-                />
-
-                {/* Floating Lightbox Zoom Trigger */}
-                {allowZoom && (
-                  <button
-                    type="button"
-                    onClick={() => setIsZoomOpen(true)}
-                    className="absolute bottom-3 left-3 p-2 rounded-xl bg-background/80 hover:bg-background text-foreground shadow-md backdrop-blur-sm border border-border/20 transition-all opacity-80 group-hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 flex items-center gap-1.5 text-xs font-medium"
-                    title="مشاهده بزرگ‌نمایی دیاگرام"
-                  >
-                    <Maximize2 className="w-3.5 h-3.5" />
-                    <span>بزرگ‌نمایی دیاگرام</span>
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="w-full aspect-square max-h-[300px] flex flex-col items-center justify-center p-6 text-muted-foreground bg-secondary/20 rounded-xl">
-                <Shirt className="w-12 h-12 stroke-[1.2] mb-3 text-muted-foreground/60" />
-                <span className="text-xs font-medium text-center">
-                  دیاگرام شماتیک ابعاد برای این نوع پوشاک
-                </span>
-              </div>
-            )}
-
-            <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
-              نقاط و خطوط اندازه‌گیری بر روی تصویر مشخص گردیده است.
-            </p>
-          </div>
-        </div>
-
-        {/* Left Column: Dynamic Size Table */}
-        <div className="lg:col-span-7 xl:col-span-7 space-y-3">
+        {/* Main: size table */}
+        <div className="order-2 min-w-0 space-y-3 lg:order-3 lg:col-span-7">
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <span className="text-xs font-bold text-foreground">
               جدول ابعاد قطعات لباس (سانتی‌متر):
@@ -210,16 +177,19 @@ export default function ProductSizeGuide({
                 <tr className="bg-secondary/40 border-b border-border/20">
                   <th
                     scope="col"
-                    className="sticky right-0 z-10 bg-secondary/40 p-3.5 font-bold text-foreground whitespace-nowrap min-w-[72px]"
+                    className="sticky right-0 z-10 bg-secondary/40 p-2.5 font-bold text-foreground whitespace-nowrap min-w-[72px] sm:p-3.5"
                   >
                     سایز
                   </th>
 
-                  {measurements.map((m) => (
+                  {measurements.map((m, index) => (
                     <th
                       key={m.key}
                       scope="col"
-                      className="p-3.5 font-semibold text-foreground text-center whitespace-nowrap"
+                      className={cn(
+                        "p-2.5 font-semibold text-foreground text-center whitespace-nowrap sm:p-3.5",
+                        columnClass(index)
+                      )}
                     >
                       <div className="inline-flex items-center gap-1">
                         <span>{m.label}</span>
@@ -276,7 +246,7 @@ export default function ProductSizeGuide({
                               e.stopPropagation();
                               onSelectSize?.(toEnglishNumber(row.size).trim());
                             }}
-                            className="flex min-h-11 h-full w-full items-center justify-start gap-2 px-3.5 py-3.5 text-right focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40"
+                            className="flex min-h-11 h-full w-full items-center justify-start gap-2 px-2.5 py-2.5 text-right focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 sm:px-3.5 sm:py-3.5"
                           >
                             <span className="whitespace-nowrap font-bold">{row.size}</span>
                             {isSelected && (
@@ -290,7 +260,7 @@ export default function ProductSizeGuide({
 
                         {/* Measurement Values Columns — the header carries the
                             unit, cells stay numerals so Persian digits align. */}
-                        {measurements.map((m) => {
+                        {measurements.map((m, index) => {
                           const val = row.values?.[m.key];
                           return (
                             <td
@@ -299,8 +269,9 @@ export default function ProductSizeGuide({
                               // regardless of the marked-up RTL context.
                               dir="ltr"
                               className={cn(
-                                "p-3.5 text-center whitespace-nowrap font-semibold",
-                                isSelected ? "text-primary" : "text-foreground/80"
+                                "p-2.5 text-center whitespace-nowrap font-semibold sm:p-3.5",
+                                isSelected ? "text-primary" : "text-foreground/80",
+                                columnClass(index)
                               )}
                             >
                               {val ? toPersianNumber(val) : "—"}
@@ -315,96 +286,168 @@ export default function ProductSizeGuide({
             </table>
           </div>
 
-          <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-            <span>* تمامی اندازه‌ها بر اساس سانتی‌متر و با خطای احتمالی ۱ الی ۲ سانتی‌متر درج شده‌اند.</span>
+          <p className="pt-1 text-xs text-muted-foreground">
+            * تمامی اندازه‌ها بر اساس سانتی‌متر و با خطای احتمالی ۱ الی ۲ سانتی‌متر درج شده‌اند.
+          </p>
+        </div>
+
+        {/* Phone-only disclosure for everything below the table */}
+        <button
+          type="button"
+          onClick={() => setShowDetails((open) => !open)}
+          aria-expanded={showDetails}
+          aria-controls={detailsId}
+          className="order-3 flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 motion-reduce:transition-none sm:hidden"
+        >
+          <span>
+            {showDetails
+              ? "بستن ابعاد کامل و راهنما"
+              : "مشاهده ابعاد کامل و راهنمای اندازه‌گیری"}
+          </span>
+          <ChevronDown
+            aria-hidden="true"
+            className={cn(
+              "h-4 w-4 shrink-0 transition-transform duration-200 motion-reduce:transition-none",
+              showDetails && "rotate-180"
+            )}
+          />
+        </button>
+
+        {/* Details: collapsed on phones, always shown from sm up. `contents`
+            lets its children keep participating in the grid above. */}
+        <div id={detailsId} className={cn(showDetails ? "contents" : "hidden sm:contents")}>
+          {/* Annotated technical diagram */}
+          <div className="order-4 flex min-w-0 flex-col items-center lg:order-2 lg:col-span-5">
+            <div className="w-full relative group rounded-2xl border border-border/30 bg-card/60 backdrop-blur-sm p-4 shadow-soft text-center overflow-hidden">
+              {sizingType?.image_path ? (
+                <div className="relative w-full aspect-square max-h-[340px] flex items-center justify-center overflow-hidden rounded-xl bg-white dark:bg-card/40 p-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={sizingType.image_path}
+                    alt={sizingType.name || "دیاگرام راهنمای اندازه"}
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none motion-reduce:transform-none"
+                  />
+
+                  {/* Floating Lightbox Zoom Trigger */}
+                  {allowZoom && (
+                    <button
+                      type="button"
+                      onClick={() => setIsZoomOpen(true)}
+                      className="absolute bottom-3 left-3 p-2 rounded-xl bg-background/80 hover:bg-background text-foreground shadow-md backdrop-blur-sm border border-border/20 transition-all opacity-80 group-hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 flex items-center gap-1.5 text-xs font-medium"
+                      title="مشاهده بزرگ‌نمایی دیاگرام"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" />
+                      <span>بزرگ‌نمایی دیاگرام</span>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="w-full aspect-square max-h-[300px] flex flex-col items-center justify-center p-6 text-muted-foreground bg-secondary/20 rounded-xl">
+                  <Shirt className="w-12 h-12 stroke-[1.2] mb-3 text-muted-foreground/60" />
+                  <span className="text-xs font-medium text-center">
+                    دیاگرام شماتیک ابعاد برای این نوع پوشاک
+                  </span>
+                </div>
+              )}
+
+              <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
+                نقاط و خطوط اندازه‌گیری بر روی تصویر مشخص گردیده است.
+              </p>
+            </div>
+          </div>
+
+          {/* Guidance: how to use the chart, fit guide, per-measurement notes */}
+          <div className="order-5 min-w-0 space-y-6 border-t border-border/20 pt-6 lg:order-4 lg:col-span-12">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              برای انتخاب مطمئن‌ترین سایز، اندازه‌های زیر را با یکی از لباس‌های مشابه خود در حالت پهن‌شده مقایسه نمایید.
+            </p>
+
+            {(sizingType?.general_fit_guide ||
+              measurements.some((m) => m.body_guide || m.fit_advice)) && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm sm:text-base font-bold text-foreground">
+                      چگونه اندازه بگیریم و قواره را انتخاب کنیم؟
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      راهنمای تطابق سایز بدن با قواره، تن‌خور و آزادی دوخت لباس
+                    </p>
+                  </div>
+                </div>
+
+                {/* General Fit Guide Card */}
+                {sizingType?.general_fit_guide && (
+                  <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-primary/5 via-secondary/20 to-primary/5 border border-primary/20 space-y-2">
+                    <div className="flex items-center gap-2 text-primary font-bold text-xs sm:text-sm">
+                      <Shirt className="w-4 h-4" />
+                      <span>راهنمای قواره و سبک تن‌خور (Fit Guide)</span>
+                    </div>
+                    <p className="text-xs sm:text-sm text-foreground/85 leading-relaxed whitespace-pre-line">
+                      {sizingType.general_fit_guide}
+                    </p>
+                  </div>
+                )}
+
+                {/* Measurement Guides Grid */}
+                {measurements.some((m) => m.body_guide || m.fit_advice) && (
+                  <div className="space-y-3">
+                    <span className="text-xs font-bold text-foreground block">
+                      راهنمای تفکیکی اندازه‌گیری اعضای بدن برای این لباس:
+                    </span>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {measurements
+                        .filter((m) => m.body_guide || m.fit_advice)
+                        .map((m) => (
+                          <div
+                            key={m.key}
+                            className="p-4 rounded-2xl border border-border/20 bg-card/70 backdrop-blur-sm space-y-2.5 hover:border-border/40 transition-colors"
+                          >
+                            <div className="flex items-center justify-between pb-2 border-b border-border/10">
+                              <span className="font-bold text-xs sm:text-sm text-primary">
+                                {m.label}
+                              </span>
+                            </div>
+
+                            {m.body_guide && (
+                              <div className="space-y-1">
+                                <span className="text-xs font-bold text-foreground/90 flex items-center gap-1.5">
+                                  <Ruler className="w-3 h-3 text-primary shrink-0" />
+                                  روش اندازه‌گیری روی بدن:
+                                </span>
+                                <p className="text-xs text-muted-foreground leading-relaxed pr-4">
+                                  {m.body_guide}
+                                </p>
+                              </div>
+                            )}
+
+                            {m.fit_advice && (
+                              <div className="space-y-1 pt-1 border-t border-border/10">
+                                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                                  <CheckCircle2 className="w-3 h-3 shrink-0" />
+                                  نکات تطابق و آزادی دوخت (Ease Allowance):
+                                </span>
+                                <p className="text-xs text-muted-foreground leading-relaxed pr-4">
+                                  {m.fit_advice}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
-
-      {/* Persian Self-Measurement & Fit Guidance Section — only with content;
-          chart-derived columns have no guide text and would leave an empty
-          header block */}
-      {(sizingType?.general_fit_guide ||
-        measurements.some((m) => m.body_guide || m.fit_advice)) && (
-        <div className="pt-6 border-t border-border/20 space-y-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div>
-              <h4 className="text-sm sm:text-base font-bold text-foreground">
-                چگونه اندازه بگیریم و قواره را انتخاب کنیم؟
-              </h4>
-              <p className="text-xs text-muted-foreground">
-                راهنمای تطابق سایز بدن با قواره، تن‌خور و آزادی دوخت لباس
-              </p>
-            </div>
-          </div>
-
-          {/* General Fit Guide Card */}
-          {sizingType?.general_fit_guide && (
-            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-primary/5 via-secondary/20 to-primary/5 border border-primary/20 space-y-2">
-              <div className="flex items-center gap-2 text-primary font-bold text-xs sm:text-sm">
-                <Shirt className="w-4 h-4" />
-                <span>راهنمای قواره و سبک تن‌خور (Fit Guide)</span>
-              </div>
-              <p className="text-xs sm:text-sm text-foreground/85 leading-relaxed whitespace-pre-line">
-                {sizingType.general_fit_guide}
-              </p>
-            </div>
-          )}
-
-          {/* Measurement Guides Grid */}
-          {measurements.some((m) => m.body_guide || m.fit_advice) && (
-            <div className="space-y-3">
-              <span className="text-xs font-bold text-foreground block">
-                راهنمای تفکیکی اندازه‌گیری اعضای بدن برای این لباس:
-              </span>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {measurements
-                  .filter((m) => m.body_guide || m.fit_advice)
-                  .map((m) => (
-                    <div
-                      key={m.key}
-                      className="p-4 rounded-2xl border border-border/20 bg-card/70 backdrop-blur-sm space-y-2.5 hover:border-border/40 transition-colors"
-                    >
-                      <div className="flex items-center justify-between pb-2 border-b border-border/10">
-                        <span className="font-bold text-xs sm:text-sm text-primary">
-                          {m.label}
-                        </span>
-                      </div>
-
-                      {m.body_guide && (
-                        <div className="space-y-1">
-                          <span className="text-xs font-bold text-foreground/90 flex items-center gap-1.5">
-                            <Ruler className="w-3 h-3 text-primary shrink-0" />
-                            روش اندازه‌گیری روی بدن:
-                          </span>
-                          <p className="text-xs text-muted-foreground leading-relaxed pr-4">
-                            {m.body_guide}
-                          </p>
-                        </div>
-                      )}
-
-                      {m.fit_advice && (
-                        <div className="space-y-1 pt-1 border-t border-border/10">
-                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                            <CheckCircle2 className="w-3 h-3 shrink-0" />
-                            نکات تطابق و آزادی دوخت (Ease Allowance):
-                          </span>
-                          <p className="text-xs text-muted-foreground leading-relaxed pr-4">
-                            {m.fit_advice}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Lightbox Zoom Modal for Diagram */}
       {allowZoom && sizingType?.image_path && (
