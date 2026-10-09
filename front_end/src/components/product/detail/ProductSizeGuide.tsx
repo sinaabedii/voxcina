@@ -27,11 +27,70 @@ interface ProductSizeGuideProps {
   allowZoom?: boolean;
 }
 
-// Phone layout: the size column plus this many measurements form the main
-// table. Remaining columns, the diagram and the fit guidance live behind one
-// toggle. Collapsed content is hidden with CSS only, so it stays in the markup
-// and nothing is dropped from the page.
-const PHONE_PRIMARY_COLUMNS = 2;
+// One measurement's how-to notes. On phones it is a drop box that starts
+// collapsed; from sm up the same notes are always visible. Collapsed content is
+// hidden with CSS only, so it stays in the markup.
+function MeasurementGuideCard({ measurement }: { measurement: SizingMeasurementDef }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const panelId = useId();
+  const { label, body_guide, fit_advice } = measurement;
+
+  return (
+    <div className="rounded-2xl border border-border/20 bg-card/70 backdrop-blur-sm transition-colors hover:border-border/40 motion-reduce:transition-none">
+      {/* Phone: drop box trigger */}
+      <button
+        type="button"
+        onClick={() => setIsOpen((open) => !open)}
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        className="flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-right focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50 sm:hidden"
+      >
+        <span className="text-sm font-bold text-primary">{label}</span>
+        <ChevronDown
+          aria-hidden="true"
+          className={cn(
+            "h-4 w-4 shrink-0 text-primary transition-transform duration-200 motion-reduce:transition-none",
+            isOpen && "rotate-180"
+          )}
+        />
+      </button>
+
+      {/* Desktop: plain heading, notes always visible */}
+      <div className="hidden px-4 pt-4 pb-2 border-b border-border/10 sm:block">
+        <span className="font-bold text-sm text-primary">{label}</span>
+      </div>
+
+      <div
+        id={panelId}
+        className={cn("space-y-2.5 px-4 pb-4 pt-3", !isOpen && "hidden sm:block")}
+      >
+        {body_guide && (
+          <div className="space-y-1">
+            <span className="text-xs font-bold text-foreground/90 flex items-center gap-1.5">
+              <Ruler className="w-3 h-3 text-primary shrink-0" />
+              روش اندازه‌گیری روی بدن:
+            </span>
+            <p className="text-xs text-muted-foreground leading-relaxed pr-4">
+              {body_guide}
+            </p>
+          </div>
+        )}
+
+        {fit_advice && (
+          <div className="space-y-1 pt-1 border-t border-border/10">
+            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+              <CheckCircle2 className="w-3 h-3 shrink-0" />
+              نکات تطابق و آزادی دوخت (Ease Allowance):
+            </span>
+            <p className="text-xs text-muted-foreground leading-relaxed pr-4">
+              {fit_advice}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function ProductSizeGuide({
   product,
@@ -122,9 +181,7 @@ export default function ProductSizeGuide({
     );
   }
 
-  // Phone-only columns: beyond the primary set, hidden until details open.
-  const columnClass = (index: number) =>
-    cn(!showDetails && index >= PHONE_PRIMARY_COLUMNS && "hidden sm:table-cell");
+  const guidedMeasurements = measurements.filter((m) => m.body_guide || m.fit_advice);
 
   return (
     <div className={cn("text-foreground leading-relaxed", className)} dir="rtl">
@@ -182,14 +239,11 @@ export default function ProductSizeGuide({
                     سایز
                   </th>
 
-                  {measurements.map((m, index) => (
+                  {measurements.map((m) => (
                     <th
                       key={m.key}
                       scope="col"
-                      className={cn(
-                        "p-2.5 font-semibold text-foreground text-center whitespace-nowrap sm:p-3.5",
-                        columnClass(index)
-                      )}
+                      className="p-2.5 font-semibold text-foreground text-center whitespace-nowrap sm:p-3.5"
                     >
                       <div className="inline-flex items-center gap-1">
                         <span>{m.label}</span>
@@ -260,7 +314,7 @@ export default function ProductSizeGuide({
 
                         {/* Measurement Values Columns — the header carries the
                             unit, cells stay numerals so Persian digits align. */}
-                        {measurements.map((m, index) => {
+                        {measurements.map((m) => {
                           const val = row.values?.[m.key];
                           return (
                             <td
@@ -270,8 +324,7 @@ export default function ProductSizeGuide({
                               dir="ltr"
                               className={cn(
                                 "p-2.5 text-center whitespace-nowrap font-semibold sm:p-3.5",
-                                isSelected ? "text-primary" : "text-foreground/80",
-                                columnClass(index)
+                                isSelected ? "text-primary" : "text-foreground/80"
                               )}
                             >
                               {val ? toPersianNumber(val) : "—"}
@@ -286,23 +339,57 @@ export default function ProductSizeGuide({
             </table>
           </div>
 
+          <p className="text-xs text-muted-foreground sm:hidden">
+            برای دیدن ستون‌های بیشتر، جدول را به چپ و راست بکشید.
+          </p>
+
           <p className="pt-1 text-xs text-muted-foreground">
             * تمامی اندازه‌ها بر اساس سانتی‌متر و با خطای احتمالی ۱ الی ۲ سانتی‌متر درج شده‌اند.
           </p>
         </div>
 
-        {/* Phone-only disclosure for everything below the table */}
+        {/* Per-measurement how-to: one drop box per metric. Collapsed on phones,
+            always expanded from sm up. */}
+        {guidedMeasurements.length > 0 && (
+          <div className="order-3 min-w-0 space-y-3 lg:order-4 lg:col-span-12">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm sm:text-base font-bold text-foreground">
+                  چگونه اندازه بگیریم و قواره را انتخاب کنیم؟
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  راهنمای تطابق سایز بدن با قواره، تن‌خور و آزادی دوخت لباس
+                </p>
+              </div>
+            </div>
+
+            <span className="text-xs font-bold text-foreground block">
+              راهنمای تفکیکی اندازه‌گیری اعضای بدن برای این لباس:
+            </span>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
+              {guidedMeasurements.map((m) => (
+                <MeasurementGuideCard key={m.key} measurement={m} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Phone-only disclosure for the diagram and general fit guide */}
         <button
           type="button"
           onClick={() => setShowDetails((open) => !open)}
           aria-expanded={showDetails}
           aria-controls={detailsId}
-          className="order-3 flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 motion-reduce:transition-none sm:hidden"
+          className="order-4 flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 motion-reduce:transition-none sm:hidden"
         >
           <span>
             {showDetails
-              ? "بستن ابعاد کامل و راهنما"
-              : "مشاهده ابعاد کامل و راهنمای اندازه‌گیری"}
+              ? "بستن دیاگرام و راهنمای قواره"
+              : "مشاهده دیاگرام و راهنمای قواره"}
           </span>
           <ChevronDown
             aria-hidden="true"
@@ -317,7 +404,7 @@ export default function ProductSizeGuide({
             lets its children keep participating in the grid above. */}
         <div id={detailsId} className={cn(showDetails ? "contents" : "hidden sm:contents")}>
           {/* Annotated technical diagram */}
-          <div className="order-4 flex min-w-0 flex-col items-center lg:order-2 lg:col-span-5">
+          <div className="order-5 flex min-w-0 flex-col items-center lg:order-2 lg:col-span-5">
             <div className="w-full relative group rounded-2xl border border-border/30 bg-card/60 backdrop-blur-sm p-4 shadow-soft text-center overflow-hidden">
               {sizingType?.image_path ? (
                 <div className="relative w-full aspect-square max-h-[340px] flex items-center justify-center overflow-hidden rounded-xl bg-white dark:bg-card/40 p-2">
@@ -358,91 +445,21 @@ export default function ProductSizeGuide({
             </div>
           </div>
 
-          {/* Guidance: how to use the chart, fit guide, per-measurement notes */}
-          <div className="order-5 min-w-0 space-y-6 border-t border-border/20 pt-6 lg:order-4 lg:col-span-12">
+          {/* Guidance: how to use the chart and the general fit guide */}
+          <div className="order-6 min-w-0 space-y-6 border-t border-border/20 pt-6 lg:order-5 lg:col-span-12">
             <p className="text-xs text-muted-foreground leading-relaxed">
               برای انتخاب مطمئن‌ترین سایز، اندازه‌های زیر را با یکی از لباس‌های مشابه خود در حالت پهن‌شده مقایسه نمایید.
             </p>
 
-            {(sizingType?.general_fit_guide ||
-              measurements.some((m) => m.body_guide || m.fit_advice)) && (
-              <div className="space-y-6">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    <Sparkles className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm sm:text-base font-bold text-foreground">
-                      چگونه اندازه بگیریم و قواره را انتخاب کنیم؟
-                    </h4>
-                    <p className="text-xs text-muted-foreground">
-                      راهنمای تطابق سایز بدن با قواره، تن‌خور و آزادی دوخت لباس
-                    </p>
-                  </div>
+            {sizingType?.general_fit_guide && (
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-primary/5 via-secondary/20 to-primary/5 border border-primary/20 space-y-2">
+                <div className="flex items-center gap-2 text-primary font-bold text-xs sm:text-sm">
+                  <Shirt className="w-4 h-4" />
+                  <span>راهنمای قواره و سبک تن‌خور (Fit Guide)</span>
                 </div>
-
-                {/* General Fit Guide Card */}
-                {sizingType?.general_fit_guide && (
-                  <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-primary/5 via-secondary/20 to-primary/5 border border-primary/20 space-y-2">
-                    <div className="flex items-center gap-2 text-primary font-bold text-xs sm:text-sm">
-                      <Shirt className="w-4 h-4" />
-                      <span>راهنمای قواره و سبک تن‌خور (Fit Guide)</span>
-                    </div>
-                    <p className="text-xs sm:text-sm text-foreground/85 leading-relaxed whitespace-pre-line">
-                      {sizingType.general_fit_guide}
-                    </p>
-                  </div>
-                )}
-
-                {/* Measurement Guides Grid */}
-                {measurements.some((m) => m.body_guide || m.fit_advice) && (
-                  <div className="space-y-3">
-                    <span className="text-xs font-bold text-foreground block">
-                      راهنمای تفکیکی اندازه‌گیری اعضای بدن برای این لباس:
-                    </span>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {measurements
-                        .filter((m) => m.body_guide || m.fit_advice)
-                        .map((m) => (
-                          <div
-                            key={m.key}
-                            className="p-4 rounded-2xl border border-border/20 bg-card/70 backdrop-blur-sm space-y-2.5 hover:border-border/40 transition-colors"
-                          >
-                            <div className="flex items-center justify-between pb-2 border-b border-border/10">
-                              <span className="font-bold text-xs sm:text-sm text-primary">
-                                {m.label}
-                              </span>
-                            </div>
-
-                            {m.body_guide && (
-                              <div className="space-y-1">
-                                <span className="text-xs font-bold text-foreground/90 flex items-center gap-1.5">
-                                  <Ruler className="w-3 h-3 text-primary shrink-0" />
-                                  روش اندازه‌گیری روی بدن:
-                                </span>
-                                <p className="text-xs text-muted-foreground leading-relaxed pr-4">
-                                  {m.body_guide}
-                                </p>
-                              </div>
-                            )}
-
-                            {m.fit_advice && (
-                              <div className="space-y-1 pt-1 border-t border-border/10">
-                                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                                  <CheckCircle2 className="w-3 h-3 shrink-0" />
-                                  نکات تطابق و آزادی دوخت (Ease Allowance):
-                                </span>
-                                <p className="text-xs text-muted-foreground leading-relaxed pr-4">
-                                  {m.fit_advice}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                )}
+                <p className="text-xs sm:text-sm text-foreground/85 leading-relaxed whitespace-pre-line">
+                  {sizingType.general_fit_guide}
+                </p>
               </div>
             )}
           </div>
