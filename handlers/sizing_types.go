@@ -189,7 +189,11 @@ func GenerateSizingType(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
+	// Two sequential structured LLM calls (plus optional web search) routinely
+	// take 60-150s with reasoning models. The nginx location for this route
+	// (proxy_read_timeout 300s on vps-ir) must stay above this ceiling, or the
+	// client gets a gateway 504 and the in-flight LLM work is cancelled.
+	ctx, cancel := context.WithTimeout(r.Context(), 240*time.Second)
 	defer cancel()
 
 	result, err := services.GenerateSizingResearchWithModel(ctx, clothingType, styleNotes, model)

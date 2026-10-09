@@ -211,6 +211,50 @@ func TestSizingAgentSchemaValidity(t *testing.T) {
 	}
 }
 
+// TestStrictSchemasRequireEveryProperty guards against provider rejections such
+// as "'required' is required to be supplied and to be an array including every
+// key in properties": with strict:true every declared property of every object
+// must also appear in that object's required list.
+func TestStrictSchemasRequireEveryProperty(t *testing.T) {
+	envelopes := map[string]map[string]interface{}{
+		"sizing_definitions": sizingAgentSchema(),
+		"sizing_buyer_guide": sizingBuyerGuideSchema(),
+		"sizing_diagram":     diagramPromptsSchema(),
+		"sizing_extrapolate": extrapolateMeasurementsSchema(),
+	}
+	for name, envelope := range envelopes {
+		if envelope["strict"] != true {
+			t.Errorf("%s: envelope must be strict", name)
+			continue
+		}
+		assertRequiredCoversProperties(t, name, envelope["schema"])
+	}
+}
+
+func assertRequiredCoversProperties(t *testing.T, path string, node interface{}) {
+	t.Helper()
+	schema, ok := node.(map[string]interface{})
+	if !ok {
+		return
+	}
+	if props, ok := schema["properties"].(map[string]interface{}); ok {
+		required, _ := schema["required"].([]string)
+		requiredSet := make(map[string]bool, len(required))
+		for _, key := range required {
+			requiredSet[key] = true
+		}
+		for key, child := range props {
+			if !requiredSet[key] {
+				t.Errorf("%s: property %q is declared but missing from required", path, key)
+			}
+			assertRequiredCoversProperties(t, path+"."+key, child)
+		}
+	}
+	if items, ok := schema["items"]; ok {
+		assertRequiredCoversProperties(t, path+"[]", items)
+	}
+}
+
 type sizingCall struct {
 	prompt string
 	schema map[string]interface{}

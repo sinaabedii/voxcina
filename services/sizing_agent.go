@@ -711,7 +711,7 @@ func sizingAgentSchema() map[string]interface{} {
 					"description": "English prompt for realistic 3D invisible ghost mannequin studio product photography on pure white background (#FFFFFF) with Voxcina luxury aesthetic and exact Persian labels in quotes",
 				},
 			},
-			"required":             []string{"name", "slug", "measurements", "admin_measurement_guide", "nano_banana_prompt", "image_prompt_mannequin"},
+			"required":             []string{"name", "slug", "measurements", "admin_measurement_guide", "nano_banana_prompt", "image_prompt_vector", "image_prompt_mannequin"},
 			"additionalProperties": false,
 		},
 	}
