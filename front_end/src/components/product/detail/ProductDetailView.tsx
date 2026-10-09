@@ -277,9 +277,9 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
         )}
       >
         {/* Subtle ambient light situation behind sticky bar */}
-        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden filter blur-3xl opacity-20" aria-hidden="true">
-          <div className="absolute -top-12 right-12 size-36 rounded-full bg-[radial-gradient(circle,rgba(254,243,199,0.18)_0%,rgba(245,158,11,0.03)_40%,transparent_75%)] animate-light-shine-pulse" />
-          <div className="absolute -top-12 left-12 size-36 rounded-full bg-[radial-gradient(circle,rgba(224,242,254,0.15)_0%,rgba(56,189,248,0.02)_40%,transparent_75%)] animate-organic-morph" />
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden filter blur-3xl opacity-40" aria-hidden="true">
+          <div className="absolute -top-12 right-12 size-36 rounded-full bg-[radial-gradient(circle,rgba(254,240,138,0.24)_0%,rgba(245,158,11,0.06)_40%,transparent_75%)] animate-light-shine-pulse" />
+          <div className="absolute -top-12 left-12 size-36 rounded-full bg-[radial-gradient(circle,rgba(186,230,253,0.20)_0%,rgba(56,189,248,0.05)_40%,transparent_75%)] animate-organic-morph" />
           <div className="absolute inset-0 bg-gradient-to-b from-white/60 to-transparent" />
         </div>
 
@@ -306,9 +306,9 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
 
       <div className="relative bg-voxcina-lightCream sm:rounded-[28px] sm:shadow-soft sm:border sm:border-voxcina-blue/10 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px] lg:overflow-hidden">
         {/* Ambient light situation positioned behind the mobile glass sheet junction & lower gallery frame */}
-        <div className="pointer-events-none absolute inset-x-0 top-64 sm:top-80 h-96 z-0 overflow-hidden filter blur-3xl opacity-20 lg:hidden" aria-hidden="true">
+        <div className="pointer-events-none absolute inset-x-0 top-64 sm:top-80 h-96 z-0 overflow-hidden filter blur-3xl opacity-40 lg:hidden" aria-hidden="true">
           {/* Feather-light warm ambient situational wash */}
-          <div className="absolute -top-16 -right-16 size-[28rem] rounded-full will-change-transform transform-gpu animate-light-shine-pulse bg-[radial-gradient(circle,rgba(254,243,199,0.18)_0%,rgba(245,158,11,0.03)_40%,transparent_75%)]" />
+          <div className="absolute -top-16 -right-16 size-[28rem] rounded-full will-change-transform transform-gpu animate-light-shine-pulse bg-[radial-gradient(circle,rgba(254,240,138,0.24)_0%,rgba(245,158,11,0.06)_40%,transparent_75%)]" />
         </div>
 
         <ProductGallery

@@ -94,9 +94,9 @@ export default function ProductStickyBar({
         <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/95 to-transparent" />
 
         {/* Subtle ambient light situation behind bottom sticky glass bar */}
-        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden filter blur-3xl opacity-20" aria-hidden="true">
-          <div className="absolute -bottom-10 right-16 size-44 rounded-full bg-[radial-gradient(circle,rgba(254,243,199,0.18)_0%,rgba(245,158,11,0.03)_40%,transparent_75%)] animate-light-shine-pulse" />
-          <div className="absolute -bottom-10 left-16 size-44 rounded-full bg-[radial-gradient(circle,rgba(224,242,254,0.15)_0%,rgba(56,189,248,0.02)_40%,transparent_75%)] animate-organic-morph" />
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden filter blur-3xl opacity-40" aria-hidden="true">
+          <div className="absolute -bottom-10 right-16 size-44 rounded-full bg-[radial-gradient(circle,rgba(254,240,138,0.24)_0%,rgba(245,158,11,0.06)_40%,transparent_75%)] animate-light-shine-pulse" />
+          <div className="absolute -bottom-10 left-16 size-44 rounded-full bg-[radial-gradient(circle,rgba(186,230,253,0.20)_0%,rgba(56,189,248,0.05)_40%,transparent_75%)] animate-organic-morph" />
         </div>
         <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-transparent to-voxcina-cream/10" />
 
