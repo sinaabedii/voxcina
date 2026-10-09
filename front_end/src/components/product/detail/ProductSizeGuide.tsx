@@ -412,19 +412,20 @@ export default function ProductSizeGuide({
           isOpen={isZoomOpen}
           onClose={() => setIsZoomOpen(false)}
           title={`دیاگرام فنی و خطوط اندازه‌گیری: ${sizingType.name || ""}`}
-          contentClassName="max-w-3xl"
+          contentClassName="max-w-3xl h-full"
+          className="relative overflow-hidden p-0 sm:p-0"
         >
-          <div className="space-y-3 sm:space-y-4" dir="rtl">
-            <div className="relative w-full max-h-[55dvh] sm:max-h-[65vh] rounded-xl bg-white dark:bg-card/40 p-2 sm:p-4 flex items-center justify-center overflow-hidden border border-border/20 shadow-inner">
+          <div className="absolute inset-0 flex flex-col gap-3 p-4 sm:gap-4 sm:p-5" dir="rtl">
+            <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl bg-white border border-border/20 shadow-inner dark:bg-card/40">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={sizingType.image_path}
                 alt={sizingType.name || "دیاگرام فنی"}
-                className="max-h-[50dvh] sm:max-h-[60vh] max-w-full w-auto object-contain"
+                className="absolute inset-0 h-full w-full object-contain"
               />
             </div>
             {sizingType.general_fit_guide && (
-              <p className="text-xs text-muted-foreground leading-relaxed bg-secondary/30 p-2.5 sm:p-3 rounded-xl border border-border/10">
+              <p className="shrink-0 text-xs text-muted-foreground leading-relaxed bg-secondary/30 p-2.5 sm:p-3 rounded-xl border border-border/10">
                 {sizingType.general_fit_guide}
               </p>
             )}
