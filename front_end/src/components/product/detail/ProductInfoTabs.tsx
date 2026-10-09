@@ -17,7 +17,7 @@ import { Product } from "@/types/product";
 // Anything genuinely worth deferring from here must pass a `loading` fallback.
 
 const TABS = [
-  { key: "description", label: "توضیحات این محصول" },
+  { key: "description", label: "توضیحات" },
   { key: "care", label: "نحوه نگهداری" },
   { key: "sizeGuide", label: "جدول سایزبندی" },
 ] as const;
