@@ -1083,3 +1083,11 @@ input[type="checkbox"] + label > div > svg {
     animation: none !important;
   }
 }
+
+/* Below-the-fold PDP sections (info tabs, try-on, reviews) skip layout and
+   paint until they approach the viewport. `contain-intrinsic-size: auto`
+   remembers the last rendered size, so the scrollbar never jumps. */
+.pdp-section-defer {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 48rem;
+}

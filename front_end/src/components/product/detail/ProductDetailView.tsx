@@ -272,14 +272,14 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
       {/* Mobile sticky top bar that slides down on scroll */}
       <div
         className={cn(
-          "fixed inset-x-0 top-0 z-30 flex items-center justify-between overflow-hidden border-b border-white/90 bg-white/80 sm:bg-[#FAF7F2]/85 backdrop-blur-2xl backdrop-saturate-140 px-4 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] shadow-[0_10px_30px_rgba(26,60,105,0.08),inset_0_-1px_1px_rgba(255,255,255,0.95)] transition-transform duration-300 motion-reduce:transition-none lg:hidden",
+          "fixed inset-x-0 top-0 z-30 flex items-center justify-between overflow-hidden border-b border-white/90 bg-white/80 sm:bg-[#FAF7F2]/85 backdrop-blur-lg backdrop-saturate-125 px-4 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] shadow-[0_10px_30px_rgba(26,60,105,0.08),inset_0_-1px_1px_rgba(255,255,255,0.95)] transition-transform duration-300 motion-reduce:transition-none sm:backdrop-blur-2xl sm:backdrop-saturate-140 lg:hidden",
           isScrolled ? "translate-y-0" : "-translate-y-full pointer-events-none"
         )}
       >
-        {/* Subtle ambient light situation behind sticky bar */}
-        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden filter blur-3xl opacity-40" aria-hidden="true">
-          <div className="absolute -top-12 right-12 size-36 rounded-full bg-[radial-gradient(circle,rgba(254,240,138,0.24)_0%,rgba(245,158,11,0.06)_40%,transparent_75%)] animate-light-shine-pulse" />
-          <div className="absolute -top-12 left-12 size-36 rounded-full bg-[radial-gradient(circle,rgba(186,230,253,0.20)_0%,rgba(56,189,248,0.05)_40%,transparent_75%)] animate-organic-morph" />
+        {/* Subtle ambient light situation behind sticky bar (gradient-only — no blur filter) */}
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden opacity-40" aria-hidden="true">
+          <div className="absolute -top-12 right-12 size-36 rounded-full bg-[radial-gradient(circle,rgba(254,240,138,0.24)_0%,rgba(245,158,11,0.06)_38%,rgba(245,158,11,0.02)_62%,transparent_88%)] animate-light-shine-pulse" />
+          <div className="absolute -top-12 left-12 size-36 rounded-full bg-[radial-gradient(circle,rgba(186,230,253,0.20)_0%,rgba(56,189,248,0.05)_38%,rgba(56,189,248,0.015)_62%,transparent_88%)] animate-organic-morph" />
           <div className="absolute inset-0 bg-gradient-to-b from-white/60 to-transparent" />
         </div>
 
@@ -306,9 +306,9 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
 
       <div className="relative bg-voxcina-lightCream sm:rounded-[28px] sm:shadow-soft sm:border sm:border-voxcina-blue/10 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:rounded-[32px] lg:overflow-hidden">
         {/* Ambient light situation positioned behind the mobile glass sheet junction & lower gallery frame */}
-        <div className="pointer-events-none absolute inset-x-0 top-64 sm:top-80 h-96 z-0 overflow-hidden filter blur-3xl opacity-40 lg:hidden" aria-hidden="true">
+        <div className="pointer-events-none absolute inset-x-0 top-64 sm:top-80 h-96 z-0 overflow-hidden opacity-40 lg:hidden" aria-hidden="true">
           {/* Feather-light warm ambient situational wash */}
-          <div className="absolute -top-16 -right-16 size-[28rem] rounded-full will-change-transform transform-gpu animate-light-shine-pulse bg-[radial-gradient(circle,rgba(254,240,138,0.24)_0%,rgba(245,158,11,0.06)_40%,transparent_75%)]" />
+          <div className="absolute -top-16 -right-16 size-[28rem] rounded-full will-change-transform transform-gpu animate-light-shine-pulse bg-[radial-gradient(circle,rgba(254,240,138,0.24)_0%,rgba(245,158,11,0.06)_38%,rgba(245,158,11,0.02)_62%,transparent_88%)]" />
         </div>
 
         <ProductGallery
@@ -345,11 +345,11 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
         product={product}
         selectedSize={selection.selectedSize}
         onSelectSize={selection.setSize}
-        className="relative z-10 mt-6 px-3 sm:px-0 lg:mt-10"
+        className="pdp-section-defer relative z-10 mt-6 px-3 sm:px-0 lg:mt-10"
       />
 
       <ProductTryOnPanel
-        className={cn("relative z-10 mt-4 px-3 sm:mt-6 sm:px-0 lg:mt-10", !isTryOnAvailable && "hidden")}
+        className={cn("pdp-section-defer relative z-10 mt-4 px-3 sm:mt-6 sm:px-0 lg:mt-10", !isTryOnAvailable && "hidden")}
         isAvailable={isTryOnAvailable}
         isProcessing={isTryOnProcessing}
         resultImage={resultImage}
@@ -357,7 +357,7 @@ export default function ProductDetailView({ product, productUrl, reviews }: Prod
         onStart={handleTryOn}
       />
 
-      <section id="reviews" className="relative z-10 mt-6 scroll-mt-28 px-3 sm:px-0 lg:mt-10">
+      <section id="reviews" className="pdp-section-defer relative z-10 mt-6 scroll-mt-28 px-3 sm:px-0 lg:mt-10">
         <LazyMount fallback={<div className="min-h-[24rem]" />}>
           <ProductReviews
             productId={product.id}

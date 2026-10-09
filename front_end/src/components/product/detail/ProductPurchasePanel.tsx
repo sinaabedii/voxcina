@@ -87,22 +87,23 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
         )}
       >
         {/* Layer 1: Ethereal ambient light situation BEHIND the frosted glass */}
-        {/* Ultra-blurred, whisper-light, atmospheric illumination with zero hard contours */}
-        <div className="pointer-events-none absolute inset-0 -z-30 overflow-hidden filter blur-3xl opacity-50" aria-hidden="true">
+        {/* Feathered radial gradients only — a `filter: blur()` here would re-rasterize the
+            whole sheet every animation frame and stalls phone scrolling */}
+        <div className="pointer-events-none absolute inset-0 -z-30 overflow-hidden opacity-50" aria-hidden="true">
           {/* Ambient Warm Situational Aura (top-right) - soft champagne/gold glow */}
           <div
-            className="absolute -top-32 -right-24 size-[28rem] sm:size-[36rem] rounded-full opacity-70 will-change-transform transform-gpu animate-light-shine-pulse bg-[radial-gradient(circle_at_45%_45%,rgba(255,255,255,0.40)_0%,rgba(254,240,138,0.20)_25%,rgba(245,158,11,0.07)_50%,transparent_80%)]"
+            className="absolute -top-32 -right-24 size-[28rem] sm:size-[36rem] rounded-full opacity-70 will-change-transform transform-gpu animate-light-shine-pulse bg-[radial-gradient(circle_at_45%_45%,rgba(255,255,255,0.40)_0%,rgba(254,240,138,0.20)_22%,rgba(245,158,11,0.07)_45%,rgba(245,158,11,0.02)_66%,transparent_86%)]"
           />
 
           {/* Ambient Cool Celestial Situational Aura (mid/lower-left) - soft sky azure glow */}
           <div
-            className="absolute top-1/3 -left-28 size-[28rem] sm:size-[36rem] rounded-full opacity-60 will-change-transform transform-gpu animate-organic-morph bg-[radial-gradient(circle_at_45%_45%,rgba(255,255,255,0.35)_0%,rgba(186,230,253,0.16)_25%,rgba(56,189,248,0.05)_50%,transparent_80%)]"
+            className="absolute top-1/3 -left-28 size-[28rem] sm:size-[36rem] rounded-full opacity-60 will-change-transform transform-gpu animate-organic-morph bg-[radial-gradient(circle_at_45%_45%,rgba(255,255,255,0.35)_0%,rgba(186,230,253,0.16)_22%,rgba(56,189,248,0.05)_45%,rgba(56,189,248,0.015)_66%,transparent_86%)]"
           />
         </div>
 
         {/* Layer 2: True frosted glass surface with blur & saturation boost active on mobile & desktop */}
         <div
-          className="pointer-events-none absolute inset-0 -z-20 border-t border-white/90 bg-white/75 backdrop-blur-2xl backdrop-saturate-140 shadow-[inset_0_1.5px_1px_rgba(255,255,255,0.95),inset_0_-1px_1px_rgba(26,60,105,0.03)] sm:bg-[#FAF7F2]/80 lg:border-t-0 lg:border-r lg:border-voxcina-blue/10"
+          className="pointer-events-none absolute inset-0 -z-20 border-t border-white/90 bg-white/80 backdrop-blur-lg backdrop-saturate-125 shadow-[inset_0_1.5px_1px_rgba(255,255,255,0.95),inset_0_-1px_1px_rgba(26,60,105,0.03)] sm:bg-[#FAF7F2]/80 sm:backdrop-blur-2xl sm:backdrop-saturate-140 lg:border-t-0 lg:border-r lg:border-voxcina-blue/10"
           aria-hidden="true"
         />
 

@@ -84,7 +84,7 @@ export default function ProductStickyBar({
     <div
       aria-hidden={!isVisible}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg overflow-hidden rounded-t-[24px] border-x border-t border-white/90 bg-white/80 sm:bg-[#FAF7F2]/85 backdrop-blur-2xl backdrop-saturate-130 p-2 pb-[max(8px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(26,60,105,0.08),inset_0_1.5px_1px_rgba(255,255,255,0.95)] transition-transform duration-300 motion-reduce:transition-none lg:inset-x-6 lg:bottom-[max(12px,env(safe-area-inset-bottom))] lg:max-w-5xl lg:rounded-[28px] lg:border lg:p-3",
+        "fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg overflow-hidden rounded-t-[24px] border-x border-t border-white/90 bg-white/80 sm:bg-[#FAF7F2]/85 backdrop-blur-lg backdrop-saturate-125 p-2 pb-[max(8px,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(26,60,105,0.08),inset_0_1.5px_1px_rgba(255,255,255,0.95)] transition-transform duration-300 motion-reduce:transition-none sm:backdrop-blur-2xl sm:backdrop-saturate-130 lg:inset-x-6 lg:bottom-[max(12px,env(safe-area-inset-bottom))] lg:max-w-5xl lg:rounded-[28px] lg:border lg:p-3",
         isVisible ? "translate-y-0" : "pointer-events-none translate-y-[calc(100%+2rem)]"
       )}
     >
@@ -93,10 +93,10 @@ export default function ProductStickyBar({
         {/* Top edge hairline glass rim reflection */}
         <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/95 to-transparent" />
 
-        {/* Subtle ambient light situation behind bottom sticky glass bar */}
-        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden filter blur-3xl opacity-40" aria-hidden="true">
-          <div className="absolute -bottom-10 right-16 size-44 rounded-full bg-[radial-gradient(circle,rgba(254,240,138,0.24)_0%,rgba(245,158,11,0.06)_40%,transparent_75%)] animate-light-shine-pulse" />
-          <div className="absolute -bottom-10 left-16 size-44 rounded-full bg-[radial-gradient(circle,rgba(186,230,253,0.20)_0%,rgba(56,189,248,0.05)_40%,transparent_75%)] animate-organic-morph" />
+        {/* Subtle ambient light situation behind bottom sticky glass bar (gradient-only — no blur filter) */}
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden opacity-40" aria-hidden="true">
+          <div className="absolute -bottom-10 right-16 size-44 rounded-full bg-[radial-gradient(circle,rgba(254,240,138,0.24)_0%,rgba(245,158,11,0.06)_38%,rgba(245,158,11,0.02)_62%,transparent_88%)] animate-light-shine-pulse" />
+          <div className="absolute -bottom-10 left-16 size-44 rounded-full bg-[radial-gradient(circle,rgba(186,230,253,0.20)_0%,rgba(56,189,248,0.05)_38%,rgba(56,189,248,0.015)_62%,transparent_88%)] animate-organic-morph" />
         </div>
         <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-transparent to-voxcina-cream/10" />
 

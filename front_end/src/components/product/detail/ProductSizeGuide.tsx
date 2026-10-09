@@ -185,8 +185,9 @@ export default function ProductSizeGuide({
 
   return (
     <div className={cn("text-foreground leading-relaxed", className)} dir="rtl">
-      {/* Phone: summary, main table, one toggle. From sm up everything is shown;
-          from lg the diagram and table share a row. */}
+      {/* Phone: summary, diagram, main table, per-metric drop boxes, one
+          toggle for the fit guide. From sm up everything is shown; from lg the
+          diagram and table share a row. */}
       <div className="grid grid-cols-1 items-start gap-y-5 sm:gap-y-8 lg:grid-cols-12 lg:gap-x-8">
         {/* Summary */}
         <div className="order-1 flex flex-col gap-2 border-b border-border/20 pb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 lg:col-span-12">
@@ -210,8 +211,51 @@ export default function ProductSizeGuide({
           )}
         </div>
 
+        {/* Annotated technical diagram — always visible, directly above the
+            table, so nobody has to open anything to see it. */}
+        <div className="order-2 flex min-w-0 flex-col items-center lg:order-2 lg:col-span-5">
+          <div className="w-full relative group rounded-2xl border border-border/30 bg-card/60 backdrop-blur-sm p-3 shadow-soft text-center overflow-hidden sm:p-4">
+            {sizingType?.image_path ? (
+              <div className="relative w-full aspect-square max-h-[300px] flex items-center justify-center overflow-hidden rounded-xl bg-white dark:bg-card/40 p-2 sm:max-h-[340px]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={sizingType.image_path}
+                  alt={sizingType.name || "دیاگرام راهنمای اندازه"}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none motion-reduce:transform-none"
+                />
+
+                {/* Floating Lightbox Zoom Trigger */}
+                {allowZoom && (
+                  <button
+                    type="button"
+                    onClick={() => setIsZoomOpen(true)}
+                    className="absolute bottom-3 left-3 p-2 rounded-xl bg-background/80 hover:bg-background text-foreground shadow-md backdrop-blur-sm border border-border/20 transition-all opacity-80 group-hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 flex items-center gap-1.5 text-xs font-medium"
+                    title="مشاهده بزرگنمایی دیاگرام"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5" />
+                    <span>بزرگنمایی دیاگرام</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="w-full aspect-square max-h-[280px] flex flex-col items-center justify-center p-6 text-muted-foreground bg-secondary/20 rounded-xl sm:max-h-[300px]">
+                <Shirt className="w-12 h-12 stroke-[1.2] mb-3 text-muted-foreground/60" />
+                <span className="text-xs font-medium text-center">
+                  دیاگرام شماتیک ابعاد برای این نوع پوشاک
+                </span>
+              </div>
+            )}
+
+            <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
+              نقاط و خطوط اندازهگیری بر روی تصویر مشخص گردیده است.
+            </p>
+          </div>
+        </div>
+
         {/* Main: size table */}
-        <div className="order-2 min-w-0 space-y-3 lg:order-3 lg:col-span-7">
+        <div className="order-3 min-w-0 space-y-3 lg:order-3 lg:col-span-7">
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <span className="text-xs font-bold text-foreground">
               جدول ابعاد قطعات لباس (سانتی‌متر):
@@ -351,7 +395,7 @@ export default function ProductSizeGuide({
         {/* Per-measurement how-to: one drop box per metric. Collapsed on phones,
             always expanded from sm up. */}
         {guidedMeasurements.length > 0 && (
-          <div className="order-3 min-w-0 space-y-3 lg:order-4 lg:col-span-12">
+          <div className="order-4 min-w-0 space-y-3 lg:order-4 lg:col-span-12">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
                 <Sparkles className="w-4 h-4" />
@@ -378,18 +422,18 @@ export default function ProductSizeGuide({
           </div>
         )}
 
-        {/* Phone-only disclosure for the diagram and general fit guide */}
+        {/* Phone-only disclosure for the general fit guide */}
         <button
           type="button"
           onClick={() => setShowDetails((open) => !open)}
           aria-expanded={showDetails}
           aria-controls={detailsId}
-          className="order-4 flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 motion-reduce:transition-none sm:hidden"
+          className="order-5 flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 motion-reduce:transition-none sm:hidden"
         >
           <span>
             {showDetails
-              ? "بستن دیاگرام و راهنمای قواره"
-              : "مشاهده دیاگرام و راهنمای قواره"}
+              ? "بستن راهنمای قواره و انتخاب سایز"
+              : "مشاهده راهنمای قواره و انتخاب سایز"}
           </span>
           <ChevronDown
             aria-hidden="true"
@@ -403,48 +447,6 @@ export default function ProductSizeGuide({
         {/* Details: collapsed on phones, always shown from sm up. `contents`
             lets its children keep participating in the grid above. */}
         <div id={detailsId} className={cn(showDetails ? "contents" : "hidden sm:contents")}>
-          {/* Annotated technical diagram */}
-          <div className="order-5 flex min-w-0 flex-col items-center lg:order-2 lg:col-span-5">
-            <div className="w-full relative group rounded-2xl border border-border/30 bg-card/60 backdrop-blur-sm p-4 shadow-soft text-center overflow-hidden">
-              {sizingType?.image_path ? (
-                <div className="relative w-full aspect-square max-h-[340px] flex items-center justify-center overflow-hidden rounded-xl bg-white dark:bg-card/40 p-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={sizingType.image_path}
-                    alt={sizingType.name || "دیاگرام راهنمای اندازه"}
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none motion-reduce:transform-none"
-                  />
-
-                  {/* Floating Lightbox Zoom Trigger */}
-                  {allowZoom && (
-                    <button
-                      type="button"
-                      onClick={() => setIsZoomOpen(true)}
-                      className="absolute bottom-3 left-3 p-2 rounded-xl bg-background/80 hover:bg-background text-foreground shadow-md backdrop-blur-sm border border-border/20 transition-all opacity-80 group-hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 flex items-center gap-1.5 text-xs font-medium"
-                      title="مشاهده بزرگ‌نمایی دیاگرام"
-                    >
-                      <Maximize2 className="w-3.5 h-3.5" />
-                      <span>بزرگ‌نمایی دیاگرام</span>
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="w-full aspect-square max-h-[300px] flex flex-col items-center justify-center p-6 text-muted-foreground bg-secondary/20 rounded-xl">
-                  <Shirt className="w-12 h-12 stroke-[1.2] mb-3 text-muted-foreground/60" />
-                  <span className="text-xs font-medium text-center">
-                    دیاگرام شماتیک ابعاد برای این نوع پوشاک
-                  </span>
-                </div>
-              )}
-
-              <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
-                نقاط و خطوط اندازه‌گیری بر روی تصویر مشخص گردیده است.
-              </p>
-            </div>
-          </div>
-
           {/* Guidance: how to use the chart and the general fit guide */}
           <div className="order-6 min-w-0 space-y-6 border-t border-border/20 pt-6 lg:order-5 lg:col-span-12">
             <p className="text-xs text-muted-foreground leading-relaxed">
