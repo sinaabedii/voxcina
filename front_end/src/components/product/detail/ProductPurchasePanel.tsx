@@ -60,21 +60,23 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
       ? Math.round((1 - product.price / product.originalPrice) * 100)
       : 0;
 
-    const MAX_PREVIEW_COLORS = 4;
+    // Phone badges are slightly smaller so 4–5 colours fit before the "+N" badge
+    // that opens the colour-variants modal; sm+ keeps the roomier size. Below
+    // 360px the 5th swatch is hidden (see the badge's max-[359px] class) because
+    // five swatches plus the "+N" badge no longer fit there.
+    const MAX_PREVIEW_COLORS = 5;
     const selectedColorIndex = selection.colors.findIndex(
       (c) => (c.variantId || c.colorName) === selection.selectedColor
     );
     let previewColors = selection.colors;
     if (selection.colors.length > MAX_PREVIEW_COLORS) {
-      if (selectedColorIndex >= 3) {
-        previewColors = [
-          selection.colors[0],
-          selection.colors[1],
-          selection.colors[selectedColorIndex],
-        ];
-      } else {
-        previewColors = selection.colors.slice(0, 3);
-      }
+      const head = selection.colors.slice(0, 4);
+      previewColors =
+        selectedColorIndex >= 4
+          ? // The selected swatch must never be the hidden one, so it takes the
+            // 4th slot and the next unseen colour fills the 5th.
+            [head[0], head[1], head[2], selection.colors[selectedColorIndex], head[3]]
+          : [...head, selection.colors[4]];
     }
     const remainingColorsCount = selection.colors.length - previewColors.length;
 
@@ -175,8 +177,8 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
                   </button>
                 )}
               </div>
-              <div className="flex items-center gap-1.5 flex-nowrap">
-                {previewColors.map((color) => {
+              <div className="flex items-center gap-1 flex-nowrap sm:gap-1.5">
+                {previewColors.map((color, index) => {
                   const key = color.variantId || color.colorName;
                   const selected = selection.selectedColor === key;
                   const available = !selection.selectedSize || selection.colorsForSelectedSize.some((item) => item.variantId === color.variantId);
@@ -190,13 +192,14 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
                       title={color.colorName}
                       onClick={() => onColorChange(selected ? undefined : key)}
                       className={cn(
-                        "relative flex size-8 shrink-0 items-center justify-center rounded-lg transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-blue disabled:cursor-not-allowed disabled:opacity-35",
+                        "relative flex size-7 shrink-0 items-center justify-center rounded-lg transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-voxcina-blue disabled:cursor-not-allowed disabled:opacity-35 sm:size-8",
+                        index === 4 && "max-[359px]:hidden",
                         selected
                           ? "border border-dashed border-voxcina-blue bg-voxcina-blue/10 shadow-[0_2px_10px_rgba(26,60,105,0.18)]"
                           : "border border-voxcina-blue/15 bg-white/80 hover:border-voxcina-blue/30 hover:bg-white"
                       )}
                     >
-                      <span className="relative block size-5 overflow-hidden rounded-[5px] border border-voxcina-blue/20 shadow-xs" style={{ backgroundColor: color.color?.startsWith("#") ? color.color : "#DFD8CC" }}>
+                      <span className="relative block size-4 overflow-hidden rounded-[5px] border border-voxcina-blue/20 shadow-xs sm:size-5" style={{ backgroundColor: color.color?.startsWith("#") ? color.color : "#DFD8CC" }}>
                         {color.swatchImage && <Image src={color.swatchImage} alt="" fill sizes="20px" className="object-cover" />}
                       </span>
                       {selected && <Check className="absolute size-2.5 rounded-full bg-voxcina-blue p-0.5 text-white shadow-xs" aria-hidden="true" />}
@@ -209,7 +212,7 @@ const ProductPurchasePanel = forwardRef<HTMLDivElement, ProductPurchasePanelProp
                     onClick={() => setIsColorModalOpen(true)}
                     aria-label={`مشاهده ${toPersianNumber(remainingColorsCount)} رنگ دیگر`}
                     title={`مشاهده ${toPersianNumber(remainingColorsCount)} رنگ دیگر`}
-                    className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-voxcina-blue/15 bg-white/80 text-xs font-bold text-voxcina-blue shadow-xs transition-all hover:border-voxcina-blue/30 hover:bg-white active:scale-95 focus-visible:outline-2 focus-visible:outline-voxcina-blue"
+                    className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-voxcina-blue/15 bg-white/80 text-xs font-bold text-voxcina-blue shadow-xs transition-all hover:border-voxcina-blue/30 hover:bg-white active:scale-95 focus-visible:outline-2 focus-visible:outline-voxcina-blue sm:size-8"
                   >
                     {toPersianNumber(remainingColorsCount)}+
                   </button>
